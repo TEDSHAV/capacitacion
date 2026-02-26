@@ -263,7 +263,8 @@ export default function OSIDetailPage() {
                 <button
                   onClick={handleSave}
                   disabled={isLoading}
-                  className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-md"
+                  style={{ backgroundColor: '#4f46e5', color: 'white' }}
                 >
                   {isLoading ? 'Guardando...' : (isNew ? 'Crear' : 'Actualizar')}
                 </button>
@@ -278,7 +279,8 @@ export default function OSIDetailPage() {
                 {!isNew && (
                   <button
                     onClick={handleDelete}
-                    className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors"
+                    className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors shadow-md"
+                    style={{ backgroundColor: '#dc2626', color: 'white' }}
                   >
                     Eliminar
                   </button>
@@ -288,13 +290,15 @@ export default function OSIDetailPage() {
               <>
                 <button
                   onClick={startEditing}
-                  className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                  className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors shadow-md"
+                  style={{ backgroundColor: '#4f46e5', color: 'white' }}
                 >
                   Editar
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors"
+                  className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors shadow-md"
+                  style={{ backgroundColor: '#dc2626', color: 'white' }}
                 >
                   Eliminar
                 </button>
@@ -737,7 +741,8 @@ export default function OSIDetailPage() {
             <button
               onClick={handleSave}
               disabled={isLoading}
-              className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-md"
+              style={{ backgroundColor: '#4f46e5', color: 'white' }}
             >
               {isLoading ? 'Creando...' : 'Crear OSI'}
             </button>
