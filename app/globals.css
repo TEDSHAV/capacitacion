@@ -18,7 +18,32 @@ html, body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Ensure buttons and interactive elements are visible */
-button, a, input, select, textarea {
-  background-color: initial !important;
+/* Ensure buttons have proper styling */
+button:not([class*="text-indigo-600"]) {
+  background-color: var(--tw-bg-opacity, rgb(79 70 229)) !important;
+}
+
+button.bg-indigo-600 {
+  background-color: rgb(79 70 229) !important;
+}
+
+button.bg-red-600 {
+  background-color: rgb(220 38 38) !important;
+}
+
+button.bg-gray-600 {
+  background-color: rgb(75 85 99) !important;
+}
+
+/* Link-style buttons should have transparent background */
+button[class*="text-indigo-600"],
+button.text-indigo-600 {
+  background-color: transparent !important;
+  background: none !important;
+}
+
+/* Most specific rule for the volver button */
+button[class*="text-indigo-600"][class*="hover:text-indigo-900"] {
+  background-color: transparent !important;
+  background: none !important;
 }
