@@ -13,7 +13,6 @@ export default function Navbar() {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      console.log('Supabase user:', user)
       setUser(user)
     }
 
@@ -22,7 +21,6 @@ export default function Navbar() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event: any, session: any) => {
-        console.log('Auth state changed, session:', session)
         setUser(session?.user || null)
       }
     )

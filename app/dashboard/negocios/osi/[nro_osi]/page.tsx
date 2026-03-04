@@ -159,7 +159,8 @@ export default function OSIDetailPage() {
         ejecutivo_negocios: Number(formData.ejecutivo_negocios) || null,
         cliente_nombre_empresa: formData.cliente_nombre_empresa?.trim() || '',
         tema: formData.tema?.trim() || null,
-        fecha_servicio: formData.fecha_servicio ? new Date(formData.fecha_servicio) : null,
+        fecha_servicio: formData.fecha_servicio ? 
+          (formData.fecha_servicio instanceof Date ? formData.fecha_servicio : new Date(formData.fecha_servicio)).toISOString().split('T')[0] : null,
         nro_sesiones: Number(formData.nro_sesiones) || 1,
         fecha_ejecucion1: formData.fecha_ejecucion1 || null,
         fecha_ejecucion2: formData.fecha_ejecucion2 || null,
@@ -185,19 +186,13 @@ export default function OSIDetailPage() {
       }
       
       if (isNew) {
-        console.log('Data being sent to Supabase:', dataToSave)
         const { error } = await supabase.from("osi").insert([dataToSave])
         if (error) {
-          console.error('Supabase insert error:', error)
-          console.error('Error details:', JSON.stringify(error, null, 2))
           throw error
         }
       } else if (osi) {
-        console.log('Data being sent to Supabase for update:', dataToSave)
         const { error } = await supabase.from("osi").update(dataToSave).eq("id", osi.id)
         if (error) {
-          console.error('Supabase update error:', error)
-          console.error('Error details:', JSON.stringify(error, null, 2))
           throw error
         }
       }
@@ -564,7 +559,8 @@ export default function OSIDetailPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Servicio</label>
                 <input
                   type="date"
-                  value={formData.fecha_servicio ? formData.fecha_servicio.toISOString().split('T')[0] : ''}
+                  value={formData.fecha_servicio ? 
+                    (formData.fecha_servicio instanceof Date ? formData.fecha_servicio : new Date(formData.fecha_servicio)).toISOString().split('T')[0] : ''}
                   onChange={(e) => updateFormData('fecha_servicio', e.target.value ? new Date(e.target.value) : null)}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
