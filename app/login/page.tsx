@@ -1,13 +1,13 @@
 import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
+import { createClient } from '@/utils/supabase/server'
 import LoginForm from '@/components/LoginForm'
 
 export default async function LoginPage() {
   // Check if user is already logged in
-  const cookieStore = await cookies()
-  const userCookie = cookieStore.get('user')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   
-  if (userCookie) {
+  if (user) {
     redirect('/dashboard')
   }
 
