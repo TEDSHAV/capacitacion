@@ -20,8 +20,9 @@ interface OSI {
   certificado_impreso: boolean
   carnet_impreso: boolean
   observaciones_adicionales: string
-  costo_honorarios_hora: number
-  costo_horas: number
+  costo_honorarios: number
+  nro_horas: number
+  costo_total: number
   costo_impresion_material: number
   costo_traslado: number
   costo_logistica_comida: number
@@ -73,8 +74,9 @@ export default function OSIDetailPage() {
     certificado_impreso: false,
     carnet_impreso: false,
     observaciones_adicionales: '',
-    costo_honorarios_hora: 12,
-    costo_horas: 6,
+    costo_honorarios: 12,
+    nro_horas: 6,
+    costo_total: 0,
     costo_impresion_material: 0,
     costo_traslado: 0,
     costo_logistica_comida: 0,
@@ -340,8 +342,15 @@ export default function OSIDetailPage() {
         certificado_impreso: Boolean(formData.certificado_impreso),
         carnet_impreso: Boolean(formData.carnet_impreso),
         observaciones_adicionales: formData.observaciones_adicionales?.trim() || null,
-        costo_honorarios_hora: Number(formData.costo_honorarios_hora) || 0,
-        costo_horas: Number(formData.costo_horas) || 0,
+        costo_honorarios: Number(formData.costo_honorarios) || 0,
+        nro_horas: Number(formData.nro_horas) || 0,
+        costo_total: (
+          ((formData.nro_horas || 0) * (formData.costo_honorarios || 0)) +
+          (formData.costo_impresion_material || 0) +
+          (formData.costo_traslado || 0) +
+          (formData.costo_logistica_comida || 0) +
+          (formData.costo_otros || 0)
+        ),
         costo_impresion_material: Number(formData.costo_impresion_material) || 0,
         costo_traslado: Number(formData.costo_traslado) || null,
         costo_logistica_comida: Number(formData.costo_logistica_comida) || null,
@@ -1060,8 +1069,8 @@ export default function OSIDetailPage() {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={formData.costo_horas || 0}
-                  onChange={(e) => updateFormData('costo_horas', parseFloat(e.target.value) || 0)}
+                  value={formData.nro_horas || 0}
+                  onChange={(e) => updateFormData('nro_horas', parseFloat(e.target.value) || 0)}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
@@ -1073,8 +1082,8 @@ export default function OSIDetailPage() {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={formData.costo_honorarios_hora || 0}
-                  onChange={(e) => updateFormData('costo_honorarios_hora', parseFloat(e.target.value) || 0)}
+                  value={formData.costo_honorarios || 0}
+                  onChange={(e) => updateFormData('costo_honorarios', parseFloat(e.target.value) || 0)}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
@@ -1083,7 +1092,7 @@ export default function OSIDetailPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Total Honorarios x Sesión</label>
                 <div className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
-                  ${((formData.costo_horas || 0) * (formData.costo_honorarios_hora || 0)).toFixed(2)}
+                  ${((formData.nro_horas || 0) * (formData.costo_honorarios || 0)).toFixed(2)}
                 </div>
               </div>
               <div>
@@ -1148,7 +1157,7 @@ export default function OSIDetailPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Gran Total</label>
                   <div className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-900 font-semibold">
                     ${(
-                      ((formData.costo_horas || 0) * (formData.costo_honorarios_hora || 0)) +
+                      ((formData.nro_horas || 0) * (formData.costo_honorarios || 0)) +
                       (formData.costo_impresion_material || 0) +
                       (formData.costo_traslado || 0) +
                       (formData.costo_logistica_comida || 0) +
