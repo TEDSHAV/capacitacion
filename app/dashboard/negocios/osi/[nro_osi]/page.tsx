@@ -13,6 +13,7 @@ interface OSI {
   ejecutivo_negocios: number
   cliente_nombre_empresa: string
   tema: string
+  fecha_emision: Date | null
   fecha_servicio: Date | null
   participantes_max: number
   detalle_sesion: string
@@ -30,6 +31,11 @@ interface OSI {
   direccion_fiscal: string
   direccion_envio: string
   persona_contacto_id: number
+  contacto_nombre: string
+  contacto_apellido: string
+  contacto_telefono: string
+  contacto_email: string
+  contacto_email2: string
   direccion_ejecucion: string
   nro_sesiones: number
   fecha_ejecucion1: string
@@ -53,6 +59,7 @@ export default function OSIDetailPage() {
     ejecutivo_negocios: 0,
     cliente_nombre_empresa: '',
     tema: '',
+    fecha_emision: new Date(),
     fecha_servicio: null,
     nro_sesiones: 1,
     fecha_ejecucion1: '',
@@ -76,6 +83,11 @@ export default function OSIDetailPage() {
     direccion_fiscal: '',
     direccion_envio: '',
     persona_contacto_id: 0,
+    contacto_nombre: '',
+    contacto_apellido: '',
+    contacto_telefono: '',
+    contacto_email: '',
+    contacto_email2: '',
     direccion_ejecucion: ''
   })
 
@@ -92,6 +104,7 @@ export default function OSIDetailPage() {
   const [catalogoServicios, setCatalogoServicios] = useState<any[]>([])
   const [temaSearchTerm, setTemaSearchTerm] = useState('')
   const [filteredCatalogoServicios, setFilteredCatalogoServicios] = useState<any[]>([])
+  const [contactos, setContactos] = useState<any[]>([])
 
   useEffect(() => {
     const nro_osi = params.nro_osi as string
@@ -100,6 +113,7 @@ export default function OSIDetailPage() {
     loadEmpresas()
     loadServicios()
     loadUsuarios()
+    loadContactos()
     
     if (nro_osi === 'new') {
       setIsNew(true)
@@ -130,6 +144,15 @@ export default function OSIDetailPage() {
       setFilteredCatalogoServicios([])
     }
   }, [formData.tipo_servicio])
+
+  useEffect(() => {
+    // Load contactos when empresa changes
+    if (formData.cliente_nombre_empresa) {
+      loadContactos()
+    } else {
+      setContactos([])
+    }
+  }, [formData.cliente_nombre_empresa])
 
   useEffect(() => {
     // Filter catalogo_servicios based on tema search term
@@ -222,6 +245,37 @@ export default function OSIDetailPage() {
     }
   }
 
+  const loadContactos = async () => {
+    try {
+      // Find the selected empresa
+      const selectedEmpresa = empresas.find(e => e.razon_social === formData.cliente_nombre_empresa)
+      
+      console.log('Selected empresa:', selectedEmpresa)
+      console.log('Available empresas:', empresas)
+      
+      if (!selectedEmpresa) {
+        console.log('No empresa selected, clearing contactos')
+        setContactos([])
+        return
+      }
+
+      console.log('Querying contactos for empresa_id:', selectedEmpresa.id)
+
+      const { data, error } = await supabase
+        .from("contactos")
+        .select("id, nombre, apellido, telefono, email, email2")
+        .eq("id_empresa", selectedEmpresa.id)
+        .order("nombre")
+      
+      console.log('Contactos query result:', { data, error })
+      
+      if (error) throw error
+      setContactos(data || [])
+    } catch (err) {
+      console.error('Error loading contactos:', err)
+    }
+  }
+
   const loadOSI = async (osiNumber: string) => {
     try {
       setLoading(true)
@@ -269,6 +323,8 @@ export default function OSIDetailPage() {
         ejecutivo_negocios: Number(formData.ejecutivo_negocios) || null,
         cliente_nombre_empresa: formData.cliente_nombre_empresa?.trim() || '',
         tema: formData.tema?.trim() || null,
+        fecha_emision: formData.fecha_emision ? 
+          (formData.fecha_emision instanceof Date ? formData.fecha_emision : new Date(formData.fecha_emision)).toISOString().split('T')[0] : null,
         fecha_servicio: formData.fecha_servicio ? 
           (formData.fecha_servicio instanceof Date ? formData.fecha_servicio : new Date(formData.fecha_servicio)).toISOString().split('T')[0] : null,
         nro_sesiones: Number(formData.nro_sesiones) || 1,
@@ -293,6 +349,11 @@ export default function OSIDetailPage() {
         direccion_fiscal: formData.direccion_fiscal?.trim() || '',
         direccion_envio: formData.direccion_envio?.trim() || '',
         persona_contacto_id: Number(formData.persona_contacto_id) || null,
+        contacto_nombre: formData.contacto_nombre?.trim() || null,
+        contacto_apellido: formData.contacto_apellido?.trim() || null,
+        contacto_telefono: formData.contacto_telefono?.trim() || null,
+        contacto_email: formData.contacto_email?.trim() || null,
+        contacto_email2: formData.contacto_email2?.trim() || null,
         direccion_ejecucion: formData.direccion_ejecucion?.trim() || ''
       }
       
@@ -525,6 +586,13 @@ export default function OSIDetailPage() {
                               updateFormData('direccion_fiscal', normalizedAddress)
                               updateFormData('direccion_ejecucion', normalizedAddress)
                               updateFormData('direccion_envio', normalizedAddress)
+                              // Clear contacto fields when empresa changes
+                              updateFormData('persona_contacto_id', 0)
+                              updateFormData('contacto_nombre', '')
+                              updateFormData('contacto_apellido', '')
+                              updateFormData('contacto_telefono', '')
+                              updateFormData('contacto_email', '')
+                              updateFormData('contacto_email2', '')
                               setSearchTerm('')
                             }}
                           >
@@ -715,7 +783,18 @@ export default function OSIDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Detalles Servicio</h2>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Tema</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Emisión</label>
+              <input
+                type="date"
+                value={formData.fecha_emision ? 
+                  (formData.fecha_emision instanceof Date ? formData.fecha_emision : new Date(formData.fecha_emision)).toISOString().split('T')[0] : ''}
+                onChange={(e) => updateFormData('fecha_emision', e.target.value ? new Date(e.target.value) : null)}
+                disabled={!isEditing && !isNew}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">No.Sesiones</label>
               <select
                 value={formData.nro_sesiones || 1}
                 onChange={(e) => updateFormData('nro_sesiones', parseInt(e.target.value))}
@@ -732,7 +811,7 @@ export default function OSIDetailPage() {
             {Array.from({ length: formData.nro_sesiones || 1 }, (_, index) => (
               <div key={index}>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de Sesión {index + 1}
+                  {formData.nro_sesiones === 1 ? 'Fecha de Ejecución' : `Fecha de Ejecución ${index + 1}`}
                 </label>
                 <input
                   type="date"
@@ -752,29 +831,76 @@ export default function OSIDetailPage() {
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Persona Contacto ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Persona Contacto</label>
+                <select
+                  value={formData.persona_contacto_id || ''}
+                  onChange={(e) => {
+                    const contactoId = parseInt(e.target.value) || 0
+                    updateFormData('persona_contacto_id', contactoId)
+                    
+                    // Find selected contacto and populate fields
+                    const selectedContacto = contactos.find(c => c.id === contactoId)
+                    if (selectedContacto) {
+                      updateFormData('contacto_nombre', selectedContacto.nombre)
+                      updateFormData('contacto_apellido', selectedContacto.apellido)
+                      updateFormData('contacto_telefono', selectedContacto.telefono)
+                      updateFormData('contacto_email', selectedContacto.email)
+                      updateFormData('contacto_email2', selectedContacto.email2 || '')
+                    } else {
+                      // Clear fields if no contacto selected
+                      updateFormData('contacto_nombre', '')
+                      updateFormData('contacto_apellido', '')
+                      updateFormData('contacto_telefono', '')
+                      updateFormData('contacto_email', '')
+                      updateFormData('contacto_email2', '')
+                    }
+                  }}
+                  disabled={!isEditing && !isNew || !formData.cliente_nombre_empresa}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  <option value="">Seleccione un contacto</option>
+                  {contactos.map((contacto) => (
+                    <option key={contacto.id} value={contacto.id}>
+                      {contacto.nombre} {contacto.apellido}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono Contacto</label>
                 <input
-                  type="number"
-                  value={formData.persona_contacto_id || 0}
-                  onChange={(e) => updateFormData('persona_contacto_id', parseInt(e.target.value) || 0)}
+                  type="tel"
+                  value={formData.contacto_telefono || ''}
+                  onChange={(e) => updateFormData('contacto_telefono', e.target.value)}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  placeholder="ID de la persona de contacto"
+                  placeholder="Teléfono del contacto"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email Contacto</label>
+                <input
+                  type="email"
+                  value={formData.contacto_email || ''}
+                  onChange={(e) => updateFormData('contacto_email', e.target.value)}
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  placeholder="Email del contacto"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email Contacto 2</label>
+                <input
+                  type="email"
+                  value={formData.contacto_email2 || ''}
+                  onChange={(e) => updateFormData('contacto_email2', e.target.value)}
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  placeholder="Email secundario del contacto"
                 />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Dirección Fiscal ID</label>
-                <input
-                  type="number"
-                  value={formData.direccion_fiscal || 0}
-                  onChange={(e) => updateFormData('direccion_fiscal', parseInt(e.target.value) || 0)}
-                  disabled={!isEditing && !isNew}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  placeholder="ID de dirección fiscal"
-                />
-              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Servicio</label>
                 <input
@@ -888,28 +1014,6 @@ export default function OSIDetailPage() {
 
             {/* Addresses */}
             <div className="space-y-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Dirección Ejecución</label>
-                <textarea
-                  value={formData.direccion_ejecucion || ''}
-                  onChange={(e) => updateFormData('direccion_ejecucion', e.target.value)}
-                  disabled={!isEditing && !isNew}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  rows={2}
-                  placeholder="Dirección de ejecución"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Dirección Envío</label>
-                <textarea
-                  value={formData.direccion_envio || ''}
-                  onChange={(e) => updateFormData('direccion_envio', e.target.value)}
-                  disabled={!isEditing && !isNew}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  rows={2}
-                  placeholder="Dirección de envío"
-                />
-              </div>
             </div>
 
             {/* Certificates */}
