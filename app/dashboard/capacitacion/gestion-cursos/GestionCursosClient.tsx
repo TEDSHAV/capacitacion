@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { createCurso, updateCurso, deleteCurso, duplicateCurso } from "./actions";
+import CourseActions from "./CourseActions";
+import CreateCourseButton from "./CreateCourseButton";
+import EmpresaSearch from "./EmpresaSearch";
 
 interface Empresa {
   id: string;
@@ -13,9 +17,10 @@ interface Empresa {
 
 interface Curso {
   id: string;
-  titulo: string;
-  contenido: string;
-  empresa_id?: string;
+  nombre: string;
+  contenido_curso: string;
+  cliente_asociado?: string;
+  tipo_servicio?: number;
   created_at: string;
   empresas?: {
     razon_social: string;
@@ -35,28 +40,79 @@ export default function GestionCursosClient({
 }: GestionCursosClientProps) {
   const router = useRouter();
   const [creandoCurso, setCreandoCurso] = useState(false);
+  const [editandoCurso, setEditandoCurso] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [selectedEmpresa, setSelectedEmpresa] = useState<Empresa | null>(null);
   const [datosFormulario, setDatosFormulario] = useState({
     titulo: "",
     empresa_id: "",
     contenido: ""
   });
+  const [error, setError] = useState<string | null>(null);
 
   // Handle Escape key to close modal
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && creandoCurso) {
+      if (event.key === 'Escape' && (creandoCurso || editandoCurso)) {
         setCreandoCurso(false);
+        setEditandoCurso(null);
+        resetForm();
       }
     };
 
-    if (creandoCurso) {
+    if (creandoCurso || editandoCurso) {
       document.addEventListener('keydown', handleEscapeKey);
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscapeKey);
     };
-  }, [creandoCurso]);
+  }, [creandoCurso, editandoCurso]);
+
+  const handleEmpresaSelect = (empresaId: string, empresaData: Empresa) => {
+    setDatosFormulario(prev => ({ ...prev, empresa_id: empresaId }));
+    setSelectedEmpresa(empresaData);
+  };
+
+  const resetForm = () => {
+    setDatosFormulario({
+      titulo: "",
+      empresa_id: "",
+      contenido: ""
+    });
+    setSelectedEmpresa(null);
+    setError(null);
+  };
+
+  const abrirModalEdicion = (curso: Curso) => {
+    // Find the empresa data if cliente_asociado exists
+    const empresaData = curso.cliente_asociado ? empresas.find(emp => emp.id === curso.cliente_asociado) || null : null;
+    
+    setDatosFormulario({
+      titulo: curso.nombre || "",
+      empresa_id: curso.cliente_asociado || "",
+      contenido: curso.contenido_curso || ""
+    });
+    setSelectedEmpresa(empresaData);
+    setEditandoCurso(curso.id);
+    setError(null);
+  };
+
+  const cerrarModal = () => {
+    setCreandoCurso(false);
+    setEditandoCurso(null);
+    resetForm();
+  };
+
+  // Filter courses based on search
+  const cursosFiltrados = cursos.filter(curso => {
+    const terminoBusqueda = busqueda.toLowerCase();
+    return (
+      curso.nombre?.toLowerCase().includes(terminoBusqueda) ||
+      curso.contenido_curso?.toLowerCase().includes(terminoBusqueda) ||
+      (curso.empresas?.razon_social?.toLowerCase().includes(terminoBusqueda) || false)
+    );
+  });
 
   const manejarCambioInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -68,33 +124,59 @@ export default function GestionCursosClient({
 
   const manejarEnvio = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
     try {
-      const response = await fetch('/api/cursos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...datosFormulario,
-          empresa_id: datosFormulario.empresa_id || null
-        }),
-      });
+      const formData = new FormData();
+      formData.append('titulo', datosFormulario.titulo);
+      formData.append('empresa_id', datosFormulario.empresa_id);
+      formData.append('contenido', datosFormulario.contenido);
 
-      if (response.ok) {
-        // Reset form and refresh
-        setDatosFormulario({
-          titulo: "",
-          empresa_id: "",
-          contenido: ""
-        });
-        setCreandoCurso(false);
+      let result;
+      if (editandoCurso) {
+        result = await updateCurso(editandoCurso, formData);
+      } else {
+        result = await createCurso(formData);
+      }
+
+      if (result.success) {
+        cerrarModal();
         router.refresh();
       } else {
-        console.error('Error creating course');
+        setError(result.error || 'Error al guardar el curso');
       }
     } catch (error) {
-      console.error('Error:', error);
+            setError('Error interno del servidor');
+    }
+  };
+
+  const manejarDuplicacion = async (id: string) => {
+    try {
+      const result = await duplicateCurso(id);
+      if (result.success) {
+        router.refresh();
+      } else {
+        setError(result.error || 'Error al duplicar el curso');
+      }
+    } catch (error) {
+            setError('Error interno del servidor');
+    }
+  };
+
+  const manejarEliminacion = async (id: string) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este curso?')) {
+      return;
+    }
+
+    try {
+      const result = await deleteCurso(id);
+      if (result.success) {
+        router.refresh();
+      } else {
+        setError(result.error || 'Error al eliminar el curso');
+      }
+    } catch (error) {
+            setError('Error interno del servidor');
     }
   };
 
@@ -125,30 +207,31 @@ export default function GestionCursosClient({
               Crear y administrar contenidos de cursos
             </p>
           </div>
-          <button
-            onClick={() => setCreandoCurso(true)}
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md"
-            style={{ backgroundColor: 'var(--primary-blue)' }}
-          >
-            + Nuevo Curso
-          </button>
+          <CreateCourseButton onClick={() => setCreandoCurso(true)} />
         </div>
 
-        {/* Create Course Modal */}
-        {creandoCurso && (
+        {/* Create/Edit Course Modal */}
+        {(creandoCurso || editandoCurso) && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Crear Nuevo Curso
+                  {editandoCurso ? 'Editar Curso' : 'Crear Nuevo Curso'}
                 </h2>
                 <button
-                  onClick={() => setCreandoCurso(false)}
+                  onClick={cerrarModal}
                   className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
                 >
                   <span className="text-lg font-light">×</span>
                 </button>
               </div>
+
+              {/* Error Display */}
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                  {error}
+                </div>
+              )}
 
               <form onSubmit={manejarEnvio} className="space-y-4">
                 {/* Title */}
@@ -170,29 +253,17 @@ export default function GestionCursosClient({
 
                 {/* Subtitle removed - not needed */}
 
-                {/* Client Dropdown */}
+                {/* Client Search */}
                 <div>
-                  <label htmlFor="empresa_id" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Vincular a Empresa (opcional)
                   </label>
-                  <select
-                    id="empresa_id"
-                    name="empresa_id"
+                  <EmpresaSearch
+                    empresas={empresas}
                     value={datosFormulario.empresa_id}
-                    onChange={manejarCambioInput}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">Curso General</option>
-                    {empresas.length === 0 ? (
-                      <option value="" disabled>No hay empresas disponibles</option>
-                    ) : (
-                      empresas.map((empresa) => (
-                        <option key={empresa.id} value={empresa.id}>
-                          {empresa.razon_social}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                    onChange={handleEmpresaSelect}
+                    placeholder="Buscar empresa por nombre, RIF o código..."
+                  />
                 </div>
 
                 {/* Content */}
@@ -219,7 +290,7 @@ export default function GestionCursosClient({
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
-                    onClick={() => setCreandoCurso(false)}
+                    onClick={cerrarModal}
                     className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition-colors shadow-md"
                     style={{ backgroundColor: 'var(--primary-gray)' }}
                   >
@@ -230,7 +301,7 @@ export default function GestionCursosClient({
                     className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md"
                     style={{ backgroundColor: 'var(--primary-blue)' }}
                   >
-                    Crear Curso
+                    {editandoCurso ? 'Actualizar Curso' : 'Crear Curso'}
                   </button>
                 </div>
               </form>
@@ -241,44 +312,78 @@ export default function GestionCursosClient({
         {/* Courses List */}
         <div className="bg-white shadow rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Cursos Existentes
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Cursos Existentes
+              </h2>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar cursos..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="w-full sm:w-80 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <svg
+                  className="absolute left-3 top-2.5 w-4 h-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
+            </div>
           </div>
           
-          {cursos.length === 0 ? (
+          {cursosFiltrados.length === 0 ? (
             <div className="px-6 py-8 text-center">
-              <p className="text-gray-500">No hay cursos creados aún</p>
+              <p className="text-gray-500">
+                {busqueda ? 'No se encontraron cursos que coincidan con tu búsqueda' : 'No hay cursos creados aún'}
+              </p>
               <p className="text-sm text-gray-400 mt-1">
-                Crea tu primer curso haciendo clic en el botón "Nuevo Curso"
+                {busqueda ? 'Intenta con otros términos de búsqueda' : 'Crea tu primer curso haciendo clic en el botón "Nuevo Curso"'}
               </p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {cursos.map((curso) => (
+              {cursosFiltrados.map((curso) => (
                 <div key={curso.id} className="px-6 py-4 hover:bg-gray-50">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <h3 className="text-lg font-medium text-gray-900">
-                        {curso.titulo}
+                        {curso.nombre}
                       </h3>
+                      {curso.empresas && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          Cliente: {curso.empresas.razon_social}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-400 mt-2">
                         Creado: {new Date(curso.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex space-x-2 ml-4">
-                      <button className="text-blue-600 hover:text-blue-900 text-sm font-medium">
-                        Editar
-                      </button>
-                      <button className="text-red-600 hover:text-red-900 text-sm font-medium">
-                        Eliminar
-                      </button>
-                    </div>
+                    <CourseActions 
+                      curso={curso}
+                      onEdit={abrirModalEdicion}
+                      onDelete={manejarEliminacion}
+                      onDuplicate={manejarDuplicacion}
+                    />
                   </div>
                 </div>
               ))}
             </div>
           )}
+          
+          {/* Bottom Create Button */}
+          <div className="flex justify-end px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <CreateCourseButton onClick={() => setCreandoCurso(true)} className="w-full sm:w-auto" />
+          </div>
         </div>
       </div>
     </div>
