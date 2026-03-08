@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
-import SignupForm from '@/components/SignupForm'
+import SignupForm from '@/components/signup-form'
 
 export default async function SignupPage() {
   // Check if user is already logged in

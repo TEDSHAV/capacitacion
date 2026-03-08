@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import Image from 'next/image'
 
-export default function Navbar() {
+const Navbar = () => {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const supabase = createClient() // Create client once
@@ -101,3 +101,5 @@ export default function Navbar() {
     </nav>
   )
 }
+
+export default Navbar
