@@ -88,6 +88,13 @@ export interface CertificateGeneration {
   updated_at?: string;
 }
 
+export interface CourseTopic {
+  id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+}
+
 export interface CertificateParticipant {
   id?: string;
   name: string;
@@ -95,9 +102,21 @@ export interface CertificateParticipant {
   score?: number;
 }
 
-export interface CourseTopic {
-  id: string;
-  name: string;
-  description?: string;
-  created_at?: string;
+export interface CertificateFormProps {
+  certificateData: CertificateGeneration;
+  selectedOSI: OSI | null;
+  selectedCourseTopic: CourseTopic | null;
+  onDataChange: (field: keyof CertificateGeneration, value: any) => void;
+  onParticipantsChange: (participants: CertificateParticipant[]) => void;
+  onGenerate: () => void;
+}
+
+export interface LocationSearchProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export interface ParticipantsSectionProps {
+  participants: CertificateParticipant[];
+  onChange: (participants: CertificateParticipant[]) => void;
 }
