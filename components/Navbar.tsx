@@ -58,6 +58,7 @@ const Navbar = () => {
               alt="Logo de la Empresa" 
               width={120} 
               height={120}
+              loading='eager'
               className="cursor-pointer hover:opacity-80 transition-opacity duration-200 h-12 w-auto object-contain"
               onClick={() => router.push('/dashboard')}
             />
