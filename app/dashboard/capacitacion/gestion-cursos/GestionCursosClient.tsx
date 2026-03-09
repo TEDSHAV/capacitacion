@@ -340,7 +340,7 @@ export default function GestionCursosClient({
                         </p>
                       )}
                       <p className="text-xs text-gray-400 mt-2">
-                        Creado: {new Date(curso.created_at).toLocaleDateString()}
+                        Creado: {new Date(curso.created_at).toLocaleDateString('en-US')}
                       </p>
                     </div>
                     <CourseActions 

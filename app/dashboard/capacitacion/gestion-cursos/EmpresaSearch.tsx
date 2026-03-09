@@ -67,7 +67,7 @@ export default function EmpresaSearch({
 
   const handleInputBlur = () => {
     // Delay closing to allow click on options
-    setTimeout(() => setIsDropdownOpen(false), 200);
+    setTimeout(() => setIsDropdownOpen(false), 300); // Increased delay
   };
 
   return (
@@ -84,7 +84,8 @@ export default function EmpresaSearch({
       />
       
       {isDropdownOpen && searchTerm && filteredEmpresas.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto"
+             onMouseDown={(e) => e.preventDefault()}>
           {filteredEmpresas.map((empresa, index) => (
             <div
               key={empresa.id}

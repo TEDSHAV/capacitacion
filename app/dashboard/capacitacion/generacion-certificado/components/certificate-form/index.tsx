@@ -146,6 +146,27 @@ export const CertificateForm = ({
         </div>
       )}
 
+      {/* Course Content */}
+      <div className="mb-4">
+        <label
+          htmlFor="course_content"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Contenido del Curso
+        </label>
+        <textarea
+          id="course_content"
+          value={certificateData.course_content || ""}
+          onChange={(e) => onDataChange("course_content", e.target.value)}
+          rows={4}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="El contenido del curso se prellenará automáticamente desde la información de la OSI..."
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Este campo se prellena automáticamente con el detalle de capacitación o tema de la OSI seleccionada
+        </p>
+      </div>
+
       {/* Location Search */}
       <LocationSearch
         value={certificateData.location}

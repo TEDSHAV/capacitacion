@@ -25,8 +25,9 @@ export default function GeneracionCertificadoPage() {
       osi_id: "",
       certificate_title: "",
       certificate_subtitle: "",
-      passing_grade: 14, // Default passing grade
+      passing_grade: 14,
       course_topic_id: "",
+      course_content: "",
       participants: [],
       location: "",
       date: new Date().toISOString().split("T")[0],
@@ -60,7 +61,7 @@ export default function GeneracionCertificadoPage() {
         // Fetch course topics from catalogo_servicios where tipo_servicio = 1
         const { data: courseData, error: courseError } = await supabase
           .from("catalogo_servicios")
-          .select("id, nombre, created_at")
+          .select("id, nombre, contenido_curso, created_at")
           .eq("tipo_servicio", 1)
           .order("created_at", { ascending: false });
 
@@ -70,6 +71,7 @@ export default function GeneracionCertificadoPage() {
             id: course.id.toString(),
             name: course.nombre,
             description: course.nombre, // Using nombre as description since description field might not exist
+            contenido_curso: course.contenido_curso, // Course content from database
             created_at: course.created_at,
           })),
         );
@@ -112,6 +114,7 @@ export default function GeneracionCertificadoPage() {
           ...prev,
           course_topic_id: matchingTopic.id,
           course_topic_data: matchingTopic,
+          course_content: matchingTopic.contenido_curso || "", // Use course content from database
         }));
       } else {
         setSelectedCourseTopic(null);
@@ -119,6 +122,7 @@ export default function GeneracionCertificadoPage() {
           ...prev,
           course_topic_id: "",
           course_topic_data: undefined,
+          course_content: "",
         }));
       }
     } else {
@@ -129,6 +133,7 @@ export default function GeneracionCertificadoPage() {
         osi_data: undefined,
         course_topic_id: "",
         course_topic_data: undefined,
+        course_content: "",
       }));
       setSelectedCourseTopic(null);
     }
