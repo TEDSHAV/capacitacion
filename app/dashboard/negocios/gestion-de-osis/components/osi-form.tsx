@@ -1,9 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { createClient } from '@/utils/supabase/client'
+import { useState, useRef } from 'react'
 import { Empresa, Servicio, Usuario, CatalogoServicio, Contacto, OSI } from '@/types'
-import OSIActionButtons from './OSIActionButtons'
 
 interface OSIFormProps {
   initialData?: OSI
@@ -16,6 +14,7 @@ interface OSIFormProps {
   empresas?: Empresa[]
   servicios?: Servicio[]
   usuarios?: Usuario[]
+  contactos?: Contacto[]
   filteredEmpresas?: Empresa[]
   catalogoServicios?: CatalogoServicio[]
   filteredCatalogoServicios?: CatalogoServicio[]
@@ -37,6 +36,7 @@ const OSIForm = ({
   empresas,
   servicios,
   usuarios,
+  contactos,
   filteredEmpresas,
   catalogoServicios,
   filteredCatalogoServicios,
@@ -124,6 +124,19 @@ const OSIForm = ({
     <div className="space-y-3">
       <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Información del Cliente</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Número de OSI *</label>
+          <input
+            type="text"
+            value={initialData?.nro_osi || ''}
+            onChange={(e) => updateFormData?.('nro_osi', e.target.value)}
+            disabled={!isEditing && !isNew}
+            tabIndex={!isEditing && !isNew ? -1 : 0}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            placeholder="Ingrese número de OSI..."
+          />
+        </div>
+        
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Empresa</label>
           <div className="relative">
@@ -220,8 +233,9 @@ const OSIForm = ({
               onChange={(e) => {
                 setTemaSearchTerm?.(e.target.value)
                 setSelectedTemaIndex(-1)
+                // Also update form data directly when typing
+                updateFormData?.('tema', e.target.value)
               }}
-              onFocus={() => setTemaSearchTerm?.('')}
               onKeyDown={handleTemaKeyDown}
               disabled={!isEditing && !isNew}
               tabIndex={!isEditing && !isNew ? -1 : 0}
@@ -306,6 +320,80 @@ const OSIForm = ({
               </option>
             ))}
           </select>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Persona de Contacto</label>
+          <select
+            value={initialData?.persona_contacto_id || ''}
+            onChange={(e) => updateFormData?.('persona_contacto_id', e.target.value)}
+            disabled={!isEditing && !isNew}
+            tabIndex={!isEditing && !isNew ? -1 : 0}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          >
+            <option value="">Seleccione un contacto</option>
+            {contactos?.map((contacto) => (
+              <option key={contacto.id} value={contacto.id}>
+                {contacto.nombre} {contacto.apellido}
+              </option>
+            ))}
+          </select>
+          
+          {/* Display selected contact details */}
+          {initialData?.persona_contacto_id && (() => {
+            const selectedContacto = contactos?.find(c => c.id === Number(initialData.persona_contacto_id))
+            if (!selectedContacto) return null
+            
+            return (
+              <div className="mt-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  {/* Left side: Avatar and Name */}
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold text-base">
+                          {selectedContacto.nombre?.[0]}{selectedContacto.apellido?.[0]}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-base font-semibold text-gray-900">
+                        {selectedContacto.nombre} {selectedContacto.apellido}
+                      </h4>
+                    </div>
+                  </div>
+                  
+                  {/* Right side: Contact Information */}
+                  <div className="flex items-center space-x-6">
+                    {selectedContacto.telefono && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <svg className="w-4 h-4 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13 2.257a1 1 0 001.21.502l4.493 1.498a1 1 0 00.684-.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 8V5a2 2 0 012-2z" />
+                        </svg>
+                        <span className="font-medium">{selectedContacto.telefono}</span>
+                      </div>
+                    )}
+                    {selectedContacto.email && (
+                      <div className="flex items-center text-sm text-gray-600 max-w-xs">
+                        <svg className="w-4 h-4 mr-1 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <span className="truncate">{selectedContacto.email}</span>
+                      </div>
+                    )}
+                    {selectedContacto.email2 && (
+                      <div className="flex items-center text-sm text-gray-600 max-w-xs">
+                        <svg className="w-4 h-4 mr-1 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <span className="truncate">{selectedContacto.email2}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       </div>
     </div>
