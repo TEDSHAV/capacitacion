@@ -28,6 +28,7 @@ const OSIForm = ({
   const temaInputRef = useRef<HTMLInputElement>(null)
   const [selectedEmpresaIndex, setSelectedEmpresaIndex] = useState(-1)
   const [selectedTemaIndex, setSelectedTemaIndex] = useState(-1)
+  const [isOsiFieldLocked, setIsOsiFieldLocked] = useState(true)
 
   // Handle keyboard navigation for empresa search
   const handleEmpresaKeyDown = (e: React.KeyboardEvent) => {
@@ -103,16 +104,75 @@ const OSIForm = ({
       <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Información del Cliente</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Número de OSI</label>
-          <input
-            type="text"
-            value={initialData?.nro_osi || ''}
-            onChange={(e) => updateFormData?.('nro_osi', e.target.value)}
-            disabled={!isEditing && !isNew}
-            tabIndex={!isEditing && !isNew ? -1 : 0}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            placeholder="Ingrese número de OSI..."
-          />
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Número de OSI
+            {isNew && (
+              <span className="ml-2 text-xs text-gray-500">
+                (Generado automáticamente)
+              </span>
+            )}
+          </label>
+          <div className="flex space-x-2">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={initialData?.nro_osi || ''}
+                onChange={(e) => {
+                  if (!isOsiFieldLocked) {
+                    updateFormData?.('nro_osi', e.target.value)
+                  }
+                }}
+                disabled={isOsiFieldLocked || (!isEditing && !isNew)}
+                tabIndex={!isOsiFieldLocked && (isEditing || isNew) ? 0 : -1}
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                  isOsiFieldLocked || (!isEditing && !isNew)
+                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed text-gray-500'
+                    : 'border-gray-300 text-gray-900'
+                }`}
+                placeholder={isOsiFieldLocked ? 'Campo bloqueado' : 'Ingrese número de OSI...'}
+              />
+              {isOsiFieldLocked && (
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            {(isEditing || isNew) && (
+              <button
+                type="button"
+                onClick={() => setIsOsiFieldLocked(!isOsiFieldLocked)}
+                className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                  isOsiFieldLocked
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                    : 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                }`}
+                title={isOsiFieldLocked ? 'Desbloquear para editar manualmente' : 'Bloquear para usar generación automática'}
+              >
+                {isOsiFieldLocked ? (
+                  <div className="flex items-center space-x-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                    </svg>
+                    <span>Desbloquear</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span>Bloquear</span>
+                  </div>
+                )}
+              </button>
+            )}
+          </div>
+          {isOsiFieldLocked && (isEditing || isNew) && (
+            <p className="mt-1 text-xs text-gray-500">
+              El número de OSI será generado automáticamente por el sistema. Haz clic en "Desbloquear" para ingresar un valor manualmente.
+            </p>
+          )}
         </div>
         
         <div>
