@@ -18,3 +18,19 @@ export interface User {
   };
   email?: string;
 }
+
+export interface StatCard {
+  title: string;
+  value: string;
+  change: number;
+  icon: string;
+  color: string;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: string;
+  description: string;
+  time: string;
+  user: string;
+}
