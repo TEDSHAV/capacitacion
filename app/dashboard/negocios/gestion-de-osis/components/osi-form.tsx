@@ -1,29 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Empresa, Servicio, Usuario, CatalogoServicio, Contacto, OSI } from '@/types'
-
-interface OSIFormProps {
-  initialData?: OSI
-  isNew: boolean
-  isEditing: boolean
-  onEdit: () => void
-  onCancel: () => void
-  onSave: () => void
-  onDelete: () => void
-  empresas?: Empresa[]
-  servicios?: Servicio[]
-  usuarios?: Usuario[]
-  contactos?: Contacto[]
-  filteredEmpresas?: Empresa[]
-  catalogoServicios?: CatalogoServicio[]
-  filteredCatalogoServicios?: CatalogoServicio[]
-  empresaSearchTerm?: string
-  temaSearchTerm?: string
-  setEmpresaSearchTerm?: (term: string) => void
-  setTemaSearchTerm?: (term: string) => void
-  updateFormData?: (field: string, value: any) => void
-}
+import { Empresa, Servicio, Usuario, CatalogoServicio, Contacto, OSI, OSIFormProps } from '@/types'
 
 const OSIForm = ({ 
   initialData, 

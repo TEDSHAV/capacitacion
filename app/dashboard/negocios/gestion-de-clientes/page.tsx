@@ -3,22 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-
-interface Cliente {
-  id: number
-  nombre_empresa: string
-  rif: string
-  direccion_fiscal: string
-  telefono: string
-  email: string
-  persona_contacto: string
-  estado: 'active' | 'inactive'
-  fecha_creacion: string
-}
+import ErrorDialog, { useErrorDialog } from '@/components/ui/error-dialog'
+import type { Empresa } from '@/types'
 
 export default function GestionDeClientesPage() {
   const router = useRouter()
-  const [clientes, setClientes] = useState<Cliente[]>([])
+  const errorDialog = useErrorDialog()
+  const [clientes, setClientes] = useState<Empresa[]>([])
   const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
@@ -33,11 +24,21 @@ export default function GestionDeClientesPage() {
           return
         }
 
-        // Fetch clientes data from Supabase
-        const { data: clientesData } = await supabase.from("clientes").select("*")
-        setClientes(clientesData || [])
+        // Fetch empresas data from Supabase
+        const { data: empresasData, error } = await supabase.from("empresas").select("*")
+        
+        if (error) {
+          throw new Error(`Error al cargar empresas: ${error.message}`)
+        }
+        
+        setClientes(empresasData || [])
       } catch (error) {
         console.error('Error loading data:', error)
+        errorDialog.showError(
+          'Error al cargar los clientes',
+          error instanceof Error ? error.message : String(error),
+          'Error de Carga'
+        )
       } finally {
         setLoading(false)
       }
@@ -82,6 +83,7 @@ export default function GestionDeClientesPage() {
   }
 
   return (
+    <>
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
       <div className="mb-8">
         <div className="flex justify-between items-center">
@@ -131,34 +133,29 @@ export default function GestionDeClientesPage() {
               onClick={() => router.push(`/dashboard/negocios/gestion-de-clientes/${cliente.id}`)}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg cursor-pointer transform transition-all duration-200 hover:scale-105 h-64 flex flex-col w-full"
             >
-              <div className={`h-2 flex-shrink-0 ${cliente.estado === 'active' ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+              <div className={`h-2 flex-shrink-0 ${(cliente.estado || 'inactive') === 'active' ? 'bg-green-500' : 'bg-gray-500'}`}></div>
               <div className="p-6 flex-1 flex flex-col w-full overflow-hidden">
                 <div className="flex justify-between items-start mb-4 flex-shrink-0" style={{ minHeight: '80px' }}>
                   <div className="flex-1 min-w-0 overflow-hidden">
                     <h3 className="text-xl font-semibold text-gray-900 truncate leading-tight">
-                      {cliente.nombre_empresa}
+                      {cliente.razon_social}
                     </h3>
                     <p className="text-gray-800 text-sm mt-1 font-medium truncate leading-tight">
                       RIF: {cliente.rif}
                     </p>
                   </div>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${getStatusColor(cliente.estado)}`}>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${getStatusColor(cliente.estado || 'inactive')}`}>
                     {cliente.estado === 'active' ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
                 
                 <div className="space-y-2 mb-4 flex-1 overflow-hidden">
                   <p className="text-gray-700 text-sm truncate">
-                    <span className="font-medium">Contacto:</span> {cliente.persona_contacto}
+                    <span className="font-medium">Dirección Fiscal:</span> {cliente.direccion_fiscal}
                   </p>
-                  {cliente.telefono && (
+                  {cliente.codigo_cliente && (
                     <p className="text-gray-700 text-sm truncate">
-                      <span className="font-medium">Teléfono:</span> {cliente.telefono}
-                    </p>
-                  )}
-                  {cliente.email && (
-                    <p className="text-gray-700 text-sm truncate">
-                      <span className="font-medium">Email:</span> {cliente.email}
+                      <span className="font-medium">Código Cliente:</span> {cliente.codigo_cliente}
                     </p>
                   )}
                 </div>
@@ -183,5 +180,16 @@ export default function GestionDeClientesPage() {
         </div>
       )}
     </div>
+    
+    {/* Error Dialog */}
+    <ErrorDialog
+      isOpen={errorDialog.isOpen}
+      title={errorDialog.title}
+      message={errorDialog.message}
+      details={errorDialog.details}
+      onClose={errorDialog.close}
+      variant={errorDialog.variant}
+    />
+    </>
   )
 }

@@ -7,23 +7,30 @@
       "database_auth": "Supabase",
       "icons": "Lucide-React"
     },
+    "typescript_architecture": {
+      "global_types_path": "types/index.ts",
+      "interface_policy": "STRICT: All shared interfaces, API responses, and Supabase table schemas MUST reside in 'types/index.ts'. Do not define interfaces inside component or feature files.",
+      "workflow": "Always check 'types/index.ts' for existing definitions before creating a new one. If a new interface is needed, append it to 'types/index.ts' and export it."
+    },
     "coding_standards": {
       "components": "Strictly use Arrow Functions for all functional components (e.g., const MyComponent = () => { ... }).",
       "state_management": "Prefer React Server Components (RSC) by default; use 'use client' only when necessary for interactivity or browser APIs.",
-      "data_fetching": "Use Supabase Server Clients within Server Components for initial data loads.",
+      "data_fetching": "Use Supabase Server Clients (standard and middleware-based) within Server Components for initial data loads.",
       "modularity": "Follow a 'Feature-based' folder structure (e.g., components/ui for globals, features/auth for logic-specific modules).",
       "naming_conventions": "PascalCase for components, camelCase for hooks and utilities, kebab-case for file names."
     },
     "best_practices": [
-      "Use Next.js 'Image' component for all images.",
+      "CRITICAL: Never co-locate interfaces. If an interface is used in a component, it must be imported from '@/types'.",
+      "Use Next.js 'Image' component for all images with appropriate priority/loading props.",
       "Use 'Link' from 'next/link' for internal navigation.",
-      "Implement proper TypeScript interfaces for all Supabase table schemas.",
-      "Keep components small and focused on a single responsibility.",
-      "Avoid 'any' type; always define proper TypeScript interfaces or types."
+      "Implement proper TypeScript interfaces for all Supabase table schemas in 'types/index.ts'.",
+      "Keep components small, focused on a single responsibility.",
+      "Avoid 'any' type; use 'unknown' or proper generics if the type is dynamic.",
+      "Ensure all custom hooks and utilities have explicit return types defined."
     ],
     "ui_preferences": {
       "design_system": "Clean, professional, and accessible. Use Tailwind spacing scale consistently.",
-      "buttons_inputs": "Prefer a consistent UI library style (like Shadcn/UI patterns) if applicable."
+      "buttons_inputs": "Follow Shadcn/UI patterns. Ensure all interactive elements have focus states and ARIA labels."
     }
   }
 }

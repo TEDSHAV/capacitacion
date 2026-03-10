@@ -1,7 +1,7 @@
-export interface LoadingState {
-  isLoading: boolean
-  message?: string
-}
+// Re-export from main types file for backward compatibility
+export type { LoadingState } from '@/types';
+
+import type { LoadingState } from '@/types';
 
 export function createLoadingState(isLoading: boolean, message?: string): LoadingState {
   return {

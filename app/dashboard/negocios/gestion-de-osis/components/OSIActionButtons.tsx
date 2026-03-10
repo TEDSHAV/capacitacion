@@ -1,14 +1,6 @@
 'use client'
 
-interface OSIActionButtonsProps {
-  isNew: boolean
-  isEditing: boolean
-  isLoading: boolean
-  onSave: () => void
-  onCancel: () => void
-  onEdit: () => void
-  onDelete: () => void
-}
+import type { OSIActionButtonsProps } from '@/types'
 
 const OSIActionButtons = ({
   isNew,

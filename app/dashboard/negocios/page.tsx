@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
+import ErrorDialog, { useErrorDialog } from '@/components/ui/error-dialog'
 
 export default function NegociosPage() {
   const router = useRouter()
+  const errorDialog = useErrorDialog()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     totalOSIs: 0,
@@ -27,17 +29,32 @@ export default function NegociosPage() {
         }
 
         // Fetch stats from Supabase
-        const { data: osiData } = await supabase.from("osi").select("*")
-        const { data: clientesData } = await supabase.from("clientes").select("*")
+        const [osiResult, empresasResult] = await Promise.all([
+          supabase.from("osi").select("*"),
+          supabase.from("empresas").select("*")
+        ])
+        
+        if (osiResult.error) {
+          throw new Error(`Error al cargar OSIs: ${osiResult.error.message}`)
+        }
+        
+        if (empresasResult.error) {
+          throw new Error(`Error al cargar empresas: ${empresasResult.error.message}`)
+        }
         
         setStats({
-          totalOSIs: osiData?.length || 0,
-          totalClientes: clientesData?.length || 0,
-          osisActivas: osiData?.filter(osi => osi.estado === 'active').length || 0,
-          clientesActivos: clientesData?.filter(cliente => cliente.estado === 'active').length || 0
+          totalOSIs: osiResult.data?.length || 0,
+          totalClientes: empresasResult.data?.length || 0,
+          osisActivas: osiResult.data?.filter(osi => osi.estado === 'active').length || 0,
+          clientesActivos: empresasResult.data?.filter(empresa => empresa.estado === 'active').length || 0
         })
       } catch (error) {
         console.error('Error loading data:', error)
+        errorDialog.showError(
+          'Error al cargar los datos del dashboard',
+          error instanceof Error ? error.message : String(error),
+          'Error de Carga'
+        )
       } finally {
         setLoading(false)
       }
@@ -70,6 +87,7 @@ export default function NegociosPage() {
   }
 
   return (
+    <>
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
       <div className="mb-8">
         <div>
@@ -226,5 +244,16 @@ export default function NegociosPage() {
         </div>
       </div>
     </div>
+    
+    {/* Error Dialog */}
+    <ErrorDialog
+      isOpen={errorDialog.isOpen}
+      title={errorDialog.title}
+      message={errorDialog.message}
+      details={errorDialog.details}
+      onClose={errorDialog.close}
+      variant={errorDialog.variant}
+    />
+    </>
   )
 }
