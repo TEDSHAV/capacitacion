@@ -12,8 +12,17 @@ const DashboardClient = ({
   const [stats, setStats] = useState<StatCard[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState<string>('');
 
   useEffect(() => {
+    // Set initial time on client side only
+    setCurrentTime(new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }));
+    
+    // Update time every minute
+    const interval = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }));
+    }, 60000);
+
     const fetchData = async () => {
       setIsLoading(true);
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -77,6 +86,9 @@ const DashboardClient = ({
     };
 
     fetchData();
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
   }, []);
 
   if (!user) {
@@ -110,7 +122,7 @@ const DashboardClient = ({
             <div className="text-right">
               <p className="text-sm text-gray-500">Última actualización</p>
               <p className="text-lg font-semibold text-gray-900">
-                {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                {currentTime}
               </p>
             </div>
           </div>
