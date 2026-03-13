@@ -2,13 +2,16 @@ import { CertificateParticipant, ParticipantsSectionProps } from '@/types'
 import { useParticipants } from './use-participants'
 
 export const ParticipantsSection = ({ participants, onChange }: ParticipantsSectionProps) => {
+  // Ensure participants is always an array
+  const safeParticipants = Array.isArray(participants) ? participants : []
+  
   const {
     newParticipant,
     addParticipant,
     removeParticipant,
     updateNewParticipant,
     handleKeyPress
-  } = useParticipants(onChange)
+  } = useParticipants(onChange, safeParticipants)
 
   return (
     <div className="mb-6">
@@ -24,16 +27,26 @@ export const ParticipantsSection = ({ participants, onChange }: ParticipantsSect
           onChange={e => updateNewParticipant('name', e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Nombre del participante"
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-100 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
-        <input
-          type="text"
-          value={newParticipant.id_number}
-          onChange={e => updateNewParticipant('id_number', e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Cédula/ID"
-          className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
+        <div className="flex items-center gap-1">
+          <select
+            value={newParticipant.id_type || 'V-'}
+            onChange={e => updateNewParticipant('id_type', e.target.value)}
+            className="px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="V-">V -</option>
+            <option value="E-">E -</option>
+          </select>
+          <input
+            type="text"
+            value={newParticipant.id_number}
+            onChange={e => updateNewParticipant('id_number', e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Cédula/Pasaporte"
+            className="w-40 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
         <input
           type="number"
           value={newParticipant.score || ''}
@@ -42,7 +55,7 @@ export const ParticipantsSection = ({ participants, onChange }: ParticipantsSect
           placeholder="Calificación"
           min="0"
           max="20"
-          className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-40 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
         <button
           type="button"
@@ -54,9 +67,9 @@ export const ParticipantsSection = ({ participants, onChange }: ParticipantsSect
       </div>
 
       {/* Participants List */}
-      {participants.length > 0 && (
+      {safeParticipants.length > 0 && (
         <div className="border border-gray-200 rounded-md max-h-40 overflow-y-auto">
-          {participants.map(participant => (
+          {safeParticipants.map(participant => (
             <div
               key={participant.id}
               className="flex justify-between items-center p-2 border-b border-gray-100 last:border-b-0"
@@ -66,7 +79,7 @@ export const ParticipantsSection = ({ participants, onChange }: ParticipantsSect
                   {participant.name}
                 </span>
                 <span className="text-gray-500 ml-2">
-                  ({participant.id_number})
+                  ({participant.id_type || 'V-'}{participant.id_number})
                 </span>
                 <span className="text-sm text-gray-400 ml-2">
                   {participant.score !== undefined && `${participant.score} pts`}
@@ -87,7 +100,7 @@ export const ParticipantsSection = ({ participants, onChange }: ParticipantsSect
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M19 7l-.867 5.14M12 16l-7 7m0 0l7 7-7"
+                    d="M6 18L18 6M6 6l12 12"
                   />
                 </svg>
               </button>
@@ -96,7 +109,7 @@ export const ParticipantsSection = ({ participants, onChange }: ParticipantsSect
         </div>
       )}
 
-      {participants.length === 0 && (
+      {safeParticipants.length === 0 && (
         <p className="text-sm text-gray-500">
           Agrega al menos un participante para generar el certificado
         </p>

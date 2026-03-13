@@ -55,6 +55,7 @@ export interface OSI {
   tipo_servicio: string | null
   nro_presupuesto: string | null
   ejecutivo_negocios: number | null
+  executive_name?: string
   cliente_nombre_empresa: string | null
   rif: string | null
   tema: string | null
@@ -118,6 +119,7 @@ export interface CourseTopic {
 export interface CertificateParticipant {
   id?: string;
   name: string;
+  id_type?: string; // V- for Venezuelan ID, E- for foreign ID
   id_number: string;
   score?: number;
 }

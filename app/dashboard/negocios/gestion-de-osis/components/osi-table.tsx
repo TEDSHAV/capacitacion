@@ -54,8 +54,10 @@ export default function OSITable({ osis, onOSIClick, getStatusColor }: OSITableP
                 <div className="text-sm text-gray-900 font-medium truncate">
                   {osi.cliente_nombre_empresa?.trim() || 'Sin cliente'}
                 </div>
-                {osi.ejecutivo_negocios && (
-                  <div className="text-xs text-gray-500">Ejecutivo: {osi.ejecutivo_negocios}</div>
+                {(osi.executive_name || osi.ejecutivo_negocios) && (
+                  <div className="text-xs text-gray-500">
+                    Ejecutivo: {osi.executive_name || `ID: ${osi.ejecutivo_negocios}`}
+                  </div>
                 )}
               </div>
 
