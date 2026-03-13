@@ -36,3 +36,26 @@ export interface ActivityItem {
   time: string;
   user: string;
 }
+
+// Certificate Generation Interfaces
+export interface CertificateData {
+  recipientName: string;
+  courseName: string;
+  completionDate: string;
+  instructorName: string;
+  certificateId: string;
+}
+
+export interface CertificateTemplateProps {
+  data: CertificateData;
+  svgBackgroundPath?: string;
+}
+
+// UI Component Interfaces
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'default' | 'outline' | 'secondary' | 'destructive' | 'ghost' | 'link';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
+  children: React.ReactNode;
+  loading?: boolean;
+  disabled?: boolean;
+}
