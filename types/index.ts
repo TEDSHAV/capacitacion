@@ -15,13 +15,15 @@ export type Company = Empresa;
 export interface Curso {
   id: string;
   nombre: string;
-  contenido_curso: string;
-  cliente_asociado?: string;
+  contenido: string;
+  horas_estimadas: number;
+  cliente_asociado: number | null;
+  creado: string; // Add CREADO field for creation date
   tipo_servicio?: number;
   created_at: string;
   empresas?: {
     razon_social: string;
-  };
+  } | null;
 }
 
 export interface Servicio {
@@ -310,4 +312,47 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   children: React.ReactNode;
   loading?: boolean;
   disabled?: boolean;
+}
+
+// Capacitación Component Interfaces
+export interface PaginationProps {
+  currentPage: number;
+  totalPages: number;
+  startIndex: number;
+  endIndex: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+}
+
+export interface CreateCourseButtonProps {
+  onClick: () => void;
+  className?: string;
+}
+
+export interface EmpresaSearchProps {
+  empresas: Empresa[];
+  value: string;
+  onChange: (empresaId: string, empresaData: Empresa) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+export interface CourseActionsProps {
+  curso: Curso;
+  onEdit: (curso: Curso) => void;
+  onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+}
+
+export interface OSISearchProps {
+  osis: OSI[]
+  selectedOSI: OSI | null
+  onSelect: (osi: OSI | null) => void
+}
+
+export interface CourseTopicSearchProps {
+  courseTopics: CourseTopic[]
+  selectedCourseTopic: CourseTopic | null
+  onSelect: (courseTopic: CourseTopic) => void
+  isAutoPopulated?: boolean
 }

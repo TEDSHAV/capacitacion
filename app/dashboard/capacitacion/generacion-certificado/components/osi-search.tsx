@@ -1,13 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { OSI } from '@/types'
-
-interface OSISearchProps {
-  osis: OSI[]
-  selectedOSI: OSI | null
-  onSelect: (osi: OSI | null) => void
-}
+import { OSI, OSISearchProps } from '@/types'
 
 export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProps) {
   const [searchTerm, setSearchTerm] = useState('')

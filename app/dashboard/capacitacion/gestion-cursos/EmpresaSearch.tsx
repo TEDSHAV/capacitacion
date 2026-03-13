@@ -1,15 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Empresa } from "./types";
-
-interface EmpresaSearchProps {
-  empresas: Empresa[];
-  value: string;
-  onChange: (empresaId: string, empresaData: Empresa) => void;
-  placeholder?: string;
-  disabled?: boolean;
-}
+import { Empresa, EmpresaSearchProps } from "@/types";
 
 export default function EmpresaSearch({ 
   empresas, 
@@ -38,7 +30,7 @@ export default function EmpresaSearch({
   // Update search term when selected empresa changes
   useEffect(() => {
     if (selectedEmpresa) {
-      setSearchTerm(selectedEmpresa.razon_social || "");
+      setSearchTerm(selectedEmpresa.id.toString()); // Show ID in input
     } else {
       setSearchTerm("");
     }

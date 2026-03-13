@@ -13,48 +13,42 @@ function formatSupabaseError(error: any): string {
 
 export async function createCurso(formData: FormData) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { error: 'No autorizado' };
-    }
-
+    // Get form data with proper type checking
     const titulo = formData.get('titulo') as string;
-    const cliente_asociado = formData.get('empresa_id') as string;
+    const cliente_asociado = formData.get('cliente_asociado') as string;
     const contenido = formData.get('contenido') as string;
     const horas_estimadas = formData.get('horas_estimadas') as string;
 
     // Validate required fields
-    if (!titulo || !contenido) {
-      return { error: 'El título y contenido son requeridos' };
+    if (!titulo?.trim()) {
+      return { error: 'El título es requerido' };
     }
 
-    // Create the course in catalogo_servicios table
+    if (!contenido?.trim()) {
+      return { error: 'El contenido es requerido' };
+    }
+
+    // Create the course in cursos table
+    const supabase = await createClient();
     const { data, error } = await supabase
-      .from('catalogo_servicios')
+      .from('cursos')
       .insert({
-        nombre: titulo,
-        cliente_asociado: cliente_asociado && cliente_asociado.trim() ? cliente_asociado : null,
-        contenido_curso: contenido,
-        horas_estimadas: horas_estimadas ? parseFloat(horas_estimadas) : null,
-        tipo_servicio: 1
+        nombre: titulo.trim(),
+        contenido: contenido.trim(),
+        horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
+        cliente_asociado: cliente_asociado?.trim() ? parseInt(cliente_asociado) : null
       })
       .select()
       .single();
 
     if (error) {
-      console.error('Database error:', error);
       return { error: `Error al crear el curso: ${formatSupabaseError(error)}` };
     }
 
-    // Revalidate the page to show updated data
     revalidatePath('/dashboard/capacitacion/gestion-cursos');
-
     return { success: true, data };
-
-  } catch (error) {
-    return { error: 'Error interno del servidor' };
+  } catch (err) {
+    return { error: `Error al crear el curso: ${err instanceof Error ? err.message : 'Error desconocido'}` };
   }
 }
 
@@ -77,22 +71,20 @@ export async function updateCurso(id: string, formData: FormData) {
       return { error: 'El título y contenido son requeridos' };
     }
 
-    // Update the course in catalogo_servicios table
+    // Update the course in cursos table
     const { data, error } = await supabase
-      .from('catalogo_servicios')
+      .from('cursos')
       .update({
         nombre: titulo,
-        cliente_asociado: cliente_asociado && cliente_asociado.trim() ? cliente_asociado : null,
-        contenido_curso: contenido,
-        horas_estimadas: horas_estimadas ? parseFloat(horas_estimadas) : null,
-        tipo_servicio: 1
+        contenido: contenido,
+        horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
+        cliente_asociado: cliente_asociado && cliente_asociado.trim() ? parseInt(cliente_asociado) : null
       })
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
-      console.error('Database error:', error);
       return { error: `Error al actualizar el curso: ${formatSupabaseError(error)}` };
     }
 
@@ -115,9 +107,9 @@ export async function duplicateCurso(id: string) {
       return { error: 'No autorizado' };
     }
 
-    // First, get the original course
+    // First, get the original course from cursos table
     const { data: originalCourse, error: fetchError } = await supabase
-      .from('catalogo_servicios')
+      .from('cursos')
       .select('*')
       .eq('id', id)
       .single();
@@ -126,14 +118,14 @@ export async function duplicateCurso(id: string) {
       return { error: 'No se encontró el curso original' };
     }
 
-    // Create a duplicate with " (Copia)" suffix
+    // Create a duplicate in cursos table
     const { data, error } = await supabase
-      .from('catalogo_servicios')
+      .from('cursos')
       .insert({
         nombre: `${originalCourse.nombre} (Copia)`,
-        cliente_asociado: originalCourse.cliente_asociado,
-        contenido_curso: originalCourse.contenido_curso,
-        tipo_servicio: 1
+        contenido: originalCourse.contenido_curso,
+        horas_estimadas: originalCourse.horas_estimadas?.toString() || "0", // Convert to string for FormData
+        cliente_asociado: originalCourse.cliente_asociado
       })
       .select()
       .single();
@@ -161,9 +153,9 @@ export async function deleteCurso(id: string) {
       return { error: 'No autorizado' };
     }
 
-    // Delete the course from catalogo_servicios table
+    // Delete the course from cursos table
     const { error } = await supabase
-      .from('catalogo_servicios')
+      .from('cursos')
       .delete()
       .eq('id', id);
 
@@ -190,18 +182,19 @@ export async function getCursos() {
       return { error: 'No autorizado' };
     }
 
-    // Get all courses from catalogo_servicios with company information where tipo_servicio = 1
+    // Get all courses from cursos table with company information using the foreign key
     const { data, error } = await supabase
-      .from('catalogo_servicios')
+      .from('cursos')
       .select(`
         *,
-        empresas (razon_social)
+        empresas (
+          razon_social
+        )
       `)
-      .eq('tipo_servicio', 1)
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: false });
 
     if (error) {
-      return { error: 'Error al obtener los cursos' };
+      return { error: `Error al obtener los cursos: ${error.message || 'Error desconocido'}` };
     }
 
     return { success: true, data: data || [] };

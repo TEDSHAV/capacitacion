@@ -1,14 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CourseTopic } from '@/types'
-
-interface CourseTopicSearchProps {
-  courseTopics: CourseTopic[]
-  selectedCourseTopic: CourseTopic | null
-  onSelect: (courseTopic: CourseTopic) => void
-  isAutoPopulated?: boolean
-}
+import { CourseTopic, CourseTopicSearchProps } from '@/types'
 
 export default function CourseTopicSearch({ courseTopics, selectedCourseTopic, onSelect, isAutoPopulated = false }: CourseTopicSearchProps) {
   // This component is now just a placeholder for auto-populated course topic data
