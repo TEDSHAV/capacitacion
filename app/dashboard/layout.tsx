@@ -3,6 +3,13 @@ import Footer from "@/components/footer";
 import Sidebar from "@/components/Sidebar";
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { memo } from 'react'
+
+// Static departments moved outside component to prevent re-creation
+const STATIC_DEPARTMENTS = [
+  { id: '1', nombre: 'negocios', color: 'blue' },
+  { id: '2', nombre: 'capacitacion', color: 'purple' }
+];
 
 export default async function DashboardLayout({
   children,
@@ -18,10 +25,7 @@ export default async function DashboardLayout({
   }
 
   // Static departments for now to avoid database issues
-  const sortedDepartamentos = [
-    { id: '1', nombre: 'negocios', color: 'blue' },
-    { id: '2', nombre: 'capacitacion', color: 'purple' }
-  ];
+  const sortedDepartamentos = STATIC_DEPARTMENTS;
 
   return (
     <div className="flex h-screen">

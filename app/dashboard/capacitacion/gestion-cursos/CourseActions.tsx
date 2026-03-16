@@ -1,20 +1,5 @@
 import { Curso, CourseActionsProps } from '@/types';
 
-const formatDate = (dateString: string | null) => {
-  if (!dateString) return 'Sin fecha';
-  
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  } catch (error) {
-    return 'Fecha inválida';
-  }
-};
-
 export default function CourseActions({ curso, onEdit, onDelete, onDuplicate }: CourseActionsProps) {
   return (
     <div className="flex space-x-2">
@@ -45,21 +30,6 @@ export default function CourseActions({ curso, onEdit, onDelete, onDuplicate }: 
         </svg>
         Eliminar
       </button>
-      <div className="col-span-4">
-        <div className="text-sm font-medium text-gray-900 truncate">
-          {curso.nombre}
-        </div>
-      </div>
-      {/* Client */}
-      <div className="col-span-3">
-        <div className="col-span-2">Creado</div>
-      </div>
-      {/* Creation Date */}
-      <div className="col-span-2 text-right">
-        <div className="text-xs text-gray-400">
-          {formatDate(curso.creado)}
-        </div>
-      </div>
     </div>
   );
 }
