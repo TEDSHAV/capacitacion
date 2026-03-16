@@ -135,6 +135,7 @@ export interface CertificateFormProps {
   selectedOSI: OSI | null;
   selectedCourseTopic: CourseTopic | null;
   courseTopics: CourseTopic[];
+  isGenerating?: boolean;
   onDataChange: (field: keyof CertificateGeneration, value: any) => void;
   onParticipantsChange: (participants: CertificateParticipant[]) => void;
   onGenerate: () => void;

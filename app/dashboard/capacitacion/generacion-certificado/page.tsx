@@ -14,7 +14,8 @@ import { getCertificateData } from '@/app/actions/certificate';
 
 export default function GeneracionCertificadoPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [osis, setOsis] = useState<OSI[]>([]);
   const [allCourseTopics, setAllCourseTopics] = useState<CourseTopic[]>([]);
   const [filteredCourseTopics, setFilteredCourseTopics] = useState<CourseTopic[]>([]);
@@ -218,8 +219,29 @@ export default function GeneracionCertificadoPage() {
     }
 
     try {
-      // Here you would typically save to database and/or generate PDF
-      alert("Certificado generado exitosamente!");
+      setIsGenerating(true);
+      
+      // Import the certificate generator
+      const { CertificateGenerator } = await import('@/lib/certificate-generator');
+      const generator = new CertificateGenerator();
+
+      // Get template image
+      const templateImageUrl = '/templates/certificado.png';
+      
+      // Generate certificates for all participants
+      const certificates = await generator.generateMultipleCertificates(
+        certificateData.participants,
+        certificateData,
+        templateImageUrl
+      );
+
+      // Download each certificate
+      certificates.forEach(({ participant, blob }) => {
+        const filename = `certificado_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
+        generator.downloadBlob(blob, filename);
+      });
+
+      alert(`Se generaron ${certificates.length} certificados exitosamente!`);
 
       // Reset form
       setSelectedOSI(null);
@@ -228,14 +250,17 @@ export default function GeneracionCertificadoPage() {
         osi_id: "",
         certificate_title: "",
         certificate_subtitle: "",
-        passing_grade: 14,
+        passing_grade: 0,
         course_topic_id: "",
         participants: [],
         location: "",
         date: new Date().toISOString().split("T")[0],
       });
     } catch (error) {
-      alert("Error al generar el certificado");
+      console.error("Error generating certificates:", error);
+      alert("Error al generar los certificados. Por favor intenta nuevamente.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -278,6 +303,7 @@ export default function GeneracionCertificadoPage() {
           selectedOSI={selectedOSI}
           selectedCourseTopic={selectedCourseTopic}
           courseTopics={filteredCourseTopics}
+          isGenerating={isGenerating}
           onDataChange={handleCertificateDataChange}
           onParticipantsChange={handleParticipantsChange}
           onGenerate={handleGenerateCertificate}
