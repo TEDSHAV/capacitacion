@@ -7,7 +7,7 @@ import {
   CertificateParticipant,
   CertificateFormProps,
 } from "@/types";
-import { LocationSearch } from "./LocationSearch";
+
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
 import { useState } from "react";
@@ -31,7 +31,6 @@ export const CertificateForm = ({
       !certificateData.osi_id ||
       !certificateData.course_topic_id ||
       certificateData.participants.length === 0 ||
-      !certificateData.location ||
       !certificateData.date
     ) {
       alert("Por favor completa todos los campos obligatorios");
@@ -48,7 +47,6 @@ export const CertificateForm = ({
       !certificateData.osi_id ||
       !certificateData.course_topic_id ||
       certificateData.participants.length === 0 ||
-      !certificateData.location ||
       !certificateData.date
     ) {
       alert("Por favor completa todos los campos obligatorios para generar la vista previa");
@@ -161,7 +159,12 @@ export const CertificateForm = ({
         </label>
         <select
           value={certificateData.course_topic_id || ""}
-          onChange={(e) => onDataChange("course_topic_id", e.target.value)}
+          onChange={(e) => {
+            const topicId = e.target.value;
+            onDataChange("course_topic_id", topicId);
+            const selectedTopic = courseTopics.find(topic => topic.id === topicId);
+            onDataChange("horas_estimadas", selectedTopic?.horas_estimadas || null);
+          }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">Selecciona una plantilla...</option>
@@ -197,11 +200,27 @@ export const CertificateForm = ({
         </p>
       </div>
 
-      {/* Location Search */}
-      <LocationSearch
-        value={certificateData.location}
-        onChange={(value) => onDataChange("location", value)}
-      />
+
+
+      {/* Horas Estimadas */}
+      <div className="mb-4">
+        <label
+          htmlFor="horas_estimadas"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Horas Estimadas
+        </label>
+        <input
+          type="number"
+          id="horas_estimadas"
+          value={selectedCourseTopic?.horas_estimadas || ""}
+          readOnly
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-100"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Este campo se prellena automáticamente al seleccionar una plantilla de curso
+        </p>
+      </div>
 
       {/* Date */}
       <div className="mb-6">
@@ -238,8 +257,7 @@ export const CertificateForm = ({
             !certificateData.osi_id ||
             !certificateData.course_topic_id ||
             certificateData.participants.length === 0 ||
-            !certificateData.location ||
-            !certificateData.date
+                  !certificateData.date
           }
           className="flex-1 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
         >
@@ -275,8 +293,7 @@ export const CertificateForm = ({
             !certificateData.osi_id ||
             !certificateData.course_topic_id ||
             certificateData.participants.length === 0 ||
-            !certificateData.location ||
-            !certificateData.date
+                  !certificateData.date
           }
           className="flex-1 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
         >
@@ -296,8 +313,7 @@ export const CertificateForm = ({
         !certificateData.osi_id ||
         !certificateData.course_topic_id ||
         certificateData.participants.length === 0 ||
-        !certificateData.location ||
-        !certificateData.date) && (
+          !certificateData.date) && (
         <p className="mt-2 text-sm text-red-600">
           Por favor completa todos los campos obligatorios
         </p>

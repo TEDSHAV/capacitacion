@@ -32,7 +32,7 @@ export const LocationSearch = ({ value, onChange }: LocationSearchProps) => {
             }}
             onBlur={() => setTimeout(() => setIsDropdownOpen(false), 150)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Buscar ciudad o estado en Venezuela..."
+            placeholder="Buscar ciudad en Venezuela..."
           />
           {locationInput && (
             <button
