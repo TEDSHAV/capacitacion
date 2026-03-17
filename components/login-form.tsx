@@ -1,6 +1,6 @@
 "use client";
 import { useSearchParams } from "next/navigation";
-import {handleLogin} from "@/app/actions";
+import { handleLogin } from "@/app/actions";
 
 const LoginForm = () => {
   const searchParams = useSearchParams();
@@ -57,9 +57,9 @@ const LoginForm = () => {
 
         {error && (
           <div className="text-red-600 text-sm text-center">
-            {error === 'Invalid credentials' 
-              ? 'Email o contraseña incorrectos' 
-              : 'Error al iniciar sesión'}
+            {error === "Invalid credentials"
+              ? "Email o contraseña incorrectos"
+              : "Error al iniciar sesión"}
           </div>
         )}
 
@@ -71,11 +71,9 @@ const LoginForm = () => {
             Iniciar sesión
           </button>
         </div>
-
-       
       </form>
     </div>
   );
-}
+};
 
 export default LoginForm;

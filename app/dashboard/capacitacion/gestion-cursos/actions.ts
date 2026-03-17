@@ -38,10 +38,16 @@ export async function createCurso(formData: FormData) {
         contenido: contenido.trim(),
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
         cliente_asociado: cliente_asociado?.trim() ? parseInt(cliente_asociado) : null,
-        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 0,
-        is_active: true
+        created_at: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+        is_active: true,
+        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14
       })
-      .select()
+      .select(`
+        *,
+        empresas (
+          razon_social
+        )
+      `)
       .single();
 
     if (error) {
@@ -82,10 +88,15 @@ export async function updateCurso(id: string, formData: FormData) {
         contenido: contenido,
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
         cliente_asociado: cliente_asociado && cliente_asociado.trim() ? parseInt(cliente_asociado) : null,
-        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 0
+        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14
       })
       .eq('id', id)
-      .select()
+      .select(`
+        *,
+        empresas (
+          razon_social
+        )
+      `)
       .single();
 
     if (error) {
@@ -113,7 +124,7 @@ export async function duplicateCurso(id: string) {
       .from('cursos')
       .select(`
         *,
-        empresas (
+        empresas!inner (
           razon_social
         )
       `)
@@ -124,6 +135,8 @@ export async function duplicateCurso(id: string) {
       return { error: 'No se encontró el curso original' };
     }
 
+    console.log('Original course with empresa:', originalCourse);
+
     // Create a duplicate in cursos table
     const { data, error } = await supabase
       .from('cursos')
@@ -132,12 +145,13 @@ export async function duplicateCurso(id: string) {
         contenido: originalCourse.contenido,
         horas_estimadas: originalCourse.horas_estimadas,
         cliente_asociado: originalCourse.cliente_asociado,
-        created_at: new Date().toISOString(),
-        is_active: true
+        created_at: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+        is_active: true,
+        nota_aprobatoria: originalCourse.nota_aprobatoria || 14
       })
       .select(`
         *,
-        empresas (
+        empresas!inner (
           razon_social
         )
       `)

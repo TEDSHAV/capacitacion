@@ -13,16 +13,14 @@ export interface Empresa {
 export type Company = Empresa;
 
 export interface Curso {
-  id: string;
+  id: number;
   nombre: string;
-  contenido: string;
-  horas_estimadas: number;
+  contenido: string | null;
+  horas_estimadas: number | null;
   cliente_asociado: number | null;
-  creado: string; // Add CREADO field for creation date
-  tipo_servicio?: number;
-  created_at: string;
+  created_at: string | null;
   is_active: boolean;
-  nota_aprobatoria?: number; // Passing grade for the course
+  nota_aprobatoria: number | null;
   empresas?: {
     razon_social: string;
   } | null;

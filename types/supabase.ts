@@ -171,6 +171,104 @@ export type Database = {
           },
         ]
       }
+      certificados: {
+        Row: {
+          calificacion: number
+          created_at: string | null
+          fecha_emision: string | null
+          fecha_vencimiento: string | null
+          id: number
+          id_curso: number | null
+          id_empresa: number | null
+          id_estado: number | null
+          id_facilitador: number | null
+          id_participante: number | null
+          id_plantilla_certificado: number | null
+          is_active: boolean
+          nro_osi: number | null
+        }
+        Insert: {
+          calificacion: number
+          created_at?: string | null
+          fecha_emision?: string | null
+          fecha_vencimiento?: string | null
+          id?: number
+          id_curso?: number | null
+          id_empresa?: number | null
+          id_estado?: number | null
+          id_facilitador?: number | null
+          id_participante?: number | null
+          id_plantilla_certificado?: number | null
+          is_active?: boolean
+          nro_osi?: number | null
+        }
+        Update: {
+          calificacion?: number
+          created_at?: string | null
+          fecha_emision?: string | null
+          fecha_vencimiento?: string | null
+          id?: number
+          id_curso?: number | null
+          id_empresa?: number | null
+          id_estado?: number | null
+          id_facilitador?: number | null
+          id_participante?: number | null
+          id_plantilla_certificado?: number | null
+          is_active?: boolean
+          nro_osi?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificados_id_curso_fkey"
+            columns: ["id_curso"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_id_estado_fkey"
+            columns: ["id_estado"]
+            isOneToOne: false
+            referencedRelation: "cat_estados_venezuela"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_id_facilitador_fkey"
+            columns: ["id_facilitador"]
+            isOneToOne: false
+            referencedRelation: "facilitadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_id_facilitador_fkey"
+            columns: ["id_facilitador"]
+            isOneToOne: false
+            referencedRelation: "v_facilitadores_detalle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_id_participante_fkey"
+            columns: ["id_participante"]
+            isOneToOne: false
+            referencedRelation: "participantes_certificados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_id_plantilla_certificado_fkey"
+            columns: ["id_plantilla_certificado"]
+            isOneToOne: false
+            referencedRelation: "plantillas_certificados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competencias_facilitador: {
         Row: {
           id: number
@@ -372,25 +470,42 @@ export type Database = {
         Row: {
           cliente_asociado: number | null
           contenido: string | null
+          created_at: string | null
           horas_estimadas: number | null
           id: number
+          is_active: boolean
           nombre: string
+          nota_aprobatoria: number | null
         }
         Insert: {
           cliente_asociado?: number | null
           contenido?: string | null
+          created_at?: string | null
           horas_estimadas?: number | null
           id?: number
+          is_active?: boolean
           nombre: string
+          nota_aprobatoria?: number | null
         }
         Update: {
           cliente_asociado?: number | null
           contenido?: string | null
+          created_at?: string | null
           horas_estimadas?: number | null
           id?: number
+          is_active?: boolean
           nombre?: string
+          nota_aprobatoria?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cursos_cliente_asociado_fkey"
+            columns: ["cliente_asociado"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       datos_bancarios: {
         Row: {
@@ -1632,6 +1747,7 @@ export type Database = {
           fecha_emision: string | null
           fecha_servicio: string | null
           id: number
+          is_active: boolean
           nro_horas: number | null
           nro_orden_compra: string | null
           nro_osi: string
@@ -1671,6 +1787,7 @@ export type Database = {
           fecha_emision?: string | null
           fecha_servicio?: string | null
           id?: number
+          is_active?: boolean
           nro_horas?: number | null
           nro_orden_compra?: string | null
           nro_osi?: string
@@ -1710,6 +1827,7 @@ export type Database = {
           fecha_emision?: string | null
           fecha_servicio?: string | null
           id?: number
+          is_active?: boolean
           nro_horas?: number | null
           nro_orden_compra?: string | null
           nro_osi?: string
@@ -1726,24 +1844,86 @@ export type Database = {
       }
       participantes_certificados: {
         Row: {
+          apellido: string | null
           cedula: string | null
+          empresa_actual: string | null
           id: number
           nacionalidad: string | null
           nombre: string | null
         }
         Insert: {
+          apellido?: string | null
           cedula?: string | null
+          empresa_actual?: string | null
           id?: number
           nacionalidad?: string | null
           nombre?: string | null
         }
         Update: {
+          apellido?: string | null
           cedula?: string | null
+          empresa_actual?: string | null
           id?: number
           nacionalidad?: string | null
           nombre?: string | null
         }
         Relationships: []
+      }
+      plantillas_certificados: {
+        Row: {
+          archivo: string | null
+          created_at: string | null
+          id: number
+          is_active: boolean
+          nombre: string
+        }
+        Insert: {
+          archivo?: string | null
+          created_at?: string | null
+          id?: number
+          is_active?: boolean
+          nombre: string
+        }
+        Update: {
+          archivo?: string | null
+          created_at?: string | null
+          id?: number
+          is_active?: boolean
+          nombre?: string
+        }
+        Relationships: []
+      }
+      plantillas_cursos: {
+        Row: {
+          contenido: string | null
+          created_at: string | null
+          descripcion: string | null
+          id: number
+          id_empresa: number | null
+        }
+        Insert: {
+          contenido?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: number
+          id_empresa?: number | null
+        }
+        Update: {
+          contenido?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: number
+          id_empresa?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plantillas_cursos_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       presupuesto_detalles: {
         Row: {
