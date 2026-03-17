@@ -20,6 +20,7 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
     horas_estimadas: curso?.horas_estimadas || 0,
     tipo_certificado: curso?.nota_aprobatoria === 0 ? "participacion" : "calificacion", // Certificate type
     nota_aprobatoria: curso?.nota_aprobatoria || 14, // Default to 14 for graded courses
+    emite_carnet: curso?.emite_carnet || false, // Default to false
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +87,7 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
     formData.append('contenido', datosFormulario.contenido);
     formData.append('horas_estimadas', datosFormulario.horas_estimadas.toString());
     formData.append('nota_aprobatoria', datosFormulario.nota_aprobatoria.toString());
+    formData.append('emite_carnet', datosFormulario.emite_carnet.toString());
     
     // Handle empresa_id properly - convert number to string for FormData
     if (datosFormulario.empresa_id) {
@@ -226,6 +228,28 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             placeholder="Agrega el contenido detallado del curso aquí..."
           />
+        </div>
+
+        {/* Emitir Carnet Checkbox */}
+        <div>
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              name="emite_carnet"
+              checked={datosFormulario.emite_carnet || false}
+              onChange={(e) => setDatosFormulario(prev => ({
+                ...prev,
+                emite_carnet: e.target.checked
+              }))}
+              className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+            />
+            <span className="text-sm font-medium text-gray-700">
+              Emitir Carnet
+            </span>
+          </label>
+          <p className="text-sm text-gray-500 mt-1">
+            Marca esta opción si el curso emite carnet además del certificado
+          </p>
         </div>
 
         {/* Buttons */}

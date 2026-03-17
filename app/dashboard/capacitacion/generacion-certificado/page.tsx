@@ -27,7 +27,7 @@ export default function GeneracionCertificadoPage() {
       osi_id: "",
       certificate_title: "",
       certificate_subtitle: "",
-      passing_grade: 0,
+      passing_grade: 14,
       course_topic_id: "",
       course_content: "",
       participants: [],
@@ -106,6 +106,21 @@ export default function GeneracionCertificadoPage() {
       });
       
       setFilteredCourseTopics(clientCourses);
+      
+      // Auto-select the best matching course topic
+      const matchingCourse = findMatchingCourseTopic(osi);
+      if (matchingCourse) {
+        console.log('Auto-selecting matching course:', matchingCourse);
+        const passingGrade = matchingCourse.nota_aprobatoria ?? 14;
+        
+        setCertificateData((prev) => ({
+          ...prev,
+          course_topic_id: matchingCourse.id,
+          course_content: matchingCourse.contenido_curso || '',
+          passing_grade: passingGrade,
+        }));
+        setSelectedCourseTopic(matchingCourse);
+      }
     } else {
       // Clear all related data when OSI is cleared
       setCertificateData((prev) => ({
@@ -115,6 +130,7 @@ export default function GeneracionCertificadoPage() {
         course_topic_id: "",
         course_topic_data: undefined,
         course_content: "",
+        passing_grade: 14,
       }));
       setSelectedCourseTopic(null);
       // Show all courses when no OSI is selected
@@ -123,7 +139,11 @@ export default function GeneracionCertificadoPage() {
   };
 
   const findMatchingCourseTopic = (osi: OSI): CourseTopic | null => {
+    console.log('Finding matching course for OSI:', osi.tema, osi.detalle_capacitacion, osi.detalle_sesion);
+    console.log('Available courses:', allCourseTopics.map(c => ({ id: c.id, name: c.name, nota_aprobatoria: c.nota_aprobatoria })));
+    
     if (!osi.tema && !osi.detalle_capacitacion && !osi.detalle_sesion) {
+      console.log('No course content found in OSI');
       return null;
     }
 
@@ -132,6 +152,10 @@ export default function GeneracionCertificadoPage() {
       (topic: CourseTopic) =>
         osi.tema && topic.name.toLowerCase().includes(osi.tema!.toLowerCase()),
     );
+
+    if (match) {
+      console.log('Found match by tema:', match);
+    }
 
     // If no exact match, try with detalle_capacitacion
     if (!match && osi.detalle_capacitacion) {
@@ -145,6 +169,10 @@ export default function GeneracionCertificadoPage() {
               .toLowerCase()
               .includes(osi.detalle_capacitacion!.toLowerCase())),
       );
+      
+      if (match) {
+        console.log('Found match by detalle_capacitacion:', match);
+      }
     }
 
     // If still no match, try with detalle_sesion
@@ -159,8 +187,13 @@ export default function GeneracionCertificadoPage() {
               .toLowerCase()
               .includes(osi.detalle_sesion!.toLowerCase())),
       );
+      
+      if (match) {
+        console.log('Found match by detalle_sesion:', match);
+      }
     }
 
+    console.log('Final match result:', match);
     return match || null;
   };
 
@@ -175,23 +208,23 @@ export default function GeneracionCertificadoPage() {
       console.log('Available course topics:', allCourseTopics);
       
       if (selectedTopic) {
-        const passingGrade = selectedTopic.nota_aprobatoria || 0;
+        const passingGrade = selectedTopic.nota_aprobatoria ?? 14;
         console.log(`Using passing grade: ${passingGrade} for course: ${selectedTopic.name}`);
         
         setCertificateData((prev) => ({
           ...prev,
           [field]: value,
           course_content: selectedTopic.contenido_curso || '',
-          passing_grade: passingGrade, // Use course's passing grade or default to 0
+          passing_grade: passingGrade, // Use course's passing grade
         }));
         setSelectedCourseTopic(selectedTopic);
       } else {
-        console.log('No course topic found, using default passing grade of 0');
+        console.log('No course topic found, using default passing grade of 14');
         setCertificateData((prev) => ({
           ...prev,
           [field]: value,
           course_content: '',
-          passing_grade: 0, // Default to 0 if no course selected
+          passing_grade: 14, // Default to 14 if no course selected
         }));
         setSelectedCourseTopic(null);
       }
@@ -256,7 +289,7 @@ export default function GeneracionCertificadoPage() {
         osi_id: "",
         certificate_title: "",
         certificate_subtitle: "",
-        passing_grade: 0,
+        passing_grade: 14,
         course_topic_id: "",
         participants: [],
         location: "",
