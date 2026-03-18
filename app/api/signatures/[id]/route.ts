@@ -5,11 +5,12 @@ import { join } from 'path';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params;
     const supabase = await createClient();
-    const id = parseInt(params.id);
+    const id = parseInt(resolvedParams.id);
 
     const { data, error } = await supabase
       .from('firmas')
@@ -36,11 +37,12 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params;
     const supabase = await createClient();
-    const id = parseInt(params.id);
+    const id = parseInt(resolvedParams.id);
 
     // First, get the signature record to find the image file
     const { data: signature, error: fetchError } = await supabase
@@ -68,7 +70,7 @@ export async function DELETE(
 
     // Delete the image file from the filesystem
     try {
-      const filepath = join(process.cwd(), 'public', signature.image_url);
+      const filepath = join(process.cwd(), 'public', signature.url_imagen);
       await unlink(filepath);
     } catch (fileError) {
       // File might not exist, but we don't want to fail the operation
