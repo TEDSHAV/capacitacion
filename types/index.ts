@@ -172,6 +172,13 @@ export interface OSI {
   is_active: boolean
 }
 
+export interface CertificateRequest {
+  participant: CertificateParticipant;
+  certificateData: CertificateGeneration;
+  templateImage: string;
+  sealImage?: string;
+}
+
 export interface CertificateGeneration {
   id?: string;
   osi_id: string;
