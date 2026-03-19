@@ -254,21 +254,7 @@ export class CertificatePage {
         signatureConfig.height
       );
 
-      // Add signature labels
-      this.doc.setFont("helvetica", "normal");
-      this.doc.setFontSize(10);
-      this.doc.text(
-        shaSignature.nombre,
-        signatureConfig.rightX,
-        signatureConfig.y + signatureConfig.height + 5,
-        { align: "center" }
-      );
-      this.doc.text(
-        "Representante SHA",
-        signatureConfig.rightX,
-        signatureConfig.y + signatureConfig.height + 10,
-        { align: "center" }
-      );
+     
     } catch (error) {
       console.error("Error adding SHA signature:", error);
     }

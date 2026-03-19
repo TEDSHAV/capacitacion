@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Facilitador } from "@/types";
 
 interface SignatureUploadProps {
   onSignatureUploaded: () => void;
@@ -8,10 +9,57 @@ interface SignatureUploadProps {
 
 export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) => {
   const [uploading, setUploading] = useState(false);
-  const [signatureName, setSignatureName] = useState("");
+  const [selectedFacilitador, setSelectedFacilitador] = useState<string>("");
+  const [representanteName, setRepresentanteName] = useState<string>("");
   const [signatureType, setSignatureType] = useState<string>("facilitador");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>("");
+  const [facilitadores, setFacilitadores] = useState<Facilitador[]>([]);
+  const [loadingFacilitadores, setLoadingFacilitadores] = useState(true);
+
+  useEffect(() => {
+    loadFacilitadores();
+  }, []);
+
+  useEffect(() => {
+    // Reset form fields when signature type changes
+    setSelectedFacilitador("");
+    setRepresentanteName("");
+    setSelectedFile(null);
+    setPreview("");
+  }, [signatureType]);
+
+  const loadFacilitadores = async () => {
+    try {
+      setLoadingFacilitadores(true);
+      const response = await fetch("/api/facilitators/");
+      if (response.ok) {
+        const allFacilitadores = await response.json();
+        
+        // Load signatures to filter out facilitadores that already have signatures
+        const signaturesResponse = await fetch("/api/signatures");
+        if (signaturesResponse.ok) {
+          const signatures = await signaturesResponse.json();
+          const facilitadorSignatureIds = signatures
+            .filter((sig: any) => sig.tipo === 'facilitador')
+            .map((sig: any) => sig.id);
+          
+          // Filter out facilitadores that already have signatures
+          const availableFacilitadores = allFacilitadores.filter(
+            (f: any) => !f.firma_id || !facilitadorSignatureIds.includes(f.firma_id)
+          );
+          
+          setFacilitadores(availableFacilitadores);
+        } else {
+          setFacilitadores(allFacilitadores);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading facilitadores:", error);
+    } finally {
+      setLoadingFacilitadores(false);
+    }
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -26,8 +74,19 @@ export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) =
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !signatureName) {
-      alert("Por favor selecciona una imagen y proporciona un nombre");
+    // Validation based on signature type
+    if (!selectedFile) {
+      alert("Por favor selecciona una imagen de firma");
+      return;
+    }
+
+    if (signatureType === "facilitador" && !selectedFacilitador) {
+      alert("Por favor selecciona un facilitador");
+      return;
+    }
+
+    if (signatureType === "representante_sha" && !representanteName.trim()) {
+      alert("Por favor ingresa el nombre del representante SHA");
       return;
     }
 
@@ -35,8 +94,13 @@ export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) =
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
-      formData.append("name", signatureName);
       formData.append("type", signatureType);
+
+      if (signatureType === "facilitador") {
+        formData.append("facilitadorId", selectedFacilitador);
+      } else {
+        formData.append("name", representanteName.trim());
+      }
 
       const response = await fetch("/api/signatures/upload", {
         method: "POST",
@@ -45,25 +109,38 @@ export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) =
 
       if (response.ok) {
         alert("Firma subida exitosamente");
-        setSignatureName("");
+        // Reset form
+        setSelectedFacilitador("");
+        setRepresentanteName("");
         setSignatureType("facilitador");
         setSelectedFile(null);
         setPreview("");
         onSignatureUploaded();
       } else {
-        throw new Error("Error al subir la firma");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Error al subir la firma");
       }
     } catch (error) {
-      alert("Error al subir la firma. Por favor intenta nuevamente.");
+      alert(`Error al subir la firma: ${error instanceof Error ? error.message : 'Por favor intenta nuevamente.'}`);
       console.error("Upload error:", error);
     } finally {
       setUploading(false);
     }
   };
 
-  const signatureTypeLabels = {
-    "facilitador": "Facilitador",
-    "representante_sha": "Representante SHA",
+  const getDisplayName = () => {
+    if (signatureType === "facilitador") {
+      const facilitador = facilitadores.find(f => f.id.toString() === selectedFacilitador);
+      return facilitador ? facilitador.nombre_apellido : "";
+    }
+    return representanteName;
+  };
+
+  const isFormValid = () => {
+    if (!selectedFile) return false;
+    if (signatureType === "facilitador") return selectedFacilitador !== "";
+    if (signatureType === "representante_sha") return representanteName.trim() !== "";
+    return false;
   };
 
   return (
@@ -75,23 +152,7 @@ export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) =
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Form Section */}
         <div className="space-y-4">
-          <div>
-            <label
-              htmlFor="signature-name"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Nombre de la Persona *
-            </label>
-            <input
-              type="text"
-              id="signature-name"
-              value={signatureName}
-              onChange={(e) => setSignatureName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Ej: Juan Pérez"
-            />
-          </div>
-
+          {/* Signature Type Selection - Moved to top */}
           <div>
             <label
               htmlFor="signature-type"
@@ -114,6 +175,56 @@ export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) =
             </select>
           </div>
 
+          {/* Conditional fields based on signature type */}
+          {signatureType === "facilitador" ? (
+            <div>
+              <label
+                htmlFor="facilitador-select"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Facilitador *
+              </label>
+              <select
+                id="facilitador-select"
+                value={selectedFacilitador}
+                onChange={(e) => setSelectedFacilitador(e.target.value)}
+                disabled={loadingFacilitadores}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+              >
+                <option value="">
+                  {loadingFacilitadores ? "Cargando facilitadores..." : "Selecciona un facilitador..."}
+                </option>
+                {facilitadores.map((facilitador) => (
+                  <option key={facilitador.id} value={facilitador.id.toString()}>
+                    {facilitador.nombre_apellido}
+                  </option>
+                ))}
+              </select>
+              {facilitadores.length === 0 && !loadingFacilitadores && (
+                <p className="text-xs text-amber-600 mt-1">
+                  No hay facilitadores disponibles. Todos ya tienen firma registrada.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <label
+                htmlFor="representante-name"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Nombre del Representante SHA *
+              </label>
+              <input
+                type="text"
+                id="representante-name"
+                value={representanteName}
+                onChange={(e) => setRepresentanteName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Ej: Juan Pérez - Representante SHA"
+              />
+            </div>
+          )}
+
           <div>
             <label
               htmlFor="signature-file"
@@ -135,7 +246,7 @@ export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) =
 
           <button
             onClick={handleUpload}
-            disabled={uploading || !selectedFile || !signatureName}
+            disabled={uploading || !isFormValid() || loadingFacilitadores}
             className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {uploading ? "Subiendo..." : "Subir Firma"}
@@ -146,11 +257,19 @@ export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) =
         <div>
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 h-64 flex items-center justify-center">
             {preview ? (
-              <img
-                src={preview}
-                alt="Vista previa de la firma"
-                className="max-w-full max-h-full object-contain"
-              />
+              <div className="text-center">
+                <img
+                  src={preview}
+                  alt="Vista previa de la firma"
+                  className="max-w-full max-h-40 object-contain mx-auto mb-2"
+                />
+                <p className="text-sm text-gray-600 font-medium">
+                  {getDisplayName()}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {signatureType === "facilitador" ? "Facilitador" : "Representante SHA"}
+                </p>
+              </div>
             ) : (
               <div className="text-center text-gray-500">
                 <svg
@@ -167,6 +286,12 @@ export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) =
                   />
                 </svg>
                 <p className="mt-2">Vista previa de la firma</p>
+                <p className="text-xs mt-1">
+                  {signatureType === "facilitador" 
+                    ? "Selecciona un facilitador y una imagen" 
+                    : "Ingresa el nombre y una imagen"
+                  }
+                </p>
               </div>
             )}
           </div>

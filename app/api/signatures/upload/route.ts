@@ -7,12 +7,28 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const name = formData.get('name') as string;
     const type = formData.get('type') as string;
+    const facilitadorId = formData.get('facilitadorId') as string;
+    const name = formData.get('name') as string;
 
-    if (!file || !name || !type) {
+    if (!file || !type) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Validate based on signature type
+    if (type === 'facilitador' && !facilitadorId) {
+      return NextResponse.json(
+        { error: 'Facilitador ID is required for facilitator signatures' },
+        { status: 400 }
+      );
+    }
+
+    if (type === 'representante_sha' && !name) {
+      return NextResponse.json(
+        { error: 'Name is required for SHA representative signatures' },
         { status: 400 }
       );
     }
@@ -52,25 +68,56 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     await writeFile(filepath, buffer);
 
-    // Save signature record to database
+    // Get the name for the signature record
+    let signatureName: string;
     const supabase = await createClient();
+
+    if (type === 'facilitador') {
+      // Get facilitator information
+      const { data: facilitador, error: facilitadorError } = await supabase
+        .from('facilitadores')
+        .select('nombre_apellido')
+        .eq('id', parseInt(facilitadorId))
+        .single();
+
+      if (facilitadorError || !facilitador) {
+        // Clean up uploaded file if facilitator not found
+        try {
+          const fs = require('fs/promises');
+          await fs.unlink(filepath);
+        } catch (cleanupError) {
+          console.error('Error cleaning up file:', cleanupError);
+        }
+        
+        return NextResponse.json(
+          { error: 'Facilitator not found' },
+          { status: 404 }
+        );
+      }
+      signatureName = facilitador.nombre_apellido;
+    } else {
+      signatureName = name.trim();
+    }
+
+    // Save signature record to database
     const imageUrl = `/signatures/${filename}`;
 
-    const { data, error } = await supabase
+    const { data: signatureData, error: signatureError } = await supabase
       .from('firmas')
       .insert([
         {
-          nombre: name,
+          nombre: signatureName,
           tipo: type,
           url_imagen: imageUrl,
           fecha_creacion: new Date().toISOString(),
           fecha_actualizacion: new Date().toISOString(),
+          is_active: true,
         },
       ])
       .select()
       .single();
 
-    if (error) {
+    if (signatureError) {
       // If database insert fails, clean up the uploaded file
       try {
         const fs = require('fs/promises');
@@ -79,10 +126,26 @@ export async function POST(request: NextRequest) {
         console.error('Error cleaning up file:', cleanupError);
       }
       
-      throw error;
+      throw signatureError;
     }
 
-    return NextResponse.json(data);
+    // If it's a facilitator signature, update the facilitador with the signature ID
+    if (type === 'facilitador') {
+      const { error: updateError } = await supabase
+        .from('facilitadores')
+        .update({
+          firma_id: signatureData.id,
+          fecha_actualizacion: new Date().toISOString(),
+        })
+        .eq('id', parseInt(facilitadorId));
+
+      if (updateError) {
+        console.error('Error updating facilitator with signature ID:', updateError);
+        // Don't fail the operation, but log the error
+      }
+    }
+
+    return NextResponse.json(signatureData);
   } catch (error) {
     console.error('Signature upload error:', error);
     return NextResponse.json(
