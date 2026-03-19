@@ -200,8 +200,14 @@ export class CertificateGenerator {
     // Row 4: CI and Nombre
     this.doc.setFont("helvetica", "bold");
     this.doc.setFontSize(8);
+    
+    // Conditional ID display based on nationality
+    const isVenezolano = participant.nacionalidad?.toLowerCase() === 'v';
+    const idLabel = isVenezolano ? "CI:" : "Pasaporte:";
+    const idPrefix = isVenezolano ? "V-" : "E-";
+    
     this.doc.text(
-      `CI: ${participant.id_type || "V-"}${participant.id_number}`,
+      `${idLabel} ${idPrefix}${participant.id_number}`,
       tableX + tableWidth / 2,
       tableY + cellHeight * 3 + cellHeight / 2 - 1,
       { align: "center" }
@@ -318,7 +324,7 @@ export class CertificateGenerator {
 
       this.doc.setFont("helvetica", "bold");
       this.doc.setTextColor("black");
-      this.doc.setFontSize(18);
+      this.doc.setFontSize(10);
 
       conditionalLines = this.doc.splitTextToSize(
         conditionalText,
@@ -366,7 +372,7 @@ export class CertificateGenerator {
 
     // Calculate starting Y position to center the main content (name, conditional, title)
     // Subtitle will be added below and take space from bottom
-    const centerPoint = 80; // Fixed center point for main content
+    const centerPoint = 60; // Fixed center point for main content
     const mainElementsHeight =
       nameLines.length * lineHeight +
       conditionalLines.length * lineHeight +
