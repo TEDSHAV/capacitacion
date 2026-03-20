@@ -1,18 +1,15 @@
 "use client";
 
 import {
-  CertificateGeneration,
-  OSI,
   CourseTopic,
-  CertificateParticipant,
   CertificateFormProps,
+  Signature,
 } from "@/types";
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
 import { useState, useEffect } from "react";
 import { FacilitatorSelection } from "../../../gestion-de-facilitadores/components/facilitator-selection";
-import { SignatureSelection } from "../../../gestion-de-firmas/components/signature-selection";
 
 export const CertificateForm = ({
   certificateData,
@@ -25,9 +22,9 @@ export const CertificateForm = ({
   onGenerate,
 }: CertificateFormProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [shaSignatures, setShaSignatures] = useState([]);
-  const [certificateTemplates, setCertificateTemplates] = useState([]);
-  const [venezuelanStates, setVenezuelanStates] = useState([]);
+  const [shaSignatures, setShaSignatures] = useState<Signature[]>([]);
+  const [certificateTemplates, setCertificateTemplates] = useState<any[]>([]);
+  const [venezuelanStates, setVenezuelanStates] = useState<any[]>([]);
 
   useEffect(() => {
     const loadFormData = async () => {
@@ -36,11 +33,11 @@ export const CertificateForm = ({
         const signaturesResponse = await fetch("/api/signatures");
         if (signaturesResponse.ok) {
           const data = await signaturesResponse.json();
-          const shaOnly = data.filter((sig: any) => sig.tipo === 'representante_sha');
+          const shaOnly = data.filter((sig: Signature) => sig.tipo === 'representante_sha');
           setShaSignatures(shaOnly);
           
           // Auto-select the active SHA signature
-          const activeShaSignature = shaOnly.find((sig: any) => sig.is_active);
+          const activeShaSignature = shaOnly.find((sig: Signature) => sig.is_active);
           
           if (activeShaSignature && !certificateData.sha_signature_id) {
             onDataChange("sha_signature_id", activeShaSignature.id.toString());
@@ -406,7 +403,7 @@ export const CertificateForm = ({
             type="text"
             id="sha-signature"
             value={(() => {
-              const activeSignature = shaSignatures.find((sig: any) => sig.is_active);
+              const activeSignature = shaSignatures.find((sig: Signature) => sig.is_active);
               return activeSignature?.nombre || "No hay firma SHA activa";
             })()}
             readOnly
