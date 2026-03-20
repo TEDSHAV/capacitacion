@@ -20,7 +20,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
   const formRef = useRef<HTMLFormElement>(null);
   const [formData, setFormData] = useState<FacilitadorFormData>({
     fuente: "",
-    ano_ingreso: "",
+    fecha_ingreso: "",
     nombre_apellido: "",
     cedula: "",
     rif: "",
@@ -29,7 +29,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
     direccion: "",
     nivel_tecnico: "",
     formacion_docente_certificada: false,
-    tipo_impacto: "",
+    alcance: "",
     notas_observaciones: "",
     id_estado_base: null,
     id_ciudad_base: null,
@@ -40,6 +40,9 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
     calificacion: null,
     url_curriculum: "",
     firma_id: null,
+    tiene_curriculum: false,
+    tiene_certificaciones: false,
+    tiene_foto_perfil: false,
   });
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
@@ -64,7 +67,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
             const facilitator = await response.json();
             setFormData({
               fuente: facilitator.fuente || "",
-              ano_ingreso: facilitator.ano_ingreso ? String(facilitator.ano_ingreso) : "",
+              fecha_ingreso: facilitator.fecha_ingreso || (facilitator.ano_ingreso ? `${facilitator.ano_ingreso}-01-01` : ""),
               nombre_apellido: facilitator.nombre_apellido || "",
               cedula: facilitator.cedula || "",
               rif: facilitator.rif || "",
@@ -73,7 +76,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
               direccion: facilitator.direccion || "",
               nivel_tecnico: facilitator.nivel_tecnico || "",
               formacion_docente_certificada: facilitator.formacion_docente_certificada || false,
-              tipo_impacto: facilitator.tipo_impacto || "",
+              alcance: facilitator.alcance || "",
               notas_observaciones: facilitator.notas_observaciones || "",
               id_estado_base: facilitator.id_estado_base,
               id_ciudad_base: facilitator.id_ciudad_base,
@@ -84,6 +87,9 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
               calificacion: facilitator.calificacion,
               url_curriculum: facilitator.url_curriculum || "",
               firma_id: facilitator.firma_id,
+              tiene_curriculum: facilitator.tiene_curriculum || false,
+              tiene_certificaciones: facilitator.tiene_certificaciones || false,
+              tiene_foto_perfil: facilitator.tiene_foto_perfil || false,
             });
           }
         } catch (error) {
@@ -229,8 +235,11 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
         // Update existing facilitator - send as JSON
         const updateData = {
           ...formData,
-          ano_ingreso: formData.ano_ingreso ? parseInt(formData.ano_ingreso) : null,
+          fecha_ingreso: formData.fecha_ingreso || null,
+          ano_ingreso: formData.fecha_ingreso ? new Date(formData.fecha_ingreso).getFullYear() : null,
         };
+        
+        console.log('Sending update data:', updateData);
         
         response = await fetch(`/api/facilitators/${editId}`, {
           method: 'PUT',
@@ -246,6 +255,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
         } else {
           const errorData = await response.json().catch(() => ({}));
           const errorMessage = errorData.error || 'Error al actualizar el facilitador';
+          console.error('Update error response:', errorData);
           alert(`Error: ${errorMessage}`);
         }
       } else {

@@ -19,26 +19,27 @@ export const ProfessionalInfoSection = ({ formData, handleInputChange, states, l
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">Seleccionar nivel...</option>
-            <option value="basico">Básico</option>
-            <option value="intermedio">Intermedio</option>
-            <option value="avanzado">Avanzado</option>
-            <option value="experto">Experto</option>
+            <option value="tecnico_superior">Técnico Superior</option>
+            <option value="ingeniero">Ingeniero</option>
+            <option value="licenciado">Licenciado</option>
+            <option value="bachiller">Bachiller</option>
+            <option value="otro">Otro</option>
           </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Tipo de Impacto
+            Alcance
           </label>
           <select
-            value={formData.tipo_impacto}
-            onChange={(e) => handleInputChange("tipo_impacto", e.target.value)}
+            value={formData.alcance}
+            onChange={(e) => handleInputChange("alcance", e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="">Seleccionar tipo...</option>
-            <option value="N">Nacional</option>
-            <option value="R">Regional</option>
-            <option value="L">Local</option>
+            <option value="">Seleccionar alcance...</option>
+            <option value="nacional">Nacional</option>
+            <option value="regional">Regional</option>
+            <option value="local">Local</option>
           </select>
         </div>
 
@@ -52,6 +53,45 @@ export const ProfessionalInfoSection = ({ formData, handleInputChange, states, l
           />
           <label htmlFor="formacion_docente_certificada" className="text-sm text-gray-700">
             Formación Docente Certificada
+          </label>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="tiene_curriculum"
+            checked={formData.tiene_curriculum}
+            onChange={(e) => handleInputChange("tiene_curriculum", e.target.checked)}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <label htmlFor="tiene_curriculum" className="text-sm text-gray-700">
+            Tiene Currículum
+          </label>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="tiene_certificaciones"
+            checked={formData.tiene_certificaciones}
+            onChange={(e) => handleInputChange("tiene_certificaciones", e.target.checked)}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <label htmlFor="tiene_certificaciones" className="text-sm text-gray-700">
+            Tiene Certificaciones
+          </label>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="tiene_foto_perfil"
+            checked={formData.tiene_foto_perfil}
+            onChange={(e) => handleInputChange("tiene_foto_perfil", e.target.checked)}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <label htmlFor="tiene_foto_perfil" className="text-sm text-gray-700">
+            Tiene Foto de Perfil
           </label>
         </div>
       </div>
