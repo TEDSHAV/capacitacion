@@ -58,7 +58,8 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
     const { name, value } = e.target;
     setDatosFormulario(prev => ({
       ...prev,
-      [name]: (name === 'horas_estimadas' || name === 'nota_aprobatoria') ? (value === "" ? 0 : Number(value)) : value
+      [name]: (name === 'horas_estimadas' || name === 'nota_aprobatoria') ? 
+        (value === "" ? 0 : Number(value.replace(/^0+/, ''))) : value
     }));
   };
 

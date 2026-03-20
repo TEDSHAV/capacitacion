@@ -28,8 +28,8 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
             <label className="block text-sm font-medium text-gray-700 mb-2">Costo por Honorarios</label>
             <input
               type="number"
-              value={formData.costo_honorarios || 0}
-              onChange={(e) => updateFormData('costo_honorarios', parseFloat(e.target.value) || 0)}
+              value={(formData.costo_honorarios || 0).toString().replace(/^0+/, '')}
+              onChange={(e) => updateFormData('costo_honorarios', parseFloat(e.target.value.replace(/^0+/, '')) || 0)}
               disabled={!isEditing && !isNew}
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -42,8 +42,8 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
             <label className="block text-sm font-medium text-gray-700 mb-2">Número de Horas</label>
             <input
               type="number"
-              value={formData.nro_horas || 0}
-              onChange={(e) => updateFormData('nro_horas', parseFloat(e.target.value) || 0)}
+              value={(formData.nro_horas || 0).toString().replace(/^0+/, '')}
+              onChange={(e) => updateFormData('nro_horas', parseFloat(e.target.value.replace(/^0+/, '')) || 0)}
               disabled={!isEditing && !isNew}
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -69,8 +69,8 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
             <label className="block text-sm font-medium text-gray-700 mb-2">Costo Impresión Material</label>
             <input
               type="number"
-              value={formData.costo_impresion_material || 0}
-              onChange={(e) => updateFormData('costo_impresion_material', parseFloat(e.target.value) || 0)}
+              value={(formData.costo_impresion_material || 0).toString().replace(/^0+/, '')}
+              onChange={(e) => updateFormData('costo_impresion_material', parseFloat(e.target.value.replace(/^0+/, '')) || 0)}
               disabled={!isEditing && !isNew}
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -83,8 +83,8 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
             <label className="block text-sm font-medium text-gray-700 mb-2">Costo Traslado</label>
             <input
               type="number"
-              value={formData.costo_traslado || 0}
-              onChange={(e) => updateFormData('costo_traslado', parseFloat(e.target.value) || 0)}
+              value={(formData.costo_traslado || 0).toString().replace(/^0+/, '')}
+              onChange={(e) => updateFormData('costo_traslado', parseFloat(e.target.value.replace(/^0+/, '')) || 0)}
               disabled={!isEditing && !isNew}
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -97,8 +97,8 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
             <label className="block text-sm font-medium text-gray-700 mb-2">Costo Logística Comida</label>
             <input
               type="number"
-              value={formData.costo_logistica_comida || 0}
-              onChange={(e) => updateFormData('costo_logistica_comida', parseFloat(e.target.value) || 0)}
+              value={(formData.costo_logistica_comida || 0).toString().replace(/^0+/, '')}
+              onChange={(e) => updateFormData('costo_logistica_comida', parseFloat(e.target.value.replace(/^0+/, '')) || 0)}
               disabled={!isEditing && !isNew}
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -111,8 +111,8 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
             <label className="block text-sm font-medium text-gray-700 mb-2">Costo Otros</label>
             <input
               type="number"
-              value={formData.costo_otros || 0}
-              onChange={(e) => updateFormData('costo_otros', parseFloat(e.target.value) || 0)}
+              value={(formData.costo_otros || 0).toString().replace(/^0+/, '')}
+              onChange={(e) => updateFormData('costo_otros', parseFloat(e.target.value.replace(/^0+/, '')) || 0)}
               disabled={!isEditing && !isNew}
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"

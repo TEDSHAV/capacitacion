@@ -129,7 +129,7 @@ const OSIForm = ({
                 value={initialData?.nro_osi || ''}
                 onChange={(e) => {
                   if (!isOsiFieldLocked) {
-                    updateFormData?.('nro_osi', e.target.value)
+                    updateFormData?.('nro_osi', e.target.value.replace(/^0+/, ''))
                   }
                 }}
                 disabled={isOsiFieldLocked || (!isEditing && !isNew)}
