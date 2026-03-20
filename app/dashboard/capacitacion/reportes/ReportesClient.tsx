@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { User } from "@supabase/supabase-js";
 import { ReportesClientProps, State } from "@/types";
+import { Button } from "@/components/ui/button";
 import FacilitadorStateStats from "./components/FacilitadorStateStats";
 import FacilitadorHoursStats from "./components/FacilitadorHoursStats";
 
@@ -21,30 +22,22 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab("states")}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === "states"
-                ? "border-indigo-500 text-indigo-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            Facilitadores por Estado
-          </button>
-          <button
-            onClick={() => setActiveTab("hours")}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === "hours"
-                ? "border-indigo-500 text-indigo-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            Horas de Capacitación
-          </button>
-        </nav>
+      {/* Action Buttons */}
+      <div className="mb-6 flex flex-wrap gap-4">
+        <Button
+          variant={activeTab === "states" ? "default" : "outline"}
+          onClick={() => setActiveTab("states")}
+          className="min-w-[200px]"
+        >
+          Facilitadores por Estado
+        </Button>
+        <Button
+          variant={activeTab === "hours" ? "default" : "outline"}
+          onClick={() => setActiveTab("hours")}
+          className="min-w-[200px]"
+        >
+          Horas de Capacitación
+        </Button>
       </div>
 
       {/* State Filter (for both tabs) */}
