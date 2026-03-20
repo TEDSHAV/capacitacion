@@ -41,6 +41,7 @@ export const CertificateForm = ({
           
           // Auto-select the active SHA signature
           const activeShaSignature = shaOnly.find((sig: any) => sig.is_active);
+          
           if (activeShaSignature && !certificateData.sha_signature_id) {
             onDataChange("sha_signature_id", activeShaSignature.id.toString());
           }
@@ -70,7 +71,7 @@ export const CertificateForm = ({
     };
 
     loadFormData();
-  }, []);
+  }, [certificateData.sha_signature_id, onDataChange]);
 
   const handleGenerateCertificate = () => {
     // Validation

@@ -51,7 +51,7 @@ export async function saveCertificatesToDatabase(
         continue;
       }
 
-      // 2. Prepare certificate record data
+      // 2. Prepare certificate record data with proper participant ID
       const certificateRecord: CertificateRecord = {
         id_participante: participantId,
         id_empresa: certificateData.osi_data.empresa_id || undefined,
@@ -63,7 +63,7 @@ export async function saveCertificatesToDatabase(
         id_facilitador: certificateData.facilitator_id ? parseInt(certificateData.facilitator_id) : undefined,
         id_plantilla_certificado: certificateData.id_plantilla_certificado || undefined,
         calificacion: participant.score || 0,
-        snapshot_contenido: generateContentSnapshot(certificateData, participant)
+        snapshot_contenido: generateContentSnapshot(certificateData, participant, participantId)
       };
 
       // 3. Insert certificate record and return the control numbers
@@ -164,12 +164,13 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
  */
 function generateContentSnapshot(
   certificateData: CertificateGeneration, 
-  participant: CertificateParticipant
+  participant: CertificateParticipant,
+  participantId: number
 ): string {
   const snapshot = {
     // Certificate record fields from certificados table
     certificado: {
-      id_participante: participant.name, // Will be updated with actual ID after insertion
+      id_participante: participantId, // Use actual participant ID from database
       id_empresa: certificateData.osi_data?.empresa_id,
       id_curso: certificateData.course_topic_data?.id,
       fecha_emision: new Date().toISOString().split('T')[0], // Current date
@@ -185,12 +186,14 @@ function generateContentSnapshot(
       nro_linea: 1, // Default value from trigger
       // nro_control is handled by sequence/trigger
     },
-    // Participant information
+    // Participant information with proper cédula details
     participante: {
+      id: participantId, // Include database participant ID
       name: participant.name,
-      id_number: participant.id_number,
+      cedula: participant.id_number, // Store cédula properly
       nacionalidad: participant.nacionalidad || 'V',
-      score: participant.score
+      score: participant.score,
+      cedula_completa: `${participant.nacionalidad || 'V'}-${participant.id_number}` // Full cédula format
     },
     // Certificate details
     certificado_detalles: {
