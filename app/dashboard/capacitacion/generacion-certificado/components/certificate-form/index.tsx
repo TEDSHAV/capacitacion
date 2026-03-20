@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  CourseTopic,
-  CertificateFormProps,
-  Signature,
-} from "@/types";
+import { CourseTopic, CertificateFormProps, Signature } from "@/types";
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
@@ -33,12 +29,16 @@ export const CertificateForm = ({
         const signaturesResponse = await fetch("/api/signatures");
         if (signaturesResponse.ok) {
           const data = await signaturesResponse.json();
-          const shaOnly = data.filter((sig: Signature) => sig.tipo === 'representante_sha');
+          const shaOnly = data.filter(
+            (sig: Signature) => sig.tipo === "representante_sha",
+          );
           setShaSignatures(shaOnly);
-          
+
           // Auto-select the active SHA signature
-          const activeShaSignature = shaOnly.find((sig: Signature) => sig.is_active);
-          
+          const activeShaSignature = shaOnly.find(
+            (sig: Signature) => sig.is_active,
+          );
+
           if (activeShaSignature && !certificateData.sha_signature_id) {
             onDataChange("sha_signature_id", activeShaSignature.id.toString());
           }
@@ -49,9 +49,12 @@ export const CertificateForm = ({
         if (templatesResponse.ok) {
           const templates = await templatesResponse.json();
           setCertificateTemplates(templates);
-          
+
           // Auto-select default template (first active template)
-          if (templates.length > 0 && !certificateData.id_plantilla_certificado) {
+          if (
+            templates.length > 0 &&
+            !certificateData.id_plantilla_certificado
+          ) {
             onDataChange("id_plantilla_certificado", templates[0].id);
           }
         }
@@ -84,8 +87,13 @@ export const CertificateForm = ({
     }
 
     // Additional validation for expiration date if course emits card
-    if (selectedCourseTopic?.emite_carnet && !certificateData.fecha_vencimiento) {
-      alert("Este curso emite carnet, por lo que la fecha de vencimiento es requerida");
+    if (
+      selectedCourseTopic?.emite_carnet &&
+      !certificateData.fecha_vencimiento
+    ) {
+      alert(
+        "Este curso emite carnet, por lo que la fecha de vencimiento es requerida",
+      );
       return;
     }
 
@@ -101,13 +109,20 @@ export const CertificateForm = ({
       certificateData.participants.length === 0 ||
       !certificateData.date
     ) {
-      alert("Por favor completa todos los campos obligatorios para generar la vista previa");
+      alert(
+        "Por favor completa todos los campos obligatorios para generar la vista previa",
+      );
       return;
     }
 
     // Additional validation for expiration date if course emits card
-    if (selectedCourseTopic?.emite_carnet && !certificateData.fecha_vencimiento) {
-      alert("Este curso emite carnet, por lo que la fecha de vencimiento es requerida para la vista previa");
+    if (
+      selectedCourseTopic?.emite_carnet &&
+      !certificateData.fecha_vencimiento
+    ) {
+      alert(
+        "Este curso emite carnet, por lo que la fecha de vencimiento es requerida para la vista previa",
+      );
       return;
     }
 
@@ -220,8 +235,13 @@ export const CertificateForm = ({
           onChange={(e) => {
             const topicId = e.target.value;
             onDataChange("course_topic_id", topicId);
-            const selectedTopic = courseTopics.find(topic => topic.id === topicId);
-            onDataChange("horas_estimadas", selectedTopic?.horas_estimadas || undefined);
+            const selectedTopic = courseTopics.find(
+              (topic) => topic.id === topicId,
+            );
+            onDataChange(
+              "horas_estimadas",
+              selectedTopic?.horas_estimadas || undefined,
+            );
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
@@ -250,7 +270,10 @@ export const CertificateForm = ({
           id="horas_estimadas"
           value={certificateData.horas_estimadas || ""}
           onChange={(e) =>
-            onDataChange("horas_estimadas", e.target.value ? parseFloat(e.target.value) : undefined)
+            onDataChange(
+              "horas_estimadas",
+              e.target.value ? parseFloat(e.target.value) : undefined,
+            )
           }
           min="0"
           step="1"
@@ -279,7 +302,8 @@ export const CertificateForm = ({
           placeholder="El contenido del curso se prellenará automáticamente desde la información de la OSI..."
         />
         <p className="text-xs text-gray-500 mt-1">
-          Este campo se prellena automáticamente con el detalle de capacitación o tema de la OSI seleccionada
+          Este campo se prellena automáticamente con el detalle de capacitación
+          o tema de la OSI seleccionada
         </p>
       </div>
 
@@ -313,12 +337,15 @@ export const CertificateForm = ({
             type="date"
             id="fecha_vencimiento"
             value={certificateData.fecha_vencimiento || ""}
-            onChange={(e) => onDataChange("fecha_vencimiento", e.target.value || undefined)}
+            onChange={(e) =>
+              onDataChange("fecha_vencimiento", e.target.value || undefined)
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             required
           />
           <p className="text-xs text-gray-500 mt-1">
-            Este curso emite carnet, por lo que la fecha de vencimiento es requerida
+            Este curso emite carnet, por lo que la fecha de vencimiento es
+            requerida
           </p>
         </div>
       )}
@@ -334,7 +361,12 @@ export const CertificateForm = ({
         <select
           id="id_plantilla_certificado"
           value={certificateData.id_plantilla_certificado || ""}
-          onChange={(e) => onDataChange("id_plantilla_certificado", e.target.value ? parseInt(e.target.value) : undefined)}
+          onChange={(e) =>
+            onDataChange(
+              "id_plantilla_certificado",
+              e.target.value ? parseInt(e.target.value) : undefined,
+            )
+          }
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">Seleccionar plantilla...</option>
@@ -360,7 +392,12 @@ export const CertificateForm = ({
         <select
           id="id_estado"
           value={certificateData.id_estado || ""}
-          onChange={(e) => onDataChange("id_estado", e.target.value ? parseInt(e.target.value) : undefined)}
+          onChange={(e) =>
+            onDataChange(
+              "id_estado",
+              e.target.value ? parseInt(e.target.value) : undefined,
+            )
+          }
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">Seleccionar estado...</option>
@@ -371,7 +408,8 @@ export const CertificateForm = ({
           ))}
         </select>
         <p className="text-xs text-gray-500 mt-1">
-          Seleccionar Estado para fines administrativos
+          Seleccionar el estado en el que se ejecutó el servicio para fines
+          administrativos
         </p>
       </div>
 
@@ -380,7 +418,7 @@ export const CertificateForm = ({
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           Firmas del Certificado
         </h3>
-        
+
         {/* Facilitator Selection */}
         <div className="mb-4">
           <FacilitatorSelection
@@ -390,7 +428,7 @@ export const CertificateForm = ({
             }}
           />
         </div>
-        
+
         {/* SHA Representative Signature */}
         <div>
           <label
@@ -403,7 +441,9 @@ export const CertificateForm = ({
             type="text"
             id="sha-signature"
             value={(() => {
-              const activeSignature = shaSignatures.find((sig: Signature) => sig.is_active);
+              const activeSignature = shaSignatures.find(
+                (sig: Signature) => sig.is_active,
+              );
               return activeSignature?.nombre || "No hay firma SHA activa";
             })()}
             readOnly
@@ -411,8 +451,11 @@ export const CertificateForm = ({
             placeholder="No hay firma SHA activa"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Las firmas SHA se gestionan en el módulo de Gestión de Firmas. 
-            <a href="/dashboard/capacitacion/gestion-de-firmas" className="text-blue-600 hover:underline ml-1">
+            Las firmas SHA se gestionan en el módulo de Gestión de Firmas.
+            <a
+              href="/dashboard/capacitacion/gestion-de-firmas"
+              className="text-blue-600 hover:underline ml-1"
+            >
               Gestionar firmas SHA
             </a>
           </p>
@@ -448,7 +491,8 @@ export const CertificateForm = ({
         <button
           type="button"
           onClick={handleGenerateCertificate}
-          disabled={isGenerating || 
+          disabled={
+            isGenerating ||
             !certificateData.certificate_title ||
             !certificateData.osi_id ||
             !certificateData.course_topic_id ||
@@ -459,9 +503,25 @@ export const CertificateForm = ({
         >
           {isGenerating ? (
             <>
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               Generando Certificados...
             </>

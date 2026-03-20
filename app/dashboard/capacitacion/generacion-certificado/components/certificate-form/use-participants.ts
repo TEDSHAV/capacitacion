@@ -12,7 +12,7 @@ export const useParticipants = (onParticipantsChange: (participants: Certificate
     setCurrentParticipants(initialParticipants || [])
   }, [initialParticipants])
 
-  const addParticipant = useCallback(() => {
+  const addParticipant = useCallback((): boolean => {
     if (newParticipant.name.trim() && newParticipant.id_number.trim()) {
       // Check if participant with same ID number already exists
       const existingParticipant = currentParticipants.find(
@@ -21,7 +21,7 @@ export const useParticipants = (onParticipantsChange: (participants: Certificate
       
       if (existingParticipant) {
         alert('Ya existe un participante con este número de cédula/pasaporte')
-        return
+        return false
       }
       
       const participant: CertificateParticipant = {
@@ -35,7 +35,9 @@ export const useParticipants = (onParticipantsChange: (participants: Certificate
       setCurrentParticipants(updatedParticipants)
       onParticipantsChange(updatedParticipants)
       setNewParticipant(initialParticipant)
+      return true
     }
+    return false
   }, [newParticipant, currentParticipants, onParticipantsChange])
 
   const removeParticipant = useCallback((id: string) => {

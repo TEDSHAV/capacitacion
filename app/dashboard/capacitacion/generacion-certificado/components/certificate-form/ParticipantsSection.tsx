@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { CertificateParticipant, ParticipantsSectionProps } from '@/types'
 import { useParticipants } from './use-participants'
 
 export const ParticipantsSection = ({ participants, onChange, passing_grade }: ParticipantsSectionProps) => {
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  
   // Ensure participants is always an array
   const safeParticipants = Array.isArray(participants) ? participants : []
   
@@ -16,13 +18,35 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
   
   const {
     newParticipant,
-    addParticipant,
+    addParticipant: addParticipantHook,
     removeParticipant,
     updateNewParticipant,
-    handleKeyPress
+    handleKeyPress: handleKeyPressHook
   } = useParticipants(onChange, uniqueParticipants)
 
-  // Helper function to determine participant status
+  const addParticipant = () => {
+    console.log('addParticipant called')
+    const wasAdded = addParticipantHook()
+    console.log('wasAdded:', wasAdded)
+    // Focus back to name input only if participant was successfully added
+    if (wasAdded) {
+      console.log('Attempting to focus input')
+      setTimeout(() => {
+        console.log('setTimeout callback, nameInputRef.current:', nameInputRef.current)
+        if (nameInputRef.current) {
+          console.log('Focusing input')
+          nameInputRef.current.focus()
+        }
+      }, 0) // Small delay to ensure DOM has updated
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addParticipant()
+    }
+  }
   const getParticipantStatus = (participant: CertificateParticipant) => {
     if (participant.score === undefined || participant.score === null) {
       return 'unknown'
@@ -63,6 +87,7 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
       {/* Add Participant Form */}
       <div className="flex gap-2 mb-3">
         <input
+          ref={nameInputRef}
           type="text"
           value={newParticipant.name}
           onChange={e => updateNewParticipant('name', e.target.value)}
