@@ -256,18 +256,14 @@ export class ContentPage {
     const sealX = tableX + tableWidth / 2 - contentPage.sealSize / 2;
     
     try {
-      console.log("Adding seal image at:", { x: sealX, y: sealY, sealImage });
-      
       // Simple image loading
       await new Promise<void>((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
           this.doc.addImage(img, "PNG", sealX, sealY, contentPage.sealSize, contentPage.sealSize);
-          console.log("Seal image added successfully");
           resolve();
         };
-        img.onerror = (error) => {
-          console.error("Failed to load seal image:", error);
+        img.onerror = () => {
           // Draw placeholder
           this.doc.setDrawColor(200, 200, 200);
           this.doc.rect(sealX, sealY, contentPage.sealSize, contentPage.sealSize);
@@ -275,9 +271,8 @@ export class ContentPage {
         };
         img.src = sealImage;
       });
-      
     } catch (error) {
-      console.error("Error adding seal image:", error);
+      // Error adding seal image
     }
   }
 

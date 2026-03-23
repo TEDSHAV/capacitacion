@@ -47,7 +47,6 @@ export async function saveCertificatesToDatabase(
       // 1. Create or find participant record
       const participantId = await createOrUpdateParticipant(participant);
       if (!participantId) {
-        console.warn(`Failed to create/find participant: ${participant.name}`);
         continue;
       }
 
@@ -74,7 +73,6 @@ export async function saveCertificatesToDatabase(
         .single();
 
       if (certificateError) {
-        console.error("Error inserting certificate:", certificateError);
         continue;
       }
 
@@ -118,7 +116,6 @@ export async function saveCertificatesToDatabase(
     };
 
   } catch (error) {
-    console.error("Error saving certificates to database:", error);
     return { 
       success: false, 
       message: error instanceof Error ? error.message : "Unknown error occurred" 
@@ -142,7 +139,6 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
       .maybeSingle();
 
     if (findError && findError.code !== 'PGRST116') { // Not found error is ok
-      console.error("Error finding participant:", findError);
       return null;
     }
 
@@ -163,14 +159,12 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
       .single();
 
     if (insertError) {
-      console.error("Error creating participant:", insertError);
       return null;
     }
 
     return newParticipant?.id || null;
 
   } catch (error) {
-    console.error("Error in createOrUpdateParticipant:", error);
     return null;
   }
 }
@@ -355,13 +349,11 @@ export async function getCertificateTemplates(): Promise<{ id: number; nombre: s
       .order("nombre");
 
     if (error) {
-      console.error("Error fetching certificate templates:", error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error("Error in getCertificateTemplates:", error);
     return [];
   }
 }
@@ -382,13 +374,11 @@ export async function getDefaultCertificateTemplate(): Promise<{ id: number; nom
       .single();
 
     if (error) {
-      console.error("Error fetching default certificate template:", error);
       return null;
     }
 
     return data;
   } catch (error) {
-    console.error("Error in getDefaultCertificateTemplate:", error);
     return null;
   }
 }
@@ -406,13 +396,11 @@ export async function getVenezuelanStates(): Promise<{ id: number; nombre_estado
       .order("nombre_estado");
 
     if (error) {
-      console.error("Error fetching Venezuelan states:", error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error("Error in getVenezuelanStates:", error);
     return [];
   }
 }
