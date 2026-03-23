@@ -10,6 +10,7 @@ import { CourseTopicsSection } from "./facilitator-form/CourseTopicsSection";
 import { FileUploadSection } from "./facilitator-form/FileUploadSection";
 import { AdditionalInfoSection } from "./facilitator-form/AdditionalInfoSection";
 import { FormActions } from "./facilitator-form/FormActions";
+import { getFacilitatorByIdAction, createFacilitatorAction, updateFacilitatorAction } from "../../../../actions/facilitators-crud";
 
 interface FacilitatorFormProps {
   onFacilitatorSaved: () => void;
@@ -63,9 +64,12 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
     if (editId) {
       const loadFacilitator = async () => {
         try {
-          const response = await fetch(`/api/facilitators/${editId}`);
-          if (response.ok) {
-            const facilitator = await response.json();
+          const result = await getFacilitatorByIdAction(editId);
+          if (result.error || !result.data) {
+            throw new Error(result.error || 'Facilitator not found');
+          }
+          
+          const facilitator = result.data;
             setFormData({
               fuente: facilitator.fuente || "",
               fecha_ingreso: facilitator.fecha_ingreso || (facilitator.ano_ingreso ? `${facilitator.ano_ingreso}-01-01` : ""),
@@ -92,8 +96,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
               tiene_certificaciones: facilitator.tiene_certificaciones || false,
               tiene_foto_perfil: facilitator.tiene_foto_perfil || false,
             });
-          }
-        } catch (error) {
+          } catch (error) {
           console.error('Error loading facilitator:', error);
         }
       };
@@ -241,46 +244,32 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
         formDataToSend.append("signature", signatureFile);
       }
 
-      let response;
+      let result;
       if (editId) {
-        // Update existing facilitator - send as JSON
+        // Update existing facilitator
         const updateData = {
           ...formData,
           fecha_ingreso: formData.fecha_ingreso || null,
           ano_ingreso: formData.fecha_ingreso ? new Date(formData.fecha_ingreso).getFullYear() : null,
         };
         
-                
-        response = await fetch(`/api/facilitators/${editId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(updateData),
-        });
+        result = await updateFacilitatorAction(editId, updateData);
         
-        if (response.ok) {
+        if (!result.error) {
           alert('Facilitador actualizado exitosamente');
           onFacilitatorSaved();
         } else {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMessage = errorData.error || 'Error al actualizar el facilitador';
-                    alert(`Error: ${errorMessage}`);
+          alert(`Error: ${result.error}`);
         }
       } else {
-        // Create new facilitator - send as FormData for file upload
-        response = await fetch('/api/facilitators/', {
-          method: 'POST',
-          body: formDataToSend,
-        });
+        // Create new facilitator
+        result = await createFacilitatorAction(formDataToSend);
         
-        if (response.ok) {
+        if (!result.error) {
           alert('Facilitador creado exitosamente');
           onFacilitatorSaved();
         } else {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMessage = errorData.error || 'Error al crear el facilitador';
-          alert(`Error: ${errorMessage}`);
+          alert(`Error: ${result.error}`);
         }
       }
     } catch (error) {

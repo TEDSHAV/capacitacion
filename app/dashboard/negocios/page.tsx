@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import ErrorDialog, { useErrorDialog } from "@/components/ui/error-dialog";
+import { getDashboardStats } from "../../actions/dashboard";
 
 export default function NegociosPage() {
   const router = useRouter();
@@ -28,18 +29,12 @@ export default function NegociosPage() {
           return;
         }
 
-        // Fetch stats from Supabase
-        const osiResult = await supabase.from("osi").select("*");
-
-        if (osiResult.error) {
-          throw new Error(`Error al cargar OSIs: ${osiResult.error.message}`);
-        }
-
+        // Fetch stats from server action
+        const result = await getDashboardStats();
+        
         setStats({
-          totalOSIs: osiResult.data?.length || 0,
-          osisActivas:
-            osiResult.data?.filter((osi) => osi.estado === "active").length ||
-            0,
+          totalOSIs: result.stats?.osisActivas || 0,
+          osisActivas: result.stats?.osisActivas || 0,
         });
       } catch (error) {
         console.error("Error loading data:", error);

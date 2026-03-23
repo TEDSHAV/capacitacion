@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getFacilitatorsAction } from "../../../../actions/facilitators-crud";
 import { Facilitador, FacilitatorOption } from "@/types";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -13,7 +14,7 @@ export const FacilitatorSelection = ({
   selectedFacilitatorId,
   onFacilitatorChange,
 }: FacilitatorSelectionProps) => {
-  const [facilitators, setFacilitators] = useState<Facilitador[]>([]);
+  const [facilitatorOptions, setFacilitatorOptions] = useState<FacilitatorOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,10 +23,17 @@ export const FacilitatorSelection = ({
 
   const loadFacilitators = async () => {
     try {
-      const response = await fetch("/api/facilitators/");
-      if (response.ok) {
-        const data = await response.json();
-        setFacilitators(data);
+      const result = await getFacilitatorsAction();
+      if (result.data) {
+        const facilitators = result.data;
+        const options: FacilitatorOption[] = facilitators.map((facilitator: any) => ({
+          value: facilitator.id.toString(),
+          label: facilitator.nombre_apellido,
+          id: facilitator.id,
+          nombre_apellido: facilitator.nombre_apellido,
+          facilitator: facilitator,
+        }));
+        setFacilitatorOptions(options);
       }
     } catch (error) {
       console.error("Error loading facilitators:", error);
@@ -33,14 +41,6 @@ export const FacilitatorSelection = ({
       setLoading(false);
     }
   };
-
-  // Convert facilitators to the format expected by SearchableSelect
-  const facilitatorOptions: FacilitatorOption[] = facilitators.map(facilitator => ({
-    id: facilitator.id.toString(),
-    nombre_apellido: facilitator.nombre_apellido,
-    direccion: facilitator.direccion || undefined,
-    temas_cursos: facilitator.temas_cursos || undefined,
-  }));
 
   if (loading) {
     return (
@@ -60,13 +60,13 @@ export const FacilitatorSelection = ({
         Facilitador del Curso
       </label>
       <SearchableSelect
-        value={selectedFacilitatorId || ""}
+        value={selectedFacilitatorId}
         onChange={onFacilitatorChange}
         options={facilitatorOptions}
-        placeholder="Buscar facilitador por nombre, ciudad o temas..."
-        loading={loading}
+        placeholder="Seleccionar facilitador..."
+        isLoading={loading}
       />
-      {facilitators.length === 0 && (
+      {facilitatorOptions.length === 0 && (
         <p className="text-xs text-gray-500 mt-1">
           No hay facilitadores registrados. 
           <a href="/dashboard/capacitacion/gestion-de-facilitadores" className="text-blue-600 hover:underline ml-1">
@@ -76,8 +76,8 @@ export const FacilitatorSelection = ({
       )}
       {selectedFacilitatorId && (
         <div className="mt-2 text-xs text-gray-500">
-          {facilitators.find(f => f.id === parseInt(selectedFacilitatorId))?.temas_cursos?.slice(0, 3).join(', ')}
-          {(facilitators.find(f => f.id === parseInt(selectedFacilitatorId))?.temas_cursos?.length || 0) > 3 && '...'}
+          {facilitatorOptions.find((f: any) => f.id === parseInt(selectedFacilitatorId || ''))?.facilitator?.temas_cursos?.slice(0, 3).join(', ')}
+          {(facilitatorOptions.find((f: any) => f.id === parseInt(selectedFacilitatorId || ''))?.facilitator?.temas_cursos?.length || 0) > 3 && '...'}
         </div>
       )}
     </div>

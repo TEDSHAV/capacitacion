@@ -9,9 +9,8 @@ import OSITable from "./components/osi-table";
 import OSIPagination from "./components/osi-pagination";
 import OSIEmptyState from "./components/osi-empty-state";
 
-// Import optimized components
-import OptimizedDataProvider from "./components/osi-data-provider-optimized";
-import OptimizedOSITable from "./components/osi-table-optimized";
+// Import server action components
+import OSIDataProviderWrapper from "./osi-provider-wrapper";
 
 export default function GestionDeOSIsPage() {
   const router = useRouter();
@@ -35,7 +34,7 @@ export default function GestionDeOSIsPage() {
   }, [router]);
 
   return (
-    <OptimizedDataProvider>
+    <OSIDataProviderWrapper>
       {({
         osis,
         filteredOsis,
@@ -56,14 +55,12 @@ export default function GestionDeOSIsPage() {
         setItemsPerPage,
         clearAllFilters,
         hasActiveFilters,
-        monthOptions
+        monthOptions,
+        totalPages,
+        startIndex,
+        endIndex,
+        currentItems
       }) => {
-        // Pagination calculations
-        const totalPages = Math.ceil(filteredOsis.length / itemsPerPage);
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        const currentItems = filteredOsis.slice(startIndex, endIndex);
-
         if (loading) {
           return <LoadingSpinner message="Cargando..." color="blue" />;
         }
@@ -96,7 +93,7 @@ export default function GestionDeOSIsPage() {
               />
             ) : (
               <>
-                <OptimizedOSITable
+                <OSITable
                   osis={currentItems}
                   onOSIClick={handleOSIClick}
                   getStatusColor={() => ''} // This will be handled internally
@@ -117,6 +114,6 @@ export default function GestionDeOSIsPage() {
           </div>
         );
       }}
-    </OptimizedDataProvider>
+    </OSIDataProviderWrapper>
   );
 }

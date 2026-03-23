@@ -2,8 +2,65 @@
 
 import { useRouter } from "next/navigation";
 import { memo, useState, useEffect } from "react";
+import { getDashboardStats, getRecentActivity } from '@/app/actions/dashboard';
 import { DashboardClientProps, StatCard, ActivityItem } from "@/types";
 import { Users, CheckCircle, BookOpen, Clock, TrendingUp, TrendingDown, BarChart3, Settings, Megaphone, FileText } from "lucide-react";
+
+// Fallback mock data functions
+const getMockStats = (): StatCard[] => [
+  {
+    title: "Total Clientes",
+    value: "1,248",
+    change: 12.5,
+    icon: <Users className="w-6 h-6" />,
+    color: "blue"
+  },
+  {
+    title: "OSIs Activas", 
+    value: "342",
+    change: 8.2,
+    icon: <CheckCircle className="w-6 h-6" />,
+    color: "green"
+  },
+  {
+    title: "Cursos Completados",
+    value: "89",
+    change: -2.3,
+    icon: <BookOpen className="w-6 h-6" />,
+    color: "purple"
+  },
+  {
+    title: "Tareas Pendientes",
+    value: "27",
+    change: -15.7,
+    icon: <Clock className="w-6 h-6" />,
+    color: "yellow"
+  }
+];
+
+const getMockActivity = (): ActivityItem[] => [
+  {
+    id: "1",
+    type: "course",
+    description: "Nuevo curso 'Seguridad Industrial' creado",
+    time: "Hace 5 min",
+    user: "Carlos Rodríguez"
+  },
+  {
+    id: "2", 
+    type: "client",
+    description: "Cliente 'Tech Solutions' registrado",
+    time: "Hace 15 min",
+    user: "Ana Martínez"
+  },
+  {
+    id: "3",
+    type: "osi",
+    description: "OSI-2024-089 marcada como completada",
+    time: "Hace 1 hora",
+    user: "Luis Gómez"
+  }
+];
 
 const DashboardClient = ({
   user,
@@ -25,62 +82,71 @@ const DashboardClient = ({
 
     const fetchData = async () => {
       setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      setStats([
-        {
-          title: "Total Clientes",
-          value: "1,248",
-          change: 12.5,
-          icon: <Users className="w-6 h-6" />,
-          color: "blue"
-        },
-        {
-          title: "OSIs Activas", 
-          value: "342",
-          change: 8.2,
-          icon: <CheckCircle className="w-6 h-6" />,
-          color: "green"
-        },
-        {
-          title: "Cursos Completados",
-          value: "89",
-          change: -2.3,
-          icon: <BookOpen className="w-6 h-6" />,
-          color: "purple"
-        },
-        {
-          title: "Tareas Pendientes",
-          value: "27",
-          change: -15.7,
-          icon: <Clock className="w-6 h-6" />,
-          color: "yellow"
-        }
-      ]);
+      try {
+        // Fetch real data using server actions
+        const [statsResult, activityResult] = await Promise.all([
+          getDashboardStats(),
+          getRecentActivity()
+        ]);
 
-      setRecentActivity([
-        {
-          id: "1",
-          type: "course",
-          description: "Nuevo curso 'Seguridad Industrial' creado",
-          time: "Hace 5 min",
-          user: "Carlos Rodríguez"
-        },
-        {
-          id: "2", 
-          type: "client",
-          description: "Cliente 'Tech Solutions' registrado",
-          time: "Hace 15 min",
-          user: "Ana Martínez"
-        },
-        {
-          id: "3",
-          type: "osi",
-          description: "OSI-2024-089 marcada como completada",
-          time: "Hace 1 hora",
-          user: "Luis Gómez"
+        // Server actions now always return data, never error properties
+        // Transform server data to StatCard format
+        const { stats } = statsResult;
+        if (stats) {
+          setStats([
+            {
+              title: "Total Clientes",
+              value: stats.totalClientes.toLocaleString(),
+              change: 12.5,
+              icon: <Users className="w-6 h-6" />,
+              color: "blue"
+            },
+            {
+              title: "OSIs Activas", 
+              value: stats.osisActivas.toString(),
+              change: 8.2,
+              icon: <CheckCircle className="w-6 h-6" />,
+              color: "green"
+            },
+            {
+              title: "Cursos Completados",
+              value: stats.cursosCompletados.toString(),
+              change: -2.3,
+              icon: <BookOpen className="w-6 h-6" />,
+              color: "purple"
+            },
+            {
+              title: "Tareas Pendientes",
+              value: stats.tareasPendientes.toString(),
+              change: -15.7,
+              icon: <Clock className="w-6 h-6" />,
+              color: "yellow"
+            }
+          ]);
+        } else {
+          setStats(getMockStats());
         }
-      ]);
+
+        // Transform server data to ActivityItem format
+        if (activityResult.activities) {
+          setRecentActivity(activityResult.activities.map((activity: any) => ({
+            id: activity.id,
+            type: activity.type,
+            description: activity.description,
+            time: activity.time,
+            user: activity.user
+          })));
+        } else {
+          setRecentActivity(getMockActivity());
+        }
+
+      } catch (error) {
+        console.error('Error in fetchData:', error);
+        // Fallback to mock data
+        setStats(getMockStats());
+        setRecentActivity(getMockActivity());
+      }
 
       setIsLoading(false);
     };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getFacilitatorHoursStatsAction } from "../../../../actions/reportes-stats";
 import { FacilitadorHoursStatsProps, CertificateInfo, FacilitadorHoursStat } from "@/types";
 
 export default function FacilitadorHoursStats({ selectedState }: FacilitadorHoursStatsProps) {
@@ -17,21 +18,16 @@ export default function FacilitadorHoursStats({ selectedState }: FacilitadorHour
     try {
       setLoading(true);
       setError(null);
-
-      const url = selectedState 
-        ? `/api/reportes/facilitador-hours?stateId=${selectedState}`
-        : "/api/reportes/facilitador-hours";
-
-      const response = await fetch(url);
       
-      if (!response.ok) {
-        throw new Error("Error fetching data");
+      const result = await getFacilitatorHoursStatsAction(selectedState);
+      
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setFacilitadorStats(result.data || []);
       }
-
-      const data = await response.json();
-      setFacilitadorStats(data.facilitatorStats || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError("Error al cargar datos");
     } finally {
       setLoading(false);
     }
