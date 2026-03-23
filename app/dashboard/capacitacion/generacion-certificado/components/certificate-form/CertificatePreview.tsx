@@ -19,12 +19,13 @@ export const CertificatePreview = ({
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string>("");
+  const [selectedParticipantIndex, setSelectedParticipantIndex] = useState(0);
 
   useEffect(() => {
     if (isOpen && certificateData.participants.length > 0) {
       generatePreview();
     }
-  }, [isOpen, certificateData]);
+  }, [isOpen, certificateData, selectedParticipantIndex]);
 
   const generatePreview = async () => {
     setIsGenerating(true);
@@ -33,8 +34,13 @@ export const CertificatePreview = ({
     try {
       const generator = new CertificateGenerator();
       
-      // Use the first participant for preview
-      const previewParticipant: CertificateParticipant = certificateData.participants[0];
+      // Use selected participant for preview
+      const previewParticipant: CertificateParticipant = certificateData.participants[selectedParticipantIndex];
+      
+      if (!previewParticipant) {
+        setError("Participante no válido seleccionado para vista previa");
+        return;
+      }
       
       // Get template and seal images
       const templateImage = "/templates/certificado.png";
@@ -83,6 +89,7 @@ export const CertificatePreview = ({
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl("");
     }
+    setSelectedParticipantIndex(0); // Reset to first participant
     onClose();
   };
 
@@ -116,6 +123,31 @@ export const CertificatePreview = ({
         </div>
 
         <div className="p-6">
+          {/* Participant Selection */}
+          {certificateData.participants.length > 1 && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Seleccionar Participante para Vista Previa:
+              </label>
+              <div className="flex items-center space-x-4">
+                <select
+                  value={selectedParticipantIndex}
+                  onChange={(e) => setSelectedParticipantIndex(Number(e.target.value))}
+                  className="block w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {certificateData.participants.map((participant, index) => (
+                    <option key={participant.id || index} value={index}>
+                      {participant.name} ({participant.id_number})
+                    </option>
+                  ))}
+                </select>
+                <span className="text-sm text-gray-500">
+                  {selectedParticipantIndex + 1} de {certificateData.participants.length}
+                </span>
+              </div>
+            </div>
+          )}
+
           {isGenerating && (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -132,15 +164,18 @@ export const CertificatePreview = ({
           {previewUrl && !isGenerating && !error && (
             <div className="space-y-4">
               <div className="text-sm text-gray-600">
-                <p>Vista previa para: <strong>{certificateData.participants[0]?.name}</strong></p>
+                <p>Vista previa para: <strong>{certificateData.participants[selectedParticipantIndex]?.name}</strong></p>
+                <p className="text-blue-600">
+                  Cédula: {certificateData.participants[selectedParticipantIndex]?.id_number}
+                </p>
                 {certificateData.horas_estimadas && (
                   <p className="text-blue-600">
                     Duración del curso: {certificateData.horas_estimadas} horas
                   </p>
                 )}
                 {certificateData.participants.length > 1 && (
-                  <p className="text-blue-600">
-                    Nota: Esta es una vista previa del primer participante. Se generarán {certificateData.participants.length} certificados en total.
+                  <p className="text-green-600">
+                    Mostrando vista previa del participante {selectedParticipantIndex + 1} de {certificateData.participants.length}
                   </p>
                 )}
               </div>
@@ -153,13 +188,30 @@ export const CertificatePreview = ({
                 />
               </div>
 
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={generatePreview}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  Actualizar Vista Previa
-                </button>
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-gray-500">
+                  {certificateData.participants.length > 1 && (
+                    <p>Puedes seleccionar cualquier participante para previsualizar su certificado</p>
+                  )}
+                </div>
+                <div className="flex space-x-3">
+                  {certificateData.participants.length > 1 && (
+                    <button
+                      onClick={() => setSelectedParticipantIndex((prev) => 
+                        prev === certificateData.participants.length - 1 ? 0 : prev + 1
+                      )}
+                      className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm"
+                    >
+                      Siguiente Participante →
+                    </button>
+                  )}
+                  <button
+                    onClick={generatePreview}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Actualizar Vista Previa
+                  </button>
+                </div>
               </div>
             </div>
           )}

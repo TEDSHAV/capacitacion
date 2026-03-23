@@ -167,13 +167,11 @@ export function useOSI(empresas: any[] = []) {
 
   // Save OSI
   const handleSave = async () => {
-    console.log("handleSave called", { isNew, formData });
     setIsLoading(true);
 
     try {
       // Validation
       if (!formData.tipo_servicio?.trim()) {
-        console.log("Validation failed: missing tipo_servicio");
         errorDialog.showError(
           "Validación requerida",
           "El tipo de servicio es requerido",
@@ -265,32 +263,13 @@ export function useOSI(empresas: any[] = []) {
         is_active: true,
       };
 
-      console.log("Data prepared for save:", dataToSave);
-      console.log(
-        "Data types:",
-        Object.entries(dataToSave).map(([key, value]) => [
-          key,
-          typeof value,
-          value,
-        ]),
-      );
-
       if (isNew) {
-        console.log("Inserting new OSI...");
         const { data, error } = await supabase.from("osi").insert([dataToSave]);
-        console.log("Insert result:", { data, error });
         if (error) {
-          console.error("Insert error details:", {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code,
-          });
+          console.error("Insert error:", error);
           throw error;
         }
-        console.log("New OSI inserted successfully");
       } else if (osi) {
-        console.log("Updating existing OSI...");
         const { error } = await supabase
           .from("osi")
           .update(dataToSave)
@@ -299,10 +278,8 @@ export function useOSI(empresas: any[] = []) {
           console.error("Update error:", error);
           throw error;
         }
-        console.log("OSI updated successfully");
       }
 
-      console.log("Redirecting to OSI list...");
       router.push("/dashboard/negocios/gestion-de-osis");
     } catch (error) {
       console.error("Save error:", error);

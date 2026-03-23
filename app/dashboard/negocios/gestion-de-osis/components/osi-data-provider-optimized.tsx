@@ -7,6 +7,7 @@ import { OSI, OptimizedDataProviderProps } from '@/types'
 export default function OptimizedDataProvider({ children }: OptimizedDataProviderProps) {
   const [osis, setOsis] = useState<OSI[]>([])
   const [filteredOsis, setFilteredOsis] = useState<OSI[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedMonth, setSelectedMonth] = useState("")
@@ -21,7 +22,7 @@ export default function OptimizedDataProvider({ children }: OptimizedDataProvide
   // Memoized executive map to avoid recalculating
   const executiveMap = useMemo(() => new Map<string, string>(), [])
 
-  // Optimized data fetching with caching
+  // Optimized data fetching with caching and pagination
   useEffect(() => {
     let mounted = true
     const controller = new AbortController()
@@ -30,8 +31,8 @@ export default function OptimizedDataProvider({ children }: OptimizedDataProvide
       try {
         setLoading(true)
         
-        // Fetch users and OSI data in parallel
-        const [usersResponse, osiResponse] = await Promise.all([
+        // Fetch users and OSI data in parallel with pagination
+        const [usersResponse, osiResponse, countResponse] = await Promise.all([
           supabase
             .from("usuarios")
             .select("id, nombre_apellido")
@@ -41,7 +42,12 @@ export default function OptimizedDataProvider({ children }: OptimizedDataProvide
             .select("*")
             .eq("is_active", true)
             .order("fecha_emision", { ascending: false })
-            .limit(100)
+            .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1)
+            .abortSignal(controller.signal),
+          supabase
+            .from("osi")
+            .select("id", { count: 'exact' })
+            .eq("is_active", true)
             .abortSignal(controller.signal)
         ])
 
@@ -60,6 +66,7 @@ export default function OptimizedDataProvider({ children }: OptimizedDataProvide
 
         setOsis(osiDataWithExecutiveNames)
         setFilteredOsis(osiDataWithExecutiveNames)
+        setTotalCount(countResponse.count || 0)
       } catch (error) {
         if (error.name !== 'AbortError') {
           console.error("Error loading data:", error)
@@ -77,7 +84,7 @@ export default function OptimizedDataProvider({ children }: OptimizedDataProvide
       mounted = false
       controller.abort()
     }
-  }, [])
+  }, [currentPage, itemsPerPage])
 
   // Optimized filtering with useCallback
   const filterOsis = useCallback(() => {
@@ -195,6 +202,7 @@ export default function OptimizedDataProvider({ children }: OptimizedDataProvide
   return children({
     osis,
     filteredOsis,
+    totalCount,
     loading,
     searchTerm,
     selectedMonth,

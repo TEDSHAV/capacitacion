@@ -87,9 +87,6 @@ export function CertificateGenerationComponent() {
         previewHelper.downloadCertificate(blob, participants[index].name, false);
       });
 
-      console.log(`Successfully generated ${result.finalBlobs.length} certificates`);
-      console.log('Certificate IDs:', result.certificateIds);
-      console.log('Control Numbers:', result.controlNumbers);
       
     } catch (error) {
       console.error('Failed to generate certificates:', error);
