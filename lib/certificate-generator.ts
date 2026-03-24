@@ -39,12 +39,14 @@ export class CertificateGenerator {
       await this.certificatePage.addTemplate(templateImage);
       await this.certificatePage.addCertificateContent(participant, certificateData);
 
-      // Add QR code if not in preview mode and we have control numbers
+      // Add QR code - either real or sample for preview
       if (!isPreview && controlNumbers) {
-        // For now, we'll use a placeholder certificate ID
-        // In a real implementation, this should come from the database after certificate creation
+        // Real QR code for final certificate
         const certificateId = controlNumbers.nro_control; // Use control number as temporary ID
         await this.certificatePage.addQRCode(certificateId, controlNumbers);
+      } else if (isPreview) {
+        // Sample QR code for preview
+        await this.certificatePage.addSampleQRCode();
       }
 
       // Add new page for content
