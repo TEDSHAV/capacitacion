@@ -37,7 +37,7 @@ export const LocationSection = ({ formData, handleInputChange, states, loadingSt
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Estado Geográfico
+            Estado
           </label>
           <select
             value={formData.id_estado_geografico || ""}

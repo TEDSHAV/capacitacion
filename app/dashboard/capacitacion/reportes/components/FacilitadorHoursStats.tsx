@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { getFacilitatorHoursStatsAction } from "../../../../actions/reportes-stats";
 import { FacilitadorHoursStatsProps, CertificateInfo, FacilitadorHoursStat } from "@/types";
+import { Button } from "@/components/ui/button";
 
 export default function FacilitadorHoursStats({ selectedState }: FacilitadorHoursStatsProps) {
   const [facilitadorStats, setFacilitadorStats] = useState<FacilitadorHoursStat[]>([]);
@@ -27,7 +28,8 @@ export default function FacilitadorHoursStats({ selectedState }: FacilitadorHour
         setFacilitadorStats(result.data || []);
       }
     } catch (err) {
-      setError("Error al cargar datos");
+      console.error('Error loading facilitator hours stats:', err);
+      setError(`Error al cargar datos: ${err instanceof Error ? err.message : 'Error desconocido'}`);
     } finally {
       setLoading(false);
     }
@@ -196,16 +198,17 @@ export default function FacilitadorHoursStats({ selectedState }: FacilitadorHour
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => setExpandedFacilitador(
                         expandedFacilitador === facilitador.facilitatorId 
                           ? null 
                           : facilitador.facilitatorId
                       )}
-                      className="text-indigo-600 hover:text-indigo-900"
                     >
                       {expandedFacilitador === facilitador.facilitatorId ? "Ocultar" : "Ver"} detalles
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}

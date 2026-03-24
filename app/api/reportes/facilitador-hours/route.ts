@@ -13,14 +13,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const stateId = searchParams.get("stateId");
 
-    // Start with simple certificate query without complex joins
+    // Start with certificate query joining with cursos to get horas_estimadas
     let query = supabase
       .from("certificados")
       .select(`
         id_facilitador,
         nro_osi,
         id_curso,
-        snapshot_contenido
+        cursos!inner (
+          id,
+          nombre,
+          horas_estimadas
+        )
       `)
       .not("id_facilitador", "is", null);
 
@@ -74,13 +78,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get cursos info separately (for course names only)
-    const cursoIds = [...new Set(certificates?.map(c => c.id_curso).filter(Boolean) || [])];
-    const { data: cursos } = await supabase
-      .from("cursos")
-      .select("id, nombre")
-      .in("id", cursoIds);
-
     // Get OSI execution data
     const { data: osiData } = await supabase
       .from("ejecucion_osi")
@@ -106,35 +103,21 @@ export async function GET(request: NextRequest) {
       certificates: CertificateInfo[];
     }>();
 
-    // Process certificates - extract hours from snapshot_contenido and count unique courses
-    if (certificates && cursos) {
+    // Process certificates - use hours directly from cursos table
+    if (certificates && facilitadores) {
       // Create a map to track unique courses per facilitador
       const facilitadorCourses = new Map<number, Map<number, { course_name: string; hours: number; nro_osi: number }>>();
       
       certificates.forEach((cert: any) => {
-        if (!cert.id_facilitador || !cert.id_curso) return;
+        if (!cert.id_facilitador || !cert.id_curso || !cert.cursos) return;
 
         const facilitator = facilitadores.find((f: any) => f.id === cert.id_facilitador);
-        const course = cursos.find(c => c.id === cert.id_curso);
+        const course = cert.cursos; // Course data is already joined
         
         if (!facilitator || !course) return;
 
-        // Extract hours from snapshot_contenido
-        let hours = 0;
-        try {
-          if (cert.snapshot_contenido) {
-            const snapshot = JSON.parse(cert.snapshot_contenido);
-            // Try to get hours from the certificate details first
-            hours = snapshot?.certificado_detalles?.horas_estimadas || 0;
-            // If not found, try from course data in snapshot
-            if (!hours) {
-              hours = snapshot?.curso?.horas_estimadas || 0;
-            }
-          }
-        } catch (error) {
-          console.warn("Failed to parse snapshot_contenido for certificate:", cert.id_facilitador);
-          // Fallback to 0 hours if parsing fails
-        }
+        // Use hours directly from the cursos table
+        const hours = course.horas_estimadas || 0;
 
         // Only add the course once per facilitador (unique by course ID)
         if (!facilitadorCourses.has(facilitator.id)) {
