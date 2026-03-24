@@ -45,12 +45,10 @@ export class CertificateService {
       const response = await fetch(`/api/signatures/${signatureId}`);
       
       if (!response.ok) {
-        console.warn('Signature API response not ok:', response.status);
         return null;
       }
       
       const data = await response.json();
-      console.log('Raw signature data from API:', data);
       
       // The API returns the firma table structure directly
       // Transform it to match expected format if needed
@@ -79,18 +77,15 @@ export class CertificateService {
    */
   async getFacilitatorData(facilitatorId: string): Promise<Facilitador | null> {
     try {
-      console.log('Fetching facilitator data from API for ID:', facilitatorId);
       const response = await fetch(`/api/facilitators/${facilitatorId}`);
       
       if (!response.ok) {
-        console.warn('Facilitator API response not ok:', response.status);
         return null;
       }
       
       const data = await response.json();
-      console.log('Raw facilitator data from API:', data);
       
-      // The API returns facilitator data, but we need to transform it to match Facilitator interface
+      // The API returns facilitator data, but we need to transform it
       if (data && typeof data === 'object') {
         return {
           id: data.id.toString(),

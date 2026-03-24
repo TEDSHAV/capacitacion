@@ -55,14 +55,11 @@ export default function GeneracionCertificadoPage() {
           courseLimit: 100  // Reasonable limit for course selection
         });
 
-        console.log('Certificate Data Result:', result); // Debug log
-
         if (result.error) {
           // Don't redirect, just show error
           return;
         }
 
-        console.log('Setting OSIs:', result.osis); // Debug log
         setOsis(result.osis || []);
         setAllCourseTopics(result.courseTopics || []);
         setFilteredCourseTopics(result.courseTopics || []);
@@ -257,20 +254,6 @@ export default function GeneracionCertificadoPage() {
   };
 
   const handleGenerateCertificate = async () => {
-    // Debug: Log current certificate data before generation
-    console.log('=== CERTIFICATE GENERATION DEBUG ===');
-    console.log('Certificate data for generation:', {
-      osi_id: certificateData.osi_id,
-      certificate_title: certificateData.certificate_title,
-      course_topic_id: certificateData.course_topic_id,
-      facilitator_id: certificateData.facilitator_id,
-      facilitator_data: certificateData.facilitator_data,
-      sha_signature_id: certificateData.sha_signature_id,
-      sha_signature_data: certificateData.sha_signature_data,
-      participants_count: certificateData.participants.length
-    });
-    console.log('=== CERTIFICATE GENERATION DEBUG END ===');
-
     // Validate required fields
     if (
       !certificateData.osi_id ||
