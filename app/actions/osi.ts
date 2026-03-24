@@ -145,9 +145,15 @@ export async function getOSIs(filters?: {
     const supabase = await createClient();
     const { search, empresa, estado, page = 1, limit = 50 } = filters || {};
     
+    // Optimized query with executive name joining
     let query = supabase
       .from('osi')
-      .select('*', { count: 'exact' });
+      .select(`
+        *,
+        usuarios!osi_ejecutivo_negocios_fkey (
+          nombre_apellido
+        )
+      `, { count: 'exact' });
 
     // Apply filters
     if (search && search.trim()) {
@@ -169,6 +175,7 @@ export async function getOSIs(filters?: {
     const { data, error, count } = await query.order('fecha_emision', { ascending: false });
 
     if (error) {
+      console.error('Error fetching OSIs:', error);
       return { 
         osis: [], 
         total: 0,
@@ -177,13 +184,20 @@ export async function getOSIs(filters?: {
       };
     }
 
+    // Transform data to include executive name
+    const transformedData = (data || []).map(osi => ({
+      ...osi,
+      executive_name: osi.usuarios?.nombre_apellido || null
+    }));
+
     return { 
-      osis: data || [], 
+      osis: transformedData, 
       total: count || 0,
       page,
       limit
     };
   } catch (err) {
+    console.error('Unexpected error in getOSIs:', err);
     return { 
       osis: [], 
       total: 0,
