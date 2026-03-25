@@ -79,7 +79,30 @@ export const CertificateForm = ({
     };
 
     loadFormData();
-  }, []); // Remove dependency to prevent re-calls on every data change
+  }, []); // Only run once on mount
+
+  // Separate effect to handle SHA signature data when certificateData changes
+  useEffect(() => {
+    const ensureSHASignatureData = async () => {
+      if (certificateData.sha_signature_id && !certificateData.sha_signature_data) {
+        try {
+          const signaturesResult = await getSignaturesForDropdownAction();
+          if (signaturesResult.data) {
+            const shaSignatures = signaturesResult.data.filter((sig: any) => sig.tipo === 'representante_sha');
+            const selectedSHASignature = shaSignatures.find((sig: any) => sig.id.toString() === certificateData.sha_signature_id);
+            if (selectedSHASignature) {
+              onDataChange("sha_signature_data", selectedSHASignature);
+              console.log('Fetched missing SHA signature data:', selectedSHASignature);
+            }
+          }
+        } catch (error) {
+          console.error('Could not fetch SHA signature data:', error);
+        }
+      }
+    };
+
+    ensureSHASignatureData();
+  }, [certificateData.sha_signature_id, certificateData.sha_signature_data]);
 
   const handleGenerateCertificate = () => {
     // Validation
