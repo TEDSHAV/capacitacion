@@ -26,7 +26,6 @@ export function useOSI(empresas: any[] = []) {
     rif: null,
     id_curso: null,
     fecha_emision: null,
-    fecha_servicio: null,
     nro_sesiones: 1,
     fecha_ejecucion1: null,
     fecha_ejecucion2: null,
@@ -216,14 +215,6 @@ export function useOSI(empresas: any[] = []) {
           ? (formData.fecha_emision instanceof Date
               ? formData.fecha_emision
               : new Date(formData.fecha_emision)
-            )
-              .toISOString()
-              .split("T")[0]
-          : null,
-        fecha_servicio: formData.fecha_servicio
-          ? (formData.fecha_servicio instanceof Date
-              ? formData.fecha_servicio
-              : new Date(formData.fecha_servicio)
             )
               .toISOString()
               .split("T")[0]

@@ -171,7 +171,6 @@ export interface OSI {
   rif: string | null
   id_curso: number | null
   fecha_emision: Date | null
-  fecha_servicio: Date | null
   nro_sesiones: number | null
   fecha_ejecucion1: Date | null
   fecha_ejecucion2: Date | null
