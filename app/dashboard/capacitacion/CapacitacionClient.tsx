@@ -196,12 +196,12 @@ export default function CapacitacionClient({
                       key={category.id}
                       onClick={() => setActiveSection(category.id)}
                       className={`
-                        relative flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-300 cursor-pointer flex items-center group
+                        relative flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-300 cursor-pointer flex items-center group sidebar-link overflow-hidden
                         ${isActive 
                           ? 'bg-blue-600 text-white transform scale-105 sidebar-neon-active' 
-                          : 'bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-900 hover:shadow-md hover:transform hover:scale-105'
-                        }`}
-                    >
+                          : 'bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-900 hover:shadow-lg hover:transform hover:scale-105'
+                        }
+                      `}>
                       {/* Content */}
                       <div className="relative z-10 flex items-center justify-center space-x-2">
                         <span className={`font-medium ${isActive ? 'text-white' : 'text-gray-600'}`}>
