@@ -19,7 +19,7 @@ import {
   AlignLeft
 } from "lucide-react";
 
-export default function CapacitacionClient({
+export default function CapacitacionClientMinimal({
   user,
   companies,
 }: CapacitacionClientProps) {
@@ -162,75 +162,22 @@ export default function CapacitacionClient({
       </div>
 
       <div className="max-w-6xl mx-auto px-8 py-8">
-        {/* Enhanced Horizontal Category Filter with Neon Style */}
-        <div className="mb-8">
-          <div className="relative">
-            {/* Tab container with enhanced styling */}
-            <div className="relative bg-gray-100 rounded-t-xl border border-gray-300 shadow-lg">
-              <div className="flex gap-2 p-2">
-                {categories.map((category) => {
-                  const isActive = activeSection === category.id;
-                  const categoryColors = {
-                    all: 'from-blue-600 to-blue-600',
-                    cursos: 'from-blue-600 to-blue-600',
-                    participantes: 'from-blue-600 to-blue-600',
-                    certificados: 'from-blue-600 to-blue-600'
-                  };
-                  
-                  const categoryBgColors = {
-                    all: 'bg-gray-800',
-                    cursos: 'bg-gray-800',
-                    participantes: 'bg-gray-800',
-                    certificados: 'bg-gray-800'
-                  };
-
-                  const neonColors = {
-                    all: '#60a5fa',
-                    cursos: '#60a5fa',
-                    participantes: '#60a5fa',
-                    certificados: '#60a5fa'
-                  };
-
-                  return (
-                    <button
-                      key={category.id}
-                      onClick={() => setActiveSection(category.id)}
-                      className={`
-                        relative flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-300 cursor-pointer flex items-center group
-                        ${isActive 
-                          ? 'bg-blue-600 text-white transform scale-105 sidebar-neon-active' 
-                          : 'bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-900 hover:shadow-md hover:transform hover:scale-105'
-                        }`}
-                    >
-                      {/* Content */}
-                      <div className="relative z-10 flex items-center justify-center space-x-2">
-                        <span className={`font-medium ${isActive ? 'text-white' : 'text-gray-600'}`}>
-                          {category.name}
-                        </span>
-                        <span className={`
-                          px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-300
-                          ${isActive 
-                            ? 'bg-white text-gray-900 border border-white shadow-lg' 
-                            : 'bg-gray-200 text-gray-600 border border-gray-400'
-                          }
-                        `}>
-                          {category.count}
-                        </span>
-                      </div>
-
-                      {/* Enhanced hover effect for inactive tabs */}
-                      {!isActive && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600 to-transparent opacity-0 hover:opacity-30 transition-opacity duration-300 rounded-md"></div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Clean separator */}
-              <div className="h-px bg-gray-300 opacity-50"></div>
-            </div>
-          </div>
+        {/* Category Filter */}
+        <div className="flex space-x-1 mb-8 border-b border-gray-200">
+          {categories.map((category) => (
+            <button
+              key={category.id}
+              onClick={() => setActiveSection(category.id)}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeSection === category.id
+                  ? 'text-gray-900 border-gray-900'
+                  : 'text-gray-500 border-transparent hover:text-gray-700'
+              }`}
+            >
+              {category.name}
+              <span className="ml-2 text-xs text-gray-400">({category.count})</span>
+            </button>
+          ))}
         </div>
 
         {/* Module Grid */}
