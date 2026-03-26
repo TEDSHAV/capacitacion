@@ -75,7 +75,7 @@ export default function CertificateVerificationPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verifying certificate...</p>
+          <p className="text-gray-600">Verificando certificado...</p>
         </div>
       </div>
     );
@@ -86,7 +86,7 @@ export default function CertificateVerificationPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Certificate Not Found</h1>
+            <h1 className="text-2xl font-bold text-red-600 mb-4">No se ha encontrado el certificado</h1>
             <p className="text-gray-600">{error || 'This certificate could not be verified.'}</p>
           </div>
         </div>
@@ -103,12 +103,12 @@ export default function CertificateVerificationPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-white">Certificate Verification</h1>
-              <p className="text-blue-100 text-sm">This certificate has been verified as authentic</p>
+              <h1 className="text-2xl font-bold text-white">Verificación de Certificados </h1>
+              <p className="text-blue-100 text-sm">Este certificado ha sido marcado como auténtico</p>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-              <span className="text-green-100 font-semibold">Verified Authentic</span>
+              <span className="text-green-100 font-semibold">Verificado</span>
             </div>
           </div>
         </div>
@@ -120,27 +120,24 @@ export default function CertificateVerificationPage() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-lg p-6 space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Certificate Details</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalles del Certificado</h3>
                 <div className="space-y-3">
+               
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Certificate ID</label>
-                    <p className="text-lg font-mono text-gray-900">#{certificate.id}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Participant</label>
+                    <label className="block text-sm font-medium text-gray-500">Participante</label>
                     <p className="text-sm text-gray-900">{certificate.participantName}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Course</label>
+                    <label className="block text-sm font-medium text-gray-500">Curso</label>
                     <p className="text-sm text-gray-900">{certificate.courseName}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Issue Date</label>
+                    <label className="block text-sm font-medium text-gray-500">Fecha de Emisión</label>
                     <p className="text-sm text-gray-900">{new Date(certificate.issueDate).toLocaleDateString()}</p>
                   </div>
                   {certificate.expirationDate && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-500">Expiration Date</label>
+                      <label className="block text-sm font-medium text-gray-500">Fecha de Vencimiento</label>
                       <p className="text-sm text-gray-900">{new Date(certificate.expirationDate).toLocaleDateString()}</p>
                     </div>
                   )}
@@ -148,18 +145,18 @@ export default function CertificateVerificationPage() {
               </div>
 
               <div>
-                <h4 className="text-md font-semibold text-gray-900 mb-3">Control Numbers</h4>
+                <h4 className="text-md font-semibold text-gray-900 mb-3">Números de Control</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500">Book</label>
+                    <label className="block text-xs font-medium text-gray-500">Libro</label>
                     <p className="font-mono text-gray-900">{certificate.controlNumbers.nro_libro}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500">Sheet</label>
+                    <label className="block text-xs font-medium text-gray-500">Hoja</label>
                     <p className="font-mono text-gray-900">{certificate.controlNumbers.nro_hoja}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500">Line</label>
+                    <label className="block text-xs font-medium text-gray-500">Línea</label>
                     <p className="font-mono text-gray-900">{certificate.controlNumbers.nro_linea}</p>
                   </div>
                   <div>
@@ -169,17 +166,7 @@ export default function CertificateVerificationPage() {
                 </div>
               </div>
 
-              <div>
-                <h4 className="text-md font-semibold text-gray-900 mb-3">QR Code</h4>
-                {/* <div className="flex justify-center">
-                  <CertificateQRCode
-                    data={qrData}
-                    size={150}
-                    showLabel={true}
-                    label=""
-                  />
-                </div> */}
-              </div>
+              
 
               {pdfUrl && (
                 <div>
@@ -188,7 +175,7 @@ export default function CertificateVerificationPage() {
                     download={`certificate-${certificate.id}.pdf`}
                     className="block w-full bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
                   >
-                    Download Certificate
+                    Descargar Certificado
                   </a>
                 </div>
               )}
@@ -198,7 +185,7 @@ export default function CertificateVerificationPage() {
           {/* Main content - Certificate PDF */}
           <div className="lg:col-span-3">
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Certificate Document</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Certificado</h3>
               {pdfUrl ? (
                 <div className="w-full h-[800px]">
                   <iframe
@@ -221,8 +208,8 @@ export default function CertificateVerificationPage() {
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>This certificate was issued by the training management system and is digitally verifiable.</p>
-          <p className="mt-1">Verification performed on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
+          <p>Este certificado fue emitido por el sistema de gestión de capacitación y es digitalmente verificable.</p>
+          <p className="mt-1">Verificación realizada el {new Date().toLocaleDateString()} a las {new Date().toLocaleTimeString()}</p>
         </div>
       </div>
     </div>
