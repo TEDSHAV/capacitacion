@@ -248,8 +248,12 @@ export interface CertificateParticipant {
   name: string;
   id_type?: string; // V- for Venezuelan ID, E- for foreign ID
   id_number: string;
-  nacionalidad?: 'venezolano' | 'extranjero'; // Nationality: venezolano or extranjero
+  company?: string;
   score?: number;
+  position?: string;
+  email?: string;
+  phone?: string;
+  nationality?: string;
 }
 
 export interface Signature {
@@ -913,4 +917,82 @@ export interface CertificateSearchResult {
   certificates: CertificateManagement[];
   totalCount: number;
   metrics: CertificateMetrics;
+}
+
+// Carnet System Types
+export interface Carnet {
+  id: number;
+  id_certificado: number | null;
+  id_participante: number | null; // Back to number since we use proper sequential IDs
+  id_empresa: number | null;
+  id_curso: number | null;
+  id_osi: number | null;
+  titulo_curso: string;
+  fecha_emision: string;
+  fecha_vencimiento: string | null;
+  nombre_participante: string;
+  cedula_participante: string;
+  empresa_participante: string | null;
+  qr_code: string | null;
+  snapshot_contenido: string | null;
+  created_at: string;
+  is_active: boolean;
+  
+  // Relationship data for comprehensive tracking
+  certificado?: CertificateManagement;
+  participante?: CertificateParticipant;
+  empresa?: Empresa;
+  curso?: Curso;
+  osi?: CertificateOSI;
+}
+
+export interface CarnetRequest {
+  participant: CertificateParticipant;
+  carnetData: CarnetGeneration;
+  templateImage: string;
+  isPreview?: boolean;
+  carnetId?: number;
+}
+
+export interface CarnetGeneration {
+  id_certificado: number;
+  id_participante: number; // Back to number since we use proper sequential IDs
+  id_empresa: number | null;
+  id_curso: number;
+  id_osi: number;
+  titulo_curso: string;
+  fecha_emision: string;
+  fecha_vencimiento: string | null;
+  nombre_participante: string;
+  cedula_participante: string;
+  empresa_participante: string | null;
+  qr_code?: string;
+  snapshot_contenido?: string;
+}
+
+export interface CarnetRelationships {
+  certificates: CertificateManagement[];
+  carnets: Carnet[];
+  osi: CertificateOSI;
+  participants: CertificateParticipant[];
+  companies: Empresa[];
+  courses: Curso[];
+}
+
+export interface CarnetFilters {
+  searchTerm?: string;
+  companyId?: number;
+  courseId?: number;
+  osiId?: number;
+  participantId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  isActive?: boolean;
+  hasExpirationDate?: boolean;
+}
+
+export interface CarnetSearchResult {
+  carnets: Carnet[];
+  totalCount: number;
+  relationships?: CarnetRelationships;
 }
