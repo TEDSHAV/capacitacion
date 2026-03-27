@@ -98,11 +98,58 @@ export class CarnetGenerator {
     try {
       console.log('🎨 Loading PNG template:', templatePath);
       
-      // For now, add a simple design since we can't load images directly in all environments
-      // In a real implementation, you'd use a library to load PNG and add to PDF
-      this.addBackgroundDesign();
-      
-      console.log('✅ PNG background processed successfully');
+      // Skip template if no image path provided
+      if (!templatePath) {
+        console.log('No template image provided, skipping template');
+        this.addBackgroundDesign();
+        return;
+      }
+
+      // Check if we're in a server environment
+      if (typeof window === 'undefined') {
+        // Server environment - use fs to read image file
+        const fs = require('fs');
+        const path = require('path');
+        
+        // Convert URL to file path
+        let imagePath = templatePath;
+        if (templatePath.startsWith('/')) {
+          imagePath = path.join(process.cwd(), 'public', templatePath);
+        }
+        
+        console.log('Server environment, loading carnet template from file:', imagePath);
+        
+        // Check if file exists
+        if (fs.existsSync(imagePath)) {
+          // Read file as base64
+          const imageBuffer = fs.readFileSync(imagePath);
+          const base64Image = imageBuffer.toString('base64');
+          
+          // Add base64 image to PDF - cover the entire carnet
+          this.pdf.addImage(`data:image/png;base64,${base64Image}`, "PNG", 0, 0, this.pageWidth, this.pageHeight);
+          console.log('Carnet template image loaded successfully in server environment');
+        } else {
+          console.warn('Carnet template image file not found:', imagePath);
+          this.addBackgroundDesign();
+        }
+        return;
+      }
+
+      // Browser environment - use Image constructor
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          // Add image to PDF - cover the entire carnet
+          this.pdf.addImage(img, "PNG", 0, 0, this.pageWidth, this.pageHeight);
+          resolve();
+        };
+        img.onerror = (error) => {
+          console.error('Error loading carnet template image in browser:', error);
+          this.addBackgroundDesign();
+          resolve();
+        };
+        img.src = templatePath;
+      });
       
     } catch (error) {
       console.error('💥 Error loading PNG background:', error);

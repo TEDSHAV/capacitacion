@@ -1,6 +1,7 @@
 "use client";
 
 import { CertificateGenerator } from "@/lib/certificate-generator";
+import { CarnetGenerator } from "@/lib/carnet-generator";
 import { CertificateGeneration, CertificateParticipant } from "@/types";
 import { useState, useEffect } from "react";
 import { getSignaturesForDropdownAction } from "@/app/actions/dropdown-data";
@@ -10,23 +11,77 @@ interface CertificatePreviewProps {
   selectedOSI: any;
   isOpen: boolean;
   onClose: () => void;
+  selectedCourse?: any; // Add course data to check if it emits carnets
 }
 
 export const CertificatePreview = ({
   certificateData,
+  selectedOSI,
   isOpen,
   onClose,
+  selectedCourse
 }: CertificatePreviewProps) => {
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [carnetPreviewUrl, setCarnetPreviewUrl] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingCarnet, setIsGeneratingCarnet] = useState(false);
   const [error, setError] = useState<string>("");
   const [selectedParticipantIndex, setSelectedParticipantIndex] = useState(0);
+  const [showCarnet, setShowCarnet] = useState(false);
 
   useEffect(() => {
     if (isOpen && certificateData.participants.length > 0) {
       generatePreview();
+      // Generate carnet preview if course emits carnets
+      if (selectedCourse?.emite_carnet) {
+        generateCarnetPreview();
+      }
     }
-  }, [isOpen, certificateData, selectedParticipantIndex]);
+  }, [isOpen, certificateData, selectedParticipantIndex, selectedCourse]);
+
+  const generateCarnetPreview = async () => {
+    setIsGeneratingCarnet(true);
+    try {
+      const carnetGenerator = new CarnetGenerator();
+      
+      // Use selected participant for preview
+      const previewParticipant: CertificateParticipant = certificateData.participants[selectedParticipantIndex];
+      
+      if (!previewParticipant) {
+        console.error('Participante no válido seleccionado para vista previa de carnet');
+        return;
+      }
+
+      // Create carnet data for preview
+      const carnetData = {
+        id_certificado: 0, // Preview certificate ID
+        id_participante: typeof previewParticipant.id === 'string' ? parseInt(previewParticipant.id) : (previewParticipant.id || 0),
+        id_empresa: null,
+        id_curso: selectedCourse?.id || 0,
+        id_osi: certificateData.osi_id ? parseInt(certificateData.osi_id) : 0,
+        titulo_curso: certificateData.certificate_title,
+        fecha_emision: certificateData.date,
+        fecha_vencimiento: certificateData.fecha_vencimiento || null,
+        nombre_participante: previewParticipant.name,
+        cedula_participante: previewParticipant.id_number,
+        empresa_participante: previewParticipant.company || '',
+        qr_code: undefined // Preview doesn't need QR code
+      };
+
+      const carnetPreviewUrl = await carnetGenerator.previewCarnet({
+        participant: previewParticipant,
+        carnetData,
+        templateImage: '/templates/carnet.png',
+        isPreview: true
+      });
+      
+      setCarnetPreviewUrl(carnetPreviewUrl);
+    } catch (err) {
+      console.error('Error generating carnet preview:', err);
+    } finally {
+      setIsGeneratingCarnet(false);
+    }
+  };
 
   const generatePreview = async () => {
     setIsGenerating(true);
@@ -145,7 +200,12 @@ export const CertificatePreview = ({
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl("");
     }
+    if (carnetPreviewUrl) {
+      URL.revokeObjectURL(carnetPreviewUrl);
+      setCarnetPreviewUrl("");
+    }
     setSelectedParticipantIndex(0); // Reset to first participant
+    setShowCarnet(false);
     onClose();
   };
 
@@ -156,26 +216,52 @@ export const CertificatePreview = ({
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b">
           <h3 className="text-lg font-semibold text-gray-900">
-            Vista Previa del Certificado
+            Vista Previa del Certificado{selectedCourse?.emite_carnet ? ' y Carnet' : ''}
           </h3>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex items-center space-x-4">
+            {selectedCourse?.emite_carnet && (
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setShowCarnet(false)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    !showCarnet
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Certificado
+                </button>
+                <button
+                  onClick={() => setShowCarnet(true)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    showCarnet
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Carnet
+                </button>
+              </div>
+            )}
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="p-6">
@@ -204,10 +290,12 @@ export const CertificatePreview = ({
             </div>
           )}
 
-          {isGenerating && (
+          {(isGenerating || (showCarnet && isGeneratingCarnet)) && (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2 text-gray-600">Generando vista previa...</span>
+              <span className="ml-2 text-gray-600">
+                {showCarnet ? 'Generando vista previa del carnet...' : 'Generando vista previa...'}
+              </span>
             </div>
           )}
 
@@ -217,10 +305,11 @@ export const CertificatePreview = ({
             </div>
           )}
 
-          {previewUrl && !isGenerating && !error && (
+          {((showCarnet ? carnetPreviewUrl : previewUrl) && !(isGenerating || (showCarnet && isGeneratingCarnet)) && !error) && (
             <div className="space-y-4">
               <div className="text-sm text-gray-600">
-                <p>Vista previa para: <strong>{certificateData.participants[selectedParticipantIndex]?.name}</strong></p>
+                <p>Vista previa de: <strong>{showCarnet ? 'Carnet' : 'Certificado'}</strong></p>
+                <p>Para: <strong>{certificateData.participants[selectedParticipantIndex]?.name}</strong></p>
                 <p className="text-blue-600">
                   Cédula: {certificateData.participants[selectedParticipantIndex]?.id_number}
                 </p>
@@ -238,9 +327,9 @@ export const CertificatePreview = ({
               
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <iframe
-                  src={previewUrl}
-                  className="w-full h-[600px]"
-                  title="Certificate Preview"
+                  src={showCarnet ? carnetPreviewUrl : previewUrl}
+                  className={`w-full ${showCarnet ? 'h-[400px]' : 'h-[600px]'}`}
+                  title={`${showCarnet ? 'Carnet' : 'Certificate'} Preview`}
                 />
               </div>
 
@@ -262,7 +351,7 @@ export const CertificatePreview = ({
                     </button>
                   )}
                   <button
-                    onClick={generatePreview}
+                    onClick={showCarnet ? generateCarnetPreview : generatePreview}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                   >
                     Actualizar Vista Previa
