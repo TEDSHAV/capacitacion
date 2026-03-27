@@ -51,6 +51,30 @@ const getCertificateTemplates = cache(async () => {
   }
 });
 
+// Get carnet templates
+const getCarnetTemplates = cache(async () => {
+  const supabase = await createClient();
+  
+  try {
+    const { data, error } = await supabase
+      .from('plantillas_carnets')
+      .select('*')
+      .eq('is_active', true)
+      .order('nombre');
+    
+    if (error) {
+      return { error: error.message, data: [] };
+    }
+    
+    return { data: data || [], error: null };
+  } catch (err) {
+    return { 
+      error: err instanceof Error ? err.message : 'Unknown error',
+      data: [] 
+    };
+  }
+});
+
 // Get Venezuelan states
 const getVenezuelanStates = cache(async () => {
   const supabase = await createClient();
@@ -136,6 +160,15 @@ export async function getSignaturesForDropdownAction() {
 
 export async function getCertificateTemplatesAction() {
   return await getCertificateTemplates();
+}
+
+export async function getCarnetTemplatesAction() {
+  return await getCarnetTemplates();
+}
+
+export async function getActiveTemplateAction(templateType: 'certificate' | 'carnet') {
+  const { getActiveTemplate } = await import('./template-actions');
+  return await getActiveTemplate(templateType);
 }
 
 export async function getCertificateTemplatesByCourseAction(courseId?: string) {

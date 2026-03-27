@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { CapacitacionClientProps, PlantillaCertificado } from '@/types'
+import { setActiveTemplate } from '@/app/actions/template-actions'
 
 export default function PlantillasCertificadosPage({ user }: CapacitacionClientProps) {
   const [plantillas, setPlantillas] = useState<PlantillaCertificado[]>([])
@@ -66,11 +67,27 @@ export default function PlantillasCertificadosPage({ user }: CapacitacionClientP
         archivo: formData.archivo.name
       })
 
+      // Upload file to server
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', formData.archivo);
+      
+      const uploadResponse = await fetch('/api/upload-template', {
+        method: 'POST',
+        body: uploadFormData
+      });
+      
+      const uploadResult = await uploadResponse.json();
+      
+      if (!uploadResult.success) {
+        throw new Error(`Error al subir archivo: ${uploadResult.error}`);
+      }
+
+      // Create template record in database with uploaded file info
       const { data, error } = await supabase
         .from('plantillas_certificados')
         .insert({
           nombre: formData.nombre.trim(),
-          archivo: formData.archivo.name,
+          archivo: uploadResult.fileName,
           is_active: true
         })
         .select()
@@ -100,6 +117,20 @@ export default function PlantillasCertificadosPage({ user }: CapacitacionClientP
       setIsSubmitting(false)
     }
   }
+
+  const handleSetActive = async (id: number) => {
+    try {
+      const result = await setActiveTemplate(id, 'certificate');
+      if (result.success) {
+        loadPlantillas(); // Reload to show active status
+        alert('¡Plantilla activa actualizada exitosamente!');
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      alert('Error al actualizar plantilla activa');
+    }
+  };
 
   const handleDelete = async (id: number) => {
     if (!confirm('¿Está seguro de eliminar esta plantilla?')) return
@@ -255,8 +286,15 @@ export default function PlantillasCertificadosPage({ user }: CapacitacionClientP
           ) : (
             <div className="divide-y divide-gray-200">
               {plantillas.map((plantilla) => (
-                <div key={plantilla.id} className="px-6 py-4 flex items-center justify-between">
+                <div key={plantilla.id} className={`px-6 py-4 flex items-center justify-between ${plantilla.is_active ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''}`}>
                   <div className="flex-1">
+                    {plantilla.is_active && (
+                      <div className="mb-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Activa
+                        </span>
+                      </div>
+                    )}
                     <h3 className="text-lg font-medium text-gray-900">
                       {plantilla.nombre}
                     </h3>
@@ -268,6 +306,14 @@ export default function PlantillasCertificadosPage({ user }: CapacitacionClientP
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {!plantilla.is_active && (
+                      <button
+                        onClick={() => handleSetActive(plantilla.id)}
+                        className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                      >
+                        Establecer como Activa
+                      </button>
+                    )}
                     <button
                       className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
                     >

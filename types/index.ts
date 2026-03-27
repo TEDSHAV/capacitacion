@@ -241,6 +241,7 @@ export interface CertificateGeneration {
   fecha_vencimiento?: string; // Certificate expiration date
   id_estado?: number; // Venezuelan state ID for certificate record
   id_plantilla_certificado?: number; // Certificate template ID
+  id_plantilla_carnet?: number; // Carne template ID
 }
 
 export interface CertificateParticipant {
@@ -349,6 +350,17 @@ export interface PlantillaCertificado {
   archivo: string
   created_at: string
   is_active: boolean
+}
+
+export interface PlantillaCarnet {
+  id: number;
+  nombre: string;
+  archivo: string;
+  url_imagen?: string;
+  tipo?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface ParticipantsSectionProps {
@@ -968,6 +980,7 @@ export interface CarnetGeneration {
   empresa_participante: string | null;
   qr_code?: string;
   snapshot_contenido?: string;
+  id_plantilla_carnet?: number; // Carne template ID used
 }
 
 export interface CarnetRelationships {

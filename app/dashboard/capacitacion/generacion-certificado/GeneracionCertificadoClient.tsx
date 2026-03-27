@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CourseTopic,
   CertificateGeneration,
@@ -12,6 +12,7 @@ import OSISearch from "./components/osi-search";
 import { CertificateForm } from './components/certificate-form';
 import { CarnetDebug } from '@/components/carnets/carnet-debug';
 import { saveCertificatesToDatabase } from '@/app/actions/certificados';
+import { getCarnetTemplatesAction } from '@/app/actions/dropdown-data';
 
 interface GeneracionCertificadoClientProps {
   user: any;
@@ -25,6 +26,8 @@ export default function GeneracionCertificadoClient({
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedOSI, setSelectedOSI] = useState<CertificateOSI | null>(null);
   const [selectedCourseTopic, setSelectedCourseTopic] = useState<CourseTopic | null>(null);
+  const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
+  const [carnetTemplates, setCarnetTemplates] = useState<any[]>([]);
   const [certificateData, setCertificateData] = useState<CertificateGeneration>({
     osi_id: "",
     certificate_title: "",
@@ -49,6 +52,22 @@ export default function GeneracionCertificadoClient({
   const osis = initialData.osis || [];
   const courses = initialData.courses || [];
   const error = initialData.error;
+
+  // Load carnet templates
+  useEffect(() => {
+    const loadCarnetTemplates = async () => {
+      try {
+        const result = await getCarnetTemplatesAction();
+        if (result.data) {
+          setCarnetTemplates(result.data);
+        }
+      } catch (error) {
+        console.error('Error loading carnet templates:', error);
+      }
+    };
+    
+    loadCarnetTemplates();
+  }, []);
 
   const handleOSISelect = (osi: CertificateOSI | null) => {
     setSelectedOSI(osi);
@@ -264,13 +283,25 @@ export default function GeneracionCertificadoClient({
             console.log('✅ Carnets saved to database with IDs:', carnetDbResult.carnetIds);
             
             // Generate carnet PDFs
-            const carnetRequests = carnetData.map((carnet, index) => ({
-              participant: certificateData.participants[index],
-              carnetData: carnet,
-              templateImage: '/templates/carnet.png',
-              isPreview: false,
-              carnetId: carnetDbResult.carnetIds![index]
-            }));
+            const carnetRequests = carnetData.map((carnet, index) => {
+              // Get template image based on selected carnet template
+              let templateImage = '/templates/carnet.png'; // fallback
+              if (certificateData.id_plantilla_carnet) {
+                const selectedTemplate = carnetTemplates.find((template: any) => template.id === certificateData.id_plantilla_carnet);
+                if (selectedTemplate?.archivo) {
+                  // Use the template file, but fallback to carnet.png if file doesn't exist
+                  templateImage = `/templates/${selectedTemplate.archivo}`;
+                }
+              }
+              
+              return {
+                participant: certificateData.participants[index],
+                carnetData: carnet,
+                templateImage,
+                isPreview: false,
+                carnetId: carnetDbResult.carnetIds![index]
+              };
+            });
 
             console.log('🔄 Generating carnet PDFs...');
             const carnetBlobs = await carnetGenerator.generateMultipleCarnets(carnetRequests);

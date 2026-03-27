@@ -12,6 +12,7 @@ interface CertificatePreviewProps {
   isOpen: boolean;
   onClose: () => void;
   selectedCourse?: any; // Add course data to check if it emits carnets
+  carnetTemplates?: any[]; // Add carnet templates for preview
 }
 
 export const CertificatePreview = ({
@@ -19,7 +20,8 @@ export const CertificatePreview = ({
   selectedOSI,
   isOpen,
   onClose,
-  selectedCourse
+  selectedCourse,
+  carnetTemplates = []
 }: CertificatePreviewProps) => {
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [carnetPreviewUrl, setCarnetPreviewUrl] = useState<string>("");
@@ -71,7 +73,14 @@ export const CertificatePreview = ({
       const carnetPreviewUrl = await carnetGenerator.previewCarnet({
         participant: previewParticipant,
         carnetData,
-        templateImage: '/templates/carnet.png',
+        templateImage: certificateData.id_plantilla_carnet 
+          ? (() => {
+              const selectedTemplate = carnetTemplates.find((t: any) => t.id === certificateData.id_plantilla_carnet);
+              return selectedTemplate?.archivo 
+                ? `/templates/${selectedTemplate.archivo}` 
+                : '/templates/carnet.png'; // fallback
+            })()
+          : '/templates/carnet.png',
         isPreview: true
       });
       

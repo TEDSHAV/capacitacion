@@ -44,6 +44,14 @@ export default function CapacitacionClient({
       badge: '5 plantillas'
     },
     {
+      id: 'plantillas-carnets',
+      title: 'Plantillas de Carnets',
+      description: 'Gestionar plantillas de carnet',
+      icon: LayoutGrid,
+      category: 'cursos',
+      badge: 'Nuevo'
+    },
+    {
       id: 'participantes',
       title: 'Gestión de Participantes',
       description: 'Gestión de participantes',
