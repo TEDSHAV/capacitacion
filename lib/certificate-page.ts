@@ -414,18 +414,12 @@ export class CertificatePage {
    */
   private async addQRCodeToPosition(qrDataUrl: string, isSinglePage: boolean = false): Promise<void> {
     try {
-      // Calculate QR code position
+      // Calculate QR code position - always position in the upper half (certificate area)
       const qrX = this.pageWidth - CertificatePage.QR_CONFIG.PDF_SIZE_MM - CertificatePage.QR_CONFIG.MARGIN - CertificatePage.QR_CONFIG.X_OFFSET;
       
-      let qrY;
-      if (isSinglePage) {
-        // For single-page mode, position QR code in the top right corner of the certificate area (upper half)
-        // Place it about 30mm from the top of the page, within the certificate area
-        qrY = 22.5;
-      } else {
-        // For two-page mode, use the original positioning (bottom of certificate page)
-        qrY = this.pageHeight - CertificatePage.QR_CONFIG.PDF_SIZE_MM - CertificatePage.QR_CONFIG.MARGIN - CertificatePage.QR_CONFIG.Y_OFFSET;
-      }
+      // For both single and two-page certificates, position QR code in the upper half
+      // Use the same coordinates since the upper half layout never changes
+      const qrY = 22.5;
       
       // Add QR code to PDF
       this.doc.addImage(qrDataUrl, 'PNG', qrX, qrY, CertificatePage.QR_CONFIG.PDF_SIZE_MM, CertificatePage.QR_CONFIG.PDF_SIZE_MM);
