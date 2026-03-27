@@ -5,7 +5,7 @@ import { getFacilitatorHoursStatsAction } from "@/app/actions/reportes-stats";
 import { FacilitadorHoursStatsProps, CertificateInfo, FacilitadorHoursStat } from "@/types";
 import { Button } from "@/components/ui/button";
 
-export default function FacilitadorHoursStats({ selectedState }: FacilitadorHoursStatsProps) {
+export default function FacilitadorHoursStats({ selectedState, selectedCourse }: FacilitadorHoursStatsProps) {
   const [facilitadorStats, setFacilitadorStats] = useState<FacilitadorHoursStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -13,14 +13,14 @@ export default function FacilitadorHoursStats({ selectedState }: FacilitadorHour
 
   useEffect(() => {
     fetchData();
-  }, [selectedState]);
+  }, [selectedState, selectedCourse]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const result = await getFacilitatorHoursStatsAction(selectedState);
+      const result = await getFacilitatorHoursStatsAction(selectedState, selectedCourse);
       
       if (result.error) {
         setError(result.error);
