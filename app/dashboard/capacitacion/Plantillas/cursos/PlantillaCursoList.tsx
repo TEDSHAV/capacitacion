@@ -53,7 +53,7 @@ export function PlantillaCursoList({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Descripción
+                Título
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Curso
@@ -90,7 +90,7 @@ export function PlantillaCursoList({
                 <tr key={plantilla.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
-                      {plantilla.descripcion}
+                      {plantilla.titulo || plantilla.descripcion}
                     </div>
                     <div className="text-sm text-gray-500 truncate max-w-xs">
                       {plantilla.contenido?.substring(0, 100)}...

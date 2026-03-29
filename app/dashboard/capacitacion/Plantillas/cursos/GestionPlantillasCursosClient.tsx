@@ -5,7 +5,7 @@ import { PlantillaCurso } from "./types";
 import { PlantillaCursoList } from "./PlantillaCursoList";
 import { CreatePlantillaCursoButton } from "./CreatePlantillaCursoButton";
 import { PlantillaCursoForm } from "./PlantillaCursoForm";
-import { getPlantillaCursosAction, createPlantillaCursoAction, updatePlantillaCursoAction, deletePlantillaCursoAction, getCoursesAction, getEmpresasAction } from "./actions";
+import { getPlantillaCursosAction, createPlantillaCursoAction, updatePlantillaCursoAction, deletePlantillaCursoAction, getCoursesAction, getEmpresasAction, getCourseWithContentAction } from "./actions";
 
 export default function GestionPlantillasCursosClient() {
   const [plantillas, setPlantillas] = useState<PlantillaCurso[]>([]);
@@ -37,17 +37,25 @@ export default function GestionPlantillasCursosClient() {
 
   const loadCoursesAndEmpresas = async () => {
     try {
+      // Load data in parallel for better performance
       const [coursesResult, empresasResult] = await Promise.all([
         getCoursesAction(),
         getEmpresasAction()
       ]);
       
+      console.log('Courses result:', coursesResult);
+      console.log('Empresas result:', empresasResult);
+      
       if (coursesResult.success) {
         setCourses(coursesResult.data || []);
+      } else {
+        console.error('Failed to load courses:', coursesResult.error);
       }
       
       if (empresasResult.success) {
         setEmpresas(empresasResult.data || []);
+      } else {
+        console.error('Failed to load empresas:', empresasResult.error);
       }
     } catch (error) {
       console.error("Error loading courses and empresas:", error);
@@ -59,6 +67,7 @@ export default function GestionPlantillasCursosClient() {
   }, [currentPage, searchTerm]);
 
   useEffect(() => {
+    // Load dropdown data immediately when component mounts
     loadCoursesAndEmpresas();
   }, []);
 

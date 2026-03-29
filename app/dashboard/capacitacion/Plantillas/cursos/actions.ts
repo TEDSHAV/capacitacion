@@ -15,7 +15,7 @@ const getPlantillaCursos = cache(async (page: number = 1, limit: number = 10, se
       .select(`
         *,
         cursos(id, nombre),
-        empresas(id, nombre)
+        empresas(id, razon_social)
       `)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
@@ -33,8 +33,9 @@ const getPlantillaCursos = cache(async (page: number = 1, limit: number = 10, se
 
     const plantillas = data?.map(plantilla => ({
       ...plantilla,
+      titulo: plantilla.descripcion, // Use descripcion as title for display
       curso_nombre: plantilla.cursos?.nombre,
-      empresa_nombre: plantilla.empresas?.nombre
+      empresa_nombre: plantilla.empresas?.razon_social
     })) || [];
 
     return { 
@@ -56,11 +57,11 @@ const createPlantillaCurso = cache(async (plantillaData: any) => {
     const { data, error } = await supabase
       .from('plantillas_cursos')
       .insert({
-        descripcion: plantillaData.descripcion,
+        descripcion: plantillaData.descripcion, // This will store the title
         contenido: plantillaData.contenido,
         id_curso: plantillaData.id_curso || null,
         id_empresa: plantillaData.id_empresa || null,
-        is_active: true
+        is_active: plantillaData.is_active ?? true
       })
       .select()
       .single();
@@ -85,7 +86,7 @@ const updatePlantillaCurso = cache(async (id: number, plantillaData: any) => {
     const { data, error } = await supabase
       .from('plantillas_cursos')
       .update({
-        descripcion: plantillaData.descripcion,
+        descripcion: plantillaData.descripcion, // This will store the title
         contenido: plantillaData.contenido,
         id_curso: plantillaData.id_curso || null,
         id_empresa: plantillaData.id_empresa || null,
@@ -129,14 +130,14 @@ const deletePlantillaCurso = cache(async (id: number) => {
   }
 });
 
-// Get all courses for dropdown
+// Get all courses for dropdown - optimized with better caching
 const getCourses = cache(async () => {
   const supabase = await createClient();
   
   try {
     const { data, error } = await supabase
       .from('cursos')
-      .select('id, nombre')
+      .select('id, nombre, contenido')
       .eq('is_active', true)
       .order('nombre');
 
@@ -159,19 +160,53 @@ const getEmpresas = cache(async () => {
   try {
     const { data, error } = await supabase
       .from('empresas')
-      .select('id, nombre')
-      .eq('is_active', true)
-      .order('nombre');
+      .select('id, razon_social')
+      .order('razon_social');
 
     if (error) {
       console.error('Error fetching empresas:', error);
       return { success: false, error: error.message };
     }
 
-    return { success: true, data: data || [] };
+    console.log('Raw empresas data:', data); // Debug log
+
+    // Transform the data to match expected format in the form
+    const transformedData = data?.map(empresa => ({
+      id: empresa.id,
+      nombre: empresa.razon_social
+    })) || [];
+
+    console.log('Transformed empresas data:', transformedData); // Debug log
+
+    return { success: true, data: transformedData };
   } catch (error) {
     console.error('Error in getEmpresas:', error);
     return { success: false, error: 'Failed to fetch empresas' };
+  }
+});
+
+// Get course details with content for autopopulation - optimized
+const getCourseWithContent = cache(async (courseId: number) => {
+  const supabase = await createClient();
+  
+  try {
+    // Use the already cached courses data if possible
+    const { data, error } = await supabase
+      .from('cursos')
+      .select('id, nombre, contenido')
+      .eq('id', courseId)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      console.error('Error fetching course details:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error in getCourseWithContent:', error);
+    return { success: false, error: 'Failed to fetch course details' };
   }
 });
 
@@ -198,4 +233,8 @@ export async function getCoursesAction() {
 
 export async function getEmpresasAction() {
   return await getEmpresas();
+}
+
+export async function getCourseWithContentAction(courseId: number) {
+  return await getCourseWithContent(courseId);
 }

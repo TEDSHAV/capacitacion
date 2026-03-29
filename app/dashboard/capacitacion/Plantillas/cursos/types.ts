@@ -1,5 +1,6 @@
 export interface PlantillaCurso {
   id: number;
+  titulo?: string;
   descripcion: string;
   contenido: string;
   id_curso?: number | null;

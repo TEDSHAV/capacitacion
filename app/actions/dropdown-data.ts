@@ -182,12 +182,12 @@ const getCourseTemplatesTest = cache(async () => {
   }
 });
 
-// Get course templates (plantillas_cursos) filtered by course and client
-const getCourseTemplatesByOSI = cache(async (courseId?: string, osiCompanyId?: number) => {
+// Get course templates (plantillas_cursos) filtered by course
+const getCourseTemplatesByOSI = cache(async (courseId?: string) => {
   const supabase = await createClient();
   
   try {
-    console.log('🔍 getCourseTemplatesByOSI called with:', { courseId, osiCompanyId });
+    console.log('🔍 getCourseTemplatesByOSI called with:', { courseId });
     
     if (!courseId) {
       // If no course selected, return all active templates
@@ -211,28 +211,10 @@ const getCourseTemplatesByOSI = cache(async (courseId?: string, osiCompanyId?: n
       return { data: data || [], error: null };
     }
 
-    // Get course details to find the associated client
-    console.log('🔍 Fetching course details for courseId:', courseId);
-    const { data: courseData, error: courseError } = await supabase
-      .from('cursos')
-      .select('cliente_asociado')
-      .eq('id', parseInt(courseId))
-      .single();
-    
-    console.log('📊 Course data result:', { courseData, courseError });
-    
-    if (courseError && courseError.code !== 'PGRST116') {
-      console.error('❌ Error fetching course:', courseError);
-    }
-    
-    const clientId = courseData?.cliente_asociado;
-    console.log('🎯 Course client ID:', clientId);
-
     // Build query to get templates that are:
     // 1. Related to this specific course (id_curso = courseId)
     // 2. OR general templates (id_curso IS NULL AND id_empresa IS NULL)
-    // 3. OR templates for this specific client (id_empresa = clientId)
-    // 4. Must be active
+    // 3. Must be active
     let query = supabase
       .from('plantillas_cursos')
       .select('*')
@@ -241,10 +223,6 @@ const getCourseTemplatesByOSI = cache(async (courseId?: string, osiCompanyId?: n
     const orConditions = [`id_curso.eq.${courseId}`]; // Course-specific templates
     orConditions.push('id_curso.is.null,id_empresa.is.null'); // General templates
     
-    if (clientId) {
-      orConditions.push(`id_empresa.eq.${clientId}`); // Client-specific templates
-    }
-    
     console.log('🔧 OR conditions:', orConditions);
     
     query = query.or(orConditions.join(','));
@@ -252,7 +230,19 @@ const getCourseTemplatesByOSI = cache(async (courseId?: string, osiCompanyId?: n
     
     const { data, error } = await query;
     
-    console.log('📊 Filtered templates query result:', { data: data?.length || 0, error });
+    console.log('📊 Filtered templates query result:', { 
+      dataLength: data?.length || 0, 
+      data: data,
+      error,
+      courseId,
+      orConditions: orConditions.join(','),
+      templateDetails: data?.map(t => ({
+        id: t.id,
+        idType: typeof t.id,
+        descripcion: t.descripcion,
+        nombre: t.nombre // Add this to see if templates have nombre field
+      }))
+    });
     
     if (error) {
       console.error('❌ Error in filtered templates query:', error);
@@ -296,8 +286,8 @@ export async function getCourseTemplatesTestAction() {
   return await getCourseTemplatesTest();
 }
 
-export async function getCourseTemplatesByOSIAction(courseId?: string, osiCompanyId?: number) {
-  return await getCourseTemplatesByOSI(courseId, osiCompanyId);
+export async function getCourseTemplatesByOSIAction(courseId?: string) {
+  return await getCourseTemplatesByOSI(courseId);
 }
 
 export async function getVenezuelanStatesAction() {
