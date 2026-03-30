@@ -251,7 +251,7 @@ export class CarnetGenerator {
 
     // Add control number at bottom right
     if (carnetData.nro_control) {
-      this.pdf.setFontSize(6);
+      this.pdf.setFontSize(7);
       this.pdf.setFont("helvetica", "bold");
       this.pdf.setTextColor(255, 0, 0); // Set text color to red
       this.pdf.text("N°: ", 66, 44);
