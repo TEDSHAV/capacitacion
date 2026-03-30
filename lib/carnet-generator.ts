@@ -220,10 +220,10 @@ export class CarnetGenerator {
     this.pdf.setFont("helvetica", "bold");
 
     // Add course title (centered)
-    const courseY = 15;
-    this.pdf.text(carnetData.titulo_curso, 43, courseY, {
+    const courseY = 17;
+    this.pdf.text(`${carnetData.titulo_curso.toUpperCase()}`, 54, courseY, {
       align: "center",
-      maxWidth: 70,
+      maxWidth: 50,
     });
   }
 
@@ -247,6 +247,16 @@ export class CarnetGenerator {
       this.pdf.text("Vencimiento: ", 3, 44);
       this.pdf.setTextColor(0, 0, 0); // Reset text color to black
       this.pdf.text(expirationDate, 22, 44); // Position date after "Vencimiento: "
+    }
+
+    // Add control number at bottom right
+    if (carnetData.nro_control) {
+      this.pdf.setFontSize(6);
+      this.pdf.setFont("helvetica", "bold");
+      this.pdf.setTextColor(255, 0, 0); // Set text color to red
+      this.pdf.text("N°: ", 66, 44);
+      this.pdf.setTextColor(0, 0, 0); // Reset text color to black
+      this.pdf.text(`${carnetData.nro_control}`, 70, 44);
     }
   }
 
