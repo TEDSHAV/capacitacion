@@ -25,7 +25,7 @@ export default function EmpresaSearch({
     const filtered = empresas.filter(empresa =>
       empresa.razon_social?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       empresa.rif?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      empresa.codigo_cliente?.toLowerCase().includes(searchTerm.toLowerCase())
+      empresa.codigo_cliente?.toString().toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredEmpresas(filtered);
   }, [empresas, searchTerm]);
