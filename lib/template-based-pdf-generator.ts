@@ -34,7 +34,7 @@ export class TemplateBasedPdfGenerator {
         const logoBase64 = this.getLogoBase64();
         if (logoBase64) {
           console.log('📁 Logo loaded as base64');
-          pdf.addImage(logoBase64, 20, yPosition, 30, 15); // Reduced from 40x20 to 30x15
+          pdf.addImage(logoBase64, 20, yPosition, 28, 12); // Reduced from 30x15 to 25x12 for better proportions
           console.log('✅ Logo image added successfully');
         } else {
           throw new Error('Logo base64 is empty');
@@ -45,17 +45,31 @@ export class TemplateBasedPdfGenerator {
       }
       
       // Column 2: Title (centered and vertically aligned with logo) - smaller font
-      pdf.setFont('helvetica', 'bold').setFontSize(14); // Reduced from 18 to 14
-      pdf.text('CERTIFICACIÓN DE COMPETENCIAS', 105, yPosition + 7, { align: 'center' }); // Adjusted alignment
+      pdf.setFont('helvetica', 'bold').setFontSize(10); // Even smaller for more compact layout
+      pdf.text('CERTIFICACIÓN DE COMPETENCIAS', 105, yPosition + 5, { align: 'center' }); // Adjusted alignment
       
       // Column 3: Document info (right aligned and vertically aligned with logo) - smaller font
-      pdf.setFont('helvetica', 'normal').setFontSize(8); // Reduced from 10 to 8
-      pdf.text('CÓDIGO: SHA-RG-CAP-006', 190, yPosition + 2, { align: 'right' });
-      pdf.text('FECHA: 01/04/2026', 190, yPosition + 7, { align: 'right' });
-      pdf.text('REVISIÓN: 00', 190, yPosition + 12, { align: 'right' });
-      pdf.text('PÁGINA: 1 de 1', 190, yPosition + 17, { align: 'right' });
+      pdf.setFont('helvetica', 'normal').setFontSize(6); // Even smaller for compactness
       
-      yPosition += 30; // Reduced from 35 to 30
+      // Create table-like revision section with proper alignment
+      const revisionStartY = yPosition;
+      const revisionLineHeight = 4;
+      
+      // Table headers
+      pdf.setFont('helvetica', 'bold').setFontSize(6);
+      pdf.text('CÓDIGO:', 160, revisionStartY + 3);
+      pdf.text('FECHA:', 160, revisionStartY + 3 + revisionLineHeight);
+      pdf.text('REVISIÓN:', 160, revisionStartY + 3 + (revisionLineHeight * 2));
+      pdf.text('PÁGINA:', 160, revisionStartY + 3 + (revisionLineHeight * 3));
+      
+      // Table values (right aligned)
+      pdf.setFont('helvetica', 'normal').setFontSize(6);
+      pdf.text('SHA-RG-CAP-006', 203, revisionStartY + 3, { align: 'right' });
+      pdf.text('01/04/2026', 203, revisionStartY + 3 + revisionLineHeight, { align: 'right' });
+      pdf.text('00', 203, revisionStartY + 3 + (revisionLineHeight * 2), { align: 'right' });
+      pdf.text('1 de 1', 203, revisionStartY + 3 + (revisionLineHeight * 3), { align: 'right' });
+      
+      yPosition += 20; // Adjusted spacing
       
       // Main content
       pdf.setFont('helvetica', 'normal').setFontSize(12);
@@ -83,29 +97,29 @@ export class TemplateBasedPdfGenerator {
       pdf.text('La nota mínima aprobatoria es de 14 puntos.', 20, yPosition);
       yPosition += 20;
       
-      // Table header
-      pdf.setFont('helvetica', 'bold').setFontSize(12);
-      pdf.text('N°', 20, yPosition);
-      pdf.text('NOMBRE Y APELLIDO', 40, yPosition);
-      pdf.text('CÉDULA', 110, yPosition);
-      pdf.text('PUNTUACIÓN', 140, yPosition);
-      pdf.text('CONDICIÓN', 160, yPosition);
-      pdf.text('N° DE CONTROL', 180, yPosition);
+      // Table header - fixed overlapping with proper spacing
+      pdf.setFont('helvetica', 'bold').setFontSize(10);
+      pdf.text('N°', 20, yPosition); // Aligned with text above like nota de entrega
+      pdf.text('NOMBRE Y APELLIDO', 40, yPosition); // Match nota de entrega
+      pdf.text('CÉDULA', 85, yPosition); // Adjusted for alignment
+      pdf.text('PUNTUACIÓN', 125, yPosition); // Adjusted for alignment
+      pdf.text('CONDICIÓN', 155, yPosition); // Adjusted for alignment
+      pdf.text('N° DE CONTROL', 185, yPosition); // Adjusted for alignment
       yPosition += 10;
       
       // Draw table line
       pdf.line(20, yPosition, 190, yPosition);
       yPosition += 5;
       
-      // Participants table
+      // Participants table - updated to match header spacing
       pdf.setFont('helvetica', 'normal').setFontSize(10);
       data.participantes.forEach((participant) => {
-        pdf.text(`${participant.index}`, 20, yPosition);
-        pdf.text(participant.nombre_apellido || '', 40, yPosition);
-        pdf.text(participant.cedula || '', 110, yPosition);
-        pdf.text(participant.puntuacion || '', 140, yPosition);
-        pdf.text(participant.condicion || '', 160, yPosition);
-        pdf.text(participant.numero_control || '', 180, yPosition);
+        pdf.text(`${participant.index}`, 20, yPosition); // Match header position
+        pdf.text(participant.nombre_apellido || '', 40, yPosition); // Match header position
+        pdf.text(participant.cedula || '', 85, yPosition); // Match header position
+        pdf.text(participant.puntuacion || '', 125, yPosition); // Match header position
+        pdf.text(participant.condicion || '', 155, yPosition); // Match header position
+        pdf.text(participant.numero_control || '', 185, yPosition); // Match header position
         yPosition += 12;
         
         if (yPosition > 260) {
@@ -156,7 +170,7 @@ export class TemplateBasedPdfGenerator {
         const logoBase64 = this.getLogoBase64();
         if (logoBase64) {
           console.log('📁 Logo loaded as base64');
-          pdf.addImage(logoBase64, 20, yPosition, 30, 15); // Reduced from 40x20 to 30x15
+          pdf.addImage(logoBase64, 20, yPosition, 25, 12); // Reduced from 30x15 to 25x12 for better proportions
           console.log('✅ Logo image added successfully');
         } else {
           throw new Error('Logo base64 is empty');
@@ -269,7 +283,7 @@ export class TemplateBasedPdfGenerator {
         const logoBase64 = this.getLogoBase64();
         if (logoBase64) {
           console.log('📁 Logo loaded as base64');
-          pdf.addImage(logoBase64, 20, yPosition, 30, 15); // Reduced from 40x20 to 30x15
+          pdf.addImage(logoBase64, 20, yPosition, 25, 12); // Reduced from 30x15 to 25x12 for better proportions
           console.log('✅ Logo image added successfully');
         } else {
           throw new Error('Logo base64 is empty');
@@ -280,17 +294,31 @@ export class TemplateBasedPdfGenerator {
       }
       
       // Column 2: Title (centered and vertically aligned with logo) - smaller font
-      pdf.setFont('helvetica', 'bold').setFontSize(14); // Reduced from 18 to 14
-      pdf.text('VALIDACIÓN DE DATOS', 105, yPosition + 7, { align: 'center' }); // Adjusted alignment
+      pdf.setFont('helvetica', 'bold').setFontSize(10); // Even smaller for more compact layout
+      pdf.text('VALIDACIÓN DE DATOS', 105, yPosition + 5, { align: 'center' }); // Adjusted alignment
       
       // Column 3: Document info (right aligned and vertically aligned with logo) - smaller font
-      pdf.setFont('helvetica', 'normal').setFontSize(8); // Reduced from 10 to 8
-      pdf.text('CÓDIGO: SHA-RG-CAP-006', 190, yPosition + 2, { align: 'right' });
-      pdf.text('FECHA: 01/04/2026', 190, yPosition + 7, { align: 'right' });
-      pdf.text('REVISIÓN: 00', 190, yPosition + 12, { align: 'right' });
-      pdf.text('PÁGINA: 1 de 1', 190, yPosition + 17, { align: 'right' });
+      pdf.setFont('helvetica', 'normal').setFontSize(6); // Even smaller for compactness
       
-      yPosition += 30; // Reduced from 35 to 30
+      // Create table-like revision section with proper alignment
+      const revisionStartY = yPosition;
+      const revisionLineHeight = 4;
+      
+      // Table headers
+      pdf.setFont('helvetica', 'bold').setFontSize(6);
+      pdf.text('CÓDIGO:', 160, revisionStartY + 3);
+      pdf.text('FECHA:', 160, revisionStartY + 3 + revisionLineHeight);
+      pdf.text('REVISIÓN:', 160, revisionStartY + 3 + (revisionLineHeight * 2));
+      pdf.text('PÁGINA:', 160, revisionStartY + 3 + (revisionLineHeight * 3));
+      
+      // Table values (right aligned)
+      pdf.setFont('helvetica', 'normal').setFontSize(6);
+      pdf.text('SHA-RG-CAP-006', 203, revisionStartY + 3, { align: 'right' });
+      pdf.text('01/04/2026', 203, revisionStartY + 3 + revisionLineHeight, { align: 'right' });
+      pdf.text('00', 203, revisionStartY + 3 + (revisionLineHeight * 2), { align: 'right' });
+      pdf.text('1 de 1', 203, revisionStartY + 3 + (revisionLineHeight * 3), { align: 'right' });
+      
+      yPosition += 20; // Adjusted spacing
       
       // Main content
       pdf.setFont('helvetica', 'normal').setFontSize(12);
@@ -313,25 +341,25 @@ export class TemplateBasedPdfGenerator {
       
       yPosition += 15;
       
-      // Table header
-      pdf.setFont('helvetica', 'bold').setFontSize(12);
-      pdf.text('N°', 20, yPosition);
-      pdf.text('NOMBRE Y APELLIDO', 40, yPosition);
-      pdf.text('CÉDULA', 110, yPosition);
-      pdf.text('N° DE CONTROL', 160, yPosition);
+      // Table header - fixed overlapping with proper spacing
+      pdf.setFont('helvetica', 'bold').setFontSize(10);
+      pdf.text('N°', 20, yPosition); // Aligned with text above like nota de entrega
+      pdf.text('NOMBRE Y APELLIDO', 40, yPosition); // Match nota de entrega
+      pdf.text('CÉDULA', 85, yPosition); // Adjusted for alignment
+      pdf.text('N° DE CONTROL', 155, yPosition); // Adjusted for alignment
       yPosition += 10;
       
       // Draw table line
       pdf.line(20, yPosition, 190, yPosition);
       yPosition += 5;
       
-      // Participants table
+      // Participants table - updated to match header spacing
       pdf.setFont('helvetica', 'normal').setFontSize(10);
       data.participantes.forEach((participant) => {
-        pdf.text(`${participant.index}`, 20, yPosition);
-        pdf.text(participant.nombre_apellido || '', 40, yPosition);
-        pdf.text(participant.cedula || '', 110, yPosition);
-        pdf.text(participant.numero_control || '', 160, yPosition);
+        pdf.text(`${participant.index}`, 20, yPosition); // Match header position
+        pdf.text(participant.nombre_apellido || '', 40, yPosition); // Match header position
+        pdf.text(participant.cedula || '', 85, yPosition); // Match header position
+        pdf.text(participant.numero_control || '', 155, yPosition); // Match header position
         yPosition += 12;
         
         if (yPosition > 260) {
