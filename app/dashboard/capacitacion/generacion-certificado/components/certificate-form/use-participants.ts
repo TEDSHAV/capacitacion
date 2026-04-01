@@ -23,7 +23,7 @@ export const useParticipants = (onParticipantsChange: (participants: Certificate
         return false
       }
       
-      // Check if participant with same ID number already exists
+      // Check if participant with same ID number already exists (regardless of name)
       const existingParticipant = currentParticipants.find(
         p => p.id_number === newParticipant.id_number.trim()
       )
@@ -32,9 +32,6 @@ export const useParticipants = (onParticipantsChange: (participants: Certificate
         setError('Ya existe un participante con este número de cédula/pasaporte')
         return false
       }
-      
-      // Clear error when validation passes
-      setError('')
       
       const participant: CertificateParticipant = {
         id: Date.now().toString(),

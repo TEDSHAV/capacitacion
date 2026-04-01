@@ -97,8 +97,8 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
             onChange={e => updateNewParticipant('nationality', e.target.value)}
             className="w-16 px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="venezolano">V -</option>
-            <option value="extranjero">E -</option>
+            <option value="venezolano">V-</option>
+            <option value="extranjero">E-</option>
           </select>
           <input
             type="text"

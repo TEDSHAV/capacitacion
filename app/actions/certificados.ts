@@ -140,8 +140,38 @@ export async function saveCertificatesToDatabase(
       
       if (!participantId) {
         console.error('FAILED: Could not create/update participant:', participant.name);
-        continue;
+        console.error('STOPPING certificate creation process due to participant failure');
+        continue; // Skip this participant but continue with others
       }
+
+      console.log('SUCCESS: Participant created/updated with ID:', participantId);
+      
+      // Debug: Show exactly what nationality value we're working with
+      console.log('DEBUG: Participant nationality value:', JSON.stringify(participant.nacionalidad));
+      console.log('DEBUG: Type of participant.nacionalidad:', typeof participant.nacionalidad);
+      
+      // Verify participant was actually saved to database
+      const { data: verifyParticipant, error: verifyError } = await supabase
+        .from("participantes_certificados")
+        .select("id, nombre, cedula, nacionalidad, is_active")
+        .eq("id", participantId)
+        .single();
+        
+      if (verifyError) {
+        console.error('FAILED: Could not verify participant was saved:', verifyError);
+      } else {
+        console.log('VERIFIED: Participant exists in database:', {
+          id: verifyParticipant?.id,
+          nombre: verifyParticipant?.nombre,
+          cedula: verifyParticipant?.cedula,
+          nacionalidad: verifyParticipant?.nacionalidad,
+          is_active: verifyParticipant?.is_active
+        });
+        console.log('DEBUG: Nationality in database:', verifyParticipant?.nacionalidad);
+        console.log('DEBUG: Type of nationality in database:', typeof verifyParticipant?.nacionalidad);
+      }
+      
+      console.log('Participant details from database:');
 
       // Store the real database participant ID
       participantIds.push(participantId);
@@ -316,7 +346,7 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
     // First, try to find existing participant by cedula (primary match) - name can vary slightly
     const { data: existingParticipant, error: findError } = await supabase
       .from("participantes_certificados")
-      .select("id, nombre, cedula, nacionalidad")
+      .select("id, nombre, cedula, nacionalidad, is_active")
       .eq("cedula", participant.id_number)
       .maybeSingle();
 
@@ -330,8 +360,24 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
         id: existingParticipant.id,
         nombre: existingParticipant.nombre,
         cedula: existingParticipant.cedula,
-        nacionalidad: existingParticipant.nacionalidad
+        nacionalidad: existingParticipant.nacionalidad,
+        is_active: existingParticipant.is_active
       });
+      
+      // If existing participant is inactive, reactivate them
+      if (!existingParticipant.is_active) {
+        console.log('Reactivating inactive participant:', existingParticipant.id);
+        const { error: reactivateError } = await supabase
+          .from("participantes_certificados")
+          .update({ is_active: true })
+          .eq("id", existingParticipant.id);
+          
+        if (reactivateError) {
+          console.error('FAILED: Error reactivating participant:', reactivateError);
+          return null;
+        }
+        console.log('SUCCESS: Reactivated participant');
+      }
       
       // Convert old format to new format if needed
       if (existingParticipant.nacionalidad === 'V-' || existingParticipant.nacionalidad === 'E-') {
@@ -366,24 +412,60 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
 
     // Create new participant
     console.log('Creating new participant with nationality:', participant.nacionalidad);
+    console.log('Participant data to insert:', {
+      nombre: participant.name,
+      cedula: participant.id_number,
+      nacionalidad: participant.nacionalidad,
+      is_active: true
+    });
     
     const { data: newParticipant, error: insertError } = await supabase
       .from("participantes_certificados")
       .insert({
         nombre: participant.name,
         cedula: participant.id_number,
-        nacionalidad: participant.nacionalidad
+        nacionalidad: participant.nacionalidad,
+        is_active: true // Ensure new participants are active
       })
       .select('id')
       .single();
 
+    console.log('Database insert result:', { 
+      success: !insertError, 
+      data: newParticipant, 
+      error: insertError 
+    });
+
     if (insertError) {
       console.error('FAILED: Error creating new participant:', insertError);
       console.error('Insert error details:', JSON.stringify(insertError, null, 2));
+      console.error('Supabase error code:', insertError.code);
+      console.error('Supabase error message:', insertError.message);
+      console.error('Supabase error details:', insertError.details);
+      
+      // Check for specific constraint violations
+      if (insertError.code === '23505') {
+        console.error('DUPLICATE CEDULA DETECTED: Participant with this cedula already exists');
+        console.error('Existing participant data being used instead');
+        
+        // Try to fetch the existing participant and return their ID
+        const { data: existingDupParticipant } = await supabase
+          .from("participantes_certificados")
+          .select("id, nombre, cedula, nacionalidad, is_active")
+          .eq("cedula", participant.id_number)
+          .single();
+          
+        if (existingDupParticipant) {
+          console.log('Returning existing participant ID instead:', existingDupParticipant.id);
+          return existingDupParticipant.id;
+        }
+      }
+      
       return null;
     }
 
     console.log('SUCCESS: Created new participant:', newParticipant?.id);
+    console.log('=== PARTICIPANT CREATION COMPLETE ===');
     return newParticipant?.id || null;
 
   } catch (error) {

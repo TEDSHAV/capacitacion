@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCarnetById } from '@/app/actions/carnets';
 import { CarnetGenerator } from '@/lib/carnet-generator';
 import { QRService } from '@/lib/qr-service';
+import { createClient } from '@/utils/supabase/server';
 
 export async function GET(
   request: NextRequest,
@@ -36,6 +37,26 @@ export async function GET(
     const carnet = carnetResult.data;
     console.log('✅ Carnet found:', { id: carnet.id, participant: carnet.nombre_participante });
 
+    // Fetch participant nationality from database
+    let participantNationality = 'venezolano'; // default
+    if (carnet.id_participante) {
+      try {
+        const supabase = await createClient();
+        const { data: participantData } = await supabase
+          .from('participantes_certificados')
+          .select('nacionalidad')
+          .eq('id', carnet.id_participante)
+          .single();
+        
+        if (participantData?.nacionalidad) {
+          participantNationality = participantData.nacionalidad;
+          console.log('📋 Found participant nationality:', participantNationality);
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not fetch participant nationality:', error);
+      }
+    }
+
     // Generate QR code for carnet (same as certificate)
     let qrDataURL: string | undefined;
     try {
@@ -61,7 +82,8 @@ export async function GET(
       participant: {
         name: carnet.nombre_participante,
         id_number: carnet.cedula_participante,
-        company: carnet.empresa_participante || undefined
+        company: carnet.empresa_participante || undefined,
+        nationality: participantNationality
       },
       carnetData: {
         id_certificado: carnet.id_certificado!,
@@ -74,7 +96,8 @@ export async function GET(
         fecha_vencimiento: carnet.fecha_vencimiento,
         nombre_participante: carnet.nombre_participante,
         cedula_participante: carnet.cedula_participante,
-        empresa_participante: carnet.empresa_participante
+        empresa_participante: carnet.empresa_participante,
+        nro_control: carnet.id // Use carnet ID as control number for now
       },
       templateImage: '/templates/carnet.png',
       isPreview: false,
