@@ -60,11 +60,11 @@ export const FacilitatorSelection = ({
         Facilitador del Curso
       </label>
       <SearchableSelect
-        value={selectedFacilitatorId}
+        value={selectedFacilitatorId ?? ''}
         onChange={onFacilitatorChange}
         options={facilitatorOptions}
         placeholder="Seleccionar facilitador..."
-        isLoading={loading}
+        loading={loading}
       />
       {facilitatorOptions.length === 0 && (
         <p className="text-xs text-gray-500 mt-1">
@@ -76,8 +76,8 @@ export const FacilitatorSelection = ({
       )}
       {selectedFacilitatorId && (
         <div className="mt-2 text-xs text-gray-500">
-          {facilitatorOptions.find((f: any) => f.id === parseInt(selectedFacilitatorId || ''))?.facilitator?.temas_cursos?.slice(0, 3).join(', ')}
-          {(facilitatorOptions.find((f: any) => f.id === parseInt(selectedFacilitatorId || ''))?.facilitator?.temas_cursos?.length || 0) > 3 && '...'}
+          {(facilitatorOptions.find((f: any) => f.id === parseInt(selectedFacilitatorId || '')) as any)?.facilitator?.temas_cursos?.slice(0, 3).join(', ')}
+          {((facilitatorOptions.find((f: any) => f.id === parseInt(selectedFacilitatorId || '')) as any)?.facilitator?.temas_cursos?.length || 0) > 3 && '...'}
         </div>
       )}
     </div>

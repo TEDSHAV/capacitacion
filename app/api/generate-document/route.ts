@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TemplateBasedPdfGenerator } from "@/lib/template-based-pdf-generator";
-import { DocumentTemplateProcessor } from "@/lib/document-templates";
+import { DocumentTemplateProcessor } from "@/lib/document-templates-new";
 
 export async function POST(request: NextRequest) {
   try {

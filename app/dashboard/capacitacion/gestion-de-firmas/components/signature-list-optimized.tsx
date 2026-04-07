@@ -19,7 +19,7 @@ export const SignatureListOptimized = ({
   const [loading, setLoading] = useState(false);
 
   // Memoized computations to avoid re-renders
-  const { facilitadoresWithSignatures, otherSignatures, facilitadoresWithoutSignatures } = useMemo(() => {
+  const { facilitadoresWithSignatures, otherSignatures, facilitatorsWithoutSignatures } = useMemo(() => {
     // Get facilitators that already have signatures
     const facilitatorsWithSigs = signatures
       .filter(sig => sig.tipo === 'facilitador')
@@ -27,20 +27,20 @@ export const SignatureListOptimized = ({
         const facilitador = facilitadores.find(f => f.firma_id === sig.id);
         return facilitador ? { ...facilitador, signature: sig } : null;
       })
-      .filter(Boolean);
+      .filter((item): item is NonNullable<typeof item> => item !== null);
 
     // Get facilitators without signatures
     const facilitatorsWithoutSigs = facilitadores.filter(
-      f => !f.firma_id && facilitadoresWithSigs.length > 0
+      f => !f.firma_id && facilitatorsWithSigs.length > 0
     );
 
     // Get other signature types (representante_sha) - show all regardless of active status
     const otherSigs = signatures.filter(sig => sig.tipo !== 'facilitador');
 
     return {
-      facilitadoresWithSignatures: facilitadoresWithSigs,
+      facilitadoresWithSignatures: facilitatorsWithSigs,
       otherSignatures: otherSigs,
-      facilitatorsWithoutSignatures: facilitadoresWithoutSigs
+      facilitatorsWithoutSignatures: facilitatorsWithoutSigs
     };
   }, [signatures, facilitadores]);
 
@@ -183,14 +183,14 @@ export const SignatureListOptimized = ({
       )}
 
       {/* Facilitators without signatures */}
-      {facilitadoresWithoutSignatures.length > 0 && (
+      {facilitatorsWithoutSignatures.length > 0 && (
         <div className="mb-8">
           <h3 className="text-md font-medium text-gray-900 mb-4">
             Facilitadores sin Firma
           </h3>
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {facilitadoresWithoutSignatures.map((facilitador) => (
+              {facilitatorsWithoutSignatures.map((facilitador: any) => (
                 <div key={facilitador.id} className="flex items-center space-x-3 p-2 bg-white rounded border border-amber-100">
                   <div className="w-2 h-2 rounded-full bg-amber-400"></div>
                   <span className="text-sm text-gray-700">{facilitador.nombre_apellido}</span>

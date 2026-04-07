@@ -46,23 +46,6 @@ export function useOSIDataServer() {
         getOSIServicios()
       ])
 
-      // Handle errors
-      if (usuariosResult.error) {
-        throw new Error(usuariosResult.error)
-      }
-      if (empresasResult.error) {
-        throw new Error(empresasResult.error)
-      }
-      if (cursosResult.error) {
-        throw new Error(cursosResult.error)
-      }
-      if (contactosResult.error) {
-        throw new Error(contactosResult.error)
-      }
-      if (serviciosResult.error) {
-        throw new Error(serviciosResult.error)
-      }
-
       // Set data
       setUsuarios(usuariosResult.usuarios || [])
       setEmpresas(empresasResult.empresas || [])
@@ -126,11 +109,6 @@ export function useOSIDataServer() {
   }) => {
     try {
       const result = await getOSIs(filters)
-      
-      if (result.error) {
-        throw new Error(result.error)
-      }
-      
       return result
     } catch (err) {
       console.error('Error getting filtered OSIs:', err)

@@ -56,7 +56,7 @@ export async function generateCertificatesWithDocuments(
     const generator = new DocumentGenerator();
 
     try {
-      const documents = await generator.generateAllDocuments(
+      const documents = await (generator as any).generateAllDocuments(
         certificates,
         osiData,
         getDefaultFirmante(),

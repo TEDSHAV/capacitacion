@@ -13,7 +13,7 @@ export default function CourseActions({ curso, onEdit, onDelete, onDuplicate }: 
         Editar
       </button>
       <button 
-        onClick={() => onDuplicate(curso.id)}
+        onClick={() => onDuplicate(curso.id.toString())}
         className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-green-700 bg-green-100 border border-green-300 rounded-md hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 transition-colors"
       >
         <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,7 +22,7 @@ export default function CourseActions({ curso, onEdit, onDelete, onDuplicate }: 
         Duplicar
       </button>
       <button 
-        onClick={() => onDelete(curso.id)}
+        onClick={() => onDelete(curso.id.toString())}
         className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-colors"
       >
         <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

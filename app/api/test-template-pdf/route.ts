@@ -22,8 +22,8 @@ export async function GET() {
     const testParticipant = testCertificateData.participants[0];
 
     const pdfBlob = await generator.generateCertificate({
-      participant: testParticipant,
-      certificateData: testCertificateData,
+      participant: testParticipant as any,
+      certificateData: testCertificateData as any,
       templateImage: '/templates/certificado.png', // Use actual template
       sealImage: '',
       isPreview: false

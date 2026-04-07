@@ -32,7 +32,7 @@ export function PlantillaCursoForm({
       descripcion: formData.titulo, // Use title as the main description field in database
       titulo: formData.titulo, // Keep title for frontend display
       id_curso: formData.id_curso ? parseInt(formData.id_curso.toString()) : null,
-      id_empresa: formData.id_empresa ? formData.id_empresa.toString() : null // Handle as string
+      id_empresa: formData.id_empresa ? parseInt(formData.id_empresa.toString()) : null
     };
 
     // Validate required fields
