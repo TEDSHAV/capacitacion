@@ -13,13 +13,7 @@ const LoginForm = () => {
           Iniciar sesión
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          ¿No tienes una cuenta?{" "}
-          <a
-            href="/signup"
-            className="font-medium text-blue-600 hover:text-blue-500"
-          >
-            Regístrate
-          </a>
+          Contacta al administrador para crear una cuenta.
         </p>
       </div>
       <form className="mt-8 space-y-6" action={handleLogin}>

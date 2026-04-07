@@ -39,9 +39,6 @@ const Navbar = () => {
     router.push('/login')
   }, [])
 
-  const handleSignupClick = useCallback(() => {
-    router.push('/signup')
-  }, [])
 
   return (
     <nav className="bg-white shadow-md z-50">
@@ -86,13 +83,6 @@ const Navbar = () => {
                   className="text-sm text-blue-600 hover:text-blue-700 px-3 py-2 rounded-md hover:bg-blue-50 transition-colors duration-200"
                 >
                   Iniciar sesión
-                </button>
-                <button
-                  onClick={handleSignupClick}
-                  className="text-sm bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-md transition-colors duration-200 shadow-md"
-                  style={{ backgroundColor: 'var(--primary-blue)' }}
-                >
-                  Registrarse
                 </button>
               </>
             )}
