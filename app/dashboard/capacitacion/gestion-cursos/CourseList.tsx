@@ -19,9 +19,7 @@ export default function CourseList({ cursos, onEdit, onDelete, onDuplicate }: Co
   const cursosFiltrados = cursos.filter(curso =>
     curso.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
     curso.contenido?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    (curso.empresas?.razon_social?.toLowerCase().includes(busqueda.toLowerCase())) ||
     curso.horas_estimadas?.toString().includes(busqueda.toLowerCase()) ||
-    curso.tipo_servicio?.toString().includes(busqueda.toLowerCase()) ||
     false
   );
 
@@ -70,10 +68,9 @@ export default function CourseList({ cursos, onEdit, onDelete, onDuplicate }: Co
       <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
         <div className="grid grid-cols-12 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
           <div className="col-span-4">Información del Curso</div>
-          <div className="col-span-2">Cliente</div>
           <div className="col-span-2">Duración</div>
           <div className="col-span-2">Creado</div>
-          <div className="col-span-2 text-right">Acciones</div>
+          <div className="col-span-4 text-right">Acciones</div>
         </div>
       </div>
       

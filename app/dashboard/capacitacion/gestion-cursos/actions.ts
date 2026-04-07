@@ -208,15 +208,10 @@ export async function getCursos() {
       return { error: 'No autorizado' };
     }
 
-    // Get all active courses from cursos table with company information using the foreign key
+    // Get all active courses from cursos table
     const { data, error } = await supabase
       .from('cursos')
-      .select(`
-        *,
-        empresas (
-          razon_social
-        )
-      `)
+      .select('*')
       .eq('is_active', true)
       .order('id', { ascending: false });
 
