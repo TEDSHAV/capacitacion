@@ -71,8 +71,8 @@ const nextConfig: NextConfig = {
             value: '1; mode=block'
           },
           {
-            key: 'X-Frame-Options',
-            value: 'DENY'
+            key: 'Content-Security-Policy',
+            value: `frame-ancestors 'self' ${process.env.NEXT_PUBLIC_SHELL_URL || ''}`
           },
           {
             key: 'X-Content-Type-Options',
