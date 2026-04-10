@@ -3,6 +3,8 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
+const SHELL_LOGIN_URL = `${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`
+
 const Home = () => {
   const router = useRouter()
 
@@ -11,7 +13,7 @@ const Home = () => {
     if (user) {
       router.push('/dashboard')
     } else {
-      router.push('/login')
+      window.location.href = SHELL_LOGIN_URL
     }
   }, [router])
 

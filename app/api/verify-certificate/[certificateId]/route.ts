@@ -32,7 +32,7 @@ export async function GET(
     return NextResponse.json({
       isValid: true,
       certificate: verification.certificate,
-      verificationUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-certificate/${certificateId}`
+      verificationUrl: `${process.env.NEXT_PUBLIC_SHELL_URL}/verify-certificate/${certificateId}`
     });
 
   } catch (error) {
@@ -113,7 +113,7 @@ export async function POST(
       isValid: true,
       certificate: verification.certificate,
       details: certificateDetails,
-      verificationUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-certificate/${certificateId}`,
+      verificationUrl: `${process.env.NEXT_PUBLIC_SHELL_URL}/verify-certificate/${certificateId}`,
       verifiedAt: new Date().toISOString()
     });
 
