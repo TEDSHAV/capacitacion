@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import GestionCursosClient from './GestionCursosClient';
 import { Empresa } from '@/types'
@@ -10,7 +9,7 @@ export default async function GestionCursosPage() {
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {
-    redirect('/login')
+    return <div className="p-8 text-center text-gray-500">Sesión no encontrada. Por favor, accede desde el portal principal.</div>
   }
 
   // Fetch companies for dropdown

@@ -45,7 +45,7 @@ export async function handleLogout() {
     const supabase = await createClient();
     await supabase.auth.signOut();
     revalidatePath('/dashboard');
-    redirect('/login');
+    redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
   } catch (error) {
     return { error: 'Error al cerrar sesión' };
   }
