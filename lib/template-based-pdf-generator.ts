@@ -11,7 +11,9 @@ const MR = 200;             // right content edge  (PAGE_W - ~16)
 const CW = MR - ML;        // content width ≈ 185 mm
 const FOOTER_H = 12;
 const FOOTER_Y = PAGE_H - FOOTER_H;   // ~267 mm
-const MAX_Y = FOOTER_Y - 6;           // ~261 mm — hard stop before footer
+const MAX_Y = FOOTER_Y - 6;           // ~261 mm — hard stop before footer (fallback)
+let actualFooterH = FOOTER_H;         // Will be set dynamically based on image aspect ratio
+let actualMaxY = MAX_Y;               // Will be set dynamically
 
 export class TemplateBasedPdfGenerator {
   private getImageBase64(filename: string): string {
@@ -72,10 +74,38 @@ export class TemplateBasedPdfGenerator {
     return 35;
   }
 
-  /** Adds docs_footer.png spanning the full page width at the very bottom */
+  /** Computes actual footer dimensions from image before layout, sets global actualMaxY */
+  private initializeFooterDimensions(pdf: jsPDF): void {
+    const footerB64 = this.getImageBase64('docs_footer.png');
+    if (!footerB64) {
+      actualFooterH = FOOTER_H;
+      actualMaxY = MAX_Y;
+      return;
+    }
+    try {
+      const props = pdf.getImageProperties(footerB64);
+      const naturalH = PAGE_W * (props.height / props.width); // height that keeps aspect ratio
+      const footerY = PAGE_H - naturalH;
+      actualFooterH = naturalH;
+      actualMaxY = footerY - 6;
+    } catch {
+      actualFooterH = FOOTER_H;
+      actualMaxY = MAX_Y;
+    }
+  }
+
+  /** Adds docs_footer.png spanning the full page width at the very bottom, preserving aspect ratio */
   private addPageFooter(pdf: jsPDF): void {
     const footerB64 = this.getImageBase64('docs_footer.png');
-    if (footerB64) pdf.addImage(footerB64, 'PNG', 0, FOOTER_Y, PAGE_W, FOOTER_H);
+    if (!footerB64) return;
+    try {
+      const props = pdf.getImageProperties(footerB64);
+      const naturalH = PAGE_W * (props.height / props.width); // height that keeps aspect ratio
+      const footerY = PAGE_H - naturalH;
+      pdf.addImage(footerB64, 'PNG', 0, footerY, PAGE_W, naturalH);
+    } catch {
+      pdf.addImage(footerB64, 'PNG', 0, FOOTER_Y, PAGE_W, FOOTER_H);
+    }
   }
 
   /**
@@ -83,6 +113,7 @@ export class TemplateBasedPdfGenerator {
    * When a row would overflow MAX_Y the current page gets its footer,
    * a new page is added and the column-header row is re-rendered before continuing.
    * Pass rows for ALL participants; the function pads to at least minRows empty rows.
+   * Returns [finalY, didOverflow] where didOverflow indicates if table extended to page 2.
    */
   private drawBorderedTable(
     pdf: jsPDF,
@@ -93,7 +124,7 @@ export class TemplateBasedPdfGenerator {
     startY: number,
     minRows: number = 10,
     rowH: number = 8
-  ): number {
+  ): [number, boolean] {
     pdf.setLineWidth(0.3);
 
     const renderColHeaders = (yPos: number): number => {
@@ -125,15 +156,17 @@ export class TemplateBasedPdfGenerator {
     });
 
     let y = renderColHeaders(startY);
+    let didOverflow = false;
 
     pdf.setFont('helvetica', 'normal').setFontSize(9);
     for (const row of allRows) {
-      if (y + rowH > MAX_Y) {
+      if (y + rowH > actualMaxY) {
         this.addPageFooter(pdf);
         pdf.addPage();
         y = 20;
         y = renderColHeaders(y);
         pdf.setFont('helvetica', 'normal').setFontSize(9);
+        didOverflow = true;
       }
       let x = startX;
       row.forEach((cell, ci) => {
@@ -143,25 +176,19 @@ export class TemplateBasedPdfGenerator {
       });
       y += rowH;
     }
-    return y;
+    return [y, didOverflow];
   }
 
-  /** "Atentamente," + centred bold SHA signature. Adds a page break if space is insufficient. */
+  /** "Atentamente," + centred bold SHA signature. Does NOT add page break - caller must check space. */
   private addSHASignature(pdf: jsPDF, y: number): number {
-    if (y + 26 > MAX_Y) {
-      this.addPageFooter(pdf);
-      pdf.addPage();
-      y = 30;
-    }
-    pdf.setTextColor(0, 0, 0);
-    pdf.setFont('helvetica', 'normal').setFontSize(11);
-    pdf.text('Atentamente,', ML, y);
-    y += 20;
-
     const cx = PAGE_W / 2;
     pdf.setFont('helvetica', 'bold').setFontSize(10);
-    pdf.text('DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.', cx, y, { align: 'center' });
-    return y + 6;
+    pdf.text('Atentamente,', cx, y, { align: 'center' });
+    y += 6;
+    pdf.setFont('helvetica', 'bold').setFontSize(12);
+    pdf.text('REPRESENTANTE SHA', cx, y, { align: 'center' });
+    y += 12;
+    return y;
   }
 
   async generateCertificacionCompetencias(data: TemplateData): Promise<Buffer> {
@@ -169,6 +196,7 @@ export class TemplateBasedPdfGenerator {
       console.log('🔍 Generating certificacion de competencias with template-based approach');
 
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+      this.initializeFooterDimensions(pdf); // Set actualMaxY before any layout
       let y = this.addPageHeader(pdf, ['CERTIFICACIÓN DE', 'COMPETENCIAS'], 'SHA-RG-CAP-006');
 
       pdf.setFont('helvetica', 'normal').setFontSize(11);
@@ -199,7 +227,7 @@ export class TemplateBasedPdfGenerator {
         String(p.index ?? i + 1), p.nombre_apellido || '', p.cedula || '',
         p.puntuacion || '', p.condicion || '', p.numero_control || '',
       ]);
-      y = this.drawBorderedTable(pdf, certHeaders, certColWidths, certRows, ML, y);
+      [y] = this.drawBorderedTable(pdf, certHeaders, certColWidths, certRows, ML, y);
       y += 10;
 
       y = this.addSHASignature(pdf, y);
@@ -220,6 +248,7 @@ export class TemplateBasedPdfGenerator {
       console.log('🔍 Generating nota de entrega with template-based approach');
 
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+      this.initializeFooterDimensions(pdf); // Set actualMaxY before any layout
       let y = this.addPageHeader(pdf, ['NOTA DE ENTREGA'], 'SHA-RG-CAP-006');
 
       pdf.setFont('helvetica', 'normal').setFontSize(11);
@@ -245,18 +274,24 @@ export class TemplateBasedPdfGenerator {
       const neRows: string[][] = data.participantes.map((p, i) => [
         String(p.index ?? i + 1), p.nombre_apellido || '', p.cedula || '', p.numero_control || '',
       ]);
-      y = this.drawBorderedTable(pdf, neHeaders, neColWidths, neRows, ML, y);
-      y += 10;
+      const [tableY, tableOverflowed] = this.drawBorderedTable(pdf, neHeaders, neColWidths, neRows, ML, y, 1);
+      y = tableY + 10;
 
-      y = this.addSHASignature(pdf, y);
-      y += 14;
+      console.log(`📊 Nota de Entrega pagination: tableY=${tableY.toFixed(1)}, tableOverflowed=${tableOverflowed}, actualMaxY=${actualMaxY.toFixed(1)}, y before signature=${y.toFixed(1)}`);
 
-      // "Recibido por:" section — ~52 mm tall; push to new page if it won't fit
-      if (y + 52 > MAX_Y) {
+      // Only add page break if table itself overflowed to page 2
+      // Signature sections stay on page 1 as long as table fits on page 1
+      if (tableOverflowed) {
+        console.log('📄 Adding page break because table overflowed');
         this.addPageFooter(pdf);
         pdf.addPage();
         y = 30;
+      } else {
+        console.log('📄 No page break - table fits on page 1');
       }
+
+      y = this.addSHASignature(pdf, y);
+      y += 14;
 
       const cx = PAGE_W / 2;
       pdf.setTextColor(0, 0, 0);
@@ -276,12 +311,7 @@ export class TemplateBasedPdfGenerator {
       pdf.text(data.cargo_recibido || '[CARGO]', cx, y, { align: 'center' });
       y += 12;
 
-      // Italic footnote — ensure it lands at least 6 mm above the footer
-      if (y + 6 > MAX_Y) {
-        this.addPageFooter(pdf);
-        pdf.addPage();
-        y = 30;
-      }
+      // Italic footnote — no individual page break check since we handle pagination based on table overflow
       pdf.setFont('helvetica', 'italic').setFontSize(8);
       pdf.text(
         '(Devolver sellado y firmado para validar la recepción de los documentos descritos en el documento)',
@@ -304,6 +334,7 @@ export class TemplateBasedPdfGenerator {
       console.log('🔍 Generating validacion de datos with template-based approach');
 
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+      this.initializeFooterDimensions(pdf); // Set actualMaxY before any layout
       let y = this.addPageHeader(pdf, ['VALIDACIÓN DE DATOS'], 'SHA-RG-CAP-004');
 
       pdf.setFont('helvetica', 'normal').setFontSize(11);
@@ -334,7 +365,7 @@ export class TemplateBasedPdfGenerator {
       const vdRows: string[][] = data.participantes.map((p, i) => [
         String(p.index ?? i + 1), p.nombre_apellido || '', p.cedula || '', p.numero_control || '',
       ]);
-      y = this.drawBorderedTable(pdf, vdHeaders, vdColWidths, vdRows, ML, y);
+      [y] = this.drawBorderedTable(pdf, vdHeaders, vdColWidths, vdRows, ML, y);
       y += 10;
 
       y = this.addSHASignature(pdf, y);
