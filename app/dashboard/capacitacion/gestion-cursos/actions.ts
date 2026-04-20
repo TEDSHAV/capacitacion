@@ -38,18 +38,12 @@ export async function createCurso(formData: FormData) {
         nombre: titulo.trim(),
         contenido: contenido.trim(),
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
-        // cliente_asociado: cliente_asociado?.trim() ? parseInt(cliente_asociado) : null, // Removed - column doesn't exist
         created_at: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
         is_active: true,
         nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
         emite_carnet: emite_carnet === 'true' // Convert string to boolean
       })
-      .select(`
-        *,
-        empresas (
-          razon_social
-        )
-      `)
+      .select('*')
       .single();
 
     if (error) {
@@ -90,17 +84,11 @@ export async function updateCurso(id: string, formData: FormData) {
         nombre: titulo,
         contenido: contenido,
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
-        // cliente_asociado: cliente_asociado && cliente_asociado.trim() ? parseInt(cliente_asociado) : null, // Removed - column doesn't exist
         nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
         emite_carnet: emite_carnet === 'true' // Convert string to boolean
       })
       .eq('id', id)
-      .select(`
-        *,
-        empresas (
-          razon_social
-        )
-      `)
+      .select('*')
       .single();
 
     if (error) {
@@ -123,23 +111,19 @@ export async function duplicateCurso(id: string) {
       return { error: 'No autorizado' };
     }
 
-    // First, get the original course from cursos table with empresa data
+    // First, get the original course from cursos table
     const { data: originalCourse, error: fetchError } = await supabase
       .from('cursos')
-      .select(`
-        *,
-        empresas (
-          razon_social
-        )
-      `)
+      .select('*')
       .eq('id', id)
       .single();
 
     if (fetchError || !originalCourse) {
+      console.error('Error fetching original course:', fetchError);
       return { error: 'No se encontró el curso original' };
     }
 
-    console.log('Original course with empresa:', originalCourse);
+    console.log('Original course:', originalCourse);
 
     // Create a duplicate in cursos table
     const { data, error } = await supabase
@@ -148,27 +132,28 @@ export async function duplicateCurso(id: string) {
         nombre: `${originalCourse.nombre} (Copia)`,
         contenido: originalCourse.contenido,
         horas_estimadas: originalCourse.horas_estimadas,
-        // cliente_asociado: originalCourse.cliente_asociado, // Removed - column doesn't exist
         created_at: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
         is_active: true,
         nota_aprobatoria: originalCourse.nota_aprobatoria || 14,
-        emite_carnet: originalCourse.emite_carnet || false // Copy the original emite_carnet value
+        emite_carnet: originalCourse.emite_carnet || false
       })
-      .select(`
-        *,
-        empresas (
-          razon_social
-        )
-      `)
+      .select('*')
       .single();
 
     if (error) {
+      console.error('Error duplicating course:', error);
       return { error: `Error al duplicar el curso: ${formatSupabaseError(error)}` };
     }
+
+    console.log('Duplicated course:', data);
+
+    // Revalidate the cursos page to refresh the cache
+    revalidatePath('/dashboard/capacitacion/gestion-cursos');
 
     return { success: true, data };
 
   } catch (error) {
+    console.error('Unexpected error in duplicateCurso:', error);
     return { error: 'Error interno del servidor' };
   }
 }
