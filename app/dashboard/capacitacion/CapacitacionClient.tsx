@@ -165,22 +165,6 @@ export default function CapacitacionClient({
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Clean Header */}
-      <div className="border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-8 py-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-light text-gray-900">Capacitación</h1>
-              <p className="text-sm text-gray-500 mt-1">Gestión de programas de capacitación</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500">Usuario</p>
-              <p className="text-sm font-medium text-gray-900">{user.email}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-6xl mx-auto px-8 py-8">
         {/* Enhanced Horizontal Category Filter with Neon Style */}
         <div className="mb-8">
