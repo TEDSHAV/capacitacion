@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState } from "react";
-import { Company, CapacitacionClientProps } from "@/types";
+import { Company, CapacitacionClientProps, DashboardStats } from "@/types";
 import { 
   BookOpen, 
   Users, 
@@ -22,9 +22,14 @@ import {
 export default function CapacitacionClient({
   user,
   companies,
+  stats,
 }: CapacitacionClientProps) {
-  const router = useRouter();
   const [activeSection, setActiveSection] = useState<string>('all');
+
+  const getSubmoduleHref = (submoduleId: string) => {
+    if (submoduleId === 'Plantillas') return '/dashboard/capacitacion/Plantillas/cursos';
+    return `/dashboard/capacitacion/${submoduleId}`;
+  };
 
   const submodules = [
     {
@@ -136,15 +141,6 @@ export default function CapacitacionClient({
   const filteredModules = activeSection === 'all' 
     ? submodules 
     : submodules.filter(m => m.category === activeSection);
-
-  const handleSubmoduleClick = (submoduleId: string) => {
-    // Special routing for Plantillas de Cursos - go directly to course templates
-    if (submoduleId === 'Plantillas') {
-      router.push('/dashboard/capacitacion/Plantillas/cursos');
-    } else {
-      router.push(`/dashboard/capacitacion/${submoduleId}`);
-    }
-  };
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
@@ -262,10 +258,10 @@ export default function CapacitacionClient({
           {filteredModules.map((submodule) => {
             const Icon = submodule.icon;
             return (
-              <div
+              <Link
                 key={submodule.id}
-                onClick={() => handleSubmoduleClick(submodule.id)}
-                className="group cursor-pointer border border-gray-200 rounded-lg p-6 transition-all duration-200 hover:border-gray-300 hover:shadow-sm"
+                href={getSubmoduleHref(submodule.id)}
+                className="group block border border-gray-200 rounded-lg p-6 transition-all duration-200 hover:border-gray-300 hover:shadow-sm"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-3">
@@ -283,7 +279,7 @@ export default function CapacitacionClient({
                     {submodule.badge}
                   </span>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -292,20 +288,20 @@ export default function CapacitacionClient({
         <div className="mt-12 pt-8 border-t border-gray-200">
           <div className="grid grid-cols-4 gap-8">
             <div className="text-center">
-              <p className="text-2xl font-light text-gray-900">12</p>
+              <p className="text-2xl font-light text-gray-900">{stats?.cursosActivos ?? '—'}</p>
               <p className="text-xs text-gray-500 mt-1">Cursos Activos</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-light text-gray-900">245</p>
+              <p className="text-2xl font-light text-gray-900">{stats?.participantes ?? '—'}</p>
               <p className="text-xs text-gray-500 mt-1">Participantes</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-light text-gray-900">89</p>
+              <p className="text-2xl font-light text-gray-900">{stats?.certificados ?? '—'}</p>
               <p className="text-xs text-gray-500 mt-1">Certificados Emitidos</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-light text-gray-900">87%</p>
-              <p className="text-xs text-gray-500 mt-1">Tasa de Completación</p>
+              <p className="text-2xl font-light text-gray-900">{stats?.facilitadores ?? '—'}</p>
+              <p className="text-xs text-gray-500 mt-1">Facilitadores</p>
             </div>
           </div>
         </div>

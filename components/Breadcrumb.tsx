@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, Home } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const SEGMENT_LABELS: Record<string, string> = {
   dashboard: "Inicio",
@@ -31,7 +32,13 @@ function labelFor(segment: string): string {
 
 export default function Breadcrumb() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
   if (!pathname.startsWith("/dashboard")) return null;
 
   const segments = pathname.split("/").filter(Boolean);
