@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getSignaturesAction, deleteSignatureAction, updateSignatureAction } from "@/app/actions/signatures-crud";
 import { getFacilitatorsAction } from "@/app/actions/facilitators-crud";
 import { Signature, SignatureType, Facilitador } from "@/types";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface SignatureListProps {
   signatures: Signature[];
@@ -16,6 +17,7 @@ export const SignatureList = ({
   onSignatureDeleted, 
   refreshKey 
 }: SignatureListProps) => {
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [signatureList, setSignatureList] = useState<Signature[]>([]);
   const [facilitadores, setFacilitadores] = useState<Facilitador[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,50 +49,48 @@ export const SignatureList = ({
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Estás seguro de que quieres desactivar esta firma? Podrás reactivarla más tarde.")) {
-      return;
-    }
-
-    try {
-      const result = await deleteSignatureAction(id);
-      
-      if (result.success) {
-        setSignatureList(signatureList.filter(sig => sig.id !== parseInt(id)));
-        onSignatureDeleted();
-      } else {
-        alert(`Error: ${result.error}`);
-      }
-    } catch (error) {
-      alert("Error al desactivar la firma. Por favor intenta nuevamente.");
-      console.error("Delete error:", error);
-    }
+  const handleDelete = (id: string) => {
+    confirm({
+      title: 'Desactivar Firma',
+      message: '¿Estás seguro de que quieres desactivar esta firma? Podrás reactivarla más tarde.',
+      confirmLabel: 'Desactivar',
+      variant: 'warning',
+      onConfirm: async () => {
+        try {
+          const result = await deleteSignatureAction(id);
+          if (result.success) {
+            setSignatureList(signatureList.filter(sig => sig.id !== parseInt(id)));
+            onSignatureDeleted();
+          } else {
+            console.error(`Error: ${result.error}`);
+          }
+        } catch (error) {
+          console.error("Delete error:", error);
+        }
+      },
+    });
   };
 
-  const handleActivate = async (id: string, signatureName: string) => {
-    if (!confirm(`¿Estás seguro de que quieres activar la firma de "${signatureName}"?`)) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/signatures/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ activate: true }),
-      });
-
-      if (response.ok) {
-        alert("Firma activada exitosamente");
-        onSignatureDeleted();
-      } else {
-        throw new Error("Error al activar la firma");
-      }
-    } catch (error) {
-      alert("Error al activar la firma. Por favor intenta nuevamente.");
-      console.error("Activate error:", error);
-    }
+  const handleActivate = (id: string, signatureName: string) => {
+    confirm({
+      title: 'Activar Firma',
+      message: `¿Estás seguro de que quieres activar la firma de "${signatureName}"?`,
+      confirmLabel: 'Activar',
+      variant: 'warning',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/signatures/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ activate: true }),
+          });
+          if (!response.ok) throw new Error("Error al activar la firma");
+          onSignatureDeleted();
+        } catch (error) {
+          console.error("Activate error:", error);
+        }
+      },
+    });
   };
 
   const signatureTypeLabels: Record<string, string> = {
@@ -313,6 +313,7 @@ export const SignatureList = ({
           )}
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 };

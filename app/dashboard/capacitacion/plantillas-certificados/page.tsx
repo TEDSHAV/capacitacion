@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { CapacitacionClientProps, PlantillaCertificado } from '@/types'
 import { setActiveTemplate } from '@/app/actions/template-actions'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export default function PlantillasCertificadosPage({ user }: CapacitacionClientProps) {
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [plantillas, setPlantillas] = useState<PlantillaCertificado[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -132,31 +134,27 @@ export default function PlantillasCertificadosPage({ user }: CapacitacionClientP
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Está seguro de eliminar esta plantilla?')) return
+  const handleDelete = (id: number) => {
+    confirm({
+      title: 'Eliminar Plantilla',
+      message: '¿Está seguro de eliminar esta plantilla?',
+      confirmLabel: 'Eliminar',
+      onConfirm: async () => {
+        try {
+          const { data, error } = await supabase
+            .from('plantillas_certificados')
+            .update({ is_active: false })
+            .eq('id', id)
+            .select()
+            .single()
 
-    try {
-      console.log('Deleting plantilla:', id)
-      const { data, error } = await supabase
-        .from('plantillas_certificados')
-        .update({ is_active: false })
-        .eq('id', id)
-        .select()
-        .single()
-
-      console.log('Delete response:', { data, error })
-
-      if (error) {
-        console.error('Supabase delete error:', error)
-        throw new Error(error.message || 'Error al eliminar la plantilla')
-      }
-
-      loadPlantillas()
-      alert('Plantilla eliminada exitosamente')
-    } catch (error) {
-      console.error('Error deleting plantilla:', error)
-      alert(`Error al eliminar la plantilla: ${error instanceof Error ? error.message : 'Error desconocido'}`)
-    }
+          if (error) throw new Error(error.message || 'Error al eliminar la plantilla')
+          loadPlantillas()
+        } catch (error) {
+          console.error('Error deleting plantilla:', error)
+        }
+      },
+    })
   }
 
   if (loading) {
@@ -337,6 +335,7 @@ export default function PlantillasCertificadosPage({ user }: CapacitacionClientP
           )}
         </div>
       </div>
+      {confirmDialog}
     </div>
   )
 }

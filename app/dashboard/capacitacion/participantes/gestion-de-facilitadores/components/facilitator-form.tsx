@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FacilitadorFormData, State, CourseTopic } from "@/types";
 import { PersonalInfoSection } from "./facilitator-form/PersonalInfoSection";
 import { ProfessionalInfoSection } from "./facilitator-form/ProfessionalInfoSection";
@@ -182,6 +183,8 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
     }
   };
 
+  const { confirm: confirmUnsaved, dialog: confirmDialog } = useConfirmDialog();
+
   const handleCancel = () => {
     if (loading) return;
     
@@ -198,9 +201,13 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
                         formData.notas_observaciones !== "";
       
       if (hasChanges) {
-        if (confirm("¿Estás seguro de que deseas cancelar? Los cambios no guardados se perderán.")) {
-          onCancel?.();
-        }
+        confirmUnsaved({
+          title: 'Cancelar cambios',
+          message: '¿Estás seguro de que deseas cancelar? Los cambios no guardados se perderán.',
+          confirmLabel: 'Sí, cancelar',
+          variant: 'warning',
+          onConfirm: () => onCancel?.(),
+        });
       } else {
         onCancel?.();
       }
@@ -342,6 +349,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
           cancelText="Cancelar"
         />
       </form>
+      {confirmDialog}
     </div>
   );
 };

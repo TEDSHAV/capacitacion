@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { CapacitacionClientProps, PlantillaCarnet } from '@/types'
 import { setActiveTemplate } from '@/app/actions/template-actions'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export default function PlantillasCarnetsPage({ user }: CapacitacionClientProps) {
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [plantillas, setPlantillas] = useState<PlantillaCarnet[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -130,27 +132,25 @@ export default function PlantillasCarnetsPage({ user }: CapacitacionClientProps)
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar esta plantilla de carnet?')) {
-      return
-    }
+  const handleDelete = (id: number) => {
+    confirm({
+      title: 'Eliminar Plantilla de Carnet',
+      message: '¿Estás seguro de que deseas eliminar esta plantilla de carnet?',
+      confirmLabel: 'Eliminar',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('plantillas_carnets')
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', id)
 
-    try {
-      const { error } = await supabase
-        .from('plantillas_carnets')
-        .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq('id', id)
-
-      if (error) {
-        throw new Error(error.message || 'Error al eliminar plantilla')
-      }
-
-      loadPlantillas()
-      alert('Plantilla de carnet eliminada exitosamente')
-    } catch (error) {
-      console.error('Error deleting plantilla:', error)
-      alert(`Error al eliminar plantilla: ${error instanceof Error ? error.message : 'Error desconocido'}`)
-    }
+          if (error) throw new Error(error.message || 'Error al eliminar plantilla')
+          loadPlantillas()
+        } catch (error) {
+          console.error('Error deleting plantilla:', error)
+        }
+      },
+    })
   }
 
   if (loading) {
@@ -328,6 +328,7 @@ export default function PlantillasCarnetsPage({ user }: CapacitacionClientProps)
           </button>
         </div>
       )}
+      {confirmDialog}
     </div>
   )
 }

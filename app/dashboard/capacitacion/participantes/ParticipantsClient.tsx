@@ -5,6 +5,7 @@ import { ParticipanteCertificado, ParticipantFormData, ParticipantsClientProps }
 import { getParticipants, createParticipant, updateParticipant, deleteParticipant } from "@/app/actions/participants";
 import { Button } from "@/components/ui/button";
 import ErrorDialog from "@/components/ui/error-dialog";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Plus, Edit, Trash2, Search, X } from "lucide-react";
 
 export function ParticipantsClient({ user, initialParticipants }: ParticipantsClientProps & { initialParticipants: ParticipanteCertificado[] }) {
@@ -18,6 +19,7 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
     cedula: "",
     nacionalidad: "venezolano"
   });
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [error, setError] = useState<{ isOpen: boolean; message: string; details?: string }>({
     isOpen: false,
     message: ""
@@ -68,22 +70,27 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
     setShowForm(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("¿Está seguro de que desea eliminar este participante?")) return;
-
-    setIsLoading(true);
-    try {
-      const result = await deleteParticipant(id);
-      if (result.success) {
-        setParticipants(prev => prev.filter(p => p.id !== id));
-      } else {
-        setError({ isOpen: true, message: result.error || "Error al eliminar participante" });
-      }
-    } catch (error) {
-      setError({ isOpen: true, message: "Error inesperado", details: error instanceof Error ? error.message : String(error) });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleDelete = (id: number) => {
+    confirm({
+      title: 'Eliminar Participante',
+      message: '¿Está seguro de que desea eliminar este participante?',
+      confirmLabel: 'Eliminar',
+      onConfirm: async () => {
+        setIsLoading(true);
+        try {
+          const result = await deleteParticipant(id);
+          if (result.success) {
+            setParticipants(prev => prev.filter(p => p.id !== id));
+          } else {
+            setError({ isOpen: true, message: result.error || "Error al eliminar participante" });
+          }
+        } catch (error) {
+          setError({ isOpen: true, message: "Error inesperado", details: error instanceof Error ? error.message : String(error) });
+        } finally {
+          setIsLoading(false);
+        }
+      },
+    });
   };
 
   const resetForm = () => {
@@ -274,6 +281,7 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
         details={error.details}
         onClose={() => setError({ isOpen: false, message: "", details: "" })}
       />
+      {confirmDialog}
     </div>
   );
 }
