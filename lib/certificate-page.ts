@@ -5,6 +5,7 @@ import { getDynamicConfig } from "./certificate-config";
 import { TextRenderer } from "./text-renderer";
 import { certificateService } from "./certificate-service";
 import { QRService } from "./qr-service";
+import { compressImageToJpeg, compressServerImageToJpeg } from "./image-compress";
 
 const _serverTemplateCache = new Map<string, string>();
 
@@ -62,15 +63,19 @@ export class CertificatePage {
         // Check if file exists
         if (fs.existsSync(imagePath)) {
           // Read file as base64 — cache to avoid repeated disk reads
-          let base64Image: string;
+          let cachedDataUrl: string;
           if (_serverTemplateCache.has(imagePath)) {
-            base64Image = _serverTemplateCache.get(imagePath)!;
+            cachedDataUrl = _serverTemplateCache.get(imagePath)!;
           } else {
             const imageBuffer = await fs.promises.readFile(imagePath);
-            base64Image = imageBuffer.toString('base64');
-            _serverTemplateCache.set(imagePath, base64Image);
+            const base64Png = imageBuffer.toString('base64');
+            // Compress to JPEG if sharp is available (huge size reduction)
+            const compressed = await compressServerImageToJpeg(base64Png, 82, 1600);
+            const mime = compressed.format === 'JPEG' ? 'image/jpeg' : 'image/png';
+            cachedDataUrl = `data:${mime};base64,${compressed.base64}`;
+            _serverTemplateCache.set(imagePath, cachedDataUrl);
           }
-          
+
           const upperHalfHeight = this.pageHeight / 2;
           const margin = 10;
           const templateArea = {
@@ -79,10 +84,11 @@ export class CertificatePage {
             width: this.pageWidth - (margin * 2),
             height: upperHalfHeight - (margin * 2)
           };
-          
-          // Add base64 image to PDF
-          this.doc.addImage(`data:image/png;base64,${base64Image}`, "PNG", templateArea.x, templateArea.y, templateArea.width, templateArea.height);
-          console.log('Template image loaded successfully in server environment');
+
+          const format = cachedDataUrl.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+          // FAST compression keeps generation quick; stream is also zlib-compressed via compress:true
+          this.doc.addImage(cachedDataUrl, format, templateArea.x, templateArea.y, templateArea.width, templateArea.height, undefined, 'FAST');
+          console.log(`Template image loaded successfully in server environment (${format})`);
         } else {
           console.warn('Template image file not found:', imagePath);
         }
@@ -90,9 +96,10 @@ export class CertificatePage {
       }
 
       // Browser environment - use Image constructor
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
+      return new Promise(async (resolve) => {
+        try {
+          // Compress PNG → JPEG (max width 1600px at ~82% quality)
+          const jpegDataUrl = await compressImageToJpeg(imageUrl, 0.82, 1600);
           const upperHalfHeight = this.pageHeight / 2;
           const margin = 10;
           const templateArea = {
@@ -101,15 +108,13 @@ export class CertificatePage {
             width: this.pageWidth - (margin * 2),
             height: upperHalfHeight - (margin * 2)
           };
-          
-          this.doc.addImage(img, "PNG", templateArea.x, templateArea.y, templateArea.width, templateArea.height);
+
+          this.doc.addImage(jpegDataUrl, 'JPEG', templateArea.x, templateArea.y, templateArea.width, templateArea.height, undefined, 'FAST');
           resolve();
-        };
-        img.onerror = (error) => {
-          console.warn('Failed to load template image:', imageUrl, error);
+        } catch (error) {
+          console.warn('Failed to load/compress template image:', imageUrl, error);
           resolve(); // Continue without template instead of failing
-        };
-        img.src = imageUrl;
+        }
       });
     } catch (error) {
       console.warn('Error in addTemplate:', error);
