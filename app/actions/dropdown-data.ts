@@ -253,14 +253,6 @@ const getCourseTemplatesByOSI = cache(async (courseId?: string, empresaId?: stri
       return true;
     });
 
-    console.log('📊 Template filtering details:', {
-      courseId,
-      empresaId,
-      totalActiveInDB: data?.length || 0,
-      filteredCount: filteredData.length,
-      sampleTemplates: data?.slice(0, 5).map(t => ({ id: t.id, cId: t.id_curso, eId: t.id_empresa }))
-    });
-
     return { data: filteredData, error: null };
   } catch (err) {
     console.error('💥 Unexpected error in getCourseTemplatesByOSI:', err);

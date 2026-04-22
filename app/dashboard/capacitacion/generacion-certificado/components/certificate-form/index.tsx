@@ -95,17 +95,6 @@ export const CertificateForm = ({
         const empresaId = selectedOSI?.empresa_id?.toString();
 
         const templatesResult = await getCourseTemplatesByOSIAction(courseId, empresaId);
-        console.log('🧪 Course templates result:', { 
-          courseId, 
-          empresaId, 
-          templatesFound: templatesResult.data?.length,
-          templates: templatesResult.data?.map((t: any) => ({
-            id: t.id,
-            desc: t.descripcion,
-            id_curso: t.id_curso,
-            id_empresa: t.id_empresa
-          }))
-        });
 
         if (templatesResult.data) {
           const templates = templatesResult.data;
@@ -371,7 +360,6 @@ export const CertificateForm = ({
           <RichTextEditor
             value={certificateData.course_content || ""}
             onChange={(html) => onDataChange("course_content", html)}
-            placeholder="Escribe o pega aquí el contenido temático del curso... (puedes pegar desde Word)"
             rows={8}
           />
           <div className="flex justify-between items-center mt-1">
