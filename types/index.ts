@@ -595,6 +595,7 @@ export interface CertificateOSI {
   fecha_ejecucion2?: string;
   fecha_emision?: string;
   nro_horas?: number | null;
+  id_estado?: number | null;
   detalle_capacitacion?: string;
   detalle_sesion?: string;
   codigo_cliente?: number | null;
