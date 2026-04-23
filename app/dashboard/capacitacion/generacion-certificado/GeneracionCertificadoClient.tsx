@@ -288,16 +288,13 @@ export default function GeneracionCertificadoClient({
       }
 
       // Pre-fetch shared assets once before generation loop
-      console.log("Pre-loading shared assets...");
-      
+
       // Fetch facilitator data once
       let facilitatorData: any = null;
       let facilitatorSignatureBase64 = '';
-      console.log('Pre-loading facilitator data for certificate facilitator:', certificateData.facilitator_id);
       if (certificateData.facilitator_id) {
         const facilitatorResponse = await fetch(`/api/facilitators/${certificateData.facilitator_id}`);
         facilitatorData = await facilitatorResponse.json();
-        console.log('Facilitator data fetched:', facilitatorData);
 
         // Preload facilitator signature if available
         if (facilitatorData?.firmas?.url_imagen) {
@@ -307,8 +304,6 @@ export default function GeneracionCertificadoClient({
             console.error("Failed to preload facilitator signature:", error);
           }
         }
-      } else {
-        console.log('No facilitator ID in certificate data, skipping facilitator preload');
       }
 
       // Preload seal image
