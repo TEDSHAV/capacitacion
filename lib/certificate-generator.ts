@@ -5,43 +5,34 @@ import { CertificatePage } from "./certificate-page";
 import { ContentPage } from "./content-page";
 
 export class CertificateGenerator {
-  private doc: jsPDF;
-  private pageWidth: number;
-  private pageHeight: number;
-  private certificatePage: CertificatePage;
-  private contentPage: ContentPage;
   private lastGeneratedQRCode?: string; // Store last generated QR code
 
   constructor() {
-    this.doc = new jsPDF(CERTIFICATE_CONFIG.page);
-    this.pageWidth = this.doc.internal.pageSize.getWidth();
-    this.pageHeight = this.doc.internal.pageSize.getHeight();
-    this.certificatePage = new CertificatePage(this.doc, this.pageWidth, this.pageHeight, false);
-    this.contentPage = new ContentPage(this.doc, this.pageWidth, this.pageHeight);
+    // No PDF initialization - done on demand in generateCertificate
   }
 
   /**
    * Generate a complete certificate with both pages
    */
   async generateCertificate(data: CertificateRequest): Promise<Blob> {
-    const { participant, certificateData, templateImage, sealImage, controlNumbers, isPreview, certificateId, singlePage = false } = data;
+    const { participant, certificateData, templateImage, sealImage, controlNumbers, isPreview, certificateId, singlePage = false, preloadedAssets } = data;
 
-    // Clear any existing content
-    this.doc = new jsPDF(CERTIFICATE_CONFIG.page);
-    this.pageWidth = this.doc.internal.pageSize.getWidth();
-    this.pageHeight = this.doc.internal.pageSize.getHeight();
+    // Initialize document ONLY when needed
+    const doc = new jsPDF(CERTIFICATE_CONFIG.page);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
     
-    // Reinitialize page components with new document
-    this.certificatePage = new CertificatePage(this.doc, this.pageWidth, this.pageHeight, singlePage);
-    this.contentPage = new ContentPage(this.doc, this.pageWidth, this.pageHeight);
+    // Pass the ENTIRE preloadedAssets object so signatures don't trigger canvas conversions
+    const certificatePage = new CertificatePage(doc, pageWidth, pageHeight, singlePage, preloadedAssets);
+    const contentPage = new ContentPage(doc, pageWidth, pageHeight);
 
     try {
       if (singlePage) {
         // Generate single-page certificate
-        return await this.generateSinglePageCertificate(participant, certificateData, templateImage, sealImage, controlNumbers, isPreview || false, certificateId || 0);
+        return await this.generateSinglePageCertificate(doc, certificatePage, contentPage, participant, certificateData, templateImage, sealImage, controlNumbers, isPreview || false, certificateId || 0);
       } else {
         // Generate two-page certificate (original behavior)
-        return await this.generateTwoPageCertificate(participant, certificateData, templateImage, sealImage, controlNumbers, isPreview || false, certificateId || 0);
+        return await this.generateTwoPageCertificate(doc, certificatePage, contentPage, participant, certificateData, templateImage, sealImage, controlNumbers, isPreview || false, certificateId || 0);
       }
     } catch (error) {
       throw error;
@@ -52,6 +43,9 @@ export class CertificateGenerator {
    * Generate a single-page certificate with certificate at top and content at bottom
    */
   private async generateSinglePageCertificate(
+    doc: jsPDF,
+    certificatePage: CertificatePage,
+    contentPage: ContentPage,
     participant: CertificateParticipant,
     certificateData: CertificateGeneration,
     templateImage: string,
@@ -61,30 +55,30 @@ export class CertificateGenerator {
     certificateId: number
   ): Promise<Blob> {
     // Page 1: Certificate (upper half)
-    await this.certificatePage.addTemplate(templateImage);
-    await this.certificatePage.addCertificateContent(participant, certificateData);
+    await certificatePage.addTemplate(templateImage);
+    await certificatePage.addCertificateContent(participant, certificateData);
 
     // Add QR code - either real or sample for preview
     if (!isPreview && controlNumbers && certificateId) {
       try {
-        await this.certificatePage.addQRCode(certificateId, controlNumbers);
+        await certificatePage.addQRCode(certificateId, controlNumbers);
       } catch (qrError) {
-        await this.certificatePage.addSampleQRCode();
+        await certificatePage.addSampleQRCode();
       }
     } else if (isPreview) {
       try {
-        await this.certificatePage.addSampleQRCode();
+        await certificatePage.addSampleQRCode();
       } catch (qrError) {
         // Continue without QR code on error
       }
     }
 
     // Add content in the lower half of the same page
-    await this.contentPage.addContentPageSinglePage(participant, certificateData, sealImage || '', controlNumbers, isPreview);
+    await contentPage.addContentPageSinglePage(participant, certificateData, sealImage || '', controlNumbers, isPreview);
 
     // Return as blob
     try {
-      const blob = this.doc.output("blob");
+      const blob = doc.output("blob");
       return blob;
     } catch (blobError) {
       throw new Error(`PDF blob generation failed: ${blobError}`);
@@ -95,6 +89,9 @@ export class CertificateGenerator {
    * Generate a two-page certificate (original behavior)
    */
   private async generateTwoPageCertificate(
+    doc: jsPDF,
+    certificatePage: CertificatePage,
+    contentPage: ContentPage,
     participant: CertificateParticipant,
     certificateData: CertificateGeneration,
     templateImage: string,
@@ -104,33 +101,31 @@ export class CertificateGenerator {
     certificateId: number
   ): Promise<Blob> {
     // Page 1: Certificate
-    await this.certificatePage.addTemplate(templateImage);
-    await this.certificatePage.addCertificateContent(participant, certificateData);
+    await certificatePage.addTemplate(templateImage);
+    await certificatePage.addCertificateContent(participant, certificateData);
 
     // Add QR code - either real or sample for preview
     if (!isPreview && controlNumbers && certificateId) {
       try {
-        await this.certificatePage.addQRCode(certificateId, controlNumbers);
+        await certificatePage.addQRCode(certificateId, controlNumbers);
       } catch (qrError) {
-        await this.certificatePage.addSampleQRCode();
+        await certificatePage.addSampleQRCode();
       }
     } else if (isPreview) {
       try {
-        await this.certificatePage.addSampleQRCode();
+        await certificatePage.addSampleQRCode();
       } catch (qrError) {
         // Continue without QR code on error
       }
     }
 
-    // Add new page for content
-    this.doc.addPage();
-
-    // Page 2: Content table with seal
-    await this.contentPage.addContentPage(participant, certificateData, sealImage, controlNumbers, isPreview);
+    // Page 2: Content
+    doc.addPage();
+    await contentPage.addContentPage(participant, certificateData, sealImage || '', controlNumbers, isPreview);
 
     // Return as blob
     try {
-      const blob = this.doc.output("blob");
+      const blob = doc.output("blob");
       return blob;
     } catch (blobError) {
       throw new Error(`PDF blob generation failed: ${blobError}`);

@@ -252,6 +252,11 @@ export interface CertificateRequest {
   isPreview?: boolean;
   certificateId?: number; // Actual certificate database ID for QR code generation
   singlePage?: boolean; // Whether to generate single-page certificate
+  preloadedAssets?: {
+    facilitator?: any;
+    facilitatorSignature?: string;
+    shaSignature?: string;
+  };
 }
 
 export interface ControlNumbers {
@@ -1063,4 +1068,13 @@ export interface CarnetSearchResult {
   carnets: Carnet[];
   totalCount: number;
   relationships?: CarnetRelationships;
+}
+
+// OCR Types for Participant Scanning
+export interface ExtractedParticipant {
+  name: string;
+  id_number: string;
+  nationality?: 'venezolano' | 'extranjero';
+  score?: number;
+  confidence?: number;
 }

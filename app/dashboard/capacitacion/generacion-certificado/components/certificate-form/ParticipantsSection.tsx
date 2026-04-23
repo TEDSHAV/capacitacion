@@ -3,8 +3,10 @@
 import { useState, useMemo, useRef } from 'react'
 import { CertificateParticipant, ParticipantsSectionProps } from '@/types'
 import { useParticipants } from './use-participants'
+import { ParticipantScannerModal } from './ParticipantScannerModal'
 
 export const ParticipantsSection = ({ participants, onChange, passing_grade }: ParticipantsSectionProps) => {
+  const [isScannerOpen, setIsScannerOpen] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
   
   // Ensure participants is always an array
@@ -42,6 +44,12 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
       e.preventDefault()
       addParticipant()
     }
+  }
+
+  const handleAddScannedParticipants = (scannedParticipants: CertificateParticipant[]) => {
+    const currentParticipants = Array.isArray(participants) ? participants : []
+    const combinedParticipants = [...currentParticipants, ...scannedParticipants]
+    onChange(combinedParticipants)
   }
   const getParticipantStatus = (participant: CertificateParticipant) => {
     if (participant.score === undefined || participant.score === null) {
@@ -126,6 +134,32 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
         >
           Agregar
         </button>
+        <button
+          type="button"
+          onClick={() => setIsScannerOpen(true)}
+          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors whitespace-nowrap flex items-center gap-2"
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+          </svg>
+          Escanear Lista
+        </button>
       </div>
 
       {/* Error Message */}
@@ -196,6 +230,13 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
           Agrega al menos un participante para generar el certificado
         </p>
       )}
+
+      {/* Participant Scanner Modal */}
+      <ParticipantScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onAddParticipants={handleAddScannedParticipants}
+      />
     </div>
   )
 }
