@@ -315,7 +315,7 @@ export type Database = {
           id_plantilla_carnet?: number | null
           id_plantilla_certificado?: number | null
           is_active?: boolean
-          nro_control?: number
+          nro_control: number
           nro_hoja?: number | null
           nro_libro?: number | null
           nro_linea?: number | null
@@ -2106,6 +2106,120 @@ export type Database = {
         ]
       }
       marketing_leads: {
+        Row: {
+          fecha_ingreso: string | null
+          id: number
+          id_contacto: number | null
+          id_departamento_recibe: number | null
+          id_ejecutivo_owner: number | null
+          id_ejecutivo_recibe: number | null
+          id_estatus: number | null
+          id_origen: number | null
+          id_servicio_interes: number | null
+          is_duplicate: boolean | null
+          notas_adicionales: string | null
+          raw_email: string | null
+          raw_empresa: string | null
+          raw_nombre_apellido: string | null
+          raw_telefono: string | null
+          telefono_ejecutivo: string | null
+        }
+        Insert: {
+          fecha_ingreso?: string | null
+          id?: number
+          id_contacto?: number | null
+          id_departamento_recibe?: number | null
+          id_ejecutivo_owner?: number | null
+          id_ejecutivo_recibe?: number | null
+          id_estatus?: number | null
+          id_origen?: number | null
+          id_servicio_interes?: number | null
+          is_duplicate?: boolean | null
+          notas_adicionales?: string | null
+          raw_email?: string | null
+          raw_empresa?: string | null
+          raw_nombre_apellido?: string | null
+          raw_telefono?: string | null
+          telefono_ejecutivo?: string | null
+        }
+        Update: {
+          fecha_ingreso?: string | null
+          id?: number
+          id_contacto?: number | null
+          id_departamento_recibe?: number | null
+          id_ejecutivo_owner?: number | null
+          id_ejecutivo_recibe?: number | null
+          id_estatus?: number | null
+          id_origen?: number | null
+          id_servicio_interes?: number | null
+          is_duplicate?: boolean | null
+          notas_adicionales?: string | null
+          raw_email?: string | null
+          raw_empresa?: string | null
+          raw_nombre_apellido?: string | null
+          raw_telefono?: string | null
+          telefono_ejecutivo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_leads_id_contacto_fkey1"
+            columns: ["id_contacto"]
+            isOneToOne: false
+            referencedRelation: "contactos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_departamento_recibe_fkey1"
+            columns: ["id_departamento_recibe"]
+            isOneToOne: false
+            referencedRelation: "departamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_ejecutivo_owner_fkey1"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_ejecutivo_recibe_fkey1"
+            columns: ["id_ejecutivo_recibe"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_estatus_fkey1"
+            columns: ["id_estatus"]
+            isOneToOne: false
+            referencedRelation: "conf_estatus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_origen_fkey1"
+            columns: ["id_origen"]
+            isOneToOne: false
+            referencedRelation: "cat_origenes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_servicio_interes_fkey1"
+            columns: ["id_servicio_interes"]
+            isOneToOne: false
+            referencedRelation: "catalogo_servicios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_servicio_interes_fkey1"
+            columns: ["id_servicio_interes"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_servicio"]
+          },
+        ]
+      }
+      marketing_leads_test_abril: {
         Row: {
           fecha_ingreso: string | null
           id: number
@@ -3977,6 +4091,17 @@ export type Database = {
         Args: { p_id_osi: number }
         Returns: undefined
       }
+      get_certificate_metrics: {
+        Args: {
+          p_company_id?: number
+          p_course_id?: number
+          p_date_from?: string
+          p_date_to?: string
+          p_is_active?: boolean
+          p_search_term?: string
+        }
+        Returns: Json
+      }
       get_my_app_context: { Args: { target_app_slug: string }; Returns: Json }
       get_my_notifications_cursor: {
         Args: {
@@ -3999,6 +4124,7 @@ export type Database = {
           title: string
         }[]
       }
+      get_next_control_numbers: { Args: { batch_size?: number }; Returns: Json }
       get_pending_high_priority_email: {
         Args: { p_limit?: number; p_older_than?: string }
         Returns: {
@@ -4025,6 +4151,14 @@ export type Database = {
         }[]
       }
       is_admin_or_superadmin: { Args: never; Returns: boolean }
+      is_app_admin: {
+        Args: { target_app_id: number; target_user_id: number }
+        Returns: boolean
+      }
+      is_rr_pool_sales_user: {
+        Args: { p_usuario_id: number }
+        Returns: boolean
+      }
       is_suplente_activo: {
         Args: { p_suplente_id: number; p_titular_id: number }
         Returns: boolean
