@@ -375,7 +375,7 @@ export const FacilitadorCrud = ({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nivel Técnico
+                  Nivel de Educación
                 </label>
                 <p className="text-sm text-gray-900">{selectedFacilitador.nivel_tecnico || "N/A"}</p>
               </div>
