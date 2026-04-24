@@ -1,20 +1,24 @@
 "use server";
 
-import { createClient } from '@/utils/supabase/server';
-import { ParticipanteCertificado, ParticipantFormData } from '@/types';
+import { createClient } from "@/utils/supabase/server";
+import { ParticipanteCertificado, ParticipantFormData } from "@/types";
 
 export async function getParticipantsPaginated(
   page: number = 1,
   limit: number = 20,
-  search: string = ""
-): Promise<{ participants: ParticipanteCertificado[] | null; total: number; error?: string }> {
+  search: string = "",
+): Promise<{
+  participants: ParticipanteCertificado[] | null;
+  total: number;
+  error?: string;
+}> {
   try {
     const supabase = await createClient();
     const offset = (page - 1) * limit;
 
     let query = supabase
       .from("participantes_certificados")
-      .select("*", { count: 'exact' })
+      .select("*", { count: "exact" })
       .eq("is_active", true)
       .order("nombre", { ascending: true });
 
@@ -22,7 +26,10 @@ export async function getParticipantsPaginated(
       query = query.or(`nombre.ilike.%${search}%,cedula.ilike.%${search}%`);
     }
 
-    const { data, error, count } = await query.range(offset, offset + limit - 1);
+    const { data, error, count } = await query.range(
+      offset,
+      offset + limit - 1,
+    );
 
     if (error) throw error;
 
@@ -32,12 +39,18 @@ export async function getParticipantsPaginated(
     return {
       participants: null,
       total: 0,
-      error: error instanceof Error ? error.message : 'Error al cargar los participantes.'
+      error:
+        error instanceof Error
+          ? error.message
+          : "Error al cargar los participantes.",
     };
   }
 }
 
-export async function getParticipants(): Promise<{ participants: ParticipanteCertificado[] | null; error?: string }> {
+export async function getParticipants(): Promise<{
+  participants: ParticipanteCertificado[] | null;
+  error?: string;
+}> {
   try {
     const supabase = await createClient();
 
@@ -52,28 +65,38 @@ export async function getParticipants(): Promise<{ participants: ParticipanteCer
     }
 
     return { participants: participants || [] };
-
   } catch (error) {
     console.error("Error en participantes:", error);
-    return { 
-      participants: null, 
-      error: error instanceof Error ? error.message : 'Error al cargar los participantes. Por favor intente nuevamente.'
+    return {
+      participants: null,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Error al cargar los participantes. Por favor intente nuevamente.",
     };
   }
 }
 
-export async function createParticipant(formData: ParticipantFormData): Promise<{ success: boolean; error?: string; data?: ParticipanteCertificado }> {
+export async function createParticipant(
+  formData: ParticipantFormData,
+): Promise<{
+  success: boolean;
+  error?: string;
+  data?: ParticipanteCertificado;
+}> {
   try {
     const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("participantes_certificados")
-      .insert([{
-        nombre: formData.nombre.trim(),
-        cedula: formData.cedula.trim(),
-        nacionalidad: formData.nacionalidad,
-        is_active: true // Ensure new participants are active
-      }])
+      .insert([
+        {
+          nombre: formData.nombre.trim(),
+          cedula: formData.cedula.trim(),
+          nacionalidad: formData.nacionalidad,
+          is_active: true, // Ensure new participants are active
+        },
+      ])
       .select()
       .single();
 
@@ -82,16 +105,25 @@ export async function createParticipant(formData: ParticipantFormData): Promise<
     }
 
     return { success: true, data };
-
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Error al crear el participante' 
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Error al crear el participante",
     };
   }
 }
 
-export async function updateParticipant(id: number, formData: ParticipantFormData): Promise<{ success: boolean; error?: string; data?: ParticipanteCertificado }> {
+export async function updateParticipant(
+  id: number,
+  formData: ParticipantFormData,
+): Promise<{
+  success: boolean;
+  error?: string;
+  data?: ParticipanteCertificado;
+}> {
   try {
     const supabase = await createClient();
 
@@ -100,7 +132,7 @@ export async function updateParticipant(id: number, formData: ParticipantFormDat
       .update({
         nombre: formData.nombre.trim(),
         cedula: formData.cedula.trim(),
-        nacionalidad: formData.nacionalidad
+        nacionalidad: formData.nacionalidad,
       })
       .eq("id", id)
       .select()
@@ -111,16 +143,20 @@ export async function updateParticipant(id: number, formData: ParticipantFormDat
     }
 
     return { success: true, data };
-
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Error al actualizar el participante' 
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Error al actualizar el participante",
     };
   }
 }
 
-export async function deleteParticipant(id: number): Promise<{ success: boolean; error?: string }> {
+export async function deleteParticipant(
+  id: number,
+): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
 
@@ -135,36 +171,66 @@ export async function deleteParticipant(id: number): Promise<{ success: boolean;
     }
 
     return { success: true };
-
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Error al eliminar el participante' 
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Error al eliminar el participante",
     };
   }
 }
 
-export async function getParticipantById(id: number): Promise<{ participant: ParticipanteCertificado | null; error?: string }> {
+export async function getAnalyticsMetrics(): Promise<any> {
   try {
     const supabase = await createClient();
 
-    const { data: participant, error } = await supabase
-      .from("participantes_certificados")
+    const { data, error } = await supabase
+      .from("analytics_metrics")
       .select("*")
-      .eq("id", id)
-      .eq("is_active", true)
       .single();
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    return { participant };
-
+    return data;
   } catch (error) {
-    return { 
-      participant: null, 
-      error: error instanceof Error ? error.message : 'Error al cargar el participante'  
+    console.error("Error fetching analytics metrics:", error);
+    return null;
+  }
+}
+
+export async function getParticipantStats(): Promise<{
+  totalParticipants: number;
+  activeCertificates: number;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+
+    // Using a simple count request is fast.
+    const { count: totalParticipants, error: pError } = await supabase
+      .from("participantes_certificados")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true);
+
+    const { count: activeCertificates, error: cError } = await supabase
+      .from("certificados")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true);
+
+    if (pError || cError) throw pError || cError;
+
+    return {
+      totalParticipants: totalParticipants || 0,
+      activeCertificates: activeCertificates || 0,
+    };
+  } catch (error) {
+    console.error("Error fetching stats:", error);
+    return {
+      totalParticipants: 0,
+      activeCertificates: 0,
+      error: "Error al cargar métricas",
     };
   }
 }
