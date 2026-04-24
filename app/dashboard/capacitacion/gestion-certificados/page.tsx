@@ -5,41 +5,54 @@ import CertificateMetricsComponent from "./components/certificate-metrics";
 import CertificateFiltersComponent from "./components/certificate-filters";
 import CertificateTableComponent from "./components/certificate-table";
 import CertificatePaginationComponent from "./components/certificate-pagination";
-import { 
-  getCertificatesForManagement, 
-  getCompaniesForFilters, 
-  getCoursesForFilters, 
+import {
+  getCertificatesForManagement,
+  getCompaniesForFilters,
+  getCoursesForFilters,
   getFacilitatorsForFilters,
-  getVenezuelanStates
+  getVenezuelanStates,
 } from "@/app/actions/certificados";
-import { CertificateManagement, CertificateFilters, CertificateSearchResult } from "@/types";
+import { getAnalyticsMetrics } from "@/app/actions/participants";
+import {
+  CertificateManagement,
+  CertificateFilters,
+  CertificateSearchResult,
+} from "@/types";
 
 export default function GestionCertificadosPage() {
   const [loading, setLoading] = useState(true);
   const [certificates, setCertificates] = useState<CertificateManagement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [metrics, setMetrics] = useState<any>(null);
+  const [analyticsMetrics, setAnalyticsMetrics] = useState<any>(null);
   const [filters, setFilters] = useState<CertificateFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
-  
+
   // Filter options
-  const [companies, setCompanies] = useState<{ id: number; razon_social: string }[]>([]);
+  const [companies, setCompanies] = useState<
+    { id: number; razon_social: string }[]
+  >([]);
   const [courses, setCourses] = useState<{ id: number; nombre: string }[]>([]);
-  const [facilitators, setFacilitators] = useState<{ id: number; nombre_apellido: string }[]>([]);
-  const [states, setStates] = useState<{ id: number; nombre_estado: string }[]>([]);
+  const [facilitators, setFacilitators] = useState<
+    { id: number; nombre_apellido: string }[]
+  >([]);
+  const [states, setStates] = useState<{ id: number; nombre_estado: string }[]>(
+    [],
+  );
   const [loadingFilters, setLoadingFilters] = useState(true);
 
   // Load filter options
   useEffect(() => {
     const loadFilterOptions = async () => {
       try {
-        const [companiesData, coursesData, facilitatorsData, statesData] = await Promise.all([
-          getCompaniesForFilters(),
-          getCoursesForFilters(),
-          getFacilitatorsForFilters(),
-          getVenezuelanStates()
-        ]);
+        const [companiesData, coursesData, facilitatorsData, statesData] =
+          await Promise.all([
+            getCompaniesForFilters(),
+            getCoursesForFilters(),
+            getFacilitatorsForFilters(),
+            getVenezuelanStates(),
+          ]);
 
         setCompanies(companiesData);
         setCourses(coursesData);
@@ -55,17 +68,27 @@ export default function GestionCertificadosPage() {
     loadFilterOptions();
   }, []);
 
+  // Load analytics metrics
+  useEffect(() => {
+    const loadAnalyticsMetrics = async () => {
+      const data = await getAnalyticsMetrics();
+      setAnalyticsMetrics(data);
+    };
+    loadAnalyticsMetrics();
+  }, []);
+
   // Load certificates data
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const result: CertificateSearchResult = await getCertificatesForManagement(
-          filters,
-          currentPage,
-          itemsPerPage
-        );
-        
+        const result: CertificateSearchResult =
+          await getCertificatesForManagement(
+            filters,
+            currentPage,
+            itemsPerPage,
+          );
+
         setCertificates(result.certificates);
         setTotalCount(result.totalCount);
         setMetrics(result.metrics);
@@ -95,17 +118,21 @@ export default function GestionCertificadosPage() {
 
   const handleViewCertificate = (certificate: CertificateManagement) => {
     // Open certificate details view
-    window.open(`/verify-certificate/${certificate.id}`, '_blank');
+    window.open(`/verify-certificate/${certificate.id}`, "_blank");
   };
 
-  const handleDownloadCertificate = async (certificate: CertificateManagement) => {
+  const handleDownloadCertificate = async (
+    certificate: CertificateManagement,
+  ) => {
     try {
-      const response = await fetch(`/api/generate-certificate-pdf/${certificate.id}`);
+      const response = await fetch(
+        `/api/generate-certificate-pdf/${certificate.id}`,
+      );
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
+        const a = document.createElement("a");
+        a.style.display = "none";
         a.href = url;
         a.download = `certificado_${certificate.id}.pdf`;
         document.body.appendChild(a);
@@ -113,16 +140,16 @@ export default function GestionCertificadosPage() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        console.error('Error downloading certificate');
+        console.error("Error downloading certificate");
       }
     } catch (error) {
-      console.error('Error downloading certificate:', error);
+      console.error("Error downloading certificate:", error);
     }
   };
 
   const handleVerifyCertificate = (certificate: CertificateManagement) => {
     // Open verification page
-    window.open(`/verify-certificate/${certificate.id}`, '_blank');
+    window.open(`/verify-certificate/${certificate.id}`, "_blank");
   };
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -139,9 +166,9 @@ export default function GestionCertificadosPage() {
       </div>
 
       {/* Metrics Dashboard */}
-      <CertificateMetricsComponent 
-        metrics={metrics || {}} 
-        loading={loading} 
+      <CertificateMetricsComponent
+        metrics={analyticsMetrics || metrics || {}}
+        loading={loading}
       />
 
       {/* Filters */}
