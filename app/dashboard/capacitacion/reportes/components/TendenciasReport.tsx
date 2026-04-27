@@ -205,7 +205,11 @@ const MONTH_NAMES = [
   "Dic",
 ];
 
-export default function TendenciasReport() {
+interface Props {
+  selectedState?: string;
+}
+
+export default function TendenciasReport({ selectedState }: Props) {
   const [data, setData] = useState<TendenciasData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -213,14 +217,14 @@ export default function TendenciasReport() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    getTendenciasReport()
+    getTendenciasReport(selectedState)
       .then((res) => {
         if (res.error) setError(res.error);
         else setData(res.data);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedState]);
 
   if (loading) {
     return (

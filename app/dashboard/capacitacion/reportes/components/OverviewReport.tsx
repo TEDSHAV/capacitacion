@@ -164,7 +164,11 @@ function TopList({
   );
 }
 
-export default function OverviewReport({ dateFrom, dateTo }: Props) {
+export default function OverviewReport({
+  dateFrom,
+  dateTo,
+  selectedState,
+}: Props) {
   const [data, setData] = useState<OverviewMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -172,14 +176,14 @@ export default function OverviewReport({ dateFrom, dateTo }: Props) {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    getOverviewMetrics(dateFrom, dateTo)
+    getOverviewMetrics(dateFrom, dateTo, selectedState)
       .then((res) => {
         if (res.error) setError(res.error);
         else setData(res.data);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, selectedState]);
 
   if (loading) {
     return (

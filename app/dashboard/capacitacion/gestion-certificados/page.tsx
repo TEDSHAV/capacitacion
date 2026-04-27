@@ -12,7 +12,6 @@ import {
   getFacilitatorsForFilters,
   getVenezuelanStates,
 } from "@/app/actions/certificados";
-import { getAnalyticsMetrics } from "@/app/actions/participants";
 import {
   CertificateManagement,
   CertificateFilters,
@@ -21,11 +20,9 @@ import {
 
 export default function GestionCertificadosPage() {
   const [loading, setLoading] = useState(true);
-  const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [certificates, setCertificates] = useState<CertificateManagement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [metrics, setMetrics] = useState<any>(null);
-  const [analyticsMetrics, setAnalyticsMetrics] = useState<any>(null);
   const [filters, setFilters] = useState<CertificateFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -67,22 +64,6 @@ export default function GestionCertificadosPage() {
     };
 
     loadFilterOptions();
-  }, []);
-
-  // Load analytics metrics
-  useEffect(() => {
-    const loadAnalyticsMetrics = async () => {
-      try {
-        setLoadingMetrics(true);
-        const data = await getAnalyticsMetrics();
-        setAnalyticsMetrics(data);
-      } catch (error) {
-        console.error("Error loading analytics metrics:", error);
-      } finally {
-        setLoadingMetrics(false);
-      }
-    };
-    loadAnalyticsMetrics();
   }, []);
 
   // Load certificates data
@@ -190,8 +171,8 @@ export default function GestionCertificadosPage() {
 
       {/* Metrics Dashboard */}
       <CertificateMetricsComponent
-        metrics={metrics || analyticsMetrics || {}}
-        loading={loadingMetrics || (loading && !metrics)}
+        metrics={metrics || {}}
+        loading={loading && !metrics}
       />
 
       {/* Filters */}

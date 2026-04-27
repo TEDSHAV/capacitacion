@@ -6,18 +6,22 @@ import ReportesClient from "./ReportesClient";
 export default async function ReportesPage() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [
+    {
+      data: { user },
+    },
+    { data: states },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("cat_estados_venezuela")
+      .select("id, nombre_estado, capital_estado")
+      .order("nombre_estado"),
+  ]);
 
   if (!user) {
     redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
   }
-
-  const { data: states } = await supabase
-    .from("cat_estados_venezuela")
-    .select("id, nombre_estado, capital_estado")
-    .order("nombre_estado");
 
   const typedStates: State[] = (states || []).map((s) => ({
     id: Number(s.id),

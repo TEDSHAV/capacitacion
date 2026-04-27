@@ -1,31 +1,40 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
-import CapacitacionClient from './CapacitacionClient'
+import { redirect } from "next/navigation";
+import { createClient } from "@/utils/supabase/server";
+import CapacitacionClient from "./CapacitacionClient";
 
 export default async function CapacitacionPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`)
-  }
+  const supabase = await createClient();
 
   const [
+    {
+      data: { user },
+    },
     { data: companies },
     { count: cursosCount },
     { count: participantesCount },
     { count: certificadosCount },
     { count: facilitadoresCount },
   ] = await Promise.all([
+    supabase.auth.getUser(),
     supabase
-      .from('empresas')
-      .select('id, razon_social, rif, direccion_fiscal, codigo_cliente')
-      .order('razon_social'),
-    supabase.from('cursos').select('*', { count: 'exact', head: true }).eq('is_active', true),
-    supabase.from('participantes_certificados').select('*', { count: 'exact', head: true }).eq('is_active', true),
-    supabase.from('certificados').select('*', { count: 'exact', head: true }),
-    supabase.from('facilitadores').select('*', { count: 'exact', head: true }),
-  ])
+      .from("empresas")
+      .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
+      .order("razon_social"),
+    supabase
+      .from("cursos")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true),
+    supabase
+      .from("participantes_certificados")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true),
+    supabase.from("certificados").select("*", { count: "exact", head: true }),
+    supabase.from("facilitadores").select("*", { count: "exact", head: true }),
+  ]);
+
+  if (!user) {
+    redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
+  }
 
   return (
     <CapacitacionClient
@@ -38,5 +47,5 @@ export default async function CapacitacionPage() {
         facilitadores: facilitadoresCount ?? 0,
       }}
     />
-  )
+  );
 }

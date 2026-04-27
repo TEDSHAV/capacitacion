@@ -14,6 +14,7 @@ import {
 export async function getOverviewMetrics(
   dateFrom?: string,
   dateTo?: string,
+  stateId?: string,
 ): Promise<{ data: OverviewMetrics | null; error: string | null }> {
   const supabase = await createClient();
   try {
@@ -25,7 +26,7 @@ export async function getOverviewMetrics(
       .from("certificados")
       .select(
         `id, is_active, fecha_emision, calificacion,
-         id_curso, id_facilitador, id_participante, id_empresa,
+         id_curso, id_facilitador, id_participante, id_empresa, id_estado,
          cursos(id, nombre, horas_estimadas),
          facilitadores(id, nombre_apellido),
          empresas(id, razon_social)`,
@@ -34,6 +35,7 @@ export async function getOverviewMetrics(
 
     if (dateFrom) query = query.gte("fecha_emision", dateFrom);
     if (dateTo) query = query.lte("fecha_emision", dateTo);
+    if (stateId) query = query.eq("id_estado", stateId);
 
     const { data: certs, error } = await query;
     if (error) return { error: error.message, data: null };
@@ -87,10 +89,7 @@ export async function getOverviewMetrics(
 
       if (cert.fecha_emision) {
         const d = new Date(cert.fecha_emision + "T12:00:00");
-        if (
-          d.getMonth() === currentMonth &&
-          d.getFullYear() === currentYear
-        )
+        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear)
           certsThisMonth++;
         if (d.getFullYear() === currentYear) certsThisYear++;
         const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -165,9 +164,7 @@ export async function getOverviewMetrics(
         certificatesThisMonth: certsThisMonth,
         certificatesThisYear: certsThisYear,
         averageScore:
-          scoreCount > 0
-            ? parseFloat((totalScore / scoreCount).toFixed(1))
-            : 0,
+          scoreCount > 0 ? parseFloat((totalScore / scoreCount).toFixed(1)) : 0,
         totalHoursDelivered: totalHours,
         uniqueParticipants: uniqueParticipants.size,
         uniqueFacilitators: uniqueFacilitators.size,
@@ -222,7 +219,10 @@ export async function getCursosReport(
         totalCerts: number;
         totalScore: number;
         scoreCount: number;
-        facilitadores: Map<number, { id: number; nombre: string; certs: number }>;
+        facilitadores: Map<
+          number,
+          { id: number; nombre: string; certs: number }
+        >;
         lastActivity: string | null;
       }
     >();
@@ -304,13 +304,20 @@ export async function getFacilitadoresReport(
 ): Promise<{ data: FacilitadoresReportData | null; error: string | null }> {
   const supabase = await createClient();
   try {
+    let facilitadoresQuery = supabase
+      .from("facilitadores")
+      .select(
+        "id, nombre_apellido, id_estado_geografico, is_active, cedula, email",
+      )
+      .order("nombre_apellido");
+    if (stateId)
+      facilitadoresQuery = facilitadoresQuery.eq(
+        "id_estado_geografico",
+        stateId,
+      );
+
     const [facilitadoresRes, certsRes, statesRes] = await Promise.all([
-      supabase
-        .from("facilitadores")
-        .select(
-          "id, nombre_apellido, id_estado_geografico, is_active, cedula, email",
-        )
-        .order("nombre_apellido"),
+      facilitadoresQuery,
 
       (async () => {
         let q = supabase
@@ -398,15 +405,6 @@ export async function getFacilitadoresReport(
         };
       })
       .filter((f) => f.totalCerts > 0);
-
-    if (stateId) {
-      facilitadoresList = facilitadoresList.filter((f) => {
-        const sid = facilitadoresRes.data?.find(
-          (r) => r.id === f.id,
-        )?.id_estado_geografico;
-        return sid?.toString() === stateId;
-      });
-    }
 
     facilitadoresList.sort((a, b) => b.totalCerts - a.totalCerts);
 
@@ -525,23 +523,24 @@ export async function getEmpresasReport(
 
 // ─── Tendencias ───────────────────────────────────────────────────────────────
 
-export async function getTendenciasReport(): Promise<{
+export async function getTendenciasReport(stateId?: string): Promise<{
   data: TendenciasData | null;
   error: string | null;
 }> {
   const supabase = await createClient();
   try {
-    const [certsRes, statesRes] = await Promise.all([
-      supabase
-        .from("certificados")
-        .select("id, fecha_emision, id_estado")
-        .not("fecha_emision", "is", null)
-        .order("fecha_emision", { ascending: true })
-        .limit(10000),
+    let query = supabase
+      .from("certificados")
+      .select("id, fecha_emision, id_estado")
+      .not("fecha_emision", "is", null)
+      .order("fecha_emision", { ascending: true })
+      .limit(10000);
 
-      supabase
-        .from("cat_estados_venezuela")
-        .select("id, nombre_estado"),
+    if (stateId) query = query.eq("id_estado", stateId);
+
+    const [certsRes, statesRes] = await Promise.all([
+      query,
+      supabase.from("cat_estados_venezuela").select("id, nombre_estado"),
     ]);
 
     if (certsRes.error) return { error: certsRes.error.message, data: null };
@@ -590,7 +589,10 @@ export async function getTendenciasReport(): Promise<{
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    return { data: { monthlyData, yearlyTotals, stateDistribution }, error: null };
+    return {
+      data: { monthlyData, yearlyTotals, stateDistribution },
+      error: null,
+    };
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Error desconocido",

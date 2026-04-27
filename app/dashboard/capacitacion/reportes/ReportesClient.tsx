@@ -243,7 +243,9 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
               selectedState={selectedState}
             />
           )}
-          {activeTab === "tendencias" && <TendenciasReport />}
+          {activeTab === "tendencias" && (
+            <TendenciasReport selectedState={selectedState} />
+          )}
         </main>
       </div>
     </div>

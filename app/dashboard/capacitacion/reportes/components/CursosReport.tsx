@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import {
   BookOpen,
   ChevronDown,
@@ -51,38 +51,48 @@ function SortButton({
   dir,
   onSort,
   children,
+  align = "left",
 }: {
   field: SortField;
   current: SortField;
   dir: SortDir;
   onSort: (f: SortField) => void;
   children: React.ReactNode;
+  align?: "left" | "right";
 }) {
   const isActive = field === current;
   return (
-    <button
-      onClick={() => onSort(field)}
-      className="flex items-center gap-1 text-left group"
+    <div
+      className={`flex ${align === "right" ? "justify-end" : "justify-start"}`}
     >
-      <span
-        className={`text-xs font-semibold uppercase tracking-wide ${
-          isActive ? "text-sky-700" : "text-gray-700 group-hover:text-gray-900"
-        }`}
+      <button
+        onClick={() => onSort(field)}
+        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md transition-all group ${
+          isActive ? "bg-sky-50 text-sky-700" : "text-gray-700 hover:bg-gray-50"
+        } ${align === "left" ? "-ml-2" : "-mr-2"}`}
       >
-        {children}
-      </span>
-      <span className="text-gray-300 group-hover:text-gray-500">
-        {isActive ? (
-          dir === "asc" ? (
-            <ChevronUp className="w-3 h-3" />
+        <span className="text-[10px] font-bold uppercase tracking-wider">
+          {children}
+        </span>
+        <span
+          className={`transition-colors ${
+            isActive
+              ? "text-sky-500"
+              : "text-gray-300 group-hover:text-gray-400"
+          }`}
+        >
+          {isActive ? (
+            dir === "asc" ? (
+              <ChevronUp className="w-3 h-3" />
+            ) : (
+              <ChevronDown className="w-3 h-3" />
+            )
           ) : (
-            <ChevronDown className="w-3 h-3" />
-          )
-        ) : (
-          <ArrowUpDown className="w-3 h-3" />
-        )}
-      </span>
-    </button>
+            <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-100" />
+          )}
+        </span>
+      </button>
+    </div>
   );
 }
 
@@ -295,6 +305,7 @@ export default function CursosReport({
                       current={sortField}
                       dir={sortDir}
                       onSort={handleSort}
+                      align="right"
                     >
                       Certs.
                     </SortButton>
@@ -305,6 +316,7 @@ export default function CursosReport({
                       current={sortField}
                       dir={sortDir}
                       onSort={handleSort}
+                      align="right"
                     >
                       Prom.
                     </SortButton>
@@ -315,6 +327,7 @@ export default function CursosReport({
                       current={sortField}
                       dir={sortDir}
                       onSort={handleSort}
+                      align="right"
                     >
                       Horas
                     </SortButton>
@@ -330,6 +343,7 @@ export default function CursosReport({
                       current={sortField}
                       dir={sortDir}
                       onSort={handleSort}
+                      align="right"
                     >
                       Última act.
                     </SortButton>
@@ -339,11 +353,8 @@ export default function CursosReport({
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {sorted.map((course) => (
-                  <>
-                    <tr
-                      key={course.id}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
+                  <Fragment key={course.id}>
+                    <tr className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
                           <BookOpen className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
@@ -401,7 +412,7 @@ export default function CursosReport({
                       </td>
                     </tr>
                     {expandedId === course.id && (
-                      <tr key={`${course.id}-detail`} className="bg-gray-50/40">
+                      <tr className="bg-gray-50/40">
                         <td colSpan={7} className="px-5 py-3">
                           <p className="text-xs font-semibold text-gray-600 mb-2">
                             Facilitadores que han impartido este curso:
@@ -425,7 +436,7 @@ export default function CursosReport({
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

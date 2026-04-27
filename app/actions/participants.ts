@@ -215,9 +215,7 @@ export async function getAnalyticsMetrics(): Promise<any> {
         supabase
           .from("certificados")
           .select(
-            `id, is_active, fecha_emision, calificacion,
-           id_curso, id_facilitador, id_participante,
-           cursos(nombre), facilitadores(nombre_apellido)`,
+            "id, is_active, fecha_emision, calificacion, id_curso, id_facilitador, id_participante",
           )
           .limit(3000),
         supabase
@@ -257,7 +255,6 @@ export async function getAnalyticsMetrics(): Promise<any> {
     const courseMap: Record<
       number,
       {
-        name: string;
         count: number;
         participantCount: number;
         totalScore: number;
@@ -267,7 +264,6 @@ export async function getAnalyticsMetrics(): Promise<any> {
     const facilitatorMap: Record<
       number,
       {
-        name: string;
         count: number;
         participantCount: number;
         totalScore: number;
@@ -300,7 +296,6 @@ export async function getAnalyticsMetrics(): Promise<any> {
         uniqueCourses.add(cert.id_curso);
         if (!courseMap[cert.id_curso]) {
           courseMap[cert.id_curso] = {
-            name: (cert.cursos as any)?.nombre || "Desconocido",
             count: 0,
             participantCount: 0,
             totalScore: 0,
@@ -319,7 +314,6 @@ export async function getAnalyticsMetrics(): Promise<any> {
         uniqueFacilitators.add(cert.id_facilitador);
         if (!facilitatorMap[cert.id_facilitador]) {
           facilitatorMap[cert.id_facilitador] = {
-            name: (cert.facilitadores as any)?.nombre_apellido || "Desconocido",
             count: 0,
             participantCount: 0,
             totalScore: 0,
@@ -338,22 +332,54 @@ export async function getAnalyticsMetrics(): Promise<any> {
       if (cert.id_participante) uniqueParticipants.add(cert.id_participante);
     });
 
-    const topCourses = Object.values(courseMap)
-      .map((data) => ({
-        course_name: data.name,
+    const topCourseIds = Object.entries(courseMap)
+      .sort(([, a], [, b]) => b.count - a.count)
+      .slice(0, 5)
+      .map(([id]) => parseInt(id));
+    const topFacilitatorIds = Object.entries(facilitatorMap)
+      .sort(([, a], [, b]) => b.count - a.count)
+      .slice(0, 5)
+      .map(([id]) => parseInt(id));
+
+    const [{ data: courseNames }, { data: facilitatorNames }] =
+      await Promise.all([
+        topCourseIds.length > 0
+          ? supabase.from("cursos").select("id, nombre").in("id", topCourseIds)
+          : Promise.resolve({ data: [] as { id: number; nombre: string }[] }),
+        topFacilitatorIds.length > 0
+          ? supabase
+              .from("facilitadores")
+              .select("id, nombre_apellido")
+              .in("id", topFacilitatorIds)
+          : Promise.resolve({
+              data: [] as { id: number; nombre_apellido: string }[],
+            }),
+      ]);
+
+    const courseNameMap = new Map(
+      (courseNames || []).map((c: any) => [c.id, c.nombre]),
+    );
+    const facilitatorNameMap = new Map(
+      (facilitatorNames || []).map((f: any) => [f.id, f.nombre_apellido]),
+    );
+
+    const topCourses = topCourseIds.map((id) => {
+      const data = courseMap[id];
+      return {
+        course_name: courseNameMap.get(id) || "Desconocido",
         certificate_count: data.count,
         participant_count: data.participantCount,
         avg_score:
           data.scoreCount > 0
             ? (data.totalScore / data.scoreCount).toFixed(1)
             : "0",
-      }))
-      .sort((a, b) => b.certificate_count - a.certificate_count)
-      .slice(0, 5);
+      };
+    });
 
-    const topFacilitators = Object.values(facilitatorMap)
-      .map((data) => ({
-        facilitator_name: data.name,
+    const topFacilitators = topFacilitatorIds.map((id) => {
+      const data = facilitatorMap[id];
+      return {
+        facilitator_name: facilitatorNameMap.get(id) || "Desconocido",
         certificate_count: data.count,
         participant_count: data.participantCount,
         avg_score:
@@ -361,9 +387,8 @@ export async function getAnalyticsMetrics(): Promise<any> {
             ? (data.totalScore / data.scoreCount).toFixed(1)
             : "0",
         total_hours: 0,
-      }))
-      .sort((a, b) => b.certificate_count - a.certificate_count)
-      .slice(0, 5);
+      };
+    });
 
     return {
       total_certificates: certs.length,
@@ -393,16 +418,19 @@ export async function getParticipantStats(): Promise<{
   try {
     const supabase = await createClient();
 
-    // Using a simple count request is fast.
-    const { count: totalParticipants, error: pError } = await supabase
-      .from("participantes_certificados")
-      .select("*", { count: "exact", head: true })
-      .eq("is_active", true);
-
-    const { count: activeCertificates, error: cError } = await supabase
-      .from("certificados")
-      .select("*", { count: "exact", head: true })
-      .eq("is_active", true);
+    const [
+      { count: totalParticipants, error: pError },
+      { count: activeCertificates, error: cError },
+    ] = await Promise.all([
+      supabase
+        .from("participantes_certificados")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true),
+      supabase
+        .from("certificados")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true),
+    ]);
 
     if (pError || cError) throw pError || cError;
 
