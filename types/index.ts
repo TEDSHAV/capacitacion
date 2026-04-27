@@ -393,6 +393,7 @@ export interface CertificateFormProps {
   selectedCourseTopic: CourseTopic | null;
   courseTopics: CourseTopic[];
   isGenerating?: boolean;
+  isEditMode?: boolean;
   generationProgress?: {
     currentPhase: string;
     percentage: number;
@@ -432,6 +433,7 @@ export interface ParticipantsSectionProps {
   participants: CertificateParticipant[];
   onChange: (participants: CertificateParticipant[]) => void;
   passing_grade?: number;
+  isEditMode?: boolean;
 }
 
 // Capacitación module interfaces
@@ -681,6 +683,7 @@ export interface OSISearchProps {
   selectedOSI: CertificateOSI | null;
   onSelect: (osi: CertificateOSI | null) => void;
   allCourses?: CourseTopic[];
+  disabled?: boolean;
 }
 
 export interface CourseTopicSearchProps {
@@ -971,6 +974,8 @@ export interface CertificateMetrics {
   totalCertificates: number;
   activeCertificates: number;
   expiredCertificates: number;
+  certificatesThisMonth: number;
+  certificatesThisYear: number;
   totalCompanies: number;
   totalCourses: number;
   totalParticipants: number;

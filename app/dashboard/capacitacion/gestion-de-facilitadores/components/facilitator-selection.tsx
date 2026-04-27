@@ -14,7 +14,9 @@ export const FacilitatorSelection = ({
   selectedFacilitatorId,
   onFacilitatorChange,
 }: FacilitatorSelectionProps) => {
-  const [facilitatorOptions, setFacilitatorOptions] = useState<FacilitatorOption[]>([]);
+  const [facilitatorOptions, setFacilitatorOptions] = useState<
+    FacilitatorOption[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,13 +28,15 @@ export const FacilitatorSelection = ({
       const result = await getFacilitatorsAction();
       if (result.data) {
         const facilitators = result.data;
-        const options: FacilitatorOption[] = facilitators.map((facilitator: any) => ({
-          value: facilitator.id.toString(),
-          label: facilitator.nombre_apellido,
-          id: facilitator.id,
-          nombre_apellido: facilitator.nombre_apellido,
-          facilitator: facilitator,
-        }));
+        const options: FacilitatorOption[] = facilitators.map(
+          (facilitator: any) => ({
+            value: facilitator.id.toString(),
+            label: facilitator.nombre_apellido,
+            id: facilitator.id.toString(),
+            nombre_apellido: facilitator.nombre_apellido,
+            facilitator: facilitator,
+          }),
+        );
         setFacilitatorOptions(options);
       }
     } catch (error) {
@@ -60,7 +64,7 @@ export const FacilitatorSelection = ({
         Facilitador del Curso
       </label>
       <SearchableSelect
-        value={selectedFacilitatorId ?? ''}
+        value={selectedFacilitatorId ?? ""}
         onChange={onFacilitatorChange}
         options={facilitatorOptions}
         placeholder="Seleccionar facilitador..."
@@ -68,16 +72,29 @@ export const FacilitatorSelection = ({
       />
       {facilitatorOptions.length === 0 && (
         <p className="text-xs text-gray-500 mt-1">
-          No hay facilitadores registrados. 
-          <a href="/dashboard/capacitacion/gestion-de-facilitadores" className="text-blue-600 hover:underline ml-1">
+          No hay facilitadores registrados.
+          <a
+            href="/dashboard/capacitacion/gestion-de-facilitadores"
+            className="text-blue-600 hover:underline ml-1"
+          >
             Agregar facilitadores
           </a>
         </p>
       )}
       {selectedFacilitatorId && (
         <div className="mt-2 text-xs text-gray-500">
-          {(facilitatorOptions.find((f: any) => f.id === parseInt(selectedFacilitatorId || '')) as any)?.facilitator?.temas_cursos?.slice(0, 3).join(', ')}
-          {((facilitatorOptions.find((f: any) => f.id === parseInt(selectedFacilitatorId || '')) as any)?.facilitator?.temas_cursos?.length || 0) > 3 && '...'}
+          {(
+            facilitatorOptions.find(
+              (f: any) => f.id === parseInt(selectedFacilitatorId || ""),
+            ) as any
+          )?.facilitator?.temas_cursos
+            ?.slice(0, 3)
+            .join(", ")}
+          {((
+            facilitatorOptions.find(
+              (f: any) => f.id === parseInt(selectedFacilitatorId || ""),
+            ) as any
+          )?.facilitator?.temas_cursos?.length || 0) > 3 && "..."}
         </div>
       )}
     </div>

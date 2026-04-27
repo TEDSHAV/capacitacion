@@ -49,8 +49,10 @@ const CertificateMetricsComponent = ({
     metrics.unique_participants_with_certificates ||
     metrics.totalParticipants ||
     0;
-  const certificatesThisMonth = metrics.certificates_this_month || 0;
-  const certificatesThisYear = metrics.certificates_this_year || 0;
+  const certificatesThisMonth =
+    metrics.certificates_this_month || metrics.certificatesThisMonth || 0;
+  const certificatesThisYear =
+    metrics.certificates_this_year || metrics.certificatesThisYear || 0;
 
   // Use top_companies from analytics_metrics or fall back to certificatesByCompany
   const topCompanies =
@@ -140,7 +142,9 @@ const CertificateMetricsComponent = ({
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Expirados</p>
+              <p className="text-sm font-medium text-gray-600">
+                Carnets expirados
+              </p>
               <p className="text-2xl font-bold text-yellow-600">
                 {formatNumber(expiredCertificates)}
               </p>

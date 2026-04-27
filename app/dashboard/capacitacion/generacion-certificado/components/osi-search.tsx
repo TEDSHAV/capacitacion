@@ -9,6 +9,7 @@ export default function OSISearch({
   onSelect,
   matchedCourse,
   allCourses,
+  disabled = false,
 }: OSISearchProps & {
   matchedCourse?: CourseTopic | null;
   allCourses?: CourseTopic[];
@@ -168,15 +169,20 @@ export default function OSISearch({
           ref={inputRef}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => !disabled && setIsOpen(true)}
           onBlur={handleInputBlur}
-          placeholder="Buscar por número de OSI, cliente, curso o servicio..."
-          className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          disabled={disabled}
+          placeholder={
+            disabled
+              ? "OSI Seleccionada (Modo Edición)"
+              : "Buscar por número de OSI, cliente, curso o servicio..."
+          }
+          className={`w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${disabled ? "bg-gray-50 cursor-not-allowed opacity-75" : ""}`}
         />
-        {searchTerm && (
+        {searchTerm && !disabled && (
           <button
             onClick={() => setSearchTerm("")}
-            className="absolute inset-y-0 right-0 w-8 flex items-center justify-center text-white hover:text-gray-200"
+            className="absolute inset-y-0 right-0 w-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
           >
             <svg
               className="h-5 w-5"
@@ -197,16 +203,24 @@ export default function OSISearch({
 
       {/* Selected OSI Display */}
       {selectedOSI && selectedOSI.nro_osi && (
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+        <div
+          className={`mt-4 p-3 border rounded-md ${disabled ? "bg-gray-50 border-gray-200" : "bg-blue-50 border-blue-200"}`}
+        >
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <div className="font-medium text-blue-900">
+              <div
+                className={`font-medium ${disabled ? "text-gray-900" : "text-blue-900"}`}
+              >
                 OSI: {selectedOSI.nro_osi}
               </div>
-              <div className="text-sm text-blue-700 mt-1">
+              <div
+                className={`text-sm mt-1 ${disabled ? "text-gray-600" : "text-blue-700"}`}
+              >
                 Cliente: {selectedOSI.cliente_nombre_empresa || "N/A"}
               </div>
-              <div className="text-sm text-blue-700">
+              <div
+                className={`text-sm ${disabled ? "text-gray-600" : "text-blue-700"}`}
+              >
                 Curso:{" "}
                 {matchedCourse?.nombre ||
                   selectedOSI.curso_nombre ||
@@ -214,29 +228,33 @@ export default function OSISearch({
                   "N/A - Sin curso especificado"}
               </div>
               {selectedOSI.ejecutivo_negocios && (
-                <div className="text-sm text-blue-700">
+                <div
+                  className={`text-sm ${disabled ? "text-gray-600" : "text-blue-700"}`}
+                >
                   Ejecutivo: {selectedOSI.ejecutivo_negocios}
                 </div>
               )}
             </div>
-            <button
-              onClick={handleClear}
-              className="ml-2 text-blue-600 hover:text-blue-800"
-            >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {!disabled && (
+              <button
+                onClick={handleClear}
+                className="ml-2 text-blue-600 hover:text-blue-800"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       )}

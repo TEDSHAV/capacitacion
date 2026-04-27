@@ -99,10 +99,7 @@ export default function GestionCertificadosPage() {
 
         setCertificates(result.certificates);
         setTotalCount(result.totalCount);
-        // Only update metrics when not searching (metrics are global statistics)
-        if (!filters.searchTerm) {
-          setMetrics(result.metrics);
-        }
+        setMetrics(result.metrics);
       } catch (error) {
         console.error("Error loading certificates:", error);
       } finally {
@@ -170,6 +167,14 @@ export default function GestionCertificadosPage() {
     [],
   );
 
+  const handleEditCertificate = useCallback(
+    (certificate: CertificateManagement) => {
+      // Redirect to generation page with edit mode
+      window.location.href = `/dashboard/capacitacion/generacion-certificado?editId=${certificate.id}`;
+    },
+    [],
+  );
+
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
@@ -185,8 +190,8 @@ export default function GestionCertificadosPage() {
 
       {/* Metrics Dashboard */}
       <CertificateMetricsComponent
-        metrics={analyticsMetrics || metrics || {}}
-        loading={loadingMetrics}
+        metrics={metrics || analyticsMetrics || {}}
+        loading={loadingMetrics || (loading && !metrics)}
       />
 
       {/* Filters */}
@@ -207,6 +212,7 @@ export default function GestionCertificadosPage() {
         onViewCertificate={handleViewCertificate}
         onDownloadCertificate={handleDownloadCertificate}
         onVerifyCertificate={handleVerifyCertificate}
+        onEditCertificate={handleEditCertificate}
       />
 
       {/* Pagination */}

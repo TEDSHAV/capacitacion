@@ -1,8 +1,135 @@
 "use client";
 
-import { memo, useState, useEffect, useCallback, useRef } from "react";
+import { memo, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { CertificateFilters } from "@/types";
-import { X } from "lucide-react";
+import { X, Search, ChevronDown, Check } from "lucide-react";
+
+interface SearchableSelectProps {
+  label: string;
+  placeholder: string;
+  options: { id: number; label: string }[];
+  value?: number;
+  onChange: (value?: number) => void;
+}
+
+const SearchableSelect = ({
+  label,
+  placeholder,
+  options,
+  value,
+  onChange,
+}: SearchableSelectProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedOption = useMemo(
+    () => options.find((opt) => opt.id === value),
+    [options, value],
+  );
+
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm.trim()) return options;
+    const term = searchTerm.toLowerCase().trim();
+    return options.filter((opt) => opt.label.toLowerCase().includes(term));
+  }, [options, searchTerm]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-3 py-2 border rounded-md cursor-pointer flex items-center justify-between transition-colors ${
+          isOpen
+            ? "border-blue-500 ring-2 ring-blue-500 ring-opacity-50"
+            : "border-gray-300 hover:border-gray-400"
+        } bg-white`}
+      >
+        <span
+          className={`truncate ${!selectedOption ? "text-gray-400" : "text-gray-900"}`}
+        >
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <div className="flex items-center gap-1">
+          {value && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange(undefined);
+              }}
+              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <X className="h-3 w-3 text-gray-400" />
+            </button>
+          )}
+          <ChevronDown
+            className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          />
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-hidden flex flex-col">
+          <div className="p-3 border-b border-gray-100 flex items-center gap-2 bg-gray-50">
+            <Search className="h-5 w-5 text-gray-400 flex-shrink-0" />
+            <input
+              type="text"
+              autoFocus
+              placeholder="Buscar..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-sm p-0 placeholder-gray-400 h-6"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div className="overflow-y-auto py-1">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <div
+                  key={option.id}
+                  onClick={() => {
+                    onChange(option.id);
+                    setIsOpen(false);
+                    setSearchTerm("");
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between hover:bg-blue-50 transition-colors ${
+                    value === option.id
+                      ? "bg-blue-50 text-blue-700 font-medium"
+                      : "text-gray-700"
+                  }`}
+                >
+                  <span className="truncate">{option.label}</span>
+                  {value === option.id && (
+                    <Check className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="px-3 py-4 text-sm text-gray-500 text-center">
+                No se encontraron resultados
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface CertificateFiltersProps {
   filters: CertificateFilters;
@@ -126,105 +253,48 @@ function CertificateFiltersComponent({
         </div>
 
         {/* Company */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Empresa
-          </label>
-          <select
-            value={localFilters.companyId || ""}
-            onChange={(e) =>
-              handleFilterChange(
-                "companyId",
-                e.target.value ? parseInt(e.target.value) : undefined,
-              )
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Todas las empresas</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.razon_social}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SearchableSelect
+          label="Empresa"
+          placeholder="Todas las empresas"
+          options={companies.map((c) => ({ id: c.id, label: c.razon_social }))}
+          value={localFilters.companyId}
+          onChange={(val) => handleFilterChange("companyId", val)}
+        />
 
         {/* Course */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Curso
-          </label>
-          <select
-            value={localFilters.courseId || ""}
-            onChange={(e) =>
-              handleFilterChange(
-                "courseId",
-                e.target.value ? parseInt(e.target.value) : undefined,
-              )
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Todos los cursos</option>
-            {courses.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SearchableSelect
+          label="Curso"
+          placeholder="Todos los cursos"
+          options={courses.map((c) => ({ id: c.id, label: c.nombre }))}
+          value={localFilters.courseId}
+          onChange={(val) => handleFilterChange("courseId", val)}
+        />
 
         {/* Facilitator */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Facilitador
-          </label>
-          <select
-            value={localFilters.facilitatorId || ""}
-            onChange={(e) =>
-              handleFilterChange(
-                "facilitatorId",
-                e.target.value ? parseInt(e.target.value) : undefined,
-              )
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Todos los facilitadores</option>
-            {facilitators.map((facilitator) => (
-              <option key={facilitator.id} value={facilitator.id}>
-                {facilitator.nombre_apellido}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SearchableSelect
+          label="Facilitador"
+          placeholder="Todos los facilitadores"
+          options={facilitators.map((f) => ({
+            id: f.id,
+            label: f.nombre_apellido,
+          }))}
+          value={localFilters.facilitatorId}
+          onChange={(val) => handleFilterChange("facilitatorId", val)}
+        />
 
         {/* State */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Estado
-          </label>
-          <select
-            value={localFilters.stateId || ""}
-            onChange={(e) =>
-              handleFilterChange(
-                "stateId",
-                e.target.value ? parseInt(e.target.value) : undefined,
-              )
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Todos los estados</option>
-            {states.map((state) => (
-              <option key={state.id} value={state.id}>
-                {state.nombre_estado}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SearchableSelect
+          label="Estado"
+          placeholder="Todos los estados"
+          options={states.map((s) => ({ id: s.id, label: s.nombre_estado }))}
+          value={localFilters.stateId}
+          onChange={(val) => handleFilterChange("stateId", val)}
+        />
 
         {/* Status */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Estado del Certificado
+            Estado del carnet
           </label>
           <select
             value={

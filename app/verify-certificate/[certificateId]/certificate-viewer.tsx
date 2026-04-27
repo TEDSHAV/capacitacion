@@ -102,7 +102,9 @@ export default function CertificateVerificationPage() {
     );
   }
 
-  const certPdfUrl = `/api/generate-certificate-pdf/${certificateId}`;
+  // Use a timestamp to prevent browser caching of the PDF preview
+  const cacheBuster = Date.now();
+  const certPdfUrl = `/api/generate-certificate-pdf/${certificateId}?t=${cacheBuster}`;
 
   return (
     <div className="min-h-screen bg-gray-50">
