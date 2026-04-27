@@ -1,20 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCarnetById } from '@/app/actions/carnets';
+import { NextRequest, NextResponse } from "next/server";
+import { getCarnetById } from "@/app/actions/carnets";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ carnetId: string }> }
+  { params }: { params: Promise<{ carnetId: string }> },
 ) {
   try {
     const resolvedParams = await params;
     const carnetId = parseInt(resolvedParams.carnetId);
 
-    console.log('🔍 Debugging carnet ID:', carnetId);
+    console.log("🔍 Debugging carnet ID:", carnetId);
 
     if (isNaN(carnetId)) {
       return NextResponse.json(
-        { success: false, error: 'Invalid carnet ID' },
-        { status: 400 }
+        { success: false, error: "Invalid carnet ID" },
+        { status: 400 },
       );
     }
 
@@ -23,13 +23,13 @@ export async function GET(
 
     if (!carnetResult.success || !carnetResult.data) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: carnetResult.error || 'Carnet not found',
+        {
+          success: false,
+          error: carnetResult.error || "Carnet not found",
           carnetId: carnetId,
-          result: carnetResult
+          result: carnetResult,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -53,29 +53,28 @@ export async function GET(
           empresa_participante: carnet.empresa_participante,
           qr_code: carnet.qr_code,
           created_at: carnet.created_at,
-          is_active: carnet.is_active
+          is_active: carnet.is_active,
         },
         participantInfo: {
           name: carnet.nombre_participante,
-          id_number: carnet.cedula_participante,
-          company: carnet.empresa_participante
+          idNumber: carnet.cedula_participante,
+          company: carnet.empresa_participante,
         },
         templateCheck: {
-          templatePath: '/templates/carnet.png',
-          templateExists: true // We know it exists from the file listing
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('💥 Error debugging carnet:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to debug carnet',
-        details: error instanceof Error ? error.message : 'Unknown error'
+          templatePath: "/templates/carnet.png",
+          templateExists: true, // We know it exists from the file listing
+        },
       },
-      { status: 500 }
+    });
+  } catch (error) {
+    console.error("💥 Error debugging carnet:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to debug carnet",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
     );
   }
 }

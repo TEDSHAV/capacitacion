@@ -22,8 +22,7 @@ export const ParticipantsSection = ({
     () =>
       safeParticipants.filter(
         (participant, index, self) =>
-          index ===
-          self.findIndex((p) => p.id_number === participant.id_number),
+          index === self.findIndex((p) => p.idNumber === participant.idNumber),
       ),
     [safeParticipants],
   );
@@ -132,10 +131,8 @@ export const ParticipantsSection = ({
             </select>
             <input
               type="text"
-              value={newParticipant.id_number}
-              onChange={(e) =>
-                updateNewParticipant("id_number", e.target.value)
-              }
+              value={newParticipant.idNumber}
+              onChange={(e) => updateNewParticipant("idNumber", e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Cédula/Pasaporte"
               className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -237,7 +234,7 @@ export const ParticipantsSection = ({
                           {participant.nationality === "venezolano"
                             ? "V-"
                             : "E-"}
-                          {participant.id_number})
+                          {participant.idNumber})
                         </span>
                       </>
                     )}
@@ -257,10 +254,10 @@ export const ParticipantsSection = ({
                           </span>
                           <input
                             type="text"
-                            value={participant.id_number}
+                            value={participant.idNumber}
                             onChange={(e) => {
                               const newParticipants = [...uniqueParticipants];
-                              newParticipants[index].id_number = e.target.value;
+                              newParticipants[index].idNumber = e.target.value;
                               onChange(newParticipants);
                             }}
                             className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"

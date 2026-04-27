@@ -88,7 +88,7 @@ export async function GET(
         {
           id: snapshotData.participante?.id?.toString() || "1",
           name: snapshotData.participante?.name || "Unknown Participant",
-          id_number: snapshotData.participante?.cedula || "Unknown ID",
+          idNumber: snapshotData.participante?.cedula || "Unknown ID",
           nationality: (snapshotData.participante?.nacionalidad ||
             "venezolano") as "venezolano" | "extranjero",
           score: snapshotData.participante?.score,

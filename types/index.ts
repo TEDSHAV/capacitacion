@@ -306,8 +306,8 @@ export interface CertificateGeneration {
 export interface CertificateParticipant {
   id?: string;
   name: string;
-  id_type?: string; // V- for Venezuelan ID, E- for foreign ID
-  id_number: string;
+  idType?: string; // V- for Venezuelan ID, E- for foreign ID
+  idNumber: string;
   company?: string;
   score?: number;
   position?: string;
@@ -1098,7 +1098,7 @@ export interface CarnetSearchResult {
 // OCR Types for Participant Scanning
 export interface ExtractedParticipant {
   name: string;
-  id_number: string;
+  idNumber: string;
   nationality?: "venezolano" | "extranjero";
   score?: number;
   confidence?: number;

@@ -181,8 +181,8 @@ export default function GeneracionCertificadoClient({
           {
             id: certificate.participantes_certificados?.id,
             name: certificate.participantes_certificados?.nombre || "",
-            id_number: certificate.participantes_certificados?.cedula || "",
-            id_type: certificate.participantes_certificados?.cedula?.startsWith(
+            idNumber: certificate.participantes_certificados?.cedula || "",
+            idType: certificate.participantes_certificados?.cedula?.startsWith(
               "E",
             )
               ? "extranjero"
@@ -521,8 +521,8 @@ export default function GeneracionCertificadoClient({
       const certificateRecords = certificateData.participants.map(
         (participant, index) => ({
           participant_name: participant.name,
-          participant_id_number: participant.id_number,
-          participant_id_type: participant.id_type,
+          participant_id_number: participant.idNumber,
+          participant_id_type: participant.idType,
           participant_nationality: participant.nationality,
           course_title: certificateData.certificate_title,
           company_name: selectedOSI?.cliente_nombre_empresa || "",
@@ -675,7 +675,7 @@ export default function GeneracionCertificadoClient({
                 fecha_emision: certificateData.date,
                 fecha_vencimiento: certificateData.fecha_vencimiento || null,
                 nombre_participante: participant.name,
-                cedula_participante: participant.id_number,
+                cedula_participante: participant.idNumber,
                 empresa_participante: participant.company || null,
                 nro_control: dbResult.certificateNumbers![index].nro_control,
               };
@@ -867,13 +867,13 @@ export default function GeneracionCertificadoClient({
 
       // Add certificates to ZIP
       for (const { participant, blob } of certificates) {
-        const filename = `certificado_${participant.name.replace(/\s+/g, "_")}_${participant.id_number}.pdf`;
+        const filename = `certificado_${participant.name.replace(/\s+/g, "_")}_${participant.idNumber}.pdf`;
         certFolder?.file(filename, blob);
       }
 
       // Add carnets to ZIP if generated
       for (const { participant, blob } of carnetBlobs) {
-        const filename = `carnet_${participant.name.replace(/\s+/g, "_")}_${participant.id_number}.pdf`;
+        const filename = `carnet_${participant.name.replace(/\s+/g, "_")}_${participant.idNumber}.pdf`;
         carnetsFolder?.file(filename, blob);
       }
 

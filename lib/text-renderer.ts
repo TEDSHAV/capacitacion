@@ -96,18 +96,18 @@ export class TextRenderer {
   renderIDText(
     participant: {
       nationality?: "venezolano" | "extranjero";
-      id_number: string;
+      idNumber: string;
     },
     x: number,
     y: number,
-  ): void {
-    const isVenezolano = participant.nationality === "venezolano";
-    const idLabel = isVenezolano ? "Cédula:" : "Pasaporte:";
-    const idPrefix = isVenezolano ? "V-" : "E-";
+  ) {
+    const idLabel =
+      participant.nationality === "extranjero" ? "PASAPORTE" : "CÉDULA";
+    const idPrefix = participant.nationality === "extranjero" ? "" : "V-";
 
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8);
-    this.doc.text(`${idLabel} ${idPrefix}${participant.id_number}`, x, y, {
+    this.doc.text(`${idLabel} ${idPrefix}${participant.idNumber}`, x, y, {
       align: "center",
     });
   }

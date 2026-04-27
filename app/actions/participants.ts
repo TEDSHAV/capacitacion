@@ -111,7 +111,7 @@ export async function createParticipant(
       .from("participantes_certificados")
       .insert([
         {
-          nombre: formData.nombre.trim(),
+          nombre: formData.nombre.trim().toLowerCase(),
           cedula: formData.cedula.trim(),
           nacionalidad: formData.nacionalidad,
           is_active: true, // Ensure new participants are active
@@ -150,7 +150,7 @@ export async function updateParticipant(
     const { data, error } = await supabase
       .from("participantes_certificados")
       .update({
-        nombre: formData.nombre.trim(),
+        nombre: formData.nombre.trim().toLowerCase(),
         cedula: formData.cedula.trim(),
         nacionalidad: formData.nacionalidad,
       })
