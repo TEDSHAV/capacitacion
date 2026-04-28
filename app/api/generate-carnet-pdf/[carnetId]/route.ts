@@ -97,7 +97,7 @@ export async function GET(
         nombre_participante: carnet.nombre_participante,
         cedula_participante: carnet.cedula_participante,
         empresa_participante: carnet.empresa_participante,
-        nro_control: carnet.id, // Use carnet ID as control number for now
+        nro_control: carnet.certificado?.nro_control ?? carnet.id,
       },
       templateImage: "/templates/carnet.png",
       isPreview: false,

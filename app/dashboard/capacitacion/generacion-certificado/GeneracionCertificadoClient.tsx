@@ -229,6 +229,13 @@ export default function GeneracionCertificadoClient({
   ]);
 
   const handleOSISelect = (osi: CertificateOSI | null) => {
+    if (osi && osi.has_certificates && !editData) {
+      const confirmMsg = `La OSI ${osi.nro_osi} ya tiene certificados generados. ¿Estás seguro de que deseas generar otro lote de certificados para esta misma OSI?`;
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+    }
+
     setSelectedOSI(osi);
 
     if (osi) {
@@ -498,10 +505,26 @@ export default function GeneracionCertificadoClient({
 
       // Preload SHA signature if available
       let shaSignatureBase64 = "";
-      if (certificateData.sha_signature_data?.url_imagen) {
+      let shaSignatureDataToUse = certificateData.sha_signature_data;
+
+      // If missing data but we have an ID, try to fetch it or find it from initialData
+      if (!shaSignatureDataToUse && certificateData.sha_signature_id) {
+        try {
+          const response = await fetch(
+            `/api/signatures/${certificateData.sha_signature_id}`,
+          );
+          if (response.ok) {
+            shaSignatureDataToUse = await response.json();
+          }
+        } catch (error) {
+          console.error("Failed to fetch SHA signature data:", error);
+        }
+      }
+
+      if (shaSignatureDataToUse?.url_imagen) {
         try {
           shaSignatureBase64 = await preloadImage(
-            certificateData.sha_signature_data.url_imagen,
+            shaSignatureDataToUse.url_imagen,
           );
         } catch (error) {
           console.error("Failed to preload SHA signature:", error);
@@ -962,6 +985,9 @@ export default function GeneracionCertificadoClient({
       });
       setSelectedOSI(null);
       setSelectedCourseTopic(null);
+
+      // Refresh the page data to update 'Generated' badges in the OSI list
+      router.refresh();
     } catch (error) {
       alert("Error generando certificados. Por favor intente nuevamente.");
     } finally {
