@@ -122,7 +122,7 @@ export const CourseTemplateSection = ({
           />
           {(() => {
             // Check if any row has too many characters (approximate check for PDF overflow)
-            const MAX_CHARS_PER_ROW = 85;
+            const MAX_CHARS_PER_ROW = 75;
             const tempDiv = document.createElement("div");
             tempDiv.innerHTML = courseContent || "";
             const rows = tempDiv.innerText.split("\n").filter((r) => r.trim());
@@ -131,8 +131,9 @@ export const CourseTemplateSection = ({
             if (longRows.length > 0) {
               return (
                 <div className="mt-2 text-xs text-orange-600 font-medium animate-pulse">
-                  ⚠️ Atención: Hay {longRows.length} líneas que podrían ser muy
-                  largas para el PDF. Se recomienda dividirlas.
+                  ⚠️ Atención: Hay {longRows.length} líneas que exceden los{" "}
+                  {MAX_CHARS_PER_ROW} caracteres y podrían desbordarse en el
+                  PDF.
                 </div>
               );
             }

@@ -1,341 +1,451 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/utils/supabase/client'
-import { CapacitacionClientProps, PlantillaCertificado } from '@/types'
-import { setActiveTemplate } from '@/app/actions/template-actions'
-import { useConfirmDialog } from '@/components/ui/confirm-dialog'
+import { useState, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { CapacitacionClientProps, PlantillaCertificado } from "@/types";
+import { setActiveTemplate } from "@/app/actions/template-actions";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
-export default function PlantillasCertificadosPage({ user }: CapacitacionClientProps) {
-  const { confirm, dialog: confirmDialog } = useConfirmDialog()
-  const [plantillas, setPlantillas] = useState<PlantillaCertificado[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
+export default function PlantillasCertificadosPage({
+  user,
+}: CapacitacionClientProps) {
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  const [plantillas, setPlantillas] = useState<PlantillaCertificado[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    nombre: '',
-    archivo: null as File | null
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
+    nombre: "",
+    archivo: null as File | null,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [previewFile, setPreviewFile] = useState<string | null>(null);
 
-  const supabase = createClient()
+  const supabase = createClient();
 
   useEffect(() => {
-    loadPlantillas()
-  }, [])
+    loadPlantillas();
+  }, []);
 
   const loadPlantillas = async () => {
     try {
-      console.log('Loading plantillas...')
       const { data, error } = await supabase
-        .from('plantillas_certificados')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-
-      console.log('Load response:', { data, error })
+        .from("plantillas_certificados")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('Supabase load error:', error)
-        throw new Error(error.message || 'Error al cargar las plantillas')
+        throw new Error(error.message || "Error al cargar las plantillas");
       }
 
-      setPlantillas(data || [])
+      setPlantillas(data || []);
     } catch (error) {
-      console.error('Error loading plantillas:', error)
-      alert(`Error al cargar las plantillas: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+      console.error("Error loading plantillas:", error);
+      alert(
+        `Error al cargar las plantillas: ${error instanceof Error ? error.message : "Error desconocido"}`,
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const getTemplateImageUrl = (plantilla: PlantillaCertificado): string => {
+    if (plantilla.url_imagen) return plantilla.url_imagen;
+    if (plantilla.archivo) return `/templates/${plantilla.archivo}`;
+    return "/templates/certificado.png";
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setFormData({ ...formData, archivo: file });
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setPreviewFile(reader.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setPreviewFile(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (!formData.nombre.trim()) {
-      alert('El nombre de la plantilla es requerido')
-      return
+      alert("El nombre de la plantilla es requerido");
+      return;
     }
 
     if (!formData.archivo) {
-      alert('Debe seleccionar un archivo')
-      return
+      alert("Debe seleccionar un archivo de imagen");
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
-      console.log('Submitting plantilla:', {
-        nombre: formData.nombre.trim(),
-        archivo: formData.archivo.name
-      })
-
-      // Upload file to server
+      // Upload file to server with type=certificate
       const uploadFormData = new FormData();
-      uploadFormData.append('file', formData.archivo);
-      
-      const uploadResponse = await fetch('/api/upload-template', {
-        method: 'POST',
-        body: uploadFormData
+      uploadFormData.append("file", formData.archivo);
+      uploadFormData.append("type", "certificate");
+
+      const uploadResponse = await fetch("/api/upload-template", {
+        method: "POST",
+        body: uploadFormData,
       });
-      
+
       const uploadResult = await uploadResponse.json();
-      
+
       if (!uploadResult.success) {
         throw new Error(`Error al subir archivo: ${uploadResult.error}`);
       }
 
-      // Create template record in database with uploaded file info
+      // Check if this is the first template (auto-activate)
+      const isFirstTemplate = plantillas.length === 0;
+
+      // Create template record in database
       const { data, error } = await supabase
-        .from('plantillas_certificados')
+        .from("plantillas_certificados")
         .insert({
           nombre: formData.nombre.trim(),
           archivo: uploadResult.fileName,
-          is_active: true
+          url_imagen: uploadResult.url,
+          is_active: isFirstTemplate,
+          updated_at: new Date().toISOString(),
         })
         .select()
-        .single()
-
-      console.log('Response:', { data, error })
+        .single();
 
       if (error) {
-        console.error('Supabase error:', error)
-        throw new Error(error.message || 'Error al guardar en la base de datos')
-      }
-
-      if (!data) {
-        throw new Error('No se recibió respuesta del servidor')
+        throw new Error(
+          error.message || "Error al guardar en la base de datos",
+        );
       }
 
       // Reset form and reload
-      setFormData({ nombre: '', archivo: null })
-      setShowForm(false)
-      loadPlantillas()
-      
-      alert('Plantilla guardada exitosamente')
+      setFormData({ nombre: "", archivo: null });
+      setPreviewFile(null);
+      setShowForm(false);
+      loadPlantillas();
+
+      alert("Plantilla guardada exitosamente");
     } catch (error) {
-      console.error('Error saving plantilla:', error)
-      alert(`Error al guardar la plantilla: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+      console.error("Error saving plantilla:", error);
+      alert(
+        `Error al guardar la plantilla: ${error instanceof Error ? error.message : "Error desconocido"}`,
+      );
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleSetActive = async (id: number) => {
     try {
-      const result = await setActiveTemplate(id, 'certificate');
+      const result = await setActiveTemplate(id, "certificate");
       if (result.success) {
-        loadPlantillas(); // Reload to show active status
-        alert('¡Plantilla activa actualizada exitosamente!');
+        loadPlantillas();
       } else {
         alert(`Error: ${result.error}`);
       }
     } catch (error) {
-      alert('Error al actualizar plantilla activa');
+      alert("Error al actualizar plantilla activa");
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDeactivate = (id: number) => {
+    // Count active plantillas
+    const activeCount = plantillas.filter((p) => p.is_active).length;
+    if (activeCount <= 1) {
+      alert(
+        "Debe haber al menos una plantilla activa. Para cambiar la plantilla activa, establezca otra como activa.",
+      );
+      return;
+    }
+
     confirm({
-      title: 'Eliminar Plantilla',
-      message: '¿Está seguro de eliminar esta plantilla?',
-      confirmLabel: 'Eliminar',
+      title: "Desactivar Plantilla",
+      message:
+        "¿Está seguro de desactivar esta plantilla? Dejará de estar disponible para nuevas generaciones.",
+      confirmLabel: "Desactivar",
       onConfirm: async () => {
         try {
-          const { data, error } = await supabase
-            .from('plantillas_certificados')
-            .update({ is_active: false })
-            .eq('id', id)
-            .select()
-            .single()
+          const { error } = await supabase
+            .from("plantillas_certificados")
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq("id", id);
 
-          if (error) throw new Error(error.message || 'Error al eliminar la plantilla')
-          loadPlantillas()
+          if (error)
+            throw new Error(
+              error.message || "Error al desactivar la plantilla",
+            );
+          loadPlantillas();
         } catch (error) {
-          console.error('Error deleting plantilla:', error)
+          console.error("Error deactivating plantilla:", error);
+          alert("Error al desactivar la plantilla");
         }
       },
-    })
-  }
+    });
+  };
+
+  const handlePermanentDelete = (id: number, isActive: boolean) => {
+    if (isActive) {
+      alert(
+        "No puedes eliminar la plantilla activa. Primero establece otra como activa.",
+      );
+      return;
+    }
+
+    confirm({
+      title: "Eliminar Permanentemente",
+      message:
+        "¿Está seguro de eliminar esta plantilla de forma permanente? Esta acción no se puede deshacer.",
+      confirmLabel: "Eliminar",
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from("plantillas_certificados")
+            .delete()
+            .eq("id", id);
+
+          if (error)
+            throw new Error(error.message || "Error al eliminar la plantilla");
+          loadPlantillas();
+        } catch (error) {
+          console.error("Error deleting plantilla:", error);
+          alert(
+            `Error al eliminar: ${error instanceof Error ? error.message : "Error desconocido"}`,
+          );
+        }
+      },
+    });
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Cargando plantillas...</p>
-            </div>
-          </div>
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">
+            Cargando plantillas de certificados...
+          </span>
         </div>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Plantillas de Certificados</h1>
-          <p className="mt-2 text-gray-600">
-            Gestiona las plantillas para la generación de certificados
-          </p>
-        </div>
+    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">
+          Plantillas de Certificados
+        </h1>
+        <p className="mt-2 text-gray-600">
+          Administra las plantillas de diseño para los certificados de
+          capacitación. La plantilla marcada como <strong>activa</strong> será
+          utilizada por defecto al generar certificados.
+        </p>
+        <p className="mt-1 text-xs text-gray-400">
+          Nota: Solo la primera página del certificado usa la plantilla
+          seleccionada. La segunda página (contenido) permanece igual.
+        </p>
+      </div>
 
-        {/* Add Button */}
-        <div className="mb-6">
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            {showForm ? 'Cancelar' : 'Nueva Plantilla'}
-          </button>
-        </div>
+      <div className="mb-6">
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+        >
+          {showForm ? "Cancelar" : "Nueva Plantilla de Certificado"}
+        </button>
+      </div>
 
-        {/* Form */}
-        {showForm && (
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Nueva Plantilla de Certificado
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre de la Plantilla *
-                </label>
-                <input
-                  type="text"
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Ej: Certificado de Capacitación Básico"
-                  required
-                />
-              </div>
+      {showForm && (
+        <div className="mb-8 p-6 border border-gray-200 rounded-lg bg-gray-50">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Nueva Plantilla de Certificado
+          </h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nombre de la Plantilla
+              </label>
+              <input
+                type="text"
+                value={formData.nombre}
+                onChange={(e) =>
+                  setFormData({ ...formData, nombre: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Ej: Certificado Estándar 2025"
+                required
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Archivo de Plantilla *
-                </label>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                  onChange={(e) => setFormData({ ...formData, archivo: e.target.files?.[0] || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-                <p className="mt-1 text-sm text-gray-500">
-                  Formatos aceptados: PDF, DOC, DOCX, PNG, JPG, JPEG
-                </p>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
-                >
-                  {isSubmitting ? 'Guardando...' : 'Guardar Plantilla'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false)
-                    setFormData({ nombre: '', archivo: null })
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Templates List */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Plantillas Existentes ({plantillas.length})
-            </h2>
-          </div>
-          
-          {plantillas.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <div className="text-gray-400 mb-4">
-                <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No hay plantillas registradas
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Comienza agregando tu primera plantilla de certificado
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Archivo de Imagen (PNG/JPG)
+              </label>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                onChange={handleFileChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Formato recomendado: PNG o JPG, orientación horizontal
+                (landscape), resolución mínima 1600px de ancho. Los textos del
+                certificado (nombre, título del curso, firmas, etc.) se
+                renderizan en posiciones fijas sobre la imagen.
               </p>
+            </div>
+
+            {previewFile && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Vista previa
+                </label>
+                <div className="aspect-[1.414/1] max-w-md bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                  <img
+                    src={previewFile}
+                    alt="Vista previa"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex space-x-3">
               <button
-                onClick={() => setShowForm(true)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Agregar Plantilla
+                {isSubmitting ? "Creando..." : "Crear Plantilla"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setPreviewFile(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+              >
+                Cancelar
               </button>
             </div>
-          ) : (
-            <div className="divide-y divide-gray-200">
-              {plantillas.map((plantilla) => (
-                <div key={plantilla.id} className={`px-6 py-4 flex items-center justify-between ${plantilla.is_active ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''}`}>
-                  <div className="flex-1">
-                    {plantilla.is_active && (
-                      <div className="mb-2">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Activa
-                        </span>
-                      </div>
-                    )}
-                    <h3 className="text-lg font-medium text-gray-900">
-                      {plantilla.nombre}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      Archivo: {plantilla.archivo}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      Creada: {new Date(plantilla.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!plantilla.is_active && (
-                      <button
-                        onClick={() => handleSetActive(plantilla.id)}
-                        className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
-                      >
-                        Establecer como Activa
-                      </button>
-                    )}
-                    <button
-                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      Descargar
-                    </button>
-                    <button
-                      className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(plantilla.id)}
-                      className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          </form>
         </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {plantillas.map((plantilla) => (
+          <div
+            key={plantilla.id}
+            className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${plantilla.is_active ? "border-green-500 bg-green-50 ring-2 ring-green-200" : "border-gray-200"}`}
+          >
+            {plantilla.is_active && (
+              <div className="mb-2">
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  ✓ Activa (por defecto)
+                </span>
+              </div>
+            )}
+
+            <div className="aspect-[1.414/1] bg-gray-100 rounded-lg mb-4 overflow-hidden">
+              <img
+                src={getTemplateImageUrl(plantilla)}
+                alt={plantilla.nombre}
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    "/templates/certificado.png";
+                }}
+              />
+            </div>
+
+            <h3 className="font-semibold text-gray-900 mb-2">
+              {plantilla.nombre}
+            </h3>
+            <p className="text-sm text-gray-500 mb-1">
+              Archivo: {plantilla.archivo}
+            </p>
+            <p className="text-xs text-gray-400 mb-4">
+              Creada:{" "}
+              {new Date(plantilla.created_at).toLocaleDateString("es-VE")}
+            </p>
+
+            <div className="flex flex-col space-y-2">
+              {!plantilla.is_active && (
+                <button
+                  onClick={() => handleSetActive(plantilla.id)}
+                  className="w-full px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                >
+                  Establecer como Activa
+                </button>
+              )}
+              <div className="flex space-x-2">
+                <button
+                  onClick={() =>
+                    window.open(getTemplateImageUrl(plantilla), "_blank")
+                  }
+                  className="flex-1 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                >
+                  Ver
+                </button>
+                {plantilla.is_active ? (
+                  <button
+                    onClick={() => handleDeactivate(plantilla.id)}
+                    className="flex-1 px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition-colors"
+                  >
+                    Desactivar
+                  </button>
+                ) : (
+                  <button
+                    onClick={() =>
+                      handlePermanentDelete(plantilla.id, plantilla.is_active)
+                    }
+                    className="flex-1 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
+      {plantillas.length === 0 && (
+        <div className="text-center py-12">
+          <div className="text-gray-400 mb-4">
+            <svg
+              className="w-16 h-16 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No hay plantillas de certificado
+          </h3>
+          <p className="text-gray-500 mb-4">
+            Crea tu primera plantilla de certificado para empezar a personalizar
+            los diseños
+          </p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Crear Primera Plantilla
+          </button>
+        </div>
+      )}
       {confirmDialog}
     </div>
-  )
+  );
 }

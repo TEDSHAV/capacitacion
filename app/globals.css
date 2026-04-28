@@ -261,3 +261,29 @@ button[class*="text-blue-600"][class*="hover:text-blue-900"] {
   float: left;
   height: 0;
 }
+
+/* ── Content Highlights ── */
+.ProseMirror .char-overflow {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  font-weight: bold !important;
+  border-radius: 2px;
+  position: relative;
+  display: inline;
+}
+
+.ProseMirror .char-overflow::after {
+  content: "✂️ EXCESO";
+  position: absolute;
+  top: -14px;
+  left: 0;
+  font-size: 10px;
+  background-color: #ef4444;
+  color: white;
+  padding: 0 4px;
+  border-radius: 4px;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 100;
+}

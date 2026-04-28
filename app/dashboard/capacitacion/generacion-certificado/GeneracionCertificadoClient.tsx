@@ -17,7 +17,10 @@ import {
   saveCertificatesToDatabase,
   updateCertificateAction,
 } from "@/app/actions/certificados";
-import { getCarnetTemplatesAction } from "@/app/actions/dropdown-data";
+import {
+  getCarnetTemplatesAction,
+  getCertificateTemplatesAction,
+} from "@/app/actions/dropdown-data";
 import { QRService } from "@/lib/qr-service";
 import { generateDocumentsServer } from "@/lib/document-server-actions";
 import {
@@ -49,6 +52,7 @@ export default function GeneracionCertificadoClient({
     useState<CourseTopic | null>(null);
   const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
   const [carnetTemplates, setCarnetTemplates] = useState<any[]>([]);
+  const [certificateTemplates, setCertificateTemplates] = useState<any[]>([]);
   const [certificateData, setCertificateData] = useState<CertificateGeneration>(
     {
       osi_id: "",
@@ -112,20 +116,48 @@ export default function GeneracionCertificadoClient({
     }
   })();
 
-  // Load carnet templates
+  // Load carnet and certificate templates
   useEffect(() => {
-    const loadCarnetTemplates = async () => {
+    const loadTemplates = async () => {
       try {
-        const result = await getCarnetTemplatesAction();
-        if (result.data) {
-          setCarnetTemplates(result.data);
+        const [carnetResult, certResult] = await Promise.all([
+          getCarnetTemplatesAction(),
+          getCertificateTemplatesAction(),
+        ]);
+        if (carnetResult.data) {
+          setCarnetTemplates(carnetResult.data);
+          // Auto-set the active carnet template if not already set
+          const activeCarnetTemplate = carnetResult.data.find(
+            (t: any) => t.is_active,
+          );
+          if (activeCarnetTemplate) {
+            setCertificateData((prev) => ({
+              ...prev,
+              id_plantilla_carnet:
+                prev.id_plantilla_carnet || activeCarnetTemplate.id,
+            }));
+          }
+        }
+        if (certResult.data) {
+          setCertificateTemplates(certResult.data);
+          // Auto-set the active certificate template if not already set
+          const activeTemplate = certResult.data.find((t: any) => t.is_active);
+          if (activeTemplate) {
+            setCertificateData((prev) => ({
+              ...prev,
+              id_plantilla_certificado:
+                prev.id_plantilla_certificado || activeTemplate.id,
+              plantilla_certificado_archivo:
+                prev.plantilla_certificado_archivo || activeTemplate.archivo,
+            }));
+          }
         }
       } catch (error) {
         // Continue without templates
       }
     };
 
-    loadCarnetTemplates();
+    loadTemplates();
   }, []);
 
   // Pre-fill form if in edit mode
@@ -206,27 +238,12 @@ export default function GeneracionCertificadoClient({
         fecha_vencimiento: certificate.fecha_vencimiento || undefined,
         id_estado: certificate.id_estado,
         id_plantilla_certificado: certificate.id_plantilla_certificado,
+        plantilla_certificado_archivo:
+          snapshot?.plantilla?.archivo_plantilla_certificado,
         generate_documents: false, // Default to false for single edit
       });
     }
   }, [editData, osis, courses]);
-
-  // Effect to set default course content when course topic changes (but no template selected)
-  useEffect(() => {
-    if (selectedCourseTopic && !certificateData.course_template_id) {
-      // Use course's default content if available
-      if (selectedCourseTopic.contenido_curso) {
-        handleCertificateDataChange(
-          "course_content",
-          selectedCourseTopic.contenido_curso,
-        );
-      }
-    }
-  }, [
-    selectedCourseTopic?.id,
-    selectedCourseTopic?.contenido_curso,
-    certificateData.course_template_id,
-  ]);
 
   const handleOSISelect = (osi: CertificateOSI | null) => {
     if (osi && osi.has_certificates && !editData) {
@@ -268,6 +285,7 @@ export default function GeneracionCertificadoClient({
           course_topic_id: selectedCourse.id,
           course_topic_data: selectedCourse,
           course_content: selectedCourse.contenido_curso || "",
+          course_template_id: "original-course",
           passing_grade: passingGrade,
           horas_estimadas: selectedCourse.horas_estimadas,
           certificate_title: selectedCourse.name,
@@ -308,6 +326,7 @@ export default function GeneracionCertificadoClient({
           [field]: value,
           course_topic_data: selectedTopic,
           course_content: selectedTopic.contenido_curso || "",
+          course_template_id: "original-course",
           passing_grade: passingGrade,
           horas_estimadas: selectedTopic.horas_estimadas,
           certificate_title: prev.certificate_title || selectedTopic.name,
@@ -449,7 +468,21 @@ export default function GeneracionCertificadoClient({
         totalCertificates: certificateData.participants.length,
       });
 
-      const templateImageUrl = "/templates/certificado.png";
+      // Determine certificate template image URL from active template
+      let templateImageUrl = "/templates/certificado.png"; // fallback
+      if (
+        certificateData.id_plantilla_certificado &&
+        certificateTemplates.length > 0
+      ) {
+        const selectedCertTemplate = certificateTemplates.find(
+          (t: any) => t.id === certificateData.id_plantilla_certificado,
+        );
+        if (selectedCertTemplate?.archivo) {
+          templateImageUrl = `/templates/${selectedCertTemplate.archivo}`;
+        }
+      } else if (certificateData.plantilla_certificado_archivo) {
+        templateImageUrl = `/templates/${certificateData.plantilla_certificado_archivo}`;
+      }
       const sealImageUrl = "/templates/sello.png";
 
       // Helper function to preload images as base64
@@ -981,6 +1014,7 @@ export default function GeneracionCertificadoClient({
         fecha_vencimiento: undefined,
         id_estado: undefined,
         id_plantilla_certificado: undefined,
+        plantilla_certificado_archivo: undefined,
         generate_documents: true, // Reset to default
       });
       setSelectedOSI(null);

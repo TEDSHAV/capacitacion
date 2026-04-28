@@ -175,9 +175,9 @@ export class ContentPage {
 
     // Default settings
     const BASE_SIZE = 9;
-    const MIN_SIZE = 6;
-    const BASE_LINE_HEIGHT = 4.5;
-    const WRAP_SAFETY = 7; // Increased safety margin to prevent overflow past column boundary
+    const MIN_SIZE = 4; // Even smaller to ensure it fits the upper half
+    const BASE_LINE_HEIGHT = 4.2;
+    const WRAP_SAFETY = 10; // Increased safety margin to prevent bleeding
 
     let fontSize = BASE_SIZE;
     let lineHeight = BASE_LINE_HEIGHT;
@@ -233,7 +233,13 @@ export class ContentPage {
 
     // Set up proper clipping path via jsPDF's built-in methods.
     const clipHeight = (maxY || currentY + 200) - currentY + 5;
-    this.doc.rect(leftColumnX, currentY - 5, columnWidth - 2, clipHeight, null);
+
+    // CRITICAL: Ensure no border is drawn for the clipping region
+    this.doc.saveGraphicsState();
+    this.doc.setDrawColor(255, 255, 255); // White as fallback
+    this.doc.setLineWidth(0);
+    // Use 'n' (new path) style to define the rectangle for clipping
+    this.doc.rect(leftColumnX, currentY - 5, columnWidth - 1, clipHeight, "n");
     this.doc.clip();
 
     let y = currentY;
@@ -246,13 +252,14 @@ export class ContentPage {
       this.doc.setCharSpace(0);
       this.doc.setTextColor(0, 0, 0);
 
-      // Final check: if line is somehow still too wide, truncate it
-      const lineWidth = this.doc.getTextWidth(line.trim());
+      // Manual wrap check for extra safety
       let finalLine = line.trim();
-      if (lineWidth > columnWidth - WRAP_SAFETY + 2) {
-        // Truncate as last resort
+      const actualWidth = this.doc.getTextWidth(finalLine);
+      if (actualWidth > columnWidth - 2) {
+        // If still too wide despite splitTextToSize, truncate it
+        const ratio = (columnWidth - 5) / actualWidth;
         finalLine =
-          finalLine.substring(0, Math.floor(finalLine.length * 0.9)) + "...";
+          finalLine.substring(0, Math.floor(finalLine.length * ratio)) + "...";
       }
 
       this.doc.text(finalLine, leftColumnX, y, { align: "left" });

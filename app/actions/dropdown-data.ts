@@ -27,7 +27,7 @@ const getSignaturesForDropdown = cache(async () => {
   }
 });
 
-// Get certificate templates
+// Get certificate templates (all templates, active first)
 const getCertificateTemplates = cache(async () => {
   const supabase = await createClient();
 
@@ -35,7 +35,7 @@ const getCertificateTemplates = cache(async () => {
     const { data, error } = await supabase
       .from("plantillas_certificados")
       .select("*")
-      .eq("is_active", true)
+      .order("is_active", { ascending: false })
       .order("nombre");
 
     if (error) {
@@ -51,7 +51,7 @@ const getCertificateTemplates = cache(async () => {
   }
 });
 
-// Get carnet templates
+// Get carnet templates (all templates, active first)
 const getCarnetTemplates = cache(async () => {
   const supabase = await createClient();
 
@@ -59,7 +59,7 @@ const getCarnetTemplates = cache(async () => {
     const { data, error } = await supabase
       .from("plantillas_carnets")
       .select("*")
-      .eq("is_active", true)
+      .order("is_active", { ascending: false })
       .order("nombre");
 
     if (error) {
