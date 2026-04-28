@@ -31,9 +31,9 @@ export const FacilitatorSelection = ({
         const options: FacilitatorOption[] = facilitators.map(
           (facilitator: any) => ({
             value: facilitator.id.toString(),
-            label: facilitator.nombre_apellido,
+            label: toTitleCase(facilitator.nombre_apellido || ""),
             id: facilitator.id.toString(),
-            nombre_apellido: facilitator.nombre_apellido,
+            nombre_apellido: toTitleCase(facilitator.nombre_apellido || ""),
             facilitator: facilitator,
           }),
         );

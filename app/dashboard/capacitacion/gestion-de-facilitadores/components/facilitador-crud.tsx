@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Facilitador, State } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Check } from "lucide-react";
+import { toTitleCase } from "@/utils/string-utils";
 
 interface FacilitadorCrudProps {
   onFacilitadorSaved?: () => void;
@@ -236,7 +237,7 @@ export const FacilitadorCrud = ({
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex flex-col">
                     <div className="text-sm font-medium text-gray-900">
-                      {facilitador.nombre_apellido}
+                      {toTitleCase(facilitador.nombre_apellido || "")}
                     </div>
                     <div className="flex flex-wrap gap-1 mt-1">
                       <span
@@ -364,7 +365,7 @@ export const FacilitadorCrud = ({
                   </label>
                   <div className="flex flex-col">
                     <p className="text-sm text-gray-900">
-                      {selectedFacilitador.nombre_apellido}
+                      {toTitleCase(selectedFacilitador.nombre_apellido || "")}
                     </p>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {selectedFacilitador.tiene_curriculum && (
