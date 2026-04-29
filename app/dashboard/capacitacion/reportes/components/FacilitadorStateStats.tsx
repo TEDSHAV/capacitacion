@@ -2,9 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { getFacilitatorStateStatsAction } from "@/app/actions/reportes-stats";
-import { FacilitadorStateStatsProps, StateStat, FacilitadorReport } from "@/types";
+import {
+  FacilitadorStateStatsProps,
+  StateStat,
+  FacilitadorReport,
+} from "@/types";
+import { toTitleCase } from "@/utils/string-utils";
 
-export default function FacilitadorStateStats({ selectedState, selectedCourse }: FacilitadorStateStatsProps) {
+export default function FacilitadorStateStats({
+  selectedState,
+  selectedCourse,
+}: FacilitadorStateStatsProps) {
   const [stateStats, setStateStats] = useState<StateStat[]>([]);
   const [facilitadores, setFacilitadores] = useState<FacilitadorReport[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,18 +26,23 @@ export default function FacilitadorStateStats({ selectedState, selectedCourse }:
     try {
       setLoading(true);
       setError(null);
-      
-      const result = await getFacilitatorStateStatsAction(selectedState, selectedCourse);
-      
+
+      const result = await getFacilitatorStateStatsAction(
+        selectedState,
+        selectedCourse,
+      );
+
       if (result.error) {
         setError(result.error);
-      } else if (result.data && 'estadoStats' in result.data) {
+      } else if (result.data && "estadoStats" in result.data) {
         setStateStats(result.data.estadoStats);
         setFacilitadores(result.data.facilitadores as any[]);
       }
     } catch (err) {
-      console.error('Error loading facilitator state stats:', err);
-      setError(`Error al cargar datos: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+      console.error("Error loading facilitator state stats:", err);
+      setError(
+        `Error al cargar datos: ${err instanceof Error ? err.message : "Error desconocido"}`,
+      );
     } finally {
       setLoading(false);
     }
@@ -38,13 +51,13 @@ export default function FacilitadorStateStats({ selectedState, selectedCourse }:
   // Function to get state name by ID
   const getStateName = (stateId: number | null) => {
     if (!stateId) return "N/A";
-    const state = stateStats.find(s => s.id === stateId);
+    const state = stateStats.find((s) => s.id === stateId);
     return state?.nombre_estado || "N/A";
   };
 
   // Function to get facilitador state name (now using API data)
   const getFacilitadorStateName = (facilitador: FacilitadorReport) => {
-    return facilitador.nombre_apellido || "N/A";
+    return toTitleCase(facilitador.nombre_apellido || "") || "N/A";
   };
 
   if (loading) {
@@ -63,44 +76,58 @@ export default function FacilitadorStateStats({ selectedState, selectedCourse }:
     );
   }
 
-  const activeFacilitadores = facilitadores.filter(f => f.is_active);
-  const inactiveFacilitadores = facilitadores.filter(f => !f.is_active);
+  const activeFacilitadores = facilitadores.filter((f) => f.is_active);
+  const inactiveFacilitadores = facilitadores.filter((f) => !f.is_active);
 
   // Calculate max count for bar width
-  const maxCount = stateStats.length > 0 ? Math.max(...stateStats.map(s => s.count)) : 1;
+  const maxCount =
+    stateStats.length > 0 ? Math.max(...stateStats.map((s) => s.count)) : 1;
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Total Facilitadores</h3>
-          <p className="text-3xl font-bold text-indigo-600">{facilitadores.length}</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Total Facilitadores
+          </h3>
+          <p className="text-3xl font-bold text-indigo-600">
+            {facilitadores.length}
+          </p>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-2">Activos</h3>
-          <p className="text-3xl font-bold text-green-600">{activeFacilitadores.length}</p>
+          <p className="text-3xl font-bold text-green-600">
+            {activeFacilitadores.length}
+          </p>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-2">Inactivos</h3>
-          <p className="text-3xl font-bold text-red-600">{inactiveFacilitadores.length}</p>
+          <p className="text-3xl font-bold text-red-600">
+            {inactiveFacilitadores.length}
+          </p>
         </div>
       </div>
 
       {/* State Distribution */}
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Distribución por Estado</h3>
+          <h3 className="text-lg font-medium text-gray-900">
+            Distribución por Estado
+          </h3>
         </div>
         <div className="p-6">
           <div className="space-y-3">
             {stateStats
-              .filter(state => state.count > 0)
+              .filter((state) => state.count > 0)
               .sort((a, b) => b.count - a.count)
               .map((state) => (
-                <div key={state.id} className="flex items-center justify-between">
+                <div
+                  key={state.id}
+                  className="flex items-center justify-between"
+                >
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium text-gray-900">
@@ -114,7 +141,7 @@ export default function FacilitadorStateStats({ selectedState, selectedCourse }:
                       <div
                         className="bg-indigo-600 h-2 rounded-full"
                         style={{
-                          width: `${(state.count / maxCount) * 100}%`
+                          width: `${(state.count / maxCount) * 100}%`,
                         }}
                       ></div>
                     </div>
@@ -157,7 +184,7 @@ export default function FacilitadorStateStats({ selectedState, selectedCourse }:
               {facilitadores.map((facilitador: any) => (
                 <tr key={facilitador.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {facilitador.nombre_apellido}
+                    {toTitleCase(facilitador.nombre_apellido || "")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {facilitador.cedula || "N/A"}
@@ -169,11 +196,13 @@ export default function FacilitadorStateStats({ selectedState, selectedCourse }:
                     {facilitador.email || "N/A"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      facilitador.is_active
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}>
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        facilitador.is_active
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
                       {facilitador.is_active ? "Activo" : "Inactivo"}
                     </span>
                   </td>

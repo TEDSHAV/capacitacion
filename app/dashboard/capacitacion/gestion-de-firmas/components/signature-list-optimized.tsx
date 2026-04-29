@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Signature, SignatureType, Facilitador } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Trash2, Edit, Check, X } from "lucide-react";
+import { toTitleCase } from "@/utils/string-utils";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Signature, Facilitador } from "@/types";
 
 interface SignatureListProps {
   signatures: Signature[];
@@ -11,51 +14,58 @@ interface SignatureListProps {
   refreshKey: number;
 }
 
-export const SignatureListOptimized = ({ 
-  signatures, 
+export const SignatureListOptimized = ({
+  signatures,
   facilitadores,
-  onSignatureDeleted, 
-  refreshKey 
+  onSignatureDeleted,
+  refreshKey,
 }: SignatureListProps) => {
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [loading, setLoading] = useState(false);
 
   // Memoized computations to avoid re-renders
-  const { facilitadoresWithSignatures, otherSignatures, facilitatorsWithoutSignatures } = useMemo(() => {
+  const {
+    facilitadoresWithSignatures,
+    otherSignatures,
+    facilitatorsWithoutSignatures,
+  } = useMemo(() => {
     // Get facilitators that already have signatures
     const facilitatorsWithSigs = signatures
-      .filter(sig => sig.tipo === 'facilitador')
-      .map(sig => {
-        const facilitador = facilitadores.find(f => f.firma_id === sig.id);
+      .filter((sig) => sig.tipo === "facilitador")
+      .map((sig) => {
+        const facilitador = facilitadores.find((f) => f.firma_id === sig.id);
         return facilitador ? { ...facilitador, signature: sig } : null;
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
     // Get facilitators without signatures
     const facilitatorsWithoutSigs = facilitadores.filter(
-      f => !f.firma_id && facilitatorsWithSigs.length > 0
+      (f) => !f.firma_id && facilitatorsWithSigs.length > 0,
     );
 
     // Get other signature types (representante_sha) - show all regardless of active status
-    const otherSigs = signatures.filter(sig => sig.tipo !== 'facilitador');
+    const otherSigs = signatures.filter((sig) => sig.tipo !== "facilitador");
 
     return {
       facilitadoresWithSignatures: facilitatorsWithSigs,
       otherSignatures: otherSigs,
-      facilitatorsWithoutSignatures: facilitatorsWithoutSigs
+      facilitatorsWithoutSignatures: facilitatorsWithoutSigs,
     };
   }, [signatures, facilitadores]);
 
   const handleDelete = (id: string) => {
     confirm({
-      title: 'Desactivar Firma',
-      message: '¿Estás seguro de que quieres desactivar esta firma? Podrás reactivarla más tarde.',
-      confirmLabel: 'Desactivar',
-      variant: 'warning',
+      title: "Desactivar Firma",
+      message:
+        "¿Estás seguro de que quieres desactivar esta firma? Podrás reactivarla más tarde.",
+      confirmLabel: "Desactivar",
+      variant: "warning",
       onConfirm: async () => {
         try {
           setLoading(true);
-          const response = await fetch(`/api/signatures/${id}`, { method: "DELETE" });
+          const response = await fetch(`/api/signatures/${id}`, {
+            method: "DELETE",
+          });
           if (!response.ok) throw new Error("Error al desactivar la firma");
           onSignatureDeleted();
         } catch (error) {
@@ -68,8 +78,8 @@ export const SignatureListOptimized = ({
   };
 
   const signatureTypeLabels: Record<string, string> = {
-    "facilitador": "Facilitador",
-    "representante_sha": "Representante SHA",
+    facilitador: "Facilitador",
+    representante_sha: "Representante SHA",
   };
 
   if (loading) {
@@ -108,19 +118,23 @@ export const SignatureListOptimized = ({
                   />
                 </div>
                 <div className="space-y-2">
-                  <p className="font-medium text-gray-900">{item.nombre_apellido}</p>
-                  <p className="text-sm text-gray-500">
-                    {item.email || 'Sin email'}
+                  <p className="font-medium text-gray-900">
+                    {item.nombre_apellido}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {new Date(item.signature.fecha_creacion).toLocaleDateString("es-ES")}
+                    {item.email || "Sin email"}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {new Date(item.signature.fecha_creacion).toLocaleDateString(
+                      "es-ES",
+                    )}
                   </p>
                   <button
                     onClick={() => handleDelete(item.signature.id.toString())}
                     disabled={loading}
                     className="w-full px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? 'Desactivando...' : 'Desactivar'}
+                    {loading ? "Desactivando..." : "Desactivar"}
                   </button>
                 </div>
               </div>
@@ -133,7 +147,7 @@ export const SignatureListOptimized = ({
       {otherSignatures.length > 0 && (
         <div className="mb-8">
           <h3 className="text-md font-medium text-gray-900 mb-4">
-            {signatureTypeLabels['representante_sha']}
+            {signatureTypeLabels["representante_sha"]}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {otherSignatures.map((signature) => (
@@ -150,28 +164,32 @@ export const SignatureListOptimized = ({
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="font-medium text-gray-900">{signature.nombre}</p>
-                    {signature.tipo === 'representante_sha' && (
+                    <p className="font-medium text-gray-900">
+                      {signature.nombre}
+                    </p>
+                    {signature.tipo === "representante_sha" && (
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           signature.is_active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {signature.is_active ? 'Activo' : 'Inactivo'}
+                        {signature.is_active ? "Activo" : "Inactivo"}
                       </span>
                     )}
                   </div>
                   <p className="text-sm text-gray-500">
-                    {new Date(signature.fecha_creacion).toLocaleDateString("es-ES")}
+                    {new Date(signature.fecha_creacion).toLocaleDateString(
+                      "es-ES",
+                    )}
                   </p>
                   <button
                     onClick={() => handleDelete(signature.id.toString())}
                     disabled={loading}
                     className="w-full px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? 'Desactivando...' : 'Desactivar'}
+                    {loading ? "Desactivando..." : "Desactivar"}
                   </button>
                 </div>
               </div>
@@ -189,9 +207,14 @@ export const SignatureListOptimized = ({
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {facilitatorsWithoutSignatures.map((facilitador: any) => (
-                <div key={facilitador.id} className="flex items-center space-x-3 p-2 bg-white rounded border border-amber-100">
+                <div
+                  key={facilitador.id}
+                  className="flex items-center space-x-3 p-2 bg-white rounded border border-amber-100"
+                >
                   <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                  <span className="text-sm text-gray-700">{facilitador.nombre_apellido}</span>
+                  <span className="text-sm text-gray-700">
+                    {toTitleCase(facilitador.nombre_apellido || "")}
+                  </span>
                 </div>
               ))}
             </div>
@@ -223,7 +246,8 @@ export const SignatureListOptimized = ({
           <p className="mt-2 text-gray-500">No hay firmas registradas</p>
           {facilitadores.length === 0 && (
             <p className="text-sm text-gray-400 mt-1">
-              Primero registra algunos facilitadores para poder agregar sus firmas.
+              Primero registra algunos facilitadores para poder agregar sus
+              firmas.
             </p>
           )}
         </div>

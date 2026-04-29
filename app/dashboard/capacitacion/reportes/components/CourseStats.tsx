@@ -4,8 +4,12 @@ import { useState, useEffect } from "react";
 import { getCourseStatsAction } from "@/app/actions/reportes-stats";
 import { CourseStatsProps, CourseStat, CourseFacilitator } from "@/types";
 import { Button } from "@/components/ui/button";
+import { toTitleCase } from "@/utils/string-utils";
 
-export default function CourseStats({ selectedState, selectedCourse }: CourseStatsProps) {
+export default function CourseStats({
+  selectedState,
+  selectedCourse,
+}: CourseStatsProps) {
   const [courseStats, setCourseStats] = useState<CourseStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,17 +23,19 @@ export default function CourseStats({ selectedState, selectedCourse }: CourseSta
     try {
       setLoading(true);
       setError(null);
-      
+
       const result = await getCourseStatsAction(selectedState, selectedCourse);
-      
+
       if (result.error) {
         setError(result.error);
       } else {
         setCourseStats(result.data || []);
       }
     } catch (err) {
-      console.error('Error loading course stats:', err);
-      setError(`Error al cargar datos: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+      console.error("Error loading course stats:", err);
+      setError(
+        `Error al cargar datos: ${err instanceof Error ? err.message : "Error desconocido"}`,
+      );
     } finally {
       setLoading(false);
     }
@@ -52,33 +58,57 @@ export default function CourseStats({ selectedState, selectedCourse }: CourseSta
   }
 
   const totalCourses = courseStats.length;
-  const coursesWithFacilitators = courseStats.filter(c => c.facilitadores.length > 0);
-  const coursesWithoutFacilitators = courseStats.filter(c => c.facilitadores.length === 0);
-  const totalHours = courseStats.reduce((sum, course) => sum + course.totalHours, 0);
-  const totalCertificates = courseStats.reduce((sum, course) => sum + course.totalCertificates, 0);
+  const coursesWithFacilitators = courseStats.filter(
+    (c) => c.facilitadores.length > 0,
+  );
+  const coursesWithoutFacilitators = courseStats.filter(
+    (c) => c.facilitadores.length === 0,
+  );
+  const totalHours = courseStats.reduce(
+    (sum, course) => sum + course.totalHours,
+    0,
+  );
+  const totalCertificates = courseStats.reduce(
+    (sum, course) => sum + course.totalCertificates,
+    0,
+  );
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Total Cursos</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Total Cursos
+          </h3>
           <p className="text-3xl font-bold text-indigo-600">{totalCourses}</p>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Cursos Dictados</h3>
-          <p className="text-3xl font-bold text-green-600">{coursesWithFacilitators.length}</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Cursos Dictados
+          </h3>
+          <p className="text-3xl font-bold text-green-600">
+            {coursesWithFacilitators.length}
+          </p>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Sin Facilitador</h3>
-          <p className="text-3xl font-bold text-red-600">{coursesWithoutFacilitators.length}</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Sin Facilitador
+          </h3>
+          <p className="text-3xl font-bold text-red-600">
+            {coursesWithoutFacilitators.length}
+          </p>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Total Horas</h3>
-          <p className="text-3xl font-bold text-purple-600">{totalHours.toFixed(1)}</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Total Horas
+          </h3>
+          <p className="text-3xl font-bold text-purple-600">
+            {totalHours.toFixed(1)}
+          </p>
         </div>
       </div>
 
@@ -122,17 +152,25 @@ export default function CourseStats({ selectedState, selectedCourse }: CourseSta
                         {course.nombre}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {course.totalCertificates > 0 ? "Dictado" : "No dictado"}
+                        {course.totalCertificates > 0
+                          ? "Dictado"
+                          : "No dictado"}
                       </p>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div className="flex flex-col">
-                      <span className="font-medium">{course.facilitadores.length}</span>
+                      <span className="font-medium">
+                        {course.facilitadores.length}
+                      </span>
                       {course.facilitadores.length > 0 && (
                         <span className="text-xs text-gray-500">
-                          {course.facilitadores.map(f => f.nombre_apellido).slice(0, 2).join(", ")}
-                          {course.facilitadores.length > 2 && ` +${course.facilitadores.length - 2}`}
+                          {course.facilitadores
+                            .map((f) => f.nombre_apellido)
+                            .slice(0, 2)
+                            .join(", ")}
+                          {course.facilitadores.length > 2 &&
+                            ` +${course.facilitadores.length - 2}`}
                         </span>
                       )}
                     </div>
@@ -144,27 +182,34 @@ export default function CourseStats({ selectedState, selectedCourse }: CourseSta
                     {course.totalHours.toFixed(1)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      course.facilitadores.length > 0
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}>
-                      {course.facilitadores.length > 0 ? "Activo" : "Sin facilitador"}
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        course.facilitadores.length > 0
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {course.facilitadores.length > 0
+                        ? "Activo"
+                        : "Sin facilitador"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setExpandedCourse(
-                        expandedCourse === course.id 
-                          ? null 
-                          : course.id
-                      )}
+                      onClick={() =>
+                        setExpandedCourse(
+                          expandedCourse === course.id ? null : course.id,
+                        )
+                      }
                       disabled={course.facilitadores.length === 0}
                     >
-                      {course.facilitadores.length === 0 ? "Sin datos" : 
-                       expandedCourse === course.id ? "Ocultar" : "Ver detalles"}
+                      {course.facilitadores.length === 0
+                        ? "Sin datos"
+                        : expandedCourse === course.id
+                          ? "Ocultar"
+                          : "Ver detalles"}
                     </Button>
                   </td>
                 </tr>
@@ -177,27 +222,34 @@ export default function CourseStats({ selectedState, selectedCourse }: CourseSta
         {expandedCourse && (
           <div className="border-t border-gray-200">
             {courseStats
-              .filter(c => c.id === expandedCourse)
+              .filter((c) => c.id === expandedCourse)
               .map((course) => (
                 <div key={course.id} className="px-6 py-4 bg-gray-50">
                   <h4 className="text-sm font-medium text-gray-900 mb-3">
                     Facilitadores de {course.nombre}
                   </h4>
                   {course.facilitadores.length === 0 ? (
-                    <p className="text-sm text-gray-500">Este curso no ha sido dictado por ningún facilitador.</p>
+                    <p className="text-sm text-gray-500">
+                      Este curso no ha sido dictado por ningún facilitador.
+                    </p>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {course.facilitadores.map((facilitador) => (
-                        <div key={facilitador.id} className="bg-white p-4 rounded border border-gray-200">
+                        <div
+                          key={facilitador.id}
+                          className="bg-white p-4 rounded border border-gray-200"
+                        >
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-sm font-medium text-gray-900">
-                              {facilitador.nombre_apellido}
+                              {toTitleCase(facilitador.nombre_apellido || "")}
                             </p>
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              facilitador.is_active
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}>
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                facilitador.is_active
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
                               {facilitador.is_active ? "Activo" : "Inactivo"}
                             </span>
                           </div>
