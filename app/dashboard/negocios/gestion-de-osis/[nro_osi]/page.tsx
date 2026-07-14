@@ -55,7 +55,8 @@ export default function OSIDetailPage({ params }: { params: Promise<{ nro_osi: s
     startEditing,
     cancelEditing,
     handleSave,
-    handleDelete
+    handleDelete,
+    confirmDialog
   } = useOSI(empresas)
 
   // Search terms
@@ -196,6 +197,7 @@ export default function OSIDetailPage({ params }: { params: Promise<{ nro_osi: s
       </div>
       
       <ErrorDialog isOpen={false} message="" onClose={() => {}} />
+      {confirmDialog}
     </div>
   )
 }

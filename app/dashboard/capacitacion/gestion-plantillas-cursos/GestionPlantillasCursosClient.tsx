@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PlantillaCurso } from "./types";
 import { PlantillaCursoList } from "./PlantillaCursoList";
 import { CreatePlantillaCursoButton } from "./CreatePlantillaCursoButton";
@@ -8,6 +9,7 @@ import { PlantillaCursoForm } from "./PlantillaCursoForm";
 import { getPlantillaCursosAction, createPlantillaCursoAction, updatePlantillaCursoAction, deletePlantillaCursoAction, getCoursesAction, getEmpresasAction } from "./actions";
 
 export default function GestionPlantillasCursosClient() {
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [plantillas, setPlantillas] = useState<PlantillaCurso[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [empresas, setEmpresas] = useState<any[]>([]);
@@ -94,17 +96,22 @@ export default function GestionPlantillasCursosClient() {
     }
   };
 
-  const handleDeletePlantilla = async (id: number) => {
-    if (confirm("¿Estás seguro de que deseas eliminar esta plantilla?")) {
-      try {
-        const result = await deletePlantillaCursoAction(id);
-        if (result.success) {
-          loadPlantillas(currentPage, searchTerm);
+  const handleDeletePlantilla = (id: number) => {
+    confirm({
+      title: 'Eliminar Plantilla',
+      message: '¿Estás seguro de que deseas eliminar esta plantilla?',
+      confirmLabel: 'Eliminar',
+      onConfirm: async () => {
+        try {
+          const result = await deletePlantillaCursoAction(id);
+          if (result.success) {
+            loadPlantillas(currentPage, searchTerm);
+          }
+        } catch (error) {
+          console.error("Error deleting plantilla:", error);
         }
-      } catch (error) {
-        console.error("Error deleting plantilla:", error);
-      }
-    }
+      },
+    });
   };
 
   const handleSearch = (term: string) => {
@@ -152,6 +159,7 @@ export default function GestionPlantillasCursosClient() {
           onCancel={() => setIsFormOpen(false)}
         />
       )}
+      {confirmDialog}
     </div>
   );
 }

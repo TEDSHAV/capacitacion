@@ -7,6 +7,7 @@ import { createCurso, updateCurso, duplicateCurso, deleteCurso } from './actions
 import CourseForm from './CourseForm';
 import CourseList from './CourseList';
 import CreateCourseButton from './CreateCourseButton';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export default function GestionCursosClient({
   user,
@@ -18,6 +19,7 @@ export default function GestionCursosClient({
   cursos: Curso[] | undefined;
 }) {
   const router = useRouter();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [creandoCurso, setCreandoCurso] = useState(false);
   const [editandoCurso, setEditandoCurso] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -81,21 +83,24 @@ export default function GestionCursosClient({
     }
   };
 
-  const handleDeleteCourse = async (id: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este curso?')) return;
-    
-    try {
-      const result = await deleteCurso(id);
-      
-      if (result.error) {
-        setError(result.error);
-      } else {
-        // Remove the course from the local list since it's now inactive
-        setCursosList(prev => prev.filter(curso => curso.id.toString() !== id));
-      }
-    } catch (err) {
-      setError('Error al eliminar el curso');
-    }
+  const handleDeleteCourse = (id: string) => {
+    confirm({
+      title: 'Eliminar Curso',
+      message: '¿Estás seguro de que quieres eliminar este curso?',
+      confirmLabel: 'Eliminar',
+      onConfirm: async () => {
+        try {
+          const result = await deleteCurso(id);
+          if (result.error) {
+            setError(result.error);
+          } else {
+            setCursosList(prev => prev.filter(curso => curso.id.toString() !== id));
+          }
+        } catch (err) {
+          setError('Error al eliminar el curso');
+        }
+      },
+    });
   };
 
   const handleDuplicateCourse = async (id: string) => {
@@ -154,6 +159,7 @@ export default function GestionCursosClient({
           onDuplicate={handleDuplicateCourse}
         />
       </div>
+      {confirmDialog}
     </div>
   );
 }

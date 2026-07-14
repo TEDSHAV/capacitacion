@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Signature, SignatureType, Facilitador } from "@/types";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface SignatureListProps {
   signatures: Signature[];
@@ -16,6 +17,7 @@ export const SignatureListOptimized = ({
   onSignatureDeleted, 
   refreshKey 
 }: SignatureListProps) => {
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [loading, setLoading] = useState(false);
 
   // Memoized computations to avoid re-renders
@@ -44,29 +46,25 @@ export const SignatureListOptimized = ({
     };
   }, [signatures, facilitadores]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Estás seguro de que quieres desactivar esta firma? Podrás reactivarla más tarde.")) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/signatures/${id}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        alert("Firma desactivada exitosamente");
-        onSignatureDeleted();
-      } else {
-        throw new Error("Error al desactivar la firma");
-      }
-    } catch (error) {
-      alert("Error al desactivar la firma. Por favor intenta nuevamente.");
-      console.error("Delete error:", error);
-    } finally {
-      setLoading(false);
-    }
+  const handleDelete = (id: string) => {
+    confirm({
+      title: 'Desactivar Firma',
+      message: '¿Estás seguro de que quieres desactivar esta firma? Podrás reactivarla más tarde.',
+      confirmLabel: 'Desactivar',
+      variant: 'warning',
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          const response = await fetch(`/api/signatures/${id}`, { method: "DELETE" });
+          if (!response.ok) throw new Error("Error al desactivar la firma");
+          onSignatureDeleted();
+        } catch (error) {
+          console.error("Delete error:", error);
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   const signatureTypeLabels: Record<string, string> = {
@@ -203,6 +201,8 @@ export const SignatureListOptimized = ({
           </div>
         </div>
       )}
+
+      {confirmDialog}
 
       {/* Empty state */}
       {signatures.length === 0 && facilitadores.length === 0 && (

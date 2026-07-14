@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { OSI } from "@/types";
 import ErrorDialog, { useErrorDialog } from "@/components/ui/error-dialog";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createOSIAction, updateOSIAction, getOSIByIdAction } from "../../../../actions/osi-crud";
 
 const supabase = createClient();
@@ -13,6 +14,7 @@ export function useOSI(empresas: any[] = []) {
   const router = useRouter();
   const params = useParams();
   const errorDialog = useErrorDialog();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
   const [osi, setOsi] = useState<OSI | null>(null);
   const [formData, setFormData] = useState<OSI>({
@@ -324,31 +326,32 @@ export function useOSI(empresas: any[] = []) {
   };
 
   // Delete OSI (soft delete)
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!osi) return;
 
-    const confirmed = window.confirm(
-      "¿Estás seguro de que quieres eliminar esta OSI? Esta acción la desactivará del sistema.",
-    );
+    confirm({
+      title: 'Eliminar OSI',
+      message: '¿Estás seguro de que quieres eliminar esta OSI? Esta acción la desactivará del sistema.',
+      confirmLabel: 'Eliminar',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from("osi")
+            .update({ is_active: false })
+            .eq("id", osi.id);
 
-    if (!confirmed) return;
+          if (error) throw error;
 
-    try {
-      const { error } = await supabase
-        .from("osi")
-        .update({ is_active: false })
-        .eq("id", osi.id);
-      
-      if (error) throw error;
-
-      router.push("/dashboard/negocios/gestion-de-osis");
-    } catch (error) {
-      errorDialog.showError(
-        "Error al eliminar OSI",
-        error instanceof Error ? error.message : "Error desconocido",
-        "Error de Eliminación",
-      );
-    }
+          router.push("/dashboard/negocios/gestion-de-osis");
+        } catch (error) {
+          errorDialog.showError(
+            "Error al eliminar OSI",
+            error instanceof Error ? error.message : "Error desconocido",
+            "Error de Eliminación",
+          );
+        }
+      },
+    });
   };
 
   return {
@@ -362,5 +365,6 @@ export function useOSI(empresas: any[] = []) {
     cancelEditing,
     handleSave,
     handleDelete,
+    confirmDialog,
   };
 }
