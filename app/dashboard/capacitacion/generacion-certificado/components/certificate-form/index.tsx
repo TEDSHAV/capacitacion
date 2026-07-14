@@ -8,7 +8,7 @@ const RichTextEditor = dynamic(() => import("@/components/ui/rich-text-editor"),
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
-import { getSignaturesForDropdownAction, getVenezuelanStatesAction, getCourseTemplatesByOSIAction } from "@/app/actions/dropdown-data";
+import { getSignaturesForDropdownAction, getCourseTemplatesByOSIAction } from "@/app/actions/dropdown-data";
 import { FacilitatorSelection } from "@/app/dashboard/capacitacion/participantes/gestion-de-facilitadores/components/facilitator-selection";
 
 export const CertificateForm = ({
@@ -24,8 +24,7 @@ export const CertificateForm = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [shaSignatures, setShaSignatures] = useState<Signature[]>([]);
   const [courseTemplates, setCourseTemplates] = useState<any[]>([]);
-  const [venezuelanStates, setVenezuelanStates] = useState<any[]>([]);
-
+  
   useEffect(() => {
     const loadFormData = async () => {
       try {
@@ -55,11 +54,8 @@ export const CertificateForm = ({
           setCourseTemplates(courseTemplates);
         }
 
-        // Load Venezuelan states
-        const statesResult = await getVenezuelanStatesAction();
-        if (statesResult.data) {
-          setVenezuelanStates(statesResult.data);
-        }
+        // Set generate_documents to true by default
+        onDataChange("generate_documents", true);
       } catch (error) {
         // Error loading form data
       }
@@ -163,6 +159,13 @@ export const CertificateForm = ({
       }
     }
   }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, certificateData.course_template_id]);
+
+  // Effect to sync id_estado from selectedOSI
+  useEffect(() => {
+    if (selectedOSI?.id_estado) {
+      onDataChange("id_estado", selectedOSI.id_estado);
+    }
+  }, [selectedOSI?.id]);
 
   const handleGenerateCertificate = () => {
     // Validation
@@ -483,37 +486,6 @@ export const CertificateForm = ({
         </div>
       )}
 
-      {/* Venezuelan State */}
-      <div className="mb-6">
-        <label
-          htmlFor="id_estado"
-          className="block text-sm font-medium text-gray-700 mb-2"
-        >
-          Estado
-        </label>
-        <select
-          id="id_estado"
-          value={certificateData.id_estado || ""}
-          onChange={(e) =>
-            onDataChange(
-              "id_estado",
-              e.target.value ? parseInt(e.target.value) : undefined,
-            )
-          }
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">Seleccionar estado...</option>
-          {venezuelanStates.map((state: any) => (
-            <option key={state.id} value={state.id}>
-              {state.nombre_estado}
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-gray-500 mt-1">
-          Seleccionar el estado en el que se ejecutó el servicio para fines
-          administrativos
-        </p>
-      </div>
 
       {/* Signature Selection */}
       <div className="mb-6">
@@ -594,26 +566,8 @@ export const CertificateForm = ({
         passing_grade={certificateData.passing_grade}
       />
 
-      {/* Document Generation Options */}
-      <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
-        <h4 className="text-sm font-medium text-blue-900 mb-2">Opciones de Documentos Adicionales</h4>
-        <div className="space-y-2">
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={certificateData.generate_documents || false}
-              onChange={(e) => onDataChange("generate_documents", e.target.checked)}
-              className="rounded border-blue-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="ml-2 text-sm text-blue-800">
-              Generar documentos adicionales (Certificación de Competencias, Nota de Entrega, Validación de Datos)
-            </span>
-          </label>
-        </div>
-      </div>
-
       {/* Action Buttons */}
-      <div className="flex space-x-3 mb-4">
+      <div className="flex space-x-3 mb-4 mt-6">
         {/* Preview Button */}
         <button
           type="button"
