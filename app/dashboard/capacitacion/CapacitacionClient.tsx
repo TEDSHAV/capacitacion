@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Company, CapacitacionClientProps } from "./types";
+import { Company, CapacitacionClientProps } from "@/types";
 import { 
   BookOpen, 
   Users, 
