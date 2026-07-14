@@ -1,6 +1,7 @@
 import { PlantillaCurso } from "./types";
 import { Pagination } from "./Pagination";
-import { Button } from "@/components/ui/button";
+// import { Button } from "@/components/ui/button";
+import { Edit, Trash2 } from "lucide-react";
 import { stripHtml } from "@/lib/strip-html";
 
 interface PlantillaCursoListProps {
@@ -69,7 +70,7 @@ export function PlantillaCursoList({
               <th className="w-[10%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Creado
               </th>
-              <th className="w-[15%] px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[15%] px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Acciones
               </th>
             </tr>
@@ -122,22 +123,24 @@ export function PlantillaCursoList({
                         )
                       : "N/A"}
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end gap-1">
+                      <button
                         onClick={() => onEdit(plantilla)}
+                        className="bg-blue-600 text-white px-2 py-1.5 rounded-md hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-1 text-xs"
+                        title="Editar"
                       >
+                        <Edit className="w-3 h-3" />
                         Editar
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
+                      </button>
+                      <button
                         onClick={() => onDelete(plantilla.id)}
+                        className="bg-red-600 text-white px-2 py-1.5 rounded-md hover:bg-red-700 transition-colors shadow-sm flex items-center gap-1 text-xs"
+                        title="Eliminar"
                       >
+                        <Trash2 className="w-3 h-3" />
                         Eliminar
-                      </Button>
+                      </button>
                     </div>
                   </td>
                 </tr>
