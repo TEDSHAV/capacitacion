@@ -50,6 +50,28 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "N/A";
+    
+    // For YYYY-MM-DD strings (common in DB), splitting is safer to avoid TZ shifts
+    const parts = dateStr.split("T")[0].split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "N/A";
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
 
   const handleRatingChange = (qId: number, value: number) => {
     setFormData((prev) => ({ ...prev, [`q${qId}`]: value }));
@@ -167,7 +189,9 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
         </div>
         <div>
           <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Fecha</label>
-          <p className="font-medium text-gray-700">{osiData.fecha_inicio_real ? new Date(osiData.fecha_inicio_real).toLocaleDateString() : "N/A"}</p>
+          <p className="font-medium text-gray-700">
+            {mounted && osiData.fecha_inicio_real ? formatDate(osiData.fecha_inicio_real) : "..."}
+          </p>
         </div>
       </div>
 
@@ -197,8 +221,8 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
                       className={`
                         w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all
                         ${formData[`q${q.id}` as keyof SurveyFormData] === s.value
-                          ? "bg-blue-600 border-blue-600 text-white scale-110 shadow-md"
-                          : "bg-white border-gray-200 text-gray-400 hover:border-blue-300 hover:text-blue-500"
+                          ? "!bg-blue-600 !border-blue-600 !text-white scale-110 shadow-md"
+                          : "!bg-transparent border-gray-200 !text-gray-400 hover:border-blue-300 hover:!text-blue-500"
                         }
                       `}
                     >
@@ -224,7 +248,7 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
                   flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all
                   ${formData.attendance_reasons[opt.id as keyof typeof formData.attendance_reasons]
                     ? "bg-blue-50 border-blue-200 ring-2 ring-blue-100"
-                    : "bg-white border-gray-200 hover:border-gray-300"
+                    : "bg-transparent border-gray-200 hover:border-gray-300"
                   }
                 `}
               >
@@ -232,7 +256,7 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
                   w-6 h-6 border-2 rounded flex items-center justify-center transition-colors
                   ${formData.attendance_reasons[opt.id as keyof typeof formData.attendance_reasons]
                     ? "bg-blue-600 border-blue-600"
-                    : "bg-white border-gray-300"
+                    : "bg-transparent border-gray-300"
                   }
                 `}>
                   {formData.attendance_reasons[opt.id as keyof typeof formData.attendance_reasons] && (

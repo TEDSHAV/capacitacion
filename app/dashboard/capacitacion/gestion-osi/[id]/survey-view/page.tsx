@@ -86,7 +86,11 @@ export default async function SurveyViewPage({ params, searchParams }: PageProps
                           <p className="font-bold text-gray-800">Participante {index + 1}</p>
                           <div className="flex items-center gap-2 text-sm text-gray-500">
                             <Calendar className="w-3 h-3" />
-                            {survey.created_at ? new Date(survey.created_at).toLocaleString() : "Desconocida"}
+                            {survey.created_at ? (
+                              <span suppressHydrationWarning>
+                                {new Date(survey.created_at).toISOString().split('T')[0]} {new Date(survey.created_at).toTimeString().split(' ')[0]}
+                              </span>
+                            ) : "Desconocida"}
                           </div>
                         </div>
                       </div>

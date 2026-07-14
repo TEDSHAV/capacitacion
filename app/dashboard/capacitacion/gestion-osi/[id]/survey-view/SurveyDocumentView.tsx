@@ -25,6 +25,26 @@ const QUESTIONS = [
 ];
 
 export default function SurveyDocumentView({ osiData, survey }: SurveyDocumentViewProps) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "N/A";
+    const parts = dateStr.split("T")[0].split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "N/A";
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -101,7 +121,11 @@ export default function SurveyDocumentView({ osiData, survey }: SurveyDocumentVi
             </div>
             <div className="grid grid-cols-[140px_1fr] gap-2">
               <span className="font-bold">Fecha del curso:</span>
-              <span className="border-b border-gray-400 pb-px">{osiData.fecha_inicio_real ? new Date(osiData.fecha_inicio_real).toLocaleDateString() : "______________________________________________________"}</span>
+              <span className="border-b border-gray-400 pb-px">
+                {mounted && osiData.fecha_inicio_real 
+                  ? formatDate(osiData.fecha_inicio_real) 
+                  : "______________________________________________________"}
+              </span>
             </div>
           </div>
         </div>
@@ -145,7 +169,7 @@ export default function SurveyDocumentView({ osiData, survey }: SurveyDocumentVi
                           key={v} 
                           className={`
                             w-5 h-5 rounded-full border border-black flex items-center justify-center text-[8px] font-bold
-                            ${(survey as any)[`q${q.id}`] === v ? "bg-black text-white" : ""}
+                            ${survey[`q${q.id}` as keyof CourseSatisfactionSurvey] === v ? "bg-black text-white" : ""}
                           `}
                         >
                           {v}

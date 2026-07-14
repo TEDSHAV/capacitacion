@@ -240,7 +240,9 @@ export default function SurveysReport({
                 <div className="flex items-center justify-between pt-3 border-t">
                   <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
                     <Calendar className="w-3.5 h-3.5" />
-                    {new Date(summary.fecha_inicio_real).toLocaleDateString()}
+                    <span suppressHydrationWarning>
+                      {new Date(summary.fecha_inicio_real).toISOString().split('T')[0]}
+                    </span>
                   </div>
                   <span className="text-xs font-bold text-sky-600 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                     Ver Detalles <ChevronRight className="w-3 h-3" />
