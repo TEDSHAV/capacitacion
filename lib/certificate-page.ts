@@ -388,6 +388,7 @@ export class CertificatePage {
                 representante_sha: preloadedData.firmas.nombre,
                 firma: preloadedData.firmas.url_imagen,
                 url_imagen: preloadedData.firmas.url_imagen,
+                imagen_base64: preloadedData.firmas.imagen_base64,
               }
             : undefined,
         };
@@ -424,6 +425,7 @@ export class CertificatePage {
                         representante_sha: data.firmas.nombre,
                         firma: data.firmas.url_imagen,
                         url_imagen: data.firmas.url_imagen,
+                        imagen_base64: data.firmas.imagen_base64,
                       }
                     : undefined,
                 };
@@ -479,15 +481,13 @@ export class CertificatePage {
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(8);
       this.doc.text(
-        toTitleCase(
-          facilitator.name || facilitator.nombre_apellido || "",
-        ).toUpperCase(),
+        toTitleCase(facilitator.name || facilitator.nombre_apellido || ""),
         this.config.facilitatorName.x,
         this.config.facilitatorName.y,
         { align: "center" },
       );
 
-      // 🚀 USE PRELOADED ASSET IF AVAILABLE TO SKIP CANVAS PROCESSING
+      // USE PRELOADED ASSET IF AVAILABLE TO SKIP CANVAS PROCESSING
       if (this.preloadedAssets?.facilitatorSignature) {
         this.doc.addImage(
           this.preloadedAssets.facilitatorSignature,
@@ -502,7 +502,7 @@ export class CertificatePage {
         return;
       }
 
-      // 🚀 USE BASE64 FROM DATABASE IF AVAILABLE (new approach for containerized environments)
+      // USE BASE64 FROM DATABASE IF AVAILABLE (new approach for containerized environments)
       if (facilitator.signature_data?.imagen_base64) {
         this.doc.addImage(
           `data:image/png;base64,${facilitator.signature_data.imagen_base64}`,
@@ -517,17 +517,13 @@ export class CertificatePage {
         return;
       }
 
-      // Add facilitator signature if available (fallback to URL-based loading)
-      let signatureUrl = null;
+      // Get signature URL from multiple possible sources
+      const signatureUrl =
+        facilitator.signature_data?.firma ||
+        facilitator.signature_data?.url_imagen ||
+        facilitator.firma;
 
-      // Check signature from firmas relationship (primary source)
-      if (facilitator.signature_data?.url_imagen) {
-        signatureUrl = facilitator.signature_data.url_imagen;
-      } else if (facilitator.signature_data?.firma) {
-        signatureUrl = facilitator.signature_data.firma;
-      } else if (facilitator.firma) {
-        signatureUrl = facilitator.firma;
-      }
+      // Add facilitator signature if available (fallback to URL-based loading)
 
       if (signatureUrl) {
         await this.addSignatureImage(

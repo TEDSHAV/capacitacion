@@ -156,16 +156,16 @@ export async function getFacilitatorData(
         `
         id,
         nombre_apellido,
-        facilitator,
         cargo,
         firma,
         firma_id,
         sha_signature_id,
-        firmas (
+        firmas!firmas_facilitador_id_fkey (
           id,
           nombre,
           tipo,
-          url_imagen
+          url_imagen,
+          imagen_base64
         )
       `,
       )
@@ -185,7 +185,7 @@ export async function getFacilitatorData(
       id: data.id,
       name: toTitleCase(data.nombre_apellido || ""), // Map nombre_apellido to name with title case
       nombre_apellido: toTitleCase(data.nombre_apellido || ""),
-      facilitator: data.facilitator,
+      facilitator: toTitleCase(data.nombre_apellido || ""),
       cargo: data.cargo,
       firma: data.firma,
       firma_id: data.firma_id,
@@ -197,6 +197,7 @@ export async function getFacilitatorData(
               representante_sha: data.firmas[0].nombre,
               firma: data.firmas[0].url_imagen,
               url_imagen: data.firmas[0].url_imagen,
+              imagen_base64: data.firmas[0].imagen_base64,
             }
           : undefined,
     };

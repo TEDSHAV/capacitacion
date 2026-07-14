@@ -593,9 +593,25 @@ export default function GeneracionCertificadoClient({
                 `/api/facilitators/${certificateData.facilitator_id}`,
               );
               facilitatorData = await facilitatorResponse.json();
-              if (facilitatorData?.firmas?.url_imagen) {
+
+              // Check for base64 image first (new column - no preloading needed)
+              if (facilitatorData?.signature_data?.imagen_base64) {
+                facilitatorSignatureBase64 = `data:image/png;base64,${facilitatorData.signature_data.imagen_base64}`;
+              }
+              // Fall back to URL fields if base64 not available
+              else if (
+                facilitatorData?.signature_data?.url_imagen ||
+                facilitatorData?.signature_data?.firma
+              ) {
+                const signatureUrl =
+                  facilitatorData.signature_data.url_imagen ||
+                  facilitatorData.signature_data.firma;
+                facilitatorSignatureBase64 = await preloadImage(signatureUrl);
+              }
+              // Legacy fallback
+              else if (facilitatorData?.firma) {
                 facilitatorSignatureBase64 = await preloadImage(
-                  facilitatorData.firmas.url_imagen,
+                  facilitatorData.firma,
                 );
               }
             } catch (error) {
