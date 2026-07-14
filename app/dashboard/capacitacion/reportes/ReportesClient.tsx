@@ -9,6 +9,7 @@ import {
   TrendingUp,
   ChevronRight,
   MapPin,
+  ClipboardList,
 } from "lucide-react";
 import { State } from "@/types";
 import OverviewReport from "./components/OverviewReport";
@@ -16,13 +17,15 @@ import CursosReport from "./components/CursosReport";
 import FacilitadoresReport from "./components/FacilitadoresReport";
 import EmpresasReport from "./components/EmpresasReport";
 import TendenciasReport from "./components/TendenciasReport";
+import SurveysReport from "./components/SurveysReport";
 
 type ReportTab =
   | "overview"
   | "cursos"
   | "facilitadores"
   | "empresas"
-  | "tendencias";
+  | "tendencias"
+  | "surveys";
 
 const NAV_ITEMS: {
   id: ReportTab;
@@ -53,6 +56,12 @@ const NAV_ITEMS: {
     label: "Empresas",
     description: "Clientes capacitados",
     icon: Building2,
+  },
+  {
+    id: "surveys",
+    label: "Satisfacción",
+    description: "Encuestas de participantes",
+    icon: ClipboardList,
   },
   {
     id: "tendencias",
@@ -245,6 +254,13 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
           )}
           {activeTab === "tendencias" && (
             <TendenciasReport selectedState={selectedState} />
+          )}
+          {activeTab === "surveys" && (
+            <SurveysReport
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              selectedState={selectedState}
+            />
           )}
         </main>
       </div>

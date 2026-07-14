@@ -1,7 +1,7 @@
 "use client";
 
 import { OSIManagement } from "@/types";
-import { Calendar, Building2, Clock, FileText, Download } from "lucide-react";
+import { Calendar, Building2, Clock, FileText, Download, ClipboardList } from "lucide-react";
 import type { OSIStatus } from "@/types";
 
 interface OSITableV2Props {
@@ -9,6 +9,7 @@ interface OSITableV2Props {
   loading: boolean;
   statuses: OSIStatus[];
   onViewDetails: (osi: OSIManagement, section?: "info" | "documents") => void;
+  onSurvey: (osi: OSIManagement) => void;
 }
 
 export default function OSITableV2({
@@ -16,6 +17,7 @@ export default function OSITableV2({
   loading,
   statuses,
   onViewDetails,
+  onSurvey,
 }: OSITableV2Props) {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
@@ -140,16 +142,28 @@ export default function OSITableV2({
                   </div>
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap text-right">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewDetails(osi, "documents");
-                    }}
-                    className="inline-flex items-center p-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-md transition-colors shadow-sm"
-                    title="Ver documentos generados"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSurvey(osi);
+                      }}
+                      className="inline-flex items-center p-2 border border-green-600 text-green-600 hover:bg-green-600 hover:text-white rounded-md transition-colors shadow-sm"
+                      title="Generar/Ver Encuesta de Satisfacción"
+                    >
+                      <ClipboardList className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetails(osi, "documents");
+                      }}
+                      className="inline-flex items-center p-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-md transition-colors shadow-sm"
+                      title="Ver documentos generados"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

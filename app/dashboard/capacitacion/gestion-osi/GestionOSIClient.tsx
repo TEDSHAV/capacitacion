@@ -8,6 +8,7 @@ import OSITableV2 from "./components/osi-table-v2";
 import OSIPagination from "./components/osi-pagination";
 import OSIDashboardMetrics from "./components/osi-dashboard-metrics";
 import OSIDetailsModalV2 from "./components/osi-details-modal-v2";
+import OSISurveyModal from "./components/osi-survey-modal";
 
 interface GestionOSIClientProps {
   user: any;
@@ -41,9 +42,13 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     "info",
   );
 
+  // Survey Modal state
+  const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [surveyOSI, setSurveyOSI] = useState<OSIManagement | null>(null);
+
   // Prevent body scroll when modal is open
   useEffect(() => {
-    if (showModal) {
+    if (showModal || showSurveyModal) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -51,7 +56,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [showModal]);
+  }, [showModal, showSurveyModal]);
 
   // Load filter options
   useEffect(() => {
@@ -129,6 +134,16 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     setSelectedOSI(null);
   }, []);
 
+  const handleSurvey = useCallback((osi: OSIManagement) => {
+    setSurveyOSI(osi);
+    setShowSurveyModal(true);
+  }, []);
+
+  const handleCloseSurveyModal = useCallback(() => {
+    setShowSurveyModal(false);
+    setSurveyOSI(null);
+  }, []);
+
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
@@ -167,6 +182,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
         loading={loading}
         statuses={statuses}
         onViewDetails={handleViewDetails}
+        onSurvey={handleSurvey}
       />
 
       {/* Pagination */}
@@ -189,6 +205,14 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
           onClose={handleCloseModal}
           statuses={statuses}
           initialSection={modalSection}
+        />
+      )}
+
+      {/* Survey Modal */}
+      {showSurveyModal && (
+        <OSISurveyModal
+          osi={surveyOSI}
+          onClose={handleCloseSurveyModal}
         />
       )}
     </div>

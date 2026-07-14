@@ -134,8 +134,9 @@ export const config = {
      * - _next/image   (image optimisation)
      * - favicon.ico
      * - verify-certificate  (public QR verification page)
-     * - api           (API routes handle auth themselves)
+     * - survey              (public survey page)
+     * - api                 (API routes handle auth themselves)
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|verify-certificate|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|verify-certificate|survey|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)",
   ],
 };

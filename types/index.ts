@@ -1378,6 +1378,51 @@ export interface TendenciasData {
   stateDistribution: Array<{ nombre: string; count: number }>;
 }
 
+// Survey Types
+export interface CourseSatisfactionSurvey {
+  id?: string;
+  id_osi: number;
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+  q5: number;
+  q6: number;
+  q7: number;
+  q8: number;
+  q9: number;
+  q10: number;
+  attendance_reasons: string[];
+  created_at?: string;
+}
+
+export interface SurveyFormData {
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+  q5: number;
+  q6: number;
+  q7: number;
+  q8: number;
+  q9: number;
+  q10: number;
+  attendance_reasons: {
+    company_requirement: boolean;
+    job_growth: boolean;
+    personal_development: boolean;
+  };
+}
+
+export interface SurveyOSIData {
+  id_osi: number;
+  nro_osi: string;
+  nombre_empresa: string;
+  servicio: string;
+  fecha_inicio_real: string;
+  facilitador_nombre?: string;
+}
+
 // Planificación de Servicios Types
 export interface ControlServiciosEjecutados {
   id?: number;
