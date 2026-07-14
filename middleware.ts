@@ -101,14 +101,7 @@ export async function middleware(request: NextRequest) {
 
 // Helper to redirect to unauthorized page
 function redirectToUnauthorized(request: NextRequest) {
-  const isProduction = process.env.NODE_ENV === "production";
-  
-  // Try to use shell unauthorized page if in production, otherwise use local
-  if (isProduction && process.env.NEXT_PUBLIC_SHELL_URL) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/unauthorized`);
-  }
-  
-  // Use local unauthorized page
+  // Always use the local unauthorized page we created in this module
   const unauthorizedUrl = new URL("/unauthorized", request.url);
   return NextResponse.redirect(unauthorizedUrl);
 }
