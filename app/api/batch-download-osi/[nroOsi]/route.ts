@@ -1,0 +1,221 @@
+import { NextRequest, NextResponse } from "next/server";
+import JSZip from "jszip";
+import { getCertificatesByOSIAction } from "@/app/actions/certificados";
+import { CertificateGenerator } from "@/lib/certificate-generator";
+import { QRService } from "@/lib/qr-service";
+import { createClient } from "@/utils/supabase/server";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ nroOsi: string }> },
+) {
+  try {
+    const resolvedParams = await params;
+    const nroOsi = parseInt(resolvedParams.nroOsi);
+
+    if (isNaN(nroOsi)) {
+      return NextResponse.json(
+        { error: "Invalid OSI number" },
+        { status: 400 },
+      );
+    }
+
+    // Fetch all certificates for this OSI
+    const certResult = await getCertificatesByOSIAction(nroOsi);
+
+    if (!certResult.success || !certResult.certificates || certResult.certificates.length === 0) {
+      return NextResponse.json(
+        { error: "No certificates found for this OSI" },
+        { status: 404 },
+      );
+    }
+
+    const certificates = certResult.certificates;
+
+    // Fetch OSI data for metadata
+    const supabase = await createClient();
+    const { data: osiData } = await supabase
+      .from("osi")
+      .select("*")
+      .eq("nro_osi", nroOsi)
+      .single();
+
+    const zip = new JSZip();
+    const certsFolder = zip.folder("Certificados");
+    const carnetsFolder = zip.folder("Carnets");
+    const certificateGenerator = new CertificateGenerator();
+    let filesAdded = 0;
+    const errors: string[] = [];
+
+    for (const cert of certificates) {
+      try {
+        let snapshot = null;
+        if (cert.snapshot_contenido) {
+          snapshot = typeof cert.snapshot_contenido === "string"
+            ? JSON.parse(cert.snapshot_contenido)
+            : cert.snapshot_contenido;
+        }
+
+        if (!snapshot) {
+          if (cert.participantes_certificados) {
+            snapshot = {
+              participante: {
+                name: cert.participantes_certificados.nombre,
+                cedula: cert.participantes_certificados.cedula,
+                nacionalidad: cert.participantes_certificados.nacionalidad,
+              },
+              certificado: {
+                nro_libro: cert.nro_libro,
+                nro_hoja: cert.nro_hoja,
+                nro_linea: cert.nro_linea,
+                nro_control: cert.nro_control,
+                fecha_emision: cert.fecha_emision,
+                fecha_vencimiento: cert.fecha_vencimiento,
+              },
+              plantilla: {
+                archivo_plantilla_certificado: "certificado.png",
+                id_plantilla_certificado: cert.id_plantilla_certificado,
+                id_plantilla_carnet: cert.id_plantilla_carnet,
+              },
+              curso: {
+                name: cert.catalogo_servicios?.nombre || "Curso",
+                emite_carnet: cert.catalogo_servicios?.emite_carnet || false,
+              },
+              certificado_detalles: {
+                title: cert.catalogo_servicios?.nombre || "Curso",
+                subtitle: "",
+              },
+              osi: osiData,
+              firmas: {
+                facilitator_id: cert.id_facilitador,
+                facilitator_data: cert.facilitadores,
+                sha_signature_id: cert.sha_signature_id || 1,
+              },
+            };
+          } else {
+            errors.push(`Certificate ${cert.id}: missing participant data`);
+            continue;
+          }
+        }
+
+        const participant = {
+          name: snapshot.participante?.name || cert.participantes_certificados?.nombre || "Participante",
+          idNumber: snapshot.participante?.cedula || cert.participantes_certificados?.cedula || "S/N",
+          idType:
+            snapshot.participante?.idType ||
+            (snapshot.participante?.nacionalidad === "extranjero" ? "E-" : "V-"),
+          nationality: snapshot.participante?.nacionalidad || cert.participantes_certificados?.nacionalidad || "venezolano",
+          score: snapshot.participante?.score || cert.calificacion || 0,
+        };
+
+        const certData = {
+          ...snapshot.certificado_detalles,
+          certificate_title: snapshot.certificado_detalles?.title || cert.catalogo_servicios?.nombre || "Curso",
+          certificate_subtitle:
+            snapshot.certificado_detalles?.subtitle ||
+            snapshot.subtitulo_curso ||
+            snapshot.certificate_subtitle ||
+            "",
+          course_topic_data: snapshot.curso || { name: cert.catalogo_servicios?.nombre || "Curso" },
+          osi_data: snapshot.osi || osiData,
+          facilitator_data: snapshot.firmas?.facilitator_data || cert.facilitadores,
+          facilitator_id: snapshot.firmas?.facilitator_id || cert.id_facilitador,
+          sha_signature_id: snapshot.firmas?.sha_signature_id || 1,
+          sha_signature_data: snapshot.firmas?.sha_signature_data,
+          plantilla_certificado_archivo:
+            snapshot.plantilla?.archivo_plantilla_certificado || "certificado.png",
+          id_plantilla_certificado: snapshot.plantilla?.id_plantilla_certificado || cert.id_plantilla_certificado,
+          fecha_vencimiento: snapshot.certificado?.fecha_vencimiento || cert.fecha_vencimiento,
+          complemento_empresa: snapshot.osi?.complemento_empresa,
+        };
+
+        const controlNumbers = {
+          nro_libro: snapshot.certificado?.nro_libro || cert.nro_libro,
+          nro_hoja: snapshot.certificado?.nro_hoja || cert.nro_hoja,
+          nro_linea: snapshot.certificado?.nro_linea || cert.nro_linea,
+          nro_control: snapshot.certificado?.nro_control || cert.nro_control,
+        };
+
+        const templateImageUrl = `/templates/${(snapshot.plantilla?.archivo_plantilla_certificado || "certificado.png").toLowerCase()}`;
+
+        // Generate certificate PDF
+        const certBlob = await certificateGenerator.generateCertificate({
+          participant,
+          certificateData: certData as any,
+          templateImage: templateImageUrl,
+          controlNumbers,
+          certificateId: cert.id,
+          paperSize: snapshot.certificado?.paperSize || "half-letter-custom",
+        });
+        const certFileName = `Certificado_${participant.idNumber}_${participant.name.replace(/\s+/g, "_")}.pdf`;
+        certsFolder?.file(certFileName, certBlob);
+        filesAdded++;
+
+        // Generate carnet if applicable
+        const shouldEmiteCarnet = cert.catalogo_servicios?.emite_carnet || snapshot.curso?.emite_carnet;
+        if (cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet) {
+          const { CarnetGenerator } = await import("@/lib/carnet-generator");
+          const carnetGenerator = new CarnetGenerator();
+
+          const qrResult = await QRService.generateCertificateQR(
+            cert.id,
+            controlNumbers,
+          );
+
+          const carnetBlob = await carnetGenerator.generateCarnet({
+            participant,
+            carnetData: {
+              id_certificado: cert.id,
+              id_participante: cert.id_participante || snapshot.participante?.id,
+              id_empresa: snapshot.osi?.empresa_id || osiData?.empresa_id,
+              id_curso: snapshot.certificado?.id_curso || cert.id_curso,
+              id_osi: snapshot.osi?.id_osi || osiData?.id_osi,
+              titulo_curso: certData.certificate_title,
+              subtitulo_curso: certData.certificate_subtitle || null,
+              fecha_emision: snapshot.certificado?.fecha_emision || cert.fecha_emision,
+              fecha_vencimiento: snapshot.certificado?.fecha_vencimiento || cert.fecha_vencimiento,
+              nombre_participante: participant.name,
+              cedula_participante: participant.idNumber,
+              empresa_participante: snapshot.osi?.cliente_nombre_empresa || osiData?.nombre_empresa,
+              nro_control: snapshot.certificado?.nro_control || cert.nro_control,
+            },
+            templateImage: "/templates/carnet.png",
+            qrDataURL: qrResult.dataUrl,
+          });
+
+          const carnetFileName = `Carnet_${participant.idNumber}_${participant.name.replace(/\s+/g, "_")}.pdf`;
+          carnetsFolder?.file(carnetFileName, carnetBlob);
+          filesAdded++;
+        }
+      } catch (err) {
+        console.error(`[BatchDownloadOSI] Error for cert ${cert.id}:`, err);
+        errors.push(`Cert ${cert.id}: ${err instanceof Error ? err.message : "Unknown error"}`);
+      }
+    }
+
+    if (filesAdded === 0) {
+      return NextResponse.json(
+        { error: "No files could be generated", details: errors },
+        { status: 500 },
+      );
+    }
+
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const dateStr = new Date().toISOString().split("T")[0];
+    const courseName = certificates[0]?.catalogo_servicios?.nombre || "Curso";
+    const zipFileName = `Lote_${nroOsi}_${dateStr}_${courseName.replace(/\s+/g, "_")}.zip`;
+
+    return new NextResponse(zipBlob, {
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${zipFileName}"`,
+      },
+    });
+  } catch (error) {
+    console.error("Error in batch download:", error);
+    return NextResponse.json(
+      { error: "Failed to generate batch download" },
+      { status: 500 },
+    );
+  }
+}

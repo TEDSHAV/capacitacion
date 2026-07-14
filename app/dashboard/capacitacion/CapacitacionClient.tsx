@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { CapacitacionClientProps } from "@/types";
 import {
@@ -21,12 +22,16 @@ import {
   TrendingUp,
   CalendarDays,
   Briefcase,
+  Building2,
+  KeyRound,
 } from "lucide-react";
+import { ClienteCredentialsModal } from "@/components/cliente-credentials-modal";
 
 export default function CapacitacionClient({
   user,
   stats,
 }: CapacitacionClientProps) {
+  const [showCredModal, setShowCredModal] = useState(false);
   const categories = [
     {
       id: "planificacion",
@@ -125,6 +130,15 @@ export default function CapacitacionClient({
         { id: "reportes", title: "Estadísticas y Reportes", icon: BarChart3 },
       ],
     },
+    {
+      id: "clientes",
+      title: "Clientes",
+      gradient: "from-cyan-500 to-blue-600",
+      icon: Building2,
+      modules: [
+        { id: "credenciales-clientes", title: "Credenciales de Clientes", icon: KeyRound, isModal: true },
+      ],
+    },
   ];
 
   return (
@@ -220,6 +234,19 @@ export default function CapacitacionClient({
                 <div className="space-y-3">
                   {cat.modules.map((mod) => {
                     const ModIcon = mod.icon;
+                    if ("isModal" in mod && mod.isModal) {
+                      return (
+                        <button
+                          key={mod.id}
+                          onClick={() => setShowCredModal(true)}
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors w-full text-left"
+                        >
+                          <ModIcon className="w-4 h-4" />
+                          {mod.title}
+                          <ChevronRight className="w-3 h-3 ml-auto opacity-50" />
+                        </button>
+                      );
+                    }
                     return (
                       <Link
                         key={mod.id}
@@ -238,6 +265,10 @@ export default function CapacitacionClient({
           })}
         </div>
       </div>
+
+      {showCredModal && (
+        <ClienteCredentialsModal onClose={() => setShowCredModal(false)} />
+      )}
     </div>
   );
 }

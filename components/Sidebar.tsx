@@ -50,6 +50,7 @@ const submodules = {
       path: "/dashboard/capacitacion/configuracion",
     },
     { name: "Reportes", path: "/dashboard/capacitacion/reportes" },
+    { name: "Credenciales de Clientes", path: "/dashboard/capacitacion" },
   ],
   negocios: [
     { name: "Consulta de OSIs", path: "/dashboard/negocios/gestion-de-osis" },

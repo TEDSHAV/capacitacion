@@ -1640,3 +1640,94 @@ export interface OSIFullData {
   tarifa_hora_honorarios: number | null;
   costo_impresion_material: number | null;
 }
+
+// ─── Client Portal Types ───
+
+export interface ClienteCredential {
+  id: number;
+  empresa_id: number;
+  username: string;
+  display_name: string | null;
+  is_active: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface ClienteSession {
+  id: number;
+  empresa_id: number;
+  empresa_nombre: string;
+  username: string;
+  display_name: string | null;
+}
+
+export interface ClienteCertificateFilters {
+  searchTerm?: string;
+  courseId?: number;
+  stateId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  type: "all" | "certificates" | "carnets";
+  nroOsi?: number;
+}
+
+export interface ClienteMetrics {
+  totalCertificates: number;
+  totalCarnets: number;
+  totalParticipants: number;
+  courseWithMostParticipants: {
+    courseId: number;
+    courseName: string;
+    count: number;
+  } | null;
+  certificatesByCourse: {
+    courseId: number;
+    courseName: string;
+    count: number;
+  }[];
+}
+
+export interface ClienteBatchSummary {
+  nro_osi: number;
+  course_name: string;
+  fecha_emision: string;
+  participant_count: number;
+  certificate_ids: number[];
+}
+
+export interface ClienteCertificateRow {
+  id: number;
+  participant_nombre: string;
+  participant_cedula: string;
+  participant_nacionalidad: string;
+  course_nombre: string;
+  course_id: number;
+  course_emite_carnet: boolean;
+  fecha_emision: string;
+  fecha_vencimiento: string;
+  is_active: boolean;
+  nro_osi: number;
+  state_nombre_estado: string;
+  state_id: number;
+  company_razon_social: string;
+  calificacion: number;
+  total_count: number;
+}
+
+export interface ClienteCarnetRow {
+  id: number;
+  nombre_participante: string;
+  cedula_participante: string;
+  titulo_curso: string;
+  fecha_emision: string;
+  fecha_vencimiento: string | null;
+  is_active: boolean;
+  id_empresa: number | null;
+  id_certificado: number | null;
+  id_osi: number | null;
+}
+
+export interface ClienteFilterOptions {
+  courses: { id: number; nombre: string }[];
+  states: { id: number; nombre_estado: string }[];
+}
