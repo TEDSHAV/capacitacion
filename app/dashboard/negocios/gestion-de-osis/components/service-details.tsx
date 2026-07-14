@@ -1,9 +1,4 @@
-interface ServiceDetailsProps {
-  formData: any
-  isEditing: boolean
-  isNew: boolean
-  updateFormData: (field: string, value: any) => void
-}
+import type { ServiceDetailsProps } from '@/types'
 
 const ServiceDetails = ({ formData, isEditing, isNew, updateFormData }: ServiceDetailsProps) => {
   if (!formData) {

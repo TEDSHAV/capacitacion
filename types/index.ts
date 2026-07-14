@@ -6,6 +6,22 @@ export interface Empresa {
   rif: string;
   direccion_fiscal: string;
   codigo_cliente: string;
+  estado?: 'active' | 'inactive';
+}
+
+// Alias for Empresa for consistency
+export type Company = Empresa;
+
+export interface Curso {
+  id: string;
+  nombre: string;
+  contenido_curso: string;
+  cliente_asociado?: string;
+  tipo_servicio?: number;
+  created_at: string;
+  empresas?: {
+    razon_social: string;
+  };
 }
 
 export interface Servicio {
@@ -124,4 +140,94 @@ export interface LocationSearchProps {
 export interface ParticipantsSectionProps {
   participants: CertificateParticipant[];
   onChange: (participants: CertificateParticipant[]) => void;
+}
+
+// Capacitación module interfaces
+export interface CapacitacionClientProps {
+  user: any;
+  companies: Company[];
+}
+
+export interface GestionCursosClientProps {
+  user: any;
+  empresas: Empresa[];
+  cursos: Curso[] | undefined;
+}
+
+// UI component interfaces
+export interface ErrorDialogProps {
+  isOpen: boolean
+  title?: string
+  message: string
+  details?: string
+  onClose: () => void
+  variant?: 'error' | 'warning' | 'info'
+}
+
+// Utility interfaces
+export interface LoadingState {
+  isLoading: boolean
+  message?: string
+}
+
+// OSI Component interfaces
+export interface OSIActionButtonsProps {
+  isNew: boolean
+  isEditing: boolean
+  isLoading: boolean
+  onSave: () => void
+  onCancel: () => void
+  onEdit: () => void
+  onDelete: () => void
+}
+
+export interface OSIFormProps {
+  initialData?: OSI
+  isNew: boolean
+  isEditing: boolean
+  onEdit: () => void
+  onCancel: () => void
+  onSave: () => void
+  onDelete: () => void
+  empresas?: Empresa[]
+  servicios?: Servicio[]
+  usuarios?: Usuario[]
+  contactos?: Contacto[]
+  filteredEmpresas?: Empresa[]
+  catalogoServicios?: CatalogoServicio[]
+  filteredCatalogoServicios?: CatalogoServicio[]
+  empresaSearchTerm?: string
+  temaSearchTerm?: string
+  setEmpresaSearchTerm?: (term: string) => void
+  setTemaSearchTerm?: (term: string) => void
+  updateFormData?: (field: string, value: any) => void
+}
+
+// Common OSI component props
+export interface ServiceDetailsProps {
+  formData: any
+  isEditing: boolean
+  isNew: boolean
+  updateFormData: (field: string, value: any) => void
+}
+
+export interface ExecutionDatesProps {
+  formData: any
+  isEditing: boolean
+  isNew: boolean
+  updateFormData: (field: string, value: any) => void
+}
+
+export interface CostCalculationProps {
+  formData: any
+  isEditing: boolean
+  isNew: boolean
+  updateFormData: (field: string, value: any) => void
+}
+
+export interface AdditionalInfoProps {
+  formData: any
+  isEditing: boolean
+  isNew: boolean
+  updateFormData: (field: string, value: any) => void
 }

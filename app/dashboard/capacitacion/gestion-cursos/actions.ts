@@ -3,6 +3,14 @@
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 
+// Helper function to format error messages
+function formatSupabaseError(error: any): string {
+  if (error?.message) {
+    return error.message;
+  }
+  return 'Error desconocido de la base de datos';
+}
+
 export async function createCurso(formData: FormData) {
   try {
     const supabase = await createClient();
@@ -34,8 +42,8 @@ export async function createCurso(formData: FormData) {
       .single();
 
     if (error) {
-      console.error('Database error:', error); // Log actual DB error
-      return { error: `Error al crear el curso: ${error.message}` };
+      console.error('Database error:', error);
+      return { error: `Error al crear el curso: ${formatSupabaseError(error)}` };
     }
 
     // Revalidate the page to show updated data
@@ -80,8 +88,8 @@ export async function updateCurso(id: string, formData: FormData) {
       .single();
 
     if (error) {
-      console.error('Database error:', error); // Log actual DB error
-      return { error: `Error al actualizar el curso: ${error.message}` };
+      console.error('Database error:', error);
+      return { error: `Error al actualizar el curso: ${formatSupabaseError(error)}` };
     }
 
     // Revalidate the page to show updated data
@@ -127,7 +135,7 @@ export async function duplicateCurso(id: string) {
       .single();
 
     if (error) {
-      return { error: `Error al duplicar el curso: ${error.message}` };
+      return { error: `Error al duplicar el curso: ${formatSupabaseError(error)}` };
     }
 
     // Revalidate the page to show updated data
@@ -156,7 +164,7 @@ export async function deleteCurso(id: string) {
       .eq('id', id);
 
     if (error) {
-      return { error: `Error al eliminar el curso: ${error.message}` };
+      return { error: `Error al eliminar el curso: ${formatSupabaseError(error)}` };
     }
 
     // Revalidate the page to show updated data

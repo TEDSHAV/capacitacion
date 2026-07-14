@@ -10,6 +10,7 @@ import ExecutionDates from '../components/execution-dates'
 import CostCalculation from '../components/cost-calculation'
 import AdditionalInfo from '../components/additional-info'
 import OSIActionButtons from '../components/OSIActionButtons'
+import ErrorDialog, { useErrorDialog } from '@/components/ui/error-dialog'
 
 const supabase = createClient()
 
@@ -17,6 +18,8 @@ export default function OSIDetailPage() {
 
   const router = useRouter()
   const params = useParams()
+  
+  const errorDialog = useErrorDialog()
   
   const [isLoading, setIsLoading] = useState(false)
   const [empresaSearchTerm, setEmpresaSearchTerm] = useState('')
@@ -87,12 +90,22 @@ export default function OSIDetailPage() {
       
       if (error) {
         console.error('Error loading servicios:', error)
-        throw error
+        errorDialog.showError(
+          'Error al cargar los tipos de servicio',
+          JSON.stringify(error, null, 2),
+          'Error de Carga'
+        )
+        return
       }
       console.log('Servicios loaded:', data?.length || 0)
       setServicios(data || [])
     } catch (err) {
       console.error('Error in loadServicios:', err)
+      errorDialog.showError(
+        'Error inesperado al cargar los tipos de servicio',
+        err instanceof Error ? err.stack : String(err),
+        'Error de Carga'
+      )
     }
   }
 
@@ -105,12 +118,22 @@ export default function OSIDetailPage() {
       
       if (error) {
         console.error('Error loading empresas:', error)
-        throw error
+        errorDialog.showError(
+          'Error al cargar las empresas',
+          JSON.stringify(error, null, 2),
+          'Error de Carga'
+        )
+        return
       }
       console.log('Empresas loaded:', data?.length || 0)
       setEmpresas(data || [])
     } catch (err) {
       console.error('Error in loadEmpresas:', err)
+      errorDialog.showError(
+        'Error inesperado al cargar las empresas',
+        err instanceof Error ? err.stack : String(err),
+        'Error de Carga'
+      )
     }
   }
 
@@ -125,12 +148,22 @@ export default function OSIDetailPage() {
       
       if (error) {
         console.error('Error loading usuarios:', error)
-        throw error
+        errorDialog.showError(
+          'Error al cargar los ejecutivos de negocio',
+          JSON.stringify(error, null, 2),
+          'Error de Carga'
+        )
+        return
       }
       console.log('Usuarios loaded:', data?.length || 0)
       setUsuarios(data || [])
     } catch (err) {
       console.error('Error in loadUsuarios:', err)
+      errorDialog.showError(
+        'Error inesperado al cargar los ejecutivos de negocio',
+        err instanceof Error ? err.stack : String(err),
+        'Error de Carga'
+      )
     }
   }
 
@@ -158,11 +191,22 @@ export default function OSIDetailPage() {
       
       if (error) {
         console.error('Error loading catalogo_servicios:', error)
-        throw error
+        errorDialog.showError(
+          'Error al cargar el catálogo de servicios',
+          JSON.stringify(error, null, 2),
+          'Error de Carga'
+        )
+        return
       }
       console.log('Catalogo servicios loaded:', data?.length || 0, 'for tipo_servicio:', selectedServicio.id)
       setCatalogoServicios(data || [])
     } catch (err) {
+      console.error('Error in loadCatalogoServicios:', err)
+      errorDialog.showError(
+        'Error inesperado al cargar el catálogo de servicios',
+        err instanceof Error ? err.stack : String(err),
+        'Error de Carga'
+      )
     }
   }
 
@@ -187,9 +231,23 @@ export default function OSIDetailPage() {
         .eq("id_empresa", selectedEmpresa.id)
         .order("nombre")
       
-      if (error) throw error
+      if (error) {
+        console.error('Error loading contactos:', error)
+        errorDialog.showError(
+          'Error al cargar los contactos de la empresa',
+          JSON.stringify(error, null, 2),
+          'Error de Carga'
+        )
+        return
+      }
       setContactos(data || [])
     } catch (err) {
+      console.error('Error in loadContactos:', err)
+      errorDialog.showError(
+        'Error inesperado al cargar los contactos',
+        err instanceof Error ? err.stack : String(err),
+        'Error de Carga'
+      )
     }
   }
 
@@ -226,11 +284,22 @@ export default function OSIDetailPage() {
         .single()
 
       if (osiError) {
+        console.error('Error loading OSI:', osiError)
+        errorDialog.showError(
+          'No se encontró la OSI solicitada',
+          `Número de OSI: ${osiNumber}\nError: ${osiError.message}`,
+          'OSI No Encontrada'
+        )
         setError('OSI not found')
         return
       }
 
       if (!osiData) {
+        errorDialog.showError(
+          'No se encontró la OSI solicitada',
+          `Número de OSI: ${osiNumber}`,
+          'OSI No Encontrada'
+        )
         setError('OSI not found')
         return
       }
@@ -238,6 +307,12 @@ export default function OSIDetailPage() {
       setOsi(osiData)
       setFormData(osiData)
     } catch (err) {
+      console.error('Error in loadOSI:', err)
+      errorDialog.showError(
+        'Error inesperado al cargar la OSI',
+        err instanceof Error ? err.stack : String(err),
+        'Error de Carga'
+      )
       setError('Failed to load OSI')
     } finally {
       setLoading(false)
@@ -251,10 +326,22 @@ export default function OSIDetailPage() {
     try {
       // Validation for required fields
       if (!formData.nro_osi?.trim()) {
-        throw new Error('El número de OSI es requerido')
+        errorDialog.showError(
+          'El número de OSI es requerido',
+          'Por favor, ingrese un número de OSI válido.',
+          'Error de Validación'
+        )
+        setIsLoading(false)
+        return
       }
       if (!formData.tipo_servicio?.trim()) {
-        throw new Error('El tipo de servicio es requerido')
+        errorDialog.showError(
+          'El tipo de servicio es requerido',
+          'Por favor, seleccione un tipo de servicio.',
+          'Error de Validación'
+        )
+        setIsLoading(false)
+        return
       }
       
       // Prepare data for Supabase
@@ -270,14 +357,14 @@ export default function OSIDetailPage() {
         ejecutivo_negocios: Number(formData.ejecutivo_negocios) || null,
         cliente_nombre_empresa: formData.cliente_nombre_empresa?.trim() || '',
         tema: formData.tema?.trim() || null,
-        fecha_emision: formData.fecha_emision || null,
-        fecha_servicio: formData.fecha_servicio || null,
+        fecha_emision: formData.fecha_emision ? new Date(formData.fecha_emision) : null,
+        fecha_servicio: formData.fecha_servicio ? new Date(formData.fecha_servicio) : null,
         nro_sesiones: Number(formData.nro_sesiones) || 1,
-        fecha_ejecucion1: formData.fecha_ejecucion1 || null,
-        fecha_ejecucion2: formData.fecha_ejecucion2 || null,
-        fecha_ejecucion3: formData.fecha_ejecucion3 || null,
-        fecha_ejecucion4: formData.fecha_ejecucion4 || null,
-        fecha_ejecucion5: formData.fecha_ejecucion5 || null,
+        fecha_ejecucion1: formData.fecha_ejecucion1 ? new Date(formData.fecha_ejecucion1) : null,
+        fecha_ejecucion2: formData.fecha_ejecucion2 ? new Date(formData.fecha_ejecucion2) : null,
+        fecha_ejecucion3: formData.fecha_ejecucion3 ? new Date(formData.fecha_ejecucion3) : null,
+        fecha_ejecucion4: formData.fecha_ejecucion4 ? new Date(formData.fecha_ejecucion4) : null,
+        fecha_ejecucion5: formData.fecha_ejecucion5 ? new Date(formData.fecha_ejecucion5) : null,
         participantes_max: Number(formData.participantes_max) || null,
         certificado_impreso: Boolean(formData.certificado_impreso),
         carnet_impreso: Boolean(formData.carnet_impreso),
@@ -305,7 +392,7 @@ export default function OSIDetailPage() {
         direccion_ejecucion: formData.direccion_ejecucion?.trim() || '',
         codigo_cliente: (() => {
           const selectedEmpresa = empresas.find(e => e.razon_social === formData.cliente_nombre_empresa)
-          return selectedEmpresa ? selectedEmpresa.codigo_cliente : null;
+          return selectedEmpresa ? Number(selectedEmpresa.codigo_cliente) : null;
         })(),
         persona_contacto_id: formData.persona_contacto_id ? Number(formData.persona_contacto_id) : null
       }
@@ -317,28 +404,112 @@ export default function OSIDetailPage() {
       console.log('persona_contacto_id:', dataToSave.persona_contacto_id, typeof dataToSave.persona_contacto_id)
       console.log('nro_sesiones:', dataToSave.nro_sesiones, typeof dataToSave.nro_sesiones)
       console.log('participantes_max:', dataToSave.participantes_max, typeof dataToSave.participantes_max)
+      console.log('codigo_cliente:', dataToSave.codigo_cliente, typeof dataToSave.codigo_cliente)
       
       if (isNew) {
         console.log('Attempting to insert new OSI...')
+        console.log('Complete dataToSave object:', JSON.stringify(dataToSave, null, 2))
+        console.log('DataToSave keys and types:', Object.entries(dataToSave).map(([key, value]) => `${key}: ${typeof value} = ${value}`))
+        
         const { data, error } = await supabase.from("osi").insert([dataToSave]).select()
         console.log('Insert result:', { data, error })
+        
         if (error) {
-          console.error('Insert error details:', error)
-          throw error
+          console.error('=== INSERT ERROR DEBUGGING ===')
+          console.error('Error object:', error)
+          console.error('Error message:', error.message)
+          console.error('Error details:', error.details)
+          console.error('Error hint:', error.hint)
+          console.error('Error code:', error.code)
+          console.error('Full error structure:', JSON.stringify(error, null, 2))
+          
+          // Try to get more info about what went wrong
+          if (error.message) {
+            console.error('Error message type:', typeof error.message)
+            console.error('Error message length:', error.message.length)
+          }
+          
+          // Check if it's a validation error
+          if (error.details) {
+            console.error('Error details type:', typeof error.details)
+            console.error('Error details:', JSON.stringify(error.details, null, 2))
+          }
+          
+          console.log('Showing error dialog with:', error.message)
+          errorDialog.showError(
+            'Error al crear la OSI',
+            `Error de base de datos: ${error.message}`,
+            'Error al Guardar'
+          )
+          setIsLoading(false)
+          return
+        } else {
+          console.log('Insert successful! Data:', data)
+          errorDialog.showInfo(
+            'OSI creada exitosamente',
+            `La OSI ${formData.nro_osi} ha sido creada correctamente.`,
+            'Operación Exitosa'
+          )
         }
       } else if (osi) {
         console.log('Attempting to update OSI:', osi.id)
+        console.log('Complete dataToSave object for update:', JSON.stringify(dataToSave, null, 2))
+        console.log('DataToSave keys and types for update:', Object.entries(dataToSave).map(([key, value]) => `${key}: ${typeof value} = ${value}`))
+        
         const { data, error } = await supabase.from("osi").update(dataToSave).eq("id", osi.id).select()
         console.log('Update result:', { data, error })
+        
         if (error) {
-          console.error('Update error details:', error)
-          throw error
+          console.error('=== UPDATE ERROR DEBUGGING ===')
+          console.error('Error object:', error)
+          console.error('Error message:', error.message)
+          console.error('Error details:', error.details)
+          console.error('Error hint:', error.hint)
+          console.error('Error code:', error.code)
+          console.error('Full error structure:', JSON.stringify(error, null, 2))
+          
+          // Try to get more info about what went wrong
+          if (error.message) {
+            console.error('Error message type:', typeof error.message)
+            console.error('Error message length:', error.message.length)
+          }
+          
+          // Check if it's a validation error
+          if (error.details) {
+            console.error('Error details type:', typeof error.details)
+            console.error('Error details:', JSON.stringify(error.details, null, 2))
+          }
+          
+          errorDialog.showError(
+            'Error al actualizar la OSI',
+            `Error de base de datos: ${error.message}`,
+            'Error al Guardar'
+          )
+          setIsLoading(false)
+          return
+        } else {
+          console.log('Update successful! Data:', data)
+          errorDialog.showInfo(
+            'OSI actualizada exitosamente',
+            `La OSI ${formData.nro_osi} ha sido actualizada correctamente.`,
+            'Operación Exitosa'
+          )
         }
       }
       
-      router.push('/dashboard/negocios/gestion-de-osis')
+      // Only redirect if operation was successful
+      if (!error) {
+        setTimeout(() => {
+          router.push('/dashboard/negocios/gestion-de-osis')
+        }, 2000) // Give user time to see success message
+      }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Error al guardar la OSI')
+      console.error('Unexpected error in handleSave:', error)
+      errorDialog.showError(
+        'Error inesperado al guardar la OSI',
+        error instanceof Error ? error.stack : String(error),
+        'Error Inesperado'
+      )
     } finally {
       setIsLoading(false)
     }
@@ -349,10 +520,32 @@ export default function OSIDetailPage() {
     
     try {
       const { error } = await supabase.from("osi").delete().eq("id", osi.id)
-      if (error) throw error
+      if (error) {
+        console.error('Error deleting OSI:', error)
+        errorDialog.showError(
+          'Error al eliminar la OSI',
+          `Error de base de datos: ${error.message}`,
+          'Error al Eliminar'
+        )
+        return
+      }
       
-      router.push('/dashboard/negocios/gestion-de-osis')
+      errorDialog.showInfo(
+        'OSI eliminada exitosamente',
+        `La OSI ${osi.nro_osi} ha sido eliminada correctamente.`,
+        'Operación Exitosa'
+      )
+      
+      setTimeout(() => {
+        router.push('/dashboard/negocios/gestion-de-osis')
+      }, 2000)
     } catch (error) {
+      console.error('Unexpected error in handleDelete:', error)
+      errorDialog.showError(
+        'Error inesperado al eliminar la OSI',
+        error instanceof Error ? error.stack : String(error),
+        'Error Inesperado'
+      )
     }
   }
 
@@ -391,7 +584,7 @@ export default function OSIDetailPage() {
         cliente_nombre_empresa: '',
         rif: '',
         tema: '',
-        fecha_emision: new Date().toISOString().split('T')[0], // Default to today's date in local timezone
+        fecha_emision: new Date(), // Default to today's date
         fecha_servicio: null,
         nro_sesiones: 1,
         fecha_ejecucion1: null,
@@ -567,6 +760,16 @@ export default function OSIDetailPage() {
           </div>
         </div>
       </div>
+      
+      {/* Error Dialog */}
+      <ErrorDialog
+        isOpen={errorDialog.isOpen}
+        title={errorDialog.title}
+        message={errorDialog.message}
+        details={errorDialog.details}
+        onClose={errorDialog.close}
+        variant={errorDialog.variant}
+      />
     </div>
   )
 }

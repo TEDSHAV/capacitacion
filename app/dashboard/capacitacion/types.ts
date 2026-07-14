@@ -1,12 +1,6 @@
-export interface Company {
-  id: string;
-  razon_social: string;
-  rif: string;
-  direccion_fiscal: string;
-  codigo_cliente: string;
-}
-
-export interface CapacitacionClientProps {
-  user: any;
-  companies: Company[];
-}
+// Re-export from main types file for backward compatibility
+export type { 
+  Empresa, 
+  Company, 
+  CapacitacionClientProps 
+} from '@/types';
