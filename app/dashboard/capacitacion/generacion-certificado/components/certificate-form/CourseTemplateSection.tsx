@@ -32,7 +32,7 @@ export const CourseTemplateSection = ({
   const handleTemplateChange = (templateId: string) => {
     onDataChange("course_template_id", templateId);
 
-    if (templateId) {
+    if (templateId && templateId !== "original-course") {
       const template = courseTemplates.find(
         (t: any) => t.id.toString() === templateId,
       );
@@ -42,11 +42,15 @@ export const CourseTemplateSection = ({
           ? template.contenido || ""
           : selectedCourseTopic?.contenido_curso || "",
       );
+      if (template?.descripcion) {
+        onDataChange("certificate_title", template.descripcion);
+      }
     } else {
       onDataChange(
         "course_content",
         selectedCourseTopic?.contenido_curso || "",
       );
+      onDataChange("certificate_title", selectedCourseTopic?.nombre || "");
     }
   };
 

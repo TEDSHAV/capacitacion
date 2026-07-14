@@ -156,6 +156,7 @@ export function useCertificateForm({
           // Logic for auto-selecting the best template
           let templateToSelect = "original-course";
           let contentToUse = selectedCourseTopic?.contenido_curso || "";
+          let titleToUse = selectedCourseTopic?.nombre || "";
 
           // Check if there's a specific template for this course and company
           if (courseId && empresaId) {
@@ -168,6 +169,7 @@ export function useCertificateForm({
             if (companySpecificTemplate) {
               templateToSelect = companySpecificTemplate.id.toString();
               contentToUse = companySpecificTemplate.contenido || "";
+              titleToUse = companySpecificTemplate.descripcion || titleToUse;
             }
           }
 
@@ -182,6 +184,7 @@ export function useCertificateForm({
             // Normal behavior or user-triggered course change
             onDataChange("course_template_id", templateToSelect);
             onDataChange("course_content", contentToUse);
+            onDataChange("certificate_title", titleToUse);
           }
         }
       } catch (error) {
