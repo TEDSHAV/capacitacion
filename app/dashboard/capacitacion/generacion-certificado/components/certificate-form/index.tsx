@@ -38,6 +38,12 @@ export const CertificateForm = ({
           const data = await signaturesResponse.json();
           const shaOnly = data.filter((sig: any) => sig.tipo === 'representante_sha');
           setShaSignatures(shaOnly);
+          
+          // Auto-select the active SHA signature
+          const activeShaSignature = shaOnly.find((sig: any) => sig.is_active);
+          if (activeShaSignature && !certificateData.sha_signature_id) {
+            onDataChange("sha_signature_id", activeShaSignature.id.toString());
+          }
         }
 
         // Load certificate templates
@@ -351,7 +357,7 @@ export const CertificateForm = ({
           htmlFor="id_estado"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Estado de Registro
+          Estado
         </label>
         <select
           id="id_estado"
@@ -367,7 +373,7 @@ export const CertificateForm = ({
           ))}
         </select>
         <p className="text-xs text-gray-500 mt-1">
-          Estado venezolano para fines administrativos
+          Seleccionar Estado para fines administrativos
         </p>
       </div>
 
@@ -395,19 +401,17 @@ export const CertificateForm = ({
           >
             Firma del Representante SHA
           </label>
-          <select
+          <input
+            type="text"
             id="sha-signature"
-            value={certificateData.sha_signature_id || ""}
-            onChange={(e) => onDataChange("sha_signature_id", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Seleccionar firma SHA...</option>
-            {shaSignatures.map((signature: any) => (
-              <option key={signature.id} value={signature.id}>
-                {signature.nombre}
-              </option>
-            ))}
-          </select>
+            value={(() => {
+              const activeSignature = shaSignatures.find((sig: any) => sig.is_active);
+              return activeSignature?.nombre || "No hay firma SHA activa";
+            })()}
+            readOnly
+            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700 cursor-not-allowed"
+            placeholder="No hay firma SHA activa"
+          />
           <p className="text-xs text-gray-500 mt-1">
             Las firmas SHA se gestionan en el módulo de Gestión de Firmas. 
             <a href="/dashboard/capacitacion/gestion-de-firmas" className="text-blue-600 hover:underline ml-1">

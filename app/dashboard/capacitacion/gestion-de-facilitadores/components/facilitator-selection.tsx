@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Facilitador } from "@/types";
+import { Facilitador, FacilitatorOption } from "@/types";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 interface FacilitatorSelectionProps {
   selectedFacilitatorId?: string;
@@ -19,7 +20,6 @@ export const FacilitatorSelection = ({
     loadFacilitators();
   }, []);
 
-
   const loadFacilitators = async () => {
     try {
       const response = await fetch("/api/facilitators/");
@@ -33,6 +33,14 @@ export const FacilitatorSelection = ({
       setLoading(false);
     }
   };
+
+  // Convert facilitators to the format expected by SearchableSelect
+  const facilitatorOptions: FacilitatorOption[] = facilitators.map(facilitator => ({
+    id: facilitator.id.toString(),
+    nombre_apellido: facilitator.nombre_apellido,
+    direccion: facilitator.direccion || undefined,
+    temas_cursos: facilitator.temas_cursos || undefined,
+  }));
 
   if (loading) {
     return (
@@ -51,19 +59,13 @@ export const FacilitatorSelection = ({
       >
         Facilitador del Curso
       </label>
-      <select
-        id="facilitator"
-        value={selectedFacilitatorId?.toString() || ""}
-        onChange={(e) => onFacilitatorChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-      >
-        <option value="">Seleccionar facilitador...</option>
-        {facilitators.map((facilitator) => (
-          <option key={facilitator.id} value={facilitator.id}>
-            {facilitator.nombre_apellido} - {facilitator.direccion?.split(',')[0] || 'Ciudad no especificada'}
-          </option>
-        ))}
-      </select>
+      <SearchableSelect
+        value={selectedFacilitatorId || ""}
+        onChange={onFacilitatorChange}
+        options={facilitatorOptions}
+        placeholder="Buscar facilitador por nombre, ciudad o temas..."
+        loading={loading}
+      />
       {facilitators.length === 0 && (
         <p className="text-xs text-gray-500 mt-1">
           No hay facilitadores registrados. 

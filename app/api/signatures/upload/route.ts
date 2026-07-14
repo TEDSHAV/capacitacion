@@ -102,6 +102,22 @@ export async function POST(request: NextRequest) {
     // Save signature record to database
     const imageUrl = `/signatures/${filename}`;
 
+    // If it's a representante_sha signature, deactivate all existing ones first
+    if (type === 'representante_sha') {
+      const { error: deactivateError } = await supabase
+        .from('firmas')
+        .update({ 
+          is_active: false,
+          fecha_actualizacion: new Date().toISOString()
+        })
+        .eq('tipo', 'representante_sha');
+
+      if (deactivateError) {
+        console.error('Error deactivating existing representante_sha signatures:', deactivateError);
+        // Don't fail the operation, but log the error
+      }
+    }
+
     const { data: signatureData, error: signatureError } = await supabase
       .from('firmas')
       .insert([

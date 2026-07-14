@@ -50,6 +50,30 @@ export interface Contacto {
   email: string;
 }
 
+// Facilitator Search Component Types
+export interface FacilitatorSearchProps {
+  selectedFacilitatorId?: string;
+  onFacilitatorChange: (id: string) => void;
+  placeholder?: string;
+}
+
+export interface FacilitatorOption {
+  id: string;
+  nombre_apellido: string;
+  direccion?: string;
+  temas_cursos?: string[];
+}
+
+export interface SearchableSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: FacilitatorOption[];
+  placeholder?: string;
+  loading?: boolean;
+  disabled?: boolean;
+  className?: string;
+}
+
 // Facilitator Form Types
 export interface FacilitadorFormData {
   fuente: string;
@@ -64,9 +88,9 @@ export interface FacilitadorFormData {
   formacion_docente_certificada: boolean;
   tipo_impacto: string;
   notas_observaciones: string;
+  id_estado_base: number | null;
   id_ciudad_base: number | null;
   id_estado_geografico: number | null;
-  id_estado_base: number | null;
   id_estatus: number | null;
   temas_cursos: string[];
   ficha_tecnica: string;
