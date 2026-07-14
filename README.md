@@ -1,14 +1,14 @@
 # Sistema de Gestión de Capacitación y Certificación
 
-Una aplicación web moderna para la gestión completa de capacitaciones, generación de certificados y carnets, con sistema de verificación por QR codes.
+Una aplicación web moderna para la gestión completa de capacitaciones, generación de certificados y carnets, con sistema de verificación por códigos QR.
 
 ## Características Principales
 
 ### Gestión de Capacitaciones
 - **Administración de Cursos**: Creación y gestión de cursos con contenido, duración y notas de aprobación
 - **Gestión de OSI**: Orden de Servicio de Instrucción con relación directa a cursos
-- **Asignación de Facilitadores**: Gestión de instructores y su asignación a capacitaciones
-- **Control de Participantes**: Registro y seguimiento de participantes en cursos
+- **Asignación de Facilitadores**: Gestión de instructores y su asignación a cursos/capacitaciones
+- **Control de Participantes**: Registro y seguimiento de participantes 
 
 ### Generación de Documentos
 - **Certificados PDF**: Generación automática con códigos QR para verificación
@@ -23,7 +23,7 @@ Una aplicación web moderna para la gestión completa de capacitaciones, generac
 
 ### Reportes y Analíticas
 - **Reportes por Tema**: Análisis de certificados emitidos por curso
-- **Control de Números**: Sistema de numeración (libro, folio, línea, control)
+- **Números de Control**: Sistema de numeración (libro, folio, línea, control)
 - **Estadísticas de Participación**: Métricas de uso y participación
 
 ## Arquitectura Tecnológica
