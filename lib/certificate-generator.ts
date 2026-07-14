@@ -20,9 +20,9 @@ export class CertificateGenerator {
 
   constructor() {
     this.doc = new jsPDF({
-      orientation: "landscape",
+      orientation: "portrait",
       unit: "mm",
-      format: "a4",
+      format: "letter",
     });
     this.pageWidth = this.doc.internal.pageSize.getWidth();
     this.pageHeight = this.doc.internal.pageSize.getHeight();
@@ -63,9 +63,9 @@ export class CertificateGenerator {
 
     // Clear any existing content
     this.doc = new jsPDF({
-      orientation: "landscape",
+      orientation: "portrait",
       unit: "mm",
-      format: "a4",
+      format: "letter",
     });
 
     // Page 1: Certificate
@@ -98,22 +98,31 @@ export class CertificateGenerator {
     certificateData: CertificateGeneration,
     sealImage?: string,
   ): Promise<void> {
-    // Add "CONTENIDO" title at center
+    // Define upper half area (top 50% of page)
+    const upperHalfHeight = this.pageHeight / 2;
+    const margin = 10;
+    const contentArea = {
+      x: margin,
+      y: margin,
+      width: this.pageWidth - (margin * 2),
+      height: upperHalfHeight - (margin * 2)
+    };
+
+    // Add "CONTENIDO" title at center of upper half
     this.doc.setFont("helvetica", "bold");
-    this.doc.setFontSize(20);
-    this.doc.text("CONTENIDO", this.pageWidth / 2, 30, { align: "center" });
+    this.doc.setFontSize(16); // Smaller font for scaled content
+    this.doc.text("CONTENIDO", this.pageWidth / 2, contentArea.y + 10, { align: "center" });
 
-    // Define column positions
-    const leftColumnX = 20;
-    const rightColumnX = this.pageWidth / 2;
-    const columnWidth = this.pageWidth / 2 - 40;
-    const lineHeight = 6;
-    let currentY = 50;
+    // Define column layout within upper half
+    const leftColumnX = contentArea.x;
+    const rightColumnX = contentArea.x + (contentArea.width / 2) + 5;
+    const columnWidth = (contentArea.width / 2) - 5;
+    const lineHeight = 5; // Smaller line height
+    let currentY = contentArea.y + 20;
 
-    
     // Left column: Course content
     this.doc.setFont("helvetica", "normal");
-    this.doc.setFontSize(11);
+    this.doc.setFontSize(9); // Smaller font
 
     if (certificateData.course_content) {
       const contentLines = this.doc.splitTextToSize(
@@ -122,23 +131,21 @@ export class CertificateGenerator {
       );
 
       contentLines.forEach((line: string) => {
-        this.doc.text(line, leftColumnX, currentY);
-        currentY += lineHeight;
+        if (currentY < contentArea.y + contentArea.height - 20) {
+          this.doc.text(line, leftColumnX, currentY);
+          currentY += lineHeight;
+        }
       });
     }
 
     // Right column: Table with seal
-    currentY = 50;
+    currentY = contentArea.y + 20;
 
-    // Add horas_estimadas if available - positioned after Fecha de Ejecución
-    // We'll add this later in the table after the fecha line
-
-    // Define table position and dimensions
-    const tableX = rightColumnX - 5;
-    const tableY = currentY - 10;
-    const tableWidth = columnWidth + 10;
-    const cellHeight = 8;
-    const borderWidth = 0.5;
+    // Define scaled table dimensions
+    const tableX = rightColumnX;
+    const tableY = currentY - 5;
+    const tableWidth = columnWidth;
+    const cellHeight = 6; // Smaller cell height
     
     // Draw outer table border
     this.doc.setDrawColor(100, 100, 100);
@@ -150,8 +157,6 @@ export class CertificateGenerator {
     this.doc.line(tableX, tableY + cellHeight * 3, tableX + tableWidth, tableY + cellHeight * 3);
     
     // Draw vertical lines for columns
-    // Row 1: Full width (no vertical lines)
-    
     // Row 2: Two columns (50% each)
     this.doc.line(tableX + tableWidth / 2, tableY + cellHeight, tableX + tableWidth / 2, tableY + cellHeight * 2);
     
@@ -159,20 +164,18 @@ export class CertificateGenerator {
     this.doc.line(tableX + tableWidth / 3, tableY + cellHeight * 2, tableX + tableWidth / 3, tableY + cellHeight * 3);
     this.doc.line(tableX + (tableWidth * 2) / 3, tableY + cellHeight * 2, tableX + (tableWidth * 2) / 3, tableY + cellHeight * 3);
     
-    // Row 4: Single column (CI and Nombre stacked)
-    
-    // Add content to cells
+    // Add content to cells with smaller fonts
     this.doc.setFont("helvetica", "normal");
-    this.doc.setFontSize(11);
+    this.doc.setFontSize(8); // Much smaller font
     
-    // Row 1: REGISTRO title (centered, full width)
-    this.doc.text("REGISTRO", tableX + tableWidth / 2, tableY + cellHeight / 2 + 2, { align: "center" });
+    // Row 1: REGISTRO title
+    this.doc.text("REGISTRO", tableX + tableWidth / 2, tableY + cellHeight / 2 + 1.5, { align: "center" });
     
-    // Row 2: Libro Nro and Nro Control (50% each)
-    this.doc.text("Libro Nro: 100", tableX + tableWidth / 4, tableY + cellHeight + cellHeight / 2 + 2, { align: "center" });
-    this.doc.text("Nro. Control: 321213", tableX + tableWidth * 3 / 4, tableY + cellHeight + cellHeight / 2 + 2, { align: "center" });
+    // Row 2: Libro Nro and Nro Control
+    this.doc.text("Libro Nro: 100", tableX + tableWidth / 4, tableY + cellHeight + cellHeight / 2 + 1.5, { align: "center" });
+    this.doc.text("Nro. Control: 321213", tableX + tableWidth * 3 / 4, tableY + cellHeight + cellHeight / 2 + 1.5, { align: "center" });
     
-    // Row 3: Fecha Ejecucion, Hoja Nro and Mes (1/3 each)
+    // Row 3: Fecha Ejecucion, Hoja Nro and Mes
     const executionDate = certificateData.date
       ? new Date(certificateData.date).toLocaleDateString("es-ES", {
           year: "numeric",
@@ -184,18 +187,19 @@ export class CertificateGenerator {
           month: "numeric",
           day: "numeric",
         });
-    this.doc.text(`Fecha: ${executionDate}`, tableX + tableWidth / 6, tableY + cellHeight * 2 + cellHeight / 2 + 2, { align: "center" });
-    this.doc.text("Hoja Nro: 1", tableX + tableWidth / 2, tableY + cellHeight * 2 + cellHeight / 2 + 2, { align: "center" });
+    this.doc.text(`Fecha: ${executionDate}`, tableX + tableWidth / 6, tableY + cellHeight * 2 + cellHeight / 2 + 1.5, { align: "center" });
+    this.doc.text("Hoja Nro: 1", tableX + tableWidth / 2, tableY + cellHeight * 2 + cellHeight / 2 + 1.5, { align: "center" });
     
     const month = certificateData.date
       ? new Date(certificateData.date).toLocaleDateString("es-ES", {
           month: "long",
         })
       : new Date().toLocaleDateString("es-ES", { month: "long" });
-    this.doc.text(`Mes: ${month}`, tableX + tableWidth * 5 / 6, tableY + cellHeight * 2 + cellHeight / 2 + 2, { align: "center" });
+    this.doc.text(`Mes: ${month}`, tableX + tableWidth * 5 / 6, tableY + cellHeight * 2 + cellHeight / 2 + 1.5, { align: "center" });
     
-    // Row 4: CI and Nombre (stacked in same row)
+    // Row 4: CI and Nombre
     this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(8);
     this.doc.text(
       `CI: ${participant.id_type || "V-"}${participant.id_number}`,
       tableX + tableWidth / 2,
@@ -205,23 +209,23 @@ export class CertificateGenerator {
     this.doc.text(
       `Nombre: ${participant.name}`,
       tableX + tableWidth / 2,
-      tableY + cellHeight * 3 + cellHeight / 2 + 3,
+      tableY + cellHeight * 3 + cellHeight / 2 + 2,
       { align: "center" }
     );
     
-    // Add seal image below the table
-    const sealY = tableY + cellHeight * 4 + 10; // 10mm below the table
-    if (sealImage) {
+    // Add scaled seal image below the table
+    const sealY = tableY + cellHeight * 4 + 5;
+    if (sealImage && sealY < contentArea.y + contentArea.height - 10) {
       try {
-        await this.addSealImage(sealImage, tableX + tableWidth / 2 - 20, sealY);
+        await this.addSealImage(sealImage, tableX + tableWidth / 2 - 15, sealY, 30, 30); // Smaller seal
       } catch (error) {
         console.error("Error adding seal image:", error);
         // Fallback: draw a placeholder rectangle
         this.doc.setDrawColor(200, 200, 200);
-        this.doc.rect(tableX + tableWidth / 2 - 20, sealY, 40, 40);
+        this.doc.rect(tableX + tableWidth / 2 - 15, sealY, 30, 30);
         this.doc.setFont("helvetica", "italic");
-        this.doc.setFontSize(8);
-        this.doc.text("Sello", tableX + tableWidth / 2, sealY + 20, {
+        this.doc.setFontSize(6);
+        this.doc.text("Sello", tableX + tableWidth / 2, sealY + 15, {
           align: "center",
         });
       }
@@ -232,8 +236,18 @@ export class CertificateGenerator {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
-        // Add image to cover entire page
-        this.doc.addImage(img, "PNG", 0, 0, this.pageWidth, this.pageHeight);
+        // Define upper half area for the template
+        const upperHalfHeight = this.pageHeight / 2;
+        const margin = 10;
+        const templateArea = {
+          x: margin,
+          y: margin,
+          width: this.pageWidth - (margin * 2),
+          height: upperHalfHeight - (margin * 2)
+        };
+        
+        // Add image scaled to fit in upper half
+        this.doc.addImage(img, "PNG", templateArea.x, templateArea.y, templateArea.width, templateArea.height);
         resolve();
       };
       img.onerror = reject;
@@ -245,12 +259,14 @@ export class CertificateGenerator {
     imageUrl: string,
     x: number,
     y: number,
+    width: number = 40,
+    height: number = 40,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
-        // Add seal image with reasonable size (40x40mm)
-        this.doc.addImage(img, "PNG", x, y, 40, 40);
+        // Add seal image with specified dimensions
+        this.doc.addImage(img, "PNG", x, y, width, height);
         resolve();
       };
       img.onerror = reject;
