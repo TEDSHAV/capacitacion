@@ -1234,11 +1234,11 @@ export async function getPreviousParticipantsByOSIAction(
     const participants = (data || []).map((cert: any) => ({
       participant_name: cert.participantes_certificados?.nombre || "",
       participant_id_number: cert.participantes_certificados?.cedula || "",
-      participant_id_type: cert.participantes_certificados?.cedula?.startsWith(
-        "E",
-      )
-        ? "E-"
-        : "V-",
+      participant_id_type:
+        cert.participantes_certificados?.nacionalidad === "extranjero" ||
+        cert.participantes_certificados?.cedula?.startsWith("E")
+          ? "E-"
+          : "V-",
       participant_nationality: cert.participantes_certificados?.nacionalidad,
       score: cert.calificacion || 0,
       control_number: cert.nro_control?.toString() || "",

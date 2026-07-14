@@ -220,11 +220,12 @@ export default function GeneracionCertificadoClient({
             id: certificate.participantes_certificados?.id,
             name: certificate.participantes_certificados?.nombre || "",
             idNumber: certificate.participantes_certificados?.cedula || "",
-            idType: certificate.participantes_certificados?.cedula?.startsWith(
-              "E",
-            )
-              ? "extranjero"
-              : "venezolano",
+            idType:
+              certificate.participantes_certificados?.nacionalidad ===
+                "extranjero" ||
+              certificate.participantes_certificados?.cedula?.startsWith("E")
+                ? "E-"
+                : "V-",
             nationality:
               certificate.participantes_certificados?.nacionalidad ||
               "venezolano",

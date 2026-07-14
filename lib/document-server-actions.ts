@@ -101,31 +101,40 @@ async function resolveCourseName(
  * Format cédula with proper prefix
  */
 const formatCedula = (participant: any): string => {
-  const idNumber = participant.participant_id_number || "";
+  // Support multiple field name variations
+  const idNumber =
+    participant.participant_id_number || participant.idNumber || "";
   if (!idNumber) return "";
 
   const cleanCedula = idNumber.replace(/[^\d]/g, ""); // Remove non-digits
   if (cleanCedula.length === 0) return idNumber;
 
   // Check if ID type is explicitly provided (could be "V", "E", "venezolano", or "extranjero")
-  if (participant.participant_id_type) {
-    const idType = participant.participant_id_type.toUpperCase();
-    // Handle prefix format (V or E)
-    if (idType.startsWith("V") || idType.startsWith("E")) {
-      return `${idType}-${cleanCedula}`;
-    }
-    // Handle nationality format (venezolano or extranjero)
+  const idTypeRaw = participant.participant_id_type || participant.idType;
+  if (idTypeRaw) {
+    const idType = idTypeRaw.toUpperCase();
+
+    // Handle full nationality strings first to avoid "VENEZOLANO" starting with "V" match
     if (idType === "EXTRANJERO") {
       return `E-${cleanCedula}`;
     }
     if (idType === "VENEZOLANO") {
       return `V-${cleanCedula}`;
     }
+
+    // Handle prefix format (V or E, possibly with a dash already)
+    if (idType.startsWith("V") || idType.startsWith("E")) {
+      // Extract only the first letter as prefix
+      const prefix = idType.charAt(0);
+      return `${prefix}-${cleanCedula}`;
+    }
   }
 
   // Check nationality as fallback
-  if (participant.participant_nationality) {
-    const nationality = participant.participant_nationality.toLowerCase();
+  const nationalityRaw =
+    participant.participant_nationality || participant.nationality;
+  if (nationalityRaw) {
+    const nationality = nationalityRaw.toLowerCase();
     if (nationality === "extranjero") {
       return `E-${cleanCedula}`;
     }
