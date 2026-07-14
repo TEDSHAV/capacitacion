@@ -2,9 +2,7 @@
 FROM node:22-bookworm-slim AS deps
 ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
-RUN --mount=type=cache,target=/var/lib/apt/lists \
-    --mount=type=cache,target=/var/cache/apt \
-    apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 
@@ -43,9 +41,7 @@ WORKDIR /app
 
 # 1. Install system libraries needed for Puppeteer/jsPDF canvas operations and sharp
 # Use runtime libvips (not -dev) to reduce image size
-RUN --mount=type=cache,target=/var/lib/apt/lists \
-    --mount=type=cache,target=/var/cache/apt \
-    apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y \
     fonts-liberation \
     libnss3 \
     libatk1.0-0 \
