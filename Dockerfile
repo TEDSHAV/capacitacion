@@ -32,6 +32,8 @@ WORKDIR /app
 # Install required fonts/libraries and Chromium
 RUN apt-get update && apt-get install -y \
     fonts-liberation \
+    fonts-noto \
+    fonts-noto-cjk \
     libnss3 \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
@@ -43,21 +45,33 @@ RUN apt-get update && apt-get install -y \
     libgtk-3-0 \
     libvips-dev \
     wget \
+    locales \
     chromium \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
+
+# Configure locale
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
+    locale-gen en_US.UTF-8 && \
+    update-locale LANG=en_US.UTF-8
 
 # Setup non-root user
 RUN groupadd --system --gid 1001 nodejs && \
     useradd --system --uid 1001 nextjs
 
-# Create cache directory with correct permissions for nextjs user
-RUN mkdir -p /home/nextjs/.cache/puppeteer && \
-    chown -R nextjs:nodejs /home/nextjs/.cache
+# Create required directories with correct permissions for nextjs user
+RUN mkdir -p /home/nextjs/.cache/puppeteer \
+    /home/nextjs/.config \
+    /home/nextjs/.local/share/fonts \
+    /tmp/chromium && \
+    chown -R nextjs:nodejs /home/nextjs && \
+    chmod 1777 /tmp/chromium
 
 # Environment variables for Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    LANG=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8 \
     NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
