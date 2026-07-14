@@ -234,7 +234,7 @@ export function OSIRelationships({
                               "N/A"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {certificate.cursos?.nombre || "N/A"}
+                            {certificate.catalogo_servicios?.nombre || "N/A"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {certificate.fecha_emision
