@@ -147,8 +147,8 @@ export async function saveCertificatesToDatabase(
       console.log('SUCCESS: Participant created/updated with ID:', participantId);
       
       // Debug: Show exactly what nationality value we're working with
-      console.log('DEBUG: Participant nationality value:', JSON.stringify(participant.nacionalidad));
-      console.log('DEBUG: Type of participant.nacionalidad:', typeof participant.nacionalidad);
+      console.log('DEBUG: Participant nationality value:', JSON.stringify(participant.nationality));
+      console.log('DEBUG: Type of participant.nationality:', typeof participant.nationality);
       
       // Verify participant was actually saved to database
       const { data: verifyParticipant, error: verifyError } = await supabase
@@ -338,7 +338,7 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
       console.error('FAILED: Missing required participant fields:', {
         name: participant.name,
         id_number: participant.id_number,
-        nacionalidad: participant.nacionalidad
+        nationality: participant.nationality
       });
       return null;
     }
@@ -397,11 +397,11 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
         }
         
         // Update the participant object to use the new format for snapshot generation
-        participant.nacionalidad = existingParticipant.nacionalidad === 'V-' || existingParticipant.nacionalidad === 'E-' 
+        participant.nationality = existingParticipant.nacionalidad === 'V-' || existingParticipant.nacionalidad === 'E-' 
           ? (existingParticipant.nacionalidad === 'V-' ? 'venezolano' : 'extranjero')
           : existingParticipant.nacionalidad || 'venezolano';
         
-        console.log('Updated participant object for snapshot:', { nacionalidad: participant.nacionalidad });
+        console.log('Updated participant object for snapshot:', { nationality: participant.nationality });
         
         // Return the ID with updated format for this certificate
         return existingParticipant.id;
@@ -410,12 +410,17 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
       return existingParticipant.id;
     }
 
+    // Normalize nationality to 'venezolano' or 'extranjero'
+    const normalizedNationality = (participant.nationality === 'extranjero' || participant.nationality === 'E-') 
+      ? 'extranjero' 
+      : 'venezolano';
+
     // Create new participant
-    console.log('Creating new participant with nationality:', participant.nacionalidad);
+    console.log('Creating new participant with nationality:', normalizedNationality);
     console.log('Participant data to insert:', {
       nombre: participant.name,
       cedula: participant.id_number,
-      nacionalidad: participant.nacionalidad,
+      nacionalidad: normalizedNationality,
       is_active: true
     });
     
@@ -424,7 +429,7 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
       .insert({
         nombre: participant.name,
         cedula: participant.id_number,
-        nacionalidad: participant.nacionalidad,
+        nacionalidad: normalizedNationality,
         is_active: true // Ensure new participants are active
       })
       .select('id')
@@ -512,9 +517,9 @@ function generateContentSnapshot(
       id: participantId, // Include database participant ID
       name: participant.name,
       cedula: participant.id_number, // Store cédula properly
-      nacionalidad: participant.nacionalidad || 'venezolano',
+      nacionalidad: participant.nationality || 'venezolano',
       score: participant.score,
-      cedula_completa: `${(participant.nacionalidad === 'extranjero') ? 'E' : 'V'}-${participant.id_number}` // Full cédula format with proper prefix
+      cedula_completa: `${(participant.nationality === 'extranjero') ? 'E' : 'V'}-${participant.id_number}` // Full cédula format with proper prefix
     },
     // Certificate details
     certificado_detalles: {
@@ -530,7 +535,6 @@ function generateContentSnapshot(
     osi: {
       nro_osi: updatedCertificateData.osi_data?.nro_osi,
       cliente_nombre_empresa: updatedCertificateData.osi_data?.cliente_nombre_empresa,
-      tema: updatedCertificateData.osi_data?.tema,
       detalle_capacitacion: updatedCertificateData.osi_data?.detalle_capacitacion,
       empresa_id: updatedCertificateData.osi_data?.empresa_id,
       direccion_ejecucion: updatedCertificateData.osi_data?.direccion_ejecucion
@@ -593,9 +597,9 @@ function generateContentSnapshotWithControlNumbers(
       id: participantId, // Include database participant ID
       name: participant.name,
       cedula: participant.id_number, // Store cédula properly
-      nacionalidad: participant.nacionalidad || 'venezolano',
+      nacionalidad: participant.nationality || 'venezolano',
       score: participant.score,
-      cedula_completa: `${(participant.nacionalidad === 'extranjero') ? 'E' : 'V'}-${participant.id_number}` // Full cédula format with proper prefix
+      cedula_completa: `${(participant.nationality === 'extranjero') ? 'E' : 'V'}-${participant.id_number}` // Full cédula format with proper prefix
     },
     // Certificate details
     certificado_detalles: {
@@ -611,7 +615,6 @@ function generateContentSnapshotWithControlNumbers(
     osi: {
       nro_osi: certificateData.osi_data?.nro_osi,
       cliente_nombre_empresa: certificateData.osi_data?.cliente_nombre_empresa,
-      tema: certificateData.osi_data?.tema,
       detalle_capacitacion: certificateData.osi_data?.detalle_capacitacion,
       empresa_id: certificateData.osi_data?.empresa_id,
       direccion_ejecucion: certificateData.osi_data?.direccion_ejecucion
