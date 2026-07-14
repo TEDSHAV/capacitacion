@@ -42,10 +42,23 @@ export class CertificateGenerator {
       // Add QR code - either real or sample for preview
       if (!isPreview && controlNumbers && certificateId) {
         // Real QR code for final certificate - use actual certificate ID
-        await this.certificatePage.addQRCode(certificateId, controlNumbers);
+        console.log('Adding real QR code for certificate ID:', certificateId);
+        try {
+          await this.certificatePage.addQRCode(certificateId, controlNumbers);
+        } catch (qrError) {
+          console.error('Failed to add real QR code, trying sample:', qrError);
+          await this.certificatePage.addSampleQRCode();
+        }
       } else if (isPreview) {
         // Sample QR code for preview
-        await this.certificatePage.addSampleQRCode();
+        console.log('Adding sample QR code for preview');
+        try {
+          await this.certificatePage.addSampleQRCode();
+        } catch (qrError) {
+          console.error('Failed to add sample QR code:', qrError);
+        }
+      } else {
+        console.log('No QR code will be added - missing parameters:', { isPreview, hasControlNumbers: !!controlNumbers, certificateId });
       }
 
       // Add new page for content

@@ -1,6 +1,3 @@
-Need to install the following packages:
-supabase@2.83.0
-Ok to proceed? (y) 
 export type Json =
   | string
   | number
@@ -193,6 +190,7 @@ export type Database = {
           nro_libro: number | null
           nro_linea: number | null
           nro_osi: number | null
+          qr_code: string | null
           snapshot_contenido: string | null
         }
         Insert: {
@@ -213,6 +211,7 @@ export type Database = {
           nro_libro?: number | null
           nro_linea?: number | null
           nro_osi?: number | null
+          qr_code?: string | null
           snapshot_contenido?: string | null
         }
         Update: {
@@ -233,6 +232,7 @@ export type Database = {
           nro_libro?: number | null
           nro_linea?: number | null
           nro_osi?: number | null
+          qr_code?: string | null
           snapshot_contenido?: string | null
         }
         Relationships: [
@@ -502,14 +502,17 @@ export type Database = {
           direccion_personal: string | null
           email: string | null
           email2: string | null
+          es_cliente: boolean
           es_decisor: boolean | null
           esta_activo: boolean | null
+          fecha_creacion: string | null
           id: number
           id_empresa: number | null
+          id_estado_ubicacion: number | null
+          id_estatus: number | null
           nombre: string
           telefono: string | null
           tipo_cliente: string | null
-          ubicacion_estado: string | null
         }
         Insert: {
           apellido?: string | null
@@ -518,14 +521,17 @@ export type Database = {
           direccion_personal?: string | null
           email?: string | null
           email2?: string | null
+          es_cliente?: boolean
           es_decisor?: boolean | null
           esta_activo?: boolean | null
+          fecha_creacion?: string | null
           id?: number
           id_empresa?: number | null
+          id_estado_ubicacion?: number | null
+          id_estatus?: number | null
           nombre: string
           telefono?: string | null
           tipo_cliente?: string | null
-          ubicacion_estado?: string | null
         }
         Update: {
           apellido?: string | null
@@ -534,14 +540,17 @@ export type Database = {
           direccion_personal?: string | null
           email?: string | null
           email2?: string | null
+          es_cliente?: boolean
           es_decisor?: boolean | null
           esta_activo?: boolean | null
+          fecha_creacion?: string | null
           id?: number
           id_empresa?: number | null
+          id_estado_ubicacion?: number | null
+          id_estatus?: number | null
           nombre?: string
           telefono?: string | null
           tipo_cliente?: string | null
-          ubicacion_estado?: string | null
         }
         Relationships: [
           {
@@ -549,6 +558,13 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contactos_id_estado_ubicacion_fkey"
+            columns: ["id_estado_ubicacion"]
+            isOneToOne: false
+            referencedRelation: "cat_estados_venezuela"
             referencedColumns: ["id"]
           },
         ]
@@ -892,8 +908,8 @@ export type Database = {
         Row: {
           audiovisuales: boolean | null
           fecha_aprobacion: string | null
+          fecha_ejecucion_servicio: string | null
           fecha_solicitud: string | null
-          honorarios_facilitador: number | null
           horas_totales: number | null
           id: number
           id_direccion_ejecucion_solped: number | null
@@ -902,14 +918,16 @@ export type Database = {
           id_modalidad: number | null
           id_servicio: number | null
           id_trato: number | null
+          observaciones_cliente: string | null
           participantes: number | null
+          pretenciones_cliente: string | null
           sesiones: number | null
         }
         Insert: {
           audiovisuales?: boolean | null
           fecha_aprobacion?: string | null
+          fecha_ejecucion_servicio?: string | null
           fecha_solicitud?: string | null
-          honorarios_facilitador?: number | null
           horas_totales?: number | null
           id?: number
           id_direccion_ejecucion_solped?: number | null
@@ -918,14 +936,16 @@ export type Database = {
           id_modalidad?: number | null
           id_servicio?: number | null
           id_trato?: number | null
+          observaciones_cliente?: string | null
           participantes?: number | null
+          pretenciones_cliente?: string | null
           sesiones?: number | null
         }
         Update: {
           audiovisuales?: boolean | null
           fecha_aprobacion?: string | null
+          fecha_ejecucion_servicio?: string | null
           fecha_solicitud?: string | null
-          honorarios_facilitador?: number | null
           horas_totales?: number | null
           id?: number
           id_direccion_ejecucion_solped?: number | null
@@ -934,7 +954,9 @@ export type Database = {
           id_modalidad?: number | null
           id_servicio?: number | null
           id_trato?: number | null
+          observaciones_cliente?: string | null
           participantes?: number | null
+          pretenciones_cliente?: string | null
           sesiones?: number | null
         }
         Relationships: [
@@ -1060,9 +1082,13 @@ export type Database = {
       }
       ejecucion_osi: {
         Row: {
+          audiovisuales: boolean
+          carnet_impreso: boolean
+          certificado_impreso: boolean
           dias_servicio: number | null
           espacio_herramientas: string | null
           fecha_culminacion: string | null
+          fecha_ejecucion_servicio: string | null
           fecha_fin: string | null
           fecha_inicio: string | null
           horario_ejecucion: string | null
@@ -1077,14 +1103,21 @@ export type Database = {
           id_negocio: number | null
           id_presupuesto: number
           id_servicio: number | null
+          nro_horas: number | null
           nro_osi: string
           participantes_reales: number | null
+          pretenciones_cliente: string | null
           responsable_recepcion: string | null
+          sesiones: number | null
         }
         Insert: {
+          audiovisuales?: boolean
+          carnet_impreso?: boolean
+          certificado_impreso?: boolean
           dias_servicio?: number | null
           espacio_herramientas?: string | null
           fecha_culminacion?: string | null
+          fecha_ejecucion_servicio?: string | null
           fecha_fin?: string | null
           fecha_inicio?: string | null
           horario_ejecucion?: string | null
@@ -1099,14 +1132,21 @@ export type Database = {
           id_negocio?: number | null
           id_presupuesto: number
           id_servicio?: number | null
+          nro_horas?: number | null
           nro_osi: string
           participantes_reales?: number | null
+          pretenciones_cliente?: string | null
           responsable_recepcion?: string | null
+          sesiones?: number | null
         }
         Update: {
+          audiovisuales?: boolean
+          carnet_impreso?: boolean
+          certificado_impreso?: boolean
           dias_servicio?: number | null
           espacio_herramientas?: string | null
           fecha_culminacion?: string | null
+          fecha_ejecucion_servicio?: string | null
           fecha_fin?: string | null
           fecha_inicio?: string | null
           horario_ejecucion?: string | null
@@ -1121,9 +1161,12 @@ export type Database = {
           id_negocio?: number | null
           id_presupuesto?: number
           id_servicio?: number | null
+          nro_horas?: number | null
           nro_osi?: string
           participantes_reales?: number | null
+          pretenciones_cliente?: string | null
           responsable_recepcion?: string | null
+          sesiones?: number | null
         }
         Relationships: [
           {
@@ -1244,9 +1287,13 @@ export type Database = {
         Row: {
           codigo_cliente: string | null
           direccion_fiscal: string | null
+          es_cliente: boolean
           esta_activo: boolean | null
+          fecha_creacion: string | null
           id: number
+          id_estado_ubicacion: number | null
           id_ubicacion_estado: number | null
+          observaciones: string | null
           que_hace_la_empresa: string | null
           razon_social: string
           rif: string
@@ -1255,9 +1302,13 @@ export type Database = {
         Insert: {
           codigo_cliente?: string | null
           direccion_fiscal?: string | null
+          es_cliente?: boolean
           esta_activo?: boolean | null
+          fecha_creacion?: string | null
           id?: number
+          id_estado_ubicacion?: number | null
           id_ubicacion_estado?: number | null
+          observaciones?: string | null
           que_hace_la_empresa?: string | null
           razon_social: string
           rif: string
@@ -1266,15 +1317,26 @@ export type Database = {
         Update: {
           codigo_cliente?: string | null
           direccion_fiscal?: string | null
+          es_cliente?: boolean
           esta_activo?: boolean | null
+          fecha_creacion?: string | null
           id?: number
+          id_estado_ubicacion?: number | null
           id_ubicacion_estado?: number | null
+          observaciones?: string | null
           que_hace_la_empresa?: string | null
           razon_social?: string
           rif?: string
           sector_industrial?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "empresas_id_estado_ubicacion_fkey"
+            columns: ["id_estado_ubicacion"]
+            isOneToOne: false
+            referencedRelation: "cat_estados_venezuela"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "empresas_id_ubicacion_estado_fkey"
             columns: ["id_ubicacion_estado"]
@@ -2132,7 +2194,6 @@ export type Database = {
       }
       participantes_certificados: {
         Row: {
-          apellido: string | null
           cedula: string | null
           empresa_actual: string | null
           id: number
@@ -2141,7 +2202,6 @@ export type Database = {
           nombre: string | null
         }
         Insert: {
-          apellido?: string | null
           cedula?: string | null
           empresa_actual?: string | null
           id?: number
@@ -2150,7 +2210,6 @@ export type Database = {
           nombre?: string | null
         }
         Update: {
-          apellido?: string | null
           cedula?: string | null
           empresa_actual?: string | null
           id?: number
@@ -2616,7 +2675,6 @@ export type Database = {
           id_estatus: number | null
           id_servicio: number | null
           monto_estimado: number | null
-          observaciones_cliente: string | null
           resultado_atencion: string | null
           tipo_participante: string | null
         }
@@ -2630,7 +2688,6 @@ export type Database = {
           id_estatus?: number | null
           id_servicio?: number | null
           monto_estimado?: number | null
-          observaciones_cliente?: string | null
           resultado_atencion?: string | null
           tipo_participante?: string | null
         }
@@ -2644,7 +2701,6 @@ export type Database = {
           id_estatus?: number | null
           id_servicio?: number | null
           monto_estimado?: number | null
-          observaciones_cliente?: string | null
           resultado_atencion?: string | null
           tipo_participante?: string | null
         }
@@ -3207,6 +3263,10 @@ export type Database = {
             }
             Returns: number
           }
+      fn_mark_cliente_from_trato: {
+        Args: { p_trato_id: number }
+        Returns: undefined
+      }
       fn_procesar_ecc:
         | {
             Args: { p_id_ecc: number; p_solo_previsualizar?: boolean }

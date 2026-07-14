@@ -324,21 +324,47 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
         cedula: existingParticipant.cedula,
         nacionalidad: existingParticipant.nacionalidad
       });
+      
+      // Convert old format to new format if needed
+      if (existingParticipant.nacionalidad === 'V-' || existingParticipant.nacionalidad === 'E-') {
+        const newNacionalidad = existingParticipant.nacionalidad === 'V-' ? 'venezolano' : 'extranjero';
+        console.log('Converting old nacionalidad format:', existingParticipant.nacionalidad, '->', newNacionalidad);
+        
+        // Update the database record to use new format
+        const { error: updateError } = await supabase
+          .from("participantes_certificados")
+          .update({ nacionalidad: newNacionalidad })
+          .eq("id", existingParticipant.id);
+          
+        if (updateError) {
+          console.warn('Failed to update participant nacionalidad format:', updateError);
+        } else {
+          console.log('Successfully updated participant nacionalidad format in database');
+        }
+        
+        // Update the participant object to use the new format for snapshot generation
+        participant.nacionalidad = existingParticipant.nacionalidad === 'V-' || existingParticipant.nacionalidad === 'E-' 
+          ? (existingParticipant.nacionalidad === 'V-' ? 'venezolano' : 'extranjero')
+          : existingParticipant.nacionalidad || 'venezolano';
+        
+        console.log('Updated participant object for snapshot:', { nacionalidad: participant.nacionalidad });
+        
+        // Return the ID with updated format for this certificate
+        return existingParticipant.id;
+      }
+      
       return existingParticipant.id;
     }
 
     // Create new participant
-    const nationality = participant.nacionalidad === 'V' ? 'V-' : 
-                       participant.nacionalidad === 'E' ? 'E-' : 'V-'; // Default to V-
-    
-    console.log('Creating new participant with nationality:', nationality);
+    console.log('Creating new participant with nationality:', participant.nacionalidad);
     
     const { data: newParticipant, error: insertError } = await supabase
       .from("participantes_certificados")
       .insert({
         nombre: participant.name,
         cedula: participant.id_number,
-        nacionalidad: nationality
+        nacionalidad: participant.nacionalidad
       })
       .select('id')
       .single();
@@ -367,6 +393,11 @@ function generateContentSnapshot(
   participant: CertificateParticipant,
   participantId: number
 ): string {
+  // Get the actual participant data from database for snapshot
+  let actualParticipantData = participant;
+  // Note: This function doesn't have access to existingParticipant data, 
+  // so we'll handle the conversion in the calling function
+  
   const snapshot = {
     // Certificate record fields from certificados table
     certificado: {
@@ -391,9 +422,9 @@ function generateContentSnapshot(
       id: participantId, // Include database participant ID
       name: participant.name,
       cedula: participant.id_number, // Store cédula properly
-      nacionalidad: participant.nacionalidad || 'V',
+      nacionalidad: participant.nacionalidad || 'venezolano',
       score: participant.score,
-      cedula_completa: `${participant.nacionalidad || 'V'}-${participant.id_number}` // Full cédula format
+      cedula_completa: `${(participant.nacionalidad === 'extranjero') ? 'E' : 'V'}-${participant.id_number}` // Full cédula format with proper prefix
     },
     // Certificate details
     certificado_detalles: {
@@ -472,9 +503,9 @@ function generateContentSnapshotWithControlNumbers(
       id: participantId, // Include database participant ID
       name: participant.name,
       cedula: participant.id_number, // Store cédula properly
-      nacionalidad: participant.nacionalidad || 'V',
+      nacionalidad: participant.nacionalidad || 'venezolano',
       score: participant.score,
-      cedula_completa: `${participant.nacionalidad || 'V'}-${participant.id_number}` // Full cédula format
+      cedula_completa: `${(participant.nacionalidad === 'extranjero') ? 'E' : 'V'}-${participant.id_number}` // Full cédula format with proper prefix
     },
     // Certificate details
     certificado_detalles: {

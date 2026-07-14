@@ -92,12 +92,12 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
         />
         <div className="flex items-center gap-1">
           <select
-            value={newParticipant.id_type || 'V-'}
-            onChange={e => updateNewParticipant('id_type', e.target.value)}
+            value={newParticipant.nacionalidad || 'venezolano'}
+            onChange={e => updateNewParticipant('nacionalidad', e.target.value)}
             className="px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="V-">V -</option>
-            <option value="E-">E -</option>
+            <option value="venezolano">V -</option>
+            <option value="extranjero">E -</option>
           </select>
           <input
             type="text"
@@ -146,7 +146,7 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
                       {participant.name}
                     </span>
                     <span className="text-gray-500 text-sm">
-                      ({participant.id_type || 'V-'}{participant.id_number})
+                      ({participant.nacionalidad === 'venezolano' ? 'V-' : 'E-'}{participant.id_number})
                     </span>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${badgeStyles}`}>
                       {badgeText}

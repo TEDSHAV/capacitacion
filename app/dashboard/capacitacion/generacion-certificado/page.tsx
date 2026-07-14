@@ -314,7 +314,8 @@ export default function GeneracionCertificadoPage() {
             templateImage: templateImageUrl,
             sealImage: sealImageUrl,
             controlNumbers,
-            isPreview: false
+            isPreview: false,
+            certificateId: dbResult.certificateIds![i] // Pass the actual certificate ID
           });
           certificates.push({ participant, blob });
         } catch (error) {

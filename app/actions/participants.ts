@@ -9,7 +9,9 @@ export async function getParticipants(): Promise<{ participants: ParticipanteCer
 
     const { data: participants, error } = await supabase
       .from("participantes_certificados")
-      .select("*");
+      .select("*")
+      .eq("is_active", true)
+      .order("nombre", { ascending: true });
 
     if (error) {
       throw error;
@@ -35,7 +37,8 @@ export async function createParticipant(formData: ParticipantFormData): Promise<
       .insert([{
         nombre: formData.nombre.trim(),
         cedula: formData.cedula.trim(),
-        nacionalidad: formData.nacionalidad
+        nacionalidad: formData.nacionalidad,
+        is_active: true // Ensure new participants are active
       }])
       .select()
       .single();
@@ -87,9 +90,10 @@ export async function deleteParticipant(id: number): Promise<{ success: boolean;
   try {
     const supabase = await createClient();
 
+    // Soft delete: set is_active to false instead of deleting the record
     const { error } = await supabase
       .from("participantes_certificados")
-      .delete()
+      .update({ is_active: false })
       .eq("id", id);
 
     if (error) {
@@ -114,6 +118,7 @@ export async function getParticipantById(id: number): Promise<{ participant: Par
       .from("participantes_certificados")
       .select("*")
       .eq("id", id)
+      .eq("is_active", true)
       .single();
 
     if (error) {

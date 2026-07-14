@@ -148,8 +148,8 @@ export default function ParticipantLookup() {
               <div>
                 <p className="text-sm text-gray-500">Nacionalidad</p>
                 <p className="font-medium text-gray-900">
-                  {participantData.participant.nacionalidad === 'V-' ? 'Venezolano' : 
-                   participantData.participant.nacionalidad === 'E-' ? 'Extranjero' : 
+                  {participantData.participant.nacionalidad === 'venezolano' ? 'Venezolano' : 
+                   participantData.participant.nacionalidad === 'extranjero' ? 'Extranjero' : 
                    participantData.participant.nacionalidad}
                 </p>
                 {participantData.participant.total_records && participantData.participant.total_records > 1 && (

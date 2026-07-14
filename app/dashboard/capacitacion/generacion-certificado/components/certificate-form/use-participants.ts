@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { CertificateParticipant } from '@/types'
 
-const initialParticipant = { name: '', id_type: 'V-', id_number: '', score: 0, nacionalidad: 'V' as 'V' | 'E' }
+const initialParticipant = { name: '', id_number: '', score: 0, nacionalidad: 'venezolano' as 'venezolano' | 'extranjero' }
 
 export const useParticipants = (onParticipantsChange: (participants: CertificateParticipant[]) => void, initialParticipants: CertificateParticipant[] = []) => {
   const [newParticipant, setNewParticipant] = useState(initialParticipant)
@@ -27,10 +27,9 @@ export const useParticipants = (onParticipantsChange: (participants: Certificate
       const participant: CertificateParticipant = {
         id: Date.now().toString(),
         name: newParticipant.name.trim(),
-        id_type: newParticipant.id_type || 'V-',
         id_number: newParticipant.id_number.trim(),
         score: newParticipant.score || 0,
-        nacionalidad: (newParticipant.id_type || 'V-').charAt(0) as 'V' | 'E'
+        nacionalidad: newParticipant.nacionalidad || 'venezolano'
       }
       const updatedParticipants = [...currentParticipants, participant]
       setCurrentParticipants(updatedParticipants)
@@ -50,10 +49,6 @@ export const useParticipants = (onParticipantsChange: (participants: Certificate
   const updateNewParticipant = useCallback((field: keyof typeof newParticipant, value: string | number) => {
     setNewParticipant(prev => {
       const updated = { ...prev, [field]: value }
-      // If id_type changes, also update nacionalidad
-      if (field === 'id_type') {
-        updated.nacionalidad = (value as string).charAt(0) as 'V' | 'E'
-      }
       return updated
     })
   }, [])

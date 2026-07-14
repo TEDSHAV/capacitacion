@@ -16,7 +16,7 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
   const [formData, setFormData] = useState<ParticipantFormData>({
     nombre: "",
     cedula: "",
-    nacionalidad: "V-"
+    nacionalidad: "venezolano"
   });
   const [error, setError] = useState<{ isOpen: boolean; message: string; details?: string }>({
     isOpen: false,
@@ -87,7 +87,7 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
   };
 
   const resetForm = () => {
-    setFormData({ nombre: "", cedula: "", nacionalidad: "V-" });
+    setFormData({ nombre: "", cedula: "", nacionalidad: "venezolano" });
     setEditingParticipant(null);
     setShowForm(false);
   };
@@ -155,11 +155,11 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
                 </label>
                 <select
                   value={formData.nacionalidad}
-                  onChange={(e) => setFormData({ ...formData, nacionalidad: e.target.value as "V-" | "E-" })}
+                  onChange={(e) => setFormData({ ...formData, nacionalidad: e.target.value as "venezolano" | "extranjero" })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="V-">V- (Venezolano)</option>
-                  <option value="E-">E- (Extranjero)</option>
+                  <option value="venezolano">Venezolano</option>
+                  <option value="extranjero">Extranjero</option>
                 </select>
               </div>
 
@@ -232,26 +232,32 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
                       {participant.nombre}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {participant.nacionalidad}{participant.cedula}
+                      {participant.nacionalidad === "venezolano" ? "V-" : "E-"}{participant.cedula}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {participant.nacionalidad === "V-" ? "Venezolano" : "Extranjero"}
+                      {participant.nacionalidad === "venezolano" ? "Venezolano" : "Extranjero"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(participant)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                        title="Editar"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(participant.id)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => handleEdit(participant)}
+                          className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2 text-sm"
+                          style={{ backgroundColor: 'var(--primary-blue)' }}
+                          title="Editar"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDelete(participant.id)}
+                          className="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 transition-colors shadow-md flex items-center gap-2 text-sm"
+                          style={{ backgroundColor: 'var(--primary-red)' }}
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Eliminar
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

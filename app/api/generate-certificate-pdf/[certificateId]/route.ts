@@ -81,6 +81,9 @@ export async function GET(
     }
 
     // Reconstruct certificate data from snapshot
+    console.log('=== DEBUG: Reconstructing participant data from snapshot ===');
+    console.log('Snapshot participante data:', JSON.stringify(snapshotData.participante, null, 2));
+    
     const certificateData: CertificateGeneration = {
       id: certificateId.toString(),
       certificate_title: snapshotData.certificado_detalles?.title || 'Certificate',
@@ -101,7 +104,7 @@ export async function GET(
         id: snapshotData.participante?.id?.toString() || '1',
         name: snapshotData.participante?.name || 'Unknown Participant',
         id_number: snapshotData.participante?.cedula || 'Unknown ID',
-        nacionalidad: snapshotData.participante?.nacionalidad || 'V',
+        nacionalidad: snapshotData.participante?.nacionalidad || 'venezolano',
         score: snapshotData.participante?.score
       }],
       facilitator_id: snapshotData.firmas?.facilitator_id?.toString(),
@@ -112,6 +115,9 @@ export async function GET(
       id_estado: snapshotData.certificado?.id_estado,
       id_plantilla_certificado: snapshotData.plantilla?.id_plantilla_certificado || null
     };
+
+    console.log('=== DEBUG: Reconstructed participant data ===');
+    console.log('Final participant object:', JSON.stringify(certificateData.participants[0], null, 2));
 
     // Fetch SHA signature data if ID is available
     if (certificateData.sha_signature_id) {

@@ -247,7 +247,7 @@ export interface CertificateParticipant {
   name: string;
   id_type?: string; // V- for Venezuelan ID, E- for foreign ID
   id_number: string;
-  nacionalidad?: 'V' | 'E'; // Nationality: V for venezolano, E for extranjero
+  nacionalidad?: 'venezolano' | 'extranjero'; // Nationality: venezolano or extranjero
   score?: number;
 }
 
@@ -587,13 +587,13 @@ export interface ParticipanteCertificado {
   id: number;
   nombre: string;
   cedula: string;
-  nacionalidad: 'V-' | 'E-';
+  nacionalidad: 'venezolano' | 'extranjero';
 }
 
 export interface ParticipantFormData {
   nombre: string;
   cedula: string;
-  nacionalidad: 'V-' | 'E-';
+  nacionalidad: 'venezolano' | 'extranjero';
 }
 
 export interface ParticipantsClientProps {

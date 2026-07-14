@@ -374,16 +374,36 @@ export class CertificatePage {
    */
   private async addQRCodeToPosition(qrDataUrl: string): Promise<void> {
     try {
+      console.log('Adding QR code to certificate with data URL length:', qrDataUrl.length);
+      
       // Position QR code using shared configuration
       const { PDF_SIZE_MM, MARGIN, X_OFFSET, Y_OFFSET } = CertificatePage.QR_CONFIG;
       const x = this.pageWidth - PDF_SIZE_MM - MARGIN - X_OFFSET;
       const y = MARGIN + Y_OFFSET;
 
+      console.log('QR code position:', { x, y, size: PDF_SIZE_MM });
+
+      // Add a test rectangle to verify positioning
+      this.doc.setDrawColor(255, 0, 0); // Red
+      this.doc.rect(x, y, PDF_SIZE_MM, PDF_SIZE_MM);
+
       // Add QR code image
       this.doc.addImage(qrDataUrl, 'PNG', x, y, PDF_SIZE_MM, PDF_SIZE_MM);
+      
+      // Add "Scan to Verify" label below QR code
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(6);
+      this.doc.text(
+        "Scan to Verify",
+        x + PDF_SIZE_MM / 2,
+        y + PDF_SIZE_MM + 3,
+        { align: "center" }
+      );
+      
+      console.log('QR code successfully added to certificate with label and test border');
 
     } catch (error) {
-      console.warn('Failed to add QR code to certificate:', error);
+      console.error('Failed to add QR code to certificate:', error);
       // Continue without QR code if it fails
     }
   }
@@ -393,8 +413,11 @@ export class CertificatePage {
    */
   async addQRCode(certificateId: number, controlNumbers?: ControlNumbers): Promise<void> {
     try {
+      console.log('Generating QR code for certificate:', certificateId, 'with control numbers:', controlNumbers);
+      
       // Generate QR code data
       const qrData = QRService.generateQRData(certificateId, controlNumbers);
+      console.log('Generated QR data:', JSON.stringify(qrData, null, 2));
       
       // Generate QR code as data URL using shared configuration
       const qrDataUrl = await QRService.generateQRDataURL({
@@ -404,11 +427,13 @@ export class CertificatePage {
         includeMargin: true
       });
 
+      console.log('Generated QR data URL, length:', qrDataUrl.length);
+
       // Add QR code using common positioning method
       await this.addQRCodeToPosition(qrDataUrl);
 
     } catch (error) {
-      console.warn('Failed to add QR code to certificate:', error);
+      console.error('Failed to add QR code to certificate:', error);
       // Continue without QR code if it fails
     }
   }
@@ -443,7 +468,7 @@ export class CertificatePage {
       await this.addQRCodeToPosition(qrDataUrl);
 
     } catch (error) {
-      console.warn('Failed to add sample QR code to certificate preview:', error);
+      console.error('Failed to add sample QR code to certificate preview:', error);
       // Continue without QR code if it fails
     }
   }
