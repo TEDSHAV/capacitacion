@@ -136,6 +136,28 @@ export function CoordinateEditor({
     </div>
   );
 
+  const selectInput = (
+    label: string,
+    value: string,
+    options: { value: string; label: string }[],
+    onChange: (v: string) => void,
+  ) => (
+    <div className="flex items-center gap-2">
+      <label className="text-xs text-gray-600 w-32 shrink-0">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-32 px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   const sectionTitle = (title: string) => (
     <h4 className="text-sm font-semibold text-gray-700 mt-4 mb-2 first:mt-0">{title}</h4>
   );
@@ -188,18 +210,51 @@ export function CoordinateEditor({
           {numInput("maxFontSize", certCoords.name.maxFontSize, (v) => updateCertField("name.maxFontSize", v))}
           {numInput("lineHeight", certCoords.name.lineHeight, (v) => updateCertField("name.lineHeight", v))}
           {textInput("color", certCoords.name.color, (v) => updateCertField("name.color", v))}
+          {selectInput("font", certCoords.name.font || "helvetica", [
+            { value: "helvetica", label: "Helvetica" },
+            { value: "times", label: "Times" },
+            { value: "courier", label: "Courier" }
+          ], (v) => updateCertField("name.font", v))}
+          {selectInput("style", certCoords.name.style || "bold", [
+            { value: "normal", label: "Normal" },
+            { value: "bold", label: "Bold" },
+            { value: "italic", label: "Italic" },
+            { value: "bolditalic", label: "Bold Italic" }
+          ], (v) => updateCertField("name.style", v))}
 
           {sectionTitle("Título")}
           {numInput("maxWidth", certCoords.title.maxWidth, (v) => updateCertField("title.maxWidth", v))}
           {numInput("maxFontSize", certCoords.title.maxFontSize, (v) => updateCertField("title.maxFontSize", v))}
           {numInput("lineHeight", certCoords.title.lineHeight, (v) => updateCertField("title.lineHeight", v))}
           {textInput("color", certCoords.title.color, (v) => updateCertField("title.color", v))}
+          {selectInput("font", certCoords.title.font || "helvetica", [
+            { value: "helvetica", label: "Helvetica" },
+            { value: "times", label: "Times" },
+            { value: "courier", label: "Courier" }
+          ], (v) => updateCertField("title.font", v))}
+          {selectInput("style", certCoords.title.style || "bold", [
+            { value: "normal", label: "Normal" },
+            { value: "bold", label: "Bold" },
+            { value: "italic", label: "Italic" },
+            { value: "bolditalic", label: "Bold Italic" }
+          ], (v) => updateCertField("title.style", v))}
 
           {sectionTitle("Subtítulo")}
           {numInput("maxWidth", certCoords.subtitle.maxWidth, (v) => updateCertField("subtitle.maxWidth", v))}
           {numInput("maxFontSize", certCoords.subtitle.maxFontSize, (v) => updateCertField("subtitle.maxFontSize", v))}
           {numInput("lineHeight", certCoords.subtitle.lineHeight, (v) => updateCertField("subtitle.lineHeight", v))}
           {textInput("color", certCoords.subtitle.color, (v) => updateCertField("subtitle.color", v))}
+          {selectInput("font", certCoords.subtitle.font || "helvetica", [
+            { value: "helvetica", label: "Helvetica" },
+            { value: "times", label: "Times" },
+            { value: "courier", label: "Courier" }
+          ], (v) => updateCertField("subtitle.font", v))}
+          {selectInput("style", certCoords.subtitle.style || "normal", [
+            { value: "normal", label: "Normal" },
+            { value: "bold", label: "Bold" },
+            { value: "italic", label: "Italic" },
+            { value: "bolditalic", label: "Bold Italic" }
+          ], (v) => updateCertField("subtitle.style", v))}
 
           {sectionTitle("Layout")}
           {numInput("centerPoint", certCoords.centerPoint, (v) => updateCertField("centerPoint", v))}
@@ -260,6 +315,11 @@ export function CoordinateEditor({
           {sectionTitle("Nro. Control")}
           {numInput("X", carnetCoords.controlNumber.x, (v) => updateCarnetField("controlNumber.x", v))}
           {numInput("Y", carnetCoords.controlNumber.y, (v) => updateCarnetField("controlNumber.y", v))}
+
+          {sectionTitle("Código QR")}
+          {numInput("X", carnetCoords.qr?.x ?? 64.5, (v) => updateCarnetField("qr.x", v))}
+          {numInput("Y", carnetCoords.qr?.y ?? 15, (v) => updateCarnetField("qr.y", v))}
+          {numInput("Size", carnetCoords.qr?.size ?? 17.5, (v) => updateCarnetField("qr.size", v))}
         </div>
       )}
     </div>

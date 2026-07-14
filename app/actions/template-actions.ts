@@ -2,6 +2,53 @@
 
 import { createClient } from "@/utils/supabase/server";
 
+// Create a new template record in the database
+export async function createTemplateRecord(
+  name: string,
+  fileName: string,
+  url: string,
+  type: "certificate" | "carnet",
+) {
+  const supabase = await createClient();
+
+  try {
+    const tableName =
+      type === "certificate" ? "plantillas_certificados" : "plantillas_carnets";
+
+    // Check if this is the first template (auto-activate)
+    const { count } = await supabase
+      .from(tableName)
+      .select("*", { count: "exact", head: true });
+
+    const isFirstTemplate = count === 0;
+
+    const { data, error } = await supabase
+      .from(tableName)
+      .insert({
+        nombre: name.trim(),
+        archivo: fileName,
+        url_imagen: url,
+        is_active: isFirstTemplate,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error creating template record:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      data: null,
+    };
+  }
+}
+
 // Set template as active (only one can be active at a time)
 export async function setActiveTemplate(
   templateId: number,

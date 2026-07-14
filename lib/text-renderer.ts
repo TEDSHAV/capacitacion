@@ -136,9 +136,9 @@ export class TextRenderer {
   /**
    * Render duration text
    */
-  renderDurationText(hours: number, x: number, y: number): void {
+  renderDurationText(hours: number, x: number, y: number, prefix: string = ""): void {
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(9);
-    this.doc.text(`${hours} horas`, x, y, { align: "center" });
+    this.doc.text(`${prefix}${hours} horas`, x, y, { align: "center" });
   }
 }

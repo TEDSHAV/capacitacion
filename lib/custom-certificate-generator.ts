@@ -78,6 +78,7 @@ export async function generateCustomCertificate(
     certificateId: 0,
     singlePage: options?.singlePage,
     paperSize: options?.paperSize || "half-letter-custom",
+    skipQR: true,
     preloadedAssets: options?.preloadedAssets,
   });
 }

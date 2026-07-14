@@ -179,25 +179,35 @@ export async function getFacilitatorData(
     }
 
     // Transform the data to match the expected interface
+    let facilitatorFirma: any = null;
+    if (data.firmas) {
+      if (Array.isArray(data.firmas)) {
+        if (data.firmas.length > 0) {
+          facilitatorFirma = data.firmas[0];
+        }
+      } else {
+        facilitatorFirma = data.firmas;
+      }
+    }
+
     const facilitator: CertificateFacilitator = {
       id: data.id,
       name: toTitleCase(data.nombre_apellido || ""),
       nombre_apellido: toTitleCase(data.nombre_apellido || ""),
       facilitator: toTitleCase(data.nombre_apellido || ""),
       cargo: "Facilitador",
-      firma: data.firmas?.[0]?.url_imagen,
+      firma: facilitatorFirma?.url_imagen,
       firma_id: data.firma_id,
       sha_signature_id: data.sha_signature_id,
-      signature_data:
-        data.firmas && data.firmas.length > 0
-          ? {
-              id: data.firmas[0].id,
-              representante_sha: data.firmas[0].nombre,
-              firma: data.firmas[0].url_imagen,
-              url_imagen: data.firmas[0].url_imagen,
-              imagen_base64: data.firmas[0].imagen_base64,
-            }
-          : undefined,
+      signature_data: facilitatorFirma
+        ? {
+            id: facilitatorFirma.id,
+            representante_sha: facilitatorFirma.nombre,
+            firma: facilitatorFirma.url_imagen,
+            url_imagen: facilitatorFirma.url_imagen,
+            imagen_base64: facilitatorFirma.imagen_base64,
+          }
+        : undefined,
     };
 
     return facilitator;

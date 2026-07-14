@@ -321,6 +321,7 @@ export interface CertificateRequest {
   certificateId?: number; // Actual certificate database ID for QR code generation
   singlePage?: boolean; // Whether to generate single-page certificate
   paperSize?: PaperSize; // Preference for paper size
+  skipQR?: boolean; // Option to skip QR code generation/rendering
   preloadedAssets?: {
     facilitator?: Facilitador;
     facilitatorSignature?: string;

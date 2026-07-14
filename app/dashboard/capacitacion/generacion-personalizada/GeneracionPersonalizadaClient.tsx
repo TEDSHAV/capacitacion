@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  CertificateParticipant,
   CertificateGeneration,
   CertificateOSI,
   ManualOSIInput,
@@ -10,9 +9,11 @@ import {
   CourseTopic,
   PaperSize,
 } from "@/types";
+import { CustomParticipant } from "@/lib/custom-participant-types";
 import { ManualOSIInput as ManualOSIInputComponent } from "@/app/dashboard/capacitacion/generacion-certificado/components/manual-osi-input";
 import { CoordinateEditor } from "./components/CoordinateEditor";
 import { ParticipantTable } from "./components/ParticipantTable";
+import { CustomPreviewModal } from "./components/CustomPreviewModal";
 import {
   CertCoordinateConfig,
   CarnetCoordinateConfig,
@@ -30,7 +31,10 @@ import {
   checkOSIHasAnyCertificatesAction,
   checkOSIHasCertificatesForCourseAction,
 } from "@/app/actions/certificados";
-import { ChevronDown, ChevronUp, Loader2, FileText, Award, CheckCircle, AlertCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, FileText, Award, CheckCircle, AlertCircle, Eye, AlertTriangle, Upload } from "lucide-react";
+import { createTemplateRecord } from "@/app/actions/template-actions";
+import { createClient as createBrowserClient } from "@/utils/supabase/client";
+import { QRService } from "@/lib/qr-service";
 
 interface GeneracionPersonalizadaClientProps {
   companies: Empresa[];
@@ -55,7 +59,13 @@ export function GeneracionPersonalizadaClient({
   const [selectedCourseTopic, setSelectedCourseTopic] = useState<CourseTopic | null>(null);
   const [selectedCertTemplate, setSelectedCertTemplate] = useState<any>(null);
   const [selectedCarnetTemplate, setSelectedCarnetTemplate] = useState<any>(null);
-  const [participants, setParticipants] = useState<CertificateParticipant[]>([]);
+  const [participants, setParticipants] = useState<CustomParticipant[]>([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [controlNumberWarning, setControlNumberWarning] = useState<string | null>(null);
+  const [warningAcknowledged, setWarningAcknowledged] = useState(false);
+  const [uploadingTemplate, setUploadingTemplate] = useState<"certificate" | "carnet" | null>(null);
+  const certFileInputRef = useRef<HTMLInputElement>(null);
+  const carnetFileInputRef = useRef<HTMLInputElement>(null);
   const [certCoords, setCertCoords] = useState<CertCoordinateConfig>({ ...DEFAULT_CERT_COORDINATES });
   const [carnetCoords, setCarnetCoords] = useState<CarnetCoordinateConfig>({ ...DEFAULT_CARNET_COORDINATES });
   const [showCoordEditor, setShowCoordEditor] = useState(false);
@@ -81,6 +91,89 @@ export function GeneracionPersonalizadaClient({
     generate_documents: true,
     paperSize: "half-letter-custom" as PaperSize,
   });
+
+  const preloadImage = async (url: string): Promise<string> => {
+    if (!url) return "";
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return "";
+    }
+  };
+
+  const [certTemplatesState, setCertTemplatesState] = useState<any[]>(certTemplates);
+  const [carnetTemplatesState, setCarnetTemplatesState] = useState<any[]>(carnetTemplates);
+
+  const refreshTemplates = async (type: "certificate" | "carnet") => {
+    const supabase = createBrowserClient();
+    const tableName = type === "certificate" ? "plantillas_certificados" : "plantillas_carnets";
+    const { data } = await supabase
+      .from(tableName)
+      .select("*")
+      .order("is_active", { ascending: false })
+      .order("nombre");
+    if (data) {
+      if (type === "certificate") {
+        setCertTemplatesState(data);
+      } else {
+        setCarnetTemplatesState(data);
+      }
+    }
+  };
+
+  const handleTemplateUpload = async (
+    file: File,
+    type: "certificate" | "carnet",
+  ) => {
+    if (!file) return;
+    setUploadingTemplate(type);
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      uploadFormData.append("type", type === "certificate" ? "certificate" : "carnet");
+
+      const uploadResponse = await fetch("/api/upload-template", {
+        method: "POST",
+        body: uploadFormData,
+      });
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResult.success) {
+        throw new Error(`Error al subir archivo: ${uploadResult.error}`);
+      }
+
+      const templateName = file.name.replace(/\.[^.]+$/, "");
+      const result = await createTemplateRecord(
+        templateName,
+        uploadResult.fileName,
+        uploadResult.url,
+        type,
+      );
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || "Error al guardar en base de datos");
+      }
+
+      await refreshTemplates(type);
+
+      if (type === "certificate") {
+        setSelectedCertTemplate(result.data);
+      } else {
+        setSelectedCarnetTemplate(result.data);
+      }
+    } catch (error) {
+      alert(`Error al subir plantilla: ${error instanceof Error ? error.message : "Error desconocido"}`);
+    } finally {
+      setUploadingTemplate(null);
+    }
+  };
 
   const buildMockOSI = (manualData: ManualOSIInput): CertificateOSI => {
     let companyName = manualData.company_name || "";
@@ -112,6 +205,62 @@ export function GeneracionPersonalizadaClient({
 
   const handleManualOSIDataChange = (field: keyof ManualOSIInput, value: any) => {
     setManualOSIData((prev) => ({ ...prev, [field]: value }));
+    if (field === "city_id" && value) {
+      const city = cities.find((c: any) => c.id.toString() === value.toString());
+      if (city) {
+        setCertificateDetails((prev) => ({ ...prev, location: city.nombre_ciudad }));
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (participants.length > 0 && !warningAcknowledged) {
+      const invalid = participants.filter(
+        (p) =>
+          p.nro_libro < 1 ||
+          p.nro_hoja < 1 || p.nro_hoja > 100 ||
+          p.nro_linea < 1 || p.nro_linea > 10 ||
+          p.nro_control < 1,
+      );
+      if (invalid.length > 0) {
+        setControlNumberWarning(
+          `${invalid.length} participante(s) tienen números de control inválidos (libro>=1, hoja 1-100, línea 1-10, control>=1).`,
+        );
+      } else {
+        setControlNumberWarning(null);
+      }
+    } else {
+      setControlNumberWarning(null);
+    }
+  }, [participants, warningAcknowledged]);
+
+  const buildCertificateData = (): CertificateGeneration => {
+    const mockOSI = buildMockOSI(manualOSIData);
+    return {
+      osi_id: "manual",
+      osi_data: mockOSI,
+      certificate_title: certificateDetails.title,
+      certificate_subtitle: certificateDetails.subtitle || undefined,
+      passing_grade: selectedCourseTopic?.nota_aprobatoria ?? 14,
+      course_topic_id: selectedCourseTopic?.id || "",
+      course_topic_data: selectedCourseTopic as any,
+      participants,
+      location: certificateDetails.location,
+      date: certificateDetails.date,
+      horas_estimadas: certificateDetails.horas_estimadas,
+      facilitator_id: certificateDetails.facilitator_id || undefined,
+      sha_signature_id: certificateDetails.sha_signature_id || undefined,
+      fecha_vencimiento: certificateDetails.fecha_vencimiento || undefined,
+      id_plantilla_certificado: selectedCertTemplate?.id ? parseInt(selectedCertTemplate.id) : undefined,
+      id_plantilla_carnet: selectedCarnetTemplate?.id ? parseInt(selectedCarnetTemplate.id) : undefined,
+      plantilla_certificado_archivo: selectedCertTemplate?.archivo || undefined,
+      course_content: selectedCourseTopic?.contenido_curso || "",
+      generate_documents: certificateDetails.generate_documents,
+      include_previous_participants: false,
+      paperSize: certificateDetails.paperSize,
+      manual_mode: true,
+      manual_osi_data: manualOSIData,
+    };
   };
 
   const handleGenerate = async () => {
@@ -136,6 +285,20 @@ export function GeneracionPersonalizadaClient({
     }
     if (participants.length === 0) {
       setGenerationResult({ success: false, message: "Al menos un participante es requerido" });
+      return;
+    }
+    const invalidParticipants = participants.filter(
+      (p) =>
+        p.nro_libro < 1 ||
+        p.nro_hoja < 1 || p.nro_hoja > 100 ||
+        p.nro_linea < 1 || p.nro_linea > 10 ||
+        p.nro_control < 1,
+    );
+    if (invalidParticipants.length > 0) {
+      setGenerationResult({
+        success: false,
+        message: `${invalidParticipants.length} participante(s) tienen números de control inválidos. Revisa libro (>=1), hoja (1-100), línea (1-10), control (>=1).`,
+      });
       return;
     }
     if (!certificateDetails.title.trim()) {
@@ -167,6 +330,7 @@ export function GeneracionPersonalizadaClient({
         id_plantilla_certificado: selectedCertTemplate?.id ? parseInt(selectedCertTemplate.id) : undefined,
         id_plantilla_carnet: selectedCarnetTemplate?.id ? parseInt(selectedCarnetTemplate.id) : undefined,
         plantilla_certificado_archivo: selectedCertTemplate?.archivo || undefined,
+        course_content: selectedCourseTopic.contenido_curso || "",
         generate_documents: certificateDetails.generate_documents,
         include_previous_participants: false,
         paperSize: certificateDetails.paperSize,
@@ -182,13 +346,53 @@ export function GeneracionPersonalizadaClient({
         return;
       }
 
-      setGenerationStatus(`Certificados guardados: ${dbResult.certificateIds?.length}. Generando PDFs...`);
+      setGenerationStatus(`Certificados guardados: ${dbResult.certificateIds?.length}. Preloading assets...`);
 
       const certTemplatePath = selectedCertTemplate?.archivo
         ? selectedCertTemplate.archivo.startsWith("/")
-          ? selectedCertTemplate.archivo
-          : `/${selectedCertTemplate.archivo}`
+          ? selectedCertTemplate.archivo.startsWith("/templates/")
+            ? selectedCertTemplate.archivo
+            : `/templates${selectedCertTemplate.archivo}`
+          : `/templates/${selectedCertTemplate.archivo}`
         : "";
+
+      setGenerationStatus(`Certificados guardados: ${dbResult.certificateIds?.length}. Generando PDFs...`);
+
+      const sealImageUrl = "/templates/sello.png";
+      const [sealBase64, facilitatorData] = await Promise.all([
+        preloadImage(sealImageUrl),
+        certificateDetails.facilitator_id
+          ? getFacilitatorData(certificateDetails.facilitator_id)
+          : Promise.resolve(null),
+      ]);
+
+      let facilitatorSignatureBase64 = "";
+      if (facilitatorData) {
+        const fData = facilitatorData as any;
+        if (fData.signature_data?.imagen_base64) {
+          facilitatorSignatureBase64 = `data:image/png;base64,${fData.signature_data.imagen_base64}`;
+        } else if (fData.signature_data?.url_imagen) {
+          facilitatorSignatureBase64 = await preloadImage(fData.signature_data.url_imagen);
+        } else if (fData.firma) {
+          facilitatorSignatureBase64 = await preloadImage(fData.firma);
+        }
+        certData.facilitator_data = facilitatorData as any;
+      }
+
+      let shaSignatureBase64 = "";
+      if (certificateDetails.sha_signature_id && signatures.length > 0) {
+        const shaSig = signatures.find(
+          (s: any) => s.id.toString() === certificateDetails.sha_signature_id,
+        );
+        if (shaSig) {
+          if (shaSig.imagen_base64) {
+            shaSignatureBase64 = `data:image/png;base64,${shaSig.imagen_base64}`;
+          } else if (shaSig.url_imagen) {
+            shaSignatureBase64 = await preloadImage(shaSig.url_imagen);
+          }
+          certData.sha_signature_data = shaSig as any;
+        }
+      }
 
       const BATCH_SIZE = 10;
       for (let i = 0; i < participants.length; i += BATCH_SIZE) {
@@ -203,7 +407,13 @@ export function GeneracionPersonalizadaClient({
                 certTemplatePath,
                 certCoords,
                 {
+                  sealImage: sealBase64 || sealImageUrl,
                   paperSize: certificateDetails.paperSize,
+                  preloadedAssets: {
+                    facilitator: facilitatorData as any,
+                    facilitatorSignature: facilitatorSignatureBase64,
+                    shaSignature: shaSignatureBase64,
+                  },
                 },
               );
             } catch (e) {
@@ -243,8 +453,10 @@ export function GeneracionPersonalizadaClient({
 
           const carnetTemplatePath = selectedCarnetTemplate?.archivo
             ? selectedCarnetTemplate.archivo.startsWith("/")
-              ? selectedCarnetTemplate.archivo
-              : `/${selectedCarnetTemplate.archivo}`
+              ? selectedCarnetTemplate.archivo.startsWith("/templates/")
+                ? selectedCarnetTemplate.archivo
+                : `/templates${selectedCarnetTemplate.archivo}`
+              : `/templates/${selectedCarnetTemplate.archivo}`
             : "";
 
           const customCarnetGen = new CustomCarnetGenerator(carnetCoords);
@@ -255,10 +467,20 @@ export function GeneracionPersonalizadaClient({
               batch.map(async (participant, batchIndex) => {
                 const globalIndex = i + batchIndex;
                 try {
+                  const certificateId = dbResult.certificateIds![globalIndex];
+                  const qrData = QRService.generateQRData(certificateId);
+                  const qrDataURL = await QRService.generateQRDataURL({
+                    data: qrData,
+                    size: 60,
+                    level: "M",
+                    includeMargin: true,
+                  });
+
                   await customCarnetGen.generateCarnet({
                     participant,
                     carnetData: carnetDataList[globalIndex] as any,
                     templateImage: carnetTemplatePath,
+                    qrDataURL,
                   });
                 } catch (e) {
                   console.error("Carnet PDF error for participant:", participant.name, e);
@@ -457,39 +679,89 @@ export function GeneracionPersonalizadaClient({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Plantilla Certificado</label>
-              <select
-                value={selectedCertTemplate?.id || ""}
-                onChange={(e) => {
-                  const t = certTemplates.find((t) => t.id.toString() === e.target.value);
-                  setSelectedCertTemplate(t || null);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Seleccionar plantilla...</option>
-                {certTemplates.map((t: any) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombre} {t.is_active ? "(Activa)" : ""}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={selectedCertTemplate?.id || ""}
+                  onChange={(e) => {
+                    const t = certTemplatesState.find((t) => t.id.toString() === e.target.value);
+                    setSelectedCertTemplate(t || null);
+                  }}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Seleccionar plantilla...</option>
+                  {certTemplatesState.map((t: any) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nombre} {t.is_active ? "(Activa)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  ref={certFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleTemplateUpload(file, "certificate");
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  onClick={() => certFileInputRef.current?.click()}
+                  disabled={uploadingTemplate === "certificate"}
+                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium whitespace-nowrap"
+                  title="Subir nueva plantilla de certificado"
+                >
+                  {uploadingTemplate === "certificate" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Plantilla Carnet</label>
-              <select
-                value={selectedCarnetTemplate?.id || ""}
-                onChange={(e) => {
-                  const t = carnetTemplates.find((t) => t.id.toString() === e.target.value);
-                  setSelectedCarnetTemplate(t || null);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Seleccionar plantilla...</option>
-                {carnetTemplates.map((t: any) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombre} {t.is_active ? "(Activa)" : ""}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={selectedCarnetTemplate?.id || ""}
+                  onChange={(e) => {
+                    const t = carnetTemplatesState.find((t) => t.id.toString() === e.target.value);
+                    setSelectedCarnetTemplate(t || null);
+                  }}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Seleccionar plantilla...</option>
+                  {carnetTemplatesState.map((t: any) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nombre} {t.is_active ? "(Activa)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  ref={carnetFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleTemplateUpload(file, "carnet");
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  onClick={() => carnetFileInputRef.current?.click()}
+                  disabled={uploadingTemplate === "carnet"}
+                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium whitespace-nowrap"
+                  title="Subir nueva plantilla de carnet"
+                >
+                  {uploadingTemplate === "carnet" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -522,6 +794,24 @@ export function GeneracionPersonalizadaClient({
           )}
         </div>
 
+        {controlNumberWarning && (
+          <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-yellow-600" />
+            <div className="flex-1">
+              <p className="text-sm text-yellow-800">{controlNumberWarning}</p>
+              <button
+                onClick={() => {
+                  setWarningAcknowledged(true);
+                  setControlNumberWarning(null);
+                }}
+                className="text-xs text-yellow-700 underline mt-1"
+              >
+                Entendido, continuar de todos modos
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -535,23 +825,33 @@ export function GeneracionPersonalizadaClient({
                 Generar documentos adicionales
               </label>
             </div>
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Generando...
-                </>
-              ) : (
-                <>
-                  <FileText className="w-4 h-4" />
-                  Generar Certificados
-                </>
-              )}
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsPreviewOpen(true)}
+                disabled={isGenerating || participants.length === 0}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                <Eye className="w-4 h-4" />
+                Vista Previa
+              </button>
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generando...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4" />
+                    Generar Certificados
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {generationStatus && (
@@ -579,6 +879,35 @@ export function GeneracionPersonalizadaClient({
           )}
         </div>
       </div>
+
+      <CustomPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        participants={participants}
+        certificateData={buildCertificateData()}
+        certCoords={certCoords}
+        carnetCoords={carnetCoords}
+        certTemplatePath={selectedCertTemplate?.archivo
+          ? selectedCertTemplate.archivo.startsWith("/")
+            ? selectedCertTemplate.archivo.startsWith("/templates/")
+              ? selectedCertTemplate.archivo
+              : `/templates${selectedCertTemplate.archivo}`
+            : `/templates/${selectedCertTemplate.archivo}`
+          : ""}
+        carnetTemplatePath={selectedCarnetTemplate?.archivo
+          ? selectedCarnetTemplate.archivo.startsWith("/")
+            ? selectedCarnetTemplate.archivo.startsWith("/templates/")
+              ? selectedCarnetTemplate.archivo
+              : `/templates${selectedCarnetTemplate.archivo}`
+            : `/templates/${selectedCarnetTemplate.archivo}`
+          : ""}
+        emiteCarnet={!!(selectedCarnetTemplate && selectedCourseTopic?.emite_carnet)}
+        generateDocuments={certificateDetails.generate_documents}
+        paperSize={certificateDetails.paperSize}
+        facilitatorId={certificateDetails.facilitator_id || undefined}
+        shaSignatureId={certificateDetails.sha_signature_id || undefined}
+        mockOSI={buildMockOSI(manualOSIData)}
+      />
     </div>
   );
 }

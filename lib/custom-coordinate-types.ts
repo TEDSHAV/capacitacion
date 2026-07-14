@@ -1,7 +1,7 @@
 export interface CertCoordinateConfig {
-  name: { maxWidth: number; maxFontSize: number; lineHeight: number; color: string };
-  title: { maxWidth: number; maxFontSize: number; lineHeight: number; color: string };
-  subtitle: { maxWidth: number; maxFontSize: number; lineHeight: number; color: string };
+  name: { maxWidth: number; maxFontSize: number; lineHeight: number; color: string; font?: string; style?: string };
+  title: { maxWidth: number; maxFontSize: number; lineHeight: number; color: string; font?: string; style?: string };
+  subtitle: { maxWidth: number; maxFontSize: number; lineHeight: number; color: string; font?: string; style?: string };
   centerPoint: number;
   uniformGap: number;
   facilitatorName: { x: number; y: number };
@@ -21,12 +21,13 @@ export interface CarnetCoordinateConfig {
   emissionDate: { x: number; y: number; fontSize?: number };
   expirationDate: { x: number; y: number; fontSize?: number };
   controlNumber: { x: number; y: number; fontSize?: number };
+  qr?: { x: number; y: number; size: number };
 }
 
 export const DEFAULT_CERT_COORDINATES: CertCoordinateConfig = {
-  name: { maxWidth: 180, maxFontSize: 18, lineHeight: 10, color: "rgb(12, 63, 105)" },
-  title: { maxWidth: 160, maxFontSize: 18, lineHeight: 7, color: "rgb(12, 63, 120)" },
-  subtitle: { maxWidth: 140, maxFontSize: 14, lineHeight: 4, color: "rgb(12, 63, 105)" },
+  name: { maxWidth: 180, maxFontSize: 18, lineHeight: 10, color: "rgb(12, 63, 105)", font: "helvetica", style: "bold" },
+  title: { maxWidth: 160, maxFontSize: 18, lineHeight: 7, color: "rgb(12, 63, 120)", font: "helvetica", style: "bold" },
+  subtitle: { maxWidth: 140, maxFontSize: 14, lineHeight: 4, color: "rgb(12, 63, 105)", font: "helvetica", style: "normal" },
   centerPoint: 60,
   uniformGap: 5,
   facilitatorName: { x: 56, y: 100 },
@@ -46,4 +47,5 @@ export const DEFAULT_CARNET_COORDINATES: CarnetCoordinateConfig = {
   emissionDate: { x: 3, y: 42, fontSize: 8 },
   expirationDate: { x: 50, y: 42, fontSize: 8 },
   controlNumber: { x: 64.5, y: 14, fontSize: 6 },
+  qr: { x: 64.5, y: 15, size: 17.5 },
 };

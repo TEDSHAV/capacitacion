@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { CertificateParticipant } from "@/types";
-import { ParticipantScannerModal } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/ParticipantScannerModal";
-import { Plus, Trash2, ScanLine } from "lucide-react";
+import { CustomParticipant } from "@/lib/custom-participant-types";
+import { ExcelUploader } from "./ExcelUploader";
+import { Plus, Trash2 } from "lucide-react";
 
 interface ParticipantTableProps {
-  participants: CertificateParticipant[];
-  onParticipantsChange: (participants: CertificateParticipant[]) => void;
+  participants: CustomParticipant[];
+  onParticipantsChange: (participants: CustomParticipant[]) => void;
   passingGrade?: number;
 }
 
@@ -16,12 +16,21 @@ export function ParticipantTable({
   onParticipantsChange,
   passingGrade = 14,
 }: ParticipantTableProps) {
-  const [scannerOpen, setScannerOpen] = useState(false);
+  const [showUploader, setShowUploader] = useState(false);
 
   const addRow = () => {
     onParticipantsChange([
       ...participants,
-      { name: "", idNumber: "", nationality: "venezolano", score: 0 },
+      {
+        name: "",
+        idNumber: "",
+        nationality: "venezolano",
+        score: 0,
+        nro_libro: 0,
+        nro_hoja: 0,
+        nro_linea: 0,
+        nro_control: 0,
+      },
     ]);
   };
 
@@ -29,14 +38,15 @@ export function ParticipantTable({
     onParticipantsChange(participants.filter((_, i) => i !== index));
   };
 
-  const updateRow = (index: number, field: keyof CertificateParticipant, value: any) => {
+  const updateRow = (index: number, field: keyof CustomParticipant, value: any) => {
     const updated = [...participants];
     updated[index] = { ...updated[index], [field]: value };
     onParticipantsChange(updated);
   };
 
-  const handleAddScanned = (scanned: CertificateParticipant[]) => {
-    onParticipantsChange([...participants, ...scanned]);
+  const handleParticipantsLoaded = (loaded: CustomParticipant[]) => {
+    onParticipantsChange(loaded);
+    setShowUploader(false);
   };
 
   return (
@@ -47,11 +57,10 @@ export function ParticipantTable({
         </h3>
         <div className="flex gap-2">
           <button
-            onClick={() => setScannerOpen(true)}
+            onClick={() => setShowUploader(!showUploader)}
             className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            <ScanLine className="w-3.5 h-3.5" />
-            Escanear
+            Cargar Excel/CSV
           </button>
           <button
             onClick={addRow}
@@ -63,9 +72,15 @@ export function ParticipantTable({
         </div>
       </div>
 
+      {showUploader && (
+        <div className="mb-4">
+          <ExcelUploader onParticipantsLoaded={handleParticipantsLoaded} />
+        </div>
+      )}
+
       {participants.length === 0 ? (
         <div className="text-center py-8 text-gray-400 text-sm">
-          No hay participantes. Agrega manualmente o escanea desde una imagen.
+          No hay participantes. Carga un Excel/CSV o agrega manualmente.
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -74,10 +89,25 @@ export function ParticipantTable({
               <tr className="border-b border-gray-200 text-left text-gray-600">
                 <th className="py-2 px-2 font-medium">#</th>
                 <th className="py-2 px-2 font-medium">Nombre</th>
-                <th className="py-2 px-2 font-medium">Nacionalidad</th>
+                <th className="py-2 px-2 font-medium">Nac.</th>
                 <th className="py-2 px-2 font-medium">Cédula</th>
-                <th className="py-2 px-2 font-medium">Calificación</th>
+                <th className="py-2 px-2 font-medium">Calif.</th>
+                <th className="py-2 px-2 font-medium text-center" colSpan={4}>
+                  Números de Control
+                </th>
                 <th className="py-2 px-2 font-medium"></th>
+              </tr>
+              <tr className="border-b border-gray-200 text-left text-gray-400">
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th className="py-1 px-2 font-normal text-center">Libro</th>
+                <th className="py-1 px-2 font-normal text-center">Hoja</th>
+                <th className="py-1 px-2 font-normal text-center">Línea</th>
+                <th className="py-1 px-2 font-normal text-center">Ctrl</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -97,7 +127,7 @@ export function ParticipantTable({
                     <select
                       value={p.nationality || "venezolano"}
                       onChange={(e) => updateRow(i, "nationality", e.target.value)}
-                      className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="venezolano">V</option>
                       <option value="extranjero">E</option>
@@ -108,7 +138,7 @@ export function ParticipantTable({
                       type="text"
                       value={p.idNumber}
                       onChange={(e) => updateRow(i, "idNumber", e.target.value)}
-                      className="w-28 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-24 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       placeholder="Cédula"
                     />
                   </td>
@@ -120,11 +150,49 @@ export function ParticipantTable({
                       step={1}
                       value={p.score ?? 0}
                       onChange={(e) => updateRow(i, "score", parseFloat(e.target.value) || 0)}
-                      className={`w-16 px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                      className={`w-14 px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                         (p.score ?? 0) >= passingGrade
                           ? "border-green-300 bg-green-50"
                           : "border-red-300 bg-red-50"
                       }`}
+                    />
+                  </td>
+                  <td className="py-1.5 px-1">
+                    <input
+                      type="number"
+                      min={1}
+                      value={p.nro_libro ?? 0}
+                      onChange={(e) => updateRow(i, "nro_libro", parseInt(e.target.value) || 0)}
+                      className="w-14 px-1 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="py-1.5 px-1">
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={p.nro_hoja ?? 0}
+                      onChange={(e) => updateRow(i, "nro_hoja", parseInt(e.target.value) || 0)}
+                      className="w-14 px-1 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="py-1.5 px-1">
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={p.nro_linea ?? 0}
+                      onChange={(e) => updateRow(i, "nro_linea", parseInt(e.target.value) || 0)}
+                      className="w-12 px-1 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="py-1.5 px-1">
+                    <input
+                      type="number"
+                      min={1}
+                      value={p.nro_control ?? 0}
+                      onChange={(e) => updateRow(i, "nro_control", parseInt(e.target.value) || 0)}
+                      className="w-20 px-1 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </td>
                   <td className="py-1.5 px-2">
@@ -141,12 +209,6 @@ export function ParticipantTable({
           </table>
         </div>
       )}
-
-      <ParticipantScannerModal
-        isOpen={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onAddParticipants={handleAddScanned}
-      />
     </div>
   );
 }

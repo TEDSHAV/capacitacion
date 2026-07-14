@@ -1,10 +1,8 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import {
-  CertificateGeneration,
-  CertificateParticipant,
-} from "@/types";
+import { CertificateGeneration } from "@/types";
+import { CustomParticipant } from "@/lib/custom-participant-types";
 import { getFacilitatorData } from "./facilitators";
 import { certificateService } from "@/lib/certificate-service";
 
@@ -37,7 +35,7 @@ export interface CustomCertificateWithNumbers {
 }
 
 async function createOrUpdateParticipant(
-  participant: CertificateParticipant,
+  participant: CustomParticipant,
 ): Promise<number | null> {
   try {
     const supabase = await createClient();
@@ -127,7 +125,7 @@ async function createOrUpdateParticipant(
 
 function generateCustomSnapshot(
   certificateData: CertificateGeneration,
-  participant: CertificateParticipant,
+  participant: CustomParticipant,
   participantId: number,
   nro_libro: number,
   nro_hoja: number,
@@ -211,7 +209,7 @@ function generateCustomSnapshot(
 
 export async function saveCustomCertificatesToDatabase(
   certificateData: CertificateGeneration,
-  participants: CertificateParticipant[],
+  participants: CustomParticipant[],
 ): Promise<{
   success: boolean;
   message: string;
@@ -263,69 +261,6 @@ export async function saveCustomCertificatesToDatabase(
     const participantIds: number[] = [];
     const certificateNumbers: CustomCertificateWithNumbers[] = [];
 
-    let nextControlNumbers = {
-      nro_libro: 1,
-      nro_hoja: 1,
-      nro_linea: 1,
-      nro_control: 1,
-    };
-
-    try {
-      const { data: configData, error: configError } = await supabase
-        .from("control_sequences")
-        .select("*")
-        .eq("is_active", true)
-        .single();
-
-      if (configData && !configError) {
-        const { data: lastCert, error: lastCertError } = await supabase
-          .from("certificados")
-          .select("nro_libro, nro_hoja, nro_linea, nro_control")
-          .order("id", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (lastCertError || !lastCert) {
-          nextControlNumbers = {
-            nro_libro: configData.nro_libro,
-            nro_hoja: configData.nro_hoja,
-            nro_linea: configData.nro_linea,
-            nro_control: configData.nro_control,
-          };
-        } else {
-          let nextLine = lastCert.nro_linea + 1;
-          let nextSheet = lastCert.nro_hoja;
-          let nextBook = lastCert.nro_libro;
-
-          if (nextLine > 10) {
-            nextLine = 1;
-            nextSheet += 1;
-            if (nextSheet > 100) {
-              nextSheet = 1;
-              nextBook += 1;
-            }
-          }
-
-          nextControlNumbers = {
-            nro_libro: nextBook,
-            nro_hoja: nextSheet,
-            nro_linea: nextLine,
-            nro_control: (lastCert.nro_control || 0) + 1,
-          };
-        }
-      } else {
-        const { data: controlNumbersData, error: rpcError } = await supabase.rpc(
-          "get_next_control_numbers",
-          { batch_size: participants.length },
-        );
-        if (!rpcError && controlNumbersData) {
-          nextControlNumbers = controlNumbersData as any;
-        }
-      }
-    } catch (error) {
-      console.warn("Failed to determine next control numbers, using defaults:", error);
-    }
-
     for (let i = 0; i < participants.length; i++) {
       const participant = participants[i];
 
@@ -338,26 +273,11 @@ export async function saveCustomCertificatesToDatabase(
 
       participantIds.push(participantId);
 
-      let currentLine = nextControlNumbers.nro_linea + i;
-      let currentSheet = nextControlNumbers.nro_hoja;
-      let currentBook = nextControlNumbers.nro_libro;
-
-      if (currentLine > 10) {
-        const extraLines = currentLine - 1;
-        currentLine = (extraLines % 10) + 1;
-        currentSheet = nextControlNumbers.nro_hoja + Math.floor(extraLines / 10);
-        if (currentSheet > 100) {
-          const extraSheets = currentSheet - 1;
-          currentSheet = (extraSheets % 100) + 1;
-          currentBook = nextControlNumbers.nro_libro + Math.floor(extraSheets / 100);
-        }
-      }
-
       const currentControlNumbers = {
-        nro_libro: currentBook,
-        nro_hoja: currentSheet,
-        nro_linea: currentLine,
-        nro_control: nextControlNumbers.nro_control + i,
+        nro_libro: participant.nro_libro,
+        nro_hoja: participant.nro_hoja,
+        nro_linea: participant.nro_linea,
+        nro_control: participant.nro_control,
       };
 
       const certificateRecord: CustomCertificateRecord = {

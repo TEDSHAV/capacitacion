@@ -308,10 +308,13 @@ export class CertificatePage {
       );
 
       if (certificateData.horas_estimadas) {
+        const isCustom = this.templateKey?.startsWith("custom_");
+        const prefix = isCustom ? "Duración: " : "";
         this.textRenderer.renderDurationText(
           certificateData.horas_estimadas,
           this.pageWidth / 2 + this.config.durationOffsetX,
           this.config.durationY,
+          prefix,
         );
       }
 
@@ -570,6 +573,7 @@ export class CertificatePage {
           undefined,
           "FAST",
         );
+        this.addSHALabel(signatureConfig);
         return;
       }
 
@@ -579,9 +583,9 @@ export class CertificatePage {
         signatureData = shaSignature[0];
       }
 
-      // SHA signature name removed - only showing signature image
+      // SHA signature label text
 
-      // 🚀 USE BASE64 FROM DATABASE IF AVAILABLE (new approach for containerized environments)
+      // USE BASE64 FROM DATABASE IF AVAILABLE (new approach for containerized environments)
       if (signatureData.imagen_base64) {
         this.doc.addImage(
           `data:image/png;base64,${signatureData.imagen_base64}`,
@@ -593,6 +597,7 @@ export class CertificatePage {
           undefined,
           "FAST",
         );
+        this.addSHALabel(signatureConfig);
         return;
       }
 
@@ -605,6 +610,7 @@ export class CertificatePage {
           signatureConfig.width,
           signatureConfig.height,
         );
+        this.addSHALabel(signatureConfig);
       } else if (signatureData.firma) {
         await this.addSignatureImage(
           signatureData.firma,
@@ -613,10 +619,30 @@ export class CertificatePage {
           signatureConfig.width,
           signatureConfig.height,
         );
+        this.addSHALabel(signatureConfig);
       }
     } catch (error) {
       // Continue without SHA signature
     }
+  }
+
+  /**
+   * Add "Representante SHA" label text below the SHA signature image
+   */
+  private addSHALabel(signatureConfig: typeof this.config.signature): void {
+    const labelX =
+      signatureConfig.rightX + this.config.shaSignatureOffset.x +
+      signatureConfig.width / 2;
+    const labelY =
+      signatureConfig.y + this.config.shaSignatureOffset.y +
+      signatureConfig.height + 3;
+
+    this.doc.saveGraphicsState();
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(0, 0, 0);
+    this.doc.text("Representante SHA", labelX, labelY, { align: "center" });
+    this.doc.restoreGraphicsState();
   }
 
   /**

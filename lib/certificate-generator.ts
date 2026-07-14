@@ -88,6 +88,7 @@ export class CertificateGenerator {
           controlNumbers,
           isPreview || false,
           certificateId || 0,
+          !!data.skipQR,
         );
       } else {
         // Generate two-page certificate (original behavior)
@@ -102,6 +103,7 @@ export class CertificateGenerator {
           controlNumbers,
           isPreview || false,
           certificateId || 0,
+          !!data.skipQR,
         );
       }
     } catch (error) {
@@ -124,6 +126,7 @@ export class CertificateGenerator {
     controlNumbers: any,
     isPreview: boolean,
     certificateId: number,
+    skipQR: boolean = false,
   ): Promise<Blob> {
     // Page 1: Certificate (upper half)
     await certificatePage.addTemplate(templateImage);
@@ -134,17 +137,19 @@ export class CertificateGenerator {
     );
 
     // Add QR code - either real or sample for preview
-    if (!isPreview && controlNumbers && certificateId) {
-      try {
-        await certificatePage.addQRCode(certificateId, controlNumbers);
-      } catch (qrError) {
-        await certificatePage.addSampleQRCode();
-      }
-    } else if (isPreview) {
-      try {
-        await certificatePage.addSampleQRCode();
-      } catch (qrError) {
-        // Continue without QR code on error
+    if (!skipQR) {
+      if (!isPreview && controlNumbers && certificateId) {
+        try {
+          await certificatePage.addQRCode(certificateId, controlNumbers);
+        } catch (qrError) {
+          await certificatePage.addSampleQRCode();
+        }
+      } else if (isPreview) {
+        try {
+          await certificatePage.addSampleQRCode();
+        } catch (qrError) {
+          // Continue without QR code on error
+        }
       }
     }
 
@@ -181,6 +186,7 @@ export class CertificateGenerator {
     controlNumbers: any,
     isPreview: boolean,
     certificateId: number,
+    skipQR: boolean = false,
   ): Promise<Blob> {
     // Page 1: Certificate
     await certificatePage.addTemplate(templateImage);
@@ -191,17 +197,19 @@ export class CertificateGenerator {
     );
 
     // Add QR code - either real or sample for preview
-    if (!isPreview && controlNumbers && certificateId) {
-      try {
-        await certificatePage.addQRCode(certificateId, controlNumbers);
-      } catch (qrError) {
-        await certificatePage.addSampleQRCode();
-      }
-    } else if (isPreview) {
-      try {
-        await certificatePage.addSampleQRCode();
-      } catch (qrError) {
-        // Continue without QR code on error
+    if (!skipQR) {
+      if (!isPreview && controlNumbers && certificateId) {
+        try {
+          await certificatePage.addQRCode(certificateId, controlNumbers);
+        } catch (qrError) {
+          await certificatePage.addSampleQRCode();
+        }
+      } else if (isPreview) {
+        try {
+          await certificatePage.addSampleQRCode();
+        } catch (qrError) {
+          // Continue without QR code on error
+        }
       }
     }
 

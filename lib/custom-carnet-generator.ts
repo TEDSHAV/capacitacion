@@ -27,8 +27,9 @@ export class CustomCarnetGenerator {
     carnetData: CarnetGeneration;
     templateImage: string;
     isPreview?: boolean;
+    qrDataURL?: string;
   }): Promise<Blob> {
-    const { participant, carnetData, templateImage, isPreview = false } = request;
+    const { participant, carnetData, templateImage, isPreview = false, qrDataURL } = request;
     const pdf = this.createPdfInstance();
 
     try {
@@ -37,6 +38,10 @@ export class CustomCarnetGenerator {
       await this.addCourseInfo(pdf, carnetData);
       await this.addDates(pdf, carnetData);
       await this.addControlNumber(pdf, carnetData);
+
+      if (qrDataURL) {
+        await this.addQRCode(pdf, qrDataURL);
+      }
 
       if (isPreview) {
         this.addPreviewWatermark(pdf);
@@ -225,6 +230,16 @@ export class CustomCarnetGenerator {
     }
   }
 
+  private async addQRCode(pdf: jsPDF, qrDataURL?: string): Promise<void> {
+    try {
+      if (!qrDataURL) return;
+      const q = this.coords.qr || { x: 64.5, y: 15, size: 17.5 };
+      pdf.addImage(qrDataURL, "PNG", q.x, q.y, q.size, q.size);
+    } catch (error) {
+      console.error("Failed to add QR code to custom carnet:", error);
+    }
+  }
+
   private addPreviewWatermark(pdf: jsPDF): void {
     pdf.setFontSize(20);
     pdf.setTextColor(200, 200, 200);
@@ -243,6 +258,7 @@ export class CustomCarnetGenerator {
     participant: CertificateParticipant;
     carnetData: CarnetGeneration;
     templateImage: string;
+    qrDataURL?: string;
   }): Promise<string> {
     const blob = await this.generateCarnet({ ...request, isPreview: true });
     return URL.createObjectURL(blob);
