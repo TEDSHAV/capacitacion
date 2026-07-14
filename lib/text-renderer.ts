@@ -1,6 +1,5 @@
 import jsPDF from "jspdf";
 import { TextLayoutConfig } from "./certificate-config";
-import { TextElementConfig } from "./template-config";
 
 export class TextRenderer {
   private doc: jsPDF;
@@ -141,67 +140,5 @@ export class TextRenderer {
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(9);
     this.doc.text(`${hours} horas`, x, y, { align: "center" });
-  }
-
-  /**
-   * Render a text element based on a template-specific configuration
-   */
-  renderTextElement(
-    text: string,
-    defaultX: number,
-    defaultY: number,
-    config?: TextElementConfig,
-    baseConfig?: TextLayoutConfig,
-  ): void {
-    if (!text) return;
-
-    // Determine final position
-    const x = config?.x !== undefined ? config.x : defaultX;
-    const y = config?.y !== undefined ? config.y : defaultY;
-
-    // Apply font settings
-    const font = config?.fontFamily || baseConfig?.font || "helvetica";
-    const style = config?.fontStyle || baseConfig?.style || "normal";
-    const color = config?.color || baseConfig?.color || "black";
-    const fontSize =
-      config?.fontSize ||
-      (baseConfig ? this.calculateFontSize(text, baseConfig.maxFontSize) : 9);
-
-    this.doc.setFont(font, style);
-    this.doc.setTextColor(color);
-    this.doc.setFontSize(fontSize);
-
-    const processedText =
-      config?.transformToUpperCase !== false && baseConfig
-        ? text.toUpperCase()
-        : text;
-
-    this.doc.text(processedText, x, y, { align: "center" });
-  }
-
-  /**
-   * Render duration text with prefix
-   */
-  renderDurationTextWithPrefix(
-    hours: number,
-    x: number,
-    y: number,
-    config?: TextElementConfig,
-  ): void {
-    const prefix = config?.prefix || "Duración: ";
-    const text = `${prefix}${hours} horas`;
-    this.renderTextElement(text, x, y, config);
-  }
-
-  /**
-   * Render certificate award prefix text
-   */
-  renderCertificateAwardPrefix(
-    x: number,
-    y: number,
-    config?: TextElementConfig,
-  ): void {
-    const text = config?.prefix || "Se otorga el presente certificado a: ";
-    this.renderTextElement(text, x, y, config);
   }
 }

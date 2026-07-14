@@ -7,7 +7,6 @@ import {
 } from "@/types";
 import { CertificateFacilitator } from "@/app/actions/facilitators";
 import { getDynamicConfig } from "./certificate-config";
-import { getTemplateSettings } from "./template-config";
 import { TextRenderer } from "./text-renderer";
 import { certificateService } from "./certificate-service";
 import { QRService } from "./qr-service";
@@ -53,66 +52,7 @@ export class CertificatePage {
     this.isSinglePage = isSinglePage;
     this.preloadedAssets = preloadedAssets;
     this.templateKey = templateKey;
-
-    // Get base dynamic config
-    const baseConfig = getDynamicConfig(pageWidth, pageHeight, templateKey);
-
-    // Get template-specific settings
-    const templateSettings = getTemplateSettings(templateKey);
-
-    // Merge template-specific coordinate overrides from TEMPLATE_SETTINGS
-    // this ensures settings in template-config.ts take priority over TEMPLATE_COORD_MAP
-    this.config = {
-      ...baseConfig,
-      ...templateSettings.coordinates,
-      // Handle deep merging for all nested objects
-      page: {
-        ...baseConfig.page,
-        ...(templateSettings.coordinates.page || {}),
-      },
-      name: {
-        ...baseConfig.name,
-        ...(templateSettings.coordinates.name || {}),
-      },
-      conditionalText: {
-        ...baseConfig.conditionalText,
-        ...(templateSettings.coordinates.conditionalText || {}),
-      },
-      title: {
-        ...baseConfig.title,
-        ...(templateSettings.coordinates.title || {}),
-      },
-      subtitle: {
-        ...baseConfig.subtitle,
-        ...(templateSettings.coordinates.subtitle || {}),
-      },
-      signature: {
-        ...baseConfig.signature,
-        ...(templateSettings.coordinates.signature || {}),
-      },
-      contentPage: {
-        ...baseConfig.contentPage,
-        ...(templateSettings.coordinates.contentPage || {}),
-      },
-      facilitatorName: {
-        ...baseConfig.facilitatorName,
-        ...(templateSettings.coordinates.facilitatorName || {}),
-      },
-      facilitatorSignature: {
-        ...baseConfig.facilitatorSignature,
-        ...(templateSettings.coordinates.facilitatorSignature || {}),
-      },
-      shaSignatureOffset: {
-        ...baseConfig.shaSignatureOffset,
-        ...(templateSettings.coordinates.shaSignatureOffset || {}),
-      },
-      seal: {
-        x: templateSettings.coordinates.seal?.x ?? baseConfig.seal?.x ?? 0,
-        y: templateSettings.coordinates.seal?.y ?? baseConfig.seal?.y ?? 0,
-        size: templateSettings.coordinates.seal?.size ?? baseConfig.seal?.size,
-      },
-    };
-
+    this.config = getDynamicConfig(pageWidth, pageHeight, templateKey);
     this.textRenderer = new TextRenderer(doc);
   }
 
@@ -293,96 +233,76 @@ export class CertificatePage {
 
     let currentY = contentLayout.startY;
 
-    // Get template settings for text customization
-    const templateSettings = getTemplateSettings(this.templateKey);
-
-    // Render certificate award prefix if configured
-    if (name && templateSettings.textSettings?.awardPrefix) {
-      this.textRenderer.renderCertificateAwardPrefix(
-        this.pageWidth / 2,
-        templateSettings.textSettings.awardPrefix.y || currentY,
-        templateSettings.textSettings.awardPrefix,
-      );
-    }
-
     // Render participant name
     if (name) {
-      this.textRenderer.renderTextElement(
+      const nameHeight = this.textRenderer.renderDynamicText(
         name,
         this.pageWidth / 2,
-        templateSettings.textSettings?.participantName?.y || currentY,
-        templateSettings.textSettings?.participantName,
+        currentY,
         this.config.name,
       );
+      currentY += nameHeight;
+
+      if (participant.score !== undefined && participant.score !== null) {
+        currentY += this.config.uniformGap;
+      }
     }
 
     // Render conditional text
     if (participant.score !== undefined && participant.score !== null) {
-      const score = participant.score;
-      const passingGrade = certificateData.passing_grade || 0;
-      const conditionalText =
-        score >= passingGrade
-          ? "Por haber aprobado el curso:"
-          : "Por haber asistido al curso:";
-
-      this.textRenderer.renderTextElement(
-        conditionalText,
+      const conditionalHeight = this.textRenderer.renderConditionalText(
+        participant.score,
+        certificateData.passing_grade || 0,
         this.pageWidth / 2,
-        templateSettings.textSettings?.conditionalText?.y || currentY,
-        templateSettings.textSettings?.conditionalText,
+        currentY,
         this.config.conditionalText,
       );
+      currentY += conditionalHeight;
+
+      if (certificate_title) {
+        currentY += 2; // Smaller gap to move title up
+      }
     }
 
     // Render course title
     if (certificate_title) {
-      this.textRenderer.renderTextElement(
+      const titleHeight = this.textRenderer.renderDynamicText(
         certificate_title,
         this.pageWidth / 2,
-        templateSettings.textSettings?.courseTitle?.y || currentY,
-        templateSettings.textSettings?.courseTitle,
+        currentY,
         this.config.title,
       );
+      currentY += titleHeight;
+
+      if (certificate_subtitle) {
+        currentY += this.config.uniformGap;
+      }
     }
 
     // Render subtitle
     if (certificate_subtitle) {
-      this.textRenderer.renderTextElement(
+      this.textRenderer.renderDynamicText(
         certificate_subtitle,
         this.pageWidth / 2,
-        templateSettings.textSettings?.courseSubtitle?.y || currentY,
-        templateSettings.textSettings?.courseSubtitle,
+        currentY,
         this.config.subtitle,
       );
     }
 
     // Render hours and additional information
     if (date) {
-      this.textRenderer.renderTextElement(
-        `Puerto la Cruz, ${new Date(date.includes("T") ? date : date + "T12:00:00").toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" })}`,
+      this.textRenderer.renderDateText(
+        date,
         this.pageWidth / 2,
         this.config.dateY,
-        templateSettings.textSettings?.date,
       );
 
-      // Render duration value
       if (certificateData.horas_estimadas) {
-        if (this.templateKey === "certificado_old") {
-          // Old certificate: show with "Duración:" prefix
-          this.textRenderer.renderDurationTextWithPrefix(
-            certificateData.horas_estimadas,
-            this.pageWidth / 2 + this.config.durationOffsetX,
-            this.config.durationY,
-            templateSettings.textSettings?.duration,
-          );
-        } else {
-          // Current certificate: show just the hours value without prefix
-          this.textRenderer.renderDurationText(
-            certificateData.horas_estimadas,
-            this.pageWidth / 2 + this.config.durationOffsetX,
-            this.config.durationY,
-          );
-        }
+        this.textRenderer.renderDurationText(
+          certificateData.horas_estimadas,
+          this.pageWidth / 2 + this.config.durationOffsetX,
+          this.config.durationY,
+        );
       }
 
       // Add signatures
@@ -555,26 +475,16 @@ export class CertificatePage {
     signatureConfig: typeof this.config.signature,
   ): Promise<void> {
     try {
-      const templateSettings = getTemplateSettings(this.templateKey);
-
-      // Render facilitator label if configured (e.g. "Facilitador" text above name)
-      if (templateSettings.textSettings?.facilitatorLabel) {
-        this.textRenderer.renderCertificateAwardPrefix(
-          templateSettings.textSettings.facilitatorLabel.x ||
-            this.config.facilitatorName.x,
-          templateSettings.textSettings.facilitatorLabel.y ||
-            this.config.facilitatorName.y,
-          templateSettings.textSettings.facilitatorLabel,
-        );
-      }
-
       // Add facilitator name - use the name field which is mapped from nombre_apellido
-      this.textRenderer.renderTextElement(
-        toTitleCase(facilitator.name || facilitator.nombre_apellido || ""),
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(8);
+      this.doc.text(
+        toTitleCase(
+          facilitator.name || facilitator.nombre_apellido || "",
+        ).toUpperCase(),
         this.config.facilitatorName.x,
-        templateSettings.textSettings?.facilitatorName?.y ||
-          this.config.facilitatorName.y,
-        templateSettings.textSettings?.facilitatorName,
+        this.config.facilitatorName.y,
+        { align: "center" },
       );
 
       // 🚀 USE PRELOADED ASSET IF AVAILABLE TO SKIP CANVAS PROCESSING
@@ -626,42 +536,6 @@ export class CertificatePage {
     signatureConfig: typeof this.config.signature,
   ): Promise<void> {
     try {
-      const templateSettings = getTemplateSettings(this.templateKey);
-
-      // Render SHA label if configured (e.g. "Representante SHA" text above/below signature)
-      if (templateSettings.textSettings?.shaLabel) {
-        this.textRenderer.renderCertificateAwardPrefix(
-          templateSettings.textSettings.shaLabel.x ||
-            signatureConfig.rightX + this.config.shaSignatureOffset.x,
-          templateSettings.textSettings.shaLabel.y ||
-            signatureConfig.y + this.config.shaSignatureOffset.y,
-          templateSettings.textSettings.shaLabel,
-        );
-      }
-
-      // Handle both array and object structures
-      let signatureData = shaSignature;
-      if (Array.isArray(shaSignature) && shaSignature.length > 0) {
-        signatureData = shaSignature[0];
-      }
-
-      // Render SHA name if configured
-      if (
-        templateSettings.textSettings?.shaName &&
-        (signatureData.nombre || signatureData.representante_sha)
-      ) {
-        this.textRenderer.renderTextElement(
-          toTitleCase(
-            signatureData.nombre || signatureData.representante_sha || "",
-          ),
-          templateSettings.textSettings.shaName.x ||
-            signatureConfig.rightX + this.config.shaSignatureOffset.x,
-          templateSettings.textSettings.shaName.y ||
-            signatureConfig.y + this.config.shaSignatureOffset.y,
-          templateSettings.textSettings.shaName,
-        );
-      }
-
       // 🚀 USE PRELOADED ASSET IF AVAILABLE TO SKIP CANVAS PROCESSING
       if (this.preloadedAssets?.shaSignature) {
         this.doc.addImage(
@@ -675,6 +549,12 @@ export class CertificatePage {
           "FAST",
         );
         return;
+      }
+
+      // Handle both array and object structures
+      let signatureData = shaSignature;
+      if (Array.isArray(shaSignature) && shaSignature.length > 0) {
+        signatureData = shaSignature[0];
       }
 
       // SHA signature name removed - only showing signature image
@@ -750,12 +630,6 @@ export class CertificatePage {
     controlNumbers?: ControlNumbers,
   ): Promise<void> {
     try {
-      // Check if QR code should be hidden for this template
-      const templateSettings = getTemplateSettings(this.templateKey);
-      if (templateSettings.hideQRCode) {
-        return; // Skip QR code generation for this template
-      }
-
       // Generate QR code data
       const qrData = QRService.generateQRData(certificateId, controlNumbers);
 
@@ -779,12 +653,6 @@ export class CertificatePage {
    */
   async addSampleQRCode(): Promise<void> {
     try {
-      // Check if QR code should be hidden for this template
-      const templateSettings = getTemplateSettings(this.templateKey);
-      if (templateSettings.hideQRCode) {
-        return; // Skip QR code generation for this template
-      }
-
       // Generate sample QR code data for preview
       const sampleData = {
         certificateId: 0, // Use 0 as sample certificate ID
