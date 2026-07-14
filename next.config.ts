@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   // Output configuration for Docker deployment
   output: "standalone",
 
-  // Turbopack configuration
-  turbopack: {},
+  // Turbopack configuration - disabled during production build due to memory constraints
+  turbopack: process.env.TURBOPACK_DISABLED === "1" ? undefined : {},
 
   // Security headers and optimizations
   poweredByHeader: false,
@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
 
   // Experimental features
   experimental: {
-    optimizeCss: true,
+    optimizeCss: false,
     optimizePackageImports: ["@supabase/supabase-js", "lucide-react", "jspdf"],
   },
 
