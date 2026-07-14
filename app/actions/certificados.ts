@@ -23,6 +23,8 @@ export interface CertificateRecord {
 
   id_curso?: number | null;
 
+  id_ciudad?: number | null;
+
   fecha_emision?: string | null;
 
   fecha_vencimiento?: string | null;
@@ -353,6 +355,8 @@ export async function saveCertificatesToDatabase(
         id_curso: updatedCertificateData.course_topic_data?.id
           ? parseInt(updatedCertificateData.course_topic_data.id)
           : null, // FK → catalogo_servicios
+
+        id_ciudad: updatedCertificateData.osi_data?.id_ciudad || null,
 
         fecha_emision: batchEmissionDate,
 
@@ -1838,6 +1842,7 @@ export async function updateCertificateAction(
         id_curso: certificateData.course_topic_data?.id
           ? parseInt(certificateData.course_topic_data.id)
           : null,
+        id_ciudad: certificateData.osi_data?.id_ciudad || null,
         fecha_emision: certificateData.date,
         fecha_vencimiento: certificateData.fecha_vencimiento || null,
         nro_osi: certificateData.osi_data?.nro_osi

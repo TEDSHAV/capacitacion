@@ -1651,6 +1651,7 @@ export interface ClienteCredential {
   is_active: boolean;
   created_at: string | null;
   updated_at: string | null;
+  id_ciudad?: number | null;
 }
 
 export interface ClienteSession {
@@ -1659,12 +1660,14 @@ export interface ClienteSession {
   empresa_nombre: string;
   username: string;
   display_name: string | null;
+  id_ciudad?: number | null;
 }
 
 export interface ClienteCertificateFilters {
   searchTerm?: string;
   courseId?: number;
   stateId?: number;
+  cityId?: number;
   dateFrom?: string;
   dateTo?: string;
   type: "all" | "certificates" | "carnets";
@@ -1730,4 +1733,5 @@ export interface ClienteCarnetRow {
 export interface ClienteFilterOptions {
   courses: { id: number; nombre: string }[];
   states: { id: number; nombre_estado: string }[];
+  cities: { id: number; nombre_ciudad: string }[];
 }

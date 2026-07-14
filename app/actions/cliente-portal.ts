@@ -29,6 +29,7 @@ export async function createClienteCredentials(
   username: string,
   password: string,
   displayName?: string,
+  cityId?: number | null,
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createAdminClient();
   const passwordHash = hashPassword(password);
@@ -42,6 +43,7 @@ export async function createClienteCredentials(
       display_name: displayName || null,
       is_active: true,
       updated_at: new Date().toISOString(),
+      id_ciudad: cityId || null,
     })
     .select()
     .single();
@@ -182,6 +184,7 @@ export async function loginCliente(
     empresa_nombre: creds.empresas?.razon_social || "Empresa",
     username: creds.username,
     display_name: creds.display_name,
+    id_ciudad: creds.id_ciudad ?? null,
   };
 
   const cookieStore = await cookies();
@@ -215,6 +218,11 @@ async function verifyClienteEmpresa(empresaId: number): Promise<boolean> {
   return !!session && session.empresa_id === empresaId;
 }
 
+async function getSessionCityId(): Promise<number | null> {
+  const session = await getClienteSession();
+  return session?.id_ciudad ?? null;
+}
+
 export async function getClienteCertificates(
   empresaId: number,
   filters: ClienteCertificateFilters,
@@ -224,6 +232,7 @@ export async function getClienteCertificates(
   if (!(await verifyClienteEmpresa(empresaId))) {
     return { error: "No autorizado" };
   }
+  const sessionCityId = await getSessionCityId();
   const supabase = await createClient();
 
   // When filtering by OSI number, query directly since the RPC doesn't support nro_osi
@@ -244,6 +253,8 @@ export async function getClienteCertificates(
       .eq("id_empresa", empresaId)
       .eq("is_active", true)
       .eq("nro_osi", filters.nroOsi);
+
+    if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
 
     if (filters.searchTerm) {
       query = query.or(
@@ -315,6 +326,7 @@ export async function getClienteCertificates(
     p_limit: itemsPerPage,
   };
 
+  if (sessionCityId) rpcParams.p_city_id = sessionCityId;
   if (filters.searchTerm) rpcParams.p_search_term = filters.searchTerm;
   if (filters.courseId) rpcParams.p_course_id = filters.courseId;
   if (filters.stateId) rpcParams.p_state_id = filters.stateId;
@@ -343,6 +355,7 @@ export async function getClienteCarnets(
   if (!(await verifyClienteEmpresa(empresaId))) {
     return { error: "No autorizado" };
   }
+  const sessionCityId = await getSessionCityId();
   const supabase = await createClient();
 
   const from = (page - 1) * itemsPerPage;
@@ -354,11 +367,15 @@ export async function getClienteCarnets(
       `id, nombre_participante, cedula_participante, titulo_curso, 
        fecha_emision, fecha_vencimiento, is_active, id_empresa, 
        id_certificado, id_osi,
-       certificados!inner(id_estado, fecha_emision, nro_osi)`,
+       certificados!inner(id_estado, fecha_emision, nro_osi, id_ciudad)`,
       { count: "exact" },
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+
+  if (sessionCityId) {
+    query = query.eq("certificados.id_ciudad", sessionCityId);
+  }
 
   if (filters.nroOsi) {
     query = query.eq("id_osi", filters.nroOsi);
@@ -398,50 +415,66 @@ export async function getClienteMetrics(
   if (!(await verifyClienteEmpresa(empresaId))) {
     return { error: "No autorizado" };
   }
+  const sessionCityId = await getSessionCityId();
   const supabase = await createClient();
 
   // Count total certificates for this company
-  const { count: certCount, error: certError } = await supabase
+  let certCountQuery = supabase
     .from("certificados")
     .select("id", { count: "exact", head: true })
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+  if (sessionCityId) certCountQuery = certCountQuery.eq("id_ciudad", sessionCityId);
+  const { count: certCount, error: certError } = await certCountQuery;
 
   if (certError) {
     console.error("Error counting certificates:", certError);
   }
 
-  // Count carnets for this company
-  const { count: carnetCount, error: carnetError } = await supabase
+  // Count carnets for this company (filter by city via certificados join)
+  let carnetCountQuery = supabase
     .from("carnets")
-    .select("id", { count: "exact", head: true })
+    .select(
+      sessionCityId
+        ? "id, certificados!inner(id_ciudad)"
+        : "id",
+      { count: "exact", head: true },
+    )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+  if (sessionCityId) {
+    carnetCountQuery = carnetCountQuery.eq("certificados.id_ciudad", sessionCityId);
+  }
+  const { count: carnetCount, error: carnetError } = await carnetCountQuery;
 
   if (carnetError) {
     console.error("Error counting carnets:", carnetError);
   }
 
   // Count unique participants from certificates
+  let participantCountQuery = supabase
+    .from("certificados")
+    .select("id_participante", { count: "exact", head: true })
+    .eq("id_empresa", empresaId)
+    .eq("is_active", true);
+  if (sessionCityId) participantCountQuery = participantCountQuery.eq("id_ciudad", sessionCityId);
   const { count: participantCount, error: participantError } =
-    await supabase
-      .from("certificados")
-      .select("id_participante", { count: "exact", head: true })
-      .eq("id_empresa", empresaId)
-      .eq("is_active", true);
+    await participantCountQuery;
 
   if (participantError) {
     console.error("Error counting participants:", participantError);
   }
 
   // Get certificates by course for "course with most participants"
-  const { data: byCourseData, error: byCourseError } = await supabase
+  let byCourseQuery = supabase
     .from("certificados")
     .select(
       `id_curso, catalogo_servicios!inner(id, nombre)`,
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+  if (sessionCityId) byCourseQuery = byCourseQuery.eq("id_ciudad", sessionCityId);
+  const { data: byCourseData, error: byCourseError } = await byCourseQuery;
 
   const courseMap = new Map<number, { name: string; count: number }>();
   if (!byCourseError && byCourseData) {
@@ -507,18 +540,20 @@ export async function getClienteRecentBatches(
   if (!(await verifyClienteEmpresa(empresaId))) {
     return { error: "No autorizado" };
   }
+  const sessionCityId = await getSessionCityId();
   const supabase = await createClient();
 
   // Fetch certificates grouped by nro_osi — get all for this company first
-  const { data, error } = await supabase
+  let batchQuery = supabase
     .from("certificados")
     .select(
       `id, nro_osi, fecha_emision, id_curso, catalogo_servicios!inner(nombre)`,
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
-    .not("nro_osi", "is", null)
-    .order("fecha_emision", { ascending: false });
+    .not("nro_osi", "is", null);
+  if (sessionCityId) batchQuery = batchQuery.eq("id_ciudad", sessionCityId);
+  const { data, error } = await batchQuery.order("fecha_emision", { ascending: false });
 
   if (error) {
     console.error("Error fetching recent batches:", error);
@@ -575,6 +610,7 @@ export async function getClienteBatchesFiltered(
   if (!(await verifyClienteEmpresa(empresaId))) {
     return { error: "No autorizado" };
   }
+  const sessionCityId = await getSessionCityId();
   const supabase = await createClient();
 
   let query = supabase
@@ -587,6 +623,9 @@ export async function getClienteBatchesFiltered(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("nro_osi", "is", null);
+
+  if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
+  if (filters.cityId) query = query.eq("id_ciudad", filters.cityId);
 
   if (filters.courseId) query = query.eq("id_curso", filters.courseId);
   if (filters.stateId) query = query.eq("id_estado", filters.stateId);
@@ -665,15 +704,18 @@ export async function getClienteFilterOptions(
   if (!(await verifyClienteEmpresa(empresaId))) {
     return { error: "No autorizado" };
   }
+  const sessionCityId = await getSessionCityId();
   const supabase = await createClient();
 
   // Get distinct courses for this company's certificates
-  const { data: certData, error: certError } = await supabase
+  let certDataQuery = supabase
     .from("certificados")
     .select(`id_curso, catalogo_servicios!inner(id, nombre)`)
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("id_curso", "is", null);
+  if (sessionCityId) certDataQuery = certDataQuery.eq("id_ciudad", sessionCityId);
+  const { data: certData, error: certError } = await certDataQuery;
 
   if (certError) {
     console.error("Error fetching course options:", certError);
@@ -693,12 +735,14 @@ export async function getClienteFilterOptions(
   }
 
   // Get distinct states for this company's certificates
-  const { data: stateData, error: stateError } = await supabase
+  let stateDataQuery = supabase
     .from("certificados")
     .select(`id_estado, cat_estados_venezuela(id, nombre_estado)`)
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("id_estado", "is", null);
+  if (sessionCityId) stateDataQuery = stateDataQuery.eq("id_ciudad", sessionCityId);
+  const { data: stateData, error: stateError } = await stateDataQuery;
 
   if (stateError) {
     console.error("Error fetching state options:", stateError);
@@ -717,6 +761,33 @@ export async function getClienteFilterOptions(
     }
   }
 
+  // Get distinct cities for this company's certificates
+  let cityDataQuery = supabase
+    .from("certificados")
+    .select(`id_ciudad, cat_ciudades!inner(id, nombre_ciudad)`)
+    .eq("id_empresa", empresaId)
+    .eq("is_active", true)
+    .not("id_ciudad", "is", null);
+  if (sessionCityId) cityDataQuery = cityDataQuery.eq("id_ciudad", sessionCityId);
+  const { data: cityData, error: cityError } = await cityDataQuery;
+
+  if (cityError) {
+    console.error("Error fetching city options:", cityError);
+  }
+
+  const cityMap = new Map<number, string>();
+  if (cityData) {
+    for (const row of cityData) {
+      const cityInfo = row.cat_ciudades as unknown as {
+        id: number;
+        nombre_ciudad: string;
+      };
+      if (cityInfo && !cityMap.has(cityInfo.id)) {
+        cityMap.set(cityInfo.id, cityInfo.nombre_ciudad);
+      }
+    }
+  }
+
   return {
     data: {
       courses: Array.from(courseMap.entries()).map(([id, nombre]) => ({
@@ -726,6 +797,10 @@ export async function getClienteFilterOptions(
       states: Array.from(stateMap.entries()).map(([id, nombre_estado]) => ({
         id,
         nombre_estado,
+      })),
+      cities: Array.from(cityMap.entries()).map(([id, nombre_ciudad]) => ({
+        id,
+        nombre_ciudad,
       })),
     },
   };

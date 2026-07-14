@@ -17,6 +17,7 @@ import {
   Search,
   Copy,
   Check,
+  MapPin,
 } from "lucide-react";
 import {
   getClienteCompanies,
@@ -25,7 +26,9 @@ import {
   deleteClienteCredentials,
   updateClienteCredentials,
 } from "@/app/actions/cliente-portal";
+import { getCompaniesAndCities } from "@/app/actions/companies-cities";
 import type { ClienteCredential } from "@/types";
+import type { City } from "@/app/actions/companies-cities";
 
 interface ClienteCredentialsModalProps {
   onClose: () => void;
@@ -59,6 +62,8 @@ export const ClienteCredentialsModal = ({
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
+  const [newCityId, setNewCityId] = useState<number | null>(null);
+  const [cities, setCities] = useState<City[]>([]);
 
   useEffect(() => {
     async function loadCompanies() {
@@ -72,6 +77,16 @@ export const ClienteCredentialsModal = ({
       setLoadingCompanies(false);
     }
     loadCompanies();
+  }, []);
+
+  useEffect(() => {
+    async function loadCities() {
+      const result = await getCompaniesAndCities();
+      if (result.success && result.cities) {
+        setCities(result.cities);
+      }
+    }
+    loadCities();
   }, []);
 
   useEffect(() => {
@@ -129,6 +144,7 @@ export const ClienteCredentialsModal = ({
       newUsername,
       newPassword,
       newDisplayName || undefined,
+      newCityId || undefined,
     );
 
     if (result.error) {
@@ -140,6 +156,7 @@ export const ClienteCredentialsModal = ({
       setNewUsername("");
       setNewPassword("");
       setNewDisplayName("");
+      setNewCityId(null);
       setCopied(false);
       loadCredentials(selectedCompanyId);
     }
@@ -352,6 +369,18 @@ export const ClienteCredentialsModal = ({
                                   {cred.display_name}
                                 </p>
                               )}
+                              {cred.id_ciudad && (
+                                <p className="text-xs text-blue-600 flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {cities.find((c) => c.id === cred.id_ciudad)?.nombre_ciudad || `Ciudad #${cred.id_ciudad}`}
+                                </p>
+                              )}
+                              {!cred.id_ciudad && (
+                                <p className="text-xs text-gray-400 flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  Todas las sedes
+                                </p>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <button
@@ -434,6 +463,28 @@ export const ClienteCredentialsModal = ({
                         autoComplete="new-password"
                         className="h-9"
                       />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="new-city" className="text-xs">
+                        Sede / Ciudad (opcional)
+                      </Label>
+                      <select
+                        id="new-city"
+                        value={newCityId || ""}
+                        onChange={(e) => setNewCityId(e.target.value ? Number(e.target.value) : null)}
+                        className="w-full h-9 px-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="">Todas las sedes (empresa completa)</option>
+                        {cities.map((city) => (
+                          <option key={city.id} value={city.id}>
+                            {city.nombre_ciudad}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-400">
+                        Si seleccionas una ciudad, esta credencial solo verá certificados de esa sede.
+                      </p>
                     </div>
                   </div>
 

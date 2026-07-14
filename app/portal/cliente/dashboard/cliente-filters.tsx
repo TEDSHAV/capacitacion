@@ -20,6 +20,7 @@ export function ClienteFilters({
     !!filters.searchTerm ||
     !!filters.courseId ||
     !!filters.stateId ||
+    !!filters.cityId ||
     !!filters.dateFrom ||
     !!filters.dateTo;
 
@@ -98,6 +99,27 @@ export function ClienteFilters({
             {options.states.map((state) => (
               <option key={state.id} value={state.id}>
                 {state.nombre_estado}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* City */}
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-gray-600">Ciudad / Sede</label>
+          <select
+            value={filters.cityId || ""}
+            onChange={(e) =>
+              updateFilter({
+                cityId: e.target.value ? Number(e.target.value) : undefined,
+              })
+            }
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+          >
+            <option value="">Todas las ciudades</option>
+            {options.cities.map((city) => (
+              <option key={city.id} value={city.id}>
+                {city.nombre_ciudad}
               </option>
             ))}
           </select>
