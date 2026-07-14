@@ -5,10 +5,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Facilitador, State } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, Check, Star, StarHalf } from "lucide-react";
+import { Edit, Trash2, Check, Star, StarHalf, Key } from "lucide-react";
 import { toTitleCase } from "@/utils/string-utils";
 import { createClient } from "@/utils/supabase/client";
 import { getFacilitatorRatings } from "@/app/actions/facilitators";
+import { PortalCredentialsModal } from "./portal-credentials-modal";
 
 interface FacilitadorCrudProps {
   onFacilitadorSaved?: () => void;
@@ -31,6 +32,8 @@ export const FacilitadorCrud = ({
   const [selectedFacilitador, setSelectedFacilitador] =
     useState<Facilitador | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showPortalModal, setShowPortalModal] = useState(false);
+  const [facilitadorForPortal, setFacilitadorForPortal] = useState<Facilitador | null>(null);
 
   // Client-side only: Check if we're in the browser
   const isClient = typeof window !== "undefined";
@@ -153,6 +156,12 @@ export const FacilitadorCrud = ({
   const handleShowDetails = (facilitador: Facilitador) => {
     setSelectedFacilitador(facilitador);
     setShowDetailsModal(true);
+  };
+
+  // Show facilitador portal modal
+  const handleShowPortal = (facilitador: Facilitador) => {
+    setFacilitadorForPortal(facilitador);
+    setShowPortalModal(true);
   };
 
   // Edit facilitator
@@ -387,6 +396,14 @@ export const FacilitadorCrud = ({
                       Editar
                     </button>
                     <button
+                      onClick={() => handleShowPortal(facilitador)}
+                      className="bg-purple-600 text-white px-3 py-2 rounded-md hover:bg-purple-700 transition-colors shadow-md flex items-center gap-2 text-sm"
+                      title="Credenciales Portal"
+                    >
+                      <Key className="w-4 h-4" />
+                      Portal
+                    </button>
+                    <button
                       onClick={() =>
                         handleToggleStatus(
                           facilitador.id.toString(),
@@ -431,6 +448,17 @@ export const FacilitadorCrud = ({
         )}
       </div>
 
+      {/* Portal Credentials Modal */}
+      {showPortalModal && facilitadorForPortal && (
+        <PortalCredentialsModal
+          facilitadorId={facilitadorForPortal.id}
+          facilitadorName={facilitadorForPortal.nombre_apellido}
+          onClose={() => {
+            setShowPortalModal(false);
+            setFacilitadorForPortal(null);
+          }}
+        />
+      )}
       {/* Facilitador Details Modal */}
       {showDetailsModal && selectedFacilitador && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

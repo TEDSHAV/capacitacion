@@ -571,6 +571,8 @@ export const CertificateForm = ({
           onChange={onParticipantsChange}
           passing_grade={certificateData.passing_grade}
           isEditMode={isEditMode}
+          osiId={selectedOSI?.id ? parseInt(selectedOSI.id) : undefined}
+          facilitadorId={certificateData.facilitator_id ? parseInt(certificateData.facilitator_id) : undefined}
         />
       </div>
 

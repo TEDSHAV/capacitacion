@@ -22,6 +22,7 @@ import {
   updateCertificateAction,
   getPreviousParticipantsByOSIAction,
 } from "@/app/actions/certificados";
+import { getFacilitatorByOSI } from "@/app/actions/facilitador-portal";
 import {
   getCarnetTemplatesAction,
   getCertificateTemplatesAction,
@@ -289,7 +290,7 @@ export default function GeneracionCertificadoClient({
     }
   }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, editData]);
 
-  const handleOSISelect = (osi: CertificateOSI | null) => {
+  const handleOSISelect = async (osi: CertificateOSI | null) => {
     if (osi && osi.has_certificates && !editData) {
       const confirmMsg = `La OSI ${osi.nro_osi} ya tiene certificados generados. ¿Estás seguro de que deseas generar otro lote de certificados para esta misma OSI?`;
       if (!confirm(confirmMsg)) {
@@ -310,6 +311,10 @@ export default function GeneracionCertificadoClient({
           ? osiDate.split("T")[0]
           : new Date(osiDate).toISOString().split("T")[0];
 
+      // Fetch the assigned facilitator for this OSI
+      const facilitatorResult = await getFacilitatorByOSI(parseInt(osi.id));
+      console.log(`[GeneracionCertificado] Facilitator search result for OSI ${osi.id}:`, facilitatorResult);
+
       setCertificateData((prev) => ({
         ...prev,
         osi_id: osi.id,
@@ -325,6 +330,9 @@ export default function GeneracionCertificadoClient({
           }
           return prev.location || "Puerto La Cruz";
         })(),
+        // Pre-populate facilitator if found in database
+        facilitator_id: facilitatorResult?.data?.id?.toString() || prev.facilitator_id,
+        facilitator_data: facilitatorResult?.data || prev.facilitator_data,
       }));
       setSelectedCourseTopic(null);
 

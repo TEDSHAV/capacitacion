@@ -5,15 +5,20 @@ import { CertificateParticipant, ParticipantsSectionProps } from "@/types";
 import { useParticipants } from "./use-participants";
 import { ParticipantScannerModal } from "./ParticipantScannerModal";
 import { Button } from "@/components/ui/button";
-import { X, Camera, CheckCircle2, AlertCircle } from "lucide-react";
+import { X, Camera, CheckCircle2, AlertCircle, Download, Loader2 } from "lucide-react";
+import { getOSIParticipants } from "@/app/actions/facilitador-portal";
 
 export const ParticipantsSection = ({
   participants,
   onChange,
   passing_grade,
   isEditMode,
+  osiId,
+  facilitadorId,
 }: ParticipantsSectionProps) => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Ensure participants is always an array
@@ -67,6 +72,41 @@ export const ParticipantsSection = ({
     ];
     onChange(combinedParticipants);
   };
+
+  const handleImportFromPortal = async () => {
+    if (!osiId || !facilitadorId) return;
+
+    setIsImporting(true);
+    setImportError(null);
+
+    try {
+      console.log(`[Import Debug] Requesting participants for OSI: ${osiId}, Facilitador: ${facilitadorId}`);
+      const result = await getOSIParticipants(osiId, facilitadorId);
+      console.log(`[Import Debug] Result:`, result);
+      
+      if (result.error) {
+        setImportError(result.error);
+      } else if (result.data && result.data.length > 0) {
+        const portalParticipants = result.data.map((p: any) => ({
+          name: p.nombre_apellido,
+          idNumber: p.cedula,
+          score: p.score,
+          nationality: "venezolano" as const, // Fixed TS error: string not assignable to union
+        }));
+
+        // Replace or merge? Usually for OSIs we want to replace if importing from portal
+        if (confirm(`Se han encontrado ${portalParticipants.length} participantes en el portal. ¿Deseas importarlos? Esto reemplazará la lista actual.`)) {
+          onChange(portalParticipants);
+        }
+      } else {
+        setImportError("No se encontraron participantes para esta OSI en el portal.");
+      }
+    } catch (e) {
+      setImportError("Error al importar desde el portal");
+    } finally {
+      setIsImporting(false);
+    }
+  };
   const getParticipantStatus = (participant: CertificateParticipant) => {
     if (participant.score === undefined || participant.score === null) {
       return "unknown";
@@ -107,6 +147,26 @@ export const ParticipantsSection = ({
           ? "Datos del Participante (Modo Edición)"
           : "Participantes *"}
       </label>
+
+      {/* Actions Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Moved portal import button to the add form below */}
+        </div>
+
+        {importError && (
+          <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 px-3 py-1.5 rounded-md border border-red-100">
+            <AlertCircle className="w-3.5 h-3.5" />
+            <span>{importError}</span>
+            <button 
+              onClick={() => setImportError(null)}
+              className="ml-1 hover:text-red-800"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Add Participant Form - Hidden in Edit Mode */}
       {!isEditMode && (
@@ -167,6 +227,22 @@ export const ParticipantsSection = ({
             <Camera className="h-4 w-4" />
             Escanear Lista
           </button>
+          {osiId && facilitadorId && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleImportFromPortal}
+              disabled={isImporting}
+              className="px-4 py-2 flex items-center gap-2 border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 hover:border-purple-400 whitespace-nowrap h-10"
+            >
+              {isImporting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              Importar del Portal
+            </Button>
+          )}
         </div>
       )}
 

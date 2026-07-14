@@ -511,6 +511,8 @@ export interface ParticipantsSectionProps {
   onChange: (participants: CertificateParticipant[]) => void;
   passing_grade?: number;
   isEditMode?: boolean;
+  osiId?: number;
+  facilitadorId?: number;
 }
 
 // Capacitación module interfaces
