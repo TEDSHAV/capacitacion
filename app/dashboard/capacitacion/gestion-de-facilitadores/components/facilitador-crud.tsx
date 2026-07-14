@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Facilitador, State } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, Check, Star, StarHalf, Key, ClipboardList } from "lucide-react";
+import { Edit, Minus, Check, Star, StarHalf, Key, ClipboardList } from "lucide-react";
 import { toTitleCase } from "@/utils/string-utils";
 import { createClient } from "@/utils/supabase/client";
 import { getFacilitatorRatings } from "@/app/actions/facilitators";
@@ -271,21 +271,27 @@ export const FacilitadorCrud = ({
   };
 
   // Filter facilitadores
-  const filteredFacilitadores = facilitadores.filter(
-    (facilitador) =>
-      (facilitador.nombre_apellido?.toLowerCase() || "").includes(
-        searchTerm.toLowerCase(),
-      ) ||
-      (facilitador.email?.toLowerCase() || "").includes(
-        searchTerm.toLowerCase(),
-      ) ||
-      (facilitador.cedula?.toLowerCase() || "").includes(
-        searchTerm.toLowerCase(),
-      ) ||
-      (facilitador.temas_cursos || []).some((topic) =>
-        topic.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-  );
+  const filteredFacilitadores = facilitadores
+    .filter(
+      (facilitador) =>
+        (facilitador.nombre_apellido?.toLowerCase() || "").includes(
+          searchTerm.toLowerCase(),
+        ) ||
+        (facilitador.email?.toLowerCase() || "").includes(
+          searchTerm.toLowerCase(),
+        ) ||
+        (facilitador.cedula?.toLowerCase() || "").includes(
+          searchTerm.toLowerCase(),
+        ) ||
+        (facilitador.temas_cursos || []).some((topic) =>
+          topic.toLowerCase().includes(searchTerm.toLowerCase()),
+        ),
+    )
+    .sort((a, b) =>
+      (a.nombre_apellido || "").localeCompare(b.nombre_apellido || "", "es", {
+        sensitivity: "base",
+      }),
+    );
 
   if (loading) {
     return (
@@ -317,29 +323,29 @@ export const FacilitadorCrud = ({
       </div>
 
       {/* Facilitadores Table */}
-      <div className="bg-white shadow overflow-x-auto rounded-lg">
+      <div className="bg-white shadow rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
                 Nombre
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Email
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Rating
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Cédula
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Teléfono
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Estado
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Acciones
               </th>
             </tr>
@@ -351,14 +357,14 @@ export const FacilitadorCrud = ({
                 className="hover:bg-gray-50 cursor-pointer transition-colors"
                 onClick={() => handleShowDetails(facilitador)}
               >
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-4 whitespace-nowrap">
                   <div className="flex flex-col">
                     <div className="text-sm font-medium text-gray-900">
                       {toTitleCase(facilitador.nombre_apellido || "")}
                     </div>
                     <div className="flex flex-wrap gap-1 mt-1">
                       <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
                           facilitador.is_active
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
@@ -367,39 +373,39 @@ export const FacilitadorCrud = ({
                         {facilitador.is_active ? "Activo" : "Inactivo"}
                       </span>
                       {facilitador.tiene_curriculum && (
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                        <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                           CV
                         </span>
                       )}
                       {facilitador.tiene_certificaciones && (
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                        <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
                           Cert
                         </span>
                       )}
                       {facilitador.tiene_foto_perfil && (
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                        <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
                           Foto
                         </span>
                       )}
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                   {facilitador.email}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                <td className="px-3 py-4 whitespace-nowrap text-sm">
                   {renderStars(ratings[facilitador.id])}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                   {facilitador.cedula}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                   {facilitador.telefono}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                   {getStateName(facilitador.id_estado_geografico)}
                 </td>
-                <td className="px-6 py-4 text-sm font-medium">
+                <td className="px-3 py-4 text-sm font-medium">
                   <div
                     className="flex items-center gap-1.5"
                     onClick={(e) => e.stopPropagation()}
@@ -415,7 +421,7 @@ export const FacilitadorCrud = ({
                     <button
                       onClick={() => handleShowAssignOSI(facilitador)}
                       className="bg-teal-600 text-white p-2 rounded-md hover:bg-teal-700 transition-colors shadow-sm"
-                      title="Asignar OSIs"
+                      title="Asignar OSI"
                     >
                       <ClipboardList className="w-4 h-4" />
                     </button>
@@ -444,7 +450,7 @@ export const FacilitadorCrud = ({
                       }
                     >
                       {facilitador.is_active ? (
-                        <Trash2 className="w-4 h-4" />
+                        <Minus className="w-4 h-4" />
                       ) : (
                         <Check className="w-4 h-4" />
                       )}

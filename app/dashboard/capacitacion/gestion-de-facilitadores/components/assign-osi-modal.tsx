@@ -105,7 +105,7 @@ export default function AssignOSIModal({
         <div className="flex justify-between items-center mb-6">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
-              Asignar OSIs a Facilitador
+              Asignar OSI a Facilitador
             </h3>
             <p className="text-sm text-gray-500 mt-1">
               {facilitadorName}

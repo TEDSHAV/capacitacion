@@ -61,6 +61,23 @@ export async function getFacilitatorCredentials(facilitadorId: number) {
   return { data };
 }
 
+export async function deleteFacilitatorCredentials(facilitadorId: number) {
+  const supabase = await createAdminClient();
+
+  const { error } = await supabase
+    .from("facilitador_credenciales")
+    .delete()
+    .eq("facilitador_id", facilitadorId);
+
+  if (error) {
+    console.error("Error deleting credentials:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath("/dashboard/capacitacion/gestion-de-facilitadores");
+  return { success: true };
+}
+
 export async function loginFacilitator(username: string, password: string) {
   const supabase = await createAdminClient();
   const passwordHash = hashPassword(password);

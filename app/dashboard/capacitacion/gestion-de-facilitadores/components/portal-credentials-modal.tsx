@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Key, Save, Loader2, X, AlertCircle, CheckCircle2, Copy, Check } from "lucide-react";
+import { Key, Save, Loader2, X, AlertCircle, CheckCircle2, Copy, Check, Trash2 } from "lucide-react";
 import { 
   getFacilitatorCredentials, 
-  createFacilitatorCredentials 
+  createFacilitatorCredentials,
+  deleteFacilitatorCredentials
 } from "@/app/actions/facilitador-portal";
 
 interface PortalCredentialsModalProps {
@@ -29,6 +30,8 @@ export const PortalCredentialsModal = ({
   const [success, setSuccess] = useState<string | null>(null);
   const [savedPassword, setSavedPassword] = useState("");
   const [copied, setCopied] = useState(false);
+  const [hasExistingCredentials, setHasExistingCredentials] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -36,11 +39,33 @@ export const PortalCredentialsModal = ({
       const { data, error } = await getFacilitatorCredentials(facilitadorId);
       if (data) {
         setUsername(data.username || "");
+        setHasExistingCredentials(!!data.username);
       }
       setLoading(false);
     }
     load();
   }, [facilitadorId]);
+
+  const handleDelete = async () => {
+    if (!confirm("¿Está seguro de que desea eliminar permanentemente las credenciales de este facilitador? Esta acción no se puede deshacer.")) return;
+
+    setDeleting(true);
+    setError(null);
+    setSuccess(null);
+
+    const result = await deleteFacilitatorCredentials(facilitadorId);
+    if (result.error) {
+      setError(result.error);
+    } else {
+      setHasExistingCredentials(false);
+      setUsername("");
+      setPassword("");
+      setSavedPassword("");
+      setSuccess("Credenciales eliminadas exitosamente");
+      setTimeout(() => setSuccess(null), 3000);
+    }
+    setDeleting(false);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,9 +117,18 @@ export const PortalCredentialsModal = ({
           </button>
         </div>
 
-        <p className="text-sm text-gray-600 mb-6">
+        <p className="text-sm text-gray-600 mb-4">
           Gestiona las credenciales de <strong>{facilitadorName}</strong> para que pueda ingresar al portal de facilitadores.
         </p>
+
+        {hasExistingCredentials && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+            <span className="text-sm text-blue-700">
+              Este facilitador ya tiene credenciales configuradas (usuario: <strong>{username}</strong>). Puede editarlas o eliminarlas.
+            </span>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex flex-col items-center py-8">
@@ -169,6 +203,30 @@ export const PortalCredentialsModal = ({
               </div>
             )}
 
+            {hasExistingCredentials && (
+              <div className="pt-4 border-t border-gray-200">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="w-full text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
+                >
+                  {deleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Eliminar Credenciales
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => {
                 setSavedPassword("");
@@ -186,7 +244,7 @@ export const PortalCredentialsModal = ({
                 ) : (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    Guardar Credenciales
+                    {hasExistingCredentials ? "Actualizar" : "Guardar"} Credenciales
                   </>
                 )}
               </Button>
