@@ -87,12 +87,14 @@ export default function OSIDetailPage() {
   const [empresas, setEmpresas] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredEmpresas, setFilteredEmpresas] = useState<any[]>([])
+  const [servicios, setServicios] = useState<any[]>([])
 
   useEffect(() => {
     const nro_osi = params.nro_osi as string
     
-    // Load empresas regardless of OSI state
+    // Load empresas and servicios regardless of OSI state
     loadEmpresas()
+    loadServicios()
     
     if (nro_osi === 'new') {
       setIsNew(true)
@@ -139,6 +141,20 @@ export default function OSIDetailPage() {
       setEmpresas(data || [])
     } catch (err) {
       console.error('Error loading empresas:', err)
+    }
+  }
+
+  const loadServicios = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("servicios")
+        .select("id, nombre")
+        .order("nombre")
+      
+      if (error) throw error
+      setServicios(data || [])
+    } catch (err) {
+      console.error('Error loading servicios:', err)
     }
   }
 
@@ -489,14 +505,19 @@ export default function OSIDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tipo Servicio</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.tipo_servicio || ''}
                     onChange={(e) => updateFormData('tipo_servicio', e.target.value)}
                     disabled={!isEditing && !isNew}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    placeholder="Tipo de servicio"
-                  />
+                  >
+                    <option value="">Seleccione un servicio</option>
+                    {servicios.map((servicio) => (
+                      <option key={servicio.id} value={servicio.nombre}>
+                        {servicio.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="space-y-4">
