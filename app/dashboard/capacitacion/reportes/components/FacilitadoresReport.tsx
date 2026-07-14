@@ -210,7 +210,7 @@ export default function FacilitadoresReport({
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="text-xs font-medium text-gray-800 truncate">
-                            {f.nombre_apellido}
+                            {f.nombre_apellido.toLocaleUpperCase()}
                           </span>
                           {!f.is_active && (
                             <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full flex-shrink-0">
@@ -339,10 +339,10 @@ export default function FacilitadoresReport({
                     Horas
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    Nombres
+                    Cursos
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    Cursos
+                    #
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
                     Prom.
@@ -360,7 +360,7 @@ export default function FacilitadoresReport({
                   <tr key={f.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-3">
                       <p className="text-sm font-medium text-gray-800">
-                        {f.nombre_apellido}
+                        {f.nombre_apellido.toLocaleUpperCase()}
                       </p>
                       {f.cedula && (
                         <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1">
