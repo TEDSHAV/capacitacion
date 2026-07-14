@@ -2,7 +2,7 @@ import QRCode from 'qrcode';
 import { QRCodeData, QRCodeProps, QRCodeVerificationData, ControlNumbers } from '@/types/qr-code';
 
 export class QRService {
-  private static baseUrl = process.env.NEXT_PUBLIC_SHELL_URL || 'http://localhost:3000';
+  private static baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SHELL_URL || 'http://localhost:3000';
 
   /**
    * Generate QR code data for a certificate
