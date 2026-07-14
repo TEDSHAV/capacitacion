@@ -1262,16 +1262,14 @@ export async function getCertificatesByOSIAction(osiId: string | number) {
   try {
     const supabase = await createClient();
 
-    // Support both numeric and string OSI IDs
+    // Extract numeric OSI ID from either string or number input
     let nro_osi: number | null = null;
-    let string_osi: string | null = null;
 
     if (typeof osiId === "string") {
       const numericPart = parseInt(osiId.replace(/[^\d]/g, ""));
       if (!isNaN(numericPart)) {
         nro_osi = numericPart;
       }
-      string_osi = osiId;
     } else {
       nro_osi = osiId;
     }
@@ -1289,15 +1287,7 @@ export async function getCertificatesByOSIAction(osiId: string | number) {
       .eq("is_active", true);
 
     if (nro_osi !== null && !isNaN(nro_osi)) {
-      if (string_osi) {
-        // If we have both, search by number OR search for the full string in snapshot
-        query = query.or(`nro_osi.eq.${nro_osi},snapshot_contenido.ilike.%${string_osi}%`);
-      } else {
-        query = query.eq("nro_osi", nro_osi);
-      }
-    } else if (string_osi) {
-      // If we only have a string that isn't numeric, search in snapshot
-      query = query.ilike("snapshot_contenido", `%${string_osi}%`);
+      query = query.eq("nro_osi", nro_osi);
     } else {
       return { success: false, message: "Invalid OSI ID" };
     }
