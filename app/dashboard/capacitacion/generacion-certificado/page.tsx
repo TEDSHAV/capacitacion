@@ -41,7 +41,8 @@ export default function GeneracionCertificadoPage() {
         const result = await getCertificateData();
 
         if (result.error) {
-          router.push("/login");
+          console.error("Error loading data:", result.error);
+          // Don't redirect, just show error
           return;
         }
 
@@ -55,7 +56,7 @@ export default function GeneracionCertificadoPage() {
     };
 
     loadData();
-  }, [router]);
+  }, []);
 
   const handleOSISelect = (osi: OSI | null) => {
     setSelectedOSI(osi);
