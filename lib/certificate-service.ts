@@ -88,16 +88,35 @@ export class CertificateService {
       // The API returns facilitator data, but we need to transform it
       if (data && typeof data === 'object') {
         return {
-          id: data.id.toString(),
+          id: data.id,
           nombre_apellido: data.nombre_apellido,
-          cedula: data.cedula || '',
-          telefono: data.telefono || '',
-          email: data.email || '',
-          direccion: data.direccion || '',
-          firma_id: data.firma_id?.toString(),
+          cedula: data.cedula || null,
+          telefono: data.telefono || null,
+          email: data.email || null,
+          direccion: data.direccion || null,
+          firma_id: data.firma_id || null,
           temas_cursos: data.temas_cursos || [],
-          nivel_tecnico: data.nivel_tecnico || '',
-          firmas: data.firmas
+          nivel_tecnico: data.nivel_tecnico || null,
+          firmas: data.firmas || null,
+          fuente: null,
+          fecha_ingreso: null,
+          rif: null,
+          formacion_docente_certificada: null,
+          alcance: null,
+          notas_observaciones: null,
+          id_estado_base: null,
+          id_ciudad_base: null,
+          id_estado_geografico: null,
+          id_estatus: null,
+          ficha_tecnica: null,
+          calificacion: null,
+          url_curriculum: null,
+          fecha_creacion: null,
+          fecha_actualizacion: null,
+          is_active: true,
+          tiene_curriculum: null,
+          tiene_certificaciones: null,
+          tiene_foto_perfil: null
         };
       }
       

@@ -37,8 +37,8 @@ export const SignatureSelection = ({
     }
   };
 
-  const facilitatorSignatures = signatures.filter(s => s.type === SignatureType.FACILITADOR);
-  const shaSignatures = signatures.filter(s => s.type === SignatureType.REPRESENTANTE_SHA);
+  const facilitatorSignatures = signatures.filter(s => s.tipo === SignatureType.FACILITADOR);
+  const shaSignatures = signatures.filter(s => s.tipo === SignatureType.REPRESENTANTE_SHA);
 
   if (loading) {
     return (
@@ -74,7 +74,7 @@ export const SignatureSelection = ({
           <option value="">Seleccionar firma...</option>
           {facilitatorSignatures.map((signature) => (
             <option key={signature.id} value={signature.id}>
-              {signature.name}
+              {signature.nombre}
             </option>
           ))}
         </select>
@@ -105,7 +105,7 @@ export const SignatureSelection = ({
           <option value="">Seleccionar firma...</option>
           {shaSignatures.map((signature) => (
             <option key={signature.id} value={signature.id}>
-              {signature.name}
+              {signature.nombre}
             </option>
           ))}
         </select>

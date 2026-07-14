@@ -83,7 +83,7 @@ export async function GET(
         name: carnet.nombre_participante,
         id_number: carnet.cedula_participante,
         company: carnet.empresa_participante || undefined,
-        nationality: participantNationality
+        nationality: participantNationality as 'venezolano' | 'extranjero'
       },
       carnetData: {
         id_certificado: carnet.id_certificado!,

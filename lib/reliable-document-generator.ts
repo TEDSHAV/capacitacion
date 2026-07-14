@@ -1,9 +1,9 @@
 import jsPDF from 'jspdf';
-import { TemplateData } from './document-templates';
+import { TemplateData } from './document-templates-new';
 
 // Simple, reliable document generator using jsPDF
 export class ReliableDocumentGenerator {
-  static generateCertificacionCompetencias(data: TemplateData): Promise<Buffer> {
+  static generateCertificacionCompetencias(data: TemplateData): Buffer {
     try {
       console.log('🔍 Generating certificacion de competencias with reliable jsPDF');
       
@@ -77,7 +77,7 @@ export class ReliableDocumentGenerator {
     }
   }
 
-  static generateNotaEntrega(data: TemplateData): Promise<Buffer> {
+  static generateNotaEntrega(data: TemplateData): Buffer {
     try {
       console.log('🔍 Generating nota de entrega with reliable jsPDF');
       
@@ -151,7 +151,7 @@ export class ReliableDocumentGenerator {
     }
   }
 
-  static generateValidacionDatos(data: TemplateData): Promise<Buffer> {
+  static generateValidacionDatos(data: TemplateData): Buffer {
     try {
       console.log('🔍 Generating validacion de datos with reliable jsPDF');
       

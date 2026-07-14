@@ -292,16 +292,6 @@ export async function saveCertificatesToDatabase(
 
       console.log('SUCCESS: Participant created/updated with ID:', participantId);
 
-      
-
-      // Debug: Show exactly what nationality value we're working with
-
-      console.log('DEBUG: Participant nationality value:', JSON.stringify(participant.nacionalidad));
-
-      console.log('DEBUG: Type of participant.nacionalidad:', typeof participant.nacionalidad);
-
-      
-
       // Verify participant was actually saved to database
 
       const { data: verifyParticipant, error: verifyError } = await supabase
@@ -787,9 +777,9 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
         
 
         // Update the participant object to use the new format for snapshot generation
-        participant.nationality = existingParticipant.nacionalidad === 'V-' || existingParticipant.nacionalidad === 'E-' 
+        participant.nationality = (existingParticipant.nacionalidad === 'V-' || existingParticipant.nacionalidad === 'E-' 
           ? (existingParticipant.nacionalidad === 'V-' ? 'venezolano' : 'extranjero')
-          : existingParticipant.nacionalidad || 'venezolano';
+          : existingParticipant.nacionalidad || 'venezolano') as 'venezolano' | 'extranjero';
         
         console.log('Updated participant object for snapshot:', { nationality: participant.nationality });
 
@@ -810,7 +800,7 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
 
 
     // Normalize nationality to 'venezolano' or 'extranjero'
-    const normalizedNationality = (participant.nationality === 'extranjero' || participant.nationality === 'E-') 
+    const normalizedNationality = (participant.nationality === 'extranjero') 
       ? 'extranjero' 
       : 'venezolano';
 
@@ -1000,11 +990,11 @@ function generateContentSnapshot(
 
       cedula: participant.id_number, // Store cédula properly
 
-      nacionalidad: participant.nacionalidad || 'venezolano',
+      nacionalidad: participant.nationality || 'venezolano',
 
       score: participant.score,
 
-      cedula_completa: `${(participant.nacionalidad === 'extranjero') ? 'E' : 'V'}-${participant.id_number}` // Full cédula format with proper prefix
+      cedula_completa: `${(participant.nationality === 'extranjero') ? 'E' : 'V'}-${participant.id_number}` // Full cédula format with proper prefix
 
     },
 
@@ -1162,11 +1152,11 @@ function generateContentSnapshotWithControlNumbers(
 
       cedula: participant.id_number, // Store cédula properly
 
-      nacionalidad: participant.nacionalidad || 'venezolano',
+      nacionalidad: participant.nationality || 'venezolano',
 
       score: participant.score,
 
-      cedula_completa: `${(participant.nacionalidad === 'extranjero') ? 'E' : 'V'}-${participant.id_number}` // Full cédula format with proper prefix
+      cedula_completa: `${(participant.nationality === 'extranjero') ? 'E' : 'V'}-${participant.id_number}` // Full cédula format with proper prefix
 
     },
 

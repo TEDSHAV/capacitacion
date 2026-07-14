@@ -104,7 +104,7 @@ export class DocumentTemplateProcessor {
             try {
               if (templateContent) {
                 const zip = new PizZip(templateContent);
-                const documentXml = zip.file('word/document.xml').asText();
+                const documentXml = zip.file('word/document.xml')?.asText() ?? '';
                 
                 // Find all template tags in document
                 const tagRegex = /\{[^}]+\}/g;

@@ -78,7 +78,7 @@ export async function GET(
         id: snapshotData.participante?.id?.toString() || '1',
         name: snapshotData.participante?.name || 'Unknown Participant',
         id_number: snapshotData.participante?.cedula || 'Unknown ID',
-        nacionalidad: snapshotData.participante?.nacionalidad || 'venezolano',
+        nationality: (snapshotData.participante?.nacionalidad || 'venezolano') as 'venezolano' | 'extranjero',
         score: snapshotData.participante?.score
       }],
       facilitator_id: snapshotData.firmas?.facilitator_id?.toString(),

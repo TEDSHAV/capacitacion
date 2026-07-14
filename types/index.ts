@@ -60,6 +60,7 @@ export interface Curso {
   is_active: boolean;
   nota_aprobatoria: number | null;
   emite_carnet: boolean | null;
+  empresas?: { razon_social: string; rif?: string | null } | null;
 }
 
 export interface Servicio {
@@ -135,6 +136,8 @@ export interface FacilitadorFormData {
   tiene_curriculum: boolean;
   tiene_certificaciones: boolean;
   tiene_foto_perfil: boolean;
+  ano_ingreso?: string;
+  tipo_impacto?: string;
 }
 
 export interface State {
@@ -233,6 +236,10 @@ export interface OSI {
   codigo_cliente: string | null
   contacto_id: number | null
   is_active: boolean
+  tema?: string | null
+  fecha_servicio?: Date | string | null
+  contacto_email?: string | null
+  contacto_telefono?: string | null
 }
 
 export interface CertificateRequest {
@@ -290,7 +297,7 @@ export interface CertificateParticipant {
   position?: string;
   email?: string;
   phone?: string;
-  nationality?: string;
+  nationality?: "venezolano" | "extranjero";
 }
 
 export interface Signature {
@@ -585,6 +592,7 @@ export interface CertificateOSI {
   codigo_cliente?: number;
   is_active: boolean;
   curso_nombre?: string; // Added course name from join
+  tema?: string | null;
 }
 
 export interface CertificateTemplateProps {

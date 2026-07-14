@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { TemplateData, TemplateParticipant } from './document-templates';
+import { TemplateData, TemplateParticipant } from './document-templates-new';
 
 // Simple document generator using jsPDF
 export class SimpleDocumentGenerator {

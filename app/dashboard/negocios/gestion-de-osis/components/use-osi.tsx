@@ -146,7 +146,7 @@ export function useOSI(empresas: any[] = []) {
   };
 
   // Update form data
-  const updateFormData = (field: keyof OSI, value: any) => {
+  const updateFormData = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 

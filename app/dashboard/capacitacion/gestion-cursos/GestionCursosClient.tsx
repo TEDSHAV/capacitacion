@@ -19,7 +19,7 @@ export default function GestionCursosClient({
 }) {
   const router = useRouter();
   const [creandoCurso, setCreandoCurso] = useState(false);
-  const [editandoCurso, setEditandoCurso] = useState<string | null>(null);
+  const [editandoCurso, setEditandoCurso] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cursosList, setCursosList] = useState<Curso[]>(cursos || []);
 
@@ -66,14 +66,14 @@ export default function GestionCursosClient({
     setError(null);
     
     try {
-      const result = await updateCurso(editandoCurso, formData);
+      const result = await updateCurso(editandoCurso.toString(), formData);
       
       if (result.error) {
         setError(result.error);
       } else if (result.data) {
         setEditandoCurso(null);
         setCursosList(prev => prev.map(curso => 
-          curso.id === editandoCurso ? result.data : curso
+          curso.id === editandoCurso ? result.data! : curso
         )); // Update course in list
       }
     } catch (err) {
@@ -91,7 +91,7 @@ export default function GestionCursosClient({
         setError(result.error);
       } else {
         // Remove the course from the local list since it's now inactive
-        setCursosList(prev => prev.filter(curso => curso.id !== id));
+        setCursosList(prev => prev.filter(curso => curso.id.toString() !== id));
       }
     } catch (err) {
       setError('Error al eliminar el curso');
@@ -105,7 +105,7 @@ export default function GestionCursosClient({
       if (result.error) {
         setError(result.error);
       } else if (result.data) {
-        setCursosList(prev => [result.data, ...prev]); // Add duplicated course to list
+        if (result.data) setCursosList(prev => [result.data!, ...prev]); // Add duplicated course to list
       }
     } catch (err) {
       setError('Error al duplicar el curso');
@@ -137,7 +137,7 @@ export default function GestionCursosClient({
         {(creandoCurso || editandoCurso) && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <CourseForm
-              curso={editandoCurso ? cursosList.find(c => c.id === editandoCurso) || null : null}
+              curso={editandoCurso !== null ? cursosList.find(c => c.id === editandoCurso) || null : null}
               empresas={empresas}
               onSubmit={creandoCurso ? handleCreateCourse : handleEditCourse}
               onCancel={cerrarModal}

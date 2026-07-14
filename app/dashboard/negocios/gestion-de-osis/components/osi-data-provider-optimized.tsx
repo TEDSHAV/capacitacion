@@ -68,7 +68,7 @@ export default function OptimizedDataProvider({ children }: OptimizedDataProvide
         setFilteredOsis(osiDataWithExecutiveNames)
         setTotalCount(countResponse.count || 0)
       } catch (error) {
-        if (error.name !== 'AbortError') {
+        if ((error as any).name !== 'AbortError') {
           console.error("Error loading data:", error)
         }
       } finally {
