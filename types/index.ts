@@ -356,3 +356,21 @@ export interface CourseTopicSearchProps {
   onSelect: (courseTopic: CourseTopic) => void
   isAutoPopulated?: boolean
 }
+
+// Participant interfaces
+export interface ParticipanteCertificado {
+  id: number;
+  nombre: string;
+  cedula: string;
+  nacionalidad: 'V-' | 'E-';
+}
+
+export interface ParticipantFormData {
+  nombre: string;
+  cedula: string;
+  nacionalidad: 'V-' | 'E-';
+}
+
+export interface ParticipantsClientProps {
+  user: any;
+}

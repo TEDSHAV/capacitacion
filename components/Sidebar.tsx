@@ -10,7 +10,8 @@ import { ChevronLeft, ChevronRight, Home, Users, FileText, Settings } from "luci
 const submodules = {
   capacitacion: [
     { name: 'Gestión de Cursos', path: '/dashboard/capacitacion/gestion-cursos' },
-    { name: 'Generación de Certificados', path: '/dashboard/capacitacion/generacion-certificado' }
+    { name: 'Generación de Certificados', path: '/dashboard/capacitacion/generacion-certificado' },
+    { name: 'Gestión de Participantes', path: '/dashboard/capacitacion/participantes' }
   ],
   negocios: [
     { name: 'Gestión de Clientes', path: '/dashboard/negocios/gestion-de-clientes' },
