@@ -157,7 +157,9 @@ export default function CertificateVerificationPage() {
                     Fecha de Emisión
                   </label>
                   <p className="text-sm text-gray-900">
-                    {new Date(certificate.issueDate).toLocaleDateString()}
+                    {new Date(
+                      certificate.issueDate + "T12:00:00",
+                    ).toLocaleDateString()}
                   </p>
                 </div>
                 <div>
@@ -243,7 +245,8 @@ export default function CertificateVerificationPage() {
                 </h3>
                 {carnets.map((carnet, index) => {
                   const isExpired = carnet.fecha_vencimiento
-                    ? new Date(carnet.fecha_vencimiento) < new Date()
+                    ? new Date(carnet.fecha_vencimiento + "T12:00:00") <
+                      new Date()
                     : false;
                   return (
                     <div

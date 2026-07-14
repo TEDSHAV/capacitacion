@@ -3577,6 +3577,51 @@ export type Database = {
       };
     };
     Views: {
+      analytics_metrics: {
+        Row: {
+          active_carnets: number | null;
+          active_certificates: number | null;
+          average_score: number | null;
+          carnets_this_month: number | null;
+          carnets_this_year: number | null;
+          cedula_e_count: number | null;
+          cedula_v_count: number | null;
+          certificates_by_state: Json | null;
+          certificates_this_month: number | null;
+          certificates_this_year: number | null;
+          expiration_timeline: Json | null;
+          expired_carnets: number | null;
+          expired_certificates: number | null;
+          foreign_count: number | null;
+          inactive_carnets: number | null;
+          inactive_certificates: number | null;
+          last_updated: string | null;
+          max_score: number | null;
+          min_score: number | null;
+          monthly_emissions: Json | null;
+          no_expiration_certificates: number | null;
+          top_companies: Json | null;
+          top_courses: Json | null;
+          top_facilitators: Json | null;
+          total_carnets: number | null;
+          total_certificates: number | null;
+          total_participants: number | null;
+          unique_companies_with_carnets: number | null;
+          unique_companies_with_certificates: number | null;
+          unique_courses_with_carnets: number | null;
+          unique_courses_with_certificates: number | null;
+          unique_facilitators_with_certificates: number | null;
+          unique_nationalities: number | null;
+          unique_osis_with_carnets: number | null;
+          unique_participants_with_carnets: number | null;
+          unique_participants_with_certificates: number | null;
+          unique_states_with_certificates: number | null;
+          valid_carnets: number | null;
+          valid_certificates: number | null;
+          venezuelan_count: number | null;
+        };
+        Relationships: [];
+      };
       v_ecc_detalle_legible: {
         Row: {
           aplica: boolean | null;
@@ -4109,6 +4154,47 @@ export type Database = {
           p_summary: string;
         };
         Returns: undefined;
+      };
+      search_certificates: {
+        Args: {
+          p_company_id?: number;
+          p_course_id?: number;
+          p_date_from?: string;
+          p_date_to?: string;
+          p_facilitator_id?: number;
+          p_is_active?: boolean;
+          p_limit?: number;
+          p_page?: number;
+          p_search_term?: string;
+          p_state_id?: number;
+        };
+        Returns: {
+          calificacion: number;
+          company_id: number;
+          company_razon_social: string;
+          company_rif: string;
+          course_contenido: string;
+          course_emite_carnet: boolean;
+          course_horas_estimadas: number;
+          course_id: number;
+          course_nombre: string;
+          course_nota_aprobatoria: number;
+          created_at: string;
+          facilitator_id: number;
+          facilitator_nombre_apellido: string;
+          fecha_emision: string;
+          fecha_vencimiento: string;
+          id: number;
+          is_active: boolean;
+          nro_osi: number;
+          participant_cedula: string;
+          participant_id: number;
+          participant_nacionalidad: string;
+          participant_nombre: string;
+          state_id: number;
+          state_nombre_estado: string;
+          total_count: number;
+        }[];
       };
     };
     Enums: {

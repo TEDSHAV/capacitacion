@@ -1342,26 +1342,27 @@ export async function getCertificatesForManagement(
   try {
     const supabase = await createClient();
 
+    const rpcParams = {
+      p_search_term: filters.searchTerm?.trim() || null,
+      p_company_id: filters.companyId || null,
+      p_course_id: filters.courseId || null,
+      p_facilitator_id: filters.facilitatorId || null,
+      p_state_id: filters.stateId || null,
+      p_is_active: filters.isActive !== undefined ? filters.isActive : null,
+      p_date_from: filters.dateFrom || null,
+      p_date_to: filters.dateTo || null,
+      p_page: page,
+      p_limit: limit,
+    };
+
     // Use RPC function for efficient server-side search
     const { data: rpcData, error: rpcError } = await supabase.rpc(
       "search_certificates",
-      {
-        p_search_term: filters.searchTerm || null,
-        p_company_id: filters.companyId || null,
-        p_course_id: filters.courseId || null,
-        p_facilitator_id: filters.facilitatorId || null,
-        p_state_id: filters.stateId || null,
-        p_is_active: filters.isActive !== undefined ? filters.isActive : null,
-        p_date_from: filters.dateFrom || null,
-        p_date_to: filters.dateTo || null,
-        p_page: page,
-        p_limit: limit,
-      },
+      rpcParams,
     );
 
     if (rpcError) {
       console.error("Error fetching certificates via RPC:", rpcError);
-      console.error("RPC Error details:", JSON.stringify(rpcError, null, 2));
       return {
         certificates: [],
         totalCount: 0,
@@ -1370,7 +1371,6 @@ export async function getCertificatesForManagement(
     }
 
     if (!rpcData || rpcData.length === 0) {
-      console.log("No certificates found via RPC");
       return {
         certificates: [],
         totalCount: 0,
@@ -1419,7 +1419,7 @@ export async function getCertificatesForManagement(
       facilitadores: [
         {
           id: cert.facilitator_id,
-          nombre_apellido: cert.facilitador_nombre_apellido,
+          nombre_apellido: cert.facilitator_nombre_apellido,
         },
       ],
       id_estado: cert.state_id,

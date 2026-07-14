@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 interface CertificatePaginationProps {
   currentPage: number;
   totalPages: number;
@@ -10,14 +12,14 @@ interface CertificatePaginationProps {
   loading?: boolean;
 }
 
-export default function CertificatePaginationComponent({
+function CertificatePaginationComponent({
   currentPage,
   totalPages,
   totalCount,
   itemsPerPage,
   onPageChange,
   onItemsPerPageChange,
-  loading
+  loading,
 }: CertificatePaginationProps) {
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalCount);
@@ -29,7 +31,11 @@ export default function CertificatePaginationComponent({
     let l: number | undefined;
 
     for (let i = 1; i <= totalPages; i++) {
-      if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+      if (
+        i === 1 ||
+        i === totalPages ||
+        (i >= currentPage - delta && i <= currentPage + delta)
+      ) {
         range.push(i);
       }
     }
@@ -39,7 +45,7 @@ export default function CertificatePaginationComponent({
         if (i - l === 2) {
           rangeWithDots.push(l + 1);
         } else if (i - l !== 1) {
-          rangeWithDots.push('...');
+          rangeWithDots.push("...");
         }
       }
       rangeWithDots.push(i);
@@ -67,8 +73,8 @@ export default function CertificatePaginationComponent({
     return (
       <div className="bg-white rounded-lg shadow px-6 py-4 flex items-center justify-between">
         <div className="text-sm text-gray-700">
-          Mostrando <span className="font-medium">{startItem}</span> a{' '}
-          <span className="font-medium">{endItem}</span> de{' '}
+          Mostrando <span className="font-medium">{startItem}</span> a{" "}
+          <span className="font-medium">{endItem}</span> de{" "}
           <span className="font-medium">{totalCount}</span> resultados
         </div>
       </div>
@@ -78,8 +84,8 @@ export default function CertificatePaginationComponent({
   return (
     <div className="bg-white rounded-lg shadow px-6 py-4 flex items-center justify-between">
       <div className="text-sm text-gray-700">
-        Mostrando <span className="font-medium">{startItem}</span> a{' '}
-        <span className="font-medium">{endItem}</span> de{' '}
+        Mostrando <span className="font-medium">{startItem}</span> a{" "}
+        <span className="font-medium">{endItem}</span> de{" "}
         <span className="font-medium">{totalCount}</span> resultados
       </div>
 
@@ -108,8 +114,18 @@ export default function CertificatePaginationComponent({
             disabled={currentPage === 1}
             className="p-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </button>
 
@@ -117,15 +133,15 @@ export default function CertificatePaginationComponent({
           <div className="flex items-center space-x-1">
             {getVisiblePages().map((page, index) => (
               <div key={index}>
-                {page === '...' ? (
+                {page === "..." ? (
                   <span className="px-3 py-2 text-sm text-gray-500">...</span>
                 ) : (
                   <button
                     onClick={() => onPageChange(page as number)}
                     className={`px-3 py-2 text-sm font-medium rounded-md ${
                       currentPage === page
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
                     }`}
                   >
                     {page}
@@ -141,8 +157,18 @@ export default function CertificatePaginationComponent({
             disabled={currentPage === totalPages}
             className="p-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </button>
         </div>
@@ -150,3 +176,5 @@ export default function CertificatePaginationComponent({
     </div>
   );
 }
+
+export default memo(CertificatePaginationComponent);

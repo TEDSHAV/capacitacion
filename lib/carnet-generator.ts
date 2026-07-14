@@ -295,16 +295,16 @@ export class CarnetGenerator {
     pdf.setFont("helvetica", "bold");
 
     // Add emission date (left side, below QR code)
-    const emissionDate = new Date(carnetData.fecha_emision).toLocaleDateString(
-      "es-VE",
-    );
+    const emissionDate = new Date(
+      carnetData.fecha_emision + "T12:00:00",
+    ).toLocaleDateString("es-VE");
     pdf.text("Emisión: ", 3, 40);
     pdf.text(emissionDate, 15, 40);
 
     // Add expiration date if available (left side, below emission date)
     if (carnetData.fecha_vencimiento) {
       const expirationDate = new Date(
-        carnetData.fecha_vencimiento,
+        carnetData.fecha_vencimiento + "T12:00:00",
       ).toLocaleDateString("es-VE");
       pdf.setTextColor(255, 0, 0); // Set text color to red
       pdf.text("Vencimiento: ", 3, 43);

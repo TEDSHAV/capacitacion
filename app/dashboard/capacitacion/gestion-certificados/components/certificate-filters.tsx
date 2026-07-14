@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { memo, useState, useEffect, useCallback, useRef } from "react";
 import { CertificateFilters } from "@/types";
 import { X } from "lucide-react";
 
@@ -14,7 +14,7 @@ interface CertificateFiltersProps {
   loading?: boolean;
 }
 
-export default function CertificateFiltersComponent({
+function CertificateFiltersComponent({
   filters,
   onFiltersChange,
   companies,
@@ -279,3 +279,5 @@ export default function CertificateFiltersComponent({
     </div>
   );
 }
+
+export default memo(CertificateFiltersComponent);

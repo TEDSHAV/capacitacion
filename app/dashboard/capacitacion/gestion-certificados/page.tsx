@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import CertificateMetricsComponent from "./components/certificate-metrics";
 import CertificateFiltersComponent from "./components/certificate-filters";
 import CertificateTableComponent from "./components/certificate-table";
@@ -21,6 +21,7 @@ import {
 
 export default function GestionCertificadosPage() {
   const [loading, setLoading] = useState(true);
+  const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [certificates, setCertificates] = useState<CertificateManagement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [metrics, setMetrics] = useState<any>(null);
@@ -71,8 +72,15 @@ export default function GestionCertificadosPage() {
   // Load analytics metrics
   useEffect(() => {
     const loadAnalyticsMetrics = async () => {
-      const data = await getAnalyticsMetrics();
-      setAnalyticsMetrics(data);
+      try {
+        setLoadingMetrics(true);
+        const data = await getAnalyticsMetrics();
+        setAnalyticsMetrics(data);
+      } catch (error) {
+        console.error("Error loading analytics metrics:", error);
+      } finally {
+        setLoadingMetrics(false);
+      }
     };
     loadAnalyticsMetrics();
   }, []);
@@ -105,55 +113,62 @@ export default function GestionCertificadosPage() {
     loadData();
   }, [filters, currentPage, itemsPerPage]);
 
-  const handleFiltersChange = (newFilters: CertificateFilters) => {
+  const handleFiltersChange = useCallback((newFilters: CertificateFilters) => {
     setFilters(newFilters);
     setCurrentPage(1); // Reset to first page when filters change
-  };
+  }, []);
 
-  const handlePageChange = (page: number) => {
+  const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
-  };
+  }, []);
 
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+  const handleItemsPerPageChange = useCallback((newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1); // Reset to first page when items per page changes
-  };
+  }, []);
 
-  const handleViewCertificate = (certificate: CertificateManagement) => {
-    // Open certificate details view
-    window.open(`/verify-certificate/${certificate.id}`, "_blank");
-  };
+  const handleViewCertificate = useCallback(
+    (certificate: CertificateManagement) => {
+      // Open certificate details view
+      window.open(`/verify-certificate/${certificate.id}`, "_blank");
+    },
+    [],
+  );
 
-  const handleDownloadCertificate = async (
-    certificate: CertificateManagement,
-  ) => {
-    try {
-      const response = await fetch(
-        `/api/generate-certificate-pdf/${certificate.id}`,
-      );
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.style.display = "none";
-        a.href = url;
-        a.download = `certificado_${certificate.id}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        console.error("Error downloading certificate");
+  const handleDownloadCertificate = useCallback(
+    async (certificate: CertificateManagement) => {
+      try {
+        const response = await fetch(
+          `/api/generate-certificate-pdf/${certificate.id}`,
+        );
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = `certificado_${certificate.id}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } else {
+          console.error("Error downloading certificate");
+        }
+      } catch (error) {
+        console.error("Error downloading certificate:", error);
       }
-    } catch (error) {
-      console.error("Error downloading certificate:", error);
-    }
-  };
+    },
+    [],
+  );
 
-  const handleVerifyCertificate = (certificate: CertificateManagement) => {
-    // Open verification page
-    window.open(`/verify-certificate/${certificate.id}`, "_blank");
-  };
+  const handleVerifyCertificate = useCallback(
+    (certificate: CertificateManagement) => {
+      // Open verification page
+      window.open(`/verify-certificate/${certificate.id}`, "_blank");
+    },
+    [],
+  );
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
@@ -171,7 +186,7 @@ export default function GestionCertificadosPage() {
       {/* Metrics Dashboard */}
       <CertificateMetricsComponent
         metrics={analyticsMetrics || metrics || {}}
-        loading={loading}
+        loading={loadingMetrics}
       />
 
       {/* Filters */}

@@ -1,14 +1,16 @@
 "use client";
 
+import { memo } from "react";
+
 interface CertificateMetricsProps {
   metrics: any;
   loading?: boolean;
 }
 
-export default function CertificateMetricsComponent({
+const CertificateMetricsComponent = ({
   metrics,
   loading,
-}: CertificateMetricsProps) {
+}: CertificateMetricsProps) => {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -360,4 +362,6 @@ export default function CertificateMetricsComponent({
       </div>
     </div>
   );
-}
+};
+
+export default memo(CertificateMetricsComponent);

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { CertificateManagement } from "@/types";
 import { Button } from "@/components/ui/button";
 
@@ -11,7 +12,7 @@ interface CertificateTableProps {
   onVerifyCertificate?: (certificate: CertificateManagement) => void;
 }
 
-export default function CertificateTableComponent({
+function CertificateTableComponent({
   certificates,
   loading,
   onViewCertificate,
@@ -20,7 +21,11 @@ export default function CertificateTableComponent({
 }: CertificateTableProps) {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("es-ES");
+    // Adding T12:00:00 to avoid timezone shift for YYYY-MM-DD strings
+    const date = dateString.includes("T")
+      ? new Date(dateString)
+      : new Date(dateString + "T12:00:00");
+    return date.toLocaleDateString("es-ES");
   };
 
   const formatCedula = (cedula: string, nacionalidad: string) => {
@@ -53,7 +58,14 @@ export default function CertificateTableComponent({
     fechaVencimiento: string | null,
   ) => {
     const now = new Date();
-    const isExpired = fechaVencimiento && new Date(fechaVencimiento) < now;
+    // Adding T12:00:00 to avoid timezone shift for YYYY-MM-DD strings
+    const expiryDate =
+      fechaVencimiento && !fechaVencimiento.includes("T")
+        ? new Date(fechaVencimiento + "T12:00:00")
+        : fechaVencimiento
+          ? new Date(fechaVencimiento)
+          : null;
+    const isExpired = expiryDate && expiryDate < now;
 
     if (!isActive) {
       return (
@@ -288,3 +300,5 @@ export default function CertificateTableComponent({
     </div>
   );
 }
+
+export default memo(CertificateTableComponent);

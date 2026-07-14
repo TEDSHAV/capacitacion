@@ -19,6 +19,8 @@ import {
   BarChart3,
   FileStack,
   TrendingUp,
+  CalendarDays,
+  Briefcase,
 } from "lucide-react";
 
 export default function CapacitacionClient({
@@ -26,6 +28,32 @@ export default function CapacitacionClient({
   stats,
 }: CapacitacionClientProps) {
   const categories = [
+    {
+      id: "planificacion",
+      title: "Planificación de Servicios",
+      gradient: "from-blue-600 to-cyan-500",
+      icon: CalendarDays,
+      modules: [
+        {
+          id: "planificacion-servicios",
+          title: "Planificación de Servicios",
+          icon: CalendarDays,
+        },
+      ],
+    },
+    {
+      id: "osi",
+      title: "OSI",
+      gradient: "from-amber-600 to-yellow-500",
+      icon: Briefcase,
+      modules: [
+        {
+          id: "gestion-osi",
+          title: "Gestión de OSI",
+          icon: Briefcase,
+        },
+      ],
+    },
     {
       id: "cursos",
       title: "Cursos",
