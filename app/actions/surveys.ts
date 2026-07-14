@@ -31,15 +31,21 @@ export async function getOSIDataForSurvey(osiId: number): Promise<SurveyOSIData 
 
     let facilitador_nombre = "";
     
-    // Attempt to fetch facilitator from control_servicios_ejecutados
-    const { data: controlData } = await supabase
-      .from("control_servicios_ejecutados")
-      .select("facilitador, cod_facilitador")
-      .eq("id_osi", osiId)
+    // Attempt to fetch facilitator from facilitador_osi_assignments
+    const { data: assignmentData } = await supabase
+      .from("facilitador_osi_assignments")
+      .select(`
+        facilitadores (
+          nombre_apellido
+        )
+      `)
+      .eq("osi_id", osiId)
+      .eq("is_active", true)
+      .limit(1)
       .maybeSingle();
 
-    if (controlData?.facilitador) {
-      facilitador_nombre = controlData.facilitador;
+    if (assignmentData?.facilitadores?.nombre_apellido) {
+      facilitador_nombre = assignmentData.facilitadores.nombre_apellido;
     } else {
       // Fallback: search in certificates for this OSI
       const { data: certData } = await supabase

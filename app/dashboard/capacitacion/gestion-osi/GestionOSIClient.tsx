@@ -9,6 +9,7 @@ import OSIPagination from "./components/osi-pagination";
 import OSIDashboardMetrics from "./components/osi-dashboard-metrics";
 import OSIDetailsModalV2 from "./components/osi-details-modal-v2";
 import OSISurveyModal from "./components/osi-survey-modal";
+import AssignFacilitadorModal from "./components/assign-facilitador-modal";
 
 interface GestionOSIClientProps {
   user: any;
@@ -47,9 +48,13 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [surveyOSI, setSurveyOSI] = useState<OSIManagement | null>(null);
 
+  // Assign Facilitador Modal state
+  const [showAssignFacilitadorModal, setShowAssignFacilitadorModal] = useState(false);
+  const [assignFacilitadorOSI, setAssignFacilitadorOSI] = useState<OSIManagement | null>(null);
+
   // Prevent body scroll when modal is open
   useEffect(() => {
-    if (showModal || showSurveyModal) {
+    if (showModal || showSurveyModal || showAssignFacilitadorModal) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -57,7 +62,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [showModal, showSurveyModal]);
+  }, [showModal, showSurveyModal, showAssignFacilitadorModal]);
 
   // Load filter options
   useEffect(() => {
@@ -143,6 +148,16 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     setSurveyOSI(null);
   }, []);
 
+  const handleAssignFacilitador = useCallback((osi: OSIManagement) => {
+    setAssignFacilitadorOSI(osi);
+    setShowAssignFacilitadorModal(true);
+  }, []);
+
+  const handleCloseAssignFacilitadorModal = useCallback(() => {
+    setShowAssignFacilitadorModal(false);
+    setAssignFacilitadorOSI(null);
+  }, []);
+
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
@@ -216,6 +231,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
         statuses={statuses}
         onViewDetails={handleViewDetails}
         onSurvey={handleSurvey}
+        onAssignFacilitador={handleAssignFacilitador}
       />
 
       {/* Pagination */}
@@ -246,6 +262,16 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
         <OSISurveyModal
           osi={surveyOSI}
           onClose={handleCloseSurveyModal}
+        />
+      )}
+
+      {/* Assign Facilitador Modal */}
+      {showAssignFacilitadorModal && assignFacilitadorOSI && (
+        <AssignFacilitadorModal
+          osiId={assignFacilitadorOSI.id_osi}
+          osiNumber={assignFacilitadorOSI.nro_osi}
+          osiCompany={assignFacilitadorOSI.nombre_empresa}
+          onClose={handleCloseAssignFacilitadorModal}
         />
       )}
     </div>

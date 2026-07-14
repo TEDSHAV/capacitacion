@@ -129,38 +129,26 @@ export async function logoutFacilitator() {
 
 export async function getAssignedOSIs(facilitadorId: number) {
   const supabase = await createAdminClient();
-  
-  // Check both control_servicios_ejecutados and requisiciones for assignments
-  const [controlRes, requisicionesRes] = await Promise.all([
-    supabase
-      .from("control_servicios_ejecutados")
-      .select("id_osi")
-      .eq("cod_facilitador", facilitadorId),
-    supabase
-      .from("requisiciones")
-      .select("id_osi")
-      .eq("cod_facilitador", facilitadorId)
-  ]);
 
-  if (controlRes.error) {
-    console.error("Error fetching control_servicios_ejecutados:", controlRes.error);
-  }
-  
-  if (requisicionesRes.error) {
-    console.error("Error fetching requisiciones:", requisicionesRes.error);
+  // Query the facilitador_osi_assignments table (sole source of truth)
+  const { data: assignments, error: assignError } = await supabase
+    .from("facilitador_osi_assignments")
+    .select("osi_id")
+    .eq("facilitador_id", facilitadorId)
+    .eq("is_active", true);
+
+  if (assignError) {
+    console.error("Error fetching assignments:", assignError);
+    return { error: assignError.message };
   }
 
-  // Combine and deduplicate OSI IDs
-  const controlIds = (controlRes.data || []).map(c => c.id_osi).filter(id => id !== null);
-  const requisicionIds = (requisicionesRes.data || []).map(r => r.id_osi).filter(id => id !== null);
-  
-  const allOsiIds = Array.from(new Set([...controlIds, ...requisicionIds])) as number[];
+  const allOsiIds = (assignments || []).map(a => a.osi_id);
 
   if (allOsiIds.length === 0) {
     return { data: [] };
   }
 
-  // Then we get the details from v_osi_formato_completo
+  // Get the details from v_osi_formato_completo
   const { data, error } = await supabase
     .from("v_osi_formato_completo")
     .select("*")
@@ -283,28 +271,18 @@ export async function getFacilitatorByOSI(osiId: number) {
 
   let facilitatorId = uploadedData?.facilitador_id;
 
-  // 2. If no one uploaded yet, check assignment tables
+  // 2. If no one uploaded yet, check the facilitador_osi_assignments table (sole source of truth)
   if (!facilitatorId) {
-    const [controlRes, requisicionRes] = await Promise.all([
-      supabase
-        .from("control_servicios_ejecutados")
-        .select("cod_facilitador")
-        .eq("id_osi", osiId)
-        .not("cod_facilitador", "is", null)
-        .order("id", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("requisiciones")
-        .select("cod_facilitador")
-        .eq("id_osi", osiId)
-        .not("cod_facilitador", "is", null)
-        .order("id", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+    const { data: assignmentData } = await supabase
+      .from("facilitador_osi_assignments")
+      .select("facilitador_id")
+      .eq("osi_id", osiId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    facilitatorId = controlRes.data?.cod_facilitador || requisicionRes.data?.cod_facilitador;
+    facilitatorId = assignmentData?.facilitador_id;
   }
 
   if (!facilitatorId) {

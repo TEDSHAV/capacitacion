@@ -1,7 +1,7 @@
 "use client";
 
 import { OSIManagement } from "@/types";
-import { Calendar, Building2, Clock, FileText, Download, ClipboardList } from "lucide-react";
+import { Calendar, Building2, Clock, FileText, Download, ClipboardList, UserPlus } from "lucide-react";
 import type { OSIStatus } from "@/types";
 
 interface OSITableV2Props {
@@ -10,6 +10,7 @@ interface OSITableV2Props {
   statuses: OSIStatus[];
   onViewDetails: (osi: OSIManagement, section?: "info" | "documents") => void;
   onSurvey: (osi: OSIManagement) => void;
+  onAssignFacilitador: (osi: OSIManagement) => void;
 }
 
 export default function OSITableV2({
@@ -18,6 +19,7 @@ export default function OSITableV2({
   statuses,
   onViewDetails,
   onSurvey,
+  onAssignFacilitador,
 }: OSITableV2Props) {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
@@ -78,7 +80,7 @@ export default function OSITableV2({
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Fecha
               </th>
-              <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider w-24">
+              <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider w-32">
                 Acciones
               </th>
             </tr>
@@ -128,6 +130,16 @@ export default function OSITableV2({
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap text-right">
                   <div className="flex justify-end gap-1.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAssignFacilitador(osi);
+                      }}
+                      className="inline-flex items-center p-1.5 border border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white rounded-md transition-colors shadow-sm"
+                      title="Asignar Facilitador"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

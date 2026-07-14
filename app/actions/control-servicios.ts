@@ -7,6 +7,7 @@ import {
   ControlServiciosFormData,
   OSIFullData,
 } from "@/types";
+import { assignOSIToFacilitador } from "./osi-facilitador-assignments";
 
 // Get all OSIs for the dropdown
 export async function getAllOSIsForControlServicios() {
@@ -150,6 +151,16 @@ ${formData.observaciones}
     .single();
 
   if (error) throw error;
+
+  // Also write the facilitador↔OSI assignment to the assignments table
+  if (formData.selectedOSI?.id_osi && formData.cod_facilitador) {
+    await assignOSIToFacilitador(
+      formData.selectedOSI.id_osi,
+      parseInt(formData.cod_facilitador),
+      "requisicion"
+    );
+  }
+
   revalidatePath("/dashboard/capacitacion/planificacion-servicios/lista");
   return data;
 }
@@ -298,6 +309,16 @@ ${formData.observaciones}
     .single();
 
   if (error) throw error;
+
+  // Sync the facilitador↔OSI assignment to the assignments table
+  if (formData.selectedOSI?.id_osi && formData.cod_facilitador) {
+    await assignOSIToFacilitador(
+      formData.selectedOSI.id_osi,
+      parseInt(formData.cod_facilitador),
+      "requisicion"
+    );
+  }
+
   revalidatePath("/dashboard/capacitacion/planificacion-servicios/lista");
   return data;
 }

@@ -258,13 +258,12 @@ export async function getFacilitatorRatings() {
     if (surveyError) throw surveyError;
     if (!surveys || surveys.length === 0) return { ratings: {} };
 
-    // 2. Get OSI to Facilitator mapping from both control_servicios_ejecutados and certificados
+    // 2. Get OSI to Facilitator mapping from facilitador_osi_assignments and certificados
     const [mappingRes, certsRes] = await Promise.all([
       supabase
-        .from("control_servicios_ejecutados")
-        .select("id_osi, cod_facilitador")
-        .not("id_osi", "is", null)
-        .not("cod_facilitador", "is", null),
+        .from("facilitador_osi_assignments")
+        .select("osi_id, facilitador_id")
+        .eq("is_active", true),
       supabase
         .from("certificados")
         .select("id_facilitador, nro_osi, snapshot_contenido")
@@ -280,10 +279,10 @@ export async function getFacilitatorRatings() {
     // Create a lookup map: OSI ID -> Facilitator ID
     const osiToFacilitator = new Map<number, number>();
 
-    // Step 1: Map from control_servicios_ejecutados (Most direct)
+    // Step 1: Map from facilitador_osi_assignments
     mapping?.forEach((m) => {
-      if (m.id_osi && m.cod_facilitador) {
-        osiToFacilitator.set(m.id_osi, m.cod_facilitador);
+      if (m.osi_id && m.facilitador_id) {
+        osiToFacilitator.set(m.osi_id, m.facilitador_id);
       }
     });
 

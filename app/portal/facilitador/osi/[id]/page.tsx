@@ -32,30 +32,17 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
 
   // Security check: Is this OSI assigned to this facilitator?
   const supabase = await createAdminClient();
-  const [controlCheck, requisicionCheck] = await Promise.all([
-    supabase
-      .from("control_servicios_ejecutados")
-      .select("id")
-      .eq("id_osi", osiId)
-      .eq("cod_facilitador", session.facilitador_id)
-      .limit(1),
-    supabase
-      .from("requisiciones")
-      .select("id")
-      .eq("id_osi", osiId)
-      .eq("cod_facilitador", session.facilitador_id)
-      .limit(1)
-  ]);
+  const { data: assignmentCheck } = await supabase
+    .from("facilitador_osi_assignments")
+    .select("id")
+    .eq("osi_id", osiId)
+    .eq("facilitador_id", session.facilitador_id)
+    .eq("is_active", true)
+    .limit(1);
 
-  console.log(`[OSI Page Debug] OSI ID: ${osiId}, Facilitador ID: ${session.facilitador_id}`);
-  console.log(`[OSI Page Debug] Control Check:`, controlCheck.data, controlCheck.error);
-  console.log(`[OSI Page Debug] Requisicion Check:`, requisicionCheck.data, requisicionCheck.error);
-
-  const isAssigned = (controlCheck.data && controlCheck.data.length > 0) || 
-                     (requisicionCheck.data && requisicionCheck.data.length > 0);
+  const isAssigned = assignmentCheck && assignmentCheck.length > 0;
 
   if (!isAssigned) {
-    console.warn(`[OSI Page Debug] Access denied, redirecting to dashboard`);
     redirect("/portal/facilitador/dashboard");
   }
 

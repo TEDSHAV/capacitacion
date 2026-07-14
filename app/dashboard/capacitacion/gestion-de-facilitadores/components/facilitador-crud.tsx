@@ -5,12 +5,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Facilitador, State } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, Check, Star, StarHalf, Key } from "lucide-react";
+import { Edit, Trash2, Check, Star, StarHalf, Key, ClipboardList } from "lucide-react";
 import { toTitleCase } from "@/utils/string-utils";
 import { createClient } from "@/utils/supabase/client";
 import { getFacilitatorRatings } from "@/app/actions/facilitators";
 import { getFacilitatorByIdAction } from "@/app/actions/facilitators-crud";
 import { PortalCredentialsModal } from "./portal-credentials-modal";
+import AssignOSIModal from "./assign-osi-modal";
 
 interface FacilitadorCrudProps {
   onFacilitadorSaved?: () => void;
@@ -35,6 +36,8 @@ export const FacilitadorCrud = ({
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showPortalModal, setShowPortalModal] = useState(false);
   const [facilitadorForPortal, setFacilitadorForPortal] = useState<Facilitador | null>(null);
+  const [showAssignOSIModal, setShowAssignOSIModal] = useState(false);
+  const [facilitadorForAssignment, setFacilitadorForAssignment] = useState<Facilitador | null>(null);
 
   // Client-side only: Check if we're in the browser
   const isClient = typeof window !== "undefined";
@@ -171,6 +174,12 @@ export const FacilitadorCrud = ({
   const handleShowPortal = (facilitador: Facilitador) => {
     setFacilitadorForPortal(facilitador);
     setShowPortalModal(true);
+  };
+
+  // Show assign OSI modal
+  const handleShowAssignOSI = (facilitador: Facilitador) => {
+    setFacilitadorForAssignment(facilitador);
+    setShowAssignOSIModal(true);
   };
 
   // Edit facilitator
@@ -404,6 +413,13 @@ export const FacilitadorCrud = ({
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => handleShowAssignOSI(facilitador)}
+                      className="bg-teal-600 text-white p-2 rounded-md hover:bg-teal-700 transition-colors shadow-sm"
+                      title="Asignar OSIs"
+                    >
+                      <ClipboardList className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => handleShowPortal(facilitador)}
                       className="bg-purple-600 text-white p-2 rounded-md hover:bg-purple-700 transition-colors shadow-sm"
                       title="Crear Credenciales para el Portal"
@@ -446,6 +462,18 @@ export const FacilitadorCrud = ({
           </div>
         )}
       </div>
+
+      {/* Assign OSI Modal */}
+      {showAssignOSIModal && facilitadorForAssignment && (
+        <AssignOSIModal
+          facilitadorId={facilitadorForAssignment.id}
+          facilitadorName={facilitadorForAssignment.nombre_apellido}
+          onClose={() => {
+            setShowAssignOSIModal(false);
+            setFacilitadorForAssignment(null);
+          }}
+        />
+      )}
 
       {/* Portal Credentials Modal */}
       {showPortalModal && facilitadorForPortal && (
