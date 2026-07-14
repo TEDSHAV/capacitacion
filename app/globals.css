@@ -65,6 +65,24 @@ button:not([class*="bg-gray"]):not([class*="bg-red"]):not([class*="bg-green"]):n
   color: white !important;
 }
 
+/* Specific override for back button */
+button[title="Volver"] {
+  background-color: var(--primary-blue) !important;
+  color: white !important;
+}
+
+/* Override all button styles for back button specifically */
+button[title="Volver"] {
+  background-color: var(--primary-blue) !important;
+  color: white !important;
+}
+
+/* Override any button with back functionality */
+button[onclick*="handleBackClick"] {
+  background-color: var(--primary-blue) !important;
+  color: white !important;
+}
+
 /* Gray background buttons should keep their styling */
 button[class*="bg-gray-50"] {
   background-color: #f9fafb !important;
