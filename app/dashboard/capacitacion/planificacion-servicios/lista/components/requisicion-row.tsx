@@ -9,18 +9,13 @@ import { Button } from "@/components/ui/button";
 export default function RequisicionRow({ record }: { record: any }) {
   const router = useRouter();
 
-  const handleRowClick = () => {
-    window.parent.location.href = `/requisiciones/view/${record.id}`;
-  };
-
   const handleActionClick = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
 
   return (
     <tr 
-      onClick={handleRowClick}
-      className="hover:bg-gray-50 cursor-pointer transition-colors"
+      className="hover:bg-gray-50 transition-colors"
     >
       <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-blue-700">
         {record.nro_correlativo || "-"}
@@ -50,12 +45,12 @@ export default function RequisicionRow({ record }: { record: any }) {
       </td>
       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900" onClick={handleActionClick}>
         <div className="flex gap-1">
-          <a href={`/requisiciones/view/${record.id}`} target="_parent">
+          <a href={`${process.env.NEXT_PUBLIC_SHELL_URL || ""}/requisiciones/view/${record.id}`} target="_parent">
             <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600 hover:text-gray-900" title="Ver">
               <Eye className="h-4 w-4" />
             </Button>
           </a>
-          <a href={`/requisiciones/edit/${record.id}`} target="_parent">
+          <a href={`${process.env.NEXT_PUBLIC_SHELL_URL || ""}/requisiciones/edit/${record.id}`} target="_parent">
             <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-800" title="Editar">
               <Edit className="h-4 w-4" />
             </Button>
