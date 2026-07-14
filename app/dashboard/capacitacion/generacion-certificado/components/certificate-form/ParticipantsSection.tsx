@@ -25,16 +25,11 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
   } = useParticipants(onChange, uniqueParticipants)
 
   const addParticipant = () => {
-    console.log('addParticipant called')
     const wasAdded = addParticipantHook()
-    console.log('wasAdded:', wasAdded)
     // Focus back to name input only if participant was successfully added
     if (wasAdded) {
-      console.log('Attempting to focus input')
       setTimeout(() => {
-        console.log('setTimeout callback, nameInputRef.current:', nameInputRef.current)
         if (nameInputRef.current) {
-          console.log('Focusing input')
           nameInputRef.current.focus()
         }
       }, 0) // Small delay to ensure DOM has updated

@@ -87,6 +87,22 @@ export async function saveCertificatesToDatabase(
           nro_linea: certificateInsert.nro_linea,
           nro_control: certificateInsert.nro_control
         });
+
+        // Update the snapshot_contenido with actual control numbers
+        const updatedSnapshot = generateContentSnapshotWithControlNumbers(
+          certificateData, 
+          participant, 
+          participantId,
+          certificateInsert.nro_libro,
+          certificateInsert.nro_hoja,
+          certificateInsert.nro_linea,
+          certificateInsert.nro_control
+        );
+
+        await supabase
+          .from("certificados")
+          .update({ snapshot_contenido: updatedSnapshot })
+          .eq("id", certificateInsert.id);
       }
     }
 
@@ -135,7 +151,7 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
     }
 
     // Create new participant
-    const nationality = participant.nacionalidad || 'V';
+    const nationality = participant.nacionalidad === 'V' ? 'venezolano' : 'extranjero';
     const { data: newParticipant, error: insertError } = await supabase
       .from("participantes_certificados")
       .insert({
@@ -181,10 +197,95 @@ function generateContentSnapshot(
       id_plantilla_certificado: certificateData.id_plantilla_certificado,
       calificacion: participant.score || 0,
       is_active: true, // Default value
-      nro_libro: 1, // Default value from trigger
-      nro_hoja: 1, // Default value from trigger
-      nro_linea: 1, // Default value from trigger
-      // nro_control is handled by sequence/trigger
+      nro_libro: 1, // Placeholder - will be updated after database insert
+      nro_hoja: 1, // Placeholder - will be updated after database insert
+      nro_linea: 1, // Placeholder - will be updated after database insert
+      nro_control: 1, // Placeholder - will be updated after database insert
+    },
+    // Participant information with proper cédula details
+    participante: {
+      id: participantId, // Include database participant ID
+      name: participant.name,
+      cedula: participant.id_number, // Store cédula properly
+      nacionalidad: participant.nacionalidad || 'V',
+      score: participant.score,
+      cedula_completa: `${participant.nacionalidad || 'V'}-${participant.id_number}` // Full cédula format
+    },
+    // Certificate details
+    certificado_detalles: {
+      title: certificateData.certificate_title,
+      subtitle: certificateData.certificate_subtitle,
+      course_content: certificateData.course_content,
+      date: certificateData.date,
+      location: certificateData.location,
+      horas_estimadas: certificateData.horas_estimadas,
+      passing_grade: certificateData.passing_grade
+    },
+    // OSI information
+    osi: {
+      nro_osi: certificateData.osi_data?.nro_osi,
+      cliente_nombre_empresa: certificateData.osi_data?.cliente_nombre_empresa,
+      tema: certificateData.osi_data?.tema,
+      detalle_capacitacion: certificateData.osi_data?.detalle_capacitacion,
+      empresa_id: certificateData.osi_data?.empresa_id,
+      direccion_ejecucion: certificateData.osi_data?.direccion_ejecucion
+    },
+    // Course information
+    curso: {
+      name: certificateData.course_topic_data?.name,
+      id: certificateData.course_topic_data?.id,
+      contenido: certificateData.course_topic_data?.contenido_curso,
+      nota_aprobatoria: certificateData.course_topic_data?.nota_aprobatoria,
+      emite_carnet: certificateData.course_topic_data?.emite_carnet
+    },
+    // Template and signatures
+    plantilla: {
+      id_plantilla_certificado: certificateData.id_plantilla_certificado
+    },
+    firmas: {
+      facilitator_id: certificateData.facilitator_id,
+      sha_signature_id: certificateData.sha_signature_id
+    },
+    // Metadata
+    metadatos: {
+      generated_at: new Date().toISOString(),
+      generated_by: "certificate_generation_system"
+    }
+  };
+
+  return JSON.stringify(snapshot, null, 2);
+}
+
+/**
+ * Generate content snapshot for certificate with actual control numbers
+ */
+function generateContentSnapshotWithControlNumbers(
+  certificateData: CertificateGeneration, 
+  participant: CertificateParticipant,
+  participantId: number,
+  nro_libro: number,
+  nro_hoja: number,
+  nro_linea: number,
+  nro_control: number
+): string {
+  const snapshot = {
+    // Certificate record fields from certificados table
+    certificado: {
+      id_participante: participantId, // Use actual participant ID from database
+      id_empresa: certificateData.osi_data?.empresa_id,
+      id_curso: certificateData.course_topic_data?.id,
+      fecha_emision: new Date().toISOString().split('T')[0], // Current date
+      fecha_vencimiento: certificateData.fecha_vencimiento,
+      nro_osi: certificateData.osi_data?.nro_osi,
+      id_estado: certificateData.id_estado,
+      id_facilitador: certificateData.facilitator_id,
+      id_plantilla_certificado: certificateData.id_plantilla_certificado,
+      calificacion: participant.score || 0,
+      is_active: true, // Default value
+      nro_libro: nro_libro, // Actual value from database
+      nro_hoja: nro_hoja, // Actual value from database
+      nro_linea: nro_linea, // Actual value from database
+      nro_control: nro_control, // Actual value from database
     },
     // Participant information with proper cédula details
     participante: {
