@@ -13,7 +13,6 @@ interface CertificatePreviewProps {
 
 export const CertificatePreview = ({
   certificateData,
-  selectedOSI,
   isOpen,
   onClose,
 }: CertificatePreviewProps) => {
