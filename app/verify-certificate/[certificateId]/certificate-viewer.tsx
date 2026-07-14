@@ -157,192 +157,174 @@ export default function CertificateVerificationPage() {
       </div>
 
       <div className="max-w-7xl mx-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar with certificate info */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-lg p-6 space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalles del Certificado</h3>
-                <div className="space-y-3">
-               
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Participante</label>
-                    <p className="text-sm text-gray-900">{certificate.participantName}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Curso</label>
-                    <p className="text-sm text-gray-900">{certificate.courseName}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Fecha de Emisión</label>
-                    <p className="text-sm text-gray-900">{new Date(certificate.issueDate).toLocaleDateString()}</p>
-                  </div>
-                  {certificate.expirationDate && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500">Fecha de Vencimiento</label>
-                      <p className="text-sm text-gray-900">{new Date(certificate.expirationDate).toLocaleDateString()}</p>
+        <div className="grid grid-cols-1 gap-6">
+          
+          {/* Main content - Certificate PDF and Carnets */}
+          <div>
+            {/* Certificate Section - Two column layout like carnet */}
+            {pdfUrl && (
+              <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+                {/* Sidebar with certificate details */}
+                <div className="lg:col-span-2">
+                  <div className="bg-white rounded-lg shadow-lg p-6 space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalles del Certificado</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500">Participante</label>
+                        <p className="text-sm text-gray-900">{certificate.participantName}</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500">Curso</label>
+                        <p className="text-sm text-gray-900">{certificate.courseName}</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500">Fecha de Emisión</label>
+                        <p className="text-sm text-gray-900">{new Date(certificate.issueDate).toLocaleDateString()}</p>
+                      </div>
+                      {certificate.expirationDate && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500">Fecha de Vencimiento</label>
+                          <p className="text-sm text-gray-900">{new Date(certificate.expirationDate).toLocaleDateString()}</p>
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500">Libro</label>
+                        <p className="text-sm text-gray-900">{certificate.controlNumbers.nro_libro}</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500">Hoja</label>
+                        <p className="text-sm text-gray-900">{certificate.controlNumbers.nro_hoja}</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500">Línea</label>
+                        <p className="text-sm text-gray-900">{certificate.controlNumbers.nro_linea}</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500">Control</label>
+                        <p className="text-sm text-gray-900">{certificate.controlNumbers.nro_control}</p>
+                      </div>
                     </div>
-                  )}
+                    {pdfUrl && (
+                      <div>
+                        <a
+                          href={pdfUrl}
+                          download={`certificate-${certificate.id}.pdf`}
+                          className="block w-full bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                          Descargar Certificado
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Main content - Certificate preview */}
+                <div className="lg:col-span-4">
+                  <div className="bg-white rounded-lg shadow-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Certificado</h3>
+                    <div className="w-full h-[800px]">
+                      <iframe
+                        src={`${pdfUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
+                        className="w-full h-full border border-gray-300 rounded"
+                        title="Certificate PDF"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
+            )}
 
-              <div>
-                <h4 className="text-md font-semibold text-gray-900 mb-3">Números de Control</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500">Libro</label>
-                    <p className="font-mono text-gray-900">{certificate.controlNumbers.nro_libro}</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500">Hoja</label>
-                    <p className="font-mono text-gray-900">{certificate.controlNumbers.nro_hoja}</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500">Línea</label>
-                    <p className="font-mono text-gray-900">{certificate.controlNumbers.nro_linea}</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500">Control</label>
-                    <p className="font-mono text-gray-900">{certificate.controlNumbers.nro_control}</p>
-                  </div>
-                </div>
-              </div>
-
-              
-
-              {pdfUrl && (
-                <div>
-                  <a
-                    href={pdfUrl}
-                    download={`certificate-${certificate.id}.pdf`}
-                    className="block w-full bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    Descargar Certificado
-                  </a>
-                </div>
-              )}
-
-              {/* Carnets Section */}
-              {carnets.length > 0 && (
-                <div>
-                  <h4 className="text-md font-semibold text-gray-900 mb-3">Carnets Disponibles</h4>
-                  <div className="space-y-2">
-                    {carnets.map((carnet) => (
-                      <div key={carnet.id} className="border border-gray-200 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-900">
-                            Carnet #{carnet.id}
-                          </span>
+            {/* Carnets Section - Side by side layout like certificate */}
+            {carnets.length > 0 && (
+              <div className="mt-12">
+                <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+                {/* Sidebar with carnet details */}
+                <div className="lg:col-span-2">
+                  <div className="bg-white rounded-lg shadow-lg p-6 space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalles del Carnet</h3>
+                    {carnets.map((carnet, index) => (
+                      <div key={carnet.id} className={`border border-gray-200 rounded-lg p-4 ${index > 0 ? 'mt-4' : ''}`}>
+                        <h4 className="font-medium text-gray-900 mb-3">Carnet #{carnet.id}</h4>
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500">Participante</label>
+                            <p className="text-sm text-gray-900">{carnet.nombre_participante}</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500">Cédula</label>
+                            <p className="text-sm text-gray-900">{carnet.cedula_participante}</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500">Curso</label>
+                            <p className="text-sm text-gray-900">{carnet.titulo_curso}</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500">Emisión</label>
+                            <p className="text-sm text-gray-900">{new Date(carnet.fecha_emision).toLocaleDateString()}</p>
+                          </div>
                           {carnet.fecha_vencimiento && (
-                            <span className="text-xs text-gray-500">
-                              Vence: {new Date(carnet.fecha_vencimiento).toLocaleDateString()}
-                            </span>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500">Vencimiento</label>
+                              <p className="text-sm text-gray-900">{new Date(carnet.fecha_vencimiento).toLocaleDateString()}</p>
+                            </div>
                           )}
                         </div>
                         {carnetPdfUrls[carnet.id] && (
-                          <a
-                            href={carnetPdfUrls[carnet.id]}
-                            download={`carnet-${carnet.id}.pdf`}
-                            className="block w-full bg-green-600 text-white text-center py-1 px-2 rounded text-sm hover:bg-green-700 transition-colors"
-                          >
-                            Descargar Carnet
-                          </a>
+                          <div className="mt-3">
+                            <a
+                              href={carnetPdfUrls[carnet.id]}
+                              download={`carnet-${carnet.id}.pdf`}
+                              className="block w-full bg-green-600 text-white text-center py-2 px-4 rounded-md hover:bg-green-700 transition-colors text-sm"
+                            >
+                              Descargar Carnet
+                            </a>
+                          </div>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Main content - Certificate PDF and Carnets */}
-          <div className="lg:col-span-3">
-            {/* Certificate Section */}
-            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Certificado</h3>
-              {pdfUrl ? (
-                <div className="w-full h-[800px]">
-                  <iframe
-                    src={pdfUrl}
-                    className="w-full h-full border border-gray-300 rounded"
-                    title="Certificate PDF"
-                  />
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-96 bg-gray-50 rounded-lg">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading certificate...</p>
+                {/* Main content - Carnet previews */}
+                <div className="lg:col-span-4">
+                  <div className="bg-white rounded-lg shadow-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Vista del Carnet</h3>
+                    <div className="space-y-6">
+                      {carnets.map((carnet) => (
+                        <div key={carnet.id} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-gray-900">Carnet #{carnet.id}</h4>
+                            {carnet.fecha_vencimiento && (
+                              <span className="text-xs text-gray-500">
+                                Vence: {new Date(carnet.fecha_vencimiento).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {carnetPdfUrls[carnet.id] ? (
+                            <div className="w-full max-w-lg mx-auto">
+                              <div className="relative w-full" style={{ paddingBottom: '62.79%' }}>
+                                <iframe
+                                  src={`${carnetPdfUrls[carnet.id]}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
+                                  className="absolute inset-0 w-full h-full border border-gray-300 rounded"
+                                  title={`Carnet ${carnet.id} PDF`}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+                              <div className="text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+                                <p className="text-gray-600">Cargando carnet...</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Carnets Section */}
-            {carnets.length > 0 && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Carnets</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {carnets.map((carnet) => (
-                    <div key={carnet.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium text-gray-900">Carnet #{carnet.id}</h4>
-                        {carnet.fecha_vencimiento && (
-                          <span className="text-xs text-gray-500">
-                            Vence: {new Date(carnet.fecha_vencimiento).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="space-y-2 mb-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500">Participante</label>
-                          <p className="text-sm text-gray-900">{carnet.nombre_participante}</p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500">Cédula</label>
-                          <p className="text-sm text-gray-900">{carnet.cedula_participante}</p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500">Curso</label>
-                          <p className="text-sm text-gray-900">{carnet.titulo_curso}</p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500">Emisión</label>
-                          <p className="text-sm text-gray-900">{new Date(carnet.fecha_emision).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-
-                      {carnetPdfUrls[carnet.id] ? (
-                        <div className="w-full h-[200px] mb-3">
-                          <iframe
-                            src={carnetPdfUrls[carnet.id]}
-                            className="w-full h-full border border-gray-300 rounded"
-                            title={`Carnet ${carnet.id} PDF`}
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center h-32 bg-gray-50 rounded-lg mb-3">
-                          <div className="text-center">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto mb-2"></div>
-                            <p className="text-sm text-gray-600">Loading carnet...</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {carnetPdfUrls[carnet.id] && (
-                        <a
-                          href={carnetPdfUrls[carnet.id]}
-                          download={`carnet-${carnet.id}.pdf`}
-                          className="block w-full bg-green-600 text-white text-center py-2 px-4 rounded-md hover:bg-green-700 transition-colors"
-                        >
-                          Descargar Carnet
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              </div>
               </div>
             )}
           </div>
