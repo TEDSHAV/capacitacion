@@ -18,7 +18,6 @@ export const FacilitatorSelection = ({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('FacilitatorSelection: Loading facilitators...');
     loadFacilitators();
   }, []);
 

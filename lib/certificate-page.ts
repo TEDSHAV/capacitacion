@@ -274,7 +274,6 @@ export class CertificatePage {
 
       // Use preloaded facilitator data if available (from batch generation)
       if (!facilitator && this.preloadedAssets?.facilitator) {
-        console.log('Using preloaded facilitator data:', this.preloadedAssets.facilitator);
         // Transform preloaded API response to match expected interface
         const preloadedData = this.preloadedAssets.facilitator;
         facilitator = {
@@ -293,12 +292,10 @@ export class CertificatePage {
             url_imagen: preloadedData.firmas.url_imagen,
           } : undefined,
         };
-        console.log('Transformed facilitator data:', facilitator);
       }
 
       // If facilitator_data is not available, try to fetch it (only for single certificate generation)
       if (!facilitator) {
-        console.log('No facilitator data found, fetching from API for:', certificateData.facilitator_id);
         // Check if we're in a server environment
         if (typeof window === 'undefined') {
         } else {

@@ -187,11 +187,8 @@ const getCourseTemplatesByOSI = cache(async (courseId?: string, empresaId?: stri
   const supabase = await createClient();
 
   try {
-    console.log('🔍 getCourseTemplatesByOSI called with:', { courseId, empresaId });
-
     if (!courseId && !empresaId) {
       // If no course or company selected, return empty list (not all templates)
-      console.log('📋 No course or company selected, returning empty templates list');
       return { data: [], error: null };
     }
 
