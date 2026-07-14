@@ -70,7 +70,7 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{osi.nombre_empresa}</h1>
         <p className="text-gray-600 flex items-center gap-2">
           <Info className="w-4 h-4" />
-          Sube la foto de la lista de asistencia firmada.
+          Sube la lista física, completa los datos de los participantes y revisa antes de enviar.
         </p>
       </header>
 

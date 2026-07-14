@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -12,11 +12,11 @@ import {
   AlertCircle,
   Search,
   AlertTriangle,
-  Camera,
-  FileSearch,
-  X
+  X,
+  ShieldCheck,
+  ClipboardCheck
 } from "lucide-react";
-import { saveParticipants, getOSIAttachments } from "@/app/actions/facilitador-portal";
+import { saveParticipants } from "@/app/actions/facilitador-portal";
 import { PhysicalListUpload } from "./physical-list-upload";
 import { SeniatVerificationPopover } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/SeniatVerificationPopover";
 import { ParticipantScannerModal } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/ParticipantScannerModal";
@@ -35,6 +35,8 @@ interface ParticipantFormProps {
   facilitadorId: number;
   initialParticipants: Participant[];
 }
+
+const DISCLAIMER_TEXT = "Declaro bajo mi responsabilidad que he revisado exhaustivamente las calificaciones y datos de los participantes, y que la información aquí suministrada es veraz y ha sido contrastada con la lista de asistencia firmada.";
 
 export const ParticipantForm = ({
   osiId,
@@ -59,10 +61,17 @@ export const ParticipantForm = ({
   const [showAttachmentWarning, setShowAttachmentWarning] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [selectedPortalFile, setSelectedPortalFile] = useState<File | null>(null);
-  const [portalAttachments, setPortalAttachments] = useState<OSIAttachment[]>([]);
-  const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
-  const [isFetchingAttachments, setIsFetchingAttachments] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [hasAcknowledged, setHasAcknowledged] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const disclaimerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   const addParticipant = () => {
     setParticipants([...participants, { nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" }]);
@@ -92,6 +101,13 @@ export const ParticipantForm = ({
       return;
     }
 
+    // Require acknowledgment for final submission
+    if (status === "final" && !hasAcknowledged) {
+      setError("Debes confirmar la declaración para finalizar el envío.");
+      disclaimerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
     // Warn if no attachments uploaded (warn only, don't block)
     if (status === "final" && attachmentCount === 0) {
       setShowAttachmentWarning(true);
@@ -111,7 +127,9 @@ export const ParticipantForm = ({
         cedula: p.cedula,
         score: p.score === "" ? null : Number(p.score),
       })),
-      status
+      status,
+      status === "final" ? hasAcknowledged : false,
+      status === "final" ? DISCLAIMER_TEXT : undefined
     );
 
     if (result.success) {
@@ -135,39 +153,36 @@ export const ParticipantForm = ({
     setActiveVerificationIndex(null);
   };
 
-  const handleScanFromPortal = async () => {
-    setIsFetchingAttachments(true);
-    setScanError(null);
+  const [isScanningAttachment, setIsScanningAttachment] = useState(false);
 
-    try {
-      const result = await getOSIAttachments(osiId, facilitadorId);
-      if (result.error) {
-        setScanError(result.error);
-      } else if (result.data && result.data.length > 0) {
-        setPortalAttachments(result.data);
-        setShowAttachmentPicker(true);
-      } else {
-        setScanError("No hay listas físicas cargadas para escanear.");
-      }
-    } catch (e) {
-      setScanError("Error al obtener archivos cargados");
-    } finally {
-      setIsFetchingAttachments(false);
-    }
+  // Used when a file was JUST uploaded: we already have the File object in
+  // memory, so we skip re-downloading it from the public URL and open the
+  // scanner directly. This avoids a redundant network round-trip that was
+  // unreliable on slow mobile connections.
+  const handleFileReadyToScan = (file: File, attachment: OSIAttachment) => {
+    setScanError(null);
+    setUploadStatus("Archivo listo. Abriendo escáner...");
+    setSelectedPortalFile(file);
+    setIsScannerOpen(true);
   };
 
   const handleSelectAttachment = async (attachment: OSIAttachment) => {
+    setIsScanningAttachment(true);
+    setScanError(null);
     try {
       if (!attachment.publicUrl) throw new Error("Public URL missing");
       const response = await fetch(attachment.publicUrl);
+      if (!response.ok) throw new Error(`Failed to fetch file: ${response.status}`);
       const blob = await response.blob();
       const file = new File([blob], attachment.file_name, { type: attachment.file_type });
 
       setSelectedPortalFile(file);
       setIsScannerOpen(true);
-      setShowAttachmentPicker(false);
     } catch (e) {
-      setScanError("Error al procesar el archivo seleccionado");
+      console.error("[handleSelectAttachment] Error:", e);
+      setScanError("Error al cargar el archivo para escanear. Intenta usar el botón 'Escanear' manualmente.");
+    } finally {
+      setIsScanningAttachment(false);
     }
   };
 
@@ -188,9 +203,16 @@ export const ParticipantForm = ({
     }
     setSelectedPortalFile(null);
     setSuccess(null);
+    setUploadStatus(mapped.length > 0 ? `✅ ${mapped.length} participante(s) extraídos correctamente` : null);
   };
 
   const handleConfirmFinalizeAnyway = async () => {
+    if (!hasAcknowledged) {
+      setError("Debes confirmar la declaración para finalizar el envío.");
+      disclaimerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setShowAttachmentWarning(false);
+      return;
+    }
     setShowAttachmentWarning(false);
     setSaving(true);
     setError(null);
@@ -204,7 +226,9 @@ export const ParticipantForm = ({
         cedula: p.cedula,
         score: p.score === "" ? null : Number(p.score),
       })),
-      "final"
+      "final",
+      hasAcknowledged,
+      DISCLAIMER_TEXT
     );
 
     if (result.success) {
@@ -217,88 +241,69 @@ export const ParticipantForm = ({
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      {/* Step 1: Upload physical list picture (primary/required) */}
+      {/* Step 1: Upload & Scan / Edit Participants */}
+      <div className="flex items-center gap-2 mb-2">
+        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">1</span>
+        <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Cargar y Escanear Lista</h2>
+        <span className="text-[10px] font-bold uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">Requerido</span>
+      </div>
       <PhysicalListUpload 
         osiId={osiId} 
         facilitadorId={facilitadorId} 
         onAttachmentCountChange={setAttachmentCount}
+        onScanAttachment={handleSelectAttachment}
+        onFileReadyToScan={handleFileReadyToScan}
+        onStatusChange={setUploadStatus}
       />
 
-      {/* Step 2: Scan/parse list and edit participants (optional) */}
-      <div className="flex flex-col gap-3 mb-4">
+      {uploadStatus && (
+        <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-md border mt-3 ${
+          uploadStatus.startsWith("✅")
+            ? "text-green-700 bg-green-50 border-green-100"
+            : uploadStatus.startsWith("❌") || uploadStatus.toLowerCase().includes("error") || uploadStatus.toLowerCase().includes("no se pudo")
+            ? "text-red-700 bg-red-50 border-red-100"
+            : "text-blue-700 bg-blue-50 border-blue-100"
+        }`}>
+          {uploadStatus.startsWith("✅") ? (
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+          ) : uploadStatus.startsWith("❌") || uploadStatus.toLowerCase().includes("error") || uploadStatus.toLowerCase().includes("no se pudo") ? (
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          ) : (
+            <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+          )}
+          <span className="flex-1">{uploadStatus}</span>
+          <button onClick={() => setUploadStatus(null)} className="shrink-0">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 mb-4 mt-4">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2 flex-wrap">
-            Listado de Participantes
+            Participantes
             <span className="text-sm font-normal text-gray-500">
               ({participants.length})
             </span>
-            <span className="text-[10px] font-bold uppercase text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">Opcional</span>
           </h3>
-        </div>
-
-        {/* Scanner Toolbar */}
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <Button
-            type="button"
-            onClick={() => {
-              setSelectedPortalFile(null);
-              setIsScannerOpen(true);
-            }}
-            className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
-          >
-            <Camera className="w-4 h-4 mr-2" />
-            Escanear Lista
-          </Button>
-          <div className="relative w-full sm:w-auto">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleScanFromPortal}
-              disabled={isFetchingAttachments}
-              className="w-full sm:w-auto border-blue-200 text-blue-700 hover:bg-blue-50"
-            >
-              {isFetchingAttachments ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <FileSearch className="w-4 h-4 mr-2" />
-              )}
-              Escanear desde Archivos
-            </Button>
-
-            {showAttachmentPicker && (
-              <div className="absolute top-full left-0 mt-2 w-[90vw] sm:w-72 max-w-[288px] bg-white rounded-xl shadow-xl border border-gray-200 z-[60] overflow-hidden animate-in fade-in slide-in-from-top-2">
-                <div className="p-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-                  <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Listas Disponibles</span>
-                  <button onClick={() => setShowAttachmentPicker(false)} className="text-gray-400 hover:text-gray-600">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="max-h-60 overflow-y-auto">
-                  {portalAttachments.map((att) => (
-                    <button
-                      key={att.id}
-                      onClick={() => handleSelectAttachment(att)}
-                      className="w-full p-3 text-left hover:bg-blue-50 border-b border-gray-50 last:border-b-0 transition-colors flex flex-col gap-1"
-                    >
-                      <span className="text-xs font-medium text-gray-900 truncate">{att.file_name}</span>
-                      <span className="text-[10px] text-gray-500">Subido el {new Date(att.created_at).toLocaleDateString()}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={addParticipant}
-            className="text-blue-600 border-blue-200 hover:bg-blue-50 w-full sm:w-auto sm:ml-auto"
+            className="text-blue-600 border-blue-200 hover:bg-blue-50 w-full sm:w-auto"
           >
             <Plus className="w-4 h-4 mr-2" />
             Agregar Participante
           </Button>
         </div>
+
+        {isScanningAttachment && (
+          <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-md border border-blue-100">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <span>Cargando archivo para escanear...</span>
+          </div>
+        )}
 
         {scanError && (
           <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 px-3 py-1.5 rounded-md border border-red-100">
@@ -345,7 +350,7 @@ export const ParticipantForm = ({
               )}
             </div>
             <div className="w-full sm:w-48 space-y-1">
-              <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Cédula</label>
+              <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Cedula</label>
               <div className="flex items-center gap-1">
                 <select
                   value={p.nationality || "venezolano"}
@@ -418,7 +423,58 @@ export const ParticipantForm = ({
         ))}
       </div>
 
-      <div className="flex flex-col gap-4 pt-6 border-t border-gray-100">
+      {/* Step 2: Review & Submit */}
+      <div className="flex items-center gap-2 mb-2 pt-4 border-t border-gray-100">
+        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">2</span>
+        <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Revision y Envio</h2>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        {/* Disclaimer / Acknowledgment Card */}
+        <div 
+          ref={disclaimerRef}
+          className={`rounded-xl border-2 transition-colors ${
+            hasAcknowledged 
+              ? "border-green-200 bg-green-50/50" 
+              : "border-amber-200 bg-amber-50/50"
+          }`}
+        >
+          <div className="p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <div className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                hasAcknowledged ? "bg-green-100" : "bg-amber-100"
+              }`}>
+                <ShieldCheck className={`w-5 h-5 ${hasAcknowledged ? "text-green-600" : "text-amber-600"}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-bold text-gray-900 mb-1.5 flex items-center gap-2">
+                  Declaracion de Responsabilidad
+                  <ClipboardCheck className="w-4 h-4 text-gray-400" />
+                </h4>
+                <p className="text-xs sm:text-sm text-gray-700 leading-relaxed mb-3">
+                  {DISCLAIMER_TEXT}
+                </p>
+                <label className="flex items-start gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={hasAcknowledged}
+                    onChange={(e) => {
+                      setHasAcknowledged(e.target.checked);
+                      setError(null);
+                    }}
+                    className="mt-0.5 w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer shrink-0 transition-colors"
+                  />
+                  <span className={`text-xs sm:text-sm font-medium select-none ${
+                    hasAcknowledged ? "text-green-700" : "text-gray-600"
+                  }`}>
+                    He leido y acepto la declaracion de responsabilidad
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {error && (
           <div className="p-4 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3 text-red-700 text-sm">
             <AlertCircle className="w-5 h-5 shrink-0" />
@@ -437,9 +493,9 @@ export const ParticipantForm = ({
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-amber-800 text-sm">
             <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold mb-1">No has subido la lista física</p>
+              <p className="font-semibold mb-1">No has subido la lista fisica</p>
               <p className="text-xs text-amber-700 mb-3">
-                Se recomienda subir al menos una foto de la lista de asistencia firmada antes de finalizar. ¿Deseas continuar de todos modos?
+                Se recomienda subir al menos una foto de la lista de asistencia firmada antes de finalizar. Deseas continuar de todos modos?
               </p>
               <div className="flex gap-2">
                 <Button 
@@ -447,7 +503,7 @@ export const ParticipantForm = ({
                   onClick={handleConfirmFinalizeAnyway}
                   className="bg-amber-600 hover:bg-amber-700 text-white"
                 >
-                  Sí, finalizar sin foto
+                  Si, finalizar sin foto
                 </Button>
                 <Button 
                   size="sm" 
@@ -463,7 +519,7 @@ export const ParticipantForm = ({
 
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <p className="text-xs text-gray-400 italic">
-            * Asegúrate de guardar tus cambios antes de salir.
+            * Asegurate de guardar tus cambios antes de salir.
           </p>
           <div className="flex gap-3 flex-col sm:flex-row">
             <Button 
@@ -481,8 +537,12 @@ export const ParticipantForm = ({
             </Button>
             <Button 
               onClick={() => handleSave("final")}
-              disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+              disabled={saving || !hasAcknowledged}
+              className={`w-full sm:w-auto transition-colors ${
+                hasAcknowledged 
+                  ? "bg-blue-600 hover:bg-blue-700" 
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
             >
               {saving ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -501,6 +561,7 @@ export const ParticipantForm = ({
         onClose={() => setIsScannerOpen(false)}
         onAddParticipants={handleAddScannedParticipants}
         preselectedFile={selectedPortalFile}
+        mode="portal"
       />
     </div>
   );

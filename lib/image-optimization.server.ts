@@ -54,8 +54,13 @@ export async function optimizeDocumentImage(
 ): Promise<Buffer> {
   const { maxWidth = 2000, maxHeight = 2000, quality = 80 } = options;
 
+  console.log("[optimizeDocumentImage] ENTRY", { inputSize: buffer.length, maxWidth, maxHeight, quality });
+
   try {
     const sharpInstance = sharp(buffer);
+
+    const metadata = await sharpInstance.metadata();
+    console.log("[optimizeDocumentImage] Image metadata:", { format: metadata.format, width: metadata.width, height: metadata.height, orientation: metadata.orientation });
 
     const pipeline = sharpInstance
       .rotate() // Auto-rotate based on EXIF
@@ -71,9 +76,12 @@ export async function optimizeDocumentImage(
         mozjpeg: true, // Use mozjpeg for better compression
       });
 
-    return await pipeline.toBuffer();
+    const result = await pipeline.toBuffer();
+    console.log("[optimizeDocumentImage] Success:", { outputSize: result.length, ratio: `${(result.length / buffer.length * 100).toFixed(1)}%` });
+    return result;
   } catch (error) {
-    console.error("Error optimizing document image:", error);
+    console.error("[optimizeDocumentImage] CATCH Error:", error instanceof Error ? { message: error.message, stack: error.stack } : String(error));
+    console.log("[optimizeDocumentImage] Returning original buffer as fallback, size:", buffer.length);
     return buffer;
   }
 }

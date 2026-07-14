@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   CertificateParticipant,
   ExtractedParticipant,
@@ -23,6 +24,8 @@ interface ParticipantScannerModalProps {
   onClose: () => void;
   onAddParticipants: (participants: CertificateParticipant[]) => void;
   preselectedFile?: File | null;
+  mode?: "certificate" | "portal";
+  onDebug?: (msg: string) => void;
 }
 
 export const ParticipantScannerModal = ({
@@ -30,7 +33,13 @@ export const ParticipantScannerModal = ({
   onClose,
   onAddParticipants,
   preselectedFile,
+  mode = "certificate",
+  onDebug,
 }: ParticipantScannerModalProps) => {
+  const dbg = (msg: string) => {
+    console.log("[ScannerModal]", msg);
+    onDebug?.(msg);
+  };
   const [file, setFile] = useState<File | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -53,20 +62,31 @@ export const ParticipantScannerModal = ({
 
   const [isZoomed, setIsZoomed] = useState(false);
 
-  // Load API key from environment variable if available (server-side)
-  // For client-side, users will need to enter it manually
+  // Initialize modal when opened: load API key and handle preselected file in one effect
+  // This prevents race conditions where file is set before API key is available
   useEffect(() => {
     if (isOpen) {
+      dbg(`Modal opened. preselectedFile=${preselectedFile ? preselectedFile.name : "none"}`);
       // Prevent background scrolling
       document.body.style.overflow = "hidden";
 
-      // Try to get from process.env if available (Next.js)
+      // Load API key from environment variable
       const envApiKey = process.env.NEXT_PUBLIC_MISTRAL_API_KEY || "";
       if (envApiKey) {
         setApiKey(envApiKey);
         setHasEnvApiKey(true);
+        dbg("API key loaded from env");
       } else {
         setHasEnvApiKey(false);
+        dbg("No env API key found");
+      }
+
+      // Handle preselected file from portal (auto-scan flow)
+      if (preselectedFile) {
+        dbg(`Setting file: ${preselectedFile.name}, ${preselectedFile.size} bytes`);
+        setFile(preselectedFile);
+        const url = URL.createObjectURL(preselectedFile);
+        setPreviewUrl(url);
       }
     } else {
       // Re-enable background scrolling
@@ -76,49 +96,56 @@ export const ParticipantScannerModal = ({
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isOpen]);
-
-  // Handle preselected file from portal
-  useEffect(() => {
-    if (isOpen && preselectedFile) {
-      setFile(preselectedFile);
-      const url = URL.createObjectURL(preselectedFile);
-      setPreviewUrl(url);
-    }
   }, [isOpen, preselectedFile]);
 
   // Auto-process file when selected and API key is available
   const handleProcess = useCallback(
     async (fileToProcess: File) => {
       if (!fileToProcess) {
+        console.log("[ScannerModal] handleProcess: no file, bailing");
         setError("Por favor selecciona un archivo");
         return;
       }
 
-      if (!apiKey && !hasEnvApiKey) {
+      const effectiveApiKey = apiKey || process.env.NEXT_PUBLIC_MISTRAL_API_KEY || "";
+      if (!effectiveApiKey && !hasEnvApiKey) {
+        console.log("[ScannerModal] handleProcess: no API key, bailing");
         setError("Por favor proporciona la API key de Mistral");
         return;
       }
 
+      dbg(`handleProcess: starting OCR, mode=${mode}, file=${fileToProcess.name}`);
       setIsProcessing(true);
       setHasProcessed(false);
       setError("");
       setExtractedParticipants([]);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
+
       try {
         const formData = new FormData();
         formData.append("file", fileToProcess);
-        formData.append(
-          "apiKey",
-          apiKey || process.env.NEXT_PUBLIC_MISTRAL_API_KEY || "",
-        );
+        formData.append("apiKey", effectiveApiKey);
+        formData.append("mode", mode);
 
         const response = await fetch("/api/ocr/process", {
           method: "POST",
           body: formData,
+          signal: controller.signal,
         });
 
-        const result = await response.json();
+        clearTimeout(timeoutId);
+
+        let result: { success?: boolean; error?: string; participants?: ExtractedParticipant[] };
+        try {
+          result = await response.json();
+        } catch (parseErr) {
+          console.error("[ScannerModal] Failed to parse response as JSON:", parseErr);
+          throw new Error(
+            "El servidor tardó demasiado o devolvió una respuesta inválida. Intenta de nuevo."
+          );
+        }
 
         if (!response.ok) {
           throw new Error(result.error || "Error procesando la imagen");
@@ -127,28 +154,36 @@ export const ParticipantScannerModal = ({
         setHasProcessed(true);
 
         if (result.success && result.participants) {
+          dbg(`OCR success: ${result.participants.length} participants extracted`);
           setExtractedParticipants(result.participants);
         } else {
+          dbg("OCR returned no participants");
           setError("No se pudieron extraer participantes de la imagen");
         }
       } catch (err) {
-        console.error("OCR error:", err);
-        setError(err instanceof Error ? err.message : "Error desconocido");
+        clearTimeout(timeoutId);
+        dbg(`OCR error: ${err instanceof Error ? err.message : String(err)}`);
+        if (err instanceof Error && err.name === "AbortError") {
+          setError("El procesamiento tardó demasiado tiempo (más de 45s). Verifica tu conexión e intenta de nuevo.");
+        } else {
+          setError(err instanceof Error ? err.message : "Error desconocido");
+        }
       } finally {
         setIsProcessing(false);
       }
     },
-    [apiKey, hasEnvApiKey],
+    [apiKey, hasEnvApiKey, mode],
   );
 
-  // Trigger processing only when file is first selected
+  // Trigger processing only when file is set, API key is available, and not already processing/done
   useEffect(() => {
-    if (file && (apiKey || hasEnvApiKey)) {
+    if (file && (apiKey || hasEnvApiKey) && !isProcessing && !hasProcessed) {
+      dbg(`Auto-process effect firing: file=${file.name}, hasApiKey=${!!apiKey}, hasEnvApiKey=${hasEnvApiKey}`);
       handleProcess(file);
+    } else if (file && !apiKey && !hasEnvApiKey) {
+      dbg(`Auto-process skipped: no API key (file=${file.name})`);
     }
-  }, [file, handleProcess, apiKey, hasEnvApiKey]);
-
-  if (!isOpen) return null;
+  }, [file, handleProcess, apiKey, hasEnvApiKey, isProcessing, hasProcessed]);
 
   const toTitleCase = (str: string) => {
     return str
@@ -216,6 +251,9 @@ export const ParticipantScannerModal = ({
   const handleClose = async () => {
     setFile(null);
     setApiKey("");
+    setHasEnvApiKey(false);
+    setHasProcessed(false);
+    setIsProcessing(false);
     setExtractedParticipants([]);
     setError("");
     setPreviewUrl("");
@@ -240,9 +278,11 @@ export const ParticipantScannerModal = ({
     setActiveVerificationIndex(null);
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-0 sm:p-2 md:p-4">
-      <div className="bg-white rounded-none sm:rounded-xl shadow-2xl w-full max-w-[1700px] h-[100vh] sm:h-[95vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+  if (!isOpen || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-0 sm:p-2 md:p-4">
+      <div className="bg-white rounded-none sm:rounded-xl shadow-2xl w-full max-w-[1700px] h-[100vh] sm:h-[95vh] overflow-hidden flex flex-col">
         {/* Header - Sticky */}
         <div className="px-3 sm:px-6 py-3 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -387,7 +427,7 @@ export const ParticipantScannerModal = ({
 
               {/* Error Message */}
               {error && (
-                <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
                   <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                   <div className="space-y-1">
                     <p className="text-sm font-semibold text-red-900">
@@ -528,9 +568,11 @@ export const ParticipantScannerModal = ({
                           <th className="px-4 py-3 text-left font-bold text-gray-600 border-b border-gray-200 uppercase tracking-tighter text-[11px] w-32">
                             Cédula
                           </th>
-                          <th className="px-2 py-3 text-center font-bold text-gray-600 border-b border-gray-200 uppercase tracking-tighter text-[11px] w-16">
-                            Nota
-                          </th>
+                          {mode !== "portal" && (
+                            <th className="px-2 py-3 text-center font-bold text-gray-600 border-b border-gray-200 uppercase tracking-tighter text-[11px] w-16">
+                              Nota
+                            </th>
+                          )}
                           <th className="px-4 py-3 text-center font-bold text-gray-600 border-b border-gray-200 uppercase tracking-tighter text-[11px] w-24">
                             SENIAT
                           </th>
@@ -590,24 +632,26 @@ export const ParticipantScannerModal = ({
                                 className="w-full px-2 py-1.5 bg-transparent border border-transparent hover:border-gray-300 focus:bg-white focus:border-blue-500 rounded text-xs transition-all outline-none font-mono"
                               />
                             </td>
-                            <td className="px-2 py-2">
-                              <input
-                                type="number"
-                                value={participant.score || ""}
-                                onChange={(e) => {
-                                  const newScore = parseInt(e.target.value);
-                                  if (newScore > 20) return;
-                                  handleParticipantChange(
-                                    index,
-                                    "score",
-                                    e.target.value,
-                                  );
-                                }}
-                                className="w-full px-1 py-1.5 bg-transparent border border-transparent hover:border-gray-300 focus:bg-white focus:border-blue-500 rounded text-xs text-center transition-all outline-none font-bold text-blue-700"
-                                min="0"
-                                max="20"
-                              />
-                            </td>
+                            {mode !== "portal" && (
+                              <td className="px-2 py-2">
+                                <input
+                                  type="number"
+                                  value={participant.score || ""}
+                                  onChange={(e) => {
+                                    const newScore = parseInt(e.target.value);
+                                    if (newScore > 20) return;
+                                    handleParticipantChange(
+                                      index,
+                                      "score",
+                                      e.target.value,
+                                    );
+                                  }}
+                                  className="w-full px-1 py-1.5 bg-transparent border border-transparent hover:border-gray-300 focus:bg-white focus:border-blue-500 rounded text-xs text-center transition-all outline-none font-bold text-blue-700"
+                                  min="0"
+                                  max="20"
+                                />
+                              </td>
+                            )}
                             <td className="px-4 py-2 text-center relative">
                               {verificationResults.has(participant.idNumber) ? (
                                 <div className="flex flex-col items-center gap-1">
@@ -759,6 +803,7 @@ export const ParticipantScannerModal = ({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

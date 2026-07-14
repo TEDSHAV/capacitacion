@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OCRService } from '@/lib/ocr-service';
 
+// Increase max duration for OCR processing (Mistral OCR + AI fallback chat call
+// can take longer than the default serverless timeout, especially on larger images)
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const apiKey = formData.get('apiKey') as string;
+    const mode = (formData.get('mode') as string) || 'certificate';
 
     if (!file) {
       return NextResponse.json(
@@ -39,10 +44,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('[OCR Route] FormData entries:', {
+      hasFile: !!file,
+      fileName: file?.name,
+      fileType: file?.type,
+      fileSize: file?.size,
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey?.length,
+      mode,
+    });
     console.log('Processing OCR for file:', file.name, 'type:', file.type, 'size:', file.size);
 
     // Process the file with OCR
-    const result = await OCRService.processImage(file, apiKey);
+    const result = await OCRService.processImage(file, apiKey, mode as "certificate" | "portal");
 
     console.log('OCR result:', { success: !result.error, error: result.error, participantsCount: result.participants?.length });
 

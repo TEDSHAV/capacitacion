@@ -229,15 +229,53 @@ export async function getOSIParticipants(osiId: number, facilitadorId?: number):
   return { data: data || [] };
 }
 
-export async function saveParticipants(
+export async function saveAcknowledgment(
   osiId: number,
   facilitadorId: number,
-  participants: any[],
-  status: "draft" | "final" = "draft"
+  disclaimerText: string
 ) {
   const session = await getFacilitatorSession();
   if (!session || session.facilitador_id !== facilitadorId) {
     return { error: "No autorizado" };
+  }
+
+  const supabase = await createAdminClient();
+
+  const { error } = await supabase
+    .from("facilitador_acknowledgments")
+    .upsert(
+      {
+        osi_id: osiId,
+        facilitador_id: facilitadorId,
+        disclaimer_text: disclaimerText,
+        acknowledged_at: new Date().toISOString(),
+      },
+      { onConflict: "osi_id,facilitador_id" }
+    );
+
+  if (error) {
+    console.error("Error saving acknowledgment:", error);
+    return { error: error.message };
+  }
+
+  return { success: true };
+}
+
+export async function saveParticipants(
+  osiId: number,
+  facilitadorId: number,
+  participants: any[],
+  status: "draft" | "final" = "draft",
+  acknowledged: boolean = false,
+  disclaimerText?: string
+) {
+  const session = await getFacilitatorSession();
+  if (!session || session.facilitador_id !== facilitadorId) {
+    return { error: "No autorizado" };
+  }
+
+  if (status === "final" && !acknowledged) {
+    return { error: "Debes confirmar la declaración para finalizar el envío." };
   }
 
   const supabase = await createAdminClient();
@@ -268,6 +306,14 @@ export async function saveParticipants(
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Save acknowledgment audit record on final submission
+  if (status === "final" && acknowledged && disclaimerText) {
+    const ackResult = await saveAcknowledgment(osiId, facilitadorId, disclaimerText);
+    if (ackResult.error) {
+      console.error("Failed to save acknowledgment:", ackResult.error);
+    }
   }
 
   revalidatePath("/portal/facilitador/dashboard");
@@ -339,13 +385,18 @@ export async function uploadOSIAttachment(
   facilitadorId: number,
   formData: FormData
 ): Promise<{ success?: boolean; data?: OSIAttachment; error?: string }> {
+  console.log("[uploadOSIAttachment] ENTRY", { osiId, facilitadorId });
+
   const session = await getFacilitatorSession();
+  console.log("[uploadOSIAttachment] Session:", session ? { id: session.id, facilitador_id: session.facilitador_id, nombre: session.nombre } : "NULL");
   if (!session || session.facilitador_id !== facilitadorId) {
+    console.log("[uploadOSIAttachment] Auth failed — returning No autorizado");
     return { error: "No autorizado" };
   }
 
   const supabase = await createAdminClient();
   const file = formData.get("file") as File;
+  console.log("[uploadOSIAttachment] File from formData:", file ? { name: file.name, type: file.type, size: file.size } : "NULL");
 
   if (!file) return { error: "No se proporcionó ningún archivo" };
 
@@ -353,17 +404,21 @@ export async function uploadOSIAttachment(
     const bytes = await file.arrayBuffer();
     let buffer: Buffer = Buffer.from(bytes);
     let finalFileType = file.type;
+    console.log("[uploadOSIAttachment] Buffer created, size:", buffer.length, "type:", finalFileType);
 
     // Optimize images (not PDFs)
     if (file.type.startsWith("image/")) {
+      const originalSize = buffer.length;
       buffer = await optimizeDocumentImage(buffer) as Buffer;
       finalFileType = "image/jpeg"; // Always output optimized as JPEG
+      console.log("[uploadOSIAttachment] After optimizeDocumentImage:", { originalSize, optimizedSize: buffer.length, type: finalFileType });
     }
 
     // Generate path: osi_id/facilitador_id/timestamp_filename
     const timestamp = Date.now();
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
     const storagePath = `${osiId}/${facilitadorId}/${timestamp}_${sanitizedName}`;
+    console.log("[uploadOSIAttachment] Storage path:", storagePath);
 
     // 1. Upload to Supabase Storage
     const { data: storageData, error: storageError } = await supabase.storage
@@ -372,6 +427,8 @@ export async function uploadOSIAttachment(
         contentType: finalFileType,
         upsert: true,
       });
+
+    console.log("[uploadOSIAttachment] Storage upload result:", { error: storageError ? { message: storageError.message, name: storageError.name } : "none", data: storageData ? { path: storageData.path, id: storageData.id } : "null" });
 
     if (storageError) throw storageError;
 
@@ -389,15 +446,19 @@ export async function uploadOSIAttachment(
       .select()
       .single();
 
+    console.log("[uploadOSIAttachment] DB insert result:", { error: dbError ? { message: dbError.message, code: dbError.code, details: dbError.details } : "none", data: data ? { id: data.id, file_name: data.file_name, storage_path: data.storage_path } : "NULL" });
+
     if (dbError) {
       // Cleanup storage if DB fails
       await supabase.storage.from("facilitador-uploads").remove([storagePath]);
       throw dbError;
     }
 
-    return { success: true, data: data as OSIAttachment };
+    const returnValue = { success: true, data: data as OSIAttachment };
+    console.log("[uploadOSIAttachment] Returning success:", { hasData: !!returnValue.data, dataId: returnValue.data?.id });
+    return returnValue;
   } catch (error) {
-    console.error("[uploadOSIAttachment] Error:", error);
+    console.error("[uploadOSIAttachment] CATCH Error:", error instanceof Error ? { message: error.message, stack: error.stack } : String(error));
     return { error: error instanceof Error ? error.message : "Error al subir el archivo" };
   }
 }
@@ -406,6 +467,8 @@ export async function uploadOSIAttachment(
  * Get all attachments for a specific OSI
  */
 export async function getOSIAttachments(osiId: number, facilitadorId?: number): Promise<{ data?: OSIAttachment[]; error?: string }> {
+  console.log("[getOSIAttachments] ENTRY", { osiId, facilitadorId });
+
   const supabase = await createAdminClient();
   
   let query = supabase
@@ -418,6 +481,8 @@ export async function getOSIAttachments(osiId: number, facilitadorId?: number): 
   }
   
   const { data, error } = await query.order("created_at", { ascending: false });
+
+  console.log("[getOSIAttachments] Query result:", { rowCount: data?.length ?? 0, error: error ? { message: error.message, code: error.code, details: error.details } : "none", firstRow: data?.[0] ? { id: data[0].id, storage_path: data[0].storage_path, file_name: data[0].file_name } : "none" });
 
   if (error) {
     console.error("[getOSIAttachments] Error:", error);
@@ -433,6 +498,7 @@ export async function getOSIAttachments(osiId: number, facilitadorId?: number): 
     return { ...att, publicUrl } as OSIAttachment;
   });
 
+  console.log("[getOSIAttachments] Returning", { count: attachmentsWithUrls.length, hasUrls: attachmentsWithUrls.every(a => !!a.publicUrl) });
   return { data: attachmentsWithUrls };
 }
 

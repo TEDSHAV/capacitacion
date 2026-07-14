@@ -24,8 +24,9 @@ export class OCRService {
 
   /**
    * Process an image file using Mistral OCR
+   * mode: "certificate" (default, with scores) or "portal" (attendance list, no scores)
    */
-  static async processImage(file: File, apiKey: string): Promise<OCRResult> {
+  static async processImage(file: File, apiKey: string, mode: "certificate" | "portal" = "certificate"): Promise<OCRResult> {
     try {
       // Convert file to base64
       const base64 = await this.fileToBase64(file);
@@ -88,7 +89,7 @@ export class OCRService {
 
       if (needsAI) {
         console.log("[OCR] Falling back to AI extraction (buffered names exceed found participants)...");
-        const aiParticipants = await this.extractWithAI(fullMarkdown, apiKey);
+        const aiParticipants = await this.extractWithAI(fullMarkdown, apiKey, mode);
         if (aiParticipants.length > regexParticipants.length) {
           console.log(`[OCR] AI extraction found ${aiParticipants.length} participants (regex had ${regexParticipants.length})`);
           participants = aiParticipants;
@@ -118,10 +119,26 @@ export class OCRService {
    */
   private static async extractWithAI(
     ocrMarkdown: string,
-    apiKey: string
+    apiKey: string,
+    mode: "certificate" | "portal" = "certificate"
   ): Promise<ExtractedParticipant[]> {
     try {
-      const systemPrompt = `You are a data extraction assistant for Venezuelan training certificates (SHA de Venezuela).
+      const systemPrompt = mode === "portal"
+        ? `You are a data extraction assistant for Venezuelan training attendance lists (SHA de Venezuela).
+You will receive OCR text from a handwritten attendance list.
+The document table has columns: NOMBRE Y APELLIDO (full name), CÉDULA DE IDENTIDAD (ID number), CARGO (job title), FIRMA (signature AM/PM).
+There is NO score column in this document. Do not attempt to extract scores.
+Due to cursive handwriting, the OCR text may have noise, merged words, or misread characters.
+Your task: extract each participant row and return ONLY a valid JSON array. No explanation, no markdown code blocks, just the raw JSON array.
+Each object must have: { "name": string, "cedula": string, "score": null, "nationality": "V" | "E" }
+- "cedula" must be digits only (remove dots, spaces, dashes). Must be 6-10 digits.
+- "nationality" is "V" (venezolano) by default unless the ID is prefixed with E or E-
+- "score" must always be null (this document has no scores)
+- "name" should be Title Case
+- Skip header rows, company info, facilitator names, and any row without a valid cedula
+- The company RIF (J-31315131-9) is NOT a participant, skip it
+- Ignore the CARGO and FIRMA columns, only extract name and cédula`
+        : `You are a data extraction assistant for Venezuelan training certificates (SHA de Venezuela).
 You will receive OCR text from a handwritten participant list called "CALIFICACIÓN DE LOS PARTICIPANTES".
 The document has columns: N° (row number), NOMBRE Y APELLIDO (full name), CÉDULA (ID number), PUNTUACIÓN (score 0-20), CONDICIÓN (Aprobado/Reprobado).
 Due to cursive handwriting, the OCR text may have noise, merged words, or misread characters.
