@@ -65,35 +65,37 @@ export async function GET(
 
     // Get all certificates for all matching participants
     const participantIds = participants.map((p) => p.id);
-    const { data: certificates, error: certificatesError } = await supabase
-      .from("certificados")
-      .select(
-        `
-        *,
-        cursos!inner (
-          id,
-          nombre,
-          contenido,
-          horas_estimadas,
-          nota_aprobatoria,
-          emite_carnet
-        ),
-        empresas!certificados_id_empresa_fkey (
-          id,
-          razon_social,
-          rif
-        ),
-        facilitadores!certificados_id_facilitador_fkey (
-          id,
-          nombre_apellido,
-          cedula,
-          email
+    const [
+      { data: certificates, error: certificatesError },
+      { data: servicios },
+    ] = await Promise.all([
+      supabase
+        .from("certificados")
+        .select(
+          `
+          *,
+          empresas!certificados_id_empresa_fkey (
+            id,
+            razon_social,
+            rif
+          ),
+          facilitadores!certificados_id_facilitador_fkey (
+            id,
+            nombre_apellido,
+            cedula,
+            email
+          )
+        `,
         )
-      `,
-      )
-      .in("id_participante", participantIds)
-      .eq("is_active", true)
-      .order("fecha_emision", { ascending: false });
+        .in("id_participante", participantIds)
+        .eq("is_active", true)
+        .order("fecha_emision", { ascending: false }),
+      supabase
+        .from("catalogo_servicios")
+        .select(
+          "id, nombre, contenido_curso, carga_horaria_std, nota_aprobatoria, emite_carnet",
+        ),
+    ]);
 
     if (certificatesError) {
       console.error("Error fetching certificates:", certificatesError);
@@ -103,7 +105,10 @@ export async function GET(
       );
     }
 
-    // Parse snapshot content for each certificate
+    // Create maps for quick lookup
+    const serviciosMap = new Map((servicios || []).map((s: any) => [s.id, s]));
+
+    // Parse snapshot content for each certificate and merge course data
     const certificatesWithParsedData =
       certificates?.map((cert) => {
         let parsedSnapshot = null;
@@ -114,8 +119,22 @@ export async function GET(
             console.warn("Failed to parse snapshot for certificate:", cert.id);
           }
         }
+
+        // Find course from catalogo_servicios
+        const curso = serviciosMap.get(cert.id_curso);
+
         return {
           ...cert,
+          cursos: curso
+            ? {
+                id: curso.id,
+                nombre: curso.nombre,
+                contenido: curso.contenido_curso,
+                horas_estimadas: curso.carga_horaria_std,
+                nota_aprobatoria: curso.nota_aprobatoria,
+                emite_carnet: curso.emite_carnet,
+              }
+            : null,
           parsed_snapshot: parsedSnapshot,
         };
       }) || [];

@@ -27,7 +27,6 @@ export async function getOverviewMetrics(
       .select(
         `id, is_active, fecha_emision, calificacion,
          id_curso, id_facilitador, id_participante, id_empresa, id_estado,
-         cursos(id, nombre, horas_estimadas),
          facilitadores(id, nombre_apellido),
          empresas(id, razon_social)`,
       )
@@ -37,8 +36,17 @@ export async function getOverviewMetrics(
     if (dateTo) query = query.lte("fecha_emision", dateTo);
     if (stateId) query = query.eq("id_estado", stateId);
 
-    const { data: certs, error } = await query;
+    const [{ data: certs, error }, { data: servicios }] = await Promise.all([
+      query,
+      supabase
+        .from("catalogo_servicios")
+        .select("id, nombre, carga_horaria_std"),
+    ]);
+
     if (error) return { error: error.message, data: null };
+
+    // Create a map of servicios for quick lookup
+    const serviciosMap = new Map((servicios || []).map((s: any) => [s.id, s]));
 
     const empty: OverviewMetrics = {
       totalCertificates: 0,
@@ -85,7 +93,8 @@ export async function getOverviewMetrics(
         scoreCount++;
       }
 
-      totalHours += cert.cursos?.horas_estimadas || 0;
+      const servicio = serviciosMap.get(cert.id_curso);
+      totalHours += servicio?.carga_horaria_std || 0;
 
       if (cert.fecha_emision) {
         const d = new Date(cert.fecha_emision + "T12:00:00");
@@ -102,8 +111,9 @@ export async function getOverviewMetrics(
       if (cert.id_curso) {
         uniqueCourses.add(cert.id_curso);
         if (!courseMap.has(cert.id_curso)) {
+          const servicio = serviciosMap.get(cert.id_curso);
           courseMap.set(cert.id_curso, {
-            name: cert.cursos?.nombre || "Desconocido",
+            name: servicio?.nombre || "Desconocido",
             count: 0,
             totalScore: 0,
             scoreCount: 0,
@@ -197,7 +207,6 @@ export async function getCursosReport(
       .from("certificados")
       .select(
         `id, fecha_emision, calificacion, id_curso, id_facilitador, id_estado,
-         cursos(id, nombre, horas_estimadas),
          facilitadores(id, nombre_apellido)`,
       )
       .not("id_curso", "is", null)
@@ -207,8 +216,17 @@ export async function getCursosReport(
     if (dateTo) query = query.lte("fecha_emision", dateTo);
     if (stateId) query = query.eq("id_estado", stateId);
 
-    const { data: certs, error } = await query;
+    const [{ data: certs, error }, { data: servicios }] = await Promise.all([
+      query,
+      supabase
+        .from("catalogo_servicios")
+        .select("id, nombre, carga_horaria_std"),
+    ]);
+
     if (error) return { error: error.message, data: [] };
+
+    // Create a map of servicios for quick lookup
+    const serviciosMap = new Map((servicios || []).map((s: any) => [s.id, s]));
 
     const courseMap = new Map<
       number,
@@ -232,10 +250,11 @@ export async function getCursosReport(
       if (!cid) return;
 
       if (!courseMap.has(cid)) {
+        const servicio = serviciosMap.get(cid);
         courseMap.set(cid, {
           id: cid,
-          nombre: cert.cursos?.nombre || "Desconocido",
-          horas_estimadas: cert.cursos?.horas_estimadas || 0,
+          nombre: servicio?.nombre || "Desconocido",
+          horas_estimadas: servicio?.carga_horaria_std || 0,
           totalCerts: 0,
           totalScore: 0,
           scoreCount: 0,
@@ -316,29 +335,35 @@ export async function getFacilitadoresReport(
         stateId,
       );
 
-    const [facilitadoresRes, certsRes, statesRes] = await Promise.all([
-      facilitadoresQuery,
+    const [facilitadoresRes, certsRes, statesRes, serviciosRes] =
+      await Promise.all([
+        facilitadoresQuery,
 
-      (async () => {
-        let q = supabase
-          .from("certificados")
-          .select(
-            `id_facilitador, fecha_emision, calificacion, id_curso, cursos(horas_estimadas)`,
-          )
-          .not("id_facilitador", "is", null)
-          .limit(5000);
-        if (dateFrom) q = q.gte("fecha_emision", dateFrom);
-        if (dateTo) q = q.lte("fecha_emision", dateTo);
-        return q;
-      })(),
+        (async () => {
+          let q = supabase
+            .from("certificados")
+            .select(`id_facilitador, fecha_emision, calificacion, id_curso`)
+            .not("id_facilitador", "is", null)
+            .limit(5000);
+          if (dateFrom) q = q.gte("fecha_emision", dateFrom);
+          if (dateTo) q = q.lte("fecha_emision", dateTo);
+          return q;
+        })(),
 
-      supabase
-        .from("cat_estados_venezuela")
-        .select("id, nombre_estado")
-        .order("nombre_estado"),
-    ]);
+        supabase
+          .from("cat_estados_venezuela")
+          .select("id, nombre_estado")
+          .order("nombre_estado"),
+
+        supabase.from("catalogo_servicios").select("id, carga_horaria_std"),
+      ]);
 
     if (certsRes.error) return { error: certsRes.error.message, data: null };
+
+    // Create a map of servicios for quick lookup
+    const serviciosMap = new Map(
+      (serviciosRes.data || []).map((s: any) => [s.id, s]),
+    );
 
     const stateNames = new Map<number, string>();
     statesRes.data?.forEach((s: any) => stateNames.set(s.id, s.nombre_estado));
@@ -373,7 +398,8 @@ export async function getFacilitadoresReport(
         s.totalScore += cert.calificacion;
         s.scoreCount++;
       }
-      s.totalHours += cert.cursos?.horas_estimadas || 0;
+      const servicio = serviciosMap.get(cert.id_curso);
+      s.totalHours += servicio?.carga_horaria_std || 0;
       if (cert.id_curso) s.uniqueCourses.add(cert.id_curso);
       if (
         cert.fecha_emision &&

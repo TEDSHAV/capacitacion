@@ -1,6 +1,6 @@
-import { Curso } from '@/types';
-import CourseActions from './CourseActions';
-import { stripHtml } from '@/lib/strip-html';
+import { Curso } from "@/types";
+import CourseActions from "./CourseActions";
+import { stripHtml } from "@/lib/strip-html";
 
 interface CourseItemProps {
   curso: Curso;
@@ -10,26 +10,31 @@ interface CourseItemProps {
 }
 
 const formatDate = (dateString: string | null) => {
-  if (!dateString) return 'Sin fecha';
-  
+  if (!dateString) return "Sin fecha";
+
   try {
     // Handle PostgreSQL date format (YYYY-MM-DD)
-    const date = new Date(dateString + 'T00:00:00'); // Add time to make it a valid date
+    const date = new Date(dateString + "T00:00:00"); // Add time to make it a valid date
     // Check if the date is valid
     if (isNaN(date.getTime())) {
-      return 'Fecha inválida';
+      return "Fecha inválida";
     }
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return date.toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   } catch (error) {
-    return 'Fecha inválida';
+    return "Fecha inválida";
   }
 };
 
-export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: CourseItemProps) {
+export default function CourseItem({
+  curso,
+  onEdit,
+  onDelete,
+  onDuplicate,
+}: CourseItemProps) {
   return (
     <div
       onClick={() => onEdit(curso)}
@@ -37,7 +42,7 @@ export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: Cou
       tabIndex={0}
       role="button"
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onEdit(curso);
         }
@@ -51,7 +56,12 @@ export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: Cou
               {curso.nombre.toUpperCase()}
             </div>
             <div className="text-xs text-gray-500 line-clamp-2">
-              {(() => { const plain = stripHtml(curso.contenido || ''); return plain.substring(0, 80) + (plain.length > 80 ? '...' : ''); })()}
+              {(() => {
+                const plain = stripHtml(curso.contenido_curso || "");
+                return (
+                  plain.substring(0, 80) + (plain.length > 80 ? "..." : "")
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -59,7 +69,7 @@ export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: Cou
         {/* Duration */}
         <div className="col-span-2">
           <div className="text-sm font-medium text-gray-900">
-            {curso.horas_estimadas || 0}h
+            {curso.carga_horaria_std || 0}h
           </div>
         </div>
 
@@ -71,8 +81,11 @@ export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: Cou
         </div>
 
         {/* Actions */}
-        <div className="col-span-4 flex justify-end" onClick={(e) => e.stopPropagation()}>
-          <CourseActions 
+        <div
+          className="col-span-4 flex justify-end"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <CourseActions
             curso={curso}
             onEdit={onEdit}
             onDelete={onDelete}

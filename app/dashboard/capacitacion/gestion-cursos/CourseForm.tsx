@@ -27,8 +27,8 @@ export default function CourseForm({
     titulo: curso?.nombre || "",
     empresa_id: "", // Removed cliente_asociado reference as column doesn't exist
     empresa_nombre: curso?.empresas?.razon_social || "",
-    contenido: curso?.contenido || "",
-    horas_estimadas: curso?.horas_estimadas || 0,
+    contenido: curso?.contenido_curso || "",
+    horas_estimadas: curso?.carga_horaria_std || 0,
     tipo_certificado:
       curso?.nota_aprobatoria === 0 ? "participacion" : "calificacion", // Certificate type
     nota_aprobatoria: curso?.nota_aprobatoria || 14, // Default to 14 for graded courses

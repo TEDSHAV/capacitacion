@@ -98,14 +98,16 @@ const getVenezuelanStates = cache(async () => {
   }
 });
 
-// Get course topics
+// Get course topics (from catalogo_servicios)
 const getCourseTopics = cache(async () => {
   const supabase = await createClient();
 
   try {
     const { data, error } = await supabase
-      .from("temas_cursos")
-      .select("*")
+      .from("catalogo_servicios")
+      .select("id, nombre")
+      .eq("esta_activo", true)
+      .eq("id_departamento_ejecutante", 3)
       .order("nombre");
 
     if (error) {

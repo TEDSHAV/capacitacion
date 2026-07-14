@@ -1,86 +1,104 @@
-import { createClient } from '@/utils/supabase/server'
-import { NextResponse } from 'next/server'
+import { createClient } from "@/utils/supabase/server";
+import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { nombre, empresa_id, contenido } = await request.json()
+    const { nombre, empresa_id, contenido } = await request.json();
 
     // Validate required fields
     if (!nombre || !contenido) {
-      return NextResponse.json({ 
-        error: 'Name and content are required' 
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: "Name and content are required",
+        },
+        { status: 400 },
+      );
     }
 
-    // Create the course
+    // Create the course in catalogo_servicios
     const { data, error } = await supabase
-      .from('cursos')
+      .from("catalogo_servicios")
       .insert({
         nombre,
-        empresa_id: empresa_id || null,
-        contenido,
-        created_by: user.id,
-        is_active: true
+        contenido_curso: contenido,
+        esta_activo: true,
+        id_departamento_ejecutante: 3, // Capacitacion
       })
       .select()
-      .single()
+      .single();
 
     if (error) {
-      console.error('Error creating course:', error)
-      return NextResponse.json({ 
-        error: 'Failed to create course' 
-      }, { status: 500 })
+      console.error("Error creating course:", error);
+      return NextResponse.json(
+        {
+          error: "Failed to create course",
+        },
+        { status: 500 },
+      );
     }
 
-    return NextResponse.json({ data }, { status: 201 })
-
+    return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
-    console.error('Error in POST /api/cursos:', error)
-    return NextResponse.json({ 
-      error: 'Internal server error' 
-    }, { status: 500 })
+    console.error("Error in POST /api/cursos:", error);
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+      },
+      { status: 500 },
+    );
   }
 }
 
 export async function GET() {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get all active courses with company information
+    // Get all active services from catalogo_servicios for Capacitacion
     const { data, error } = await supabase
-      .from('cursos')
-      .select(`
-        *,
-        empresas (razon_social)
-      `)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
+      .from("catalogo_servicios")
+      .select(
+        `
+        *
+      `,
+      )
+      .eq("esta_activo", true)
+      .eq("id_departamento_ejecutante", 3)
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error('Error fetching courses:', error)
-      return NextResponse.json({ 
-        error: 'Failed to fetch courses' 
-      }, { status: 500 })
+      console.error("Error fetching courses:", error);
+      return NextResponse.json(
+        {
+          error: "Failed to fetch courses",
+        },
+        { status: 500 },
+      );
     }
 
-    return NextResponse.json({ data })
-
+    return NextResponse.json({ data });
   } catch (error) {
-    console.error('Error in GET /api/cursos:', error)
-    return NextResponse.json({ 
-      error: 'Internal server error' 
-    }, { status: 500 })
+    console.error("Error in GET /api/cursos:", error);
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+      },
+      { status: 500 },
+    );
   }
 }

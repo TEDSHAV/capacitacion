@@ -207,7 +207,7 @@ export default function GeneracionCertificadoClient({
           "original-course",
         course_content:
           snapshot?.certificado_detalles?.course_content ||
-          certificate.cursos?.contenido ||
+          certificate.cursos?.contenido_curso ||
           "",
         participants: [
           {
@@ -245,6 +245,17 @@ export default function GeneracionCertificadoClient({
     }
   }, [editData, osis, courses]);
 
+  // Effect to sync course content when selectedCourseTopic changes
+  useEffect(() => {
+    if (selectedCourseTopic && !editData) {
+      setCertificateData((prev) => ({
+        ...prev,
+        course_content: selectedCourseTopic.contenido_curso || "",
+        certificate_title: prev.certificate_title || selectedCourseTopic.nombre,
+      }));
+    }
+  }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, editData]);
+
   const handleOSISelect = (osi: CertificateOSI | null) => {
     if (osi && osi.has_certificates && !editData) {
       const confirmMsg = `La OSI ${osi.nro_osi} ya tiene certificados generados. ¿Estás seguro de que deseas generar otro lote de certificados para esta misma OSI?`;
@@ -269,10 +280,26 @@ export default function GeneracionCertificadoClient({
       // id_curso is id_servicio from v_osi_formato_completo — direct match against catalogo_servicios.id
       let selectedCourse: CourseTopic | null = null;
 
+      // 1. Try ID matching (direct from view)
       if (osi.id_curso) {
         selectedCourse =
           courses.find(
             (topic: CourseTopic) => topic.id === osi.id_curso!.toString(),
+          ) || null;
+      }
+
+      // 2. Try Name matching as fallback (Manejo defensivo, etc.)
+      if (!selectedCourse && (osi.curso_nombre || osi.detalle_capacitacion)) {
+        const targetName = (
+          osi.curso_nombre ||
+          osi.detalle_capacitacion ||
+          ""
+        ).toLowerCase();
+        selectedCourse =
+          courses.find(
+            (topic: CourseTopic) =>
+              topic.nombre.toLowerCase() === targetName ||
+              topic.name.toLowerCase() === targetName,
           ) || null;
       }
 
@@ -859,7 +886,9 @@ export default function GeneracionCertificadoClient({
                 id_certificado: dbResult.certificateIds![index],
                 id_participante: dbResult.participantIds?.[index] || 0, // Use REAL database ID
                 id_empresa: selectedOSI?.empresa_id || null,
-                id_curso: certificateData.course_topic_data?.cursos_id ?? null, // FK → cursos; cursos_id holds the real cursos.id
+                id_curso: certificateData.course_topic_data?.id
+                  ? parseInt(certificateData.course_topic_data.id)
+                  : null, // FK → catalogo_servicios
                 id_osi: null, // nro_osi is the reference; stored in snapshot_contenido. carnets.id_osi FK → osi not applicable here.
                 titulo_curso: certificateData.certificate_title,
                 fecha_emision: certificateData.date,

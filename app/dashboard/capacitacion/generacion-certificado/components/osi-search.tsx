@@ -25,11 +25,32 @@ export default function OSISearch({
 
   // id_curso is id_servicio from v_osi_formato_completo — direct match against catalogo_servicios.id
   const findMatchingCourse = (osi: CertificateOSI): CourseTopic | null => {
-    if (!allCourses || !osi.id_curso) return null;
-    return (
-      allCourses.find((course) => course.id === osi.id_curso!.toString()) ||
-      null
-    );
+    if (!allCourses) return null;
+
+    // 1. Try ID matching
+    if (osi.id_curso) {
+      const matched = allCourses.find(
+        (course) => course.id === osi.id_curso!.toString(),
+      );
+      if (matched) return matched;
+    }
+
+    // 2. Try Name matching as fallback
+    if (osi.curso_nombre || osi.detalle_capacitacion) {
+      const targetName = (
+        osi.curso_nombre ||
+        osi.detalle_capacitacion ||
+        ""
+      ).toLowerCase();
+      const matched = allCourses.find(
+        (course) =>
+          course.nombre.toLowerCase() === targetName ||
+          course.name.toLowerCase() === targetName,
+      );
+      if (matched) return matched;
+    }
+
+    return null;
   };
 
   const filteredOSIs = osis.filter(
@@ -184,36 +205,29 @@ export default function OSISearch({
       {/* Selected OSI Display */}
       {selectedOSI && selectedOSI.nro_osi && (
         <div
-          className={`mt-4 p-3 border rounded-md ${disabled ? "bg-gray-50 border-gray-200" : "bg-blue-50 border-blue-200"}`}
+          className={`mt-4 p-4 border rounded-md ${disabled ? "bg-gray-50 border-gray-200" : "bg-blue-50 border-blue-200"}`}
         >
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start mb-4">
             <div className="flex-1">
               <div
-                className={`font-medium ${disabled ? "text-gray-900" : "text-blue-900"}`}
+                className={`font-bold text-lg ${disabled ? "text-gray-900" : "text-blue-900"}`}
               >
                 OSI: {selectedOSI.nro_osi}
               </div>
               <div
                 className={`text-sm mt-1 ${disabled ? "text-gray-600" : "text-blue-700"}`}
               >
-                Cliente: {selectedOSI.cliente_nombre_empresa || "N/A"}
+                <span className="font-semibold">Cliente:</span>{" "}
+                {selectedOSI.cliente_nombre_empresa || "N/A"}
               </div>
               <div
-                className={`text-sm ${disabled ? "text-gray-600" : "text-blue-700"}`}
+                className={`text-sm mt-1 ${disabled ? "text-gray-600" : "text-blue-700"}`}
               >
-                Curso:{" "}
-                {matchedCourse?.nombre ||
-                  selectedOSI.curso_nombre ||
+                <span className="font-semibold">Curso Original (OSI):</span>{" "}
+                {selectedOSI.curso_nombre ||
                   selectedOSI.detalle_capacitacion ||
                   "N/A - Sin curso especificado"}
               </div>
-              {selectedOSI.ejecutivo_negocios && (
-                <div
-                  className={`text-sm ${disabled ? "text-gray-600" : "text-blue-700"}`}
-                >
-                  Ejecutivo: {selectedOSI.ejecutivo_negocios}
-                </div>
-              )}
             </div>
             {!disabled && (
               <Button
@@ -227,6 +241,53 @@ export default function OSISearch({
               </Button>
             )}
           </div>
+
+          {/* Manual Course Override Dropdown */}
+          {!disabled && allCourses && (
+            <div className="mt-4 pt-4 border-t border-blue-100">
+              <label
+                htmlFor="manual_course_select"
+                className="block text-sm font-bold text-blue-900 mb-2"
+              >
+                Curso para Certificado
+              </label>
+              <p className="text-xs text-blue-700 mb-3 italic">
+                El curso se autocompletó basado en la OSI. Puedes cambiarlo aquí
+                si deseas usar un contenido o tema diferente de la base de
+                datos.
+              </p>
+              <select
+                id="manual_course_select"
+                value={matchedCourse?.id || ""}
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  const course = allCourses.find((c) => c.id === selectedId);
+                  if (course) {
+                    // Update through the same callback that handles OSI selection
+                    // but we only want to update the course topic
+                    onSelect({
+                      ...selectedOSI,
+                      id_curso: parseInt(course.id),
+                    });
+                  }
+                }}
+                className="w-full px-3 py-2 bg-white border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">Seleccionar curso manualmente...</option>
+                {allCourses.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.nombre}
+                  </option>
+                ))}
+              </select>
+              {matchedCourse && (
+                <p className="text-[10px] text-green-700 mt-2 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                  Curso vinculado: {matchedCourse.nombre}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 

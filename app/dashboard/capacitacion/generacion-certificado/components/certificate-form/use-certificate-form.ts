@@ -125,8 +125,8 @@ export function useCertificateForm({
 
     const loadCourseTemplates = async () => {
       try {
-        // Use cursos_id (cursos.id) not id (catalogo_servicios.id) — plantillas_cursos.id_curso FK → cursos
-        const courseId = selectedCourseTopic?.cursos_id?.toString();
+        // Use id (catalogo_servicios.id) — plantillas_cursos.id_curso FK → catalogo_servicios
+        const courseId = selectedCourseTopic?.id?.toString();
         // Get empresaId from selectedOSI to filter by company-specific templates
         const empresaId = selectedOSI?.empresa_id?.toString();
 

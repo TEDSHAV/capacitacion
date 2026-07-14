@@ -70,10 +70,10 @@ export interface DocumentGenerationOptions {
 export interface Curso {
   id: number;
   nombre: string;
-  contenido: string | null;
-  horas_estimadas: number | null;
+  contenido_curso: string | null;
+  carga_horaria_std: number | null;
   created_at: string | null;
-  is_active: boolean;
+  esta_activo: boolean;
   nota_aprobatoria: number | null;
   emite_carnet: boolean | null;
   empresas?: { razon_social: string; rif?: string | null } | null;
@@ -169,15 +169,14 @@ export interface City {
 
 export interface CourseTopic {
   id: string; // catalogo_servicios.id — used for OSI course matching
-  cursos_id?: number | null; // cursos.id — required for FK constraints on certificados & carnets
   nombre: string;
   name: string; // Alias for nombre for compatibility
   description?: string;
   contenido_curso?: string; // Course content from catalogo_servicios
   created_at?: string;
-  nota_aprobatoria?: number; // Passing grade from cursos table
-  horas_estimadas?: number; // Estimated hours from cursos table
-  emite_carnet?: boolean; // Whether course emits card/certificate
+  nota_aprobatoria?: number; // Passing grade from catalogo_servicios
+  horas_estimadas?: number; // Estimated hours from catalogo_servicios
+  emite_carnet?: boolean; // Whether course emits card/certificate from catalogo_servicios
   id_plantilla_certificado?: number; // Preferred certificate template for this course
 }
 

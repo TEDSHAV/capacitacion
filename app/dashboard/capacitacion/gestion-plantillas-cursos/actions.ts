@@ -16,7 +16,7 @@ const getPlantillaCursos = cache(
         .select(
           `
         *,
-        cursos(id, nombre),
+        catalogo_servicios(id, nombre),
         empresas(id, razon_social)
       `,
           { count: "exact" },
@@ -43,7 +43,7 @@ const getPlantillaCursos = cache(
       const plantillas =
         data?.map((plantilla) => ({
           ...plantilla,
-          curso_nombre: plantilla.cursos?.nombre,
+          curso_nombre: plantilla.catalogo_servicios?.nombre,
           empresa_nombre: plantilla.empresas?.razon_social,
         })) || [];
 
@@ -140,15 +140,15 @@ const deletePlantillaCurso = cache(async (id: number) => {
   }
 });
 
-// Get all courses for dropdown
+// Get all courses for dropdown (from catalogo_servicios)
 const getCourses = cache(async () => {
   const supabase = await createClient();
 
   try {
     const { data, error } = await supabase
-      .from("cursos")
-      .select("id, nombre, contenido")
-      .eq("is_active", true)
+      .from("catalogo_servicios")
+      .select("id, nombre, contenido_curso")
+      .eq("esta_activo", true)
       .order("nombre");
 
     if (error) {

@@ -16,10 +16,6 @@ const getFacilitatorHoursStats = cache(
         id_facilitador,
         id_curso,
         fecha_emision,
-        cursos!inner(
-          nombre,
-          horas_estimadas
-        ),
         facilitadores!inner(
           nombre_apellido,
           id_estado_geografico,
@@ -37,17 +33,26 @@ const getFacilitatorHoursStats = cache(
         query = query.eq("id_curso", courseId);
       }
 
-      const [{ data, error }, { data: allStates }] = await Promise.all([
-        query,
-        supabase
-          .from("cat_estados_venezuela")
-          .select("id, nombre_estado")
-          .order("nombre_estado"),
-      ]);
+      const [{ data, error }, { data: allStates }, { data: servicios }] =
+        await Promise.all([
+          query,
+          supabase
+            .from("cat_estados_venezuela")
+            .select("id, nombre_estado")
+            .order("nombre_estado"),
+          supabase
+            .from("catalogo_servicios")
+            .select("id, nombre, carga_horaria_std"),
+        ]);
 
       if (error) {
         return { error: error.message, data: [] };
       }
+
+      // Create maps for quick lookup
+      const serviciosMap = new Map(
+        (servicios || []).map((s: any) => [s.id, s]),
+      );
 
       // Process data to calculate hours
       const facilitatorHoursMap = new Map<number, number>();
@@ -73,9 +78,9 @@ const getFacilitatorHoursStats = cache(
 
       data?.forEach((cert: any) => {
         const facilitatorId = cert.id_facilitador;
-        const courseData = cert.cursos;
+        const servicio = serviciosMap.get(cert.id_curso);
         const facilitatorData = cert.facilitadores;
-        const hours = courseData?.horas_estimadas || 0;
+        const hours = servicio?.carga_horaria_std || 0;
 
         // Store facilitator info
         if (!facilitatorInfoMap.has(facilitatorId) && facilitatorData) {
@@ -97,7 +102,7 @@ const getFacilitatorHoursStats = cache(
         const courseMap = facilitatorCourseMap.get(facilitatorId);
         if (courseMap) {
           courseMap.set(cert.id_curso, {
-            courseName: courseData?.nombre || "Unknown",
+            courseName: servicio?.nombre || "Unknown",
             hours: hours,
           });
         }
@@ -219,13 +224,6 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
         id_facilitador,
         id_estado,
         fecha_emision,
-        cursos!inner(
-          id,
-          nombre,
-          contenido,
-          horas_estimadas,
-          is_active
-        ),
         facilitadores!inner(
           nombre_apellido,
           id_estado_geografico,
@@ -233,8 +231,7 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
         )
       `,
       )
-      .not("id_facilitador", "is", null)
-      .eq("cursos.is_active", true);
+      .not("id_facilitador", "is", null);
 
     if (stateId) {
       certificatesQuery = certificatesQuery.eq("id_estado", stateId);
@@ -244,14 +241,23 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
       certificatesQuery = certificatesQuery.eq("id_curso", courseId);
     }
 
-    const [{ data: certificates, error: certError }, { data: allStates }] =
-      await Promise.all([
-        certificatesQuery,
-        supabase
-          .from("cat_estados_venezuela")
-          .select("id, nombre_estado")
-          .order("nombre_estado"),
-      ]);
+    const [
+      { data: certificates, error: certError },
+      { data: allStates },
+      { data: servicios },
+    ] = await Promise.all([
+      certificatesQuery,
+      supabase
+        .from("cat_estados_venezuela")
+        .select("id, nombre_estado")
+        .order("nombre_estado"),
+      supabase
+        .from("catalogo_servicios")
+        .select("id, nombre, esta_activo, carga_horaria_std"),
+    ]);
+
+    // Create maps for quick lookup
+    const serviciosMap = new Map((servicios || []).map((s: any) => [s.id, s]));
 
     // Helper function to get state name by ID
     const getStateName = (stateId: number | null) => {
@@ -293,18 +299,18 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
     >();
 
     certificates.forEach((cert: any) => {
-      const courseData = cert.cursos;
+      const servicio = serviciosMap.get(cert.id_curso);
       const facilitatorData = cert.facilitadores;
-      const courseId = courseData.id.toString();
-      const hours = courseData.horas_estimadas || 0;
+      const courseId = cert.id_curso.toString();
+      const hours = servicio?.carga_horaria_std || 0;
 
       // Initialize course if not exists
       if (!courseMap.has(courseId)) {
         courseMap.set(courseId, {
           id: courseId,
-          nombre: courseData.nombre,
-          horas_estimadas: courseData.horas_estimadas,
-          is_active: courseData.is_active,
+          nombre: servicio?.nombre || "Unknown",
+          horas_estimadas: servicio?.carga_horaria_std || 0,
+          is_active: servicio?.esta_activo ?? true,
           facilitadores: new Map(),
         });
       }
@@ -331,7 +337,7 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
       facilitator.totalCertificates += 1;
       facilitator.certificates.push({
         nro_osi: cert.nro_osi || 0,
-        course_name: courseData.nombre,
+        course_name: servicio?.nombre || "Unknown",
         hours: hours,
       });
     });

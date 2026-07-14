@@ -155,11 +155,11 @@ export async function getCarnetsByFilters(
           rif,
           direccion_fiscal
         ),
-        curso:cursos(
+        curso:catalogo_servicios(
           id,
           nombre,
-          contenido,
-          horas_estimadas,
+          contenido_curso,
+          carga_horaria_std,
           emite_carnet
         ),
         osi:osi(
@@ -294,11 +294,11 @@ export async function getCarnetById(
           rif,
           direccion_fiscal
         ),
-        curso:cursos(
+        curso:catalogo_servicios(
           id,
           nombre,
-          contenido,
-          horas_estimadas,
+          contenido_curso,
+          carga_horaria_std,
           emite_carnet
         ),
         osi:osi(
@@ -373,11 +373,11 @@ export async function getCarnetsByCertificateId(
           rif,
           direccion_fiscal
         ),
-        curso:cursos(
+        curso:catalogo_servicios(
           id,
           nombre,
-          contenido,
-          horas_estimadas,
+          contenido_curso,
+          carga_horaria_std,
           emite_carnet
         ),
         osi:osi(
@@ -450,11 +450,11 @@ export async function getCarnetsRelationships(
             rif,
             direccion_fiscal
           ),
-          curso:cursos(
+          curso:catalogo_servicios(
             id,
             nombre,
-            contenido,
-            horas_estimadas,
+            contenido_curso,
+            carga_horaria_std,
             emite_carnet
           )
         `,
@@ -481,11 +481,11 @@ export async function getCarnetsRelationships(
             rif,
             direccion_fiscal
           ),
-          curso:cursos(
+          curso:catalogo_servicios(
             id,
             nombre,
-            contenido,
-            horas_estimadas,
+            contenido_curso,
+            carga_horaria_std,
             emite_carnet
           )
         `,
@@ -516,8 +516,13 @@ export async function getCarnetsRelationships(
       // Get all companies
       supabase.from("empresas").select("*").order("razon_social"),
 
-      // Get all courses
-      supabase.from("cursos").select("*").order("nombre"),
+      // Get all active services from catalogo_servicios for Capacitacion
+      supabase
+        .from("catalogo_servicios")
+        .select("*")
+        .eq("esta_activo", true)
+        .eq("id_departamento_ejecutante", 3)
+        .order("nombre"),
     ]);
 
     if (

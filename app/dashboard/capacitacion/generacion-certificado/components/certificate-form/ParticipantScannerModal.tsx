@@ -666,13 +666,15 @@ export const ParticipantScannerModal = ({
                                   ) : (
                                     <X className="h-4 w-4 text-red-500" />
                                   )}
-                                  <button
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => handleVerifyClick(index)}
-                                    className="text-[9px] text-blue-600 hover:underline font-bold uppercase"
+                                    className="h-7 text-[9px] px-2 text-blue-600 hover:bg-blue-50 font-bold border border-blue-100 rounded-lg mt-1 uppercase"
                                     disabled={activeVerificationIndex !== null}
                                   >
                                     Re-validar
-                                  </button>
+                                  </Button>
                                 </div>
                               ) : (
                                 <Button

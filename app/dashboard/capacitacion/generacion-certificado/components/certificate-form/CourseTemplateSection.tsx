@@ -55,14 +55,18 @@ export const CourseTemplateSection = ({
       <div className="grid grid-cols-1 gap-4 mb-4">
         {/* Course Template Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Seleccionar Plantilla
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Plantilla de Contenido
           </label>
+          <p className="text-xs text-gray-500 mb-2">
+            Selecciona una plantilla específica (por curso o empresa) o usa el
+            contenido base.
+          </p>
           <select
             value={courseTemplateId || ""}
             onChange={(e) => handleTemplateChange(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={!selectedOSI}
+            disabled={!selectedOSI || !selectedCourseTopic}
           >
             <option value="">Selecciona una plantilla...</option>
             {courseTemplates.map((template: any) => {

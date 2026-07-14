@@ -1,34 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
-    // Get all active courses
+
+    // Get all active courses from catalogo_servicios for Capacitacion
     const { data, error } = await supabase
-      .from('cursos')
-      .select(`
+      .from("catalogo_servicios")
+      .select(
+        `
         id,
         nombre
-      `)
-      .eq('is_active', true)
-      .order('nombre', { ascending: true });
+      `,
+      )
+      .eq("esta_activo", true)
+      .eq("id_departamento_ejecutante", 3)
+      .order("nombre", { ascending: true });
 
     if (error) {
-      console.error('Error fetching course topics:', error);
+      console.error("Error fetching course topics:", error);
       return NextResponse.json(
-        { error: 'Failed to fetch course topics' },
-        { status: 500 }
+        { error: "Failed to fetch course topics" },
+        { status: 500 },
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Course topics fetch error:', error);
+    console.error("Course topics fetch error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

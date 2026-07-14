@@ -232,8 +232,8 @@ function CertificateTableComponent({
                     {course?.nombre || "-"}
                   </div>
                   <div className="text-xs text-gray-500">
-                    {course?.horas_estimadas
-                      ? `${course.horas_estimadas}h`
+                    {course?.carga_horaria_std
+                      ? `${course.carga_horaria_std}h`
                       : ""}
                   </div>
                 </td>

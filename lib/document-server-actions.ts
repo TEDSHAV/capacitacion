@@ -108,9 +108,10 @@ export async function generateDocumentsServer(
         const supabase = await createClient();
 
         const { data: cursoData, error } = await supabase
-          .from("cursos")
+          .from("catalogo_servicios")
           .select("nombre")
           .eq("id", osiData.id_curso)
+          .eq("id_departamento_ejecutante", 3)
           .single();
 
         if (!error && cursoData) {

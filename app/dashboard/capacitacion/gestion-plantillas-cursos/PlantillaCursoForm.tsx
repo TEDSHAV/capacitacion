@@ -110,10 +110,10 @@ export function PlantillaCursoForm({
       const selectedCourse = courses.find(
         (course) => course.id === parseInt(value.toString()),
       );
-      if (selectedCourse?.contenido) {
+      if (selectedCourse?.contenido_curso) {
         setFormData((prev) => ({
           ...prev,
-          contenido: selectedCourse.contenido,
+          contenido: selectedCourse.contenido_curso,
         }));
       }
     }

@@ -224,7 +224,7 @@ export async function getParticipantMetrics(): Promise<any> {
           id_estado,
           id_empresa,
           cat_estados_venezuela (nombre_estado),
-          cursos (nombre),
+          catalogo_servicios (nombre),
           empresas (razon_social)
         `,
         )
@@ -250,7 +250,7 @@ export async function getParticipantMetrics(): Promise<any> {
         cert.cat_estados_venezuela?.nombre_estado || "Desconocido";
       stateMap[stateName] = (stateMap[stateName] || 0) + 1;
 
-      const courseName = cert.cursos?.nombre || "Desconocido";
+      const courseName = cert.catalogo_servicios?.nombre || "Desconocido";
       courseMap[courseName] = (courseMap[courseName] || 0) + 1;
 
       const companyName = cert.empresas?.razon_social || "Desconocido";
@@ -493,7 +493,10 @@ export async function getAnalyticsMetrics(): Promise<any> {
     const [{ data: courseNames }, { data: facilitatorNames }] =
       await Promise.all([
         topCourseIds.length > 0
-          ? supabase.from("cursos").select("id, nombre").in("id", topCourseIds)
+          ? supabase
+              .from("catalogo_servicios")
+              .select("id, nombre")
+              .in("id", topCourseIds)
           : Promise.resolve({ data: [] as { id: number; nombre: string }[] }),
         topFacilitatorIds.length > 0
           ? supabase

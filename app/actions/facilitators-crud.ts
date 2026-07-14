@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { cache } from "react";
+import { revalidatePath } from "next/cache";
 import { toLowerCase } from "@/utils/string-utils";
 import { saveOptimizedSignature } from "@/lib/image-optimization.server";
 
@@ -158,7 +159,7 @@ const createFacilitator = cache(async (formData: FormData) => {
           fecha_ingreso: fecha_ingreso_to_save,
           nombre_apellido: toLowerCase(nombre_apellido),
           cedula,
-          rif,
+          rif: rif || null,
           email,
           telefono,
           direccion,
@@ -190,6 +191,9 @@ const createFacilitator = cache(async (formData: FormData) => {
     if (signatureFile && signatureFile.size > 0) {
       await handleFacilitatorSignature(supabase, facilitador, signatureFile);
     }
+
+    revalidatePath("/dashboard/capacitacion");
+    revalidatePath("/dashboard/capacitacion/gestion-de-facilitadores");
 
     return { data, error: null };
   } catch (err) {
@@ -243,7 +247,7 @@ const updateFacilitator = cache(async (id: string, formData: FormData) => {
       fecha_ingreso: fecha_ingreso || null,
       nombre_apellido: toLowerCase(nombre_apellido),
       cedula,
-      rif,
+      rif: rif || null,
       email,
       telefono,
       direccion,
@@ -281,6 +285,9 @@ const updateFacilitator = cache(async (id: string, formData: FormData) => {
       await handleFacilitatorSignature(supabase, facilitador, signatureFile);
     }
 
+    revalidatePath("/dashboard/capacitacion");
+    revalidatePath("/dashboard/capacitacion/gestion-de-facilitadores");
+
     return { data, error: null };
   } catch (err) {
     return {
@@ -303,6 +310,9 @@ const deleteFacilitator = cache(async (id: string) => {
     if (error) {
       return { error: error.message, success: false };
     }
+
+    revalidatePath("/dashboard/capacitacion");
+    revalidatePath("/dashboard/capacitacion/gestion-de-facilitadores");
 
     return { error: null, success: true };
   } catch (err) {

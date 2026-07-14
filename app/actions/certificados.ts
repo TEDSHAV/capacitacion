@@ -281,7 +281,9 @@ export async function saveCertificatesToDatabase(
 
         id_empresa: updatedCertificateData.osi_data?.empresa_id || null,
 
-        id_curso: updatedCertificateData.course_topic_data?.cursos_id ?? null, // FK → cursos; cursos_id holds the real cursos.id
+        id_curso: updatedCertificateData.course_topic_data?.id
+          ? parseInt(updatedCertificateData.course_topic_data.id)
+          : null, // FK → catalogo_servicios
 
         fecha_emision: today,
 
@@ -791,7 +793,9 @@ function generateContentSnapshot(
 
       id_empresa: updatedCertificateData.osi_data?.empresa_id,
 
-      id_curso: updatedCertificateData.course_topic_data?.cursos_id ?? null, // FK → cursos
+      id_curso: updatedCertificateData.course_topic_data?.id
+        ? parseInt(updatedCertificateData.course_topic_data.id)
+        : null, // FK → catalogo_servicios
 
       fecha_emision:
         batchEmissionDate || new Date().toLocaleDateString("en-CA"), // Use constant date if provided
@@ -939,7 +943,9 @@ function generateContentSnapshotWithControlNumbers(
 
       id_empresa: certificateData.osi_data?.empresa_id,
 
-      id_curso: certificateData.course_topic_data?.cursos_id ?? null, // FK → cursos
+      id_curso: certificateData.course_topic_data?.id
+        ? parseInt(certificateData.course_topic_data.id)
+        : null, // FK → catalogo_servicios
 
       fecha_emision:
         batchEmissionDate || new Date().toLocaleDateString("en-CA"), // Use constant date if provided
@@ -1033,8 +1039,6 @@ function generateContentSnapshotWithControlNumbers(
       name: certificateData.course_topic_data?.name,
 
       id: certificateData.course_topic_data?.id, // catalogo_servicios.id
-
-      cursos_id: certificateData.course_topic_data?.cursos_id, // cursos.id (FK)
 
       contenido: certificateData.course_topic_data?.contenido_curso,
 
@@ -1139,15 +1143,15 @@ export async function getCertificateById(
 
         ),
 
-        cursos (
+        catalogo_servicios (
 
           id,
 
           nombre,
 
-          contenido,
+          contenido_curso,
 
-          horas_estimadas,
+          carga_horaria_std,
 
           nota_aprobatoria,
 
@@ -1351,7 +1355,7 @@ export async function getCertificateForEdit(certificateId: number) {
         `
         *,
         participantes_certificados!inner(*),
-        cursos!inner(*),
+        catalogo_servicios!inner(*),
         empresas!inner(*)
       `,
       )
@@ -1444,7 +1448,9 @@ export async function updateCertificateAction(
       .from("certificados")
       .update({
         id_empresa: certificateData.osi_data?.empresa_id || null,
-        id_curso: certificateData.course_topic_data?.cursos_id || null,
+        id_curso: certificateData.course_topic_data?.id
+          ? parseInt(certificateData.course_topic_data.id)
+          : null,
         fecha_emision: certificateData.date,
         fecha_vencimiento: certificateData.fecha_vencimiento || null,
         nro_osi: certificateData.osi_data?.nro_osi
@@ -1654,7 +1660,7 @@ async function calculateCertificateMetrics(
         id_participante,
         id_plantilla_carnet,
         participantes_certificados!inner(nombre, cedula),
-        cursos!inner(nombre),
+        catalogo_servicios!inner(nombre),
         empresas!inner(razon_social)
       `,
       { count: "exact" },
@@ -1680,7 +1686,7 @@ async function calculateCertificateMetrics(
     if (filters.searchTerm?.trim()) {
       const term = `%${filters.searchTerm.trim()}%`;
       query = query.or(
-        `nro_osi.ilike.${term},participantes_certificados.nombre.ilike.${term},participantes_certificados.cedula.ilike.${term},cursos.nombre.ilike.${term},empresas.razon_social.ilike.${term}`,
+        `nro_osi.ilike.${term},participantes_certificados.nombre.ilike.${term},participantes_certificados.cedula.ilike.${term},catalogo_servicios.nombre.ilike.${term},empresas.razon_social.ilike.${term}`,
       );
     }
 
@@ -1891,11 +1897,13 @@ export async function getCoursesForFilters(): Promise<
 
     const { data, error } = await supabase
 
-      .from("cursos")
+      .from("catalogo_servicios")
 
       .select("id, nombre")
 
-      .eq("is_active", true)
+      .eq("esta_activo", true)
+
+      .eq("id_departamento_ejecutante", 3)
 
       .order("nombre");
 

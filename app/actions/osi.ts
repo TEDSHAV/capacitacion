@@ -63,12 +63,12 @@ const getCachedOSICursos = cache(async () => {
   try {
     const { data, error } = await supabase
       .from("catalogo_servicios")
-      .select("id, nombre, contenido_curso")
-      .eq("tipo_servicio", 1)
+      .select("id, nombre")
+      .eq("esta_activo", true)
       .order("nombre");
 
     if (error) {
-      // Cursos table not available
+      // Catalogo_servicios table not available
       return { cursos: [] };
     }
 

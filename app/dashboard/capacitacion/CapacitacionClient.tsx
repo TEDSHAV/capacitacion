@@ -151,7 +151,7 @@ export default function CapacitacionClient({
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-10">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-10 gap-6">
           <div>
             <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
               Capacitación
@@ -160,7 +160,7 @@ export default function CapacitacionClient({
               Gestión centralizada de procesos académicos
             </p>
           </div>
-          <div className="flex gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto">
             {[
               { label: "Cursos Activos", val: stats?.cursosActivos },
               { label: "Participantes", val: stats?.participantes },

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Curso } from '@/types';
-import CourseItem from './CourseItem';
-import Pagination from './Pagination';
+import { useState, useEffect } from "react";
+import { Curso } from "@/types";
+import CourseItem from "./CourseItem";
+import Pagination from "./Pagination";
 
 interface CourseListProps {
   cursos: Curso[];
@@ -10,17 +10,23 @@ interface CourseListProps {
   onDuplicate: (id: string) => void;
 }
 
-export default function CourseList({ cursos, onEdit, onDelete, onDuplicate }: CourseListProps) {
+export default function CourseList({
+  cursos,
+  onEdit,
+  onDelete,
+  onDuplicate,
+}: CourseListProps) {
   const [busqueda, setBusqueda] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
 
   // Filter courses based on search
-  const cursosFiltrados = cursos.filter(curso =>
-    curso.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    curso.contenido?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    curso.horas_estimadas?.toString().includes(busqueda.toLowerCase()) ||
-    false
+  const cursosFiltrados = cursos.filter(
+    (curso) =>
+      curso.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      curso.contenido_curso?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      curso.carga_horaria_std?.toString().includes(busqueda.toLowerCase()) ||
+      false,
   );
 
   // Pagination logic
@@ -73,19 +79,31 @@ export default function CourseList({ cursos, onEdit, onDelete, onDuplicate }: Co
           <div className="col-span-4 text-right">Acciones</div>
         </div>
       </div>
-      
+
       {cursosPaginados.length === 0 ? (
         <div className="px-6 py-12 text-center">
           <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            <svg
+              className="w-8 h-8 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
             </svg>
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {busqueda ? 'No se encontraron cursos' : 'No hay cursos creados'}
+            {busqueda ? "No se encontraron cursos" : "No hay cursos creados"}
           </h3>
           <p className="text-sm text-gray-500">
-            {busqueda ? 'Intenta con otros términos de búsqueda' : 'Crea tu primer curso para comenzar'}
+            {busqueda
+              ? "Intenta con otros términos de búsqueda"
+              : "Crea tu primer curso para comenzar"}
           </p>
         </div>
       ) : (
@@ -101,7 +119,7 @@ export default function CourseList({ cursos, onEdit, onDelete, onDuplicate }: Co
           ))}
         </div>
       )}
-      
+
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}

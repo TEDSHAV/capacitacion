@@ -13,7 +13,7 @@ const getCachedDashboardStats = cache(async () => {
       clientesResult,
       osisTotalResult,
       osisActiveResult,
-      cursosResult,
+      serviciosResult,
       tareasResult,
     ] = await Promise.all([
       // Get total clients
@@ -30,11 +30,11 @@ const getCachedDashboardStats = cache(async () => {
         .select("id", { count: "exact", head: true })
         .in("id_estatus", [1, 2, 3]),
 
-      // Get completed courses
+      // Get active services from catalogo_servicios
       supabase
-        .from("cursos")
+        .from("catalogo_servicios")
         .select("id", { count: "exact", head: true })
-        .eq("is_active", true),
+        .eq("esta_activo", true),
 
       // Get pending tasks (assuming there's a tasks table)
       supabase
@@ -47,7 +47,7 @@ const getCachedDashboardStats = cache(async () => {
       totalClientes: clientesResult.count || 0,
       totalOSIs: osisTotalResult.count || 0,
       osisActivas: osisActiveResult.count || 0,
-      cursosCompletados: cursosResult.count || 0,
+      cursosCompletados: serviciosResult.count || 0,
       tareasPendientes: tareasResult.count || 0,
     };
 
@@ -71,10 +71,10 @@ const getCachedRecentActivity = cache(async (limit: number = 10) => {
 
   try {
     // Get recent activity from different tables
-    const [cursosResult, clientesResult, osisResult] = await Promise.all([
-      // Recent courses
+    const [serviciosResult, clientesResult, osisResult] = await Promise.all([
+      // Recent services from catalogo_servicios
       supabase
-        .from("cursos")
+        .from("catalogo_servicios")
         .select("id, nombre, created_at")
         .order("created_at", { ascending: false })
         .limit(3),
@@ -96,11 +96,11 @@ const getCachedRecentActivity = cache(async (limit: number = 10) => {
     ]);
 
     const activities = [
-      ...(cursosResult.data || []).map((curso) => ({
-        id: `course-${curso.id}`,
+      ...(serviciosResult.data || []).map((servicio) => ({
+        id: `service-${servicio.id}`,
         type: "course",
-        description: `Nuevo curso '${curso.nombre}' creado`,
-        time: formatRelativeTime(curso.created_at),
+        description: `Nuevo servicio '${servicio.nombre}' creado`,
+        time: formatRelativeTime(servicio.created_at),
         user: "Sistema",
       })),
 

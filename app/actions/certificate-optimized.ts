@@ -14,7 +14,6 @@ const getOptimizedCertificateData = cache(async () => {
     const [
       osisResult,
       coursesResult,
-      cursosResult,
       signaturesResult,
       certificatesResult,
       activeCertificateTemplate,
@@ -61,21 +60,15 @@ const getOptimizedCertificateData = cache(async () => {
           nombre,
           contenido_curso,
           carga_horaria_std,
-          esta_activo,
-          cliente_asociado
+          nota_aprobatoria,
+          emite_carnet,
+          esta_activo
         `,
         )
         .eq("esta_activo", true)
+        .eq("id_departamento_ejecutante", 3)
         .order("nombre", { ascending: true })
-        .limit(200),
-
-      // Fetch cursos for nota_aprobatoria, emite_carnet, and horas_estimadas (no FK to catalogo_servicios; merged by nombre)
-      supabase
-        .from("cursos")
-        .select(
-          `id, nombre, contenido, nota_aprobatoria, emite_carnet, horas_estimadas`,
-        )
-        .eq("is_active", true),
+        .limit(1000),
 
       // Get signatures for dropdown
       getSignaturesForDropdownAction(),
@@ -132,48 +125,6 @@ const getOptimizedCertificateData = cache(async () => {
     if (coursesResult.error) {
       console.error("Courses fetch error:", coursesResult.error);
       throw new Error(`Failed to load courses: ${coursesResult.error.message}`);
-    }
-
-    if (cursosResult.error) {
-      console.error("Cursos fetch error:", cursosResult.error);
-    }
-
-    // Build a nombre-keyed map from cursos for O(1) enrichment lookups
-    // Stores cursos.id so FK constraints on certificados and carnets are satisfied
-    // Note: If there are multiple cursos with the same nombre, only the last one will be kept
-    // cursos.contenido is the authoritative content source; catalogo_servicios.contenido_curso is a fallback
-    // cursos.horas_estimadas is the authoritative duration source; catalogo_servicios.carga_horaria_std is a fallback
-    const cursosByNombre = new Map<
-      string,
-      {
-        id: number;
-        contenido: string | null;
-        nota_aprobatoria: number | null;
-        emite_carnet: boolean | null;
-        horas_estimadas: number | null;
-      }
-    >(
-      (cursosResult.data || []).map((c: any) => [
-        (c.nombre as string).toLowerCase(),
-        {
-          id: c.id,
-          contenido: c.contenido,
-          nota_aprobatoria: c.nota_aprobatoria,
-          emite_carnet: c.emite_carnet,
-          horas_estimadas: c.horas_estimadas,
-        },
-      ]),
-    );
-
-    // Log warning if there are duplicate course names
-    const nombres = (cursosResult.data || []).map((c: any) =>
-      (c.nombre as string).toLowerCase(),
-    );
-    const uniqueNombres = new Set(nombres);
-    if (nombres.length !== uniqueNombres.size) {
-      console.warn(
-        `⚠️  Found ${nombres.length - uniqueNombres.size} duplicate course names in cursos table. This may cause incorrect content matching.`,
-      );
     }
 
     // Handle signatures errors
@@ -233,33 +184,18 @@ const getOptimizedCertificateData = cache(async () => {
       })(),
     }));
 
-    const transformedCourses = (coursesResult.data || []).map((course: any) => {
-      const cursoMatch = cursosByNombre.get(
-        (course.nombre as string).toLowerCase(),
-      );
-
-      // Log content source for debugging
-      const contentSource = cursoMatch?.contenido
-        ? "cursos (primary)"
-        : course.contenido_curso
-          ? "catalogo_servicios (fallback)"
-          : "none";
-
-      return {
+    const transformedCourses = (coursesResult.data || []).map(
+      (course: any) => ({
         id: course.id.toString(), // catalogo_servicios.id — for OSI matching
-        cursos_id: cursoMatch?.id ?? null, // cursos.id — for certificados/carnets FK
         nombre: course.nombre,
         name: course.nombre,
         description: course.nombre,
-        // Prefer cursos.contenido (authoritative); fall back to catalogo_servicios.contenido_curso
-        contenido_curso:
-          cursoMatch?.contenido || course.contenido_curso || null,
-        horas_estimadas:
-          cursoMatch?.horas_estimadas ?? course.carga_horaria_std,
-        nota_aprobatoria: cursoMatch?.nota_aprobatoria ?? 14,
-        emite_carnet: cursoMatch?.emite_carnet ?? false,
-      };
-    });
+        contenido_curso: course.contenido_curso || null,
+        horas_estimadas: course.carga_horaria_std,
+        nota_aprobatoria: course.nota_aprobatoria ?? 14,
+        emite_carnet: course.emite_carnet ?? false,
+      }),
+    );
 
     return {
       osis: transformedOSIs,

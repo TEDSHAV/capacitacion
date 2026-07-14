@@ -27,9 +27,10 @@ export default async function CapacitacionPage() {
       .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
       .order("razon_social"),
     supabase
-      .from("cursos")
+      .from("catalogo_servicios")
       .select("*", { count: "exact", head: true })
-      .eq("is_active", true),
+      .eq("esta_activo", true)
+      .eq("id_departamento_ejecutante", 3),
     supabase
       .from("participantes_certificados")
       .select("*", { count: "exact", head: true })
