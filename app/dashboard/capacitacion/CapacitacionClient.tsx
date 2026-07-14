@@ -58,6 +58,12 @@ export default function CapacitacionClient({
       title: 'Control de Números de Secuencia',
       description: 'Control de numeración de certificados',
       color: 'bg-red-500'
+    },
+    {
+      id: 'reportes',
+      title: 'Reportes',
+      description: 'Estadísticas y reportes de facilitadores',
+      color: 'bg-indigo-500'
     }
   ];
 

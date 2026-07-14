@@ -564,3 +564,54 @@ export interface ParticipantFormData {
 export interface ParticipantsClientProps {
   user: any;
 }
+
+// Reportes interfaces
+export interface ReportesClientProps {
+  user: any;
+  states: State[];
+}
+
+export interface FacilitadorStateStatsProps {
+  selectedState: string;
+}
+
+export interface FacilitadorHoursStatsProps {
+  selectedState: string;
+}
+
+export interface StateStat {
+  id: number;
+  nombre_estado: string;
+  count: number;
+}
+
+export interface FacilitadorReport {
+  id: number;
+  nombre_apellido: string;
+  cedula: string | null;
+  email: string | null;
+  telefono: string | null;
+  is_active: boolean;
+  id_estatus: number | null;
+  id_estado_base: number | null;
+  id_estado_geografico: number | null;
+}
+
+export interface CertificateInfo {
+  nro_osi: number;
+  course_name: string;
+  hours: number;
+}
+
+export interface FacilitadorHoursStat {
+  facilitatorId: number;
+  nombre_apellido: string;
+  is_active: boolean;
+  estado_nombre: string;
+  estatus_nombre: string;
+  totalHours: number;
+  totalCertificates: number;
+  osiHours: number;
+  totalCombinedHours: number;
+  certificates: CertificateInfo[];
+}
