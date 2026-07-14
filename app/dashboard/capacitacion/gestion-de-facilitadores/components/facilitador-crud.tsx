@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 // Force TypeScript recompilation
 import { useRouter } from "next/navigation";
-import { Facilitador } from "@/types";
+import { Facilitador, State } from "@/types";
 
 interface FacilitadorCrudProps {
   onFacilitadorSaved?: () => void;
@@ -18,7 +18,9 @@ export const FacilitadorCrud = ({
 }: FacilitadorCrudProps) => {
   const router = useRouter();
   const [facilitadores, setFacilitadores] = useState<Facilitador[]>([]);
+  const [states, setStates] = useState<State[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingStates, setLoadingStates] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingFacilitador, setEditingFacilitador] = useState<Facilitador | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -43,9 +45,38 @@ export const FacilitadorCrud = ({
     }
   };
 
+  // Load states
+  const loadStates = async () => {
+    try {
+      const response = await fetch("/api/estados");
+      if (response.ok) {
+        const data = await response.json();
+        setStates(data);
+      }
+    } catch (error) {
+      console.error("Error loading states:", error);
+    } finally {
+      setLoadingStates(false);
+    }
+  };
+
   useEffect(() => {
     loadFacilitadores();
+    loadStates();
   }, []);
+
+  // Helper function to get state name by ID
+  const getStateName = (stateId: number | string | null) => {
+    if (!stateId) return "Sin estado";
+    
+    // Convert to number for comparison if it's a string
+    const numericId = typeof stateId === 'string' ? parseInt(stateId, 10) : stateId;
+    
+    if (isNaN(numericId)) return "ID inválido";
+    
+    const state = states.find(s => s.id === numericId);
+    return state ? state.nombre_estado : "Estado desconocido";
+  };
 
   // Create new facilitator
   const handleCreate = async () => {
@@ -211,21 +242,29 @@ export const FacilitadorCrud = ({
                   {facilitador.telefono}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {facilitador.id_estado_geografico ? `Estado ${facilitador.id_estado_geografico}` : "Sin estado"}
+                  {getStateName(facilitador.id_estado_geografico)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() => handleEdit(facilitador)}
-                    className="text-blue-600 hover:text-blue-900 mr-3"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => confirmDelete(facilitador.id.toString())}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    Eliminar
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEdit(facilitador)}
+                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
+                    >
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => confirmDelete(facilitador.id.toString())}
+                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-colors"
+                    >
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Eliminar
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
