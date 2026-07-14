@@ -147,7 +147,8 @@ export function getTemplateKey(filename?: string): string {
 
 /**
  * Map of coordinate overrides per template key.
- * Initially, old template uses same values as standard to avoid breaking while testing.
+ * NOTE: QR code visibility is now managed in template-config.ts via TEMPLATE_SETTINGS.hideQRCode
+ * Only coordinate overrides are defined here.
  */
 export const TEMPLATE_COORD_MAP: Record<
   string,
@@ -162,7 +163,6 @@ export const TEMPLATE_COORD_MAP: Record<
     dateY: 105,
     durationY: 96.5,
     durationOffsetX: 10,
-    qrY: -22.5,
     signature: {
       ...CERTIFICATE_CONFIG.signature,
       y: 118,
