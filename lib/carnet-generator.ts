@@ -319,7 +319,7 @@ export class CarnetGenerator {
     const titleCaseName = participant.name
       .toLowerCase()
       .split(" ")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
     pdf.text(`Nombre: ${titleCaseName}`, 3, nameY - 10, {
       maxWidth: 45,
