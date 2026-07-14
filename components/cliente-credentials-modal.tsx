@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
 import {
   KeyRound,
   Plus,
@@ -69,7 +70,7 @@ export const ClienteCredentialsModal = ({
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
-  const [newSedeId, setNewSedeId] = useState<number | null>(null);
+  const [newSedeIds, setNewSedeIds] = useState<number[]>([]);
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [isLoadingSedes, setIsLoadingSedes] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
@@ -123,7 +124,7 @@ export const ClienteCredentialsModal = ({
       } else {
         setSedes([]);
       }
-      setNewSedeId(null);
+      setNewSedeIds([]);
     };
     fetchSedes();
   }, [selectedCompanyId]);
@@ -202,7 +203,7 @@ export const ClienteCredentialsModal = ({
       newPassword,
       newDisplayName || undefined,
       undefined,
-      newSedeId || undefined,
+      newSedeIds.length > 0 ? newSedeIds : undefined,
     );
 
     if (result.error) {
@@ -214,7 +215,7 @@ export const ClienteCredentialsModal = ({
       setNewUsername("");
       setNewPassword("");
       setNewDisplayName("");
-      setNewSedeId(null);
+      setNewSedeIds([]);
       setCopied(false);
       loadCredentials(selectedCompanyId);
     }
@@ -522,10 +523,13 @@ export const ClienteCredentialsModal = ({
                                   {cred.display_name}
                                 </p>
                               )}
-                              {cred.id_sede && (
+                              {cred.id_sede && cred.id_sede.length > 0 && (
                                 <p className="text-xs text-blue-600 flex items-center gap-1">
                                   <MapPin className="w-3 h-3" />
-                                  {sedes.find((s) => s.id === cred.id_sede)?.nombre_sede || `Sede #${cred.id_sede}`}
+                                  {cred.id_sede.length === 1
+                                    ? (sedes.find((s) => s.id === cred.id_sede[0])?.nombre_sede || `Sede #${cred.id_sede[0]}`)
+                                    : `${cred.id_sede.length} sedes seleccionadas`
+                                  }
                                 </p>
                               )}
                               {!cred.id_sede && cred.id_ciudad && (
@@ -626,28 +630,19 @@ export const ClienteCredentialsModal = ({
 
                     <div className="space-y-1">
                       <Label htmlFor="new-sede" className="text-xs">
-                        Sede (opcional)
+                        Sedes (opcional)
                       </Label>
-                      <select
-                        id="new-sede"
-                        value={newSedeId || ""}
-                        onChange={(e) => setNewSedeId(e.target.value ? Number(e.target.value) : null)}
+                      <MultiSelect
+                        options={sedes.map((sede) => ({ id: sede.id, label: sede.nombre_sede }))}
+                        selectedIds={newSedeIds}
+                        onChange={setNewSedeIds}
+                        placeholder="Todas las sedes (empresa completa)"
                         disabled={!selectedCompanyId || isLoadingSedes}
-                        className="w-full h-9 px-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
-                      >
-                        <option value="">Todas las sedes (empresa completa)</option>
-                        {sedes.map((sede) => (
-                          <option key={sede.id} value={sede.id}>
-                            {sede.nombre_sede}
-                          </option>
-                        ))}
-                      </select>
+                        isLoading={isLoadingSedes}
+                      />
                       <p className="text-xs text-gray-400">
-                        Si seleccionas una sede, esta credencial solo verá certificados de esa sede.
+                        Si seleccionas sedes, esta credencial solo verá certificados de esas sedes. Deja vacío para ver todas las sedes.
                       </p>
-                      {isLoadingSedes && (
-                        <p className="text-xs text-gray-400">Cargando sedes...</p>
-                      )}
                       {selectedCompanyId && !isLoadingSedes && sedes.length === 0 && (
                         <p className="text-xs text-gray-400">Esta empresa no tiene sedes registradas</p>
                       )}

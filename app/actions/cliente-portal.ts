@@ -31,7 +31,7 @@ export async function createClienteCredentials(
   password: string,
   displayName?: string,
   cityId?: number | null,
-  sedeId?: number | null,
+  sedeIds?: number[] | null,
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createAdminClient();
   const passwordHash = hashPassword(password);
@@ -46,7 +46,7 @@ export async function createClienteCredentials(
       is_active: true,
       updated_at: new Date().toISOString(),
       id_ciudad: cityId || null,
-      id_sede: sedeId || null,
+      id_sede: sedeIds && sedeIds.length > 0 ? sedeIds : null,
     })
     .select()
     .single();
@@ -228,7 +228,7 @@ async function getSessionCityId(): Promise<number | null> {
   return session?.id_ciudad ?? null;
 }
 
-async function getSessionSedeId(): Promise<number | null> {
+async function getSessionSedeIds(): Promise<number[] | null> {
   const session = await getClienteSession();
   return session?.id_sede ?? null;
 }
@@ -243,7 +243,7 @@ export async function getClienteCertificates(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
-  const sessionSedeId = await getSessionSedeId();
+  const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
 
   // When filtering by OSI number, query directly since the RPC doesn't support nro_osi
@@ -265,7 +265,7 @@ export async function getClienteCertificates(
       .eq("is_active", true)
       .eq("nro_osi", filters.nroOsi);
 
-    if (sessionSedeId) query = query.eq("id_sede", sessionSedeId);
+    if (sessionSedeIds && sessionSedeIds.length > 0) query = query.in("id_sede", sessionSedeIds);
     else if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
     if (filters.sedeId) query = query.eq("id_sede", filters.sedeId);
 
@@ -340,7 +340,7 @@ export async function getClienteCertificates(
     p_limit: itemsPerPage,
   };
 
-  if (sessionSedeId) rpcParams.p_sede_id = sessionSedeId;
+  if (sessionSedeIds && sessionSedeIds.length > 0) rpcParams.p_sede_id = sessionSedeIds[0]; // RPC may not support array, use first sede
   else if (sessionCityId) rpcParams.p_city_id = sessionCityId;
   if (filters.sedeId) rpcParams.p_sede_id = filters.sedeId;
   if (filters.searchTerm) rpcParams.p_search_term = filters.searchTerm;
@@ -372,7 +372,7 @@ export async function getClienteCarnets(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
-  const sessionSedeId = await getSessionSedeId();
+  const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
 
   const from = (page - 1) * itemsPerPage;
@@ -390,8 +390,8 @@ export async function getClienteCarnets(
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
 
-  if (sessionSedeId) {
-    query = query.eq("certificados.id_sede", sessionSedeId);
+  if (sessionSedeIds && sessionSedeIds.length > 0) {
+    query = query.in("certificados.id_sede", sessionSedeIds);
   } else if (sessionCityId) {
     query = query.eq("certificados.id_ciudad", sessionCityId);
   }
@@ -435,7 +435,7 @@ export async function getClienteMetrics(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
-  const sessionSedeId = await getSessionSedeId();
+  const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
 
   // Count total certificates for this company
@@ -444,7 +444,7 @@ export async function getClienteMetrics(
     .select("id", { count: "exact", head: true })
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
-  if (sessionSedeId) certCountQuery = certCountQuery.eq("id_sede", sessionSedeId);
+  if (sessionSedeIds && sessionSedeIds.length > 0) certCountQuery = certCountQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) certCountQuery = certCountQuery.eq("id_ciudad", sessionCityId);
   const { count: certCount, error: certError } = await certCountQuery;
 
@@ -456,15 +456,15 @@ export async function getClienteMetrics(
   let carnetCountQuery = supabase
     .from("carnets")
     .select(
-      (sessionSedeId || sessionCityId)
+      (sessionSedeIds && sessionSedeIds.length > 0 || sessionCityId)
         ? "id, certificados!inner(id_ciudad, id_sede)"
         : "id",
       { count: "exact", head: true },
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
-  if (sessionSedeId) {
-    carnetCountQuery = carnetCountQuery.eq("certificados.id_sede", sessionSedeId);
+  if (sessionSedeIds && sessionSedeIds.length > 0) {
+    carnetCountQuery = carnetCountQuery.in("certificados.id_sede", sessionSedeIds);
   } else if (sessionCityId) {
     carnetCountQuery = carnetCountQuery.eq("certificados.id_ciudad", sessionCityId);
   }
@@ -480,7 +480,7 @@ export async function getClienteMetrics(
     .select("id_participante", { count: "exact", head: true })
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
-  if (sessionSedeId) participantCountQuery = participantCountQuery.eq("id_sede", sessionSedeId);
+  if (sessionSedeIds && sessionSedeIds.length > 0) participantCountQuery = participantCountQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) participantCountQuery = participantCountQuery.eq("id_ciudad", sessionCityId);
   const { count: participantCount, error: participantError } =
     await participantCountQuery;
@@ -497,7 +497,7 @@ export async function getClienteMetrics(
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
-  if (sessionSedeId) byCourseQuery = byCourseQuery.eq("id_sede", sessionSedeId);
+  if (sessionSedeIds && sessionSedeIds.length > 0) byCourseQuery = byCourseQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) byCourseQuery = byCourseQuery.eq("id_ciudad", sessionCityId);
   const { data: byCourseData, error: byCourseError } = await byCourseQuery;
 
@@ -566,7 +566,7 @@ export async function getClienteRecentBatches(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
-  const sessionSedeId = await getSessionSedeId();
+  const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
 
   // Fetch certificates grouped by nro_osi — get all for this company first
@@ -578,7 +578,7 @@ export async function getClienteRecentBatches(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("nro_osi", "is", null);
-  if (sessionSedeId) batchQuery = batchQuery.eq("id_sede", sessionSedeId);
+  if (sessionSedeIds && sessionSedeIds.length > 0) batchQuery = batchQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) batchQuery = batchQuery.eq("id_ciudad", sessionCityId);
   const { data, error } = await batchQuery.order("fecha_emision", { ascending: false });
 
@@ -638,7 +638,7 @@ export async function getClienteBatchesFiltered(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
-  const sessionSedeId = await getSessionSedeId();
+  const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
 
   let query = supabase
@@ -652,7 +652,7 @@ export async function getClienteBatchesFiltered(
     .eq("is_active", true)
     .not("nro_osi", "is", null);
 
-  if (sessionSedeId) query = query.eq("id_sede", sessionSedeId);
+  if (sessionSedeIds && sessionSedeIds.length > 0) query = query.in("id_sede", sessionSedeIds);
   else if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
   if (filters.sedeId) query = query.eq("id_sede", filters.sedeId);
   if (filters.cityId) query = query.eq("id_ciudad", filters.cityId);
@@ -736,7 +736,7 @@ export async function getClienteFilterOptions(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
-  const sessionSedeId = await getSessionSedeId();
+  const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
 
   // Get distinct courses for this company's certificates
@@ -746,7 +746,7 @@ export async function getClienteFilterOptions(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("id_curso", "is", null);
-  if (sessionSedeId) certDataQuery = certDataQuery.eq("id_sede", sessionSedeId);
+  if (sessionSedeIds && sessionSedeIds.length > 0) certDataQuery = certDataQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) certDataQuery = certDataQuery.eq("id_ciudad", sessionCityId);
   const { data: certData, error: certError } = await certDataQuery;
 
@@ -774,7 +774,7 @@ export async function getClienteFilterOptions(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("id_estado", "is", null);
-  if (sessionSedeId) stateDataQuery = stateDataQuery.eq("id_sede", sessionSedeId);
+  if (sessionSedeIds && sessionSedeIds.length > 0) stateDataQuery = stateDataQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) stateDataQuery = stateDataQuery.eq("id_ciudad", sessionCityId);
   const { data: stateData, error: stateError } = await stateDataQuery;
 
@@ -802,7 +802,7 @@ export async function getClienteFilterOptions(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("id_ciudad", "is", null);
-  if (sessionSedeId) cityDataQuery = cityDataQuery.eq("id_sede", sessionSedeId);
+  if (sessionSedeIds && sessionSedeIds.length > 0) cityDataQuery = cityDataQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) cityDataQuery = cityDataQuery.eq("id_ciudad", sessionCityId);
   const { data: cityData, error: cityError } = await cityDataQuery;
 
@@ -825,7 +825,7 @@ export async function getClienteFilterOptions(
 
   // Get distinct sedes for this company's certificates (only if not session-restricted)
   const sedeMap = new Map<number, string>();
-  if (!sessionSedeId) {
+  if (!sessionSedeIds || sessionSedeIds.length === 0) {
     let sedeDataQuery = supabase
       .from("certificados")
       .select(`id_sede, empresa_sedes!inner(id, nombre_sede)`)

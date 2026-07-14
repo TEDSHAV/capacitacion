@@ -1668,7 +1668,7 @@ export interface ClienteCredential {
   created_at: string | null;
   updated_at: string | null;
   id_ciudad?: number | null;
-  id_sede?: number | null;
+  id_sede?: number[] | null;
 }
 
 export interface ClienteSession {
@@ -1678,7 +1678,7 @@ export interface ClienteSession {
   username: string;
   display_name: string | null;
   id_ciudad?: number | null;
-  id_sede?: number | null;
+  id_sede?: number[] | null;
   logo_url?: string | null;
 }
 

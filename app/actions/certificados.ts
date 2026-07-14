@@ -2762,26 +2762,26 @@ export async function batchUpdateCertificatesAction(
             const snapshotObj = JSON.parse(cert.snapshot_contenido);
             
             // Handle both flat and nested structures for robustness
-            if (updates.certificate_title) {
+            if ('certificate_title' in updates) {
               if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.title = updates.certificate_title;
               snapshotObj.certificate_title = updates.certificate_title;
             }
-            if (updates.certificate_subtitle) {
+            if ('certificate_subtitle' in updates) {
               if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.subtitle = updates.certificate_subtitle;
               snapshotObj.certificate_subtitle = updates.certificate_subtitle;
             }
-            if (updates.date) {
+            if ('date' in updates) {
               if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.date = updates.date;
               snapshotObj.date = updates.date;
             }
-            if (updates.fecha_vencimiento) {
+            if ('fecha_vencimiento' in updates) {
               snapshotObj.fecha_vencimiento = updates.fecha_vencimiento;
             }
-            if (updates.location) {
+            if ('location' in updates) {
               if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.location = updates.location;
               snapshotObj.location = updates.location;
             }
-            if (updates.horas_estimadas) {
+            if ('horas_estimadas' in updates) {
               if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.horas_estimadas = updates.horas_estimadas;
             }
             if (updates.id_facilitador) {
@@ -2820,19 +2820,19 @@ export async function batchUpdateCertificatesAction(
 
         if (carnet) {
           const carnetUpdate: any = {};
-          if (updates.certificate_title) carnetUpdate.titulo_curso = updates.certificate_title;
-          if (updates.certificate_subtitle) carnetUpdate.subtitulo_curso = updates.certificate_subtitle;
-          if (updates.date) carnetUpdate.fecha_emision = updates.date;
-          if (updates.fecha_vencimiento) carnetUpdate.fecha_vencimiento = updates.fecha_vencimiento;
+          if ('certificate_title' in updates) carnetUpdate.titulo_curso = updates.certificate_title;
+          if ('certificate_subtitle' in updates) carnetUpdate.subtitulo_curso = updates.certificate_subtitle;
+          if ('date' in updates) carnetUpdate.fecha_emision = updates.date;
+          if ('fecha_vencimiento' in updates) carnetUpdate.fecha_vencimiento = updates.fecha_vencimiento;
 
           let carnetSnapshot = carnet.snapshot_contenido;
           if (carnet.snapshot_contenido) {
             try {
               const cSnapshotObj = JSON.parse(carnet.snapshot_contenido);
-              if (updates.certificate_title) cSnapshotObj.titulo_curso = updates.certificate_title;
-              if (updates.certificate_subtitle) cSnapshotObj.subtitulo_curso = updates.certificate_subtitle;
-              if (updates.date) cSnapshotObj.fecha_emision = updates.date;
-              if (updates.fecha_vencimiento) cSnapshotObj.fecha_vencimiento = updates.fecha_vencimiento;
+              if ('certificate_title' in updates) cSnapshotObj.titulo_curso = updates.certificate_title;
+              if ('certificate_subtitle' in updates) cSnapshotObj.subtitulo_curso = updates.certificate_subtitle;
+              if ('date' in updates) cSnapshotObj.fecha_emision = updates.date;
+              if ('fecha_vencimiento' in updates) cSnapshotObj.fecha_vencimiento = updates.fecha_vencimiento;
               
               carnetSnapshot = JSON.stringify(cSnapshotObj, null, 2);
               carnetUpdate.snapshot_contenido = carnetSnapshot;
