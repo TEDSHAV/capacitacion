@@ -561,13 +561,6 @@ export default function OSIDetailPage() {
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <h2 className="text-lg font-semibold text-red-800 mb-2">Error</h2>
             <p className="text-red-600">{error}</p>
-            <button
-              onClick={() => router.push('/dashboard/negocios')}
-              className="mt-4 text-indigo-600 hover:text-indigo-900 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors"
-              style={{ backgroundColor: 'transparent', background: 'none' }}
-            >
-              Volver a OSI
-            </button>
           </div>
         </div>
       </div>
@@ -579,21 +572,13 @@ export default function OSIDetailPage() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/dashboard/negocios')}
-              className="text-indigo-600 hover:text-indigo-900 inline-flex items-center"
-            >
-              ← Volver a OSI
-            </button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {isNew ? 'Nueva OSI' : `OSI ${formData.nro_osi || ''}`}
-              </h1>
-              <p className="mt-2 text-gray-600">
-                {formData.cliente_nombre_empresa || 'Nueva Orden de Servicio de Ingeniería'}
-              </p>
-            </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {isNew ? 'Nueva OSI' : `OSI ${formData.nro_osi || ''}`}
+            </h1>
+            <p className="mt-2 text-gray-600">
+              {formData.cliente_nombre_empresa || 'Nueva Orden de Servicio de Ingeniería'}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             {!isNew && (

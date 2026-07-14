@@ -108,12 +108,6 @@ export default function NegociosPage() {
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
       <div className="mb-8">
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="text-indigo-600 hover:text-indigo-900 mb-4 inline-flex items-center"
-        >
-          ← Volver al Panel
-        </button>
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
