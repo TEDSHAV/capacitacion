@@ -1,5 +1,6 @@
 // QR Code related interfaces
-import type { ControlNumbers, Facilitador } from "./index";
+import type { ControlNumbers } from "./index";
+import type { Facilitador } from "./index";
 
 export type { ControlNumbers };
 
