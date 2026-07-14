@@ -55,7 +55,7 @@ RUN groupadd --system --gid 1001 nodejs && \
     chown -R nextjs:nodejs /home/nextjs
 
 # 3. Copy node_modules to install Playwright browsers
-COPY --from=deps /app/node_modules ./node_modules
+COPY --chown=nextjs:nodejs --from=deps /app/node_modules ./node_modules
 
 # 4. Install Playwright browsers (must be done before changing user)
 RUN npx playwright install --with-deps chromium
@@ -70,11 +70,9 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     HOSTNAME="0.0.0.0"
 
 # 6. Copy build artifacts
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-RUN chown -R nextjs:nodejs /app
+COPY --chown=nextjs:nodejs --from=builder /app/public ./public
+COPY --chown=nextjs:nodejs --from=builder /app/.next/standalone ./
+COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
 USER nextjs
 
 EXPOSE 3000
