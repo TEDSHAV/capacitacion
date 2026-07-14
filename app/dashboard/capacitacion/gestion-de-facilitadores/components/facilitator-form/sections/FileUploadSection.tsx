@@ -4,14 +4,22 @@ import React from "react";
 
 interface FileUploadSectionProps {
   signatureFile: File | null;
-  onFileSelect: (event: React.ChangeEvent<HTMLInputElement>, fileType: "signature") => void;
+  onFileSelect: (
+    event: React.ChangeEvent<HTMLInputElement>,
+    fileType: "signature",
+  ) => void;
+  isEdit?: boolean;
 }
 
-export const FileUploadSection = ({ signatureFile, onFileSelect }: FileUploadSectionProps) => {
+export const FileUploadSection = ({
+  signatureFile,
+  onFileSelect,
+  isEdit = false,
+}: FileUploadSectionProps) => {
   return (
     <div className="space-y-4">
       <h3 className="text-md font-medium text-gray-900">Archivos Adjuntos</h3>
-      
+
       <div className="grid grid-cols-1 gap-4">
         {/* Signature Upload */}
         <div>
@@ -27,9 +35,15 @@ export const FileUploadSection = ({ signatureFile, onFileSelect }: FileUploadSec
           <p className="text-xs text-gray-500 mt-1">
             Formatos aceptados: PNG, JPG, GIF (Máx. 5MB)
           </p>
+          {isEdit && !signatureFile && (
+            <p className="text-xs text-blue-600 mt-1">
+              💡 Dejar vacío para mantener la firma actual
+            </p>
+          )}
           {signatureFile && (
             <p className="text-sm text-green-600 mt-1">
-              ✓ {signatureFile.name} ({(signatureFile.size / 1024 / 1024).toFixed(2)} MB)
+              ✓ {signatureFile.name} (
+              {(signatureFile.size / 1024 / 1024).toFixed(2)} MB)
             </p>
           )}
         </div>

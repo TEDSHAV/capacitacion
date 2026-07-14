@@ -3,18 +3,26 @@
 import React, { useState } from "react";
 import { LocationSectionProps } from "@/types";
 
-export const LocationSection = ({ formData, handleInputChange, states, cities, loadingStates, loadingCities, onAddCity }: LocationSectionProps) => {
+export const LocationSection = ({
+  formData,
+  handleInputChange,
+  states,
+  cities,
+  loadingStates,
+  loadingCities,
+  onAddCity,
+}: LocationSectionProps) => {
   const [showAddCity, setShowAddCity] = useState(false);
   const [newCityName, setNewCityName] = useState("");
 
   const filteredCities = formData.id_estado_geografico
-    ? cities.filter(city => city.id_estado === parseInt(formData.id_estado_geografico))
+    ? cities.filter((city) => city.id_estado === formData.id_estado_geografico)
     : [];
 
   const handleAddCity = async () => {
     if (!formData.id_estado_geografico || !newCityName.trim()) return;
     try {
-      await onAddCity(parseInt(formData.id_estado_geografico), newCityName.trim());
+      await onAddCity(formData.id_estado_geografico, newCityName.trim());
       setNewCityName("");
       setShowAddCity(false);
     } catch (error) {
@@ -25,11 +33,11 @@ export const LocationSection = ({ formData, handleInputChange, states, cities, l
   return (
     <div className="space-y-4">
       <h3 className="text-md font-medium text-gray-900">Ubicación</h3>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Estado
+            Estado *
           </label>
           {loadingStates ? (
             <div className="animate-pulse">
@@ -38,8 +46,14 @@ export const LocationSection = ({ formData, handleInputChange, states, cities, l
           ) : (
             <select
               value={formData.id_estado_geografico || ""}
-              onChange={(e) => handleInputChange("id_estado_geografico", e.target.value)}
+              onChange={(e) =>
+                handleInputChange(
+                  "id_estado_geografico",
+                  e.target.value ? parseInt(e.target.value) : null,
+                )
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
             >
               <option value="">Seleccionar estado...</option>
               {states.map((state) => (
@@ -53,7 +67,7 @@ export const LocationSection = ({ formData, handleInputChange, states, cities, l
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Ciudad
+            Ciudad *
           </label>
           {loadingCities ? (
             <div className="animate-pulse">
@@ -62,10 +76,16 @@ export const LocationSection = ({ formData, handleInputChange, states, cities, l
           ) : (
             <div className="flex gap-2">
               <select
-                value={formData.id_ciudad_geografico || ""}
-                onChange={(e) => handleInputChange("id_ciudad_geografico", e.target.value)}
+                value={formData.id_ciudad || ""}
+                onChange={(e) =>
+                  handleInputChange(
+                    "id_ciudad",
+                    e.target.value ? parseInt(e.target.value) : null,
+                  )
+                }
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={!formData.id_estado_geografico}
+                required
               >
                 <option value="">Seleccionar ciudad...</option>
                 {filteredCities.map((city) => (

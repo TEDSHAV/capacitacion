@@ -3,19 +3,28 @@
 import React from "react";
 import { ProfessionalInfoSectionProps } from "@/types";
 
-export const ProfessionalInfoSection = ({ formData, handleInputChange, states, loadingStates }: ProfessionalInfoSectionProps) => {
+export const ProfessionalInfoSection = ({
+  formData,
+  handleInputChange,
+  states,
+  loadingStates,
+}: ProfessionalInfoSectionProps) => {
   return (
     <div className="space-y-4">
-      <h3 className="text-md font-medium text-gray-900">Información Profesional</h3>
-      
+      <h3 className="text-md font-medium text-gray-900">
+        Información Profesional
+      </h3>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Nivel de Educación
           </label>
           <select
-            value={formData.nivel_tecnico}
-            onChange={(e) => handleInputChange("nivel_tecnico", e.target.value)}
+            value={formData.nivel_educacion}
+            onChange={(e) =>
+              handleInputChange("nivel_educacion", e.target.value)
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">Seleccionar nivel...</option>
@@ -48,10 +57,18 @@ export const ProfessionalInfoSection = ({ formData, handleInputChange, states, l
             type="checkbox"
             id="formacion_docente_certificada"
             checked={formData.formacion_docente_certificada}
-            onChange={(e) => handleInputChange("formacion_docente_certificada", e.target.checked)}
+            onChange={(e) =>
+              handleInputChange(
+                "formacion_docente_certificada",
+                e.target.checked,
+              )
+            }
             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
-          <label htmlFor="formacion_docente_certificada" className="text-sm text-gray-700">
+          <label
+            htmlFor="formacion_docente_certificada"
+            className="text-sm text-gray-700"
+          >
             Formación Docente Certificada
           </label>
         </div>
@@ -61,7 +78,9 @@ export const ProfessionalInfoSection = ({ formData, handleInputChange, states, l
             type="checkbox"
             id="tiene_curriculum"
             checked={formData.tiene_curriculum}
-            onChange={(e) => handleInputChange("tiene_curriculum", e.target.checked)}
+            onChange={(e) =>
+              handleInputChange("tiene_curriculum", e.target.checked)
+            }
             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
           <label htmlFor="tiene_curriculum" className="text-sm text-gray-700">
@@ -74,10 +93,15 @@ export const ProfessionalInfoSection = ({ formData, handleInputChange, states, l
             type="checkbox"
             id="tiene_certificaciones"
             checked={formData.tiene_certificaciones}
-            onChange={(e) => handleInputChange("tiene_certificaciones", e.target.checked)}
+            onChange={(e) =>
+              handleInputChange("tiene_certificaciones", e.target.checked)
+            }
             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
-          <label htmlFor="tiene_certificaciones" className="text-sm text-gray-700">
+          <label
+            htmlFor="tiene_certificaciones"
+            className="text-sm text-gray-700"
+          >
             Tiene Certificaciones
           </label>
         </div>
@@ -87,7 +111,9 @@ export const ProfessionalInfoSection = ({ formData, handleInputChange, states, l
             type="checkbox"
             id="tiene_foto_perfil"
             checked={formData.tiene_foto_perfil}
-            onChange={(e) => handleInputChange("tiene_foto_perfil", e.target.checked)}
+            onChange={(e) =>
+              handleInputChange("tiene_foto_perfil", e.target.checked)
+            }
             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
           <label htmlFor="tiene_foto_perfil" className="text-sm text-gray-700">

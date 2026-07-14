@@ -4,12 +4,18 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { CourseTopic, CertificateFormProps, Signature } from "@/types";
 
-const RichTextEditor = dynamic(() => import("@/components/ui/rich-text-editor"), { ssr: false });
+const RichTextEditor = dynamic(
+  () => import("@/components/ui/rich-text-editor"),
+  { ssr: false },
+);
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
-import { getSignaturesForDropdownAction, getCourseTemplatesByOSIAction } from "@/app/actions/dropdown-data";
-import { FacilitatorSelection } from "@/app/dashboard/capacitacion/participantes/gestion-de-facilitadores/components/facilitator-selection";
+import {
+  getSignaturesForDropdownAction,
+  getCourseTemplatesByOSIAction,
+} from "@/app/actions/dropdown-data";
+import { FacilitatorSelection } from "@/app/dashboard/capacitacion/gestion-de-facilitadores/components/facilitator-selection";
 
 export const CertificateForm = ({
   certificateData,
@@ -25,7 +31,7 @@ export const CertificateForm = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [shaSignatures, setShaSignatures] = useState<Signature[]>([]);
   const [courseTemplates, setCourseTemplates] = useState<any[]>([]);
-  
+
   useEffect(() => {
     const loadFormData = async () => {
       try {
@@ -38,9 +44,7 @@ export const CertificateForm = ({
           setShaSignatures(shaOnly as Signature[]);
 
           // Auto-select the active SHA signature
-          const activeShaSignature = shaOnly.find(
-            (sig: any) => sig.is_active,
-          );
+          const activeShaSignature = shaOnly.find((sig: any) => sig.is_active);
 
           if (activeShaSignature) {
             // Always set the SHA signature ID, even if one is already selected
@@ -68,18 +72,25 @@ export const CertificateForm = ({
   // Separate effect to handle SHA signature data when certificateData changes
   useEffect(() => {
     const ensureSHASignatureData = async () => {
-      if (certificateData.sha_signature_id && !certificateData.sha_signature_data) {
+      if (
+        certificateData.sha_signature_id &&
+        !certificateData.sha_signature_data
+      ) {
         try {
           const signaturesResult = await getSignaturesForDropdownAction();
           if (signaturesResult.data) {
-            const shaSignatures = signaturesResult.data.filter((sig: any) => sig.tipo === 'representante_sha');
-            const selectedSHASignature = shaSignatures.find((sig: any) => sig.id.toString() === certificateData.sha_signature_id);
+            const shaSignatures = signaturesResult.data.filter(
+              (sig: any) => sig.tipo === "representante_sha",
+            );
+            const selectedSHASignature = shaSignatures.find(
+              (sig: any) =>
+                sig.id.toString() === certificateData.sha_signature_id,
+            );
             if (selectedSHASignature) {
               onDataChange("sha_signature_data", selectedSHASignature);
             }
           }
-        } catch (error) {
-        }
+        } catch (error) {}
       }
     };
 
@@ -95,36 +106,44 @@ export const CertificateForm = ({
         // Get empresaId from selectedOSI to filter by company-specific templates
         const empresaId = selectedOSI?.empresa_id?.toString();
 
-        const templatesResult = await getCourseTemplatesByOSIAction(courseId, empresaId);
+        const templatesResult = await getCourseTemplatesByOSIAction(
+          courseId,
+          empresaId,
+        );
 
         if (templatesResult.data) {
           const templates = templatesResult.data;
 
           // Add original course content as first option if course exists
-          const allOptions = selectedCourseTopic ? [
-            {
-              id: 'original-course',
-              descripcion: selectedCourseTopic.nombre || 'Contenido base del curso',
-              contenido: selectedCourseTopic.contenido_curso || ''
-            },
-            ...templates
-          ] : templates;
+          const allOptions = selectedCourseTopic
+            ? [
+                {
+                  id: "original-course",
+                  descripcion:
+                    selectedCourseTopic.nombre || "Contenido base del curso",
+                  contenido: selectedCourseTopic.contenido_curso || "",
+                },
+                ...templates,
+              ]
+            : templates;
 
           setCourseTemplates(allOptions);
-          
+
           // Logic for auto-selecting the best template
-          let templateToSelect = 'original-course';
-          let contentToUse = selectedCourseTopic?.contenido_curso || '';
+          let templateToSelect = "original-course";
+          let contentToUse = selectedCourseTopic?.contenido_curso || "";
 
           // Check if there's a specific template for this course and company
           if (courseId && empresaId) {
             const companySpecificTemplate = templates.find(
-              (t: any) => t.id_curso?.toString() === courseId && t.id_empresa?.toString() === empresaId
+              (t: any) =>
+                t.id_curso?.toString() === courseId &&
+                t.id_empresa?.toString() === empresaId,
             );
-            
+
             if (companySpecificTemplate) {
               templateToSelect = companySpecificTemplate.id.toString();
-              contentToUse = companySpecificTemplate.contenido || '';
+              contentToUse = companySpecificTemplate.contenido || "";
             }
           }
 
@@ -138,7 +157,12 @@ export const CertificateForm = ({
     };
 
     loadCourseTemplates();
-  }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, selectedCourseTopic?.name, selectedOSI?.empresa_id]);
+  }, [
+    selectedCourseTopic?.id,
+    selectedCourseTopic?.contenido_curso,
+    selectedCourseTopic?.name,
+    selectedOSI?.empresa_id,
+  ]);
 
   // Effect to set default course content when course topic changes (but no template selected)
   useEffect(() => {
@@ -148,7 +172,11 @@ export const CertificateForm = ({
         onDataChange("course_content", selectedCourseTopic.contenido_curso);
       }
     }
-  }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, certificateData.course_template_id]);
+  }, [
+    selectedCourseTopic?.id,
+    selectedCourseTopic?.contenido_curso,
+    certificateData.course_template_id,
+  ]);
 
   // Effect to sync id_estado from selectedOSI
   useEffect(() => {
@@ -219,7 +247,6 @@ export const CertificateForm = ({
         Detalles del Certificado
       </h2>
 
-      
       {/* Certificate Title */}
       <div className="mb-4">
         <label
@@ -291,22 +318,31 @@ export const CertificateForm = ({
           onChange={(e) => {
             const templateId = e.target.value;
             onDataChange("course_template_id", templateId);
-            
+
             if (templateId) {
               // Find selected template and load its content
               const selectedTemplate = courseTemplates.find(
                 (template: any) => template.id.toString() === templateId,
               );
-              
+
               if (selectedTemplate) {
-                onDataChange("course_content", selectedTemplate.contenido || '');
+                onDataChange(
+                  "course_content",
+                  selectedTemplate.contenido || "",
+                );
               } else {
                 // Fallback to course content if template not found
-                onDataChange("course_content", selectedCourseTopic?.contenido_curso || '');
+                onDataChange(
+                  "course_content",
+                  selectedCourseTopic?.contenido_curso || "",
+                );
               }
             } else {
               // No template selected, use course's default content
-              onDataChange("course_content", selectedCourseTopic?.contenido_curso || '');
+              onDataChange(
+                "course_content",
+                selectedCourseTopic?.contenido_curso || "",
+              );
             }
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -314,19 +350,22 @@ export const CertificateForm = ({
         >
           <option value="">Selecciona una plantilla...</option>
           {courseTemplates.map((template: any) => {
-            let label = template.nombre || template.descripcion || `Plantilla ${template.id}`;
-            
-            if (template.id === 'original-course') {
-              label = selectedCourseTopic?.nombre || 'Contenido base del curso';
+            let label =
+              template.nombre ||
+              template.descripcion ||
+              `Plantilla ${template.id}`;
+
+            if (template.id === "original-course") {
+              label = selectedCourseTopic?.nombre || "Contenido base del curso";
             } else if (template.empresas) {
-              const courseName = selectedCourseTopic?.nombre || '';
-              const companyName = template.empresas.razon_social || '';
+              const courseName = selectedCourseTopic?.nombre || "";
+              const companyName = template.empresas.razon_social || "";
               label = `${courseName} ${companyName}`;
             } else if (template.id_curso) {
-              const courseName = selectedCourseTopic?.nombre || '';
+              const courseName = selectedCourseTopic?.nombre || "";
               label = `${courseName} - ${template.descripcion}`;
             }
-            
+
             return (
               <option key={template.id} value={template.id}>
                 {label}
@@ -335,12 +374,11 @@ export const CertificateForm = ({
           })}
         </select>
         <p className="text-xs text-gray-500 mt-1">
-          {!selectedOSI 
-            ? 'Selecciona una OSI primero para ver las plantillas disponibles'
+          {!selectedOSI
+            ? "Selecciona una OSI primero para ver las plantillas disponibles"
             : courseTemplates.length === 0
-              ? 'No hay plantillas disponibles para este curso/cliente'
-              : `Plantillas disponibles para el curso seleccionado`
-          }
+              ? "No hay plantillas disponibles para este curso/cliente"
+              : `Plantillas disponibles para el curso seleccionado`}
         </p>
       </div>
 
@@ -352,11 +390,23 @@ export const CertificateForm = ({
             className="block text-sm font-medium text-gray-700 mb-2"
           >
             Contenido del Curso
-            {certificateData.course_template_id && certificateData.course_template_id !== 'original-course' && (
-              <span className="ml-2 text-xs text-blue-600">
-                (Desde plantilla: {courseTemplates.find((t: any) => t.id.toString() === certificateData.course_template_id?.toString())?.descripcion || courseTemplates.find((t: any) => t.id.toString() === certificateData.course_template_id?.toString())?.nombre})
-              </span>
-            )}
+            {certificateData.course_template_id &&
+              certificateData.course_template_id !== "original-course" && (
+                <span className="ml-2 text-xs text-blue-600">
+                  (Desde plantilla:{" "}
+                  {courseTemplates.find(
+                    (t: any) =>
+                      t.id.toString() ===
+                      certificateData.course_template_id?.toString(),
+                  )?.descripcion ||
+                    courseTemplates.find(
+                      (t: any) =>
+                        t.id.toString() ===
+                        certificateData.course_template_id?.toString(),
+                    )?.nombre}
+                  )
+                </span>
+              )}
           </label>
           <RichTextEditor
             value={certificateData.course_content || ""}
@@ -366,11 +416,12 @@ export const CertificateForm = ({
           <div className="flex justify-between items-center mt-1">
             <p className="text-xs text-gray-500">
               {certificateData.course_template_id
-                ? 'Puedes editar este contenido según sea necesario para esta capacitación específica'
-                : 'Este es el contenido predeterminado del curso. Puedes editarlo según sea necesario.'
-              }
+                ? "Puedes editar este contenido según sea necesario para esta capacitación específica"
+                : "Este es el contenido predeterminado del curso. Puedes editarlo según sea necesario."}
             </p>
-            <p className={`text-xs font-medium ${(certificateData.course_content?.length || 0) > 2000 ? 'text-red-600' : (certificateData.course_content?.length || 0) > 1800 ? 'text-yellow-600' : 'text-gray-500'}`}>
+            <p
+              className={`text-xs font-medium ${(certificateData.course_content?.length || 0) > 2000 ? "text-red-600" : (certificateData.course_content?.length || 0) > 1800 ? "text-yellow-600" : "text-gray-500"}`}
+            >
               {certificateData.course_content?.length || 0} / 2000 caracteres
             </p>
           </div>
@@ -438,11 +489,17 @@ export const CertificateForm = ({
             id="fecha_vencimiento_years"
             value={(() => {
               if (!certificateData.fecha_vencimiento) return "";
-              const base = certificateData.date ? new Date(certificateData.date + "T00:00:00") : new Date();
+              const base = certificateData.date
+                ? new Date(certificateData.date + "T00:00:00")
+                : new Date();
               for (let y = 1; y <= 5; y++) {
                 const exp = new Date(base);
                 exp.setFullYear(exp.getFullYear() + y);
-                if (exp.toISOString().slice(0, 10) === certificateData.fecha_vencimiento) return String(y);
+                if (
+                  exp.toISOString().slice(0, 10) ===
+                  certificateData.fecha_vencimiento
+                )
+                  return String(y);
               }
               return "";
             })()}
@@ -452,7 +509,9 @@ export const CertificateForm = ({
                 onDataChange("fecha_vencimiento", undefined);
                 return;
               }
-              const base = certificateData.date ? new Date(certificateData.date + "T00:00:00") : new Date();
+              const base = certificateData.date
+                ? new Date(certificateData.date + "T00:00:00")
+                : new Date();
               const exp = new Date(base);
               exp.setFullYear(exp.getFullYear() + years);
               onDataChange("fecha_vencimiento", exp.toISOString().slice(0, 10));
@@ -469,12 +528,18 @@ export const CertificateForm = ({
           </select>
           {certificateData.fecha_vencimiento && (
             <p className="text-xs text-gray-500 mt-1">
-              Vence el: {new Date(certificateData.fecha_vencimiento + "T00:00:00").toLocaleDateString("es-VE", { day: "numeric", month: "long", year: "numeric" })}
+              Vence el:{" "}
+              {new Date(
+                certificateData.fecha_vencimiento + "T00:00:00",
+              ).toLocaleDateString("es-VE", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
             </p>
           )}
         </div>
       )}
-
 
       {/* Signature Selection */}
       <div className="mb-6">
@@ -488,11 +553,12 @@ export const CertificateForm = ({
             selectedFacilitatorId={certificateData.facilitator_id}
             onFacilitatorChange={async (id: string) => {
               onDataChange("facilitator_id", id);
-              
+
               // Fetch facilitator data when selected
               if (id) {
                 try {
-                  const { getFacilitatorData } = await import("@/app/actions/facilitators");
+                  const { getFacilitatorData } =
+                    await import("@/app/actions/facilitators");
                   const facilitatorData = await getFacilitatorData(id);
                   onDataChange("facilitator_data", facilitatorData);
                 } catch (error) {
@@ -520,7 +586,8 @@ export const CertificateForm = ({
               // First try to find the selected signature by ID
               if (certificateData.sha_signature_id) {
                 const selectedSignature = shaSignatures.find(
-                  (sig: Signature) => sig.id.toString() === certificateData.sha_signature_id,
+                  (sig: Signature) =>
+                    sig.id.toString() === certificateData.sha_signature_id,
                 );
                 if (selectedSignature) {
                   return selectedSignature.nombre;
@@ -630,7 +697,8 @@ export const CertificateForm = ({
           </div>
           {generationProgress.totalCertificates > 0 && (
             <div className="mt-2 text-xs text-blue-700">
-              Procesados: {generationProgress.currentCertificate} / {generationProgress.totalCertificates} certificados
+              Procesados: {generationProgress.currentCertificate} /{" "}
+              {generationProgress.totalCertificates} certificados
             </div>
           )}
         </div>

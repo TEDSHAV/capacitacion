@@ -1,17 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FacilitadorFormData, State, CourseTopic, City } from "@/types";
-import { PersonalInfoSection } from "./facilitator-form/PersonalInfoSection";
-import { ProfessionalInfoSection } from "./facilitator-form/ProfessionalInfoSection";
-import { LocationSection } from "./facilitator-form/LocationSection";
-import { CourseTopicsSection } from "./facilitator-form/CourseTopicsSection";
-import { FileUploadSection } from "./facilitator-form/FileUploadSection";
-import { AdditionalInfoSection } from "./facilitator-form/AdditionalInfoSection";
-import { FormActions } from "./facilitator-form/FormActions";
-import { getFacilitatorByIdAction, createFacilitatorAction, updateFacilitatorAction } from "@/app/actions/facilitators-crud";
+import { PersonalInfoSection } from "./sections/PersonalInfoSection";
+import { ProfessionalInfoSection } from "./sections/ProfessionalInfoSection";
+import { LocationSection } from "./sections/LocationSection";
+import { CourseTopicsSection } from "./sections/CourseTopicsSection";
+import { FileUploadSection } from "./sections/FileUploadSection";
+import { AdditionalInfoSection } from "./sections/AdditionalInfoSection";
+import { FormActions } from "./sections/FormActions";
+import {
+  getFacilitatorByIdAction,
+  createFacilitatorAction,
+  updateFacilitatorAction,
+} from "@/app/actions/facilitators-crud";
 
 interface FacilitatorFormProps {
   onFacilitatorSaved: () => void;
@@ -19,7 +22,11 @@ interface FacilitatorFormProps {
   editId?: string | null;
 }
 
-export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: FacilitatorFormProps) => {
+export const FacilitatorForm = ({
+  onFacilitatorSaved,
+  onCancel,
+  editId,
+}: FacilitatorFormProps) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [formData, setFormData] = useState<FacilitadorFormData>({
     fuente: "",
@@ -30,23 +37,19 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
     email: "",
     telefono: "",
     direccion: "",
-    nivel_tecnico: "",
+    nivel_educacion: "",
     formacion_docente_certificada: false,
     alcance: "",
     notas_observaciones: "",
-    id_estado_base: null,
-    id_ciudad_base: null,
     id_estado_geografico: null,
-    id_ciudad_geografico: null,
-    id_estatus: null,
+    id_ciudad: null,
     temas_cursos: [],
-    ficha_tecnica: "",
     calificacion: null,
-    url_curriculum: "",
     firma_id: null,
     tiene_curriculum: false,
     tiene_certificaciones: false,
     tiene_foto_perfil: false,
+    ano_ingreso: null,
   });
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -70,39 +73,40 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
         try {
           const result = await getFacilitatorByIdAction(editId);
           if (result.error || !result.data) {
-            throw new Error(result.error || 'Facilitator not found');
+            throw new Error(result.error || "Facilitator not found");
           }
-          
+
           const facilitator = result.data;
-            setFormData({
-              fuente: facilitator.fuente || "",
-              fecha_ingreso: facilitator.fecha_ingreso || (facilitator.ano_ingreso ? `${facilitator.ano_ingreso}-01-01` : ""),
-              nombre_apellido: facilitator.nombre_apellido || "",
-              cedula: facilitator.cedula || "",
-              rif: facilitator.rif || "",
-              email: facilitator.email || "",
-              telefono: facilitator.telefono || "",
-              direccion: facilitator.direccion || "",
-              nivel_tecnico: facilitator.nivel_tecnico || "",
-              formacion_docente_certificada: facilitator.formacion_docente_certificada || false,
-              alcance: facilitator.alcance || "",
-              notas_observaciones: facilitator.notas_observaciones || "",
-              id_estado_base: facilitator.id_estado_base,
-              id_ciudad_base: facilitator.id_ciudad_base,
-              id_estado_geografico: facilitator.id_estado_geografico,
-              id_ciudad_geografico: facilitator.id_ciudad_geografico,
-              id_estatus: facilitator.id_estatus,
-              temas_cursos: facilitator.temas_cursos || [],
-              ficha_tecnica: facilitator.ficha_tecnica || "",
-              calificacion: facilitator.calificacion,
-              url_curriculum: facilitator.url_curriculum || "",
-              firma_id: facilitator.firma_id,
-              tiene_curriculum: facilitator.tiene_curriculum || false,
-              tiene_certificaciones: facilitator.tiene_certificaciones || false,
-              tiene_foto_perfil: facilitator.tiene_foto_perfil || false,
-            });
-          } catch (error) {
-          console.error('Error loading facilitator:', error);
+          setFormData({
+            fuente: facilitator.fuente || "",
+            fecha_ingreso:
+              facilitator.fecha_ingreso ||
+              (facilitator.ano_ingreso
+                ? `${facilitator.ano_ingreso}-01-01`
+                : ""),
+            nombre_apellido: facilitator.nombre_apellido || "",
+            cedula: facilitator.cedula || "",
+            rif: facilitator.rif || "",
+            email: facilitator.email || "",
+            telefono: facilitator.telefono || "",
+            direccion: facilitator.direccion || "",
+            nivel_educacion: facilitator.nivel_educacion || "",
+            formacion_docente_certificada:
+              facilitator.formacion_docente_certificada || false,
+            alcance: facilitator.alcance || "",
+            notas_observaciones: facilitator.notas_observaciones || "",
+            id_estado_geografico: facilitator.id_estado_geografico,
+            id_ciudad: facilitator.id_ciudad,
+            temas_cursos: facilitator.temas_cursos || [],
+            calificacion: facilitator.calificacion,
+            firma_id: facilitator.firma_id,
+            tiene_curriculum: facilitator.tiene_curriculum || false,
+            tiene_certificaciones: facilitator.tiene_certificaciones || false,
+            tiene_foto_perfil: facilitator.tiene_foto_perfil || false,
+            ano_ingreso: facilitator.ano_ingreso,
+          });
+        } catch (error) {
+          console.error("Error loading facilitator:", error);
         }
       };
 
@@ -187,7 +191,12 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
     const file = event.target.files?.[0];
     if (file) {
       // Validate file type
-      const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif"];
+      const allowedTypes = [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/gif",
+      ];
 
       if (!allowedTypes.includes(file.type)) {
         alert("Por favor selecciona un archivo PNG, JPG o GIF");
@@ -209,25 +218,27 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
 
   const handleCancel = () => {
     if (loading) return;
-    
+
     // For new facilitators, check if any field has been filled
     if (!editId) {
-      const hasChanges = formData.nombre_apellido !== "" || 
-                        formData.cedula !== "" || 
-                        formData.email !== "" || 
-                        formData.telefono !== "" ||
-                        formData.fuente !== "" ||
-                        formData.direccion !== "" ||
-                        formData.nivel_tecnico !== "" ||
-                        formData.alcance !== "" ||
-                        formData.notas_observaciones !== "";
-      
+      const hasChanges =
+        formData.nombre_apellido !== "" ||
+        formData.cedula !== "" ||
+        formData.email !== "" ||
+        formData.telefono !== "" ||
+        formData.fuente !== "" ||
+        formData.direccion !== "" ||
+        formData.nivel_educacion !== "" ||
+        formData.alcance !== "" ||
+        formData.notas_observaciones !== "";
+
       if (hasChanges) {
         confirmUnsaved({
-          title: 'Cancelar cambios',
-          message: '¿Estás seguro de que deseas cancelar? Los cambios no guardados se perderán.',
-          confirmLabel: 'Sí, cancelar',
-          variant: 'warning',
+          title: "Cancelar cambios",
+          message:
+            "¿Estás seguro de que deseas cancelar? Los cambios no guardados se perderán.",
+          confirmLabel: "Sí, cancelar",
+          variant: "warning",
           onConfirm: () => onCancel?.(),
         });
       } else {
@@ -245,10 +256,13 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
     if (
       !formData.nombre_apellido ||
       !formData.cedula ||
-      !formData.email ||
-      !formData.telefono
+      !formData.telefono ||
+      !formData.id_estado_geografico ||
+      !formData.id_ciudad
     ) {
-      alert("Por favor completa los campos obligatorios");
+      alert(
+        "Por favor completa los campos obligatorios: Nombre, Cédula, Teléfono, Estado y Ciudad",
+      );
       return;
     }
 
@@ -276,13 +290,15 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
         const updateData = {
           ...formData,
           fecha_ingreso: formData.fecha_ingreso || null,
-          ano_ingreso: formData.fecha_ingreso ? new Date(formData.fecha_ingreso).getFullYear() : null,
+          ano_ingreso: formData.fecha_ingreso
+            ? new Date(formData.fecha_ingreso).getFullYear()
+            : null,
         };
-        
+
         result = await updateFacilitatorAction(editId, updateData);
-        
+
         if (!result.error) {
-          alert('Facilitador actualizado exitosamente');
+          alert("Facilitador actualizado exitosamente");
           onFacilitatorSaved();
         } else {
           alert(`Error: ${result.error}`);
@@ -290,9 +306,9 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
       } else {
         // Create new facilitator
         result = await createFacilitatorAction(formDataToSend);
-        
+
         if (!result.error) {
-          alert('Facilitador creado exitosamente');
+          alert("Facilitador creado exitosamente");
           onFacilitatorSaved();
         } else {
           alert(`Error: ${result.error}`);
@@ -359,6 +375,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
         <FileUploadSection
           signatureFile={signatureFile}
           onFileSelect={handleFileSelect}
+          isEdit={!!editId}
         />
 
         {/* Bottom Actions */}
