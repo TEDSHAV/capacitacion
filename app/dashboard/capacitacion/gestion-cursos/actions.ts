@@ -23,6 +23,7 @@ export async function createCurso(formData: FormData) {
     const titulo = formData.get('titulo') as string;
     const cliente_asociado = formData.get('empresa_id') as string;
     const contenido = formData.get('contenido') as string;
+    const horas_estimadas = formData.get('horas_estimadas') as string;
 
     // Validate required fields
     if (!titulo || !contenido) {
@@ -36,6 +37,7 @@ export async function createCurso(formData: FormData) {
         nombre: titulo,
         cliente_asociado: cliente_asociado && cliente_asociado.trim() ? cliente_asociado : null,
         contenido_curso: contenido,
+        horas_estimadas: horas_estimadas ? parseFloat(horas_estimadas) : null,
         tipo_servicio: 1
       })
       .select()
@@ -68,6 +70,7 @@ export async function updateCurso(id: string, formData: FormData) {
     const titulo = formData.get('titulo') as string;
     const cliente_asociado = formData.get('empresa_id') as string;
     const contenido = formData.get('contenido') as string;
+    const horas_estimadas = formData.get('horas_estimadas') as string;
 
     // Validate required fields
     if (!titulo || !contenido) {
@@ -81,6 +84,7 @@ export async function updateCurso(id: string, formData: FormData) {
         nombre: titulo,
         cliente_asociado: cliente_asociado && cliente_asociado.trim() ? cliente_asociado : null,
         contenido_curso: contenido,
+        horas_estimadas: horas_estimadas ? parseFloat(horas_estimadas) : null,
         tipo_servicio: 1
       })
       .eq('id', id)

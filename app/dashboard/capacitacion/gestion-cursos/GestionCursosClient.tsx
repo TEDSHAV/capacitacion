@@ -21,7 +21,8 @@ export default function GestionCursosClient({
   const [datosFormulario, setDatosFormulario] = useState({
     titulo: "",
     empresa_id: "",
-    contenido: ""
+    contenido: "",
+    horas_estimadas: ""
   });
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,7 +55,8 @@ export default function GestionCursosClient({
     setDatosFormulario({
       titulo: "",
       empresa_id: "",
-      contenido: ""
+      contenido: "",
+      horas_estimadas: ""
     });
     setError(null);
   };
@@ -63,7 +65,8 @@ export default function GestionCursosClient({
     setDatosFormulario({
       titulo: curso.nombre || "",
       empresa_id: curso.cliente_asociado || "",
-      contenido: curso.contenido_curso || ""
+      contenido: curso.contenido_curso || "",
+      horas_estimadas: ""
     });
     setEditandoCurso(curso.id);
     setError(null);
@@ -110,6 +113,7 @@ export default function GestionCursosClient({
       formData.append('titulo', datosFormulario.titulo);
       formData.append('empresa_id', datosFormulario.empresa_id);
       formData.append('contenido', datosFormulario.contenido);
+      formData.append('horas_estimadas', datosFormulario.horas_estimadas);
 
       let result;
       if (editandoCurso) {
@@ -245,6 +249,27 @@ export default function GestionCursosClient({
                   />
                 </div>
 
+                {/* Estimated Hours */}
+                <div>
+                  <label htmlFor="horas_estimadas" className="block text-sm font-medium text-gray-700 mb-1">
+                    Horas Estimadas
+                  </label>
+                  <input
+                    type="number"
+                    id="horas_estimadas"
+                    name="horas_estimadas"
+                    value={datosFormulario.horas_estimadas}
+                    onChange={manejarCambioInput}
+                    min="2"
+                    step="1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Ej: 40"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Duración estimada del curso en horas
+                  </p>
+                </div>
+
                 {/* Content */}
                 <div>
                   <label htmlFor="contenido" className="block text-sm font-medium text-gray-700 mb-1">
@@ -260,9 +285,6 @@ export default function GestionCursosClient({
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                     placeholder="Agrega el contenido detallado del curso aquí..."
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Pronto se agregará un editor de texto enriquecido
-                  </p>
                 </div>
 
                 {/* Buttons */}
