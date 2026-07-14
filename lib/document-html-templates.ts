@@ -45,11 +45,11 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       (p) => `
     <tr>
       <td>${p.index}</td>
-      <td>${escapeHtml(p.nombre_apellido)}</td>
-      <td>${escapeHtml(p.cedula)}</td>
+      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
+      <td class="text-center">${escapeHtml(p.cedula)}</td>
       <td>${p.puntuacion || ""}</td>
       <td>${p.condicion || ""}</td>
-      <td>${escapeHtml(p.numero_control)}</td>
+      <td class="text-center">${escapeHtml(p.numero_control)}</td>
     </tr>
   `,
     )
@@ -76,7 +76,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 
     body {
       font-family: Helvetica, Arial, sans-serif;
-      font-size: 11px;
+      font-size: 13px;
       line-height: 1.4;
       color: #000;
       background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
@@ -106,14 +106,14 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     }
 
     .logo {
-      max-width: 80px;
+      max-width: 110px;
       height: auto;
     }
 
     .title {
       text-align: center;
       font-weight: bold;
-      font-size: 14px;
+      font-size: 16px;
       line-height: 1.3;
     }
 
@@ -135,38 +135,39 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 
     .content {
       flex: 1;
-      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     .date-right {
       text-align: right;
       margin-bottom: 10px;
-      font-size: 11px;
+      font-size: 13px;
     }
 
     .recipient {
       font-weight: bold;
       margin-bottom: 10px;
-      font-size: 11px;
+      font-size: 13px;
     }
 
     .body-text {
       text-align: justify;
       margin-bottom: 15px;
-      font-size: 10px;
+      font-size: 12px;
       line-height: 1.5;
     }
 
     .min-score {
       margin-bottom: 12px;
-      font-size: 10px;
+      font-size: 12px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 15px;
-      font-size: 9px;
+      font-size: 11px;
     }
 
     th {
@@ -175,13 +176,17 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       padding: 6px 4px;
       text-align: center;
       font-weight: bold;
-      font-size: 9px;
+      font-size: 11px;
     }
 
     td {
       border: 0.5px solid #000;
       padding: 6px 4px;
       text-align: left;
+    }
+
+    td.text-center {
+      text-align: center;
     }
 
     tr {
@@ -191,17 +196,19 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     .signature-block {
       margin-top: 20px;
       text-align: center;
+      page-break-inside: avoid;
+      margin-bottom: 30px;
     }
 
     .signature-text {
       font-weight: bold;
-      font-size: 10px;
+      font-size: 12px;
       margin-bottom: 20px;
     }
 
     .signature-name {
       font-weight: bold;
-      font-size: 10px;
+      font-size: 12px;
       margin-top: 15px;
     }
 
@@ -289,9 +296,9 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       (p) => `
     <tr>
       <td>${p.index}</td>
-      <td>${escapeHtml(p.nombre_apellido)}</td>
-      <td>${escapeHtml(p.cedula)}</td>
-      <td>${escapeHtml(p.numero_control)}</td>
+      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
+      <td class="text-center">${escapeHtml(p.cedula)}</td>
+      <td class="text-center">${escapeHtml(p.numero_control)}</td>
     </tr>
   `,
     )
@@ -318,7 +325,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
 
     body {
       font-family: Helvetica, Arial, sans-serif;
-      font-size: 11px;
+      font-size: 13px;
       line-height: 1.4;
       color: #000;
       background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
@@ -348,14 +355,14 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     }
 
     .logo {
-      max-width: 80px;
+      max-width: 110px;
       height: auto;
     }
 
     .title {
       text-align: center;
       font-weight: bold;
-      font-size: 14px;
+      font-size: 16px;
       line-height: 1.3;
     }
 
@@ -377,25 +384,26 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
 
     .content {
       flex: 1;
-      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     .date-right {
       text-align: right;
       margin-bottom: 10px;
-      font-size: 11px;
+      font-size: 13px;
     }
 
     .recipient {
       font-weight: bold;
       margin-bottom: 10px;
-      font-size: 11px;
+      font-size: 13px;
     }
 
     .body-text {
       text-align: justify;
       margin-bottom: 15px;
-      font-size: 10px;
+      font-size: 12px;
       line-height: 1.5;
     }
 
@@ -403,7 +411,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 15px;
-      font-size: 9px;
+      font-size: 11px;
     }
 
     th {
@@ -412,7 +420,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       padding: 6px 4px;
       text-align: center;
       font-weight: bold;
-      font-size: 9px;
+      font-size: 11px;
     }
 
     td {
@@ -421,30 +429,35 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       text-align: left;
     }
 
+    td.text-center {
+      text-align: center;
+    }
+
     tr {
       page-break-inside: avoid;
     }
 
     .signature-block {
-      margin-top: 20px;
+      margin-top: auto;
+      margin-bottom: 30px;
     }
 
     .signature-text {
       font-weight: bold;
-      font-size: 10px;
+      font-size: 12px;
       margin-bottom: 20px;
     }
 
     .signature-name {
       text-align: center;
       font-weight: bold;
-      font-size: 10px;
+      font-size: 12px;
       margin-top: 15px;
     }
 
     .received-section {
       margin-top: 20px;
-      font-size: 11px;
+      font-size: 13px;
     }
 
     .received-label {
@@ -461,26 +474,26 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     .seal-label {
       text-align: center;
       font-weight: bold;
-      font-size: 10px;
+      font-size: 12px;
       margin-bottom: 5px;
     }
 
     .received-name {
       text-align: center;
       font-weight: bold;
-      font-size: 10px;
+      font-size: 12px;
       margin-bottom: 5px;
     }
 
     .received-cargo {
       text-align: center;
-      font-size: 10px;
+      font-size: 12px;
       margin-bottom: 15px;
     }
 
     .footnote {
       font-style: italic;
-      font-size: 8px;
+      font-size: 10px;
       text-align: center;
       margin-top: 10px;
     }
@@ -577,9 +590,9 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       (p) => `
     <tr>
       <td>${p.index}</td>
-      <td>${escapeHtml(p.nombre_apellido)}</td>
-      <td>${escapeHtml(p.cedula)}</td>
-      <td>${escapeHtml(p.numero_control)}</td>
+      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
+      <td class="text-center">${escapeHtml(p.cedula)}</td>
+      <td class="text-center">${escapeHtml(p.numero_control)}</td>
     </tr>
   `,
     )
@@ -606,7 +619,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
 
     body {
       font-family: Helvetica, Arial, sans-serif;
-      font-size: 11px;
+      font-size: 13px;
       line-height: 1.4;
       color: #000;
       background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
@@ -636,14 +649,14 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     }
 
     .logo {
-      max-width: 80px;
+      max-width: 110px;
       height: auto;
     }
 
     .title {
       text-align: center;
       font-weight: bold;
-      font-size: 14px;
+      font-size: 16px;
       line-height: 1.3;
     }
 
@@ -665,25 +678,26 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
 
     .content {
       flex: 1;
-      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     .date-right {
       text-align: right;
       margin-bottom: 10px;
-      font-size: 11px;
+      font-size: 13px;
     }
 
     .recipient {
       font-weight: bold;
       margin-bottom: 10px;
-      font-size: 11px;
+      font-size: 13px;
     }
 
     .body-text {
       text-align: justify;
       margin-bottom: 15px;
-      font-size: 10px;
+      font-size: 12px;
       line-height: 1.5;
     }
 
@@ -691,7 +705,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 15px;
-      font-size: 9px;
+      font-size: 11px;
     }
 
     th {
@@ -700,13 +714,17 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       padding: 6px 4px;
       text-align: center;
       font-weight: bold;
-      font-size: 9px;
+      font-size: 11px;
     }
 
     td {
       border: 0.5px solid #000;
       padding: 6px 4px;
       text-align: left;
+    }
+
+    td.text-center {
+      text-align: center;
     }
 
     tr {
@@ -716,17 +734,19 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     .signature-block {
       margin-top: 20px;
       text-align: center;
+      page-break-inside: avoid;
+      margin-bottom: 30px;
     }
 
     .signature-text {
       font-weight: bold;
-      font-size: 10px;
+      font-size: 12px;
       margin-bottom: 20px;
     }
 
     .signature-name {
       font-weight: bold;
-      font-size: 10px;
+      font-size: 12px;
       margin-top: 15px;
     }
 
