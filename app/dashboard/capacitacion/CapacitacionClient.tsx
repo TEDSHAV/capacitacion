@@ -24,42 +24,36 @@ export default function CapacitacionClient({
       id: 'participantes',
       title: 'Participantes',
       description: 'Gestión de participantes en capacitaciones',
-      icon: '○',
       color: 'bg-blue-500'
     },
     {
       id: 'gestion-cursos',
       title: 'Gestión de Cursos',
       description: 'Crear y administrar contenidos de cursos',
-      icon: '□',
       color: 'bg-green-500'
     },
     {
       id: 'facilitadores',
       title: 'Facilitadores',
       description: 'Administración de facilitadores e instructores',
-      icon: '△',
       color: 'bg-blue-500'
     },
     {
       id: 'generacion-certificados',
       title: 'Generación de Certificados',
       description: 'Crear y generar certificados de capacitación',
-      icon: '◇',
       color: 'bg-yellow-500'
     },
     {
       id: 'gestion-certificados',
       title: 'Gestión de Certificados',
       description: 'Administrar certificados emitidos',
-      icon: '◈',
       color: 'bg-blue-500'
     },
     {
       id: 'control-secuencia',
       title: 'Control de Números de Secuencia',
       description: 'Control de numeración de certificados',
-      icon: '◐',
       color: 'bg-red-500'
     }
   ];
@@ -105,7 +99,6 @@ export default function CapacitacionClient({
                 <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg min-h-[150px] flex flex-col">
                   <div className={`${submodule.color} h-2`}></div>
                   <div className="p-6 flex-1 flex flex-col justify-center items-center text-center">
-                    <div className="text-3xl mb-3">{submodule.icon}</div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
                       {submodule.title}
                     </h3>
