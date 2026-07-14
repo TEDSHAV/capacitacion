@@ -135,7 +135,7 @@ export default function CapacitacionClient({
       modules: [
         {
           id: "herramientas/img-to-xls",
-          title: "Img to xls",
+          title: "Escanear lista de participantes",
           icon: FileSpreadsheet,
         },
       ],

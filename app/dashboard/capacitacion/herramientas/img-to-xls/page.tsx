@@ -138,7 +138,7 @@ export default function ImgToXlsPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
               <FileSpreadsheet className="w-8 h-8 text-emerald-600" />
-              Img to xls
+              Escanear lista de participantes
             </h1>
             <p className="text-gray-500 mt-1">
               Extrae datos de listas de participantes y expórtalos a Excel
