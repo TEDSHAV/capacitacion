@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import QueryProvider from "@/components/providers/QueryProvider";
+import ShellAuthProvider from "@/components/providers/ShellAuthProvider";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -34,7 +35,9 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <QueryProvider>
-          {children}
+          <ShellAuthProvider>
+            {children}
+          </ShellAuthProvider>
         </QueryProvider>
       </body>
     </html>
