@@ -32,7 +32,6 @@ WORKDIR /app
 
 # 1. Install Playwright dependencies and system libraries
 RUN apt-get update && apt-get install -y \
-    chromium \
     fonts-liberation \
     libnss3 \
     libatk1.0-0 \
@@ -58,12 +57,14 @@ RUN groupadd --system --gid 1001 nodejs && \
 COPY --chown=nextjs:nodejs --from=deps /app/node_modules ./node_modules
 
 # 4. Install Playwright browsers (must be done before changing user)
-RUN npx playwright install --with-deps chromium
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/nextjs/.cache/ms-playwright
+RUN npx playwright install chromium && \
+    chown -R nextjs:nodejs /home/nextjs/.cache
 
 # 5. Environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=false \
+    PLAYWRIGHT_BROWSERS_PATH=/home/nextjs/.cache/ms-playwright \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
     NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
