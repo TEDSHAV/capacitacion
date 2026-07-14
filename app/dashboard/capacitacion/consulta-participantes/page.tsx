@@ -147,7 +147,11 @@ export default function ParticipantLookup() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Nacionalidad</p>
-                <p className="font-medium text-gray-900 capitalize">{participantData.participant.nacionalidad}</p>
+                <p className="font-medium text-gray-900">
+                  {participantData.participant.nacionalidad === 'V-' ? 'Venezolano' : 
+                   participantData.participant.nacionalidad === 'E-' ? 'Extranjero' : 
+                   participantData.participant.nacionalidad}
+                </p>
                 {participantData.participant.total_records && participantData.participant.total_records > 1 && (
                   <p className="text-xs text-amber-600 mt-1">
                     Nota: {participantData.participant.total_records} registros encontrados para esta cédula

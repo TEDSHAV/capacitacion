@@ -23,7 +23,7 @@ export class CertificateGenerator {
    * Generate a complete certificate with both pages
    */
   async generateCertificate(data: CertificateRequest): Promise<Blob> {
-    const { participant, certificateData, templateImage, sealImage, controlNumbers, isPreview } = data;
+    const { participant, certificateData, templateImage, sealImage, controlNumbers, isPreview, certificateId } = data;
 
     // Clear any existing content
     this.doc = new jsPDF(CERTIFICATE_CONFIG.page);
@@ -40,9 +40,8 @@ export class CertificateGenerator {
       await this.certificatePage.addCertificateContent(participant, certificateData);
 
       // Add QR code - either real or sample for preview
-      if (!isPreview && controlNumbers) {
-        // Real QR code for final certificate
-        const certificateId = controlNumbers.nro_control; // Use control number as temporary ID
+      if (!isPreview && controlNumbers && certificateId) {
+        // Real QR code for final certificate - use actual certificate ID
         await this.certificatePage.addQRCode(certificateId, controlNumbers);
       } else if (isPreview) {
         // Sample QR code for preview

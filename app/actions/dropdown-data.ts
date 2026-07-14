@@ -10,7 +10,7 @@ const getSignaturesForDropdown = cache(async () => {
   try {
     const { data, error } = await supabase
       .from('firmas')
-      .select('id, nombre, tipo')
+      .select('id, nombre, tipo, url_imagen, is_active')
       .eq('is_active', true)
       .order('nombre');
     

@@ -208,6 +208,7 @@ export interface CertificateRequest {
   sealImage?: string;
   controlNumbers?: ControlNumbers;
   isPreview?: boolean;
+  certificateId?: number; // Actual certificate database ID for QR code generation
 }
 
 export interface ControlNumbers {
@@ -235,6 +236,7 @@ export interface CertificateGeneration {
   facilitator_id?: string; // ID of selected facilitator (includes signature)
   facilitator_data?: any; // Full facilitator data
   sha_signature_id?: string; // ID of SHA representative signature (separate from facilitator)
+  sha_signature_data?: any; // Full SHA signature data
   fecha_vencimiento?: string; // Certificate expiration date
   id_estado?: number; // Venezuelan state ID for certificate record
   id_plantilla_certificado?: number; // Certificate template ID

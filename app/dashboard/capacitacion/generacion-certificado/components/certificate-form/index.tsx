@@ -43,7 +43,8 @@ export const CertificateForm = ({
           );
           console.log('Active SHA signature:', activeShaSignature); // Debug log
 
-          if (activeShaSignature && !certificateData.sha_signature_id) {
+          if (activeShaSignature) {
+            // Always set the SHA signature ID, even if one is already selected
             onDataChange("sha_signature_id", activeShaSignature.id.toString());
             console.log('Auto-selected SHA signature ID:', activeShaSignature.id); // Debug log
           }
@@ -463,6 +464,16 @@ export const CertificateForm = ({
             type="text"
             id="sha-signature"
             value={(() => {
+              // First try to find the selected signature by ID
+              if (certificateData.sha_signature_id) {
+                const selectedSignature = shaSignatures.find(
+                  (sig: Signature) => sig.id.toString() === certificateData.sha_signature_id,
+                );
+                if (selectedSignature) {
+                  return selectedSignature.nombre;
+                }
+              }
+              // Fallback to active signature
               const activeSignature = shaSignatures.find(
                 (sig: Signature) => sig.is_active,
               );

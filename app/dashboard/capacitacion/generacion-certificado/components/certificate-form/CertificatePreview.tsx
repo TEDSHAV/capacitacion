@@ -89,19 +89,37 @@ export const CertificatePreview = ({
       // Fetch facilitator data for preview
       if (certificateDataWithSHA.facilitator_id) {
         try {
-          const facilitatorsResult = await getSignaturesForDropdownAction();
-          if (facilitatorsResult.data) {
-            const facilitators = facilitatorsResult.data.filter((sig: any) => sig.tipo === 'facilitador');
-            const selectedFacilitator = facilitators.find((fac: any) => fac.id.toString() === certificateDataWithSHA.facilitator_id);
-            if (selectedFacilitator) {
+          const { getFacilitatorData } = await import("../../../../../actions/facilitators");
+          const facilitatorData = await getFacilitatorData(certificateDataWithSHA.facilitator_id);
+          if (facilitatorData) {
+            certificateDataWithSHA = {
+              ...certificateDataWithSHA,
+              facilitator_data: facilitatorData
+            };
+            console.log('Fetched facilitator data for preview:', facilitatorData);
+          }
+        } catch (error) {
+          console.error('Could not fetch facilitator for preview:', error);
+        }
+      }
+
+      // Fetch SHA signature data for preview
+      if (certificateDataWithSHA.sha_signature_id) {
+        try {
+          const signaturesResult = await getSignaturesForDropdownAction();
+          if (signaturesResult.data) {
+            const shaSignatures = signaturesResult.data.filter((sig: any) => sig.tipo === 'representante_sha');
+            const selectedSHASignature = shaSignatures.find((sig: any) => sig.id.toString() === certificateDataWithSHA.sha_signature_id);
+            if (selectedSHASignature) {
               certificateDataWithSHA = {
                 ...certificateDataWithSHA,
-                facilitator_data: selectedFacilitator
+                sha_signature_data: selectedSHASignature
               };
+              console.log('Fetched SHA signature for preview:', selectedSHASignature);
             }
           }
         } catch (error) {
-          // Could not fetch facilitator for preview
+          console.error('Could not fetch SHA signature for preview:', error);
         }
       }
 

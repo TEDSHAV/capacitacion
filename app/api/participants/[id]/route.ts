@@ -120,9 +120,25 @@ export async function GET(
     // Use the first participant as the primary record for display
     const primaryParticipant = participants[0];
     
+    // Determine nationality - check database field first, then determine from cedula if needed
+    let nationality = primaryParticipant.nacionalidad;
+    
+    // Handle legacy formats and determine correct nationality
+    if (!nationality) {
+      nationality = idNumber.startsWith('E-') ? 'E-' : 'V-';
+    } else if (nationality === 'venezolano') {
+      nationality = 'V-';
+    } else if (nationality === 'extranjero') {
+      nationality = 'E-';
+    } else if (nationality !== 'V-' && nationality !== 'E-') {
+      // If it's some other format, determine from the original ID
+      nationality = idNumber.startsWith('E-') ? 'E-' : 'V-';
+    }
+    
     const response = {
       participant: {
         ...primaryParticipant,
+        nacionalidad: nationality,
         total_records: participants.length
       },
       certificates: certificatesWithParsedData,

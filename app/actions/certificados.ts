@@ -17,6 +17,10 @@ export interface CertificateRecord {
   calificacion?: number;
   is_active?: boolean;
   snapshot_contenido?: string | null;
+  nro_libro?: number; // Control number fields
+  nro_hoja?: number;
+  nro_linea?: number;
+  nro_control?: number;
 }
 
 export interface CertificateWithNumbers {
@@ -40,6 +44,37 @@ export async function saveCertificatesToDatabase(
     console.log('Participants count:', participants.length);
     console.log('Participants:', JSON.stringify(participants, null, 2));
 
+    // Fetch facilitator data if not available but facilitator_id is provided
+    let updatedCertificateData = { ...certificateData };
+    if (certificateData.facilitator_id && !certificateData.facilitator_data) {
+      try {
+        console.log('Fetching facilitator data for certificate generation...');
+        const { getFacilitatorData } = await import('./facilitators');
+        const facilitatorData = await getFacilitatorData(certificateData.facilitator_id);
+        if (facilitatorData) {
+          updatedCertificateData.facilitator_data = facilitatorData;
+          console.log('Successfully fetched facilitator data:', facilitatorData.name);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch facilitator data:', error);
+      }
+    }
+
+    // Fetch SHA signature data if not available but sha_signature_id is provided
+    if (certificateData.sha_signature_id && !certificateData.sha_signature_data) {
+      try {
+        console.log('Fetching SHA signature data for certificate generation...');
+        const { certificateService } = await import('@/lib/certificate-service');
+        const shaSignatureData = await certificateService.getSignatureData(certificateData.sha_signature_id);
+        if (shaSignatureData) {
+          updatedCertificateData.sha_signature_data = shaSignatureData;
+          console.log('Successfully fetched SHA signature data:', shaSignatureData.nombre);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch SHA signature data:', error);
+      }
+    }
+
     const supabase = await createClient();
     
     if (!certificateData.osi_data || !certificateData.course_topic_data) {
@@ -49,6 +84,49 @@ export async function saveCertificatesToDatabase(
     const today = new Date().toLocaleDateString('en-CA'); // en-CA format gives YYYY-MM-DD in local timezone
     const certificateIds: number[] = [];
     const certificateNumbers: CertificateWithNumbers[] = [];
+
+    // Generate proper control numbers instead of using placeholders
+    let nextControlNumbers = { nro_libro: 1, nro_hoja: 1, nro_linea: 1, nro_control: 1 };
+    
+    try {
+      // Get the last control numbers from the database
+      const { data: lastCertificate } = await supabase
+        .from("certificados")
+        .select('nro_libro, nro_hoja, nro_linea, nro_control')
+        .eq("is_active", true)
+        .order('nro_libro', { ascending: false })
+        .order('nro_hoja', { ascending: false })
+        .order('nro_linea', { ascending: false })
+        .order('nro_control', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (lastCertificate) {
+        // Increment control numbers
+        nextControlNumbers = {
+          nro_libro: lastCertificate.nro_libro || 1,
+          nro_hoja: lastCertificate.nro_hoja || 1,
+          nro_linea: (lastCertificate.nro_linea || 0) + 1,
+          nro_control: (lastCertificate.nro_control || 0) + 1
+        };
+        
+        // If line exceeds some threshold, move to next sheet
+        if (nextControlNumbers.nro_linea > 50) {
+          nextControlNumbers.nro_linea = 1;
+          nextControlNumbers.nro_hoja = (lastCertificate.nro_hoja || 0) + 1;
+        }
+        
+        // If sheet exceeds some threshold, move to next book
+        if (nextControlNumbers.nro_hoja > 100) {
+          nextControlNumbers.nro_hoja = 1;
+          nextControlNumbers.nro_libro = (lastCertificate.nro_libro || 0) + 1;
+        }
+      }
+      
+      console.log('Generated control numbers:', nextControlNumbers);
+    } catch (error) {
+      console.warn('Failed to get last control numbers, using defaults:', error);
+    }
 
     for (let i = 0; i < participants.length; i++) {
       const participant = participants[i];
@@ -64,21 +142,32 @@ export async function saveCertificatesToDatabase(
         continue;
       }
 
+      // Generate unique control numbers for this participant
+      const currentControlNumbers = {
+        nro_libro: nextControlNumbers.nro_libro,
+        nro_hoja: nextControlNumbers.nro_hoja,
+        nro_linea: nextControlNumbers.nro_linea + i,
+        nro_control: nextControlNumbers.nro_control + i
+      };
+
       // 2. Prepare certificate record data with proper participant ID
       console.log('Step 2: Preparing certificate record...');
       const certificateRecord: CertificateRecord = {
         id_participante: participantId || null,
-        id_empresa: certificateData.osi_data?.empresa_id || null,
-        id_curso: certificateData.course_topic_data?.id ? parseInt(certificateData.course_topic_data.id) : null,
+        id_empresa: updatedCertificateData.osi_data?.empresa_id || null,
+        id_curso: updatedCertificateData.course_topic_data?.id ? parseInt(updatedCertificateData.course_topic_data.id) : null,
         fecha_emision: today,
-        fecha_vencimiento: certificateData.fecha_vencimiento || null,
-        nro_osi: certificateData.osi_data?.nro_osi ? parseInt(certificateData.osi_data.nro_osi.toString()) : null, // REQUIRED for OSI certificates
-        id_estado: certificateData.id_estado || null,
-        id_facilitador: certificateData.facilitator_id ? parseInt(certificateData.facilitator_id) : null,
-        id_plantilla_certificado: certificateData.id_plantilla_certificado || null,
+        fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
+        nro_osi: updatedCertificateData.osi_data?.nro_osi ? parseInt(updatedCertificateData.osi_data.nro_osi.toString()) : null, // REQUIRED for OSI certificates
+        id_estado: updatedCertificateData.id_estado || null,
+        id_facilitador: updatedCertificateData.facilitator_id ? parseInt(updatedCertificateData.facilitator_id) : null,
+        id_plantilla_certificado: updatedCertificateData.id_plantilla_certificado || null,
         calificacion: participant.score || 0,
-        is_active: true,
-        snapshot_contenido: generateContentSnapshot(certificateData, participant, participantId)
+        is_active: true, // Default value
+        nro_libro: currentControlNumbers.nro_libro,
+        nro_hoja: currentControlNumbers.nro_hoja,
+        nro_linea: currentControlNumbers.nro_linea,
+        nro_control: currentControlNumbers.nro_control
       };
 
       console.log('Prepared certificate record:', JSON.stringify(certificateRecord, null, 2));
@@ -125,7 +214,7 @@ export async function saveCertificatesToDatabase(
 
         // Update the snapshot_contenido with actual control numbers
         const updatedSnapshot = generateContentSnapshotWithControlNumbers(
-          certificateData, 
+          updatedCertificateData, 
           participant, 
           participantId,
           certificateInsert.nro_libro,
@@ -239,8 +328,8 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
     }
 
     // Create new participant
-    const nationality = participant.nacionalidad === 'V' ? 'venezolano' : 
-                       participant.nacionalidad === 'E' ? 'extranjero' : 'venezolano'; // Default to venezolano
+    const nationality = participant.nacionalidad === 'V' ? 'V-' : 
+                       participant.nacionalidad === 'E' ? 'E-' : 'V-'; // Default to V-
     
     console.log('Creating new participant with nationality:', nationality);
     
@@ -274,7 +363,7 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
  * Generate content snapshot for certificate
  */
 function generateContentSnapshot(
-  certificateData: CertificateGeneration, 
+  updatedCertificateData: CertificateGeneration, 
   participant: CertificateParticipant,
   participantId: number
 ): string {
@@ -282,14 +371,14 @@ function generateContentSnapshot(
     // Certificate record fields from certificados table
     certificado: {
       id_participante: participantId, // Use actual participant ID from database
-      id_empresa: certificateData.osi_data?.empresa_id,
-      id_curso: certificateData.course_topic_data?.id,
+      id_empresa: updatedCertificateData.osi_data?.empresa_id,
+      id_curso: updatedCertificateData.course_topic_data?.id,
       fecha_emision: new Date().toLocaleDateString('en-CA'), // Current date in local timezone
-      fecha_vencimiento: certificateData.fecha_vencimiento,
-      nro_osi: certificateData.osi_data?.nro_osi,
-      id_estado: certificateData.id_estado,
-      id_facilitador: certificateData.facilitator_id,
-      id_plantilla_certificado: certificateData.id_plantilla_certificado,
+      fecha_vencimiento: updatedCertificateData.fecha_vencimiento,
+      nro_osi: updatedCertificateData.osi_data?.nro_osi,
+      id_estado: updatedCertificateData.id_estado,
+      id_facilitador: updatedCertificateData.facilitator_id,
+      id_plantilla_certificado: updatedCertificateData.id_plantilla_certificado,
       calificacion: participant.score || 0,
       is_active: true, // Default value
       nro_libro: 1, // Placeholder - will be updated after database insert
@@ -308,44 +397,39 @@ function generateContentSnapshot(
     },
     // Certificate details
     certificado_detalles: {
-      title: certificateData.certificate_title,
-      subtitle: certificateData.certificate_subtitle,
-      course_content: certificateData.course_content,
-      date: certificateData.date,
-      location: certificateData.location,
-      horas_estimadas: certificateData.horas_estimadas,
-      passing_grade: certificateData.passing_grade
+      title: updatedCertificateData.certificate_title,
+      subtitle: updatedCertificateData.certificate_subtitle,
+      course_content: updatedCertificateData.course_content,
+      date: updatedCertificateData.date,
+      location: updatedCertificateData.location,
+      horas_estimadas: updatedCertificateData.horas_estimadas,
+      passing_grade: updatedCertificateData.passing_grade
     },
     // OSI information
     osi: {
-      nro_osi: certificateData.osi_data?.nro_osi,
-      cliente_nombre_empresa: certificateData.osi_data?.cliente_nombre_empresa,
-      tema: certificateData.osi_data?.tema,
-      detalle_capacitacion: certificateData.osi_data?.detalle_capacitacion,
-      empresa_id: certificateData.osi_data?.empresa_id,
-      direccion_ejecucion: certificateData.osi_data?.direccion_ejecucion
+      nro_osi: updatedCertificateData.osi_data?.nro_osi,
+      cliente_nombre_empresa: updatedCertificateData.osi_data?.cliente_nombre_empresa,
+      tema: updatedCertificateData.osi_data?.tema,
+      detalle_capacitacion: updatedCertificateData.osi_data?.detalle_capacitacion,
+      empresa_id: updatedCertificateData.osi_data?.empresa_id,
+      direccion_ejecucion: updatedCertificateData.osi_data?.direccion_ejecucion
     },
     // Course information
     curso: {
-      name: certificateData.course_topic_data?.name,
-      id: certificateData.course_topic_data?.id,
-      contenido: certificateData.course_topic_data?.contenido_curso,
-      nota_aprobatoria: certificateData.course_topic_data?.nota_aprobatoria,
-      emite_carnet: certificateData.course_topic_data?.emite_carnet
+      name: updatedCertificateData.course_topic_data?.name,
+      id: updatedCertificateData.course_topic_data?.id,
+      contenido: updatedCertificateData.course_topic_data?.contenido_curso,
+      nota_aprobatoria: updatedCertificateData.course_topic_data?.nota_aprobatoria,
+      emite_carnet: updatedCertificateData.course_topic_data?.emite_carnet
     },
     // Template and signatures
     plantilla: {
-      id_plantilla_certificado: certificateData.id_plantilla_certificado
+      id_plantilla_certificado: updatedCertificateData.id_plantilla_certificado
     },
     firmas: {
-  facilitator_id: certificateData.facilitator_id,
-  facilitator_data: certificateData.facilitator_data, 
-  sha_signature_id: certificateData.sha_signature_id
-},
-    // Metadata
-    metadatos: {
-      generated_at: new Date().toISOString(),
-      generated_by: "certificate_generation_system"
+      facilitator_id: updatedCertificateData.facilitator_id,
+      facilitator_data: updatedCertificateData.facilitator_data, 
+      sha_signature_id: updatedCertificateData.sha_signature_id
     }
   };
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCertificateById } from '@/app/actions/certificados';
 import { CertificateGenerator } from '@/lib/certificate-generator';
 import { certificateService } from '@/lib/certificate-service';
+import { CertificateGeneration } from '@/types';
 
 export async function GET(
   request: NextRequest,
@@ -28,12 +29,31 @@ export async function GET(
       );
     }
 
+    // Debug logging for control numbers
+    console.log('Certificate object:', JSON.stringify(certificate, null, 2));
+    console.log('Control numbers from certificate:', {
+      nro_libro: certificate.nro_libro,
+      nro_hoja: certificate.nro_hoja,
+      nro_linea: certificate.nro_linea,
+      nro_control: certificate.nro_control
+    });
+
     // Parse snapshot to reconstruct certificate data
     let snapshotData = null;
     if (certificate.snapshot_contenido) {
       try {
         snapshotData = JSON.parse(certificate.snapshot_contenido);
         console.log('Parsed snapshot data:', JSON.stringify(snapshotData, null, 2));
+        
+        // Debug logging for control numbers in snapshot
+        if (snapshotData.certificado) {
+          console.log('Control numbers from snapshot:', {
+            nro_libro: snapshotData.certificado.nro_libro,
+            nro_hoja: snapshotData.certificado.nro_hoja,
+            nro_linea: snapshotData.certificado.nro_linea,
+            nro_control: snapshotData.certificado.nro_control
+          });
+        }
       } catch (error) {
         console.error('Failed to parse snapshot:', error);
         return NextResponse.json(
@@ -61,7 +81,7 @@ export async function GET(
     }
 
     // Reconstruct certificate data from snapshot
-    const certificateData = {
+    const certificateData: CertificateGeneration = {
       id: certificateId.toString(),
       certificate_title: snapshotData.certificado_detalles?.title || 'Certificate',
       certificate_subtitle: snapshotData.certificado_detalles?.subtitle,
@@ -87,10 +107,37 @@ export async function GET(
       facilitator_id: snapshotData.firmas?.facilitator_id?.toString(),
       facilitator_data: snapshotData.firmas?.facilitator_data || null,
       sha_signature_id: snapshotData.firmas?.sha_signature_id?.toString() || null,
+      sha_signature_data: undefined, // Will be populated below
       fecha_vencimiento: snapshotData.certificado?.fecha_vencimiento,
       id_estado: snapshotData.certificado?.id_estado,
       id_plantilla_certificado: snapshotData.plantilla?.id_plantilla_certificado || null
     };
+
+    // Fetch SHA signature data if ID is available
+    if (certificateData.sha_signature_id) {
+      try {
+        const shaSignatureData = await certificateService.getSignatureData(certificateData.sha_signature_id);
+        if (shaSignatureData) {
+          (certificateData as any).sha_signature_data = shaSignatureData;
+          console.log('Fetched SHA signature data for PDF generation:', shaSignatureData);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch SHA signature data for PDF generation:', error);
+      }
+    }
+
+    // Fetch facilitator data if ID is available and not already in data
+    if (certificateData.facilitator_id && !certificateData.facilitator_data) {
+      try {
+        const facilitatorData = await certificateService.getFacilitatorData(certificateData.facilitator_id);
+        if (facilitatorData) {
+          (certificateData as any).facilitator_data = facilitatorData;
+          console.log('Fetched facilitator data for PDF generation:', facilitatorData);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch facilitator data for PDF generation:', error);
+      }
+    }
 
     // Validate reconstructed data
     if (!certificateData.certificate_title || !certificateData.participants[0].name) {
@@ -133,6 +180,15 @@ export async function GET(
     console.log('Generating PDF with template:', templateImage);
     console.log('Participant data:', JSON.stringify(participant, null, 2));
 
+    // Debug logging for control numbers being passed to generator
+    const controlNumbersForGenerator = {
+      nro_libro: certificate.nro_libro,
+      nro_hoja: certificate.nro_hoja,
+      nro_linea: certificate.nro_linea,
+      nro_control: certificate.nro_control
+    };
+    console.log('Control numbers being passed to generator:', controlNumbersForGenerator);
+
     // Generate certificate PDF
     const generator = new CertificateGenerator();
     
@@ -142,13 +198,9 @@ export async function GET(
         certificateData,
         templateImage,
         sealImage,
-        controlNumbers: {
-          nro_libro: certificate.nro_libro,
-          nro_hoja: certificate.nro_hoja,
-          nro_linea: certificate.nro_linea,
-          nro_control: certificate.nro_control
-        },
-        isPreview: false
+        controlNumbers: controlNumbersForGenerator,
+        isPreview: false,
+        certificateId: certificateId // Pass actual certificate ID for QR code
       });
 
       // Return PDF as response

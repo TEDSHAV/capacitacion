@@ -263,9 +263,18 @@ export class CertificatePage {
 
     // Add SHA signature if available
     if (certificateData.sha_signature_id) {
-      const shaSignature = await certificateService.getSignatureData(
-        certificateData.sha_signature_id
-      );
+      let shaSignature = certificateData.sha_signature_data;
+      
+      // If sha_signature_data is not available, fetch it using certificate service
+      if (!shaSignature) {
+        try {
+          shaSignature = await certificateService.getSignatureData(
+            certificateData.sha_signature_id
+          );
+        } catch (error) {
+          console.warn('Failed to fetch SHA signature data:', error);
+        }
+      }
       
       if (shaSignature) {
         await this.addSHASignature(shaSignature, signature);
@@ -281,6 +290,8 @@ export class CertificatePage {
     signatureConfig: typeof this.config.signature
   ): Promise<void> {
     try {
+      console.log('Adding facilitator signature:', facilitator);
+      
       // Add facilitator name
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(8);
@@ -292,30 +303,29 @@ export class CertificatePage {
       );
 
       // Add facilitator signature if available
+      let signatureUrl = null;
+      
+      // Check multiple possible signature fields
       if (facilitator.firma) {
-        // Use the firma field directly if it contains a URL/path
-        if (facilitator.firma.startsWith('/')) {
-          await this.addSignatureImage(
-            facilitator.firma,
-            38,
-            72,
-            signatureConfig.width,
-            signatureConfig.height
-          );
-        }
+        signatureUrl = facilitator.firma;
+      } else if (facilitator.signature_data?.firma) {
+        signatureUrl = facilitator.signature_data.firma;
       }
       
-      // Add SHA signature if available
-      if (facilitator.signature_data?.firma) {
+      if (signatureUrl) {
+        console.log('Adding facilitator signature image:', signatureUrl);
         await this.addSignatureImage(
-          facilitator.signature_data.firma,
+          signatureUrl,
           38,
           72,
           signatureConfig.width,
           signatureConfig.height
         );
+      } else {
+        console.warn('No signature image found for facilitator:', facilitator.name);
       }
     } catch (error) {
+      console.error('Error adding facilitator signature:', error);
       throw error;
     }
   }
@@ -328,16 +338,33 @@ export class CertificatePage {
     signatureConfig: typeof this.config.signature
   ): Promise<void> {
     try {
-      await this.addSignatureImage(
-        shaSignature.url_imagen,
-        signatureConfig.rightX + 10,
-        signatureConfig.y - 45,
-        signatureConfig.width,
-        signatureConfig.height
+      console.log('Adding SHA signature:', shaSignature);
+      
+      // Add SHA signature name
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(8);
+      this.doc.text(
+        shaSignature.nombre?.toUpperCase() || shaSignature.representante_sha?.toUpperCase() || '',
+        signatureConfig.rightX + 35,
+        100,
+        { align: "center" }
       );
-
-     
+      
+      // Add SHA signature image if available
+      if (shaSignature.url_imagen) {
+        console.log('Adding SHA signature image:', shaSignature.url_imagen);
+        await this.addSignatureImage(
+          shaSignature.url_imagen,
+          signatureConfig.rightX + 10,
+          signatureConfig.y - 45,
+          signatureConfig.width,
+          signatureConfig.height
+        );
+      } else {
+        console.warn('No signature image found for SHA:', shaSignature.nombre);
+      }
     } catch (error) {
+      console.error('Error adding SHA signature:', error);
       throw error;
     }
   }
@@ -431,14 +458,52 @@ export class CertificatePage {
     width: number,
     height: number
   ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        this.doc.addImage(img, "PNG", x, y, width, height);
-        resolve();
-      };
-      img.onerror = reject;
-      img.src = imageUrl;
-    });
+    try {
+      // Check if we're in a server environment
+      if (typeof window === 'undefined') {
+        // Server environment - use fs to read image file
+        const fs = require('fs');
+        const path = require('path');
+        
+        // Convert URL to file path
+        let imagePath = imageUrl;
+        if (imageUrl.startsWith('/')) {
+          imagePath = path.join(process.cwd(), 'public', imageUrl);
+        }
+        
+        console.log('Server environment, loading signature from file:', imagePath);
+        
+        // Check if file exists
+        if (fs.existsSync(imagePath)) {
+          // Read file as base64
+          const imageBuffer = fs.readFileSync(imagePath);
+          const base64Image = imageBuffer.toString('base64');
+          
+          // Add base64 image to PDF
+          this.doc.addImage(`data:image/png;base64,${base64Image}`, "PNG", x, y, width, height);
+          console.log('Signature image loaded successfully in server environment');
+        } else {
+          console.warn('Signature image file not found:', imagePath);
+        }
+        return;
+      }
+
+      // Browser environment - use Image constructor
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          this.doc.addImage(img, "PNG", x, y, width, height);
+          resolve();
+        };
+        img.onerror = (error) => {
+          console.error('Failed to load signature image in browser:', imageUrl, error);
+          reject(error);
+        };
+        img.src = imageUrl;
+      });
+    } catch (error) {
+      console.error('Error in addSignatureImage:', error);
+      throw error;
+    }
   }
 }
