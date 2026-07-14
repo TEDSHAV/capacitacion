@@ -26,7 +26,7 @@ export async function createCurso(formData: FormData) {
       .from('catalogo_servicios')
       .insert({
         nombre: titulo,
-        cliente_asociado: cliente_asociado || null,
+        cliente_asociado: cliente_asociado && cliente_asociado.trim() ? cliente_asociado : null,
         contenido_curso: contenido,
         tipo_servicio: 1
       })
@@ -34,6 +34,7 @@ export async function createCurso(formData: FormData) {
       .single();
 
     if (error) {
+      console.error('Database error:', error); // Log actual DB error
       return { error: `Error al crear el curso: ${error.message}` };
     }
 
@@ -70,7 +71,7 @@ export async function updateCurso(id: string, formData: FormData) {
       .from('catalogo_servicios')
       .update({
         nombre: titulo,
-        cliente_asociado: cliente_asociado || null,
+        cliente_asociado: cliente_asociado && cliente_asociado.trim() ? cliente_asociado : null,
         contenido_curso: contenido,
         tipo_servicio: 1
       })
@@ -79,6 +80,7 @@ export async function updateCurso(id: string, formData: FormData) {
       .single();
 
     if (error) {
+      console.error('Database error:', error); // Log actual DB error
       return { error: `Error al actualizar el curso: ${error.message}` };
     }
 

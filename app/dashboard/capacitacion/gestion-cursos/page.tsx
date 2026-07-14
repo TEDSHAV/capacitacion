@@ -21,12 +21,9 @@ export default async function GestionCursosPage() {
   // Fetch existing courses from catalogo_servicios where tipo_servicio = 1
   const { data: courses }: { data: Curso[] | null } = await supabase
     .from("catalogo_servicios")
-    .select(`
-      *,
-      empresas (razon_social)
-    `)
+    .select("*")
     .eq("tipo_servicio", 1)
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: false });
 
   return (
     <GestionCursosClient 
