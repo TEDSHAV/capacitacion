@@ -27,6 +27,7 @@ import {
   updateClienteCredentials,
 } from "@/app/actions/cliente-portal";
 import { getCompaniesAndCities } from "@/app/actions/companies-cities";
+import { getSedesByEmpresaAction, type Sede } from "@/app/actions/sedes";
 import type { ClienteCredential } from "@/types";
 import type { City } from "@/app/actions/companies-cities";
 
@@ -62,7 +63,9 @@ export const ClienteCredentialsModal = ({
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
-  const [newCityId, setNewCityId] = useState<number | null>(null);
+  const [newSedeId, setNewSedeId] = useState<number | null>(null);
+  const [sedes, setSedes] = useState<Sede[]>([]);
+  const [isLoadingSedes, setIsLoadingSedes] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
 
   useEffect(() => {
@@ -88,6 +91,32 @@ export const ClienteCredentialsModal = ({
     }
     loadCities();
   }, []);
+
+  // Fetch sedes when a company is selected
+  useEffect(() => {
+    const fetchSedes = async () => {
+      if (selectedCompanyId) {
+        setIsLoadingSedes(true);
+        try {
+          const result = await getSedesByEmpresaAction(selectedCompanyId);
+          if (result.data) {
+            setSedes(result.data);
+          } else {
+            setSedes([]);
+          }
+        } catch (error) {
+          console.error("Error fetching sedes:", error);
+          setSedes([]);
+        } finally {
+          setIsLoadingSedes(false);
+        }
+      } else {
+        setSedes([]);
+      }
+      setNewSedeId(null);
+    };
+    fetchSedes();
+  }, [selectedCompanyId]);
 
   useEffect(() => {
     if (highlightedIndex < 0 || !dropdownRef.current) return;
@@ -144,7 +173,8 @@ export const ClienteCredentialsModal = ({
       newUsername,
       newPassword,
       newDisplayName || undefined,
-      newCityId || undefined,
+      undefined,
+      newSedeId || undefined,
     );
 
     if (result.error) {
@@ -156,7 +186,7 @@ export const ClienteCredentialsModal = ({
       setNewUsername("");
       setNewPassword("");
       setNewDisplayName("");
-      setNewCityId(null);
+      setNewSedeId(null);
       setCopied(false);
       loadCredentials(selectedCompanyId);
     }
@@ -369,13 +399,19 @@ export const ClienteCredentialsModal = ({
                                   {cred.display_name}
                                 </p>
                               )}
-                              {cred.id_ciudad && (
+                              {cred.id_sede && (
+                                <p className="text-xs text-blue-600 flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {sedes.find((s) => s.id === cred.id_sede)?.nombre_sede || `Sede #${cred.id_sede}`}
+                                </p>
+                              )}
+                              {!cred.id_sede && cred.id_ciudad && (
                                 <p className="text-xs text-blue-600 flex items-center gap-1">
                                   <MapPin className="w-3 h-3" />
                                   {cities.find((c) => c.id === cred.id_ciudad)?.nombre_ciudad || `Ciudad #${cred.id_ciudad}`}
                                 </p>
                               )}
-                              {!cred.id_ciudad && (
+                              {!cred.id_sede && !cred.id_ciudad && (
                                 <p className="text-xs text-gray-400 flex items-center gap-1">
                                   <MapPin className="w-3 h-3" />
                                   Todas las sedes
@@ -466,25 +502,32 @@ export const ClienteCredentialsModal = ({
                     </div>
 
                     <div className="space-y-1">
-                      <Label htmlFor="new-city" className="text-xs">
-                        Sede / Ciudad (opcional)
+                      <Label htmlFor="new-sede" className="text-xs">
+                        Sede (opcional)
                       </Label>
                       <select
-                        id="new-city"
-                        value={newCityId || ""}
-                        onChange={(e) => setNewCityId(e.target.value ? Number(e.target.value) : null)}
-                        className="w-full h-9 px-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        id="new-sede"
+                        value={newSedeId || ""}
+                        onChange={(e) => setNewSedeId(e.target.value ? Number(e.target.value) : null)}
+                        disabled={!selectedCompanyId || isLoadingSedes}
+                        className="w-full h-9 px-3 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
                       >
                         <option value="">Todas las sedes (empresa completa)</option>
-                        {cities.map((city) => (
-                          <option key={city.id} value={city.id}>
-                            {city.nombre_ciudad}
+                        {sedes.map((sede) => (
+                          <option key={sede.id} value={sede.id}>
+                            {sede.nombre_sede}
                           </option>
                         ))}
                       </select>
                       <p className="text-xs text-gray-400">
-                        Si seleccionas una ciudad, esta credencial solo verá certificados de esa sede.
+                        Si seleccionas una sede, esta credencial solo verá certificados de esa sede.
                       </p>
+                      {isLoadingSedes && (
+                        <p className="text-xs text-gray-400">Cargando sedes...</p>
+                      )}
+                      {selectedCompanyId && !isLoadingSedes && sedes.length === 0 && (
+                        <p className="text-xs text-gray-400">Esta empresa no tiene sedes registradas</p>
+                      )}
                     </div>
                   </div>
 

@@ -30,6 +30,7 @@ export async function createClienteCredentials(
   password: string,
   displayName?: string,
   cityId?: number | null,
+  sedeId?: number | null,
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createAdminClient();
   const passwordHash = hashPassword(password);
@@ -44,6 +45,7 @@ export async function createClienteCredentials(
       is_active: true,
       updated_at: new Date().toISOString(),
       id_ciudad: cityId || null,
+      id_sede: sedeId || null,
     })
     .select()
     .single();
@@ -185,6 +187,7 @@ export async function loginCliente(
     username: creds.username,
     display_name: creds.display_name,
     id_ciudad: creds.id_ciudad ?? null,
+    id_sede: creds.id_sede ?? null,
   };
 
   const cookieStore = await cookies();
@@ -223,6 +226,11 @@ async function getSessionCityId(): Promise<number | null> {
   return session?.id_ciudad ?? null;
 }
 
+async function getSessionSedeId(): Promise<number | null> {
+  const session = await getClienteSession();
+  return session?.id_sede ?? null;
+}
+
 export async function getClienteCertificates(
   empresaId: number,
   filters: ClienteCertificateFilters,
@@ -233,6 +241,7 @@ export async function getClienteCertificates(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
+  const sessionSedeId = await getSessionSedeId();
   const supabase = await createClient();
 
   // When filtering by OSI number, query directly since the RPC doesn't support nro_osi
@@ -254,7 +263,8 @@ export async function getClienteCertificates(
       .eq("is_active", true)
       .eq("nro_osi", filters.nroOsi);
 
-    if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
+    if (sessionSedeId) query = query.eq("id_sede", sessionSedeId);
+    else if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
 
     if (filters.searchTerm) {
       query = query.or(
@@ -327,7 +337,8 @@ export async function getClienteCertificates(
     p_limit: itemsPerPage,
   };
 
-  if (sessionCityId) rpcParams.p_city_id = sessionCityId;
+  if (sessionSedeId) rpcParams.p_sede_id = sessionSedeId;
+  else if (sessionCityId) rpcParams.p_city_id = sessionCityId;
   if (filters.searchTerm) rpcParams.p_search_term = filters.searchTerm;
   if (filters.courseId) rpcParams.p_course_id = filters.courseId;
   if (filters.stateId) rpcParams.p_state_id = filters.stateId;
@@ -357,6 +368,7 @@ export async function getClienteCarnets(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
+  const sessionSedeId = await getSessionSedeId();
   const supabase = await createClient();
 
   const from = (page - 1) * itemsPerPage;
@@ -368,13 +380,15 @@ export async function getClienteCarnets(
       `id, nombre_participante, cedula_participante, titulo_curso, 
        fecha_emision, fecha_vencimiento, is_active, id_empresa, 
        id_certificado, id_osi,
-       certificados!inner(id_estado, fecha_emision, nro_osi, id_ciudad)`,
+       certificados!inner(id_estado, fecha_emision, nro_osi, id_ciudad, id_sede)`,
       { count: "exact" },
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
 
-  if (sessionCityId) {
+  if (sessionSedeId) {
+    query = query.eq("certificados.id_sede", sessionSedeId);
+  } else if (sessionCityId) {
     query = query.eq("certificados.id_ciudad", sessionCityId);
   }
 
@@ -417,6 +431,7 @@ export async function getClienteMetrics(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
+  const sessionSedeId = await getSessionSedeId();
   const supabase = await createClient();
 
   // Count total certificates for this company
@@ -425,7 +440,8 @@ export async function getClienteMetrics(
     .select("id", { count: "exact", head: true })
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
-  if (sessionCityId) certCountQuery = certCountQuery.eq("id_ciudad", sessionCityId);
+  if (sessionSedeId) certCountQuery = certCountQuery.eq("id_sede", sessionSedeId);
+  else if (sessionCityId) certCountQuery = certCountQuery.eq("id_ciudad", sessionCityId);
   const { count: certCount, error: certError } = await certCountQuery;
 
   if (certError) {
@@ -436,14 +452,16 @@ export async function getClienteMetrics(
   let carnetCountQuery = supabase
     .from("carnets")
     .select(
-      sessionCityId
-        ? "id, certificados!inner(id_ciudad)"
+      (sessionSedeId || sessionCityId)
+        ? "id, certificados!inner(id_ciudad, id_sede)"
         : "id",
       { count: "exact", head: true },
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
-  if (sessionCityId) {
+  if (sessionSedeId) {
+    carnetCountQuery = carnetCountQuery.eq("certificados.id_sede", sessionSedeId);
+  } else if (sessionCityId) {
     carnetCountQuery = carnetCountQuery.eq("certificados.id_ciudad", sessionCityId);
   }
   const { count: carnetCount, error: carnetError } = await carnetCountQuery;
@@ -458,7 +476,8 @@ export async function getClienteMetrics(
     .select("id_participante", { count: "exact", head: true })
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
-  if (sessionCityId) participantCountQuery = participantCountQuery.eq("id_ciudad", sessionCityId);
+  if (sessionSedeId) participantCountQuery = participantCountQuery.eq("id_sede", sessionSedeId);
+  else if (sessionCityId) participantCountQuery = participantCountQuery.eq("id_ciudad", sessionCityId);
   const { count: participantCount, error: participantError } =
     await participantCountQuery;
 
@@ -474,7 +493,8 @@ export async function getClienteMetrics(
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
-  if (sessionCityId) byCourseQuery = byCourseQuery.eq("id_ciudad", sessionCityId);
+  if (sessionSedeId) byCourseQuery = byCourseQuery.eq("id_sede", sessionSedeId);
+  else if (sessionCityId) byCourseQuery = byCourseQuery.eq("id_ciudad", sessionCityId);
   const { data: byCourseData, error: byCourseError } = await byCourseQuery;
 
   const courseMap = new Map<number, { name: string; count: number }>();
@@ -542,6 +562,7 @@ export async function getClienteRecentBatches(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
+  const sessionSedeId = await getSessionSedeId();
   const supabase = await createClient();
 
   // Fetch certificates grouped by nro_osi — get all for this company first
@@ -553,7 +574,8 @@ export async function getClienteRecentBatches(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("nro_osi", "is", null);
-  if (sessionCityId) batchQuery = batchQuery.eq("id_ciudad", sessionCityId);
+  if (sessionSedeId) batchQuery = batchQuery.eq("id_sede", sessionSedeId);
+  else if (sessionCityId) batchQuery = batchQuery.eq("id_ciudad", sessionCityId);
   const { data, error } = await batchQuery.order("fecha_emision", { ascending: false });
 
   if (error) {
@@ -612,6 +634,7 @@ export async function getClienteBatchesFiltered(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
+  const sessionSedeId = await getSessionSedeId();
   const supabase = await createClient();
 
   let query = supabase
@@ -625,7 +648,8 @@ export async function getClienteBatchesFiltered(
     .eq("is_active", true)
     .not("nro_osi", "is", null);
 
-  if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
+  if (sessionSedeId) query = query.eq("id_sede", sessionSedeId);
+  else if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
   if (filters.cityId) query = query.eq("id_ciudad", filters.cityId);
 
   if (filters.courseId) query = query.eq("id_curso", filters.courseId);
@@ -707,6 +731,7 @@ export async function getClienteFilterOptions(
     return { error: "No autorizado" };
   }
   const sessionCityId = await getSessionCityId();
+  const sessionSedeId = await getSessionSedeId();
   const supabase = await createClient();
 
   // Get distinct courses for this company's certificates
@@ -716,7 +741,8 @@ export async function getClienteFilterOptions(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("id_curso", "is", null);
-  if (sessionCityId) certDataQuery = certDataQuery.eq("id_ciudad", sessionCityId);
+  if (sessionSedeId) certDataQuery = certDataQuery.eq("id_sede", sessionSedeId);
+  else if (sessionCityId) certDataQuery = certDataQuery.eq("id_ciudad", sessionCityId);
   const { data: certData, error: certError } = await certDataQuery;
 
   if (certError) {
@@ -743,7 +769,8 @@ export async function getClienteFilterOptions(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("id_estado", "is", null);
-  if (sessionCityId) stateDataQuery = stateDataQuery.eq("id_ciudad", sessionCityId);
+  if (sessionSedeId) stateDataQuery = stateDataQuery.eq("id_sede", sessionSedeId);
+  else if (sessionCityId) stateDataQuery = stateDataQuery.eq("id_ciudad", sessionCityId);
   const { data: stateData, error: stateError } = await stateDataQuery;
 
   if (stateError) {
@@ -770,7 +797,8 @@ export async function getClienteFilterOptions(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("id_ciudad", "is", null);
-  if (sessionCityId) cityDataQuery = cityDataQuery.eq("id_ciudad", sessionCityId);
+  if (sessionSedeId) cityDataQuery = cityDataQuery.eq("id_sede", sessionSedeId);
+  else if (sessionCityId) cityDataQuery = cityDataQuery.eq("id_ciudad", sessionCityId);
   const { data: cityData, error: cityError } = await cityDataQuery;
 
   if (cityError) {

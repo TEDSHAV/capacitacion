@@ -367,6 +367,7 @@ export interface CertificateGeneration {
   manual_mode?: boolean; // Whether using manual OSI input mode
   manual_osi_data?: ManualOSIInput; // Manual OSI input data when in manual mode
   is_custom?: boolean; // Whether this is a custom-generated certificate (affects seal, SHA label, duration prefix)
+  id_sede?: number | null; // Sede ID for certificate record (from OSI or manual selection)
 }
 
 export interface CertificateParticipant {
@@ -708,6 +709,8 @@ export interface CertificateOSI {
   nro_horas?: number | null;
   id_estado?: number | null;
   id_ciudad?: number | null;
+  id_sede?: number | null; // Sede ID from empresa_sedes (via v_osi_formato_completo.id_sede)
+  sede?: string | null; // Sede name from v_osi_formato_completo.sede
   id_facilitador?: number | null; // Facilitator ID for certificate generation
   detalle_capacitacion?: string;
   detalle_sesion?: string;
@@ -723,7 +726,9 @@ export interface ManualOSIInput {
   osi_number?: string; // Manual OSI number (no validation)
   company_id?: string; // Selected from empresas dropdown (string because Empresa.id is string)
   company_name?: string; // Manual company name input
-  city_id?: number; // Selected from cat_ciudades dropdown
+  city_id?: number; // Selected from cat_ciudades dropdown (used for document generation)
+  sede_id?: number; // Selected from empresa_sedes dropdown (optional, for portal filtering)
+  sede_nombre?: string; // Sede name for display/snapshot
 }
 
 export interface CertificateTemplateProps {
@@ -1663,6 +1668,7 @@ export interface ClienteCredential {
   created_at: string | null;
   updated_at: string | null;
   id_ciudad?: number | null;
+  id_sede?: number | null;
 }
 
 export interface ClienteSession {
@@ -1672,6 +1678,7 @@ export interface ClienteSession {
   username: string;
   display_name: string | null;
   id_ciudad?: number | null;
+  id_sede?: number | null;
 }
 
 export interface ClienteCertificateFilters {

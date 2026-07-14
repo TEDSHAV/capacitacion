@@ -463,6 +463,7 @@ export type Database = {
           id_participante: number | null
           id_plantilla_carnet: number | null
           id_plantilla_certificado: number | null
+          id_sede: number | null
           is_active: boolean
           nro_control: number
           nro_hoja: number | null
@@ -486,6 +487,7 @@ export type Database = {
           id_participante?: number | null
           id_plantilla_carnet?: number | null
           id_plantilla_certificado?: number | null
+          id_sede?: number | null
           is_active?: boolean
           nro_control: number
           nro_hoja?: number | null
@@ -509,6 +511,7 @@ export type Database = {
           id_participante?: number | null
           id_plantilla_carnet?: number | null
           id_plantilla_certificado?: number | null
+          id_sede?: number | null
           is_active?: boolean
           nro_control?: number
           nro_hoja?: number | null
@@ -524,6 +527,13 @@ export type Database = {
             columns: ["id_ciudad"]
             isOneToOne: false
             referencedRelation: "cat_ciudades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_id_sede_fkey"
+            columns: ["id_sede"]
+            isOneToOne: false
+            referencedRelation: "empresa_sedes"
             referencedColumns: ["id"]
           },
           {
@@ -598,6 +608,7 @@ export type Database = {
           empresa_id: number
           id: number
           id_ciudad: number | null
+          id_sede: number | null
           is_active: boolean | null
           password_hash: string
           updated_at: string | null
@@ -609,6 +620,7 @@ export type Database = {
           empresa_id: number
           id?: number
           id_ciudad?: number | null
+          id_sede?: number | null
           is_active?: boolean | null
           password_hash: string
           updated_at?: string | null
@@ -620,6 +632,7 @@ export type Database = {
           empresa_id?: number
           id?: number
           id_ciudad?: number | null
+          id_sede?: number | null
           is_active?: boolean | null
           password_hash?: string
           updated_at?: string | null
@@ -645,6 +658,13 @@ export type Database = {
             columns: ["id_ciudad"]
             isOneToOne: false
             referencedRelation: "cat_ciudades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cliente_credenciales_id_sede_fkey"
+            columns: ["id_sede"]
+            isOneToOne: false
+            referencedRelation: "empresa_sedes"
             referencedColumns: ["id"]
           },
         ]

@@ -12,6 +12,7 @@ export interface CustomCertificateRecord {
   id_empresa?: number | null;
   id_curso?: number | null;
   id_ciudad?: number | null;
+  id_sede?: number | null;
   fecha_emision?: string | null;
   fecha_vencimiento?: string | null;
   nro_osi?: number | null;
@@ -181,6 +182,8 @@ function generateCustomSnapshot(
       cliente_nombre_empresa: certificateData.osi_data?.cliente_nombre_empresa,
       tipo_servicio: certificateData.osi_data?.tipo_servicio,
       id_ciudad: certificateData.osi_data?.id_ciudad || null,
+      id_sede: certificateData.osi_data?.id_sede || null,
+      sede: certificateData.osi_data?.sede || null,
       empresa_id: certificateData.osi_data?.empresa_id,
       direccion_ejecucion: certificateData.osi_data?.direccion_ejecucion,
     },
@@ -293,6 +296,7 @@ export async function saveCustomCertificatesToDatabase(
           ? parseInt(updatedCertificateData.course_topic_data.id)
           : null,
         id_ciudad: updatedCertificateData.osi_data?.id_ciudad || null,
+        id_sede: updatedCertificateData.osi_data?.id_sede || null,
         fecha_emision: batchEmissionDate,
         fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
         nro_osi: updatedCertificateData.osi_data?.nro_osi

@@ -197,6 +197,8 @@ export function GeneracionPersonalizadaClient({
       fecha_servicio: undefined,
       fecha_emision: undefined,
       id_ciudad: manualData.city_id,
+      id_sede: manualData.sede_id || null,
+      sede: manualData.sede_nombre || null,
       is_active: true,
       has_certificates:
         manualOSIHasCourseCertificates || manualOSIHasAnyCertificates,
@@ -261,6 +263,7 @@ export function GeneracionPersonalizadaClient({
       manual_mode: true,
       manual_osi_data: manualOSIData,
       is_custom: true,
+      id_sede: manualOSIData.sede_id || null,
     };
   };
 

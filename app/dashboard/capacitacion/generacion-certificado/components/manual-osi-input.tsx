@@ -6,6 +6,7 @@ import {
   checkOSIHasAnyCertificatesAction,
   checkOSIHasCertificatesForCourseAction,
 } from "@/app/actions/certificados";
+import { getSedesByEmpresaAction, type Sede } from "@/app/actions/sedes";
 
 interface ManualOSIInputProps {
   companies: Empresa[];
@@ -37,6 +38,8 @@ export function ManualOSIInput({
   const [hasCourseCertificates, setHasCourseCertificates] = useState(false);
   const [certificateCount, setCertificateCount] = useState(0);
   const [isCheckingCertificates, setIsCheckingCertificates] = useState(false);
+  const [sedes, setSedes] = useState<Sede[]>([]);
+  const [isLoadingSedes, setIsLoadingSedes] = useState(false);
 
   // Debounced effect to check certificates when OSI number is typed
   useEffect(() => {
@@ -64,6 +67,35 @@ export function ManualOSIInput({
 
     return () => clearTimeout(timer);
   }, [data.osi_number, onHasAnyCertificatesChange]);
+
+  // Fetch sedes when company is selected
+  useEffect(() => {
+    const fetchSedes = async () => {
+      if (data.company_id && data.company_id !== "manual") {
+        setIsLoadingSedes(true);
+        try {
+          const result = await getSedesByEmpresaAction(Number(data.company_id));
+          if (result.data) {
+            setSedes(result.data);
+          } else {
+            setSedes([]);
+          }
+        } catch (error) {
+          console.error("Error fetching sedes:", error);
+          setSedes([]);
+        } finally {
+          setIsLoadingSedes(false);
+        }
+      } else {
+        setSedes([]);
+      }
+      // Clear selected sede when company changes
+      onDataChange("sede_id", undefined);
+      onDataChange("sede_nombre", undefined);
+    };
+    fetchSedes();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.company_id]);
 
   // Effect to check course-specific certificates when course is selected
   useEffect(() => {
@@ -303,6 +335,48 @@ export function ManualOSIInput({
         {hasAttemptedSubmission && !data.city_id && (
           <p className="text-xs text-amber-700 font-medium mt-1">
             La ciudad es requerida
+          </p>
+        )}
+      </div>
+
+      {/* Sede Selection (optional) */}
+      <div>
+        <label
+          htmlFor="sede"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Sede (opcional)
+        </label>
+        <select
+          id="sede"
+          value={data.sede_id || ""}
+          onChange={(e) => {
+            const sedeId = e.target.value ? Number(e.target.value) : undefined;
+            const sede = sedes.find((s) => s.id === sedeId);
+            onDataChange("sede_id", sedeId);
+            onDataChange("sede_nombre", sede?.nombre_sede || undefined);
+          }}
+          disabled={!data.company_id || data.company_id === "manual" || isLoadingSedes}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+        >
+          <option value="">Todas las sedes (empresa completa)</option>
+          {sedes.map((sede) => (
+            <option key={sede.id} value={sede.id}>
+              {sede.nombre_sede}
+            </option>
+          ))}
+        </select>
+        {isLoadingSedes && (
+          <p className="text-xs text-gray-400 mt-1">Cargando sedes...</p>
+        )}
+        {!data.company_id && (
+          <p className="text-xs text-gray-400 mt-1">
+            Selecciona una empresa para ver sus sedes disponibles
+          </p>
+        )}
+        {data.company_id && data.company_id !== "manual" && !isLoadingSedes && sedes.length === 0 && (
+          <p className="text-xs text-gray-400 mt-1">
+            Esta empresa no tiene sedes registradas
           </p>
         )}
       </div>

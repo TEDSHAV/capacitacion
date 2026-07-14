@@ -25,6 +25,8 @@ export interface CertificateRecord {
 
   id_ciudad?: number | null;
 
+  id_sede?: number | null;
+
   fecha_emision?: string | null;
 
   fecha_vencimiento?: string | null;
@@ -357,6 +359,8 @@ export async function saveCertificatesToDatabase(
           : null, // FK → catalogo_servicios
 
         id_ciudad: updatedCertificateData.osi_data?.id_ciudad || null,
+
+        id_sede: updatedCertificateData.osi_data?.id_sede || null,
 
         fecha_emision: batchEmissionDate,
 
@@ -1172,6 +1176,10 @@ function generateContentSnapshotWithControlNumbers(
       ejecutivo_negocios: certificateData.osi_data?.ejecutivo_negocios,
 
       id_ciudad: certificateData.osi_data?.id_ciudad || null,
+
+      id_sede: certificateData.osi_data?.id_sede || null,
+
+      sede: certificateData.osi_data?.sede || null,
 
       detalle_capacitacion: certificateData.osi_data?.detalle_capacitacion,
 
