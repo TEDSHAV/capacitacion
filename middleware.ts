@@ -44,11 +44,14 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Protect all /dashboard routes; unauthenticated users go to the shell login
+  // in production, or the local /login page in development.
   if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
-    const shellLoginUrl = process.env.NEXT_PUBLIC_SHELL_URL
-      ? `${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`
-      : new URL("/login", request.url).toString();
-    return NextResponse.redirect(shellLoginUrl);
+    const isProduction = process.env.NODE_ENV === "production";
+    const loginUrl =
+      isProduction && process.env.NEXT_PUBLIC_SHELL_URL
+        ? `${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`
+        : new URL("/login", request.url).toString();
+    return NextResponse.redirect(loginUrl);
   }
 
   return supabaseResponse;
