@@ -615,7 +615,7 @@ export type Database = {
           empresa_id: number
           id: number
           id_ciudad: number | null
-          id_sede: number | null
+          id_sede: number[] | null
           is_active: boolean | null
           password_hash: string
           updated_at: string | null
@@ -627,7 +627,7 @@ export type Database = {
           empresa_id: number
           id?: number
           id_ciudad?: number | null
-          id_sede?: number | null
+          id_sede?: number[] | null
           is_active?: boolean | null
           password_hash: string
           updated_at?: string | null
@@ -639,7 +639,7 @@ export type Database = {
           empresa_id?: number
           id?: number
           id_ciudad?: number | null
-          id_sede?: number | null
+          id_sede?: number[] | null
           is_active?: boolean | null
           password_hash?: string
           updated_at?: string | null
@@ -666,20 +666,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cat_ciudades"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cliente_credenciales_id_sede_fkey"
-            columns: ["id_sede"]
-            isOneToOne: false
-            referencedRelation: "empresa_sedes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cliente_credenciales_id_sede_fkey"
-            columns: ["id_sede"]
-            isOneToOne: false
-            referencedRelation: "v_osi_formato_completo"
-            referencedColumns: ["id_sede"]
           },
         ]
       }
@@ -6088,6 +6074,7 @@ export type Database = {
           ejecutivo_nombre: string | null
           evento_at: string | null
           evento_fecha: string | null
+          fecha_emision: string | null
           id_ecc: number | null
           id_estatus: number | null
           id_presupuesto: number | null
@@ -6152,13 +6139,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_funnel_comercial_detallado"
             referencedColumns: ["trato_id"]
-          },
-          {
-            foreignKeyName: "tratos_id_empleado_atiende_fkey"
-            columns: ["ejecutivo_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -6279,6 +6259,10 @@ export type Database = {
           monto_descartado: number
           monto_presupuestado: number
         }[]
+      }
+      fn_agregar_logro_operativo: {
+        Args: { p_fin: string; p_inicio: string }
+        Returns: number
       }
       fn_calcular_cadena_metas: {
         Args: {
