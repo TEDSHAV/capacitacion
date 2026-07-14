@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCarnetById } from '@/app/actions/carnets';
 import { CarnetGenerator } from '@/lib/carnet-generator';
+import { QRService } from '@/lib/qr-service';
 
 export async function GET(
   request: NextRequest,
@@ -35,6 +36,23 @@ export async function GET(
     const carnet = carnetResult.data;
     console.log('✅ Carnet found:', { id: carnet.id, participant: carnet.nombre_participante });
 
+    // Generate QR code for carnet (same as certificate)
+    let qrDataURL: string | undefined;
+    try {
+      console.log('🔄 Generating QR code for carnet...');
+      const qrData = QRService.generateQRData(carnet.id_certificado!);
+      qrDataURL = await QRService.generateQRDataURL({
+        data: qrData,
+        size: 60,
+        level: 'M',
+        includeMargin: true
+      });
+      console.log('✅ QR code generated for carnet');
+    } catch (qrError) {
+      console.warn('⚠️ Could not generate QR code for carnet:', qrError);
+      // Continue without QR code - carnet generator will use placeholder
+    }
+
     // Generate carnet PDF
     console.log('🎨 Initializing carnet generator...');
     const generator = new CarnetGenerator();
@@ -60,7 +78,8 @@ export async function GET(
       },
       templateImage: '/templates/carnet.png',
       isPreview: false,
-      carnetId: carnet.id
+      carnetId: carnet.id,
+      qrDataURL // Pass the generated QR code data URL
     };
 
     console.log('🔄 Generating carnet PDF with request:', {
