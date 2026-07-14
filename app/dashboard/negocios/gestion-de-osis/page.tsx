@@ -74,7 +74,8 @@ export default function GestionDeOSIsPage() {
         (osi.nro_osi && osi.nro_osi.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (osi.cliente_nombre_empresa && osi.cliente_nombre_empresa.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (osi.tipo_servicio && osi.tipo_servicio.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (osi.nro_presupuesto && osi.nro_presupuesto.toLowerCase().includes(searchTerm.toLowerCase()))
+        (osi.nro_presupuesto && osi.nro_presupuesto.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (osi.tema && osi.tema.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     }
 

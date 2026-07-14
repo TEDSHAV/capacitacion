@@ -279,7 +279,6 @@ export default function OSIDetailPage() {
         fecha_ejecucion4: formData.fecha_ejecucion4 || null,
         fecha_ejecucion5: formData.fecha_ejecucion5 || null,
         participantes_max: Number(formData.participantes_max) || null,
-        detalle_sesion: formData.detalle_sesion?.trim() || null,
         certificado_impreso: Boolean(formData.certificado_impreso),
         carnet_impreso: Boolean(formData.carnet_impreso),
         observaciones_adicionales: formData.observaciones_adicionales?.trim() || '',
@@ -308,15 +307,33 @@ export default function OSIDetailPage() {
           const selectedEmpresa = empresas.find(e => e.razon_social === formData.cliente_nombre_empresa)
           return selectedEmpresa ? selectedEmpresa.codigo_cliente : null;
         })(),
-        persona_contacto_id: Number(formData.persona_contacto_id) || null
+        persona_contacto_id: formData.persona_contacto_id ? Number(formData.persona_contacto_id) : null
       }
       
+      console.log('Data to save:', dataToSave)
+      console.log('Checking specific fields that might cause type errors:')
+      console.log('empresa_id:', dataToSave.empresa_id, typeof dataToSave.empresa_id)
+      console.log('ejecutivo_negocios:', dataToSave.ejecutivo_negocios, typeof dataToSave.ejecutivo_negocios)
+      console.log('persona_contacto_id:', dataToSave.persona_contacto_id, typeof dataToSave.persona_contacto_id)
+      console.log('nro_sesiones:', dataToSave.nro_sesiones, typeof dataToSave.nro_sesiones)
+      console.log('participantes_max:', dataToSave.participantes_max, typeof dataToSave.participantes_max)
+      
       if (isNew) {
-        const { error } = await supabase.from("osi").insert([dataToSave])
-        if (error) throw error
+        console.log('Attempting to insert new OSI...')
+        const { data, error } = await supabase.from("osi").insert([dataToSave]).select()
+        console.log('Insert result:', { data, error })
+        if (error) {
+          console.error('Insert error details:', error)
+          throw error
+        }
       } else if (osi) {
-        const { error } = await supabase.from("osi").update(dataToSave).eq("id", osi.id)
-        if (error) throw error
+        console.log('Attempting to update OSI:', osi.id)
+        const { data, error } = await supabase.from("osi").update(dataToSave).eq("id", osi.id).select()
+        console.log('Update result:', { data, error })
+        if (error) {
+          console.error('Update error details:', error)
+          throw error
+        }
       }
       
       router.push('/dashboard/negocios/gestion-de-osis')
@@ -361,7 +378,7 @@ export default function OSIDetailPage() {
 
     if (nro_osi === 'new') {
       setIsNew(true)
-      setIsEditing(true) // New OSIs start in edit mode
+      setIsEditing(false) // New OSIs should be in creation mode, not editing mode
       // Set default values for new OSI
       const defaultFormData = {
         id: 0,
@@ -384,7 +401,7 @@ export default function OSIDetailPage() {
         fecha_ejecucion5: null,
         participantes_max: null,
         detalle_sesion: '',
-        certificado_impreso: false,
+        certificado_impreso: true, // Default to true
         carnet_impreso: false,
         observaciones_adicionales: '',
         detalle_capacitacion: '',
@@ -477,6 +494,19 @@ export default function OSIDetailPage() {
               {isNew ? 'New OSI' : `OSI ${osi?.nro_osi || ''}`}
             </h1>
           </div>
+          
+          {/* Error Display */}
+          {error && (
+            <div className="px-6 py-4 bg-red-50 border-b border-red-200">
+              <div className="flex items-center">
+                <svg className="h-5 w-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-red-700 font-medium">{error}</span>
+              </div>
+            </div>
+          )}
+          
           <div className="p-6 space-y-6">
             <OSIForm
               initialData={formData}
@@ -489,6 +519,7 @@ export default function OSIDetailPage() {
               empresas={empresas}
               servicios={servicios}
               usuarios={usuarios}
+              contactos={contactos}
               filteredEmpresas={filteredEmpresas}
               catalogoServicios={catalogoServicios}
               filteredCatalogoServicios={filteredCatalogoServicios}

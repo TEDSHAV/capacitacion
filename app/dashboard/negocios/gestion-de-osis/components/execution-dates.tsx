@@ -72,21 +72,6 @@ const ExecutionDates = ({
             )
           })}
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Detalle de Sesión
-          </label>
-          <textarea
-            value={formData.detalle_sesion || ""}
-            onChange={(e) => updateFormData("detalle_sesion", e.target.value)}
-            disabled={!isEditing && !isNew}
-            tabIndex={!isEditing && !isNew ? -1 : 0}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            rows={3}
-            placeholder="Detalle de la sesión..."
-          />
-        </div>
       </div>
     </div>
   );
