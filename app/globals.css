@@ -134,3 +134,81 @@ button[class*="text-blue-600"][class*="hover:text-blue-900"] {
   background-color: transparent !important;
   background: none !important;
 }
+
+/* Custom scrollbar styling for sidebar */
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Firefox scrollbar styling */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+}
+
+/* Sidebar micro-interactions */
+.sidebar-link {
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar-link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.sidebar-link:hover::before {
+  left: 100%;
+}
+
+/* Smooth height transitions for expanding content */
+.sidebar-expand {
+  transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+  overflow: hidden;
+}
+
+/* Neon border effect for active sidebar items */
+.sidebar-neon-active {
+  border: 2px solid #60a5fa;
+  box-shadow: 
+    0 0 15px rgba(96, 165, 250, 0.8),
+    0 0 30px rgba(96, 165, 250, 0.6),
+    0 0 45px rgba(96, 165, 250, 0.4),
+    inset 0 0 15px rgba(96, 165, 250, 0.2);
+  position: relative;
+}
+
+.sidebar-neon-active::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #60a5fa, #3b82f6, #60a5fa);
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0.8;
+  filter: blur(8px);
+}

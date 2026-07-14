@@ -52,11 +52,14 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
 
   // Memoize department click handler
   const handleDepartmentClick = useCallback((nombreDepartamento: string) => {
+    // Always navigate to the department page
+    router.push(`/dashboard/${nombreDepartamento}`);
+    
+    // Toggle expansion state
     if (expandedDepartment === nombreDepartamento) {
       setExpandedDepartment(null);
     } else {
       setExpandedDepartment(nombreDepartamento);
-      router.push(`/dashboard/${nombreDepartamento}`);
     }
   }, [router, expandedDepartment]);
 
@@ -105,26 +108,26 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
 
   return (
     <div 
-      className={`bg-gray-900 text-white h-screen flex flex-col transition-all duration-300 ${
+      className={`bg-gradient-to-b from-gray-900 to-gray-800 text-white h-screen flex flex-col transition-all duration-300 ease-in-out ${
         isCollapsed ? 'w-16' : 'w-64'
-      }`}
+      } shadow-2xl`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {/* Top Section - Same height as navbar (h-20) */}
-      <div className={`border-b border-gray-800 flex items-center justify-center h-20 ${
+      <div className={`border-b border-gray-700/50 flex items-center justify-center h-20 backdrop-blur-sm bg-gray-900/80 ${
         isCollapsed ? 'px-2' : 'px-4'
       }`}>
         {/* Back button - only shown when user is authenticated and not on dashboard */}
         {user && pathname !== '/dashboard' ? (
           <button
             onClick={handleBackClick}
-            className={`p-2 rounded-md hover:bg-gray-800 transition-colors duration-200 flex items-center justify-center ${
+            className={`p-2 rounded-md hover:bg-gray-700/50 transition-all duration-300 flex items-center justify-center group ${
               isCollapsed ? 'w-8 h-8' : 'w-12 h-12'
-            }`}
+            } hover:shadow-lg hover:transform hover:scale-105`}
             title="Volver"
           >
-            <ChevronLeft className={`text-white ${isCollapsed ? 'w-4 h-4' : 'w-5 h-5'}`} />
+            <ChevronLeft className={`text-white transition-transform duration-200 group-hover:scale-110 ${isCollapsed ? 'w-4 h-4' : 'w-5 h-5'}`} />
           </button>
         ) : (
           /* Invisible spacer to maintain height symmetry */
@@ -133,21 +136,23 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
       </div>  
       
       {/* Navigation Section */}
-      <div className={`flex-1 overflow-y-auto ${
+      <div className={`flex-1 overflow-y-auto sidebar-scrollbar ${
         isCollapsed ? 'p-2' : 'p-6'
       }`}>
         {/* Dashboard Home Link */}
         <button
           onClick={handleDashboardClick}
-          className={`w-full text-left rounded-lg mb-2 transition-colors duration-200 cursor-pointer flex items-center ${
+          className={`sidebar-link w-full text-left rounded-lg mb-2 transition-all duration-300 cursor-pointer flex items-center group ${
             pathname === '/dashboard' 
-              ? 'bg-blue-600 text-white' 
-              : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-          } ${isCollapsed ? 'w-8 h-8 p-1 justify-center' : 'px-2 py-1 h-8'}`}
+              ? 'bg-blue-600 text-white transform scale-105 sidebar-neon-active' 
+              : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white hover:shadow-lg hover:transform hover:scale-105'
+          } ${isCollapsed ? 'w-8 h-8 p-1 justify-center' : 'px-3 py-2 h-10'}`}
           title={isCollapsed ? "Inicio" : ""}
         >
-          <Home className="w-4 h-4 flex-shrink-0" />
-          {!isCollapsed && <span className="ml-3">Inicio</span>}
+          <Home className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${
+            pathname === '/dashboard' ? 'scale-110' : 'group-hover:scale-110'
+          }`} />
+          {!isCollapsed && <span className="ml-3 font-medium">Inicio</span>}
         </button>
 
         {/* Department Links */}
@@ -167,21 +172,27 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
                       router.push(`/dashboard/${department.nombre}`);
                     }
                   }}
-                  className={`w-full text-left rounded-lg transition-all duration-200 cursor-pointer flex items-center ${
+                  className={`sidebar-link w-full text-left rounded-lg transition-all duration-300 cursor-pointer flex items-center group ${
                     isActive 
-                      ? 'bg-blue-600 text-white shadow-lg' 
-                      : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-                  } ${isCollapsed ? 'w-8 h-8 p-1 justify-center' : 'px-2 py-1 h-8'}`}
+                      ? 'bg-blue-600 text-white transform scale-105 sidebar-neon-active' 
+                      : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white hover:shadow-lg hover:transform hover:scale-105'
+                  } ${isCollapsed ? 'w-8 h-8 p-1 justify-center' : 'px-3 py-2 h-10'}`}
                   title={isCollapsed ? department.nombre : ""}
                 >
                   {/* Icon based on department name */}
                   <div className="flex-shrink-0">
                     {department.nombre === 'capacitacion' ? (
-                      <FileText className="w-4 h-4" />
+                      <FileText className={`w-4 h-4 transition-transform duration-200 ${
+                        isActive ? 'scale-110' : 'group-hover:scale-110'
+                      }`} />
                     ) : department.nombre === 'negocios' ? (
-                      <Users className="w-4 h-4" />
+                      <Users className={`w-4 h-4 transition-transform duration-200 ${
+                        isActive ? 'scale-110' : 'group-hover:scale-110'
+                      }`} />
                     ) : (
-                      <Settings className="w-4 h-4" />
+                      <Settings className={`w-4 h-4 transition-transform duration-200 ${
+                        isActive ? 'scale-110' : 'group-hover:scale-110'
+                      }`} />
                     )}
                   </div>
                   {!isCollapsed && (
@@ -189,8 +200,8 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
                   )}
                   {!isCollapsed && departmentSubmodules.length > 0 && (
                     <ChevronRight 
-                      className={`w-4 h-4 ml-auto transition-transform duration-200 ${
-                        isExpanded ? 'rotate-90' : ''
+                      className={`w-4 h-4 ml-auto transition-all duration-300 ${
+                        isExpanded ? 'rotate-90 text-white' : 'text-gray-400 group-hover:text-white'
                       }`} 
                     />
                   )}
@@ -198,22 +209,24 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
                 
                 {/* Show submodules only when department is expanded and sidebar is not collapsed */}
                 {!isCollapsed && isExpanded && departmentSubmodules.length > 0 && (
-                  <div className="ml-8 mt-2 space-y-1">
+                  <div className="sidebar-expand ml-8 mt-2 space-y-1">
                     {departmentSubmodules.map((submodule, index) => (
                       <button
                         key={index}
                         onClick={() => router.push(submodule.path)}
-                        className={`w-full text-left px-4 py-2 rounded-md transition-all duration-200 cursor-pointer text-sm ${
+                        className={`sidebar-link w-full text-left px-4 py-2 rounded-md transition-all duration-300 cursor-pointer text-sm group ${
                           isActiveSubmodule(submodule.path)
-                            ? 'bg-gray-700 text-white'
-                            : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
+                            ? 'bg-gray-700 text-white shadow-md transform translate-x-1'
+                            : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800 hover:transform hover:translate-x-1'
                         }`}
                       >
                         <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                            isActiveSubmodule(submodule.path) ? 'bg-blue-400' : 'bg-gray-500'
+                          <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                            isActiveSubmodule(submodule.path) 
+                              ? 'bg-blue-400 shadow-sm shadow-blue-400/50 scale-125' 
+                              : 'bg-gray-500 group-hover:bg-gray-400 group-hover:scale-125'
                           }`}></div>
-                          <span>{submodule.name}</span>
+                          <span className="transition-colors duration-300 group-hover:text-white">{submodule.name}</span>
                         </div>
                       </button>
                     ))}
@@ -226,25 +239,25 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
       </div>
       
       {/* Toggle Button Section */}
-      <div className={`p-4 border-t border-gray-800 ${
+      <div className={`p-4 border-t border-gray-700/50 backdrop-blur-sm bg-gray-900/80 ${
         isCollapsed ? 'flex justify-center' : ''
       }`}>
         {isCollapsed ? (
           <button
             onClick={handleToggleCollapse}
-            className="p-2 rounded-lg hover:bg-gray-800 transition-colors duration-200"
+            className="p-2 rounded-lg hover:bg-gray-800 transition-all duration-300 hover:shadow-lg hover:transform hover:scale-105 group"
             title="Expandir sidebar"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
           </button>
         ) : (
           <button
             onClick={handleToggleCollapse}
-            className="w-full p-2 rounded-lg hover:bg-gray-800 transition-colors duration-200 flex items-center justify-center"
+            className="w-full p-2 rounded-lg hover:bg-gray-800 transition-all duration-300 hover:shadow-lg hover:transform hover:scale-105 flex items-center justify-center group"
             title="Contraer sidebar"
           >
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            <span className="text-sm">Contraer</span>
+            <ChevronLeft className="w-4 h-4 mr-2 transition-transform duration-200 group-hover:scale-110" />
+            <span className="text-sm font-medium transition-colors duration-200 group-hover:text-gray-200">Contraer</span>
           </button>
         )}
       </div>
