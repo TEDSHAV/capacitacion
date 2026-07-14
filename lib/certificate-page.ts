@@ -241,31 +241,18 @@ export class CertificatePage {
   private async addSignatures(certificateData: CertificateGeneration): Promise<void> {
     const { signature } = this.config;
 
-    console.log('=== SIGNATURE FLOW DEBUG ===');
-    console.log('Certificate data for signatures:', {
-      facilitator_id: certificateData.facilitator_id,
-      facilitator_data: certificateData.facilitator_data,
-      sha_signature_id: certificateData.sha_signature_id,
-      sha_signature_data: certificateData.sha_signature_data
-    });
-
     // Add facilitator signature if available
     if (certificateData.facilitator_id) {
-      console.log('Attempting to add facilitator signature for ID:', certificateData.facilitator_id);
       let facilitator: CertificateFacilitator | null = certificateData.facilitator_data as CertificateFacilitator | null;
       
       // If facilitator_data is not available, fetch it using API route (works in browser)
       if (!facilitator) {
-        console.log('Facilitator data not available, fetching from API route...');
         try {
           // Use API route instead of server action for browser compatibility
           const response = await fetch(`/api/facilitators/${certificateData.facilitator_id}`);
           
           if (response.ok) {
             const data = await response.json();
-            console.log('Raw facilitator data from API:', data);
-            console.log('Firmas data:', data.firmas);
-            console.log('Firma_id:', data.firma_id);
             
             if (data) {
               // Transform API response to match expected interface
@@ -285,73 +272,37 @@ export class CertificatePage {
                   url_imagen: data.firmas.url_imagen,
                 } : undefined,
               };
-              console.log('Transformed facilitator data:', facilitator);
-              
-              // Check if we have signature data
-              if (!facilitator.signature_data && !facilitator.firma) {
-                console.warn('No signature data found for facilitator:', facilitator.name);
-                console.warn('Available fields:', {
-                  firma: facilitator.firma,
-                  firma_id: facilitator.firma_id,
-                  signature_data: facilitator.signature_data,
-                  firmas: data.firmas
-                });
-              }
             }
-          } else {
-            console.warn('Facilitator API response not ok:', response.status);
           }
         } catch (error) {
           console.error('Failed to fetch facilitator data from API:', error);
-          console.error('Error details:', error instanceof Error ? error.message : error);
         }
-      } else {
-        console.log('Using existing facilitator data:', facilitator);
       }
 
       if (facilitator) {
-        console.log('Adding facilitator signature to certificate...');
         await this.addFacilitatorSignature(facilitator, signature);
-        console.log('Facilitator signature added successfully');
-      } else {
-        console.warn('No facilitator data available, skipping facilitator signature');
       }
-    } else {
-      console.log('No facilitator_id provided, skipping facilitator signature');
     }
 
     // Add SHA signature if available
     if (certificateData.sha_signature_id) {
-      console.log('Attempting to add SHA signature for ID:', certificateData.sha_signature_id);
       let shaSignature = certificateData.sha_signature_data;
       
       // If sha_signature_data is not available, fetch it using certificate service
       if (!shaSignature) {
-        console.log('SHA signature data not available, fetching from service...');
         try {
           shaSignature = await certificateService.getSignatureData(
             certificateData.sha_signature_id.toString()
           );
-          console.log('Fetched SHA signature from service:', shaSignature);
         } catch (error) {
           console.warn('Failed to fetch SHA signature data:', error);
         }
-      } else {
-        console.log('Using existing SHA signature data:', shaSignature);
       }
       
       if (shaSignature) {
-        console.log('Adding SHA signature to certificate...');
         await this.addSHASignature(shaSignature, signature);
-        console.log('SHA signature added successfully');
-      } else {
-        console.warn('No SHA signature data available, skipping SHA signature');
       }
-    } else {
-      console.log('No sha_signature_id provided, skipping SHA signature');
     }
-    
-    console.log('=== SIGNATURE FLOW DEBUG END ===');
   }
 
   /**

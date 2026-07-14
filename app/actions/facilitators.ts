@@ -113,27 +113,19 @@ export async function deleteFacilitator(id: number) {
  */
 export async function getFacilitatorData(facilitatorId: string): Promise<CertificateFacilitator | null> {
   try {
-    console.log('=== FACILITATOR DATA FETCH DEBUG ===');
-    console.log('Fetching facilitator data for ID:', facilitatorId);
-    
     // Validate input
     if (!facilitatorId) {
-      console.error('No facilitator ID provided');
       return null;
     }
     
     const facilitatorIdNum = parseInt(facilitatorId);
     if (isNaN(facilitatorIdNum)) {
-      console.error('Invalid facilitator ID format:', facilitatorId);
       return null;
     }
     
-    console.log('Parsed facilitator ID:', facilitatorIdNum);
-    
     const supabase = await createClient();
-    console.log('Supabase client created');
     
-    const query = supabase
+    const { data, error } = await supabase
       .from('facilitadores')
       .select(`
         id,
@@ -152,25 +144,14 @@ export async function getFacilitatorData(facilitatorId: string): Promise<Certifi
       `)
       .eq('id', facilitatorIdNum)
       .single();
-    
-    console.log('Executing query:', query);
-    
-    const { data, error } = await query;
-
-    console.log('Supabase query result:', { data, error });
 
     if (error) {
-      console.error('Error fetching facilitator:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
       return null;
     }
 
     if (!data) {
-      console.error('No facilitator data found for ID:', facilitatorId);
       return null;
     }
-
-    console.log('Raw facilitator data from DB:', data);
 
     // Transform the data to match the expected interface
     const facilitator: CertificateFacilitator = {
@@ -190,12 +171,8 @@ export async function getFacilitatorData(facilitatorId: string): Promise<Certifi
       } : undefined,
     };
 
-    console.log('Transformed facilitator data:', facilitator);
-    console.log('=== FACILITATOR DATA FETCH DEBUG END ===');
     return facilitator;
   } catch (error) {
-    console.error('Error in getFacilitatorData:', error);
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack available');
     return null;
   }
 }
