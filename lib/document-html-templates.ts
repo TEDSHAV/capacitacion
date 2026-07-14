@@ -297,7 +297,6 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       gap: 20px;
       margin-bottom: 20px;
       padding-bottom: 10px;
-      border-bottom: 1px solid #ccc;
     }
 
     .logo {
@@ -663,7 +662,6 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       gap: 20px;
       margin-bottom: 20px;
       padding-bottom: 10px;
-      border-bottom: 1px solid #ccc;
     }
 
     .logo {
@@ -1063,7 +1061,6 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       gap: 20px;
       margin-bottom: 20px;
       padding-bottom: 10px;
-      border-bottom: 1px solid #ccc;
     }
 
     .logo {
