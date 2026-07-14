@@ -17,7 +17,7 @@ export interface CitizenLookupResult {
 export class CitizenService {
   private static readonly API_URL = "https://api.cedula.com.ve/api/v1";
   private static readonly APP_ID = "9225";
-  private static readonly TOKEN = "4443f147c5c0b0d5bf0d14724f520be5";
+  private static readonly TOKEN = "1dd9a819f1e9c888a443810c7a9f9a6f";
 
   /**
    * Start a "session" - For cedula.com.ve this is just a compatibility layer

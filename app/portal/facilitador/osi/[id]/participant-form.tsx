@@ -64,6 +64,7 @@ export const ParticipantForm = ({
   const [scanError, setScanError] = useState<string | null>(null);
   const [hasAcknowledged, setHasAcknowledged] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const disclaimerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -84,6 +85,16 @@ export const ParticipantForm = ({
     setParticipants(newParticipants);
     setSuccess(null);
   };
+
+  const handleClearAll = () => {
+    setParticipants([{ nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" }]);
+    setSuccess(null);
+    setError(null);
+    setUploadStatus(null);
+    setShowClearConfirm(false);
+  };
+
+  const hasOnlyEmptyRow = participants.length === 1 && !participants[0].nombre_apellido && !participants[0].cedula;
 
   const updateParticipant = (index: number, field: keyof Participant, value: string) => {
     const newParticipants = [...participants];
@@ -286,16 +297,29 @@ export const ParticipantForm = ({
               ({participants.length})
             </span>
           </h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addParticipant}
-            className="text-blue-600 border-blue-200 hover:bg-blue-50 w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Agregar Participante
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addParticipant}
+              className="text-blue-600 border-blue-200 hover:bg-blue-50 flex-1 sm:flex-none"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Agregar Participante
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowClearConfirm(true)}
+              disabled={hasOnlyEmptyRow}
+              className="text-red-600 border-red-200 hover:bg-red-50 flex-1 sm:flex-none"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Limpiar Todo
+            </Button>
+          </div>
         </div>
 
         {isScanningAttachment && (
@@ -312,6 +336,34 @@ export const ParticipantForm = ({
             <button onClick={() => setScanError(null)} className="ml-auto">
               <X className="w-3 h-3" />
             </button>
+          </div>
+        )}
+
+        {showClearConfirm && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-red-800 text-sm">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold mb-1">¿Eliminar todos los participantes?</p>
+              <p className="text-xs text-red-700 mb-3">
+                Se borrarán todos los participantes de la lista. Esta acción no se puede deshacer.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleClearAll}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  Sí, limpiar todo
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowClearConfirm(false)}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

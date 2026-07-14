@@ -44,3 +44,4 @@ next-env.d.ts
 # user-uploaded files
 /public/signatures/
 
+document-generation.log
