@@ -262,7 +262,7 @@ export async function getOverviewMetrics(
     for (let i = 11; i >= 0; i--) {
       const d = new Date(currentYear, currentMonth - i, 1);
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const lbl = d.toLocaleDateString("es-ES", {
+      const lbl = d.toLocaleDateString("es-VE", {
         month: "short",
         year: "2-digit",
       });

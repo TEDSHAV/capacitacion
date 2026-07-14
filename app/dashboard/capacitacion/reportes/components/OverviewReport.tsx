@@ -91,7 +91,7 @@ function MonthlyTrendChart({
               style={{ height: "100%" }}
             >
               {/* Tooltip */}
-              <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 shadow-lg">
                 {m.count} certs en {m.courseCount} cursos
               </div>
               <div className="w-full flex-1 flex items-end">
