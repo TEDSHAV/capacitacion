@@ -374,7 +374,7 @@ export default function OSIDetailPage() {
         cliente_nombre_empresa: '',
         rif: '',
         tema: '',
-        fecha_emision: new Date(), // Default to today's date
+        fecha_emision: new Date().toISOString().split('T')[0], // Default to today's date in local timezone
         fecha_servicio: null,
         nro_sesiones: 1,
         fecha_ejecucion1: null,
