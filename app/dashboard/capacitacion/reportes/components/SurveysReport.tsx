@@ -85,6 +85,22 @@ export default function SurveysReport({
     return "text-red-600";
   };
 
+  const getQuestionText = (qNum: number) => {
+    const questions = {
+      1: "¿Fue responsable y puntual?",
+      2: "¿Proyectó una imagen adecuada?",
+      3: "¿Domina el tema?",
+      4: "¿El lenguaje utilizado fue fácil de entender?",
+      5: "¿Estímula la participación e intercambio de ideas?",
+      6: "¿El material didáctico utilizado fue fácil de entender?",
+      7: "¿Las dinámicas, ejercicios, demostraciones y demás actividades hechas en el curso, fueron comprensibles y útiles?",
+      8: "¿El contenido del curso cumplió sus expectativas?",
+      9: "¿Cómo calificarías el curso?",
+      10: "¿Las condiciones ambientales (aula, mobiliario, recursos didácticos (si aplica) han sido adecuados?"
+    };
+    return questions[qNum as keyof typeof questions] || `Pregunta ${qNum}`;
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -164,7 +180,7 @@ export default function SurveysReport({
                 return (
                   <div key={qKey} className="border border-gray-100 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-gray-700">Pregunta {qNum}</span>
+                      <span className="text-sm font-semibold text-gray-700">{getQuestionText(qNum)}</span>
                       <span className={`text-sm font-bold ${scoreColor}`}>
                         {avgScore.toFixed(1)}
                       </span>
