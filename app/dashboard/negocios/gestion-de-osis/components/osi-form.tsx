@@ -164,7 +164,7 @@ const OSIForm = ({
           updateFormData?.('id_curso', curso.id) // Store the course ID
           // Auto-populate hours from course
           if (curso.horas_estimadas) {
-            updateFormData?.('nro_horas', curso.horas_estimadas)
+            updateFormData?.('nro_horas', parseFloat(curso.horas_estimadas))
           }
           setCursoSearchTerm?.('')
           setSelectedTemaIndex(-1)
@@ -443,14 +443,34 @@ const OSIForm = ({
               <div className="relative">
                 <input
                   type="text"
-                  value={initialData?.detalle_capacitacion ? 
-                    cursos?.find(c => c.id === initialData.id_curso)?.nombre || initialData.detalle_capacitacion 
-                    : (cursoSearchTerm || '')
+                  value={cursoSearchTerm ? cursoSearchTerm : 
+                    initialData?.id_curso ? 
+                      cursos?.find(c => c.id === initialData.id_curso)?.nombre || ''
+                      : initialData?.detalle_capacitacion || ''
                   }
-                  onChange={(e) => setCursoSearchTerm?.(e.target.value)}
+                  onChange={(e) => {
+                    if (isEditing || isNew) {
+                      const newValue = e.target.value
+                      setCursoSearchTerm?.(newValue)
+                      setSelectedTemaIndex(-1)
+                      
+                      // If user clears the field, reset course selection
+                      if (!newValue.trim()) {
+                        enhancedUpdateFormData('detalle_capacitacion', null)
+                        enhancedUpdateFormData('id_curso', null)
+                        enhancedUpdateFormData('nro_horas', null)
+                      }
+                      // If user is typing manually, update the detalle_capacitacion field
+                      else if (!cursoSearchTerm && newValue) {
+                        enhancedUpdateFormData('detalle_capacitacion', newValue)
+                      }
+                    }
+                  }}
                   onFocus={() => {
-                    setCursoSearchTerm?.('')
-                    setSelectedTemaIndex(-1)
+                    if (isEditing || isNew) {
+                      setCursoSearchTerm?.('')
+                      setSelectedTemaIndex(-1)
+                    }
                   }}
                   onKeyDown={handleTemaKeyDown}
                   disabled={!isEditing && !isNew}
@@ -458,7 +478,7 @@ const OSIForm = ({
                   className={`w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${
                     !isEditing && !isNew ? 'bg-gray-100 cursor-not-allowed border-gray-300' : 
                     validationErrors.curso ? 'border-red-300 bg-red-50' :
-                    initialData?.detalle_capacitacion ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                    initialData?.detalle_capacitacion && !cursoSearchTerm ? 'border-green-300 bg-green-50' : 'border-gray-300'
                   }`}
                   placeholder="🎓 Buscar curso por nombre..."
                 />
@@ -478,7 +498,7 @@ const OSIForm = ({
                             enhancedUpdateFormData('detalle_capacitacion', curso.contenido)
                             enhancedUpdateFormData('id_curso', curso.id)
                             if (curso.horas_estimadas) {
-                              enhancedUpdateFormData('nro_horas', curso.horas_estimadas)
+                              enhancedUpdateFormData('nro_horas', parseFloat(curso.horas_estimadas))
                             }
                             setCursoSearchTerm?.('')
                             setSelectedTemaIndex(-1)
@@ -560,10 +580,13 @@ const OSIForm = ({
                 className={`w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${
                   isOsiFieldLocked || (!isEditing && !isNew) 
                     ? 'bg-gray-100 cursor-not-allowed border-gray-300' 
-                    : 'border-gray-300'
+                    : validationErrors.nro_osi ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 }`}
                 placeholder={isOsiFieldLocked ? "🔒 Generado automáticamente..." : "Número de OSI..."}
               />
+              {validationErrors.nro_osi && (
+                <p className="mt-1 text-xs text-red-600">{validationErrors.nro_osi}</p>
+              )}
               {isNew && (
                 <button
                   type="button"
@@ -594,14 +617,29 @@ const OSIForm = ({
             <span className="ml-2 text-xs text-green-600 font-medium">Completado</span>
           )}
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Número de Horas</label>
             <div className="relative">
               <input
                 type="number"
-                value={initialData?.nro_horas || ''}
-                onChange={(e) => updateFormData?.('nro_horas', e.target.value ? parseFloat(e.target.value) : null)}
+                value={initialData?.nro_horas ?? 
+                  (initialData?.tipo_servicio === 'capacitacion' && initialData?.id_curso ? 
+                    cursos?.find(c => c.id.toString() === initialData.id_curso?.toString())?.horas_estimadas ?? '' : ''
+                  )
+                }
+                onChange={(e) => {
+                  const value = e.target.value ? parseFloat(e.target.value) : null
+                  enhancedUpdateFormData('nro_horas', value)
+                  // If this is a capacitacion service with a selected course, sync with course hours
+                  if (initialData?.tipo_servicio === 'capacitacion' && initialData?.id_curso && value !== null) {
+                    const curso = cursos?.find(c => c.id.toString() === initialData.id_curso?.toString())
+                    if (curso && curso.horas_estimadas && value !== curso.horas_estimadas) {
+                      // Allow manual override but show course hours as reference
+                    }
+                  }
+                }}
                 disabled={!isEditing && !isNew}
                 tabIndex={!isEditing && !isNew ? -1 : 0}
                 className="w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -614,8 +652,11 @@ const OSIForm = ({
               />
               {initialData?.tipo_servicio === 'capacitacion' && initialData?.id_curso && (
                 <div className="mt-1 text-xs text-gray-500">
-                  Horas del curso: {cursos?.find(c => c.id === initialData.id_curso)?.horas_estimadas || 'N/A'}
+                  Horas del curso: {cursos?.find(c => c.id.toString() === initialData.id_curso?.toString())?.horas_estimadas || 'N/A'}
                 </div>
+              )}
+              {validationErrors.nro_horas && (
+                <p className="mt-1 text-xs text-red-600">{validationErrors.nro_horas}</p>
               )}
             </div>
           </div>
@@ -625,61 +666,22 @@ const OSIForm = ({
             <input
               type="number"
               value={initialData?.participantes_max || ''}
-              onChange={(e) => updateFormData?.('participantes_max', e.target.value ? parseInt(e.target.value) : null)}
+              onChange={(e) => enhancedUpdateFormData('participantes_max', e.target.value ? parseInt(e.target.value) : null)}
               disabled={!isEditing && !isNew}
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="👥 Número máximo de participantes..."
               min="1"
             />
+            {validationErrors.participantes_max && (
+              <p className="mt-1 text-xs text-red-600">{validationErrors.participantes_max}</p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Step 5: Important Dates */}
-      <div className={`bg-white rounded-lg border-2 ${
-        (initialData?.fecha_emision || initialData?.fecha_servicio) ? 'border-green-200 bg-green-50' : 'border-gray-200'
-      } p-6 transition-all duration-200`}>
-        <div className="flex items-center mb-4">
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 ${
-            (initialData?.fecha_emision || initialData?.fecha_servicio) ? 'bg-green-500 text-white' : 'bg-indigo-500 text-white'
-          }`}>
-            {(initialData?.fecha_emision || initialData?.fecha_servicio) ? '✓' : '5'}
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Fechas Importantes</h3>
-          {(initialData?.fecha_emision || initialData?.fecha_servicio) && (
-            <span className="ml-2 text-xs text-green-600 font-medium">Completado</span>
-          )}
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Emisión</label>
-            <input
-              type="date"
-              value={initialData?.fecha_emision ? new Date(initialData.fecha_emision).toISOString().split('T')[0] : ''}
-              onChange={(e) => updateFormData?.('fecha_emision', e.target.value ? new Date(e.target.value) : null)}
-              disabled={!isEditing && !isNew}
-              tabIndex={!isEditing && !isNew ? -1 : 0}
-              className="w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Servicio</label>
-            <input
-              type="date"
-              value={initialData?.fecha_servicio ? new Date(initialData.fecha_servicio).toISOString().split('T')[0] : ''}
-              onChange={(e) => updateFormData?.('fecha_servicio', e.target.value ? new Date(e.target.value) : null)}
-              disabled={!isEditing && !isNew}
-              tabIndex={!isEditing && !isNew ? -1 : 0}
-              className="w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Step 6: Status */}
+      {/* Step 5: Status */}
       <div className={`bg-white rounded-lg border-2 ${
         initialData?.estado ? 'border-green-200 bg-green-50' : 'border-gray-200'
       } p-6 transition-all duration-200`}>
@@ -687,7 +689,7 @@ const OSIForm = ({
           <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 ${
             initialData?.estado ? 'bg-green-500 text-white' : 'bg-indigo-500 text-white'
           }`}>
-            {initialData?.estado ? '✓' : '6'}
+            {initialData?.estado ? '✓' : '5'}
           </div>
           <h3 className="text-lg font-semibold text-gray-900">Estado de la OSI</h3>
           {initialData?.estado && (
@@ -699,7 +701,7 @@ const OSIForm = ({
           <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
           <select
             value={initialData?.estado || ''}
-            onChange={(e) => updateFormData?.('estado', e.target.value)}
+            onChange={(e) => enhancedUpdateFormData('estado', e.target.value)}
             disabled={!isEditing && !isNew}
             tabIndex={!isEditing && !isNew ? -1 : 0}
             className="w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -714,7 +716,7 @@ const OSIForm = ({
         </div>
       </div>
 
-      {/* Step 7: People Assignment */}
+      {/* Step 6: People Assignment */}
       <div className={`bg-white rounded-lg border-2 ${
         initialData?.ejecutivo_negocios ? 'border-green-200 bg-green-50' : 'border-gray-200'
       } p-6 transition-all duration-200`}>
@@ -722,7 +724,7 @@ const OSIForm = ({
           <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 ${
             initialData?.ejecutivo_negocios ? 'bg-green-500 text-white' : 'bg-indigo-500 text-white'
           }`}>
-            {initialData?.ejecutivo_negocios ? '✓' : '7'}
+            {initialData?.ejecutivo_negocios ? '✓' : '6'}
           </div>
           <h3 className="text-lg font-semibold text-gray-900">Asignación de Personal</h3>
           {initialData?.ejecutivo_negocios && (
@@ -777,7 +779,7 @@ const OSIForm = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">Dirección de Envío</label>
               <textarea
                 value={initialData?.direccion_envio || ''}
-                onChange={(e) => updateFormData?.('direccion_envio', e.target.value)}
+                onChange={(e) => enhancedUpdateFormData('direccion_envio', e.target.value)}
                 disabled={!isEditing && !isNew}
                 tabIndex={!isEditing && !isNew ? -1 : 0}
                 className="w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -790,7 +792,7 @@ const OSIForm = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">Dirección de Ejecución</label>
               <textarea
                 value={initialData?.direccion_ejecucion || ''}
-                onChange={(e) => updateFormData?.('direccion_ejecucion', e.target.value)}
+                onChange={(e) => enhancedUpdateFormData('direccion_ejecucion', e.target.value)}
                 disabled={!isEditing && !isNew}
                 tabIndex={!isEditing && !isNew ? -1 : 0}
                 className="w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
