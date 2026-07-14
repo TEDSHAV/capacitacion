@@ -223,16 +223,10 @@ export default function OSISearch({
               <div
                 className={`text-sm mt-1 ${disabled ? "text-gray-600" : "text-blue-700"}`}
               >
-                <span className="font-semibold">Curso:</span>{" "}
+                <span className="font-semibold">Curso Original (OSI):</span>{" "}
                 {selectedOSI.curso_nombre ||
                   selectedOSI.detalle_capacitacion ||
                   "N/A - Sin curso especificado"}
-              </div>
-              <div
-                className={`text-sm mt-1 ${disabled ? "text-gray-600" : "text-blue-700"}`}
-              >
-                <span className="font-semibold">Ejecutivo:</span>{" "}
-                {selectedOSI.ejecutivo_negocios || "N/A"}
               </div>
             </div>
             {!disabled && (
@@ -255,7 +249,7 @@ export default function OSISearch({
                 htmlFor="manual_course_select"
                 className="block text-sm font-bold text-blue-900 mb-2"
               >
-                Opciones de Certificado
+                Curso para Certificado
               </label>
               <p className="text-xs text-blue-700 mb-3 italic">
                 El curso se autocompletó basado en la OSI. Puedes cambiarlo aquí
