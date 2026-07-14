@@ -129,26 +129,6 @@ export function ClienteFilters({
         </div>
       </div>
 
-      {/* Type Toggle */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-gray-600 mr-2">Tipo:</span>
-        {[
-          { value: "all", label: "Todos" },
-          { value: "certificates", label: "Certificados/Carnets" },
-        ].map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => updateFilter({ type: opt.value as ClienteCertificateFilters["type"] })}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              filters.type === opt.value
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

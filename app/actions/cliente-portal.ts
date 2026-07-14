@@ -566,6 +566,99 @@ export async function getClienteRecentBatches(
   return { data: batches };
 }
 
+export async function getClienteBatchesFiltered(
+  empresaId: number,
+  filters: ClienteCertificateFilters,
+  page: number = 1,
+  itemsPerPage: number = 10,
+): Promise<{ data?: ClienteBatchSummary[]; totalCount?: number; error?: string }> {
+  if (!(await verifyClienteEmpresa(empresaId))) {
+    return { error: "No autorizado" };
+  }
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("certificados")
+    .select(
+      `id, nro_osi, fecha_emision, id_curso, snapshot_contenido,
+       catalogo_servicios!inner(nombre),
+       participantes_certificados!inner(nombre, cedula, nacionalidad)`,
+    )
+    .eq("id_empresa", empresaId)
+    .eq("is_active", true)
+    .not("nro_osi", "is", null);
+
+  if (filters.courseId) query = query.eq("id_curso", filters.courseId);
+  if (filters.stateId) query = query.eq("id_estado", filters.stateId);
+  if (filters.dateFrom) query = query.gte("fecha_emision", filters.dateFrom);
+  if (filters.dateTo) query = query.lte("fecha_emision", filters.dateTo);
+  if (filters.searchTerm) {
+    query = query.or(
+      `participantes_certificados.nombre.ilike.%${filters.searchTerm}%,participantes_certificados.cedula.ilike.%${filters.searchTerm}%`,
+    );
+  }
+
+  query = query.order("fecha_emision", { ascending: false });
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching filtered batches:", error);
+    return { error: error.message };
+  }
+
+  if (!data || data.length === 0) {
+    return { data: [], totalCount: 0 };
+  }
+
+  // Group by nro_osi in JS
+  const batchMap = new Map<number, ClienteBatchSummary>();
+
+  for (const row of data) {
+    const nroOsi = row.nro_osi as number;
+    if (!nroOsi) continue;
+
+    if (!batchMap.has(nroOsi)) {
+      const courseInfo = row.catalogo_servicios as unknown as { nombre: string };
+      let courseNombre = courseInfo?.nombre || "";
+      if (!courseNombre && row.snapshot_contenido) {
+        try {
+          const snapshot = typeof row.snapshot_contenido === "string"
+            ? JSON.parse(row.snapshot_contenido)
+            : row.snapshot_contenido;
+          courseNombre = snapshot?.certificado_detalles?.title || snapshot?.curso?.name || "N/A";
+        } catch {
+          // ignore parse errors
+        }
+      }
+      batchMap.set(nroOsi, {
+        nro_osi: nroOsi,
+        course_name: courseNombre || "N/A",
+        fecha_emision: row.fecha_emision || "",
+        participant_count: 0,
+        certificate_ids: [],
+      });
+    }
+
+    const batch = batchMap.get(nroOsi)!;
+    batch.participant_count++;
+    batch.certificate_ids.push(row.id);
+  }
+
+  // Sort by fecha_emision desc
+  const allBatches = Array.from(batchMap.values()).sort(
+    (a, b) =>
+      new Date(b.fecha_emision).getTime() -
+      new Date(a.fecha_emision).getTime(),
+  );
+
+  const totalCount = allBatches.length;
+  const from = (page - 1) * itemsPerPage;
+  const paginatedBatches = allBatches.slice(from, from + itemsPerPage);
+
+  return { data: paginatedBatches, totalCount };
+}
+
 export async function getClienteFilterOptions(
   empresaId: number,
 ): Promise<{ data?: ClienteFilterOptions; error?: string }> {
