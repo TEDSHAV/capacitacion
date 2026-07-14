@@ -7,6 +7,20 @@ import {
   buildNotaEntregaHtml,
   buildValidacionDatosHtml,
 } from "./document-html-templates";
+import { appendFileSync } from "fs";
+import { join } from "path";
+
+const LOG_FILE = join(process.cwd(), "document-generation.log");
+
+function log(message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${message}${data ? ` ${JSON.stringify(data)}` : ""}\n`;
+  try {
+    appendFileSync(LOG_FILE, logMessage);
+  } catch (e) {
+    // Silent fail if logging doesn't work
+  }
+}
 
 export interface DocumentGenerationRequest {
   certificates: any[];
@@ -35,6 +49,10 @@ export interface DocumentGenerationResult {
 export async function generateDocumentsServer(
   request: DocumentGenerationRequest,
 ): Promise<DocumentGenerationResult> {
+  log("generateDocumentsServer called", {
+    options: request.options,
+    certificatesCount: request.certificates?.length,
+  });
   try {
     const { certificates, osiData, firmanteData, options } = request;
 
@@ -165,14 +183,17 @@ export async function generateDocumentsServer(
     const tasks = [];
 
     if (options?.includeCertificacionCompetencias !== false) {
+      log("Starting certificacion_competencias generation");
       tasks.push(
         (async () => {
           try {
             const html = buildCertificacionCompetenciasHtml(templateData);
             const buffer = await generatePdfFromHtml(html);
             documents.certificacion_competencias = buffer.toString("base64");
+            log("certificacion_competencias generated successfully");
           } catch (error) {
             const errorMsg = `Failed to generate certificacion de competencias: ${error instanceof Error ? error.message : "Unknown error"}`;
+            log("certificacion_competencias error", errorMsg);
             errors.push(errorMsg);
           }
         })(),
@@ -180,14 +201,17 @@ export async function generateDocumentsServer(
     }
 
     if (options?.includeNotaEntrega !== false) {
+      log("Starting nota_entrega generation");
       tasks.push(
         (async () => {
           try {
             const html = buildNotaEntregaHtml(templateData);
             const buffer = await generatePdfFromHtml(html);
             documents.nota_entrega = buffer.toString("base64");
+            log("nota_entrega generated successfully");
           } catch (error) {
             const errorMsg = `Failed to generate nota de entrega: ${error instanceof Error ? error.message : "Unknown error"}`;
+            log("nota_entrega error", errorMsg);
             errors.push(errorMsg);
           }
         })(),
@@ -195,14 +219,17 @@ export async function generateDocumentsServer(
     }
 
     if (options?.includeValidacionDatos !== false) {
+      log("Starting validacion_datos generation");
       tasks.push(
         (async () => {
           try {
             const html = buildValidacionDatosHtml(templateData);
             const buffer = await generatePdfFromHtml(html);
             documents.validacion_datos = buffer.toString("base64");
+            log("validacion_datos generated successfully");
           } catch (error) {
             const errorMsg = `Failed to generate validacion de datos: ${error instanceof Error ? error.message : "Unknown error"}`;
+            log("validacion_datos error", errorMsg);
             errors.push(errorMsg);
           }
         })(),
@@ -211,6 +238,11 @@ export async function generateDocumentsServer(
 
     // Run all generation tasks in parallel
     await Promise.all(tasks);
+
+    log("Document generation complete", {
+      documentsGenerated: Object.keys(documents).length,
+      errors,
+    });
 
     // Return success if at least one document was generated, otherwise return error
     if (Object.keys(documents).length > 0) {
@@ -226,6 +258,10 @@ export async function generateDocumentsServer(
       };
     }
   } catch (error) {
+    log(
+      "generateDocumentsServer unhandled error",
+      error instanceof Error ? error.message : error,
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",

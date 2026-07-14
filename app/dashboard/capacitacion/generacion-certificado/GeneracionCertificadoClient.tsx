@@ -1068,9 +1068,20 @@ export default function GeneracionCertificadoClient({
           documentsGenerated = Object.keys(
             additionalDocsResult.documents,
           ).length;
+        } else if (additionalDocsResult && "error" in additionalDocsResult) {
+          console.error(
+            "Document generation error:",
+            additionalDocsResult.error,
+          );
+          alert(
+            `Error generando documentos adicionales: ${additionalDocsResult.error}`,
+          );
         }
       } catch (error) {
-        // Don't show alert for document errors since certificates/carnets were generated successfully
+        console.error("Document generation exception:", error);
+        alert(
+          `Error generando documentos adicionales: ${error instanceof Error ? error.message : "Error desconocido"}`,
+        );
       }
 
       setGenerationProgress({
