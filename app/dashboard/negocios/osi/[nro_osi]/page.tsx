@@ -132,7 +132,7 @@ export default function OSIDetailPage() {
     try {
       const { data, error } = await supabase
         .from("empresas")
-        .select("id, razon_social, rif, direccion_fiscal")
+        .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
         .order("razon_social")
       
       if (error) throw error
@@ -440,6 +440,7 @@ export default function OSIDetailPage() {
                             onClick={() => {
                               updateFormData('cliente_nombre_empresa', empresa.razon_social)
                               updateFormData('rif', empresa.rif || '')
+                              updateFormData('codigo_cliente', empresa.codigo_cliente || '')
                               updateFormData('direccion_fiscal', empresa.direccion_fiscal || '')
                               setSearchTerm('')
                             }}
