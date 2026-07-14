@@ -3,11 +3,11 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useCallback, memo } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import Image from 'next/image'
+import { User } from '@/types/dashboard'
 
 const Navbar = () => {
   const router = useRouter()
-  const [user, setUser] = useState<{ user_metadata?: { name?: string }; email?: string } | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const supabase = createClient() // Create client once
 
   useEffect(() => {
@@ -37,48 +37,36 @@ const Navbar = () => {
     router.back()
   }, [router])
 
-  const handleLogoClick = useCallback(() => {
-    router.push('/dashboard')
-  }, [router])
-
   const handleLoginClick = useCallback(() => {
     router.push('/login')
-  }, [router])
+  }, [])
 
   const handleSignupClick = useCallback(() => {
     router.push('/signup')
-  }, [router]) 
+  }, [])
 
   return (
-    <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="bg-white shadow-md z-50">
+      <div className="max-w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left side - Navigation buttons */}
           <div className="flex items-center space-x-4">
-            {/* Back button - can be conditionally shown */}
-            <button
-              onClick={handleBackClick}
-              className="p-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
-              title="Volver"
-            >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
+            {/* Back button - only shown when user is authenticated */}
+            {user && (
+              <button
+                onClick={handleBackClick}
+                className="p-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                title="Volver"
+              >
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
           </div>
           
-          {/* Center - Logo */}
-          <div className="flex items-center justify-center absolute left-1/2 transform -translate-x-1/2">
-            <Image 
-              src="/logo.png" 
-              alt="Logo de la Empresa" 
-              width={120} 
-              height={120}
-              loading='lazy'
-              className="cursor-pointer hover:opacity-80 transition-opacity duration-200 h-12 w-auto object-contain"
-              onClick={handleLogoClick}
-            />
-          </div>
+          {/* Center - Empty space since logo is now in sidebar */}
+          <div className="flex-1"></div>
           
           {/* Right side - User menu */}
           <div className="flex items-center space-x-6">

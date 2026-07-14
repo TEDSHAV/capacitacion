@@ -60,9 +60,15 @@ html, body {
 }
 
 /* Ensure buttons have proper styling */
-button:not([class*="text-blue-600"]) {
+button:not([class*="text-blue-600"]):not([class*="bg-gray-50"]) {
   background-color: var(--primary-blue) !important;
   color: white !important;
+}
+
+/* Gray background buttons should keep their styling */
+button[class*="bg-gray-50"] {
+  background-color: #f9fafb !important;
+  color: inherit !important;
 }
 
 button.bg-blue-600 {
