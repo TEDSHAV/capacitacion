@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { uploadSignatureAction } from "@/app/actions/signatures-crud";
 import { getFacilitatorsAction } from "@/app/actions/facilitators-crud";
 import { Facilitador } from "@/types";
 import { toTitleCase } from "@/utils/string-utils";

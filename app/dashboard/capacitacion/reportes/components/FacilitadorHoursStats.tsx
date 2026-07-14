@@ -8,6 +8,7 @@ import {
   FacilitadorHoursStat,
 } from "@/types";
 import { Button } from "@/components/ui/button";
+import { toTitleCase } from "@/utils/string-utils";
 
 export default function FacilitadorHoursStats({
   selectedState,
