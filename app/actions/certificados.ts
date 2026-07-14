@@ -566,6 +566,7 @@ export async function saveCertificatesToDatabase(
             ? parseInt(updatedCertificateData.osi_data.id)
             : null,
           titulo_curso: updatedCertificateData.course_topic_data?.nombre || "",
+          subtitulo_curso: updatedCertificateData.certificate_subtitle || null,
           fecha_emision: batchEmissionDate,
           fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
           nombre_participante: participant.name,

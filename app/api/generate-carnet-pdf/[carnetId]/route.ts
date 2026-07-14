@@ -92,6 +92,7 @@ export async function GET(
         id_curso: carnet.id_curso!,
         id_osi: carnet.id_osi!,
         titulo_curso: carnet.titulo_curso,
+        subtitulo_curso: carnet.subtitulo_curso,
         fecha_emision: carnet.fecha_emision,
         fecha_vencimiento: carnet.fecha_vencimiento,
         nombre_participante: carnet.nombre_participante,

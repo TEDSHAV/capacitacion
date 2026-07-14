@@ -1165,6 +1165,7 @@ export interface Carnet {
   id_curso: number | null;
   id_osi: number | null;
   titulo_curso: string;
+  subtitulo_curso?: string | null;
   fecha_emision: string;
   fecha_vencimiento: string | null;
   nombre_participante: string;
@@ -1221,6 +1222,7 @@ export interface CarnetGeneration {
   id_curso: number | null;
   id_osi: number | null;
   titulo_curso: string;
+  subtitulo_curso?: string | null;
   fecha_emision: string;
   fecha_vencimiento: string | null;
   nombre_participante: string;

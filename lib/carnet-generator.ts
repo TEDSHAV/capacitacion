@@ -350,6 +350,16 @@ export class CarnetGenerator {
       align: "center",
       maxWidth: 50,
     });
+
+    // Add optional subtitle
+    if (carnetData.subtitulo_curso) {
+      pdf.setFontSize(6);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`${carnetData.subtitulo_curso}`, 40, courseY + 4, {
+        align: "center",
+        maxWidth: 50,
+      });
+    }
   }
 
   private async addDates(
