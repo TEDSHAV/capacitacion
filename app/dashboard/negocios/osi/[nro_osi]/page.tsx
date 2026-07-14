@@ -21,6 +21,7 @@ interface OSI {
   carnet_impreso: boolean
   observaciones_adicionales: string
   costo_honorarios_hora: number
+  costo_horas: number
   costo_impresion_material: number
   costo_traslado: number
   costo_logistica_comida: number
@@ -72,7 +73,8 @@ export default function OSIDetailPage() {
     certificado_impreso: false,
     carnet_impreso: false,
     observaciones_adicionales: '',
-    costo_honorarios_hora: 0,
+    costo_honorarios_hora: 12,
+    costo_horas: 6,
     costo_impresion_material: 0,
     costo_traslado: 0,
     costo_logistica_comida: 0,
@@ -338,8 +340,9 @@ export default function OSIDetailPage() {
         certificado_impreso: Boolean(formData.certificado_impreso),
         carnet_impreso: Boolean(formData.carnet_impreso),
         observaciones_adicionales: formData.observaciones_adicionales?.trim() || null,
-        costo_honorarios_hora: Number(formData.costo_honorarios_hora) || null,
-        costo_impresion_material: Number(formData.costo_impresion_material) || null,
+        costo_honorarios_hora: Number(formData.costo_honorarios_hora) || 0,
+        costo_horas: Number(formData.costo_horas) || 0,
+        costo_impresion_material: Number(formData.costo_impresion_material) || 0,
         costo_traslado: Number(formData.costo_traslado) || null,
         costo_logistica_comida: Number(formData.costo_logistica_comida) || null,
         costo_otros: Number(formData.costo_otros) || null,
@@ -1052,10 +1055,24 @@ export default function OSIDetailPage() {
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">No. Horas</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.costo_horas || 0}
+                  onChange={(e) => updateFormData('costo_horas', parseFloat(e.target.value) || 0)}
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Costo Honorarios/Hora</label>
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.costo_honorarios_hora || 0}
                   onChange={(e) => updateFormData('costo_honorarios_hora', parseFloat(e.target.value) || 0)}
                   disabled={!isEditing && !isNew}
@@ -1064,10 +1081,17 @@ export default function OSIDetailPage() {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Total Honorarios x Sesión</label>
+                <div className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+                  ${((formData.costo_horas || 0) * (formData.costo_honorarios_hora || 0)).toFixed(2)}
+                </div>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Costo Impresión Material</label>
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.costo_impresion_material || 0}
                   onChange={(e) => updateFormData('costo_impresion_material', parseFloat(e.target.value) || 0)}
                   disabled={!isEditing && !isNew}
@@ -1080,6 +1104,7 @@ export default function OSIDetailPage() {
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.costo_traslado || 0}
                   onChange={(e) => updateFormData('costo_traslado', parseFloat(e.target.value) || 0)}
                   disabled={!isEditing && !isNew}
@@ -1092,6 +1117,7 @@ export default function OSIDetailPage() {
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.costo_logistica_comida || 0}
                   onChange={(e) => updateFormData('costo_logistica_comida', parseFloat(e.target.value) || 0)}
                   disabled={!isEditing && !isNew}
@@ -1104,12 +1130,32 @@ export default function OSIDetailPage() {
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.costo_otros || 0}
                   onChange={(e) => updateFormData('costo_otros', parseFloat(e.target.value) || 0)}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
                 />
+              </div>
+            </div>
+
+            {/* Grand Total */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2"></div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Gran Total</label>
+                  <div className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-900 font-semibold">
+                    ${(
+                      ((formData.costo_horas || 0) * (formData.costo_honorarios_hora || 0)) +
+                      (formData.costo_impresion_material || 0) +
+                      (formData.costo_traslado || 0) +
+                      (formData.costo_logistica_comida || 0) +
+                      (formData.costo_otros || 0)
+                    ).toFixed(2)}
+                  </div>
+                </div>
               </div>
             </div>
 
