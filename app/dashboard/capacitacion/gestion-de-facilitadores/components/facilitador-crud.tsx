@@ -7,6 +7,7 @@ import { Facilitador, State } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Check } from "lucide-react";
 import { toTitleCase } from "@/utils/string-utils";
+import { createClient } from "@/utils/supabase/client";
 
 interface FacilitadorCrudProps {
   onFacilitadorSaved?: () => void;
@@ -107,13 +108,11 @@ export const FacilitadorCrud = ({
   // Toggle facilitador status (inhabilitar/habilitar)
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     const action = currentStatus ? "inhabilitar" : "habilitar";
-    const justification = currentStatus
-      ? prompt(
-          "¿Estás seguro de que quieres inhabilitar este facilitador? Esta acción lo marcará como inactivo y no podrá ser asignado a nuevas capacitaciones.\n\nPor favor, indica el motivo por el cual se está inhabilitando este facilitador:",
-        )
-      : prompt(
-          "¿Estás seguro de que quieres habilitar este facilitador? Esta acción lo marcará como activo y podrá ser asignado a nuevas capacitaciones.\n\nPor favor, indica el motivo por el cual se está habilitando este facilitador:",
-        );
+    const promptMessage = currentStatus
+      ? "¿Estás seguro de que quieres inhabilitar este facilitador? Esta acción lo marcará como inactivo y no podrá ser asignado a nuevas capacitaciones.\n\nPor favor, indica el motivo por el cual se está inhabilitando este facilitador:"
+      : "¿Estás seguro de que quieres habilitar este facilitador? Esta acción lo marcará como activo y podrá ser asignado a nuevas capacitaciones.\n\nPor favor, indica el motivo por el cual se está habilitando este facilitador:";
+
+    const justification = prompt(promptMessage);
 
     if (!justification || justification.trim() === "") {
       alert(`Debe proporcionar un motivo para ${action} al facilitador.`);
@@ -121,6 +120,40 @@ export const FacilitadorCrud = ({
     }
 
     try {
+      setLoading(true);
+      const supabase = createClient();
+
+      // 1. Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const userName = user?.user_metadata?.name || user?.email || "Usuario desconocido";
+
+      // 2. Get current notes to avoid overwriting
+      const { data: currentData, error: fetchError } = await supabase
+        .from("facilitadores")
+        .select("notas_observaciones")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const existingNotes = currentData?.notas_observaciones || "";
+      const now = new Date();
+      const formattedDate = now.toLocaleString("es-VE", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+
+      const actionTag = currentStatus ? "[INHABILITADO]" : "[HABILITADO]";
+      const newEntry = `\n---\n${formattedDate} ${actionTag} por ${userName}:\n${justification.trim()}`;
+      const updatedNotes = existingNotes ? `${existingNotes}${newEntry}` : newEntry.trim();
+
+      // 3. Update status and notes
       const timestamp = Date.now();
       const response = await fetch(`/api/facilitators/${id}?t=${timestamp}`, {
         method: "PUT",
@@ -129,7 +162,7 @@ export const FacilitadorCrud = ({
         },
         body: JSON.stringify({
           is_active: !currentStatus,
-          notas_observaciones: justification.trim(),
+          notas_observaciones: updatedNotes,
         }),
       });
 
@@ -138,17 +171,18 @@ export const FacilitadorCrud = ({
           `Facilitador ${action === "inhabilitar" ? "inhabilitado" : "habilitado"} exitosamente`,
         );
         await loadFacilitadores();
-        // The data is already reloaded, so we don't need the callback
       } else {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage =
-          errorData.error || `Error al ${action} el facilitador`;
+        const errorMessage = errorData.error || `Error al ${action} el facilitador`;
         throw new Error(errorMessage);
       }
     } catch (error) {
+      console.error(`Error al ${action} el facilitador:`, error);
       alert(
         `Error al ${action} el facilitador: ${error instanceof Error ? error.message : "Por favor intenta nuevamente."}`,
       );
+    } finally {
+      setLoading(false);
     }
   };
 
