@@ -1403,6 +1403,135 @@ export type Database = {
         }
         Relationships: []
       }
+      control_servicios_ejecutados: {
+        Row: {
+          certificados_reales: number | null
+          cod_cliente: number | null
+          cod_facilitador: number | null
+          costo_por_hora: number | null
+          created_at: string | null
+          created_by: number | null
+          dias_traslado_t: number | null
+          ejecutada_mes_curso: string | null
+          facilitador: string | null
+          fecha_ejecucion: string | null
+          fecha_osi: string | null
+          gasto_impresion_i: number | null
+          horas_honorarios_h: number | null
+          id: number
+          id_osi: number | null
+          indicador_facilitador: number | null
+          mes_recepcion: string | null
+          monto_x_traslado_mt: number | null
+          nombre_curso: string | null
+          numero_osi: string | null
+          observaciones: string | null
+          participante_x_osis: number | null
+          participantes_asistidos: number | null
+          pendiente_mes_anterior: string | null
+          pvc_reales: number | null
+          responsable: string | null
+          updated_at: string | null
+          updated_by: number | null
+        }
+        Insert: {
+          certificados_reales?: number | null
+          cod_cliente?: number | null
+          cod_facilitador?: number | null
+          costo_por_hora?: number | null
+          created_at?: string | null
+          created_by?: number | null
+          dias_traslado_t?: number | null
+          ejecutada_mes_curso?: string | null
+          facilitador?: string | null
+          fecha_ejecucion?: string | null
+          fecha_osi?: string | null
+          gasto_impresion_i?: number | null
+          horas_honorarios_h?: number | null
+          id?: number
+          id_osi?: number | null
+          indicador_facilitador?: number | null
+          mes_recepcion?: string | null
+          monto_x_traslado_mt?: number | null
+          nombre_curso?: string | null
+          numero_osi?: string | null
+          observaciones?: string | null
+          participante_x_osis?: number | null
+          participantes_asistidos?: number | null
+          pendiente_mes_anterior?: string | null
+          pvc_reales?: number | null
+          responsable?: string | null
+          updated_at?: string | null
+          updated_by?: number | null
+        }
+        Update: {
+          certificados_reales?: number | null
+          cod_cliente?: number | null
+          cod_facilitador?: number | null
+          costo_por_hora?: number | null
+          created_at?: string | null
+          created_by?: number | null
+          dias_traslado_t?: number | null
+          ejecutada_mes_curso?: string | null
+          facilitador?: string | null
+          fecha_ejecucion?: string | null
+          fecha_osi?: string | null
+          gasto_impresion_i?: number | null
+          horas_honorarios_h?: number | null
+          id?: number
+          id_osi?: number | null
+          indicador_facilitador?: number | null
+          mes_recepcion?: string | null
+          monto_x_traslado_mt?: number | null
+          nombre_curso?: string | null
+          numero_osi?: string | null
+          observaciones?: string | null
+          participante_x_osis?: number | null
+          participantes_asistidos?: number | null
+          pendiente_mes_anterior?: string | null
+          pvc_reales?: number | null
+          responsable?: string | null
+          updated_at?: string | null
+          updated_by?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_servicios_ejecutados_cod_facilitador_fkey"
+            columns: ["cod_facilitador"]
+            isOneToOne: false
+            referencedRelation: "facilitadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_servicios_ejecutados_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_servicios_ejecutados_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "ejecucion_osi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_servicios_ejecutados_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_osi"]
+          },
+          {
+            foreignKeyName: "control_servicios_ejecutados_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_eventos_importantes: {
         Row: {
           actor_user_id: number | null

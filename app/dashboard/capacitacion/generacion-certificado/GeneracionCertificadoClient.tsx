@@ -69,6 +69,10 @@ export default function GeneracionCertificadoClient({
   const [cities, setCities] = useState<City[]>([]);
   const [hasAttemptedManualSubmission, setHasAttemptedManualSubmission] =
     useState(false);
+  const [manualOSIHasAnyCertificates, setManualOSIHasAnyCertificates] =
+    useState(false);
+  const [manualOSIHasCourseCertificates, setManualOSIHasCourseCertificates] =
+    useState(false);
   const [certificateData, setCertificateData] = useState<CertificateGeneration>(
     {
       osi_id: "",
@@ -471,6 +475,8 @@ export default function GeneracionCertificadoClient({
       fecha_emision: undefined,
       id_ciudad: manualData.city_id,
       is_active: true,
+      has_certificates:
+        manualOSIHasCourseCertificates || manualOSIHasAnyCertificates,
       // Add other required fields with sensible defaults
     };
   };
@@ -580,6 +586,17 @@ export default function GeneracionCertificadoClient({
         );
         return;
       }
+
+      // Warning for existing certificates in manual mode
+      const hasCerts =
+        manualOSIHasCourseCertificates || manualOSIHasAnyCertificates;
+      if (hasCerts && !editData) {
+        const confirmMsg = `La OSI ${manualOSIData.osi_number} ya tiene certificados generados. ¿Estás seguro de que deseas generar otro lote de certificados para esta misma OSI?`;
+        if (!confirm(confirmMsg)) {
+          return;
+        }
+      }
+
       // Build mock OSI and set it
       const mockOSI = buildMockOSI(manualOSIData);
       setSelectedOSI(mockOSI);
@@ -593,7 +610,7 @@ export default function GeneracionCertificadoClient({
     }
 
     if (
-      !certificateData.osi_id ||
+      (!certificateData.manual_mode && !certificateData.osi_id) ||
       !certificateData.certificate_title ||
       !certificateData.course_topic_id ||
       certificateData.participants.length === 0
@@ -683,6 +700,24 @@ export default function GeneracionCertificadoClient({
         );
         return;
       }
+
+      // Prepare data for additional documents with control numbers
+      const certificateRecords = certificateData.participants.map(
+        (participant, index) => ({
+          participant_name: participant.name,
+          participant_id_number: participant.idNumber,
+          participant_id_type: participant.idType,
+          participant_nationality: participant.nationality,
+          course_title: certificateData.certificate_title,
+          company_name: selectedOSI?.cliente_nombre_empresa || "",
+          osi_number: selectedOSI?.nro_osi || "",
+          city: certificateData.location || "Puerto La Cruz",
+          location: certificateData.location || "",
+          execution_address: selectedOSI?.direccion_ejecucion || "",
+          execution_date: certificateData.date,
+          control_number: dbResult.certificateNumbers![index]?.nro_control,
+        }),
+      );
 
       // Use existing certificate generation
       const { CertificateGenerator } =
@@ -948,23 +983,6 @@ export default function GeneracionCertificadoClient({
         currentCertificate: 0,
         totalCertificates: certificateData.participants.length,
       });
-
-      // Prepare data for additional documents (available before generation starts)
-      const certificateRecords = certificateData.participants.map(
-        (participant, index) => ({
-          participant_name: participant.name,
-          participant_id_number: participant.idNumber,
-          participant_id_type: participant.idType,
-          participant_nationality: participant.nationality,
-          course_title: certificateData.certificate_title,
-          company_name: selectedOSI?.cliente_nombre_empresa || "",
-          osi_number: selectedOSI?.nro_osi || "",
-          city: certificateData.location || "Puerto La Cruz",
-          location: certificateData.location || "",
-          execution_address: selectedOSI?.direccion_ejecucion || "",
-          execution_date: certificateData.date,
-        }),
-      );
 
       // Start additional document generation in parallel
       const additionalDocsPromise = certificateData.generate_documents
@@ -1613,6 +1631,8 @@ export default function GeneracionCertificadoClient({
             }}
             selectedCourseTopic={selectedCourseTopic}
             hasAttemptedSubmission={hasAttemptedManualSubmission}
+            onHasAnyCertificatesChange={setManualOSIHasAnyCertificates}
+            onHasCourseCertificatesChange={setManualOSIHasCourseCertificates}
           />
         ) : null}
 

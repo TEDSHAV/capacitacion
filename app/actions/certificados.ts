@@ -1258,6 +1258,108 @@ export async function getPreviousParticipantsByOSIAction(
 }
 
 /**
+ * Check if OSI has any certificates (for immediate badge display in manual mode)
+ */
+export async function checkOSIHasAnyCertificatesAction(osiNumber: string) {
+  try {
+    const supabase = await createClient();
+    const nroOsiNum = parseInt(osiNumber.replace(/[^\d]/g, ""));
+
+    if (isNaN(nroOsiNum)) {
+      return {
+        success: false,
+        has_certificates: false,
+        count: 0,
+      };
+    }
+
+    const { data, error } = await supabase
+      .from("certificados")
+      .select("id")
+      .eq("nro_osi", nroOsiNum)
+      .eq("is_active", true);
+
+    if (error) {
+      console.error("Error checking OSI certificates:", error);
+      return {
+        success: false,
+        has_certificates: false,
+        count: 0,
+      };
+    }
+
+    return {
+      success: true,
+      has_certificates: data && data.length > 0,
+      count: data?.length || 0,
+    };
+  } catch (error) {
+    console.error(
+      "Unexpected error in checkOSIHasAnyCertificatesAction:",
+      error,
+    );
+    return {
+      success: false,
+      has_certificates: false,
+      count: 0,
+    };
+  }
+}
+
+/**
+ * Check if OSI has certificates for a specific course (for refined warning in manual mode)
+ */
+export async function checkOSIHasCertificatesForCourseAction(
+  osiNumber: string,
+  courseId: number,
+) {
+  try {
+    const supabase = await createClient();
+    const nroOsiNum = parseInt(osiNumber.replace(/[^\d]/g, ""));
+
+    if (isNaN(nroOsiNum) || isNaN(courseId)) {
+      return {
+        success: false,
+        has_certificates: false,
+        count: 0,
+      };
+    }
+
+    const { data, error } = await supabase
+      .from("certificados")
+      .select("id")
+      .eq("nro_osi", nroOsiNum)
+      .eq("id_curso", courseId)
+      .eq("is_active", true);
+
+    if (error) {
+      console.error("Error checking OSI course certificates:", error);
+      return {
+        success: false,
+        has_certificates: false,
+        count: 0,
+      };
+    }
+
+    return {
+      success: true,
+      has_certificates: data && data.length > 0,
+      count: data?.length || 0,
+    };
+  } catch (error) {
+    console.error(
+      "Unexpected error in checkOSIHasCertificatesForCourseAction:",
+      error,
+    );
+    return {
+      success: false,
+      has_certificates: false,
+      count: 0,
+    };
+  }
+}
+
+/**
  * Get available certificate templates
  */
 

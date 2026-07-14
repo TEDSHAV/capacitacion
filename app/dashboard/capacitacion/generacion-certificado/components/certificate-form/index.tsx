@@ -37,7 +37,7 @@ export const CertificateForm = ({
 
   const isBaseFormValid =
     !!certificateData.certificate_title &&
-    !!certificateData.osi_id &&
+    (certificateData.manual_mode || !!certificateData.osi_id) &&
     !!certificateData.course_topic_id &&
     certificateData.participants.length > 0 &&
     !!certificateData.date &&
