@@ -83,6 +83,8 @@ export default function OSIDetailPage() {
   const [isNew, setIsNew] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [empresas, setEmpresas] = useState<any[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filteredEmpresas, setFilteredEmpresas] = useState<any[]>([])
 
   useEffect(() => {
     const nro_osi = params.nro_osi as string
@@ -101,6 +103,14 @@ export default function OSIDetailPage() {
       setLoading(false)
     }
   }, [params.nro_osi])
+
+  useEffect(() => {
+    // Filter empresas based on search term
+    const filtered = empresas.filter(empresa =>
+      empresa.razon_social.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    setFilteredEmpresas(filtered)
+  }, [searchTerm, empresas])
 
   const startEditing = () => {
     setIsEditing(true)
@@ -406,19 +416,35 @@ export default function OSIDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Empresa</label>
-                  <select
-                    value={formData.cliente_nombre_empresa || ''}
-                    onChange={(e) => updateFormData('cliente_nombre_empresa', e.target.value)}
-                    disabled={!isEditing && !isNew}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Seleccione una empresa</option>
-                    {empresas.map((empresa) => (
-                      <option key={empresa.id} value={empresa.razon_social}>
-                        {empresa.razon_social}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.cliente_nombre_empresa || ''}
+                      onChange={(e) => {
+                        updateFormData('cliente_nombre_empresa', e.target.value)
+                        setSearchTerm(e.target.value)
+                      }}
+                      disabled={!isEditing && !isNew}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      placeholder="Buscar empresa..."
+                    />
+                    {searchTerm && filteredEmpresas.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {filteredEmpresas.map((empresa) => (
+                          <div
+                            key={empresa.id}
+                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                            onClick={() => {
+                              updateFormData('cliente_nombre_empresa', empresa.razon_social)
+                              setSearchTerm('')
+                            }}
+                          >
+                            <div className="font-medium">{empresa.razon_social}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="space-y-4">
