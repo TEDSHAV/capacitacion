@@ -258,7 +258,8 @@ export async function getClienteCertificates(
 
     if (filters.searchTerm) {
       query = query.or(
-        `participantes_certificados.nombre.ilike.%${filters.searchTerm}%,participantes_certificados.cedula.ilike.%${filters.searchTerm}%`,
+        `nombre.ilike.%${filters.searchTerm}%,cedula.ilike.%${filters.searchTerm}%`,
+        { referencedTable: "participantes_certificados" },
       );
     }
 
@@ -633,7 +634,8 @@ export async function getClienteBatchesFiltered(
   if (filters.dateTo) query = query.lte("fecha_emision", filters.dateTo);
   if (filters.searchTerm) {
     query = query.or(
-      `participantes_certificados.nombre.ilike.%${filters.searchTerm}%,participantes_certificados.cedula.ilike.%${filters.searchTerm}%`,
+      `nombre.ilike.%${filters.searchTerm}%,cedula.ilike.%${filters.searchTerm}%`,
+      { referencedTable: "participantes_certificados" },
     );
   }
 

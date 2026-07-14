@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ClienteMetrics, ClienteBatchSummary, ClienteFilterOptions, ClienteCertificateFilters, ClienteCertificateRow } from "@/types";
 import { getClienteCertificates, getClienteMetrics, getClienteBatchesFiltered } from "@/app/actions/cliente-portal";
 import { ClienteMetricsCards } from "./cliente-metrics";
@@ -38,6 +38,7 @@ export function ClienteDashboardClient({
   const [expandedCertificates, setExpandedCertificates] = useState<ClienteCertificateRow[]>([]);
   const [expandedLoading, setExpandedLoading] = useState(false);
   const itemsPerPage = 10;
+  const hasInitialized = useRef(false);
 
   const hasActiveFilters =
     !!filters.searchTerm ||
@@ -83,7 +84,10 @@ export function ClienteDashboardClient({
   }, [empresaId, filters]);
 
   useEffect(() => {
-    if (currentPage === 1 && !hasActiveFilters && batches.length > 0) return;
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      return;
+    }
     loadBatches();
   }, [hasActiveFilters, loadBatches, currentPage]);
 
