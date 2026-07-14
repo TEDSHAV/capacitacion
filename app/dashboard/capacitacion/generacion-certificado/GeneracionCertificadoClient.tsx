@@ -475,7 +475,7 @@ export default function GeneracionCertificadoClient({
       let templateImageUrl = "/templates/certificado.png"; // fallback
 
       if (initialData.activeCertificateTemplate?.archivo) {
-        templateImageUrl = `/templates/${initialData.activeCertificateTemplate.archivo}`;
+        templateImageUrl = `/templates/${initialData.activeCertificateTemplate.archivo.toLowerCase()}`;
       } else if (
         certificateData.id_plantilla_certificado &&
         certificateTemplates.length > 0
@@ -484,10 +484,10 @@ export default function GeneracionCertificadoClient({
           (t: any) => t.id === certificateData.id_plantilla_certificado,
         );
         if (selectedCertTemplate?.archivo) {
-          templateImageUrl = `/templates/${selectedCertTemplate.archivo}`;
+          templateImageUrl = `/templates/${selectedCertTemplate.archivo.toLowerCase()}`;
         }
       } else if (certificateData.plantilla_certificado_archivo) {
-        templateImageUrl = `/templates/${certificateData.plantilla_certificado_archivo}`;
+        templateImageUrl = `/templates/${certificateData.plantilla_certificado_archivo.toLowerCase()}`;
       }
 
       const sealImageUrl = "/templates/sello.png";
