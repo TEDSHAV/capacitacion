@@ -9,6 +9,8 @@ import {
 } from "@/types";
 import { LocationSearch } from "./LocationSearch";
 import { ParticipantsSection } from "./ParticipantsSection";
+import { CertificatePreview } from "./CertificatePreview";
+import { useState } from "react";
 
 export const CertificateForm = ({
   certificateData,
@@ -20,6 +22,8 @@ export const CertificateForm = ({
   onParticipantsChange,
   onGenerate,
 }: CertificateFormProps) => {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
   const handleGenerateCertificate = () => {
     // Validation
     if (
@@ -35,6 +39,23 @@ export const CertificateForm = ({
     }
 
     onGenerate();
+  };
+
+  const handlePreview = () => {
+    // Validation for preview
+    if (
+      !certificateData.certificate_title ||
+      !certificateData.osi_id ||
+      !certificateData.course_topic_id ||
+      certificateData.participants.length === 0 ||
+      !certificateData.location ||
+      !certificateData.date
+    ) {
+      alert("Por favor completa todos los campos obligatorios para generar la vista previa");
+      return;
+    }
+
+    setIsPreviewOpen(true);
   };
 
   return (
@@ -206,30 +227,69 @@ export const CertificateForm = ({
         passing_grade={certificateData.passing_grade}
       />
 
-      {/* Generate Button */}
-      <button
-        type="button"
-        onClick={handleGenerateCertificate}
-        disabled={
-          isGenerating ||
-          !certificateData.certificate_title ||
-          !certificateData.osi_id ||
-          !certificateData.course_topic_id ||
-          certificateData.participants.length === 0 ||
-          !certificateData.location ||
-          !certificateData.date
-        }
-        className="w-full py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
-      >
-        {isGenerating ? (
-          <>
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            Generando Certificados...
-          </>
-        ) : (
-          'Generar Certificado(s)'
-        )}
-      </button>
+      {/* Action Buttons */}
+      <div className="flex space-x-3 mb-4">
+        {/* Preview Button */}
+        <button
+          type="button"
+          onClick={handlePreview}
+          disabled={
+            !certificateData.certificate_title ||
+            !certificateData.osi_id ||
+            !certificateData.course_topic_id ||
+            certificateData.participants.length === 0 ||
+            !certificateData.location ||
+            !certificateData.date
+          }
+          className="flex-1 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+            />
+          </svg>
+          Vista Previa
+        </button>
+
+        {/* Generate Button */}
+        <button
+          type="button"
+          onClick={handleGenerateCertificate}
+          disabled={
+            isGenerating ||
+            !certificateData.certificate_title ||
+            !certificateData.osi_id ||
+            !certificateData.course_topic_id ||
+            certificateData.participants.length === 0 ||
+            !certificateData.location ||
+            !certificateData.date
+          }
+          className="flex-1 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+        >
+          {isGenerating ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Generando Certificados...
+            </>
+          ) : (
+            'Generar Certificado(s)'
+          )}
+        </button>
+      </div>
 
       {/* Validation Message */}
       {(!certificateData.certificate_title ||
@@ -242,6 +302,14 @@ export const CertificateForm = ({
           Por favor completa todos los campos obligatorios
         </p>
       )}
+
+      {/* Certificate Preview Modal */}
+      <CertificatePreview
+        certificateData={certificateData}
+        selectedOSI={selectedOSI}
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+      />
     </div>
   );
 };
