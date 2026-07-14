@@ -45,7 +45,6 @@ export default function NegociosPage() {
 
     checkAuth()
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event: any, session: any) => {
         if (!session?.user) {
@@ -168,7 +167,6 @@ export default function NegociosPage() {
                   router.push('/dashboard/negocios/gestion-de-osis')
                 }}
                 className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium flex items-center shadow-md"
-                style={{ backgroundColor: 'var(--primary-blue)' }}
               >
                 Acceder
                 <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,7 +201,6 @@ export default function NegociosPage() {
                   router.push('/dashboard/negocios/gestion-de-clientes')
                 }}
                 className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors text-sm font-medium flex items-center shadow-md"
-                style={{ backgroundColor: 'var(--primary-purple)' }}
               >
                 Acceder
                 <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

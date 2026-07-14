@@ -47,7 +47,12 @@ const ExecutionDates = ({ formData, isEditing, isNew, updateFormData }: Executio
               </label>
               <input
                 type="date"
-                value={formData[`fecha_ejecucion${sessionNum}`] || ''}
+                value={formData[`fecha_ejecucion${sessionNum}`] ? 
+                  (formData[`fecha_ejecucion${sessionNum}`] instanceof Date ? 
+                    formData[`fecha_ejecucion${sessionNum}`].toISOString().split('T')[0] :
+                    new Date(formData[`fecha_ejecucion${sessionNum}`]).toISOString().split('T')[0]
+                  ) : ''
+                }
                 onChange={(e) => updateFormData(`fecha_ejecucion${sessionNum}`, e.target.value)}
                 disabled={!isEditing && !isNew || sessionNum > (formData.nro_sesiones || 1)}
                 tabIndex={!isEditing && !isNew || sessionNum > (formData.nro_sesiones || 1) ? -1 : 0}

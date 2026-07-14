@@ -6,6 +6,10 @@ interface ServiceDetailsProps {
 }
 
 const ServiceDetails = ({ formData, isEditing, isNew, updateFormData }: ServiceDetailsProps) => {
+  if (!formData) {
+    return null
+  }
+  
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Detalles del Servicio</h2>
@@ -15,7 +19,8 @@ const ServiceDetails = ({ formData, isEditing, isNew, updateFormData }: ServiceD
           <input
             type="date"
             value={formData.fecha_emision ? 
-              (formData.fecha_emision instanceof Date ? formData.fecha_emision : new Date(formData.fecha_emision)).toISOString().split('T')[0] : ''}
+              (typeof formData.fecha_emision === 'string' ? formData.fecha_emision.split('T')[0] : 
+               formData.fecha_emision instanceof Date ? formData.fecha_emision.toISOString().split('T')[0] : '') : ''}
             onChange={(e) => updateFormData('fecha_emision', e.target.value ? new Date(e.target.value) : null)}
             disabled={!isEditing && !isNew}
             tabIndex={!isEditing && !isNew ? -1 : 0}
@@ -28,7 +33,8 @@ const ServiceDetails = ({ formData, isEditing, isNew, updateFormData }: ServiceD
           <input
             type="date"
             value={formData.fecha_servicio ? 
-              (formData.fecha_servicio instanceof Date ? formData.fecha_servicio : new Date(formData.fecha_servicio)).toISOString().split('T')[0] : ''}
+              (typeof formData.fecha_servicio === 'string' ? formData.fecha_servicio.split('T')[0] : 
+               formData.fecha_servicio instanceof Date ? formData.fecha_servicio.toISOString().split('T')[0] : '') : ''}
             onChange={(e) => updateFormData('fecha_servicio', e.target.value ? new Date(e.target.value) : null)}
             disabled={!isEditing && !isNew}
             tabIndex={!isEditing && !isNew ? -1 : 0}
