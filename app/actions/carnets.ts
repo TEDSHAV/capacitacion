@@ -176,6 +176,7 @@ export async function getCarnetsByFilters(
         nombre_participante.ilike.%${filters.searchTerm}%,
         cedula_participante.ilike.%${filters.searchTerm}%,
         titulo_curso.ilike.%${filters.searchTerm}%,
+        subtitulo_curso.ilike.%${filters.searchTerm}%,
         empresa_participante.ilike.%${filters.searchTerm}%
       `);
     }

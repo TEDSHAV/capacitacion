@@ -50,6 +50,7 @@ export async function downloadBatchAction(
         const certData = {
           ...snapshot.certificado_detalles,
           certificate_title: snapshot.certificado_detalles.title,
+          certificate_subtitle: snapshot.certificado_detalles.subtitle,
           course_topic_data: snapshot.curso,
           osi_data: snapshot.osi,
           facilitator_data: snapshot.firmas.facilitator_data,
@@ -111,6 +112,7 @@ export async function downloadBatchAction(
               id_curso: snapshot.certificado.id_curso,
               id_osi: snapshot.osi.id_osi,
               titulo_curso: certData.certificate_title,
+              subtitulo_curso: certData.certificate_subtitle || null,
               fecha_emision: snapshot.certificado.fecha_emision,
               fecha_vencimiento: snapshot.certificado.fecha_vencimiento,
               nombre_participante: participant.name,

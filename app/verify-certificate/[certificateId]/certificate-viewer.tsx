@@ -303,6 +303,11 @@ export default function CertificateVerificationPage() {
                           <p className="text-sm text-gray-900">
                             {carnet.titulo_curso}
                           </p>
+                          {carnet.subtitulo_curso && (
+                            <p className="text-xs text-gray-500 italic">
+                              {carnet.subtitulo_curso}
+                            </p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-500">
