@@ -15,7 +15,7 @@ const getPlantillaCursos = cache(async (page: number = 1, limit: number = 10, se
       .select(`
         *,
         cursos(id, nombre),
-        empresas(id, nombre)
+        empresas(id, razon_social)
       `)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
@@ -34,7 +34,7 @@ const getPlantillaCursos = cache(async (page: number = 1, limit: number = 10, se
     const plantillas = data?.map(plantilla => ({
       ...plantilla,
       curso_nombre: plantilla.cursos?.nombre,
-      empresa_nombre: plantilla.empresas?.nombre
+      empresa_nombre: plantilla.empresas?.razon_social
     })) || [];
 
     return { 
@@ -159,16 +159,20 @@ const getEmpresas = cache(async () => {
   try {
     const { data, error } = await supabase
       .from('empresas')
-      .select('id, nombre')
-      .eq('is_active', true)
-      .order('nombre');
+      .select('id, razon_social')
+      .order('razon_social');
 
     if (error) {
       console.error('Error fetching empresas:', error);
       return { success: false, error: error.message };
     }
 
-    return { success: true, data: data || [] };
+    const transformedData = data?.map(empresa => ({
+      id: empresa.id,
+      nombre: empresa.razon_social
+    })) || [];
+
+    return { success: true, data: transformedData };
   } catch (error) {
     console.error('Error in getEmpresas:', error);
     return { success: false, error: 'Failed to fetch empresas' };
