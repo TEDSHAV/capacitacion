@@ -61,6 +61,7 @@ const getOptimizedCertificateData = cache(async () => {
           `
           id,
           nombre,
+          subtitulo,
           contenido_curso,
           carga_horaria_std,
           nota_aprobatoria,
@@ -194,6 +195,7 @@ const getOptimizedCertificateData = cache(async () => {
         nombre: course.nombre,
         name: course.nombre,
         description: course.nombre,
+        subtitulo: course.subtitulo || null,
         contenido_curso: course.contenido_curso || null,
         horas_estimadas: course.carga_horaria_std,
         nota_aprobatoria: course.nota_aprobatoria ?? 14,

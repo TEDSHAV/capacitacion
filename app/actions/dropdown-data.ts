@@ -105,7 +105,7 @@ const getCourseTopics = cache(async () => {
   try {
     const { data, error } = await supabase
       .from("catalogo_servicios")
-      .select("id, nombre")
+      .select("id, nombre, subtitulo")
       .eq("esta_activo", true)
       .eq("id_departamento_ejecutante", 3)
       .order("nombre");

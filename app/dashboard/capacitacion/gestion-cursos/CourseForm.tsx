@@ -22,6 +22,7 @@ export default function CourseForm({
 }: CourseFormProps) {
   const [datosFormulario, setDatosFormulario] = useState({
     titulo: curso?.nombre || "",
+    subtitulo: curso?.subtitulo || "",
     contenido: curso?.contenido_curso || "",
     horas_estimadas: curso?.carga_horaria_std || 0,
     tipo_certificado:
@@ -106,6 +107,7 @@ export default function CourseForm({
     // Create FormData properly
     const formData = new FormData();
     formData.append("titulo", datosFormulario.titulo.toUpperCase());
+    formData.append("subtitulo", datosFormulario.subtitulo.toUpperCase());
     formData.append("contenido", datosFormulario.contenido);
     formData.append(
       "horas_estimadas",
@@ -176,6 +178,28 @@ export default function CourseForm({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             placeholder="Ej: Introducción a la Seguridad Industrial"
           />
+        </div>
+
+        {/* Subtitle */}
+        <div>
+          <label
+            htmlFor="subtitulo"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Subtítulo del Curso
+          </label>
+          <input
+            type="text"
+            id="subtitulo"
+            name="subtitulo"
+            value={datosFormulario.subtitulo}
+            onChange={manejarCambioInput}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            placeholder="Ej: 5 Toneladas"
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            Subtítulo opcional que aparecerá en certificados y carnets
+          </p>
         </div>
 
         {/* Estimated Hours */}

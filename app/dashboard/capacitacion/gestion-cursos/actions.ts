@@ -16,6 +16,7 @@ export async function createCurso(formData: FormData) {
     // Get form data with proper type checking
     const titulo = formData.get("titulo") as string;
     // const cliente_asociado = formData.get('cliente_asociado') as string; // Removed - column doesn't exist
+    const subtitulo = formData.get("subtitulo") as string;
     const contenido = formData.get("contenido") as string;
     const horas_estimadas = formData.get("horas_estimadas") as string;
     const nota_aprobatoria = formData.get("nota_aprobatoria") as string;
@@ -35,6 +36,7 @@ export async function createCurso(formData: FormData) {
 
     console.log("Creating course:", {
       titulo,
+      subtitulo,
       contenido,
       horas_estimadas,
       nota_aprobatoria,
@@ -45,6 +47,7 @@ export async function createCurso(formData: FormData) {
       .from("catalogo_servicios")
       .insert({
         nombre: titulo.trim().toUpperCase(),
+        subtitulo: subtitulo?.trim() ? subtitulo.trim().toUpperCase() : null,
         contenido_curso: contenido.trim(),
         carga_horaria_std: horas_estimadas ? parseInt(horas_estimadas) : null,
         created_at: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
@@ -81,6 +84,7 @@ export async function updateCurso(id: string, formData: FormData) {
     const supabase = await createClient();
 
     const titulo = formData.get("titulo") as string;
+    const subtitulo = formData.get("subtitulo") as string;
     const contenido = formData.get("contenido") as string;
     const horas_estimadas = formData.get("horas_estimadas") as string;
     const nota_aprobatoria = formData.get("nota_aprobatoria") as string;
@@ -88,6 +92,7 @@ export async function updateCurso(id: string, formData: FormData) {
 
     console.log(`Updating course ${id}:`, {
       titulo,
+      subtitulo,
       contenido,
       horas_estimadas,
       nota_aprobatoria,
@@ -108,6 +113,7 @@ export async function updateCurso(id: string, formData: FormData) {
       .from("catalogo_servicios")
       .update({
         nombre: titulo.trim().toUpperCase(),
+        subtitulo: subtitulo?.trim() ? subtitulo.trim().toUpperCase() : null,
         contenido_curso: contenido.trim(),
         carga_horaria_std: horas_estimadas ? parseInt(horas_estimadas) : null,
         nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
@@ -158,6 +164,7 @@ export async function duplicateCurso(id: string) {
       .from("catalogo_servicios")
       .insert({
         nombre: `${originalCourse.nombre} (COPIA)`.toUpperCase(),
+        subtitulo: originalCourse.subtitulo || null,
         contenido_curso: originalCourse.contenido_curso,
         carga_horaria_std: originalCourse.carga_horaria_std,
         created_at: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD

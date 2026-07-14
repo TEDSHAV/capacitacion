@@ -286,6 +286,7 @@ export default function GeneracionCertificadoClient({
         ...prev,
         course_content: selectedCourseTopic.contenido_curso || "",
         certificate_title: prev.certificate_title || selectedCourseTopic.nombre,
+        certificate_subtitle: selectedCourseTopic.subtitulo || prev.certificate_subtitle || "",
       }));
     }
   }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, editData]);
@@ -362,6 +363,7 @@ export default function GeneracionCertificadoClient({
         passing_grade: selectedCourse?.nota_aprobatoria ?? 14,
         horas_estimadas: hours,
         certificate_title: title,
+        certificate_subtitle: selectedCourse?.subtitulo || prev.certificate_subtitle || "",
         // Pre-populate facilitator if found in database
         facilitator_id: facilitatorResult?.data?.id?.toString() || prev.facilitator_id,
         facilitator_data: facilitatorResult?.data || prev.facilitator_data,
@@ -411,6 +413,7 @@ export default function GeneracionCertificadoClient({
           passing_grade: passingGrade,
           horas_estimadas: selectedTopic.horas_estimadas,
           certificate_title: prev.certificate_title || selectedTopic.name,
+          certificate_subtitle: selectedTopic.subtitulo || prev.certificate_subtitle || "",
           id_plantilla_certificado:
             selectedTopic.id_plantilla_certificado ||
             prev.id_plantilla_certificado,
@@ -1698,6 +1701,7 @@ export default function GeneracionCertificadoClient({
                 passing_grade: passingGrade,
                 horas_estimadas: courseTopic.horas_estimadas,
                 certificate_title: prev.certificate_title || courseTopic.name,
+                certificate_subtitle: courseTopic.subtitulo || prev.certificate_subtitle || "",
                 id_plantilla_certificado:
                   courseTopic.id_plantilla_certificado ||
                   prev.id_plantilla_certificado,

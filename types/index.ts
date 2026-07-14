@@ -76,6 +76,7 @@ export interface Curso {
   esta_activo: boolean;
   nota_aprobatoria: number | null;
   emite_carnet: boolean | null;
+  subtitulo: string | null;
   empresas?: { razon_social: string; rif?: string | null } | null;
 }
 
@@ -201,6 +202,7 @@ export interface CourseTopic {
   nota_aprobatoria?: number; // Passing grade from catalogo_servicios
   horas_estimadas?: number; // Estimated hours from catalogo_servicios
   emite_carnet?: boolean; // Whether course emits card/certificate from catalogo_servicios
+  subtitulo?: string; // Subtitle from catalogo_servicios
   id_plantilla_certificado?: number; // Preferred certificate template for this course
 }
 

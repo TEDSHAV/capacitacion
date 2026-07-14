@@ -24,6 +24,7 @@ import {
   Briefcase,
   Building2,
   KeyRound,
+  Sparkles,
 } from "lucide-react";
 import { ClienteCredentialsModal } from "@/components/cliente-credentials-modal";
 
@@ -101,6 +102,9 @@ export default function CapacitacionClient({
           title: "Control Secuencia",
           icon: Calculator,
         },
+        ...(process.env.NODE_ENV === "development"
+          ? [{ id: "generacion-personalizada", title: "Generación Personalizada (Dev)", icon: Sparkles }]
+          : []),
       ],
     },
     {
