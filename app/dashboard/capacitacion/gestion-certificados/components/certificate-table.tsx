@@ -1,6 +1,7 @@
 "use client";
 
 import { CertificateManagement } from '@/types';
+import { Button } from '@/components/ui/button';
 
 interface CertificateTableProps {
   certificates: CertificateManagement[];
@@ -210,43 +211,52 @@ export default function CertificateTableComponent({
                   {getStatusBadge(certificate.is_active, certificate.fecha_vencimiento)}
                 </td>
                 
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex space-x-2">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center space-x-2">
                     {onViewCertificate && (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => onViewCertificate(certificate)}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
                         title="Ver certificado"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
-                      </button>
+                        <span className="sr-only">Ver</span>
+                      </Button>
                     )}
                     
                     {onDownloadCertificate && (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => onDownloadCertificate(certificate)}
-                        className="text-green-600 hover:text-green-900"
+                        className="text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300 hover:text-green-700"
                         title="Descargar certificado"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                      </button>
+                        <span className="sr-only">Descargar</span>
+                      </Button>
                     )}
                     
                     {onVerifyCertificate && certificate.qr_code && (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => onVerifyCertificate(certificate)}
-                        className="text-purple-600 hover:text-purple-900"
+                        className="text-purple-600 border-purple-200 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
                         title="Verificar certificado"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                      </button>
+                        <span className="sr-only">Verificar</span>
+                      </Button>
                     )}
                   </div>
                 </td>
