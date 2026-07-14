@@ -93,11 +93,12 @@ export class TextRenderer {
    * Render ID text with nationality-based conditional logic
    */
   renderIDText(
-    participant: { nacionalidad?: 'V' | 'E'; id_number: string },
+    participant: { id_type?: string; id_number: string },
     x: number,
     y: number
   ): void {
-    const isVenezolano = participant.nacionalidad?.toLowerCase() === 'v';
+    // Use id_type field which contains the prefix (V- or E-)
+    const isVenezolano = participant.id_type === 'V-';
     const idLabel = isVenezolano ? "CI:" : "Pasaporte:";
     const idPrefix = isVenezolano ? "V-" : "E-";
     
