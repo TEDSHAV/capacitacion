@@ -92,7 +92,7 @@ export default function CapacitacionClient({
         { id: "plantillas-certificados", title: "Plantillas", icon: FileCheck },
         { id: "plantillas-carnets", title: "Carnets", icon: LayoutGrid },
         {
-          id: "configuracion",
+          id: "configuracion/secuencias-control",
           title: "Control Secuencia",
           icon: Calculator,
         },
