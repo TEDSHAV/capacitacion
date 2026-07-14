@@ -491,8 +491,8 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     .footer {
       position: fixed;
       bottom: 0;
-      left: 0;
-      right: 0;
+      left: 0.75in;
+      right: 0.75in;
       height: 0.8in;
       z-index: 1000;
       overflow: hidden;
@@ -926,8 +926,8 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     .footer {
       position: fixed;
       bottom: 0;
-      left: 0;
-      right: 0;
+      left: 0.75in;
+      right: 0.75in;
       height: 0.8in;
       z-index: 1000;
       overflow: hidden;
@@ -1315,8 +1315,8 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     .footer {
       position: fixed;
       bottom: 0;
-      left: 0;
-      right: 0;
+      left: 0.75in;
+      right: 0.75in;
       height: 0.8in;
       z-index: 1000;
       overflow: hidden;

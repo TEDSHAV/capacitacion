@@ -911,7 +911,7 @@ function generateContentSnapshot(
 
       fecha_emision:
         batchEmissionDate ||
-        certificateData.date ||
+        updatedCertificateData.date ||
         new Date().toLocaleDateString("en-CA"), // Use provided date
 
       fecha_vencimiento: updatedCertificateData.fecha_vencimiento,

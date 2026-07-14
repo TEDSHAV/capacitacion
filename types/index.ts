@@ -645,6 +645,7 @@ export interface CertificateOSI {
   fecha_emision?: string;
   nro_horas?: number | null;
   id_estado?: number | null;
+  id_ciudad?: number | null;
   id_facilitador?: number | null; // Facilitator ID for certificate generation
   detalle_capacitacion?: string;
   detalle_sesion?: string;
