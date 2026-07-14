@@ -1,5 +1,10 @@
 import jsPDF from "jspdf";
-import { CertificateParticipant, CertificateGeneration, Signature, Facilitador } from "@/types";
+import {
+  CertificateParticipant,
+  CertificateGeneration,
+  Signature,
+  Facilitador,
+} from "@/types";
 
 interface CertificateData {
   participant: CertificateParticipant;
@@ -23,7 +28,9 @@ export class CertificateGenerator {
     this.pageHeight = this.doc.internal.pageSize.getHeight();
   }
 
-  private async getSignatureData(signatureId: string): Promise<Signature | null> {
+  private async getSignatureData(
+    signatureId: string,
+  ): Promise<Signature | null> {
     try {
       const response = await fetch(`/api/signatures/${signatureId}`);
       if (response.ok) {
@@ -32,19 +39,21 @@ export class CertificateGenerator {
       }
       return null;
     } catch (error) {
-      console.error('Error fetching signature:', error);
+      console.error("Error fetching signature:", error);
       return null;
     }
   }
 
-  private async getFacilitatorData(facilitatorId: string): Promise<Facilitador | null> {
+  private async getFacilitatorData(
+    facilitatorId: string,
+  ): Promise<Facilitador | null> {
     try {
       const response = await fetch(`/api/facilitators/${facilitatorId}`);
       if (response.ok) {
         return await response.json();
       }
     } catch (error) {
-      console.error('Error fetching facilitator:', error);
+      console.error("Error fetching facilitator:", error);
     }
     return null;
   }
@@ -253,7 +262,7 @@ export class CertificateGenerator {
     });
   }
 
-    private async addCertificateContent(
+  private async addCertificateContent(
     participant: CertificateParticipant,
     certificateData: CertificateGeneration,
   ): Promise<void> {
@@ -456,11 +465,17 @@ export class CertificateGenerator {
           align: "center",
         },
       );
-      
+
       // Add horas_estimadas if available - below the date
-      console.log('Checking horas_estimadas in PDF generator:', certificateData.horas_estimadas);
+      console.log(
+        "Checking horas_estimadas in PDF generator:",
+        certificateData.horas_estimadas,
+      );
       if (certificateData.horas_estimadas) {
-        console.log('Adding horas_estimadas to PDF:', certificateData.horas_estimadas);
+        console.log(
+          "Adding horas_estimadas to PDF:",
+          certificateData.horas_estimadas,
+        );
         this.doc.setFont("helvetica", "bold");
         this.doc.setFontSize(12);
         this.doc.text(
@@ -472,7 +487,7 @@ export class CertificateGenerator {
           },
         );
       } else {
-        console.log('No horas_estimadas found in certificate data');
+        console.log("No horas_estimadas found in certificate data");
       }
 
       // Add signatures if available
@@ -482,8 +497,10 @@ export class CertificateGenerator {
     // Add duration hours by fetching course data
   }
 
-  private async addSignatures(certificateData: CertificateGeneration): Promise<void> {
-    const signatureY = 115; // Y position for signatures
+  private async addSignatures(
+    certificateData: CertificateGeneration,
+  ): Promise<void> {
+    const signatureY = 118; // Y position for signatures
     const signatureWidth = 40; // Width of signature images
     const signatureHeight = 20; // Height of signature images
     const leftSignatureX = 58; // X position for facilitator signature
@@ -491,56 +508,105 @@ export class CertificateGenerator {
 
     // Add facilitator signature if available
     if (certificateData.facilitator_id) {
-      const facilitator = await this.getFacilitatorData(certificateData.facilitator_id);
-      console.log('Facilitator data for signature:', facilitator);
-      
+      const facilitator = await this.getFacilitatorData(
+        certificateData.facilitator_id,
+      );
+      console.log("Facilitator data for signature:", facilitator);
+
       if (facilitator) {
         try {
           // If facilitator has a signature, use it; otherwise just show name
           if (facilitator.firma_id) {
-            console.log('Fetching signature with ID:', facilitator.firma_id);
-            const signature = await this.getSignatureData(facilitator.firma_id.toString());
+            console.log("Fetching signature with ID:", facilitator.firma_id);
+            const signature = await this.getSignatureData(
+              facilitator.firma_id.toString(),
+            );
             if (signature && signature.url_imagen) {
-              console.log('Adding facilitator signature image:', signature.url_imagen);
-              await this.addSignatureImage(signature.url_imagen, leftSignatureX, signatureY, signatureWidth, signatureHeight);
+              console.log(
+                "Adding facilitator signature image:",
+                signature.url_imagen,
+              );
+              await this.addSignatureImage(
+                signature.url_imagen,
+                leftSignatureX,
+                signatureY,
+                signatureWidth,
+                signatureHeight,
+              );
             } else {
-              console.log('Signature not found or missing url_imagen');
+              console.log("Signature not found or missing url_imagen");
             }
           } else {
-            console.log('Facilitator has no firma_id');
+            console.log("Facilitator has no firma_id");
           }
-          
+
+          // Add facilitator name and title
+          this.doc.setFont("helvetica", "normal");
+          this.doc.setFontSize(10);
+          this.doc.text(
+            facilitator.nombre_apellido.toUpperCase(),
+            leftSignatureX + 18,
+            signatureY + 35,
+            { align: "center" },
+          );
         } catch (error) {
-          console.error('Error adding facilitator signature:', error);
+          console.error("Error adding facilitator signature:", error);
         }
       } else {
-        console.log('Facilitator not found for ID:', certificateData.facilitator_id);
+        console.log(
+          "Facilitator not found for ID:",
+          certificateData.facilitator_id,
+        );
       }
     } else {
-      console.log('No facilitator_id in certificate data');
+      console.log("No facilitator_id in certificate data");
     }
 
     // Add SHA signature if available
     if (certificateData.sha_signature_id) {
-      const shaSignature = await this.getSignatureData(certificateData.sha_signature_id);
+      const shaSignature = await this.getSignatureData(
+        certificateData.sha_signature_id,
+      );
       if (shaSignature) {
         try {
           // Add signature image
-          await this.addSignatureImage(shaSignature.url_imagen, rightSignatureX, signatureY, signatureWidth, signatureHeight);
-          
+          await this.addSignatureImage(
+            shaSignature.url_imagen,
+            rightSignatureX,
+            signatureY,
+            signatureWidth,
+            signatureHeight,
+          );
+
           // Add signature label
           this.doc.setFont("helvetica", "normal");
           this.doc.setFontSize(10);
-          this.doc.text(shaSignature.nombre, rightSignatureX, signatureY + signatureHeight + 5, { align: "center" });
-          this.doc.text("Representante SHA", rightSignatureX, signatureY + signatureHeight + 10, { align: "center" });
+          this.doc.text(
+            shaSignature.nombre,
+            rightSignatureX,
+            signatureY + signatureHeight + 5,
+            { align: "center" },
+          );
+          this.doc.text(
+            "Representante SHA",
+            rightSignatureX,
+            signatureY + signatureHeight + 10,
+            { align: "center" },
+          );
         } catch (error) {
-          console.error('Error adding SHA signature:', error);
+          console.error("Error adding SHA signature:", error);
         }
       }
     }
   }
 
-  private async addSignatureImage(imageUrl: string, x: number, y: number, width: number, height: number): Promise<void> {
+  private async addSignatureImage(
+    imageUrl: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
