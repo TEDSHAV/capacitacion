@@ -302,7 +302,6 @@ export interface CertificateGeneration {
   id_plantilla_carnet?: number; // Carne template ID
   plantilla_certificado_archivo?: string; // Certificate template file name for generation
   generate_documents?: boolean; // Whether to generate additional documents
-  content_font?: "helvetica" | "times"; // Font for course content in PDF
 }
 
 export interface CertificateParticipant {

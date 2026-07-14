@@ -12,7 +12,6 @@ interface CourseTemplateSectionProps {
   courseTemplates: any[];
   courseTemplateId?: string;
   courseContent?: string;
-  contentFont?: "helvetica" | "times";
   selectedCourseTopic: CourseTopic | null;
   selectedOSI: CertificateOSI | null;
   onDataChange: (field: keyof CertificateGeneration, value: any) => void;
@@ -22,7 +21,6 @@ export const CourseTemplateSection = ({
   courseTemplates,
   courseTemplateId,
   courseContent,
-  contentFont = "helvetica",
   selectedCourseTopic,
   selectedOSI,
   onDataChange,
@@ -54,7 +52,7 @@ export const CourseTemplateSection = ({
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 gap-4 mb-4">
         {/* Course Template Selection */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -95,37 +93,6 @@ export const CourseTemplateSection = ({
               );
             })}
           </select>
-        </div>
-
-        {/* Font Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Estilo de Fuente (PDF)
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => onDataChange("content_font", "helvetica")}
-              className={`flex-1 px-3 py-2 text-sm font-medium rounded-md border transition-all ${
-                !selectedOSI || contentFont === "helvetica"
-                  ? "bg-blue-50 border-blue-200 text-blue-700 ring-1 ring-blue-500"
-                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              Helvetica (Sans)
-            </button>
-            <button
-              type="button"
-              onClick={() => onDataChange("content_font", "times")}
-              className={`flex-1 px-3 py-2 text-sm font-medium rounded-md border transition-all font-serif ${
-                contentFont === "times"
-                  ? "bg-blue-50 border-blue-200 text-blue-700 ring-1 ring-blue-500"
-                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              Times (Serif)
-            </button>
-          </div>
         </div>
       </div>
 

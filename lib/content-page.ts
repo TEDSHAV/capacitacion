@@ -55,7 +55,6 @@ export class ContentPage {
       layout.currentY,
       layout.columnWidth,
       maxY,
-      certificateData.content_font,
     );
 
     // Render table with seal in right column
@@ -108,7 +107,6 @@ export class ContentPage {
       layout.currentY,
       layout.columnWidth,
       maxY,
-      certificateData.content_font,
     );
 
     // Render table with seal in right column
@@ -134,7 +132,6 @@ export class ContentPage {
     this.doc.saveGraphicsState();
     this.doc.setFont("helvetica", "bold");
     this.doc.setFontSize(16);
-    this.doc.setCharSpace(0); // CRITICAL: Fix spacing
     this.doc.setTextColor(0, 0, 0);
     this.doc.text("CONTENIDO", leftX, contentArea.y + 10, {
       align: "left",
@@ -169,7 +166,6 @@ export class ContentPage {
     currentY: number,
     columnWidth: number,
     maxY?: number,
-    contentFont?: "helvetica" | "times",
   ): void {
     if (!courseContent) return;
 
@@ -185,11 +181,11 @@ export class ContentPage {
     let fontSize = BASE_SIZE;
     let lineHeight = BASE_LINE_HEIGHT;
     let contentLines: string[] = [];
-    const font = contentFont || "helvetica";
+    const font = "helvetica";
 
     // Set font state STRICTLY before any measurement
     this.doc.setFont(font, "normal");
-    this.doc.setCharSpace(0);
+    this.doc.setCharSpace(0); // Reset: jsPDF 4.x state can carry non-zero charSpace from earlier ops
     this.doc.setLineHeightFactor(1.15);
 
     if (maxY !== undefined) {
@@ -257,7 +253,7 @@ export class ContentPage {
       this.doc.setTextColor(0, 0, 0);
 
       // Manual wrap check for extra safety
-      let finalLine = line.trim();
+      let finalLine = line.trimEnd();
       const actualWidth = this.doc.getTextWidth(finalLine);
       if (actualWidth > columnWidth - 2) {
         // If still too wide despite splitTextToSize, truncate it
