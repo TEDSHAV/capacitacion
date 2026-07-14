@@ -209,6 +209,7 @@ export function ManualOSIInput({
           Ciudad *
         </label>
         <select
+          required
           id="city"
           value={data.city_id || ""}
           onChange={(e) => {

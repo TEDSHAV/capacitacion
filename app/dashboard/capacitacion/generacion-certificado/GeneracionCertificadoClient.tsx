@@ -438,7 +438,7 @@ export default function GeneracionCertificadoClient({
     if (!companyName && manualData.company_id) {
       // Handle both string and numeric IDs for comparison
       const company = companies.find(
-        (c) => c.id.toString() === manualData.company_id.toString(),
+        (c) => c.id.toString() === (manualData.company_id?.toString() || ""),
       );
       if (company) {
         companyName = company.razon_social || "";
@@ -1023,13 +1023,6 @@ export default function GeneracionCertificadoClient({
                       ...enrichedPrevious,
                       ...certificateRecords,
                     ];
-
-                    // Sort by control number to keep them in order
-                    allParticipants.sort((a, b) => {
-                      const numA = parseInt(a.control_number || "0");
-                      const numB = parseInt(b.control_number || "0");
-                      return numA - numB;
-                    });
                   }
                 }
               }
