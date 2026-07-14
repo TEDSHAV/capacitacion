@@ -6,7 +6,8 @@ export function CreatePlantillaCursoButton({ onCreatePlantilla }: CreatePlantill
   return (
     <button
       onClick={onCreatePlantilla}
-      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+      className="inline-flex items-center px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors shadow-md"
+      style={{ backgroundColor: 'var(--primary-blue)' }}
     >
       <svg
         className="w-4 h-4 mr-2"

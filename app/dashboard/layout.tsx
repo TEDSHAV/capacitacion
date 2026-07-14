@@ -1,3 +1,5 @@
+import Breadcrumb from "@/components/Breadcrumb";
+
 export default function DashboardLayout({
   children,
 }: Readonly<{
@@ -5,6 +7,7 @@ export default function DashboardLayout({
 }>) {
   return (
     <main className="min-h-screen bg-gray-100">
+      <Breadcrumb />
       {children}
     </main>
   );

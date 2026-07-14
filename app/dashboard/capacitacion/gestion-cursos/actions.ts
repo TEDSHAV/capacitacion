@@ -59,11 +59,6 @@ export async function createCurso(formData: FormData) {
 export async function updateCurso(id: string, formData: FormData) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { error: 'No autorizado' };
-    }
 
     const titulo = formData.get('titulo') as string;
     // const cliente_asociado = formData.get('cliente_asociado') as string; // Removed - column doesn't exist
@@ -105,11 +100,6 @@ export async function updateCurso(id: string, formData: FormData) {
 export async function duplicateCurso(id: string) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { error: 'No autorizado' };
-    }
 
     // First, get the original course from cursos table
     const { data: originalCourse, error: fetchError } = await supabase
@@ -161,11 +151,6 @@ export async function duplicateCurso(id: string) {
 export async function deleteCurso(id: string) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { error: 'No autorizado' };
-    }
 
     // Soft delete: set is_active to false
     const { error } = await supabase
@@ -187,11 +172,6 @@ export async function deleteCurso(id: string) {
 export async function getCursos() {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { error: 'No autorizado' };
-    }
 
     // Get all active courses from cursos table
     const { data, error } = await supabase
