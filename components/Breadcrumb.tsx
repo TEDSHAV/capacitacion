@@ -14,7 +14,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   "generacion-certificado": "Generación de Certificados",
   "gestion-de-facilitadores": "Gestión de Facilitadores",
   "gestion-de-firmas": "Gestión de Firmas",
-  "control-secuencia": "Control de Secuencia",
+  configuracion: "Control de Secuencia",
   "plantillas-certificados": "Plantillas de Certificados",
   "plantillas-carnets": "Plantillas de Carnets",
   "gestion-plantillas-cursos": "Plantillas de Cursos",

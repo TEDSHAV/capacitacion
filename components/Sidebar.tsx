@@ -47,7 +47,7 @@ const submodules = {
     },
     {
       name: "Control de Secuencia",
-      path: "/dashboard/capacitacion/control-secuencia",
+      path: "/dashboard/capacitacion/configuracion",
     },
     { name: "Reportes", path: "/dashboard/capacitacion/reportes" },
   ],
