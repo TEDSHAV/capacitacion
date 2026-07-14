@@ -5,7 +5,7 @@ import { CourseTopic, CertificateFormProps, Signature } from "@/types";
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
-import { getSignaturesForDropdownAction, getCertificateTemplatesAction, getVenezuelanStatesAction, getCertificateTemplatesByCourseAction } from "@/app/actions/dropdown-data";
+import { getSignaturesForDropdownAction, getCertificateTemplatesAction, getVenezuelanStatesAction, getCertificateTemplatesByCourseAction, getCarnetTemplatesAction, getActiveTemplateAction } from "@/app/actions/dropdown-data";
 import { FacilitatorSelection } from "@/app/dashboard/capacitacion/participantes/gestion-de-facilitadores/components/facilitator-selection";
 
 export const CertificateForm = ({
@@ -21,6 +21,8 @@ export const CertificateForm = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [shaSignatures, setShaSignatures] = useState<Signature[]>([]);
   const [certificateTemplates, setCertificateTemplates] = useState<any[]>([]);
+  const [carnetTemplates, setCarnetTemplates] = useState<any[]>([]);
+  const [activeCarnetTemplate, setActiveCarnetTemplate] = useState<any>(null);
   const [venezuelanStates, setVenezuelanStates] = useState<any[]>([]);
 
   useEffect(() => {
@@ -55,7 +57,21 @@ export const CertificateForm = ({
         if (templatesResult.data) {
           const templates = templatesResult.data;
           setCertificateTemplates(templates);
-          // Note: Template selection will be handled by the course-based effect
+          // Note: Template selection will be handled by course-based effect
+        }
+
+        // Load carnet templates
+        const carnetTemplatesResult = await getCarnetTemplatesAction();
+        if (carnetTemplatesResult.data) {
+          setCarnetTemplates(carnetTemplatesResult.data);
+        }
+
+        // Load active carnet template
+        const activeCarnetResult = await getActiveTemplateAction('carnet');
+        if (activeCarnetResult.success && activeCarnetResult.data) {
+          setActiveCarnetTemplate(activeCarnetResult.data);
+          // Auto-set the active template in certificate data
+          onDataChange("id_plantilla_carnet", activeCarnetResult.data.id);
         }
 
         // Load Venezuelan states
@@ -398,6 +414,40 @@ export const CertificateForm = ({
         </div>
       )}
 
+      {/* Carne Template - Only show if course emits card */}
+      {selectedCourseTopic?.emite_carnet && (
+        <div className="mb-4">
+          <label
+            htmlFor="id_plantilla_carnet"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Plantilla de Carnet
+          </label>
+          {activeCarnetTemplate ? (
+            <div className="p-3 border border-green-300 bg-green-50 rounded-md">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-green-800">{activeCarnetTemplate.nombre}</p>
+                  <p className="text-sm text-green-600">Plantilla activa seleccionada automáticamente</p>
+                </div>
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Activa
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 border border-yellow-300 bg-yellow-50 rounded-md">
+              <p className="text-sm text-yellow-800">
+                No hay una plantilla de carnet activa. 
+                <a href="/dashboard/capacitacion/plantillas-carnets" className="underline hover:text-yellow-900 ml-1">
+                  Configurar plantilla activa
+                </a>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Certificate Template */}
       <div className="mb-4">
         <label
@@ -613,6 +663,7 @@ export const CertificateForm = ({
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         selectedCourse={selectedCourseTopic}
+        carnetTemplates={carnetTemplates}
       />
     </div>
   );
