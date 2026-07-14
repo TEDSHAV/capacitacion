@@ -21,6 +21,8 @@ import {
   TrendingUp,
   CalendarDays,
   Briefcase,
+  Wrench,
+  FileSpreadsheet,
 } from "lucide-react";
 
 export default function CapacitacionClient({
@@ -123,6 +125,19 @@ export default function CapacitacionClient({
       icon: BarChart3,
       modules: [
         { id: "reportes", title: "Estadísticas y Reportes", icon: BarChart3 },
+      ],
+    },
+    {
+      id: "herramientas",
+      title: "Herramientas",
+      gradient: "from-slate-600 to-gray-500",
+      icon: Wrench,
+      modules: [
+        {
+          id: "herramientas/img-to-xls",
+          title: "Img to xls",
+          icon: FileSpreadsheet,
+        },
       ],
     },
   ];
