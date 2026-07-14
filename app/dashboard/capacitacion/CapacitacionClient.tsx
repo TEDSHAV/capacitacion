@@ -27,7 +27,6 @@ export default function CapacitacionClient({
   const [activeSection, setActiveSection] = useState<string>('all');
 
   const getSubmoduleHref = (submoduleId: string) => {
-    if (submoduleId === 'Plantillas') return '/dashboard/capacitacion/Plantillas/cursos';
     return `/dashboard/capacitacion/${submoduleId}`;
   };
 
@@ -49,7 +48,7 @@ export default function CapacitacionClient({
       badge: '5 plantillas'
     },
     {
-      id: 'Plantillas',
+      id: 'gestion-plantillas-cursos',
       title: 'Plantillas de Cursos',
       description: 'Gestionar plantillas de cursos',
       icon: AlignLeft,
@@ -125,7 +124,7 @@ export default function CapacitacionClient({
       title: 'Reportes',
       description: 'Estadísticas y reportes',
       icon: ChartBar,
-      category: 'certificados',
+      category: 'reportes',
       badge: '15 reportes'
     }
   ];
@@ -135,7 +134,8 @@ export default function CapacitacionClient({
     { id: 'cursos', name: 'Cursos', count: submodules.filter(m => m.category === 'cursos').length },
     { id: 'plantillas', name: 'Plantillas', count: submodules.filter(m => m.category === 'plantillas').length },
     { id: 'participantes', name: 'Participantes', count: submodules.filter(m => m.category === 'participantes').length },
-    { id: 'certificados', name: 'Certificados', count: submodules.filter(m => m.category === 'certificados').length }
+    { id: 'certificados', name: 'Certificados', count: submodules.filter(m => m.category === 'certificados').length },
+    { id: 'reportes', name: 'Reportes', count: submodules.filter(m => m.category === 'reportes').length }
   ];
 
   const filteredModules = activeSection === 'all' 
@@ -147,7 +147,8 @@ export default function CapacitacionClient({
       cursos: 'text-emerald-600 bg-emerald-50 border-emerald-200',
       plantillas: 'text-purple-600 bg-purple-50 border-purple-200',
       participantes: 'text-blue-600 bg-blue-50 border-blue-200',
-      certificados: 'text-amber-600 bg-amber-50 border-amber-200'
+      certificados: 'text-amber-600 bg-amber-50 border-amber-200',
+      reportes: 'text-teal-600 bg-teal-50 border-teal-200'
     };
     return colors[category] || colors.cursos;
   };
@@ -201,7 +202,8 @@ export default function CapacitacionClient({
                     cursos: 'bg-emerald-100 text-emerald-700 border-emerald-300',
                     plantillas: 'bg-purple-100 text-purple-700 border-purple-300',
                     participantes: 'bg-blue-100 text-blue-700 border-blue-300',
-                    certificados: 'bg-amber-100 text-amber-700 border-amber-300'
+                    certificados: 'bg-amber-100 text-amber-700 border-amber-300',
+                    reportes: 'bg-teal-100 text-teal-700 border-teal-300'
                   };
 
                   const neonColors = {
