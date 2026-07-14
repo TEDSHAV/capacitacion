@@ -6,6 +6,18 @@ import Image from "next/image";
 import { SidebarProps } from "@/types";
 import { ChevronLeft, ChevronRight, Home, Users, FileText, Settings } from "lucide-react";
 
+// Define submodules for each department - moved outside component to prevent re-creation
+const submodules = {
+  capacitacion: [
+    { name: 'Gestión de Cursos', path: '/dashboard/capacitacion/gestion-cursos' },
+    { name: 'Generación de Certificados', path: '/dashboard/capacitacion/generacion-certificado' }
+  ],
+  negocios: [
+    { name: 'Gestión de Clientes', path: '/dashboard/negocios/gestion-de-clientes' },
+    { name: 'Gestión de OSIs', path: '/dashboard/negocios/gestion-de-osis' }
+  ]
+};
+
 const Sidebar = ({ departamentos }: SidebarProps) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -29,22 +41,34 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
     return pathname.includes(`/dashboard/${departmentName}`) || pathname === '/dashboard';
   }, [pathname]);
 
-  // Define submodules for each department
-  const submodules = {
-    capacitacion: [
-      { name: 'Gestión de Cursos', path: '/dashboard/capacitacion/gestion-cursos' },
-      { name: 'Generación de Certificados', path: '/dashboard/capacitacion/generacion-certificado' }
-    ],
-    negocios: [
-      { name: 'Gestión de Clientes', path: '/dashboard/negocios/gestion-de-clientes' },
-      { name: 'Gestión de OSIs', path: '/dashboard/negocios/gestion-de-osis' }
-    ]
-  };
-
   // Check if a submodule is active
   const isActiveSubmodule = useCallback((path: string) => {
     return pathname === path;
   }, [pathname]);
+
+  // Memoized event handlers to prevent re-renders
+  const handleMouseEnter = useCallback(() => {
+    setIsUserHovering(true);
+    if (isCollapsed) {
+      setIsCollapsed(false);
+    }
+  }, [isCollapsed]);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsUserHovering(false);
+  }, []);
+
+  const handleLogoClick = useCallback(() => {
+    router.push('/dashboard');
+  }, [router]);
+
+  const handleDashboardClick = useCallback(() => {
+    router.push('/dashboard');
+  }, [router]);
+
+  const handleToggleCollapse = useCallback(() => {
+    setIsCollapsed(!isCollapsed);
+  }, [isCollapsed]);
 
   // Auto-hide timer functionality
   const startAutoHideTimer = useCallback(() => {
@@ -95,15 +119,8 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
       className={`bg-gray-900 text-white h-screen flex flex-col transition-all duration-300 ${
         isCollapsed ? 'w-16' : 'w-64'
       }`}
-      onMouseEnter={() => {
-        setIsUserHovering(true);
-        if (isCollapsed) {
-          setIsCollapsed(false);
-        }
-      }}
-      onMouseLeave={() => {
-        setIsUserHovering(false);
-      }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Logo Section */}
       <div className={`border-b border-gray-800 ${
@@ -122,7 +139,7 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
                 alt="Logo de SHA de Venezuela" 
                 fill
                 className="object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
-                onClick={() => router.push('/dashboard')}
+                onClick={handleLogoClick}
                 sizes="32px"
               />
             </div>
@@ -136,7 +153,7 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
       }`}>
         {/* Dashboard Home Link */}
         <button
-          onClick={() => router.push('/dashboard')}
+          onClick={handleDashboardClick}
           className={`w-full text-left rounded-lg mb-2 transition-colors duration-200 cursor-pointer flex items-center ${
             pathname === '/dashboard' 
               ? 'bg-blue-600 text-white' 
@@ -229,7 +246,7 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
       }`}>
         {isCollapsed ? (
           <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={handleToggleCollapse}
             className="p-2 rounded-lg hover:bg-gray-800 transition-colors duration-200"
             title="Expandir sidebar"
           >
@@ -237,7 +254,7 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
           </button>
         ) : (
           <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={handleToggleCollapse}
             className="w-full p-2 rounded-lg hover:bg-gray-800 transition-colors duration-200 flex items-center justify-center"
             title="Contraer sidebar"
           >

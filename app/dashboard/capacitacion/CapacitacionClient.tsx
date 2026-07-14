@@ -12,8 +12,8 @@ export default function CapacitacionClient({
 
   const submodules = [
     {
-      id: 'participantes',
-      title: 'Participantes',
+      id: 'gestion-participantes',
+      title: 'Gestión de Participantes',
       description: 'Gestión de participantes en capacitaciones',
       color: 'bg-blue-500'
     },

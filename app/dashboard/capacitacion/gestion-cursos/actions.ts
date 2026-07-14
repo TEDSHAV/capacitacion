@@ -45,7 +45,6 @@ export async function createCurso(formData: FormData) {
       return { error: `Error al crear el curso: ${formatSupabaseError(error)}` };
     }
 
-    revalidatePath('/dashboard/capacitacion/gestion-cursos');
     return { success: true, data };
   } catch (err) {
     return { error: `Error al crear el curso: ${err instanceof Error ? err.message : 'Error desconocido'}` };
@@ -88,9 +87,6 @@ export async function updateCurso(id: string, formData: FormData) {
       return { error: `Error al actualizar el curso: ${formatSupabaseError(error)}` };
     }
 
-    // Revalidate the page to show updated data
-    revalidatePath('/dashboard/capacitacion/gestion-cursos');
-
     return { success: true, data };
 
   } catch (error) {
@@ -125,7 +121,8 @@ export async function duplicateCurso(id: string) {
         nombre: `${originalCourse.nombre} (Copia)`,
         contenido: originalCourse.contenido_curso,
         horas_estimadas: originalCourse.horas_estimadas?.toString() || "0", // Convert to string for FormData
-        cliente_asociado: originalCourse.cliente_asociado
+        cliente_asociado: originalCourse.cliente_asociado,
+        created_at: new Date().toISOString().split('T')[0] // Current date in YYYY-MM-DD format
       })
       .select()
       .single();
@@ -133,9 +130,6 @@ export async function duplicateCurso(id: string) {
     if (error) {
       return { error: `Error al duplicar el curso: ${formatSupabaseError(error)}` };
     }
-
-    // Revalidate the page to show updated data
-    revalidatePath('/dashboard/capacitacion/gestion-cursos');
 
     return { success: true, data };
 
@@ -162,9 +156,6 @@ export async function deleteCurso(id: string) {
     if (error) {
       return { error: `Error al eliminar el curso: ${formatSupabaseError(error)}` };
     }
-
-    // Revalidate the page to show updated data
-    revalidatePath('/dashboard/capacitacion/gestion-cursos');
 
     return { success: true };
 

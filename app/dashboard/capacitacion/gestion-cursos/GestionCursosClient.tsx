@@ -21,6 +21,7 @@ export default function GestionCursosClient({
   const [creandoCurso, setCreandoCurso] = useState(false);
   const [editandoCurso, setEditandoCurso] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cursosList, setCursosList] = useState<Curso[]>(cursos || []);
 
   if (!user) {
     return (
@@ -50,9 +51,9 @@ export default function GestionCursosClient({
       
       if (result.error) {
         setError(result.error);
-      } else {
+      } else if (result.data) {
         setCreandoCurso(false);
-        router.refresh();
+        setCursosList(prev => [result.data, ...prev]); // Add new course to list
       }
     } catch (err) {
       setError('Error al crear el curso');
@@ -69,9 +70,11 @@ export default function GestionCursosClient({
       
       if (result.error) {
         setError(result.error);
-      } else {
+      } else if (result.data) {
         setEditandoCurso(null);
-        router.refresh();
+        setCursosList(prev => prev.map(curso => 
+          curso.id === editandoCurso ? result.data : curso
+        )); // Update course in list
       }
     } catch (err) {
       setError('Error al actualizar el curso');
@@ -87,7 +90,7 @@ export default function GestionCursosClient({
       if (result.error) {
         setError(result.error);
       } else {
-        router.refresh();
+        setCursosList(prev => prev.filter(curso => curso.id !== id)); // Remove course from list
       }
     } catch (err) {
       setError('Error al eliminar el curso');
@@ -100,8 +103,8 @@ export default function GestionCursosClient({
       
       if (result.error) {
         setError(result.error);
-      } else {
-        router.refresh();
+      } else if (result.data) {
+        setCursosList(prev => [result.data, ...prev]); // Add duplicated course to list
       }
     } catch (err) {
       setError('Error al duplicar el curso');
@@ -144,7 +147,7 @@ export default function GestionCursosClient({
 
         {/* Courses List */}
         <CourseList
-          cursos={cursos || []}
+          cursos={cursosList}
           onEdit={abrirModalEdicion}
           onDelete={handleDeleteCourse}
           onDuplicate={handleDuplicateCourse}
