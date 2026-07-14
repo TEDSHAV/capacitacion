@@ -48,8 +48,8 @@ export default function PublicVerificationPage() {
       <Navbar />
 
       <main className="flex-grow">
-        {/* Hero Section - Slick & Modern Refinement - Now Full Viewport */}
-        <section className="relative min-h-[calc(100vh-5rem)] flex flex-col justify-center pt-12 pb-20 px-4 overflow-hidden border-b border-blue-100/50">
+        {/* Hero Section - Compact & Modern Refinement */}
+        <section className="relative min-h-[calc(100vh-12rem)] md:min-h-0 flex flex-col justify-center pt-8 md:pt-12 pb-12 md:pb-16 px-4 overflow-hidden border-b border-blue-100/50">
           {/* Slick Background Refinement */}
           <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-[0.05]" 
                style={{ backgroundImage: 'radial-gradient(#1e40af 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
@@ -59,26 +59,26 @@ export default function PublicVerificationPage() {
           <div className="absolute bottom-[-15%] left-[-10%] w-[60%] h-[60%] bg-blue-100/50 rounded-full blur-[120px] pointer-events-none"></div>
 
           <div className="max-w-4xl mx-auto text-center relative z-10">
-            <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-blue-600/10 text-blue-700 text-[10px] font-bold uppercase tracking-[0.2em] mb-8 border border-blue-200 shadow-sm backdrop-blur-md">
+            <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-blue-600/10 text-blue-700 text-[10px] font-bold uppercase tracking-[0.2em] mb-4 md:mb-6 border border-blue-200 shadow-sm backdrop-blur-md">
               <ShieldCheck className="w-3.5 h-3.5 mr-2 text-blue-600" />
               Verificación Segura de Credenciales
             </div>
             
-            <h1 className="text-5xl md:text-7xl font-black text-gray-900 mb-8 tracking-tighter leading-[1.1]">
+            <h1 className="text-4xl md:text-6xl font-black text-gray-900 mb-4 md:mb-6 tracking-tighter leading-[1.1]">
               Autenticidad <br className="hidden md:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800">Garantizada</span>
             </h1>
             
-            <p className="text-lg md:text-xl text-gray-600 mb-14 max-w-xl mx-auto font-medium leading-relaxed">
+            <p className="text-base md:text-lg text-gray-600 mb-8 md:mb-10 max-w-xl mx-auto font-medium leading-relaxed">
               Sistema oficial para la validación de certificados y carnets profesionales emitidos por nuestro centro de capacitación.
             </p>
 
-            {/* Search Container - Ultra Slick Card */}
-            <div className="bg-white/90 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(30,58,138,0.12)] p-6 md:p-12 max-w-2xl mx-auto border border-blue-100/50 backdrop-blur-xl">
-              <div className="flex mb-10 gap-5">
+            {/* Search Container - Compact Slick Card */}
+            <div className="bg-white/90 rounded-[2rem] md:rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(30,58,138,0.12)] p-6 md:p-8 max-w-2xl mx-auto border border-blue-100/50 backdrop-blur-xl">
+              <div className="flex mb-6 md:mb-8 gap-4 md:gap-5">
                 <button
                   onClick={() => { setActiveTab("individual"); setResults(null); setError(null); }}
-                  className={`flex-1 flex items-center justify-center py-4 rounded-xl font-bold transition-all border-2 ${
+                  className={`flex-1 flex items-center justify-center py-3 md:py-3.5 rounded-xl font-bold transition-all border-2 ${
                     activeTab === "individual" 
                       ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200" 
                       : "bg-white border-gray-100 text-gray-400 hover:border-blue-200 hover:text-blue-600"
@@ -89,7 +89,7 @@ export default function PublicVerificationPage() {
                 </button>
                 <button
                   onClick={() => { setActiveTab("company"); setResults(null); setError(null); }}
-                  className={`flex-1 flex items-center justify-center py-4 rounded-xl font-bold transition-all border-2 ${
+                  className={`flex-1 flex items-center justify-center py-3 md:py-3.5 rounded-xl font-bold transition-all border-2 ${
                     activeTab === "company" 
                       ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200" 
                       : "bg-white border-gray-100 text-gray-400 hover:border-blue-200 hover:text-blue-600"
@@ -100,7 +100,7 @@ export default function PublicVerificationPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-5">
+              <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 md:gap-5">
                 <div className="relative flex-grow">
                   <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
                     <Search className="h-5 w-5 text-blue-400" />
@@ -109,14 +109,14 @@ export default function PublicVerificationPage() {
                     type="text"
                     value={searchValue}
                     onChange={(e) => setSearchValue(e.target.value)}
-                    placeholder={activeTab === "individual" ? "Cédula o ID del participante" : "RIF de la empresa"}
-                    className="block w-full pl-12 pr-5 py-4.5 bg-blue-50/30 border-2 border-blue-50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 focus:bg-white outline-none transition-all duration-300 text-lg placeholder:text-gray-400 text-gray-900"
+                    placeholder={activeTab === "individual" ? "Cédula o ID" : "RIF de la empresa"}
+                    className="block w-full pl-12 pr-5 py-3.5 md:py-4 bg-blue-50/30 border-2 border-blue-50 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 focus:bg-white outline-none transition-all duration-300 text-base md:text-lg placeholder:text-gray-400 text-gray-900"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-bold py-4.5 px-10 rounded-2xl transition-all duration-300 disabled:opacity-50 flex items-center justify-center shadow-xl shadow-blue-600/20 hover:shadow-blue-600/40 hover:-translate-y-1"
+                  className="bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-bold py-3.5 md:py-4 px-8 md:px-10 rounded-2xl transition-all duration-300 disabled:opacity-50 flex items-center justify-center shadow-xl shadow-blue-600/20 hover:shadow-blue-600/40 hover:-translate-y-1"
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -130,7 +130,7 @@ export default function PublicVerificationPage() {
         </section>
 
         {/* Results Section - Slick Grid */}
-        <section className="py-20 px-4 max-w-6xl mx-auto">
+        <section className="py-12 md:py-16 px-4 max-w-6xl mx-auto">
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-32">
               <div className="relative">
@@ -228,9 +228,9 @@ export default function PublicVerificationPage() {
         </section>
 
         {/* Benefits Section */}
-        <section className="bg-blue-50/20 py-20 px-4">
+        <section className="bg-blue-50/20 py-12 md:py-16 px-4">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-black text-center text-gray-900 mb-16 tracking-tight">Seguridad y Confianza</h2>
+            <h2 className="text-2xl md:text-3xl font-black text-center text-gray-900 mb-10 md:mb-12 tracking-tight">Seguridad y Confianza</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-white p-10 rounded-[2rem] shadow-sm border border-blue-50 text-center group hover:shadow-xl transition-all duration-500">
                 <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-8 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-500">
