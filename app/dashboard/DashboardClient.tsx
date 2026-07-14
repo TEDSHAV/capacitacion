@@ -32,7 +32,7 @@ export default function DashboardClient({
         <div className="px-4 py-6 sm:px-0">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
-              <p className="text-gray-600">No autenticado</p>
+              <p className="text-muted-foreground">No autenticado</p>
             </div>
           </div>
         </div>
@@ -44,10 +44,10 @@ export default function DashboardClient({
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
       <div className="px-4 py-6 sm:px-0">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-foreground">
             Bienvenido al Panel de Administración
           </h1>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-2 text-muted-foreground">
             Selecciona un departamento para administrar sus módulos y recursos
           </p>
         </div>
@@ -60,9 +60,9 @@ export default function DashboardClient({
               onClick={() => handleDepartmentClick(department.nombre)}
               className="cursor-pointer transform transition-all duration-200 hover:scale-105"
             >
-              <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg min-h-[120px] flex justify-center items-center">
+              <div className="bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg min-h-[120px] flex justify-center items-center border">
                 <div className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center capitalize">
+                  <h3 className="text-lg font-semibold text-card-foreground mb-2 text-center capitalize">
                     {department.nombre}
                   </h3>
                 </div>

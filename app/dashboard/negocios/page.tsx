@@ -93,13 +93,13 @@ export default function NegociosPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
       case 'inactive':
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'
       case 'pendiente':
-        return 'bg-yellow-100 text-yellow-800'
+        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'
     }
   }
 
@@ -112,22 +112,22 @@ export default function NegociosPage() {
       <div className="mb-8">
         <button
           onClick={() => router.push('/dashboard')}
-          className="text-indigo-600 hover:text-indigo-900 mb-4 inline-flex items-center"
+          className="text-primary hover:text-primary/80 mb-4 inline-flex items-center"
         >
           ← Volver al Panel
         </button>
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold text-foreground">
               Departamento de Negocios
             </h1>
-            <p className="mt-2 text-gray-600">
+            <p className="mt-2 text-muted-foreground">
               Administración de OSI
             </p>
           </div>
           <button
             onClick={() => router.push('/dashboard/negocios/osi/new')}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
           >
             + Nueva OSI
           </button>
@@ -140,13 +140,13 @@ export default function NegociosPage() {
           <div
             key={osi.id}
             onClick={() => router.push(`/dashboard/negocios/osi/${osi.nro_osi}`)}
-            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg min-h-[120px] cursor-pointer transform hover:scale-105 transition-all duration-200"
+            className="bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg min-h-[120px] cursor-pointer transform hover:scale-105 transition-all duration-200 border"
           >
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-card-foreground mb-2">
                 {osi.nro_osi}
               </h3>
-              <p className="text-gray-600 text-sm mb-4">
+              <p className="text-muted-foreground text-sm mb-4">
                 {osi.nombre_empresa}
               </p>
               <div className="flex items-center justify-between">
@@ -158,7 +158,7 @@ export default function NegociosPage() {
                     e.stopPropagation()
                     router.push(`/dashboard/negocios/osi/${osi.nro_osi}`)
                   }}
-                  className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                  className="text-primary hover:text-primary/80 text-sm font-medium"
                 >
                   Editar
                 </button>

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import Image from 'next/image'
+import ThemeToggle from './ThemeToggle'
 
 export default function Navbar() {
   const router = useRouter()
@@ -34,7 +35,7 @@ export default function Navbar() {
   } 
 
   return (
-    <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
+    <nav className="bg-background shadow-md fixed top-0 left-0 right-0 z-50 border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -48,15 +49,15 @@ export default function Navbar() {
             />
           </div>
           <div className="flex items-center space-x-6">
+            <ThemeToggle />
             {user ? (
               <>
-                {/* <h1 className="text-xl font-semibold text-gray-900">Portal Empresarial</h1> */}
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-muted-foreground">
                   Bienvenido, {user?.user_metadata?.name || user?.email}
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                  className="text-sm text-muted-foreground hover:text-foreground px-3 py-2 rounded-md hover:bg-accent transition-colors duration-200"
                 >
                   Cerrar sesión
                 </button>
@@ -65,13 +66,13 @@ export default function Navbar() {
               <>
                 <button
                   onClick={() => router.push('/login')}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                  className="text-sm text-muted-foreground hover:text-foreground px-3 py-2 rounded-md hover:bg-accent transition-colors duration-200"
                 >
                   Iniciar sesión
                 </button>
                 <button
                   onClick={() => router.push('/signup')}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                  className="text-sm text-muted-foreground hover:text-foreground px-3 py-2 rounded-md hover:bg-accent transition-colors duration-200"
                 >
                   Registrarse
                 </button>
