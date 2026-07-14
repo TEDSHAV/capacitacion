@@ -183,6 +183,23 @@ export default function OSIDetailPage() {
     }
   }
 
+  // Handle Escape key to cancel editing
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isEditing && !isNew) {
+        cancelEditing()
+      }
+    }
+
+    if (isEditing && !isNew) {
+      document.addEventListener('keydown', handleEscapeKey)
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey)
+    }
+  }, [isEditing, isNew, osi])
+
   const loadEmpresas = async () => {
     try {
       const { data, error } = await supabase
@@ -257,24 +274,16 @@ export default function OSIDetailPage() {
       // Find the selected empresa
       const selectedEmpresa = empresas.find(e => e.razon_social === formData.cliente_nombre_empresa)
       
-      console.log('Selected empresa:', selectedEmpresa)
-      console.log('Available empresas:', empresas)
-      
       if (!selectedEmpresa) {
-        console.log('No empresa selected, clearing contactos')
         setContactos([])
         return
       }
 
-      console.log('Querying contactos for empresa_id:', selectedEmpresa.id)
-
       const { data, error } = await supabase
         .from("contactos")
-        .select("id, nombre, apellido, telefono, email, email2")
+        .select("*")
         .eq("id_empresa", selectedEmpresa.id)
         .order("nombre")
-      
-      console.log('Contactos query result:', { data, error })
       
       if (error) throw error
       setContactos(data || [])

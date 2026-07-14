@@ -40,7 +40,6 @@ interface OSI {
 
 export default function NegociosPage() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
   const [osis, setOsis] = useState<OSI[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -55,7 +54,6 @@ export default function NegociosPage() {
           router.push('/login')
           return
         }
-        setUser(user)
 
         // Fetch OSI data from Supabase
         const { data: osiData } = await supabase.from("osi").select("*")
@@ -74,28 +72,12 @@ export default function NegociosPage() {
       (_event: any, session: any) => {
         if (!session?.user) {
           router.push('/login')
-        } else {
-          setUser(session.user)
         }
       }
     )
 
     return () => subscription.unsubscribe()
   }, [router])
-
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta OSI?')) return
-    
-    const { error } = await supabase.from("osi").delete().eq("id", id)
-    
-    if (!error) {
-      // Refresh list
-      const { data: osiData } = await supabase.from("osi").select("*")
-      setOsis(osiData || [])
-    } else {
-      console.error('Error deleting OSI:', error.message)
-    }
-  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -121,10 +103,6 @@ export default function NegociosPage() {
         </div>
       </div>
     )
-  }
-
-  if (!user) {
-    return null
   }
 
   return (
@@ -180,30 +158,52 @@ export default function NegociosPage() {
             <div
               key={osi.id}
               onClick={() => router.push(`/dashboard/negocios/osi/${osi.nro_osi}`)}
-              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg min-h-[120px] cursor-pointer transform hover:scale-105 transition-all duration-200"
+              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg cursor-pointer transform transition-all duration-200 hover:scale-105 h-64 flex flex-col w-full"
             >
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  OSI - {osi.nro_osi}
-                </h3>
-                <p className="text-gray-600 text-sm mb-2">
-                  {osi.nombre_empresa}
-                </p>
-                <p className="text-gray-400 text-xs mb-4">
-                  {osi.cliente_nombre_empresa}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(osi.estado)}`}>
-                    {osi.estado}
+              <div className={`h-2 flex-shrink-0 ${osi.estado === 'active' ? 'bg-green-500' : osi.estado === 'pendiente' ? 'bg-yellow-500' : 'bg-gray-500'}`}></div>
+              <div className="p-6 flex-1 flex flex-col w-full overflow-hidden">
+                <div className="flex justify-between items-start mb-4 flex-shrink-0" style={{ minHeight: '80px' }}>
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <h3 className="text-xl font-semibold text-gray-900 truncate leading-tight">
+                      OSI-{osi.nro_osi}
+                    </h3>
+                    <p className="text-gray-800 text-sm mt-1 font-medium truncate leading-tight">
+                      {osi.nombre_empresa?.trim() || osi.cliente_nombre_empresa?.trim() || ''}
+                    </p>
+                  </div>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${getStatusColor(osi.estado)}`}>
+                    {osi.estado === 'active' ? 'Activa' : osi.estado === 'pendiente' ? 'Pendiente' : 'Cerrada'}
                   </span>
+                </div>
+                
+                <div className="space-y-2 mb-4 flex-1 overflow-hidden">
+                  <p className="text-gray-700 text-sm truncate">
+                    <span className="font-medium">Servicio:</span> {osi.tipo_servicio}
+                  </p>
+                  {osi.fecha_servicio && (
+                    <p className="text-gray-700 text-sm truncate">
+                      <span className="font-medium">Fecha:</span> {new Date(osi.fecha_servicio).toLocaleDateString()}
+                    </p>
+                  )}
+                  {osi.nro_presupuesto && (
+                    <p className="text-gray-700 text-sm truncate">
+                      <span className="font-medium">Presupuesto:</span> {osi.nro_presupuesto}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end pt-4 border-t border-gray-100 mt-auto flex-shrink-0">
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       router.push(`/dashboard/negocios/osi/${osi.nro_osi}`)
                     }}
-                    className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                    className="text-indigo-600 hover:text-indigo-900 text-sm font-medium flex items-center flex-shrink-0"
                   >
-                    Editar
+                    Ver detalles
+                    <svg className="w-4 h-4 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </button>
                 </div>
               </div>
