@@ -153,20 +153,59 @@ export async function saveCertificatesToDatabase(
     };
 
     try {
-      const { data: controlNumbersData, error: rpcError } = await supabase.rpc(
-        "get_next_control_numbers",
-        {
-          batch_size: participants.length,
-        },
-      );
+      // First, check if there's an active control sequence configuration
+      const { data: configData, error: configError } = await supabase
+        .from("control_sequences")
+        .select("*")
+        .eq("is_active", true)
+        .single();
 
-      if (!rpcError && controlNumbersData) {
-        nextControlNumbers = controlNumbersData as any;
+      if (configData && !configError) {
+        // Use the configured starting values if no certificates exist yet
+        const { count: certCount } = await supabase
+          .from("certificados")
+          .select("id", { count: "exact", head: true });
+
+        if (certCount === 0) {
+          // No certificates yet, use the configured values
+          nextControlNumbers = {
+            nro_libro: configData.nro_libro,
+            nro_hoja: configData.nro_hoja,
+            nro_linea: configData.nro_linea,
+            nro_control: configData.nro_control,
+          };
+          console.log("Using configured control sequence:", nextControlNumbers);
+        } else {
+          // Certificates exist, use RPC to get next numbers from last certificate
+          const { data: controlNumbersData, error: rpcError } =
+            await supabase.rpc("get_next_control_numbers", {
+              batch_size: participants.length,
+            });
+
+          if (!rpcError && controlNumbersData) {
+            nextControlNumbers = controlNumbersData as any;
+          } else {
+            console.warn(
+              "RPC error for control numbers, using last certificate:",
+              rpcError,
+            );
+          }
+        }
       } else {
-        console.warn(
-          "RPC error for control numbers, using fallback:",
-          rpcError,
-        );
+        // No configuration found, use RPC
+        const { data: controlNumbersData, error: rpcError } =
+          await supabase.rpc("get_next_control_numbers", {
+            batch_size: participants.length,
+          });
+
+        if (!rpcError && controlNumbersData) {
+          nextControlNumbers = controlNumbersData as any;
+        } else {
+          console.warn(
+            "RPC error for control numbers, using fallback:",
+            rpcError,
+          );
+        }
       }
     } catch (error) {
       console.warn(

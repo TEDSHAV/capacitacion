@@ -412,14 +412,6 @@ export interface CertificateFormProps {
   selectedCourseTopic: CourseTopic | null;
   courseTopics: CourseTopic[];
   isGenerating?: boolean;
-  isTestingDocs?: boolean;
-  testDocSelections?: {
-    includeCertificacionCompetencias: boolean;
-    includeNotaEntrega: boolean;
-    includeValidacionDatos: boolean;
-  };
-  onTestDocSelectionsChange?: (selections: any) => void;
-  onTestDocuments?: () => void;
   isEditMode?: boolean;
   generationProgress?: {
     currentPhase: string;
@@ -1155,6 +1147,28 @@ export interface Carnet {
   empresa?: Empresa;
   curso?: Curso;
   osi?: CertificateOSI;
+}
+
+// Control Sequence Configuration Types
+export interface ControlSequenceConfig {
+  id: string;
+  nro_libro: number;
+  nro_hoja: number;
+  nro_linea: number;
+  nro_control: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  notes?: string;
+}
+
+export interface ControlSequenceFormData {
+  nro_libro: number;
+  nro_hoja: number;
+  nro_linea: number;
+  nro_control: number;
+  notes?: string;
 }
 
 export interface CarnetRequest {
