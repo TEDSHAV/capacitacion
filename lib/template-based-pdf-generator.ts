@@ -26,6 +26,23 @@ export class TemplateBasedPdfGenerator {
     }
   }
 
+  /** Draws watermark.png centred on the current page at 15% opacity */
+  private addWatermark(pdf: jsPDF): void {
+    const wmB64 = this.getImageBase64('watermark.png');
+    if (!wmB64) return;
+    try {
+      const wmSize = 140; // mm — square watermark
+      const x = (PAGE_W - wmSize) / 2;
+      const y = (PAGE_H - wmSize) / 2;
+      pdf.saveGraphicsState();
+      pdf.setGState(pdf.GState({ opacity: 0.12 }));
+      pdf.addImage(wmB64, 'PNG', x, y, wmSize, wmSize);
+      pdf.restoreGraphicsState();
+    } catch (error) {
+      console.warn('⚠️ Could not add watermark:', error);
+    }
+  }
+
   /**
    * 3-column page header: logo (proportional width) | title (bold) | borderless grey code box.
    * Draws a separator line and returns Y after the header.
@@ -163,6 +180,7 @@ export class TemplateBasedPdfGenerator {
       if (y + rowH > actualMaxY) {
         this.addPageFooter(pdf);
         pdf.addPage();
+        this.addWatermark(pdf);
         y = 20;
         y = renderColHeaders(y);
         pdf.setFont('helvetica', 'normal').setFontSize(9);
@@ -197,6 +215,7 @@ export class TemplateBasedPdfGenerator {
 
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
       this.initializeFooterDimensions(pdf); // Set actualMaxY before any layout
+      this.addWatermark(pdf);
       let y = this.addPageHeader(pdf, ['CERTIFICACIÓN DE', 'COMPETENCIAS'], 'SHA-RG-CAP-006');
 
       pdf.setFont('helvetica', 'normal').setFontSize(11);
@@ -249,6 +268,7 @@ export class TemplateBasedPdfGenerator {
 
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
       this.initializeFooterDimensions(pdf); // Set actualMaxY before any layout
+      this.addWatermark(pdf);
       let y = this.addPageHeader(pdf, ['NOTA DE ENTREGA'], 'SHA-RG-CAP-006');
 
       pdf.setFont('helvetica', 'normal').setFontSize(11);
@@ -282,6 +302,7 @@ export class TemplateBasedPdfGenerator {
       if (tableOverflowed) {
         this.addPageFooter(pdf);
         pdf.addPage();
+        this.addWatermark(pdf);
         y = 30;
       }
 
@@ -330,6 +351,7 @@ export class TemplateBasedPdfGenerator {
 
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
       this.initializeFooterDimensions(pdf); // Set actualMaxY before any layout
+      this.addWatermark(pdf);
       let y = this.addPageHeader(pdf, ['VALIDACIÓN DE DATOS'], 'SHA-RG-CAP-004');
 
       pdf.setFont('helvetica', 'normal').setFontSize(11);
