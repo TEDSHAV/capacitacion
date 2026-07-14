@@ -14,7 +14,7 @@ interface CourseFormProps {
 export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit }: CourseFormProps) {
   const [datosFormulario, setDatosFormulario] = useState({
     titulo: curso?.nombre || "",
-    empresa_id: curso?.cliente_asociado?.toString() || "", // Use string for form state
+    empresa_id: curso?.cliente_asociado ? curso.cliente_asociado.toString() : "", // Convert number to string properly
     empresa_nombre: curso?.empresas?.razon_social || "",
     contenido: curso?.contenido || "",
     horas_estimadas: curso?.horas_estimadas || 0,

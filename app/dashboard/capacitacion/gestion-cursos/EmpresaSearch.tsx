@@ -15,7 +15,7 @@ export default function EmpresaSearch({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Find the selected empresa
-  const selectedEmpresa = empresas.find(emp => emp.id === value);
+  const selectedEmpresa = empresas.find(emp => emp.id.toString() === value);
 
   // Filter empresas based on search term
   useEffect(() => {
@@ -30,11 +30,11 @@ export default function EmpresaSearch({
   // Update search term when selected empresa changes
   useEffect(() => {
     if (selectedEmpresa) {
-      setSearchTerm(selectedEmpresa.id.toString()); // Show ID in input
-    } else {
+      setSearchTerm(selectedEmpresa.razon_social); // Show company name in input, not ID
+    } else if (!value) {
       setSearchTerm("");
     }
-  }, [selectedEmpresa]);
+  }, [selectedEmpresa, value]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;

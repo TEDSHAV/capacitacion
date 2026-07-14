@@ -136,7 +136,7 @@ export default function GestionCursosClient({
         {(creandoCurso || editandoCurso) && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <CourseForm
-              curso={editandoCurso ? cursos.find(c => c.id === editandoCurso) || null : null}
+              curso={editandoCurso ? cursosList.find(c => c.id === editandoCurso) || null : null}
               empresas={empresas}
               onSubmit={creandoCurso ? handleCreateCourse : handleEditCourse}
               onCancel={cerrarModal}

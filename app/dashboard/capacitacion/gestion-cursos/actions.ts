@@ -103,10 +103,15 @@ export async function duplicateCurso(id: string) {
       return { error: 'No autorizado' };
     }
 
-    // First, get the original course from cursos table
+    // First, get the original course from cursos table with empresa data
     const { data: originalCourse, error: fetchError } = await supabase
       .from('cursos')
-      .select('*')
+      .select(`
+        *,
+        empresas (
+          razon_social
+        )
+      `)
       .eq('id', id)
       .single();
 
@@ -119,12 +124,17 @@ export async function duplicateCurso(id: string) {
       .from('cursos')
       .insert({
         nombre: `${originalCourse.nombre} (Copia)`,
-        contenido: originalCourse.contenido_curso,
-        horas_estimadas: originalCourse.horas_estimadas?.toString() || "0", // Convert to string for FormData
+        contenido: originalCourse.contenido,
+        horas_estimadas: originalCourse.horas_estimadas,
         cliente_asociado: originalCourse.cliente_asociado,
-        created_at: new Date().toISOString().split('T')[0] // Current date in YYYY-MM-DD format
+        created_at: new Date().toISOString()
       })
-      .select()
+      .select(`
+        *,
+        empresas (
+          razon_social
+        )
+      `)
       .single();
 
     if (error) {
