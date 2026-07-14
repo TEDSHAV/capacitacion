@@ -187,6 +187,9 @@ export async function GET(
       templateImage = templateData.archivo.startsWith("/")
         ? templateData.archivo
         : `/templates/${templateData.archivo}`;
+      // Set the template filename in the data so the generator can use it for coordinate overrides
+      (certificateData as any).plantilla_certificado_archivo =
+        templateData.archivo;
     }
 
     // Get seal image

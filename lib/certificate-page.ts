@@ -27,6 +27,7 @@ export class CertificatePage {
   private pageHeight: number;
   private isSinglePage: boolean;
   private preloadedAssets?: any;
+  private templateKey?: string;
 
   // QR Code configuration - shared between sample and real QR codes
   private static readonly QR_CONFIG = {
@@ -43,13 +44,15 @@ export class CertificatePage {
     pageHeight: number,
     isSinglePage: boolean = false,
     preloadedAssets?: any,
+    templateKey?: string,
   ) {
     this.doc = doc;
     this.pageWidth = pageWidth;
     this.pageHeight = pageHeight;
     this.isSinglePage = isSinglePage;
     this.preloadedAssets = preloadedAssets;
-    this.config = getDynamicConfig(pageWidth, pageHeight);
+    this.templateKey = templateKey;
+    this.config = getDynamicConfig(pageWidth, pageHeight, templateKey);
     this.textRenderer = new TextRenderer(doc);
   }
 
@@ -261,13 +264,17 @@ export class CertificatePage {
 
     // Render hours and additional information
     if (date) {
-      this.textRenderer.renderDateText(date, this.pageWidth / 2, 105);
+      this.textRenderer.renderDateText(
+        date,
+        this.pageWidth / 2,
+        this.config.dateY,
+      );
 
       if (certificateData.horas_estimadas) {
         this.textRenderer.renderDurationText(
           certificateData.horas_estimadas,
-          this.pageWidth / 2 + 10,
-          96.5,
+          this.pageWidth / 2 + this.config.durationOffsetX,
+          this.config.durationY,
         );
       }
 
@@ -448,8 +455,8 @@ export class CertificatePage {
         toTitleCase(
           facilitator.name || facilitator.nombre_apellido || "",
         ).toUpperCase(),
-        60,
-        100,
+        this.config.facilitatorName.x,
+        this.config.facilitatorName.y,
         { align: "center" },
       );
 
@@ -458,8 +465,8 @@ export class CertificatePage {
         this.doc.addImage(
           this.preloadedAssets.facilitatorSignature,
           "PNG",
-          38,
-          72,
+          this.config.facilitatorSignature.x,
+          this.config.facilitatorSignature.y,
           signatureConfig.width,
           signatureConfig.height,
           undefined,
@@ -483,8 +490,8 @@ export class CertificatePage {
       if (signatureUrl) {
         await this.addSignatureImage(
           signatureUrl,
-          38,
-          72,
+          this.config.facilitatorSignature.x,
+          this.config.facilitatorSignature.y,
           signatureConfig.width,
           signatureConfig.height,
         );
@@ -507,8 +514,8 @@ export class CertificatePage {
         this.doc.addImage(
           this.preloadedAssets.shaSignature,
           "PNG",
-          signatureConfig.rightX + 10,
-          signatureConfig.y - 45,
+          signatureConfig.rightX + this.config.shaSignatureOffset.x,
+          signatureConfig.y + this.config.shaSignatureOffset.y,
           signatureConfig.width,
           signatureConfig.height,
           undefined,
@@ -529,16 +536,16 @@ export class CertificatePage {
       if (signatureData.url_imagen) {
         await this.addSignatureImage(
           signatureData.url_imagen,
-          signatureConfig.rightX + 10,
-          signatureConfig.y - 45,
+          signatureConfig.rightX + this.config.shaSignatureOffset.x,
+          signatureConfig.y + this.config.shaSignatureOffset.y,
           signatureConfig.width,
           signatureConfig.height,
         );
       } else if (signatureData.firma) {
         await this.addSignatureImage(
           signatureData.firma,
-          signatureConfig.rightX + 10,
-          signatureConfig.y - 45,
+          signatureConfig.rightX + this.config.shaSignatureOffset.x,
+          signatureConfig.y + this.config.shaSignatureOffset.y,
           signatureConfig.width,
           signatureConfig.height,
         );
@@ -565,7 +572,7 @@ export class CertificatePage {
 
       // For both single and two-page certificates, position QR code in the upper half
       // Use the same coordinates since the upper half layout never changes
-      const qrY = 22.5;
+      const qrY = this.config.qrY;
 
       // Add QR code to PDF
       this.doc.addImage(
