@@ -55,11 +55,11 @@ export default function RequisicionRow({ record }: { record: any }) {
               <Eye className="h-4 w-4" />
             </Button>
           </Link>
-          <Link href={`/dashboard/capacitacion/planificacion-servicios/solicitud-requisiciones?edit=${record.id}`}>
+          <a href={`/requisiciones/edit/${record.id}`} target="_parent">
             <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-800" title="Editar">
               <Edit className="h-4 w-4" />
             </Button>
-          </Link>
+          </a>
           <form
             onSubmit={async (e) => {
               e.preventDefault();

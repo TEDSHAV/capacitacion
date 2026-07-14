@@ -14,7 +14,7 @@ export default function PlanificacionServiciosPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Link href="/dashboard/capacitacion/planificacion-servicios/solicitud-requisiciones">
+        <a href="/requisiciones/create" target="_parent">
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer h-full">
             <div className="flex items-center gap-3 mb-3">
               <FileText className="h-8 w-8 text-blue-600" />
@@ -26,7 +26,7 @@ export default function PlanificacionServiciosPage() {
               Crear y gestionar registros de control de servicios ejecutados
             </p>
           </div>
-        </Link>
+        </a>
 
         <Link href="/dashboard/capacitacion/planificacion-servicios/lista">
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer h-full">

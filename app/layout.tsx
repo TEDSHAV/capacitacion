@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import QueryProvider from "@/components/providers/QueryProvider";
 import ShellAuthProvider from "@/components/providers/ShellAuthProvider";
+import URLSync from "@/components/utils/URLSync";
+import { Suspense } from "react";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -33,7 +35,12 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <QueryProvider>
-          <ShellAuthProvider>{children}</ShellAuthProvider>
+          <ShellAuthProvider>
+            <Suspense fallback={null}>
+              <URLSync />
+            </Suspense>
+            {children}
+          </ShellAuthProvider>
         </QueryProvider>
       </body>
     </html>

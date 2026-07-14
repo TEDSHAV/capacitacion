@@ -19,9 +19,9 @@ export default async function ListaControlServiciosPage() {
             Registros de servicios ejecutados
           </p>
         </div>
-        <Link href="/dashboard/capacitacion/planificacion-servicios/solicitud-requisiciones">
+        <a href="/requisiciones/create" target="_parent">
           <Button>Nuevo Registro</Button>
-        </Link>
+        </a>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">

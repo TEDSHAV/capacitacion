@@ -154,9 +154,13 @@ ${formData.observaciones}
   return data;
 }
 
-// Get all control records (list view)
+// Get all control records (list view) - Filtered by current user
 export async function getAllControlServiciosRecords() {
   const supabase = await createClient();
+  const userResponse = await supabase.auth.getUser();
+  const userId = userResponse.data.user?.id;
+
+  if (!userId) return [];
   
   // Try to fetch with relationships
   const { data, error } = await supabase
@@ -172,7 +176,8 @@ export async function getAllControlServiciosRecords() {
         cedula
       )
     `)
-    .order("id", { ascending: false }); // Sort by ID which we know exists
+    .eq("created_by", userId)
+    .order("id", { ascending: false });
 
   if (error) {
     console.error("Error fetching requisiciones (with joins):", JSON.stringify(error, null, 2));
@@ -181,6 +186,7 @@ export async function getAllControlServiciosRecords() {
     const { data: simpleData, error: simpleError } = await supabase
       .from("requisiciones")
       .select("*")
+      .eq("created_by", userId)
       .order("id", { ascending: false });
       
     if (simpleError) {
