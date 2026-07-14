@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Key, Save, Loader2, X, AlertCircle, CheckCircle2, Copy, Check, Trash2 } from "lucide-react";
+import { Key, Save, Loader2, AlertCircle, CheckCircle2, Copy, Check, Trash2, ClipboardList } from "lucide-react";
 import { 
   getFacilitatorCredentials, 
   createFacilitatorCredentials,
   deleteFacilitatorCredentials
 } from "@/app/actions/facilitador-portal";
+import { getAssignmentsByFacilitador } from "@/app/actions/osi-facilitador-assignments";
 
 interface PortalCredentialsModalProps {
   facilitadorId: number;
@@ -32,14 +33,28 @@ export const PortalCredentialsModal = ({
   const [copied, setCopied] = useState(false);
   const [hasExistingCredentials, setHasExistingCredentials] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [assignedOsis, setAssignedOsis] = useState<any[]>([]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const { data, error } = await getFacilitatorCredentials(facilitadorId);
-      if (data) {
-        setUsername(data.username || "");
-        setHasExistingCredentials(!!data.username);
+      const [credsResult, osisResult] = await Promise.all([
+        getFacilitatorCredentials(facilitadorId),
+        getAssignmentsByFacilitador(facilitadorId),
+      ]);
+      if (credsResult.data) {
+        setUsername(credsResult.data.username || "");
+        setHasExistingCredentials(!!credsResult.data.username);
+      }
+      if (osisResult.data) {
+        setAssignedOsis(osisResult.data);
       }
       setLoading(false);
     }
@@ -97,7 +112,7 @@ export const PortalCredentialsModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] animate-in fade-in duration-200">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+      <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-xl">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
             <Key className="w-5 h-5 text-blue-600" />
@@ -105,21 +120,46 @@ export const PortalCredentialsModal = ({
               Acceso al Portal
             </h3>
           </div>
-          <button
+          <Button
+            variant="ghost"
             onClick={() => {
               setSavedPassword("");
               setCopied(false);
               onClose();
             }}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="w-5 h-5" />
-          </button>
+            ✕
+          </Button>
         </div>
 
         <p className="text-sm text-gray-600 mb-4">
           Gestiona las credenciales de <strong>{facilitadorName}</strong> para que pueda ingresar al portal de facilitadores.
         </p>
+
+        {/* Assigned OSIs Badges */}
+        <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-md">
+          <div className="flex items-center gap-2 mb-2">
+            <ClipboardList className="w-4 h-4 text-teal-600 shrink-0" />
+            <span className="text-sm font-semibold text-gray-700">
+              OSIs Asignadas ({assignedOsis.length})
+            </span>
+          </div>
+          {assignedOsis.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">Sin OSIs asignadas a este facilitador</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {assignedOsis.map((a) => (
+                <span
+                  key={a.id}
+                  className="inline-flex items-center px-2.5 py-1 text-xs font-medium bg-teal-100 text-teal-800 rounded-full border border-teal-200"
+                  title={`${a.osi?.nombre_empresa || ""} — ${a.osi?.servicio || ""}`}
+                >
+                  {a.osi?.nro_osi || `OSI #${a.osi_id}`} — {a.osi?.nombre_empresa || "N/A"} — {a.osi?.servicio || "N/A"}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
 
         {hasExistingCredentials && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md flex items-center gap-2">
