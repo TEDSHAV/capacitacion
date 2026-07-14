@@ -84,10 +84,6 @@ export class TemplateBasedPdfGenerator {
     });
     pdf.setTextColor(0, 0, 0);
 
-    // Separator line
-    pdf.setLineWidth(0.6);
-    pdf.line(ML, 28, MR, 28);
-    pdf.setLineWidth(0.2);
     return 35;
   }
 
@@ -297,9 +293,9 @@ export class TemplateBasedPdfGenerator {
       const [tableY, tableOverflowed] = this.drawBorderedTable(pdf, neHeaders, neColWidths, neRows, ML, y, 1);
       y = tableY + 10;
 
-      // Only add page break if table itself overflowed to page 2
-      // Signature sections stay on page 1 as long as table fits on page 1
-      if (tableOverflowed) {
+      // Break to new page if table overflowed OR if the full signature block won't fit before the footer
+      const SIGNATURE_BLOCK_H = 95; // mm: SHA sig + Recibido por + line + names + footnote
+      if (tableOverflowed || y + SIGNATURE_BLOCK_H > actualMaxY) {
         this.addPageFooter(pdf);
         pdf.addPage();
         this.addWatermark(pdf);
