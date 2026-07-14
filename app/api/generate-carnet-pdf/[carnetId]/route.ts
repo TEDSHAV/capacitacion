@@ -1,89 +1,89 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCarnetById } from '@/app/actions/carnets';
-import { CarnetGenerator } from '@/lib/carnet-generator';
-import { QRService } from '@/lib/qr-service';
-import { createClient } from '@/utils/supabase/server';
+import { NextRequest, NextResponse } from "next/server";
+import { getCarnetById } from "@/app/actions/carnets";
+import { CarnetGenerator } from "@/lib/carnet-generator";
+import { QRService } from "@/lib/qr-service";
+import { createClient } from "@/utils/supabase/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ carnetId: string }> }
+  { params }: { params: Promise<{ carnetId: string }> },
 ) {
   try {
     const resolvedParams = await params;
     const carnetId = parseInt(resolvedParams.carnetId);
 
-    console.log('🎯 Generating carnet PDF for ID:', carnetId);
+    console.log("🎯 Generating carnet PDF for ID:", carnetId);
 
     if (isNaN(carnetId)) {
-      console.error('❌ Invalid carnet ID:', resolvedParams.carnetId);
+      console.error("❌ Invalid carnet ID:", resolvedParams.carnetId);
       return NextResponse.json(
-        { success: false, error: 'Invalid carnet ID' },
-        { status: 400 }
+        { success: false, error: "Invalid carnet ID" },
+        { status: 400 },
       );
     }
 
     // Get carnet data from database
-    console.log('📋 Fetching carnet from database...');
+    console.log("📋 Fetching carnet from database...");
     const carnetResult = await getCarnetById(carnetId);
 
     if (!carnetResult.success || !carnetResult.data) {
-      console.error('❌ Carnet not found:', carnetResult);
+      console.error("❌ Carnet not found:", carnetResult);
       return NextResponse.json(
-        { success: false, error: carnetResult.error || 'Carnet not found' },
-        { status: 404 }
+        { success: false, error: carnetResult.error || "Carnet not found" },
+        { status: 404 },
       );
     }
 
     const carnet = carnetResult.data;
-    console.log('✅ Carnet found:', { id: carnet.id, participant: carnet.nombre_participante });
+    console.log("✅ Carnet found:", {
+      id: carnet.id,
+      participant: carnet.nombre_participante,
+    });
 
-    // Fetch participant nationality from database
-    let participantNationality = 'venezolano'; // default
-    if (carnet.id_participante) {
-      try {
-        const supabase = await createClient();
-        const { data: participantData } = await supabase
-          .from('participantes_certificados')
-          .select('nacionalidad')
-          .eq('id', carnet.id_participante)
-          .single();
-        
-        if (participantData?.nacionalidad) {
-          participantNationality = participantData.nacionalidad;
-          console.log('📋 Found participant nationality:', participantNationality);
+    const qrData = carnet.id_certificado
+      ? QRService.generateQRData(carnet.id_certificado)
+      : null;
+
+    const [participantNationality, qrDataURL] = await Promise.all([
+      (async () => {
+        if (!carnet.id_participante) return "venezolano";
+        try {
+          const supabase = await createClient();
+          const { data } = await supabase
+            .from("participantes_certificados")
+            .select("nacionalidad")
+            .eq("id", carnet.id_participante)
+            .single();
+          return data?.nacionalidad || "venezolano";
+        } catch {
+          return "venezolano";
         }
-      } catch (error) {
-        console.warn('⚠️ Could not fetch participant nationality:', error);
-      }
-    }
-
-    // Generate QR code for carnet (same as certificate)
-    let qrDataURL: string | undefined;
-    try {
-      console.log('🔄 Generating QR code for carnet...');
-      const qrData = QRService.generateQRData(carnet.id_certificado!);
-      qrDataURL = await QRService.generateQRDataURL({
-        data: qrData,
-        size: 60,
-        level: 'M',
-        includeMargin: true
-      });
-      console.log('✅ QR code generated for carnet');
-    } catch (qrError) {
-      console.warn('⚠️ Could not generate QR code for carnet:', qrError);
-      // Continue without QR code - carnet generator will use placeholder
-    }
+      })(),
+      (async (): Promise<string | undefined> => {
+        if (!qrData) return undefined;
+        try {
+          return await QRService.generateQRDataURL({
+            data: qrData,
+            size: 60,
+            level: "M",
+            includeMargin: true,
+          });
+        } catch {
+          return undefined;
+        }
+      })(),
+    ]);
 
     // Generate carnet PDF
-    console.log('🎨 Initializing carnet generator...');
+    console.log("🎨 Initializing carnet generator...");
     const generator = new CarnetGenerator();
-    
+
     const carnetRequest = {
       participant: {
         name: carnet.nombre_participante,
         id_number: carnet.cedula_participante,
         company: carnet.empresa_participante || undefined,
-        nationality: participantNationality as 'venezolano' | 'extranjero'
+        nationality: participantNationality as "venezolano" | "extranjero",
       },
       carnetData: {
         id_certificado: carnet.id_certificado!,
@@ -97,41 +97,43 @@ export async function GET(
         nombre_participante: carnet.nombre_participante,
         cedula_participante: carnet.cedula_participante,
         empresa_participante: carnet.empresa_participante,
-        nro_control: carnet.id // Use carnet ID as control number for now
+        nro_control: carnet.id, // Use carnet ID as control number for now
       },
-      templateImage: '/templates/carnet.png',
+      templateImage: "/templates/carnet.png",
       isPreview: false,
       carnetId: carnet.id,
-      qrDataURL // Pass the generated QR code data URL
+      qrDataURL, // Pass the generated QR code data URL
     };
 
-    console.log('🔄 Generating carnet PDF with request:', {
+    console.log("🔄 Generating carnet PDF with request:", {
       participant: carnetRequest.participant.name,
       template: carnetRequest.templateImage,
-      carnetId: carnetRequest.carnetId
+      carnetId: carnetRequest.carnetId,
     });
 
     const pdfBlob = await generator.generateCarnet(carnetRequest);
-    console.log('✅ Carne PDF generated successfully');
+    console.log("✅ Carne PDF generated successfully");
 
     // Return PDF as response
     return new NextResponse(pdfBlob, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="carnet-${carnet.id}.pdf"`,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="carnet-${carnet.id}.pdf"`,
       },
     });
-
   } catch (error) {
-    console.error('💥 Error generating carnet PDF:', error);
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error("💥 Error generating carnet PDF:", error);
+    console.error(
+      "Error stack:",
+      error instanceof Error ? error.stack : "No stack trace",
+    );
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to generate carnet PDF',
-        details: error instanceof Error ? error.message : 'Unknown error'
+      {
+        success: false,
+        error: "Failed to generate carnet PDF",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

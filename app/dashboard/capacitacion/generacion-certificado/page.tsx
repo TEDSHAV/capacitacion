@@ -11,23 +11,24 @@ export default async function GeneracionCertificadoPage({
 }) {
   const { editId } = await searchParams;
 
-  // Check authentication - following your existing pattern
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const editIdNum =
+    editId && typeof editId === "string" ? parseInt(editId) : null;
+
+  const [
+    {
+      data: { user },
+    },
+    certificateData,
+    editCertificateData,
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    getOptimizedCertificateData(),
+    editIdNum ? getCertificateForEdit(editIdNum) : Promise.resolve(null),
+  ]);
 
   if (!user) {
     redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
-  }
-
-  // Use existing optimized server action with caching
-  const certificateData = await getOptimizedCertificateData();
-
-  // If in edit mode, fetch the specific certificate data
-  let editCertificateData = null;
-  if (editId && typeof editId === "string") {
-    editCertificateData = await getCertificateForEdit(parseInt(editId));
   }
 
   return (

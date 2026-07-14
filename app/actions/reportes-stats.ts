@@ -37,17 +37,17 @@ const getFacilitatorHoursStats = cache(
         query = query.eq("id_curso", courseId);
       }
 
-      const { data, error } = await query;
+      const [{ data, error }, { data: allStates }] = await Promise.all([
+        query,
+        supabase
+          .from("cat_estados_venezuela")
+          .select("id, nombre_estado")
+          .order("nombre_estado"),
+      ]);
 
       if (error) {
         return { error: error.message, data: [] };
       }
-
-      // Get all states for name lookup
-      const { data: allStates } = await supabase
-        .from("cat_estados_venezuela")
-        .select("id, nombre_estado")
-        .order("nombre_estado");
 
       // Process data to calculate hours
       const facilitatorHoursMap = new Map<number, number>();
@@ -162,17 +162,18 @@ const getFacilitatorStateStats = cache(
         query = query.eq("id_estado_geografico", stateId);
       }
 
-      const { data: facilitadoresData, error } = await query;
+      const [{ data: facilitadoresData, error }, { data: allStates }] =
+        await Promise.all([
+          query,
+          supabase
+            .from("cat_estados_venezuela")
+            .select("id, nombre_estado")
+            .order("nombre_estado"),
+        ]);
 
       if (error) {
         return { error: error.message, data: [] };
       }
-
-      // Get all states for complete list
-      const { data: allStates } = await supabase
-        .from("cat_estados_venezuela")
-        .select("id, nombre_estado")
-        .order("nombre_estado");
 
       // Process state statistics
       const geoStateStats = new Map();
@@ -210,20 +211,6 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
   const supabase = await createClient();
 
   try {
-    // Get all states for name lookup
-    const { data: allStates } = await supabase
-      .from("cat_estados_venezuela")
-      .select("id, nombre_estado")
-      .order("nombre_estado");
-
-    // Helper function to get state name by ID
-    const getStateName = (stateId: number | null) => {
-      if (!stateId) return "No definido";
-      const state = allStates?.find((s) => s.id === stateId);
-      return state?.nombre_estado || "No definido";
-    };
-
-    // Start with certificates query to get courses that actually have activity
     let certificatesQuery = supabase
       .from("certificados")
       .select(
@@ -250,7 +237,6 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
       .eq("cursos.is_active", true);
 
     if (stateId) {
-      // Filter by certificate state (where the course was taught/issued)
       certificatesQuery = certificatesQuery.eq("id_estado", stateId);
     }
 
@@ -258,7 +244,21 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
       certificatesQuery = certificatesQuery.eq("id_curso", courseId);
     }
 
-    const { data: certificates, error: certError } = await certificatesQuery;
+    const [{ data: certificates, error: certError }, { data: allStates }] =
+      await Promise.all([
+        certificatesQuery,
+        supabase
+          .from("cat_estados_venezuela")
+          .select("id, nombre_estado")
+          .order("nombre_estado"),
+      ]);
+
+    // Helper function to get state name by ID
+    const getStateName = (stateId: number | null) => {
+      if (!stateId) return "No definido";
+      const state = allStates?.find((s) => s.id === stateId);
+      return state?.nombre_estado || "No definido";
+    };
 
     if (certError) {
       return { error: certError.message, data: [] };

@@ -6,18 +6,17 @@ import { getCursos } from "./actions";
 import { getAnalyticsMetrics } from "@/app/actions/participants";
 
 export default async function GestionCursosPage() {
-  // Check authentication
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
-  }
-
-  // Fetch companies, courses, and analytics metrics in parallel
-  const [companiesResult, coursesResult, analyticsMetrics] = await Promise.all([
+  const [
+    {
+      data: { user },
+    },
+    companiesResult,
+    coursesResult,
+    analyticsMetrics,
+  ] = await Promise.all([
+    supabase.auth.getUser(),
     supabase
       .from("empresas")
       .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
@@ -25,6 +24,10 @@ export default async function GestionCursosPage() {
     getCursos(),
     getAnalyticsMetrics(),
   ]);
+
+  if (!user) {
+    redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
+  }
   const companies = companiesResult.data as Empresa[] | null;
 
   if (coursesResult.error) {

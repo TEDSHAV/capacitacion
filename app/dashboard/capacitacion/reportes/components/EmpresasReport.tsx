@@ -62,38 +62,48 @@ function SortButton({
   dir,
   onSort,
   children,
+  align = "left",
 }: {
   field: SortField;
   current: SortField;
   dir: SortDir;
   onSort: (f: SortField) => void;
   children: React.ReactNode;
+  align?: "left" | "right";
 }) {
   const isActive = field === current;
   return (
-    <button
-      onClick={() => onSort(field)}
-      className="flex items-center gap-1 group"
+    <div
+      className={`flex ${align === "right" ? "justify-end" : "justify-start"}`}
     >
-      <span
-        className={`text-xs font-semibold uppercase tracking-wide ${
-          isActive ? "text-sky-700" : "text-gray-700 group-hover:text-gray-900"
-        }`}
+      <button
+        onClick={() => onSort(field)}
+        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md transition-all group ${
+          isActive ? "bg-sky-50 text-sky-700" : "text-gray-700 hover:bg-gray-50"
+        } ${align === "left" ? "-ml-2" : "-mr-2"}`}
       >
-        {children}
-      </span>
-      <span className="text-gray-300 group-hover:text-gray-500">
-        {isActive ? (
-          dir === "asc" ? (
-            <ChevronUp className="w-3 h-3" />
+        <span className="text-[10px] font-bold uppercase tracking-wider">
+          {children}
+        </span>
+        <span
+          className={`transition-colors ${
+            isActive
+              ? "text-sky-500"
+              : "text-gray-300 group-hover:text-gray-400"
+          }`}
+        >
+          {isActive ? (
+            dir === "asc" ? (
+              <ChevronUp className="w-3 h-3" />
+            ) : (
+              <ChevronDown className="w-3 h-3" />
+            )
           ) : (
-            <ChevronDown className="w-3 h-3" />
-          )
-        ) : (
-          <ArrowUpDown className="w-3 h-3" />
-        )}
-      </span>
-    </button>
+            <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-100" />
+          )}
+        </span>
+      </button>
+    </div>
   );
 }
 
@@ -298,6 +308,7 @@ export default function EmpresasReport({
                       current={sortField}
                       dir={sortDir}
                       onSort={handleSort}
+                      align="right"
                     >
                       Certs.
                     </SortButton>
@@ -308,8 +319,9 @@ export default function EmpresasReport({
                       current={sortField}
                       dir={sortDir}
                       onSort={handleSort}
+                      align="right"
                     >
-                      Participantes
+                      Partic.
                     </SortButton>
                   </th>
                   <th className="px-4 py-3 text-right">
@@ -318,6 +330,7 @@ export default function EmpresasReport({
                       current={sortField}
                       dir={sortDir}
                       onSort={handleSort}
+                      align="right"
                     >
                       Cursos
                     </SortButton>
@@ -328,8 +341,9 @@ export default function EmpresasReport({
                       current={sortField}
                       dir={sortDir}
                       onSort={handleSort}
+                      align="right"
                     >
-                      Última actividad
+                      Última act.
                     </SortButton>
                   </th>
                 </tr>
