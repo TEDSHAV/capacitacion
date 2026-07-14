@@ -518,12 +518,13 @@ export default function OSIDetailPage() {
                             key={empresa.id}
                             className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                             onClick={() => {
+                              const normalizedAddress = (empresa.direccion_fiscal || '').normalize('NFD')
                               updateFormData('cliente_nombre_empresa', empresa.razon_social)
                               updateFormData('rif', empresa.rif || '')
                               updateFormData('codigo_cliente', empresa.codigo_cliente || '')
-                              updateFormData('direccion_fiscal', empresa.direccion_fiscal || '')
-                              updateFormData('direccion_ejecucion', empresa.direccion_fiscal || '')
-                              updateFormData('direccion_envio', empresa.direccion_fiscal || '')
+                              updateFormData('direccion_fiscal', normalizedAddress)
+                              updateFormData('direccion_ejecucion', normalizedAddress)
+                              updateFormData('direccion_envio', normalizedAddress)
                               setSearchTerm('')
                             }}
                           >
@@ -612,7 +613,7 @@ export default function OSIDetailPage() {
                   <div className="relative">
                     <input
                       type="text"
-                      value={formData.tema || temaSearchTerm}
+                      value={temaSearchTerm || formData.tema || ''}
                       onChange={(e) => {
                         setTemaSearchTerm(e.target.value)
                         if (!e.target.value) {
@@ -794,36 +795,14 @@ export default function OSIDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Detalles Servicio</h2>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Tema</label>
-              <textarea
-                value={formData.tema || ''}
-                onChange={(e) => updateFormData('tema', e.target.value)}
-                disabled={!isEditing && !isNew}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                rows={3}
-                placeholder="Tema del servicio"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Detalle Sesión</label>
-              <textarea
-                value={formData.detalle_sesion || ''}
-                onChange={(e) => updateFormData('detalle_sesion', e.target.value)}
-                disabled={!isEditing && !isNew}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                rows={3}
-                placeholder="Detalle de la sesión"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Observaciones Adicionales</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Pretensiones del Cliente</label>
               <textarea
                 value={formData.observaciones_adicionales || ''}
                 onChange={(e) => updateFormData('observaciones_adicionales', e.target.value)}
                 disabled={!isEditing && !isNew}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 rows={3}
-                placeholder="Observaciones adicionales"
+                placeholder="Pretensiones del cliente"
               />
             </div>
             <div>
