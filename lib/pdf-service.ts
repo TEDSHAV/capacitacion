@@ -26,7 +26,9 @@ export async function getBrowser(): Promise<Browser> {
         "--no-zygote",
         "--single-process",
         "--disable-crash-reporter",
+        "--disable-features=VizDisplayCompositor",
       ],
+      ignoreDefaultArgs: ["--disable-extensions"],
     });
 
     // Graceful shutdown on process exit
