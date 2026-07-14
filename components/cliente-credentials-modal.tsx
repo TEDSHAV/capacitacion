@@ -21,6 +21,8 @@ import {
   MapPin,
   ImagePlus,
   Upload,
+  Pencil,
+  Save,
 } from "lucide-react";
 import {
   getClienteCompanies,
@@ -78,6 +80,14 @@ export const ClienteCredentialsModal = ({
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isRemovingLogo, setIsRemovingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Edit credential state
+  const [editingCredId, setEditingCredId] = useState<number | null>(null);
+  const [editUsername, setEditUsername] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editSedeIds, setEditSedeIds] = useState<number[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     async function loadCompanies() {
@@ -233,6 +243,61 @@ export const ClienteCredentialsModal = ({
       setSavedPassword("");
       loadCredentials(selectedCompanyId);
     }
+  };
+
+  const handleEdit = (cred: ClienteCredential) => {
+    setEditingCredId(cred.id);
+    setEditUsername(cred.username);
+    setEditPassword("");
+    setEditDisplayName(cred.display_name || "");
+    setEditSedeIds(cred.id_sede || []);
+    setError(null);
+    setSuccess(null);
+    setSavedPassword("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCredId(null);
+    setEditUsername("");
+    setEditPassword("");
+    setEditDisplayName("");
+    setEditSedeIds([]);
+  };
+
+  const handleSaveEdit = async (credId: number) => {
+    if (!editUsername) {
+      setError("El nombre de usuario es requerido");
+      return;
+    }
+
+    setSavingEdit(true);
+    setError(null);
+    setSuccess(null);
+
+    const updates: Parameters<typeof updateClienteCredentials>[1] = {
+      username: editUsername,
+      display_name: editDisplayName || undefined,
+      sedeIds: editSedeIds.length > 0 ? editSedeIds : null,
+    };
+
+    if (editPassword) {
+      updates.password = editPassword;
+    }
+
+    const result = await updateClienteCredentials(credId, updates);
+
+    if (result.error) {
+      setError(result.error);
+    } else {
+      setSuccess("Credencial actualizada exitosamente");
+      setSavedPassword("");
+      setCopied(false);
+      handleCancelEdit();
+      if (selectedCompanyId) {
+        loadCredentials(selectedCompanyId);
+      }
+    }
+    setSavingEdit(false);
   };
 
   const handleDelete = async (credId: number) => {
@@ -498,77 +563,176 @@ export const ClienteCredentialsModal = ({
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {credentials.map((cred) => (
-                          <div
-                            key={cred.id}
-                            className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50/50"
-                          >
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm text-gray-900">
-                                  {cred.username}
-                                </span>
-                                <span
-                                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                    cred.is_active
-                                      ? "bg-green-100 text-green-700"
-                                      : "bg-gray-200 text-gray-600"
-                                  }`}
+                        {credentials.map((cred) =>
+                          editingCredId === cred.id ? (
+                            <div
+                              key={cred.id}
+                              className="p-3 border border-blue-200 rounded-lg bg-blue-50/30 space-y-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-semibold text-gray-700">Editar Credencial</span>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  className="p-1.5 rounded-md hover:bg-gray-200 transition-colors"
+                                  title="Cancelar"
                                 >
-                                  {cred.is_active ? "Activo" : "Inactivo"}
-                                </span>
+                                  <X className="w-4 h-4 text-gray-500" />
+                                </button>
                               </div>
-                              {cred.display_name && (
-                                <p className="text-xs text-gray-500">
-                                  {cred.display_name}
-                                </p>
-                              )}
-                              {cred.id_sede && cred.id_sede.length > 0 && (
-                                <p className="text-xs text-blue-600 flex items-center gap-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {cred.id_sede.length === 1
-                                    ? (sedes.find((s) => s.id === cred.id_sede![0])?.nombre_sede || `Sede #${cred.id_sede![0]}`)
-                                    : `${cred.id_sede.length} sedes seleccionadas`
+                              <div className="grid grid-cols-1 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Nombre de Usuario</Label>
+                                  <Input
+                                    value={editUsername}
+                                    onChange={(e) => setEditUsername(e.target.value)}
+                                    placeholder="Usuario"
+                                    autoComplete="off"
+                                    className="h-9"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Nombre para Mostrar (opcional)</Label>
+                                  <Input
+                                    value={editDisplayName}
+                                    onChange={(e) => setEditDisplayName(e.target.value)}
+                                    placeholder="ej: Departamento de RRHH"
+                                    autoComplete="off"
+                                    className="h-9"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Contraseña (dejar vacío para mantener actual)</Label>
+                                  <Input
+                                    type="password"
+                                    value={editPassword}
+                                    onChange={(e) => setEditPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    autoComplete="new-password"
+                                    className="h-9"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Sedes</Label>
+                                  <MultiSelect
+                                    options={sedes.map((sede) => ({ id: sede.id, label: sede.nombre_sede }))}
+                                    selectedIds={editSedeIds}
+                                    onChange={setEditSedeIds}
+                                    placeholder="Todas las sedes (empresa completa)"
+                                    disabled={isLoadingSedes}
+                                    isLoading={isLoadingSedes}
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  type="button"
+                                  onClick={() => handleSaveEdit(cred.id)}
+                                  disabled={savingEdit}
+                                  size="sm"
+                                  className="flex-1"
+                                >
+                                  {savingEdit ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Guardando...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Save className="w-4 h-4 mr-2" />
+                                      Guardar Cambios
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  onClick={handleCancelEdit}
+                                  disabled={savingEdit}
+                                  size="sm"
+                                  variant="outline"
+                                >
+                                  Cancelar
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              key={cred.id}
+                              className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50/50"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm text-gray-900">
+                                    {cred.username}
+                                  </span>
+                                  <span
+                                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                      cred.is_active
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-gray-200 text-gray-600"
+                                    }`}
+                                  >
+                                    {cred.is_active ? "Activo" : "Inactivo"}
+                                  </span>
+                                </div>
+                                {cred.display_name && (
+                                  <p className="text-xs text-gray-500">
+                                    {cred.display_name}
+                                  </p>
+                                )}
+                                {cred.id_sede && cred.id_sede.length > 0 && (
+                                  <p className="text-xs text-blue-600 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    {cred.id_sede.length === 1
+                                      ? (sedes.find((s) => s.id === cred.id_sede![0])?.nombre_sede || `Sede #${cred.id_sede![0]}`)
+                                      : `${cred.id_sede.length} sedes seleccionadas`
+                                    }
+                                  </p>
+                                )}
+                                {!cred.id_sede && cred.id_ciudad && (
+                                  <p className="text-xs text-blue-600 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    {cities.find((c) => c.id === cred.id_ciudad)?.nombre_ciudad || `Ciudad #${cred.id_ciudad}`}
+                                  </p>
+                                )}
+                                {!cred.id_sede && !cred.id_ciudad && (
+                                  <p className="text-xs text-gray-400 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    Todas las sedes
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleEdit(cred)}
+                                  className="p-1.5 rounded-md hover:bg-blue-100 transition-colors"
+                                  title="Editar"
+                                >
+                                  <Pencil className="w-4 h-4 text-blue-500" />
+                                </button>
+                                <button
+                                  onClick={() => handleToggleActive(cred)}
+                                  className="p-1.5 rounded-md hover:bg-gray-200 transition-colors"
+                                  title={
+                                    cred.is_active
+                                      ? "Desactivar"
+                                      : "Activar"
                                   }
-                                </p>
-                              )}
-                              {!cred.id_sede && cred.id_ciudad && (
-                                <p className="text-xs text-blue-600 flex items-center gap-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {cities.find((c) => c.id === cred.id_ciudad)?.nombre_ciudad || `Ciudad #${cred.id_ciudad}`}
-                                </p>
-                              )}
-                              {!cred.id_sede && !cred.id_ciudad && (
-                                <p className="text-xs text-gray-400 flex items-center gap-1">
-                                  <MapPin className="w-3 h-3" />
-                                  Todas las sedes
-                                </p>
-                              )}
+                                >
+                                  <Power
+                                    className={`w-4 h-4 ${cred.is_active ? "text-green-600" : "text-gray-400"}`}
+                                  />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(cred.id)}
+                                  className="p-1.5 rounded-md hover:bg-red-100 transition-colors"
+                                  title="Eliminar"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleToggleActive(cred)}
-                                className="p-1.5 rounded-md hover:bg-gray-200 transition-colors"
-                                title={
-                                  cred.is_active
-                                    ? "Desactivar"
-                                    : "Activar"
-                                }
-                              >
-                                <Power
-                                  className={`w-4 h-4 ${cred.is_active ? "text-green-600" : "text-gray-400"}`}
-                                />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(cred.id)}
-                                className="p-1.5 rounded-md hover:bg-red-100 transition-colors"
-                                title="Eliminar"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-500" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                          ),
+                        )}
                       </div>
                     )}
                   </div>

@@ -91,7 +91,8 @@ export default async function ClienteDashboardPage() {
         initialBatches={batches}
         initialTotalCount={initialTotalCount}
         filterOptions={filterOptions}
-        showSedeFilter={!session.id_sede}
+        showSedeFilter={!session.id_sede || (session.id_sede?.length ?? 0) > 1}
+        showCiudadFilter={!session.id_sede}
       />
     </div>
     </div>

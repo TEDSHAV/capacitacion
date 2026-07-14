@@ -10,6 +10,7 @@ interface ClienteFiltersProps {
   onClear: () => void;
   options: ClienteFilterOptions;
   showSedeFilter?: boolean;
+  showCiudadFilter?: boolean;
 }
 
 export function ClienteFilters({
@@ -18,11 +19,11 @@ export function ClienteFilters({
   onClear,
   options,
   showSedeFilter = false,
+  showCiudadFilter = false,
 }: ClienteFiltersProps) {
   const hasActiveFilters =
     !!filters.searchTerm ||
     !!filters.courseId ||
-    !!filters.stateId ||
     !!filters.cityId ||
     !!filters.sedeId ||
     !!filters.dateFrom ||
@@ -87,29 +88,8 @@ export function ClienteFilters({
           </select>
         </div>
 
-        {/* State */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-600">Estado</label>
-          <select
-            value={filters.stateId || ""}
-            onChange={(e) =>
-              updateFilter({
-                stateId: e.target.value ? Number(e.target.value) : undefined,
-              })
-            }
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
-          >
-            <option value="">Todos los estados</option>
-            {options.states.map((state) => (
-              <option key={state.id} value={state.id}>
-                {state.nombre_estado}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* City */}
-        {showSedeFilter && (
+        {showCiudadFilter && (
         <div className="space-y-1">
           <label className="text-xs font-medium text-gray-600">Ciudad</label>
           <select

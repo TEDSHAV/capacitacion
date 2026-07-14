@@ -86,6 +86,8 @@ export async function updateClienteCredentials(
     password?: string;
     display_name?: string;
     is_active?: boolean;
+    sedeIds?: number[] | null;
+    cityId?: number | null;
   },
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createAdminClient();
@@ -100,6 +102,12 @@ export async function updateClienteCredentials(
   if (updates.is_active !== undefined) updateData.is_active = updates.is_active;
   if (updates.password) {
     updateData.password_hash = hashPassword(updates.password);
+  }
+  if (updates.sedeIds !== undefined) {
+    updateData.id_sede = updates.sedeIds && updates.sedeIds.length > 0 ? updates.sedeIds : null;
+  }
+  if (updates.cityId !== undefined) {
+    updateData.id_ciudad = updates.cityId || null;
   }
 
   const { error } = await supabase
@@ -332,6 +340,87 @@ export async function getClienteCertificates(
     return { data: rows, totalCount: count || 0 };
   }
 
+  // When multiple sedes are assigned and no specific sede filter is selected,
+  // use a direct query instead of the RPC (which only accepts a single sede ID)
+  if (!filters.sedeId && sessionSedeIds && sessionSedeIds.length > 1) {
+    const from = (page - 1) * itemsPerPage;
+    const to = from + itemsPerPage - 1;
+
+    let query = supabase
+      .from("certificados")
+      .select(
+        `id, fecha_emision, fecha_vencimiento, is_active, calificacion, nro_osi, snapshot_contenido,
+         participantes_certificados!inner(nombre, cedula, nacionalidad),
+         catalogo_servicios!left(id, nombre, emite_carnet),
+         cat_estados_venezuela!left(id, nombre_estado),
+         empresas!inner(razon_social)`,
+        { count: "exact" },
+      )
+      .eq("id_empresa", empresaId)
+      .eq("is_active", true)
+      .in("id_sede", sessionSedeIds);
+
+    if (filters.searchTerm) {
+      query = query.or(
+        `nombre.ilike.%${filters.searchTerm}%,cedula.ilike.%${filters.searchTerm}%`,
+        { referencedTable: "participantes_certificados" },
+      );
+    }
+    if (filters.courseId) query = query.eq("id_curso", filters.courseId);
+    if (filters.stateId) query = query.eq("id_estado", filters.stateId);
+    if (filters.dateFrom) query = query.gte("fecha_emision", filters.dateFrom);
+    if (filters.dateTo) query = query.lte("fecha_emision", filters.dateTo);
+
+    query = query.order("fecha_emision", { ascending: false }).range(from, to);
+
+    const { data: directData, error: directError, count: directCount } = await query;
+
+    if (directError) {
+      console.error("Error fetching cliente certificates (multi-sede):", directError);
+      return { error: directError.message };
+    }
+
+    const directRows: ClienteCertificateRow[] = (directData || []).map((row: Record<string, unknown>) => {
+      const participant = row.participantes_certificados as Record<string, string>;
+      const course = row.catalogo_servicios as Record<string, unknown> | null;
+      const state = row.cat_estados_venezuela as Record<string, unknown> | null;
+      const company = row.empresas as Record<string, string>;
+
+      let courseNombre = (course?.nombre as string) || "";
+      if (!courseNombre && row.snapshot_contenido) {
+        try {
+          const snapshot = typeof row.snapshot_contenido === "string"
+            ? JSON.parse(row.snapshot_contenido)
+            : row.snapshot_contenido;
+          courseNombre = snapshot?.certificado_detalles?.title || snapshot?.curso?.name || "";
+        } catch {
+          // ignore parse errors
+        }
+      }
+
+      return {
+        id: row.id as number,
+        participant_nombre: participant?.nombre || "",
+        participant_cedula: participant?.cedula || "",
+        participant_nacionalidad: participant?.nacionalidad || "V",
+        course_nombre: courseNombre,
+        course_id: (course?.id as number) || 0,
+        course_emite_carnet: (course?.emite_carnet as boolean) || false,
+        fecha_emision: (row.fecha_emision as string) || "",
+        fecha_vencimiento: (row.fecha_vencimiento as string) || "",
+        is_active: (row.is_active as boolean) || false,
+        nro_osi: (row.nro_osi as number) || 0,
+        state_nombre_estado: (state?.nombre_estado as string) || "",
+        state_id: (state?.id as number) || 0,
+        company_razon_social: (company?.razon_social as string) || "",
+        calificacion: (row.calificacion as number) || 0,
+        total_count: directCount || 0,
+      };
+    });
+
+    return { data: directRows, totalCount: directCount || 0 };
+  }
+
   // Default: use the search_certificates RPC
   const rpcParams: Record<string, unknown> = {
     p_company_id: empresaId,
@@ -340,9 +429,9 @@ export async function getClienteCertificates(
     p_limit: itemsPerPage,
   };
 
-  if (sessionSedeIds && sessionSedeIds.length > 0) rpcParams.p_sede_id = sessionSedeIds[0]; // RPC may not support array, use first sede
-  else if (sessionCityId) rpcParams.p_city_id = sessionCityId;
   if (filters.sedeId) rpcParams.p_sede_id = filters.sedeId;
+  else if (sessionSedeIds && sessionSedeIds.length === 1) rpcParams.p_sede_id = sessionSedeIds[0];
+  else if (sessionCityId) rpcParams.p_city_id = sessionCityId;
   if (filters.searchTerm) rpcParams.p_search_term = filters.searchTerm;
   if (filters.courseId) rpcParams.p_course_id = filters.courseId;
   if (filters.stateId) rpcParams.p_state_id = filters.stateId;
@@ -580,7 +669,9 @@ export async function getClienteRecentBatches(
     .not("nro_osi", "is", null);
   if (sessionSedeIds && sessionSedeIds.length > 0) batchQuery = batchQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) batchQuery = batchQuery.eq("id_ciudad", sessionCityId);
-  const { data, error } = await batchQuery.order("fecha_emision", { ascending: false });
+  const { data, error } = await batchQuery
+    .order("fecha_emision", { ascending: false })
+    .limit(10000);
 
   if (error) {
     console.error("Error fetching recent batches:", error);
@@ -668,7 +759,7 @@ export async function getClienteBatchesFiltered(
     );
   }
 
-  query = query.order("fecha_emision", { ascending: false });
+  query = query.order("fecha_emision", { ascending: false }).limit(10000);
 
   const { data, error } = await query;
 
@@ -767,34 +858,7 @@ export async function getClienteFilterOptions(
     }
   }
 
-  // Get distinct states for this company's certificates
-  let stateDataQuery = supabase
-    .from("certificados")
-    .select(`id_estado, cat_estados_venezuela(id, nombre_estado)`)
-    .eq("id_empresa", empresaId)
-    .eq("is_active", true)
-    .not("id_estado", "is", null);
-  if (sessionSedeIds && sessionSedeIds.length > 0) stateDataQuery = stateDataQuery.in("id_sede", sessionSedeIds);
-  else if (sessionCityId) stateDataQuery = stateDataQuery.eq("id_ciudad", sessionCityId);
-  const { data: stateData, error: stateError } = await stateDataQuery;
-
-  if (stateError) {
-    console.error("Error fetching state options:", stateError);
-  }
-
-  const stateMap = new Map<number, string>();
-  if (stateData) {
-    for (const row of stateData) {
-      const stateInfo = row.cat_estados_venezuela as unknown as {
-        id: number;
-        nombre_estado: string;
-      };
-      if (stateInfo && !stateMap.has(stateInfo.id)) {
-        stateMap.set(stateInfo.id, stateInfo.nombre_estado);
-      }
-    }
-  }
-
+  // States are no longer exposed in the client portal UI
   // Get distinct cities for this company's certificates
   let cityDataQuery = supabase
     .from("certificados")
@@ -823,9 +887,28 @@ export async function getClienteFilterOptions(
     }
   }
 
-  // Get distinct sedes for this company's certificates (only if not session-restricted)
+  // Get distinct sedes for this company's certificates
   const sedeMap = new Map<number, string>();
-  if (!sessionSedeIds || sessionSedeIds.length === 0) {
+  if (sessionSedeIds && sessionSedeIds.length > 1) {
+    // Multi-sede client: fetch names for their assigned sedes
+    const { data: sedeData, error: sedeError } = await supabase
+      .from("empresa_sedes")
+      .select("id, nombre_sede")
+      .in("id", sessionSedeIds)
+      .eq("esta_activo", true)
+      .order("nombre_sede", { ascending: true });
+
+    if (sedeError) {
+      console.error("Error fetching sede options:", sedeError);
+    }
+
+    if (sedeData) {
+      for (const row of sedeData) {
+        sedeMap.set(row.id, row.nombre_sede);
+      }
+    }
+  } else if (!sessionSedeIds || sessionSedeIds.length === 0) {
+    // No sedes assigned: fetch all sedes for this company
     let sedeDataQuery = supabase
       .from("certificados")
       .select(`id_sede, empresa_sedes!inner(id, nombre_sede)`)
@@ -858,10 +941,7 @@ export async function getClienteFilterOptions(
         id,
         nombre,
       })),
-      states: Array.from(stateMap.entries()).map(([id, nombre_estado]) => ({
-        id,
-        nombre_estado,
-      })),
+      states: [],
       cities: sessionSedeIds && sessionSedeIds.length > 0 ? [] : Array.from(cityMap.entries()).map(([id, nombre_ciudad]) => ({
         id,
         nombre_ciudad,
