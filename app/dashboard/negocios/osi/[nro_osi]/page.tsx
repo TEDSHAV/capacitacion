@@ -28,8 +28,8 @@ interface OSI {
   codigo_cliente: string
   rif: string
   direccion_fiscal: string
-  persona_contacto_id: number
   direccion_envio: string
+  persona_contacto_id: number
   direccion_ejecucion: string
   nro_sesiones: number
   fecha_ejecucion1: string
@@ -74,8 +74,8 @@ export default function OSIDetailPage() {
     codigo_cliente: '',
     rif: '',
     direccion_fiscal: '',
-    persona_contacto_id: 0,
     direccion_envio: '',
+    persona_contacto_id: 0,
     direccion_ejecucion: ''
   })
 
@@ -89,6 +89,9 @@ export default function OSIDetailPage() {
   const [filteredEmpresas, setFilteredEmpresas] = useState<any[]>([])
   const [servicios, setServicios] = useState<any[]>([])
   const [usuarios, setUsuarios] = useState<any[]>([])
+  const [catalogoServicios, setCatalogoServicios] = useState<any[]>([])
+  const [temaSearchTerm, setTemaSearchTerm] = useState('')
+  const [filteredCatalogoServicios, setFilteredCatalogoServicios] = useState<any[]>([])
 
   useEffect(() => {
     const nro_osi = params.nro_osi as string
@@ -117,6 +120,24 @@ export default function OSIDetailPage() {
     )
     setFilteredEmpresas(filtered)
   }, [searchTerm, empresas])
+
+  useEffect(() => {
+    // Load catalogo_servicios when tipo_servicio changes
+    if (formData.tipo_servicio) {
+      loadCatalogoServicios()
+    } else {
+      setCatalogoServicios([])
+      setFilteredCatalogoServicios([])
+    }
+  }, [formData.tipo_servicio])
+
+  useEffect(() => {
+    // Filter catalogo_servicios based on tema search term
+    const filtered = catalogoServicios.filter(servicio =>
+      servicio.nombre.toLowerCase().includes(temaSearchTerm.toLowerCase())
+    )
+    setFilteredCatalogoServicios(filtered)
+  }, [temaSearchTerm, catalogoServicios])
 
   const startEditing = () => {
     setIsEditing(true)
@@ -149,7 +170,7 @@ export default function OSIDetailPage() {
   const loadServicios = async () => {
     try {
       const { data, error } = await supabase
-        .from("servicios")
+        .from("tipo_servicio")
         .select("id, nombre")
         .order("nombre")
       
@@ -173,6 +194,31 @@ export default function OSIDetailPage() {
       setUsuarios(data || [])
     } catch (err) {
       console.error('Error loading usuarios:', err)
+    }
+  }
+
+  const loadCatalogoServicios = async () => {
+    try {
+      // First, get the ID of the selected tipo_servicio
+      const selectedServicio = servicios.find(s => s.nombre === formData.tipo_servicio)
+      
+      if (!selectedServicio) {
+        setCatalogoServicios([])
+        setFilteredCatalogoServicios([])
+        return
+      }
+
+      const { data, error } = await supabase
+        .from("catalogo_servicios")
+        .select("id, nombre")
+        .eq("tipo_servicio", selectedServicio.id)
+        .order("nombre")
+      
+      if (error) throw error
+      setCatalogoServicios(data || [])
+      setFilteredCatalogoServicios(data || [])
+    } catch (err) {
+      console.error('Error loading catalogo_servicios:', err)
     }
   }
 
@@ -245,8 +291,8 @@ export default function OSIDetailPage() {
         codigo_cliente: formData.codigo_cliente?.trim() || '',
         rif: formData.rif?.trim() || '',
         direccion_fiscal: formData.direccion_fiscal?.trim() || '',
-        persona_contacto_id: Number(formData.persona_contacto_id) || null,
         direccion_envio: formData.direccion_envio?.trim() || '',
+        persona_contacto_id: Number(formData.persona_contacto_id) || null,
         direccion_ejecucion: formData.direccion_ejecucion?.trim() || ''
       }
       
@@ -257,9 +303,9 @@ export default function OSIDetailPage() {
         }
       } else if (osi) {
         const { error } = await supabase.from("osi").update(dataToSave).eq("id", osi.id)
-        if (error) {
+        if (error) {  
           throw error
-        }
+        } 
       }
       
       router.push('/dashboard/negocios')
@@ -476,6 +522,8 @@ export default function OSIDetailPage() {
                               updateFormData('rif', empresa.rif || '')
                               updateFormData('codigo_cliente', empresa.codigo_cliente || '')
                               updateFormData('direccion_fiscal', empresa.direccion_fiscal || '')
+                              updateFormData('direccion_ejecucion', empresa.direccion_fiscal || '')
+                              updateFormData('direccion_envio', empresa.direccion_fiscal || '')
                               setSearchTerm('')
                             }}
                           >
@@ -522,6 +570,28 @@ export default function OSIDetailPage() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Direccion Ejecucion</label>
+                  <input
+                    type="text"
+                    value={formData.direccion_ejecucion || ''}
+                    onChange={(e) => updateFormData('direccion_ejecucion', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="Direccion de ejecucion"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Direccion de Envio</label>
+                  <input
+                    type="text"
+                    value={formData.direccion_envio || ''}
+                    onChange={(e) => updateFormData('direccion_envio', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="Direccion de envio"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tipo Servicio</label>
                   <select
                     value={formData.tipo_servicio || ''}
@@ -536,6 +606,45 @@ export default function OSIDetailPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tema</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.tema || temaSearchTerm}
+                      onChange={(e) => {
+                        setTemaSearchTerm(e.target.value)
+                        if (!e.target.value) {
+                          updateFormData('tema', '')
+                        }
+                      }}
+                      onFocus={() => setTemaSearchTerm(formData.tema || '')}
+                      disabled={!isEditing && !isNew || !formData.tipo_servicio}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      placeholder={
+                        !formData.tipo_servicio 
+                          ? 'Seleccione primero un tipo de servicio' 
+                          : 'Escriba para buscar tema...'
+                      }
+                    />
+                    {temaSearchTerm && filteredCatalogoServicios.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {filteredCatalogoServicios.map((servicio) => (
+                          <div
+                            key={servicio.id}
+                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                            onClick={() => {
+                              updateFormData('tema', servicio.nombre)
+                              setTemaSearchTerm('')
+                            }}
+                          >
+                            <div className="font-medium">{servicio.nombre}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="space-y-4">
