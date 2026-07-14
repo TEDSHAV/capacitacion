@@ -341,6 +341,18 @@ export async function getOSIsForManagement(
     const statusMap = new Map(statuses.map((s) => [s.id, s]));
 
     // Enrich OSI data with status information
+    const osiIds = (data || []).map((osi: any) => osi.id_osi);
+    let acknowledgedOsiIds = new Set<number>();
+    if (osiIds.length > 0) {
+      const { data: ackData } = await supabase
+        .from("facilitador_acknowledgments")
+        .select("osi_id")
+        .in("osi_id", osiIds);
+      if (ackData) {
+        acknowledgedOsiIds = new Set(ackData.map((a: any) => a.osi_id as number));
+      }
+    }
+
     const enrichedOSIs = (data || []).map((osi: any) => {
       const status = statusMap.get(osi.id_estatus);
       return {
@@ -348,6 +360,7 @@ export async function getOSIsForManagement(
         status_name: status?.nombre_estado || "Desconocido",
         status_color: status?.color_hex || "#gray",
         status_order: status?.orden || 0,
+        has_acknowledgment: acknowledgedOsiIds.has(osi.id_osi),
       } as OSIManagement;
     });
 

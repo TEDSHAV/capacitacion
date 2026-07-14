@@ -1019,6 +1019,7 @@ export interface OSIManagement {
   status_order?: number;
   num_participants?: number;
   is_manual_batch?: boolean;
+  has_acknowledgment?: boolean;
 }
 
 export interface OSISearchResult {

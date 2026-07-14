@@ -1,7 +1,7 @@
 "use client";
 
 import { OSIManagement } from "@/types";
-import { Calendar, Building2, Clock, FileText, Download, ClipboardList, UserPlus } from "lucide-react";
+import { Calendar, Building2, Clock, FileText, Download, ClipboardList, UserPlus, ShieldCheck } from "lucide-react";
 import type { OSIStatus } from "@/types";
 
 interface OSITableV2Props {
@@ -94,9 +94,16 @@ export default function OSITableV2({
               >
                 <td className="px-3 py-4">
                   <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-600">
-                      {osi.nro_osi}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-600">
+                        {osi.nro_osi}
+                      </span>
+                      {osi.has_acknowledgment && (
+                        <span title="Disclaimer confirmado">
+                          <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                        </span>
+                      )}
+                    </div>
                     {osi.nro_presupuesto && (
                       <span className="text-[10px] text-gray-500">
                         {osi.nro_presupuesto}

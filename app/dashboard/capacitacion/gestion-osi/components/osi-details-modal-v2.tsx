@@ -18,8 +18,11 @@ import {
   ExternalLink,
   ChevronRight,
   ChevronDown,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { getCertificatesByOSIAction } from "@/app/actions/certificados";
+import { getAcknowledgmentByOSI } from "@/app/actions/facilitador-portal";
 import {
   downloadBatchAction,
   DownloadChoice,
@@ -45,12 +48,29 @@ export default function OSIDetailsModalV2({
   const [downloadingBatch, setDownloadingBatch] = useState<string | null>(null);
   const [expandedSection, setExpandedSection] =
     useState<string>(initialSection); // 'info' or 'documents'
+  const [acknowledgment, setAcknowledgment] = useState<any>(null);
 
   useEffect(() => {
     if (osi) {
       loadCertificates();
+      loadAcknowledgment();
     }
   }, [osi]);
+
+  const loadAcknowledgment = async () => {
+    if (!osi) return;
+    try {
+      const result = await getAcknowledgmentByOSI(osi.id_osi);
+      if (result.data) {
+        setAcknowledgment(result.data);
+      } else {
+        setAcknowledgment(null);
+      }
+    } catch (error) {
+      console.error("Error loading acknowledgment:", error);
+      setAcknowledgment(null);
+    }
+  };
 
   const loadCertificates = async () => {
     if (!osi) return;
@@ -200,6 +220,17 @@ export default function OSIDetailsModalV2({
                   <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">{osi.nro_osi}</span>
                   <span className="text-gray-300">|</span>
                   <span className="text-xs text-gray-500 font-semibold truncate max-w-[300px]">{osi.nombre_empresa}</span>
+                  {acknowledgment ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-md border border-green-100" title={`Confirmado el ${new Date(acknowledgment.acknowledged_at).toLocaleString()}`}>
+                      <ShieldCheck className="w-3 h-3" />
+                      Disclaimer confirmado por {acknowledgment.facilitadores?.nombre_apellido || "N/A"}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
+                      <ShieldAlert className="w-3 h-3" />
+                      Disclaimer pendiente
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

@@ -261,6 +261,30 @@ export async function saveAcknowledgment(
   return { success: true };
 }
 
+export async function getAcknowledgmentByOSI(osiId: number) {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from("facilitador_acknowledgments")
+    .select(`
+      acknowledged_at,
+      disclaimer_text,
+      facilitadores (
+        id,
+        nombre_apellido
+      )
+    `)
+    .eq("osi_id", osiId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching acknowledgment:", error);
+    return { error: error.message };
+  }
+
+  return { data };
+}
+
 export async function saveParticipants(
   osiId: number,
   facilitadorId: number,
