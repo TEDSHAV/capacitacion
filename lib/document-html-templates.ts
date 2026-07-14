@@ -274,8 +274,6 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       font-size: 13px;
       line-height: 1.4;
       color: #000;
-      background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
-      background-attachment: fixed;
     }
 
     .page {
@@ -284,6 +282,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      background: url('${watermarkUri}') center / 500px 500px no-repeat;
     }
 
     .page:last-child {
@@ -297,7 +296,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       gap: 20px;
       margin-bottom: 20px;
       padding-bottom: 10px;
-      border-bottom: 1px solid #ccc;
+      
     }
 
     .logo {
@@ -313,7 +312,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     }
 
     .code-box {
-      font-size: 6px;
+      font-size: 7px;
       color: #8c8c8c;
       text-align: right;
     }
@@ -500,14 +499,13 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       : "position-bottom";
 
   const signatureContent = `
-      <div class="signature-block ${signatureClass}">
+      <div class="signature-block-justified ${signatureClass}">
         <div class="signature-text">Atentamente,</div>
         <div class="signature-name">REPRESENTANTE SHA</div>
 
         <div class="received-section">
           <div class="received-label">Recibido por:</div>
           <div style="margin-left: 40px;">
-            <div class="signature-line"></div>
             <div class="seal-label">SELLO Y FIRMA DEL CLIENTE</div>
             <div class="received-name">${escapeHtml(data.nombre_recibido || "[NOMBRE Y APELLIDO]")}</div>
             <div class="received-cargo">${escapeHtml(data.cargo_recibido || "[CARGO]")}</div>
@@ -640,8 +638,6 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       font-size: 13px;
       line-height: 1.4;
       color: #000;
-      background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
-      background-attachment: fixed;
     }
 
     .page {
@@ -650,6 +646,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      background: url('${watermarkUri}') center / 500px 500px no-repeat;
     }
 
     .page:last-child {
@@ -663,7 +660,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       gap: 20px;
       margin-bottom: 20px;
       padding-bottom: 10px;
-      border-bottom: 1px solid #ccc;
+      
     }
 
     .logo {
@@ -679,7 +676,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     }
 
     .code-box {
-      font-size: 6px;
+      font-size: 7px;
       color: #8c8c8c;
       text-align: right;
     }
@@ -760,6 +757,20 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     }
 
     .signature-block.position-bottom {
+      margin-top: 20px;
+    }
+    
+    .signature-block-justified {
+      text-align: justify;
+      page-break-inside: avoid;
+      margin-bottom: 30px;
+    }
+
+    .signature-block-justified.position-middle {
+      margin-top: auto;
+    }
+
+    .signature-block-justified.position-bottom {
       margin-top: 20px;
     }
 
@@ -1039,8 +1050,6 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       font-size: 13px;
       line-height: 1.4;
       color: #000;
-      background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
-      background-attachment: fixed;
     }
 
     .page {
@@ -1049,6 +1058,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      background: url('${watermarkUri}') center / 500px 500px no-repeat;
     }
 
     .page:last-child {
@@ -1062,7 +1072,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       gap: 20px;
       margin-bottom: 20px;
       padding-bottom: 10px;
-      border-bottom: 1px solid #ccc;
+      
     }
 
     .logo {
@@ -1078,7 +1088,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     }
 
     .code-box {
-      font-size: 6px;
+      font-size: 7px;
       color: #8c8c8c;
       text-align: right;
     }

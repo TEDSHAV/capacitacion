@@ -393,9 +393,9 @@ export class TemplateBasedPdfGenerator {
       pdf.text("Recibido por:", ML, y);
       y += 22;
 
-      pdf.setLineWidth(0.4);
-      pdf.line(55, y, 155, y);
-      y += 6;
+      // pdf.setLineWidth(0.4);
+      // pdf.line(55, y, 155, y);
+      // y += 6;
 
       pdf.setFont("helvetica", "bold").setFontSize(10);
       pdf.text("SELLO Y FIRMA DEL CLIENTE", cx, y, { align: "center" });
