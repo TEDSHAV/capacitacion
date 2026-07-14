@@ -326,8 +326,6 @@ export class CertificatePage {
     signatureConfig: typeof this.config.signature
   ): Promise<void> {
     try {
-      console.log('Adding facilitator signature:', JSON.stringify(facilitator, null, 2));
-      
       // Add facilitator name - use the name field which is mapped from nombre_apellido
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(8);
@@ -348,14 +346,9 @@ export class CertificatePage {
         signatureUrl = facilitator.signature_data.firma;
       } else if (facilitator.firma) {
         signatureUrl = facilitator.firma;
-      } else if (facilitator.firmas?.url_imagen) {
-        signatureUrl = facilitator.firmas.url_imagen;
       }
       
-      console.log('Facilitator signature URL found:', signatureUrl);
-      
       if (signatureUrl) {
-        console.log('Adding facilitator signature image:', signatureUrl);
         await this.addSignatureImage(
           signatureUrl,
           38,
@@ -364,12 +357,11 @@ export class CertificatePage {
           signatureConfig.height
         );
       } else {
-        console.warn('No signature image found for facilitator:', facilitator.name);
-        console.log('Facilitator data structure:', JSON.stringify(facilitator, null, 2));
+        console.warn('No signature image found for facilitator:', facilitator.name || facilitator.nombre_apellido);
       }
     } catch (error) {
       console.error('Error adding facilitator signature:', error);
-      throw error;
+      throw new Error(`Failed to add facilitator signature: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -381,8 +373,6 @@ export class CertificatePage {
     signatureConfig: typeof this.config.signature
   ): Promise<void> {
     try {
-      console.log('Adding SHA signature:', JSON.stringify(shaSignature, null, 2));
-      
       // Handle both array and object structures
       let signatureData = shaSignature;
       if (Array.isArray(shaSignature) && shaSignature.length > 0) {
@@ -393,7 +383,6 @@ export class CertificatePage {
       
       // Add SHA signature image if available
       if (signatureData.url_imagen) {
-        console.log('Adding SHA signature image:', signatureData.url_imagen);
         await this.addSignatureImage(
           signatureData.url_imagen,
           signatureConfig.rightX + 10,
@@ -402,7 +391,6 @@ export class CertificatePage {
           signatureConfig.height
         );
       } else if (signatureData.firma) {
-        console.log('Adding SHA signature image from firma field:', signatureData.firma);
         await this.addSignatureImage(
           signatureData.firma,
           signatureConfig.rightX + 10,
@@ -412,63 +400,17 @@ export class CertificatePage {
         );
       } else {
         console.warn('No signature image found for SHA:', signatureData.nombre);
-        console.log('SHA signature data structure:', JSON.stringify(shaSignature, null, 2));
       }
     } catch (error) {
       console.error('Error adding SHA signature:', error);
-      throw error;
+      throw new Error(`Failed to add SHA signature: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  /**
-   * Add QR code to certificate (common method for both real and sample)
-   */
-  private async addQRCodeToPosition(qrDataUrl: string): Promise<void> {
-    try {
-      console.log('Adding QR code to certificate with data URL length:', qrDataUrl.length);
-      
-      // Position QR code using shared configuration
-      const { PDF_SIZE_MM, MARGIN, X_OFFSET, Y_OFFSET } = CertificatePage.QR_CONFIG;
-      const x = this.pageWidth - PDF_SIZE_MM - MARGIN - X_OFFSET;
-      const y = MARGIN + Y_OFFSET;
-
-      console.log('QR code position:', { x, y, size: PDF_SIZE_MM });
-
-      // Add a test rectangle to verify positioning
-      this.doc.setDrawColor(255, 0, 0); // Red
-      this.doc.rect(x, y, PDF_SIZE_MM, PDF_SIZE_MM);
-
-      // Add QR code image
-      this.doc.addImage(qrDataUrl, 'PNG', x, y, PDF_SIZE_MM, PDF_SIZE_MM);
-      
-      // Add text below QR code (removed "Scan to Verify" label)
-      this.doc.setFont("helvetica", "normal");
-      this.doc.setFontSize(6);
-      this.doc.text(
-        "",
-        x + PDF_SIZE_MM / 2,
-        y + PDF_SIZE_MM + 3,
-        { align: "center" }
-      );
-      
-      console.log('QR code successfully added to certificate with label and test border');
-
-    } catch (error) {
-      console.error('Failed to add QR code to certificate:', error);
-      // Continue without QR code if it fails
-    }
-  }
-
-  /**
-   * Add QR code to certificate (upper right corner)
-   */
   async addQRCode(certificateId: number, controlNumbers?: ControlNumbers): Promise<void> {
     try {
-      console.log('Generating QR code for certificate:', certificateId, 'with control numbers:', controlNumbers);
-      
       // Generate QR code data
       const qrData = QRService.generateQRData(certificateId, controlNumbers);
-      console.log('Generated QR data:', JSON.stringify(qrData, null, 2));
       
       // Generate QR code as data URL using shared configuration
       const qrDataUrl = await QRService.generateQRDataURL({
@@ -477,8 +419,6 @@ export class CertificatePage {
         level: 'M',
         includeMargin: true
       });
-
-      console.log('Generated QR data URL, length:', qrDataUrl.length);
 
       // Add QR code using common positioning method
       await this.addQRCodeToPosition(qrDataUrl);
@@ -554,8 +494,6 @@ export class CertificatePage {
           }
         }
         
-        console.log('Server environment, loading signature from file:', imagePath);
-        
         // Check if file exists
         if (fs.existsSync(imagePath)) {
           // Read file as base64
@@ -564,7 +502,6 @@ export class CertificatePage {
           
           // Add base64 image to PDF
           this.doc.addImage(`data:image/png;base64,${base64Image}`, "PNG", x, y, width, height);
-          console.log('Signature image loaded successfully in server environment');
         } else {
           console.warn('Signature image file not found:', imagePath);
         }
@@ -602,7 +539,6 @@ export class CertificatePage {
             
             // Add to PDF using base64 data URL
             this.doc.addImage(base64DataUrl, "PNG", x, y, width, height);
-            console.log('Signature image loaded and converted to base64 in browser');
             resolve();
           } catch (error) {
             console.error('Error converting image to base64:', error);

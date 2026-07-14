@@ -24,47 +24,25 @@ export async function GET(
     
     if (!certificate) {
       return NextResponse.json(
-        { error: 'Certificate not found' },
+        { error: 'Certificate not found or inactive' },
         { status: 404 }
       );
     }
-
-    // Debug logging for control numbers
-    console.log('Certificate object:', JSON.stringify(certificate, null, 2));
-    console.log('Control numbers from certificate:', {
-      nro_libro: certificate.nro_libro,
-      nro_hoja: certificate.nro_hoja,
-      nro_linea: certificate.nro_linea,
-      nro_control: certificate.nro_control
-    });
 
     // Parse snapshot to reconstruct certificate data
     let snapshotData = null;
     if (certificate.snapshot_contenido) {
       try {
         snapshotData = JSON.parse(certificate.snapshot_contenido);
-        console.log('Parsed snapshot data:', JSON.stringify(snapshotData, null, 2));
-        
-        // Debug logging for control numbers in snapshot
-        if (snapshotData.certificado) {
-          console.log('Control numbers from snapshot:', {
-            nro_libro: snapshotData.certificado.nro_libro,
-            nro_hoja: snapshotData.certificado.nro_hoja,
-            nro_linea: snapshotData.certificado.nro_linea,
-            nro_control: snapshotData.certificado.nro_control
-          });
-        }
       } catch (error) {
-        console.error('Failed to parse snapshot:', error);
         return NextResponse.json(
-          { error: 'Invalid certificate data' },
+          { error: 'Invalid certificate data format' },
           { status: 500 }
         );
       }
     }
 
     if (!snapshotData) {
-      console.error('No snapshot data found for certificate:', certificateId);
       return NextResponse.json(
         { error: 'Certificate snapshot not found' },
         { status: 404 }
@@ -73,17 +51,13 @@ export async function GET(
 
     // Validate required snapshot fields
     if (!snapshotData.certificado_detalles || !snapshotData.participante) {
-      console.error('Missing required fields in snapshot:', JSON.stringify(snapshotData, null, 2));
       return NextResponse.json(
-        { error: 'Incomplete certificate data in snapshot' },
+        { error: 'Incomplete certificate data' },
         { status: 500 }
       );
     }
 
     // Reconstruct certificate data from snapshot
-    console.log('=== DEBUG: Reconstructing participant data from snapshot ===');
-    console.log('Snapshot participante data:', JSON.stringify(snapshotData.participante, null, 2));
-    
     const certificateData: CertificateGeneration = {
       id: certificateId.toString(),
       certificate_title: snapshotData.certificado_detalles?.title || 'Certificate',
@@ -116,16 +90,12 @@ export async function GET(
       id_plantilla_certificado: snapshotData.plantilla?.id_plantilla_certificado || null
     };
 
-    console.log('=== DEBUG: Reconstructed participant data ===');
-    console.log('Final participant object:', JSON.stringify(certificateData.participants[0], null, 2));
-
     // Fetch SHA signature data if ID is available
     if (certificateData.sha_signature_id) {
       try {
         const shaSignatureData = await getSignatureDataServer(certificateData.sha_signature_id);
         if (shaSignatureData) {
           (certificateData as any).sha_signature_data = shaSignatureData;
-          console.log('Fetched SHA signature data for PDF generation:', shaSignatureData);
         }
       } catch (error) {
         console.warn('Failed to fetch SHA signature data for PDF generation:', error);
@@ -154,7 +124,6 @@ export async function GET(
               url_imagen: facilitatorData.firmas.url_imagen,
             } : undefined,
           };
-          console.log('Fetched and transformed facilitator data for PDF generation:', (certificateData as any).facilitator_data);
         }
       } catch (error) {
         console.warn('Failed to fetch facilitator data for PDF generation:', error);
@@ -163,32 +132,24 @@ export async function GET(
 
     // Validate reconstructed data
     if (!certificateData.certificate_title || !certificateData.participants[0].name) {
-      console.error('Invalid reconstructed certificate data:', JSON.stringify(certificateData, null, 2));
       return NextResponse.json(
         { error: 'Invalid certificate data structure' },
         { status: 500 }
       );
     }
 
-    console.log('Successfully reconstructed certificate data:', JSON.stringify(certificateData, null, 2));
-
     const participant = certificateData.participants[0];
 
     // Get template image
-    let templateImage = ''; // Start with empty template
-    console.log('Template ID from certificate data:', certificateData.id_plantilla_certificado);
+    let templateImage = '';
     
     if (certificateData.id_plantilla_certificado) {
       try {
-        console.log('Fetching template with ID:', certificateData.id_plantilla_certificado);
         const template = await getCertificateTemplateServer(certificateData.id_plantilla_certificado);
-        console.log('Template data received:', template);
         
         if (template?.archivo) {
           templateImage = template.archivo.startsWith('/') ? template.archivo : `/templates/${template.archivo}`;
-          console.log('Using template image:', templateImage);
         } else {
-          console.log('Template found but no archivo field, using default');
           templateImage = '/templates/certificado.png';
         }
       } catch (error) {
@@ -196,27 +157,20 @@ export async function GET(
         templateImage = '/templates/certificado.png';
       }
     } else {
-      console.log('No template specified, using default');
       templateImage = '/templates/certificado.png';
     }
-    
-    console.log('Final template image path:', templateImage);
 
     // Get seal image
     let sealImage = '';
     // You can add seal image logic here if needed
 
-    console.log('Generating PDF with template:', templateImage);
-    console.log('Participant data:', JSON.stringify(participant, null, 2));
-
-    // Debug logging for control numbers being passed to generator
+    // Debug logging for control numbers
     const controlNumbersForGenerator = {
-      nro_libro: certificate.nro_libro,
-      nro_hoja: certificate.nro_hoja,
-      nro_linea: certificate.nro_linea,
-      nro_control: certificate.nro_control
+      nro_libro: certificate.nro_libro || 0,
+      nro_hoja: certificate.nro_hoja || 0,
+      nro_linea: certificate.nro_linea || 0,
+      nro_control: certificate.nro_control || 0
     };
-    console.log('Control numbers being passed to generator:', controlNumbersForGenerator);
 
     // Generate certificate PDF
     const generator = new CertificateGenerator();
@@ -242,15 +196,16 @@ export async function GET(
       });
     } catch (pdfError) {
       console.error('Error in PDF generation:', pdfError);
-      console.error('Certificate data:', JSON.stringify(certificateData, null, 2));
-      console.error('Template image:', templateImage);
-      throw pdfError;
+      return NextResponse.json(
+        { error: 'Failed to generate certificate PDF' },
+        { status: 500 }
+      );
     }
 
   } catch (error) {
     console.error('Error generating certificate PDF:', error);
     return NextResponse.json(
-      { error: 'Failed to generate certificate PDF' },
+      { error: 'Internal server error while generating certificate' },
       { status: 500 }
     );
   }
