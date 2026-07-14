@@ -13,10 +13,10 @@ interface DashboardClientProps {
   departamentos: Department[];
 }
 
-export default function DashboardClient({
+const DashboardClient = ({
   user,
   departamentos,
-}: DashboardClientProps) {
+}: DashboardClientProps) => {
   const router = useRouter();
 
   // Color mapping for different departments
@@ -132,3 +132,5 @@ export default function DashboardClient({
     </div>
   );
 }
+
+export default DashboardClient;

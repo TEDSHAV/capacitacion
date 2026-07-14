@@ -10,7 +10,7 @@ interface OSIActionButtonsProps {
   onDelete: () => void
 }
 
-export default function OSIActionButtons({
+const OSIActionButtons = ({
   isNew,
   isEditing,
   isLoading,
@@ -18,7 +18,7 @@ export default function OSIActionButtons({
   onCancel,
   onEdit,
   onDelete
-}: OSIActionButtonsProps) {
+}: OSIActionButtonsProps) => {
   if (isEditing || isNew) {
     return (
       <>
@@ -71,3 +71,5 @@ export default function OSIActionButtons({
     </>
   )
 }
+
+export default OSIActionButtons
