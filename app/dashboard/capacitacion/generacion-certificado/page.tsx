@@ -236,36 +236,23 @@ export default function GeneracionCertificadoPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Column - Certificate Form */}
-        <div className="space-y-6">
-          {/* OSI Search - First step in workflow */}
-          <OSISearch
-            osis={osis}
-            selectedOSI={selectedOSI}
-            onSelect={handleOSISelect}
-          />
+      <div className="space-y-6">
+        {/* OSI Search - First step in workflow */}
+        <OSISearch
+          osis={osis}
+          selectedOSI={selectedOSI}
+          onSelect={handleOSISelect}
+        />
 
-          {/* Certificate Form */}
-          <CertificateForm
-            certificateData={certificateData}
-            selectedOSI={selectedOSI}
-            selectedCourseTopic={selectedCourseTopic}
-            onDataChange={handleCertificateDataChange}
-            onParticipantsChange={handleParticipantsChange}
-            onGenerate={handleGenerateCertificate}
-          />
-        </div>
-
-        {/* Right Column - Course Topic Display */}
-        <div>
-          <CourseTopicSearch
-            courseTopics={courseTopics}
-            selectedCourseTopic={selectedCourseTopic}
-            onSelect={handleCourseTopicSelect}
-            isAutoPopulated={isCourseTopicAutoPopulated}
-          />
-        </div>
+        {/* Certificate Form */}
+        <CertificateForm
+          certificateData={certificateData}
+          selectedOSI={selectedOSI}
+          selectedCourseTopic={selectedCourseTopic}
+          onDataChange={handleCertificateDataChange}
+          onParticipantsChange={handleParticipantsChange}
+          onGenerate={handleGenerateCertificate}
+        />
       </div>
     </div>
   )
