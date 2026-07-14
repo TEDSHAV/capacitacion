@@ -23,6 +23,7 @@ import {
   Briefcase,
   Wrench,
   FileSpreadsheet,
+  Fingerprint,
 } from "lucide-react";
 
 export default function CapacitacionClient({
@@ -137,6 +138,11 @@ export default function CapacitacionClient({
           id: "herramientas/img-to-xls",
           title: "Escanear lista de participantes",
           icon: FileSpreadsheet,
+        },
+        {
+          id: "herramientas/verificacion-rif",
+          title: "Verificación RIF SENIAT",
+          icon: Fingerprint,
         },
       ],
     },

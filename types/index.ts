@@ -1,5 +1,13 @@
 // Global types for OSI system
 
+// SENIAT Verification Types
+export type VerificationStatus =
+  | "pending"
+  | "match"
+  | "mismatch"
+  | "not_found"
+  | "error";
+
 export interface Empresa {
   id: string;
   razon_social: string;
