@@ -221,6 +221,16 @@ export default function GestionDeOSIsPage() {
 
   const hasActiveFilters = Boolean(searchTerm || selectedMonth || selectedStatus || selectedLocation || recentFilter);
 
+  const handleCreateNew = () => {
+    try {
+      router.push("/dashboard/negocios/gestion-de-osis/new");
+    } catch (error) {
+      console.error("Error navigating to new OSI page:", error);
+      // Fallback: try window.location as backup
+      window.location.href = "/dashboard/negocios/gestion-de-osis/new";
+    }
+  };
+
   const handleOSIClick = (osi: OSI) => {
     // Navigate directly to OSI detail page (data will load on-demand)
     router.push(`/dashboard/negocios/gestion-de-osis/${osi.nro_osi}`);
@@ -267,6 +277,7 @@ export default function GestionDeOSIsPage() {
         onLocationChange={setSelectedLocation}
         onRecentChange={setRecentFilter}
         onClearFilters={clearAllFilters}
+        onCreateNew={handleCreateNew}
         monthOptions={getMonthOptions()}
         hasActiveFilters={hasActiveFilters}
       />

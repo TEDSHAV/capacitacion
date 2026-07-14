@@ -14,6 +14,7 @@ interface OSIFiltersProps {
   onLocationChange: (value: string) => void
   onRecentChange: (value: string) => void
   onClearFilters: () => void
+  onCreateNew: () => void
   monthOptions: { value: string; label: string }[]
   hasActiveFilters: boolean
 }
@@ -30,6 +31,7 @@ export default function OSIFilters({
   onLocationChange,
   onRecentChange,
   onClearFilters,
+  onCreateNew,
   monthOptions,
   hasActiveFilters
 }: OSIFiltersProps) {
@@ -45,7 +47,7 @@ export default function OSIFilters({
           </p>
         </div>
         <button
-          onClick={() => window.location.href = '/dashboard/negocios/gestion-de-osis/new'}
+          onClick={onCreateNew}
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md"
           style={{ backgroundColor: 'var(--primary-blue)' }}
         >

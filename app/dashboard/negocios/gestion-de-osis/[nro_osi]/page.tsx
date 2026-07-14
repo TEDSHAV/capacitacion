@@ -42,7 +42,7 @@ export default function OSIDetailPage() {
     cancelEditing,
     handleSave,
     handleDelete
-  } = useOSI()
+  } = useOSI(empresas)
 
   // Search terms
   const [empresaSearchTerm, setEmpresaSearchTerm] = useState('')

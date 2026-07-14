@@ -6,9 +6,7 @@ import { Empresa, Servicio, Usuario, CatalogoServicio, Contacto, OSI, OSIFormPro
 const OSIForm = ({ 
   initialData, 
   isNew, 
-  isEditing, 
-  onCancel, 
-  onSave,
+  isEditing,
   empresas,
   servicios,
   usuarios,

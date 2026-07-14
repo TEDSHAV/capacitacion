@@ -71,7 +71,6 @@ export function useOSIData() {
       console.log('Usuarios loaded:', data?.length || 0)
       setUsuarios(data || [])
     } catch (err) {
-      console.error('Error in loadUsuarios:', err)
       errorDialog.showError(
         'Error inesperado al cargar usuarios',
         err instanceof Error ? err.message : 'Error desconocido',
@@ -89,7 +88,6 @@ export function useOSIData() {
         .order("razon_social")
       
       if (error) {
-        console.error('Error loading empresas:', error)
         errorDialog.showError(
           'Error al cargar las empresas',
           JSON.stringify(error, null, 2),
