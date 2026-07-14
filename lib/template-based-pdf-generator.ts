@@ -1,7 +1,19 @@
 import jsPDF from 'jspdf';
 import { TemplateData, TemplateParticipant } from './document-templates-new';
+import fs from 'fs';
+import path from 'path';
 
 export class TemplateBasedPdfGenerator {
+  private getLogoBase64(): string {
+    try {
+      const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+      const logoBuffer = fs.readFileSync(logoPath);
+      return `data:image/png;base64,${logoBuffer.toString('base64')}`;
+    } catch (error) {
+      console.error('❌ Failed to load logo:', error);
+      return '';
+    }
+  }
   async generateCertificacionCompetencias(data: TemplateData): Promise<Buffer> {
     try {
       console.log('🔍 Generating certificacion de competencias with template-based approach');
@@ -15,26 +27,35 @@ export class TemplateBasedPdfGenerator {
       let yPosition = 20;
       
       // Header with 3-column layout
-      // Column 1: Logo
-      pdf.setFont('helvetica', 'normal').setFontSize(10);
-      pdf.text('SHA DE VENEZUELA, C.A.', 20, yPosition);
-      yPosition += 8;
+      // Column 1: Logo (left aligned) - smaller size for better proportions
+      console.log('🖼️ Attempting to add logo image...');
+      try {
+        // Add logo image using base64 with smaller size
+        const logoBase64 = this.getLogoBase64();
+        if (logoBase64) {
+          console.log('📁 Logo loaded as base64');
+          pdf.addImage(logoBase64, 20, yPosition, 30, 15); // Reduced from 40x20 to 30x15
+          console.log('✅ Logo image added successfully');
+        } else {
+          throw new Error('Logo base64 is empty');
+        }
+      } catch (error) {
+        console.error('❌ Failed to add logo image:', error);
+        throw new Error(`Logo image error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
       
-      // Column 2: Title (centered)
-      pdf.setFont('helvetica', 'bold').setFontSize(18);
-      pdf.text('CERTIFICACIÓN DE COMPETENCIAS', 105, yPosition, { align: 'center' });
-      yPosition += 15;
+      // Column 2: Title (centered and vertically aligned with logo) - smaller font
+      pdf.setFont('helvetica', 'bold').setFontSize(14); // Reduced from 18 to 14
+      pdf.text('CERTIFICACIÓN DE COMPETENCIAS', 105, yPosition + 7, { align: 'center' }); // Adjusted alignment
       
-      // Column 3: Document info (right-aligned)
-      pdf.setFont('helvetica', 'normal').setFontSize(10);
-      pdf.text('CÓDIGO: SHA-RG-CAP-006', 190, yPosition, { align: 'right' });
-      yPosition += 8;
-      pdf.text('FECHA: 01/04/2026', 190, yPosition, { align: 'right' });
-      yPosition += 8;
-      pdf.text('REVISIÓN: 00', 190, yPosition, { align: 'right' });
-      yPosition += 8;
-      pdf.text('PÁGINA: 1 de 1', 190, yPosition, { align: 'right' });
-      yPosition += 20;
+      // Column 3: Document info (right aligned and vertically aligned with logo) - smaller font
+      pdf.setFont('helvetica', 'normal').setFontSize(8); // Reduced from 10 to 8
+      pdf.text('CÓDIGO: SHA-RG-CAP-006', 190, yPosition + 2, { align: 'right' });
+      pdf.text('FECHA: 01/04/2026', 190, yPosition + 7, { align: 'right' });
+      pdf.text('REVISIÓN: 00', 190, yPosition + 12, { align: 'right' });
+      pdf.text('PÁGINA: 1 de 1', 190, yPosition + 17, { align: 'right' });
+      
+      yPosition += 30; // Reduced from 35 to 30
       
       // Main content
       pdf.setFont('helvetica', 'normal').setFontSize(12);
@@ -128,26 +149,35 @@ export class TemplateBasedPdfGenerator {
       let yPosition = 20;
       
       // Header with 3-column layout
-      // Column 1: Logo
-      pdf.setFont('helvetica', 'normal').setFontSize(10);
-      pdf.text('SHA DE VENEZUELA, C.A.', 20, yPosition);
-      yPosition += 8;
+      // Column 1: Logo (left aligned) - smaller size for better proportions
+      console.log('🖼️ Attempting to add logo image...');
+      try {
+        // Add logo image using base64 with smaller size
+        const logoBase64 = this.getLogoBase64();
+        if (logoBase64) {
+          console.log('📁 Logo loaded as base64');
+          pdf.addImage(logoBase64, 20, yPosition, 30, 15); // Reduced from 40x20 to 30x15
+          console.log('✅ Logo image added successfully');
+        } else {
+          throw new Error('Logo base64 is empty');
+        }
+      } catch (error) {
+        console.error('❌ Failed to add logo image:', error);
+        throw new Error(`Logo image error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
       
-      // Column 2: Title (centered)
-      pdf.setFont('helvetica', 'bold').setFontSize(18);
-      pdf.text('NOTA DE ENTREGA', 105, yPosition, { align: 'center' });
-      yPosition += 15;
+      // Column 2: Title (centered and vertically aligned with logo) - smaller font
+      pdf.setFont('helvetica', 'bold').setFontSize(14); // Reduced from 18 to 14
+      pdf.text('NOTA DE ENTREGA', 105, yPosition + 7, { align: 'center' }); // Adjusted alignment
       
-      // Column 3: Document info (right-aligned)
-      pdf.setFont('helvetica', 'normal').setFontSize(10);
-      pdf.text('CÓDIGO: SHA-RG-CAP-006', 190, yPosition, { align: 'right' });
-      yPosition += 8;
-      pdf.text('FECHA: 01/04/2026', 190, yPosition, { align: 'right' });
-      yPosition += 8;
-      pdf.text('REVISIÓN: 00', 190, yPosition, { align: 'right' });
-      yPosition += 8;
-      pdf.text('PÁGINA: 1 de 1', 190, yPosition, { align: 'right' });
-      yPosition += 20;
+      // Column 3: Document info (right aligned and vertically aligned with logo) - smaller font
+      pdf.setFont('helvetica', 'normal').setFontSize(8); // Reduced from 10 to 8
+      pdf.text('CÓDIGO: SHA-RG-CAP-006', 190, yPosition + 2, { align: 'right' });
+      pdf.text('FECHA: 01/04/2026', 190, yPosition + 7, { align: 'right' });
+      pdf.text('REVISIÓN: 00', 190, yPosition + 12, { align: 'right' });
+      pdf.text('PÁGINA: 1 de 1', 190, yPosition + 17, { align: 'right' });
+      
+      yPosition += 30; // Reduced from 35 to 30
       
       // Main content
       pdf.setFont('helvetica', 'normal').setFontSize(12);
@@ -232,26 +262,35 @@ export class TemplateBasedPdfGenerator {
       let yPosition = 20;
       
       // Header with 3-column layout
-      // Column 1: Logo
-      pdf.setFont('helvetica', 'normal').setFontSize(10);
-      pdf.text('SHA DE VENEZUELA, C.A.', 20, yPosition);
-      yPosition += 8;
+      // Column 1: Logo (left aligned) - smaller size for better proportions
+      console.log('🖼️ Attempting to add logo image...');
+      try {
+        // Add logo image using base64 with smaller size
+        const logoBase64 = this.getLogoBase64();
+        if (logoBase64) {
+          console.log('📁 Logo loaded as base64');
+          pdf.addImage(logoBase64, 20, yPosition, 30, 15); // Reduced from 40x20 to 30x15
+          console.log('✅ Logo image added successfully');
+        } else {
+          throw new Error('Logo base64 is empty');
+        }
+      } catch (error) {
+        console.error('❌ Failed to add logo image:', error);
+        throw new Error(`Logo image error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
       
-      // Column 2: Title (centered)
-      pdf.setFont('helvetica', 'bold').setFontSize(18);
-      pdf.text('VALIDACIÓN DE DATOS', 105, yPosition, { align: 'center' });
-      yPosition += 15;
+      // Column 2: Title (centered and vertically aligned with logo) - smaller font
+      pdf.setFont('helvetica', 'bold').setFontSize(14); // Reduced from 18 to 14
+      pdf.text('VALIDACIÓN DE DATOS', 105, yPosition + 7, { align: 'center' }); // Adjusted alignment
       
-      // Column 3: Document info (right-aligned)
-      pdf.setFont('helvetica', 'normal').setFontSize(10);
-      pdf.text('CÓDIGO: SHA-RG-CAP-006', 190, yPosition, { align: 'right' });
-      yPosition += 8;
-      pdf.text('FECHA: 01/04/2026', 190, yPosition, { align: 'right' });
-      yPosition += 8;
-      pdf.text('REVISIÓN: 00', 190, yPosition, { align: 'right' });
-      yPosition += 8;
-      pdf.text('PÁGINA: 1 de 1', 190, yPosition, { align: 'right' });
-      yPosition += 20;
+      // Column 3: Document info (right aligned and vertically aligned with logo) - smaller font
+      pdf.setFont('helvetica', 'normal').setFontSize(8); // Reduced from 10 to 8
+      pdf.text('CÓDIGO: SHA-RG-CAP-006', 190, yPosition + 2, { align: 'right' });
+      pdf.text('FECHA: 01/04/2026', 190, yPosition + 7, { align: 'right' });
+      pdf.text('REVISIÓN: 00', 190, yPosition + 12, { align: 'right' });
+      pdf.text('PÁGINA: 1 de 1', 190, yPosition + 17, { align: 'right' });
+      
+      yPosition += 30; // Reduced from 35 to 30
       
       // Main content
       pdf.setFont('helvetica', 'normal').setFontSize(12);

@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
     );
 
     const processor = new TemplateBasedPdfGenerator();
+    console.log('🔧 Using TemplateBasedPdfGenerator for document type:', documentType);
     let documentBuffer: Buffer;
 
     switch (documentType) {
