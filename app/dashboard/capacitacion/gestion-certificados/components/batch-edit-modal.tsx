@@ -523,7 +523,25 @@ export function BatchEditModal({
           <Button
             type="button"
             variant="outline"
-            onClick={onClose}
+            onClick={() => {
+              setUpdates({
+                certificate_title: "",
+                certificate_subtitle: "",
+                date: "",
+                fecha_vencimiento: "",
+                location: "",
+                horas_estimadas: "",
+                id_facilitador: "",
+              });
+              setSelectedOsiData(null);
+              setSelectedFacilitator(null);
+              setOsiNumber("");
+              setOsiSearchTerm("");
+              setFacilitatorSearchTerm("");
+              setIsOsiDropdownOpen(false);
+              setIsFacilitatorDropdownOpen(false);
+              onClose();
+            }}
             className="flex-1 h-12 rounded-xl font-semibold border-gray-300 text-gray-700 hover:bg-white transition-all"
             disabled={loading}
           >
