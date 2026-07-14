@@ -14,5 +14,10 @@ export default async function Dashboard() {
   // Fetch departments from database
   const { data: departamentos } = await supabase.from("departamentos").select("*")
 
-  return <DashboardClient user={user} departamentos={departamentos || []} />
+  // Sort departments alphabetically by nombre_departamento
+  const sortedDepartamentos = (departamentos || []).sort((a, b) => 
+    a.nombre_departamento.localeCompare(b.nombre_departamento)
+  )
+
+  return <DashboardClient user={user} departamentos={sortedDepartamentos} />
 }
