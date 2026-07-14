@@ -23,11 +23,20 @@ export async function getCompaniesAndCities(): Promise<CompaniesCitiesResult> {
   try {
     const supabase = await createClient();
 
-    // Fetch companies from empresas table
-    const { data: companies, error: companiesError } = await supabase
-      .from("empresas")
-      .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
-      .order("razon_social", { ascending: true });
+    // Fetch companies and cities in parallel (independent queries)
+    const [
+      { data: companies, error: companiesError },
+      { data: cities, error: citiesError },
+    ] = await Promise.all([
+      supabase
+        .from("empresas")
+        .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
+        .order("razon_social", { ascending: true }),
+      supabase
+        .from("cat_ciudades")
+        .select("id, nombre_ciudad, id_estado")
+        .order("nombre_ciudad", { ascending: true }),
+    ]);
 
     if (companiesError) {
       console.error("Error fetching companies:", companiesError);
@@ -36,12 +45,6 @@ export async function getCompaniesAndCities(): Promise<CompaniesCitiesResult> {
         error: `Error fetching companies: ${companiesError.message}`,
       };
     }
-
-    // Fetch cities from cat_ciudades table
-    const { data: cities, error: citiesError } = await supabase
-      .from("cat_ciudades")
-      .select("id, nombre_ciudad, id_estado")
-      .order("nombre_ciudad", { ascending: true });
 
     if (citiesError) {
       console.error("Error fetching cities:", citiesError);

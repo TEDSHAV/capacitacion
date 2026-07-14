@@ -64,50 +64,64 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     };
   }, [showModal, showSurveyModal, showAssignFacilitadorModal]);
 
-  // Load filter options
+  // Load filter options and OSI data in parallel
   useEffect(() => {
-    const loadFilterOptions = async () => {
+    let cancelled = false;
+
+    const loadAll = async () => {
+      setLoading(true);
+      setLoadingFilters(true);
+
       try {
-        const filterOptions = await getOSIFilterOptions();
-        setCompanies(filterOptions.companies);
-        setEjecutivos(filterOptions.ejecutivos);
-        setStatuses(filterOptions.statuses);
-      } catch (error) {
-        console.error("Error loading filter options:", error);
-      } finally {
-        setLoadingFilters(false);
-      }
-    };
+        const isInitialLoad = !statuses.length;
 
-    loadFilterOptions();
-  }, []);
+        const promises: Promise<any>[] = [];
 
-  // Load OSIs data
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const result = activeTab === "automatic" 
-          ? await getOSIsForManagement(filters, currentPage, itemsPerPage)
-          : await getManualOSIBatchesAction(filters, currentPage, itemsPerPage);
+        // Always load OSI data
+        promises.push(
+          activeTab === "automatic"
+            ? getOSIsForManagement(filters, currentPage, itemsPerPage)
+            : getManualOSIBatchesAction(filters, currentPage, itemsPerPage)
+        );
 
-        setOsis(result.osis);
-        setTotalCount(result.totalCount);
+        // Only load filter options on initial mount (not on filter/page changes)
+        if (isInitialLoad) {
+          promises.push(getOSIFilterOptions());
+        }
+
+        const results = await Promise.all(promises);
+
+        if (cancelled) return;
+
+        const dataResult = results[0];
+        setOsis(dataResult.osis);
+        setTotalCount(dataResult.totalCount);
         setMetrics(
-          result.metrics || {
+          dataResult.metrics || {
             total_hours: 0,
             total_sesiones: 0,
             unique_companies: 0,
           },
         );
+
+        if (isInitialLoad && results[1]) {
+          const filterOptions = results[1];
+          setCompanies(filterOptions.companies);
+          setEjecutivos(filterOptions.ejecutivos);
+          setStatuses(filterOptions.statuses);
+        }
       } catch (error) {
-        console.error("Error loading OSIs:", error);
+        console.error("Error loading OSI data:", error);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setLoadingFilters(false);
+        }
       }
     };
 
-    loadData();
+    loadAll();
+    return () => { cancelled = true; };
   }, [filters, currentPage, itemsPerPage, activeTab]);
 
   const handleFiltersChange = useCallback((newFilters: OSIFilters) => {

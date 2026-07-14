@@ -49,10 +49,18 @@ export async function proxy(request: NextRequest) {
 
   // Protect all /dashboard routes
   if (request.nextUrl.pathname.startsWith("/dashboard")) {
-    let user: { id: string } | null = null;
+    let userId: string | null = null;
+    let userRole: string | null = null;
+    let claimsDepartamento: number | null = null;
     try {
-      const result = await supabase.auth.getUser();
-      user = result.data.user;
+      const { data } = await supabase.auth.getClaims();
+      userId = data?.claims?.sub ?? null;
+      userRole =
+        ((data?.claims as Record<string, unknown> | undefined)?.user_role as string) ??
+        ((data?.claims?.app_metadata as Record<string, unknown> | undefined)?.role as string) ??
+        null;
+      const depto = (data?.claims?.app_metadata as Record<string, unknown> | undefined)?.departamento;
+      claimsDepartamento = typeof depto === "number" ? depto : null;
     } catch (err: unknown) {
       // If Supabase rate-limits us (429), don't redirect — that triggers a
       // login redirect loop where /login also hits the limit. Allow the
@@ -67,7 +75,7 @@ export async function proxy(request: NextRequest) {
       throw err;
     }
 
-    if (!user) {
+    if (!userId) {
       const loginUrl =
         isProduction && !isLocalhost && process.env.NEXT_PUBLIC_SHELL_URL
           ? `${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`
@@ -75,11 +83,22 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Fetch user data from 'usuarios' table to get user ID and department
+    // Fast path 1: admin/superadmin from JWT claims — skip all DB queries
+    if (userRole === "admin" || userRole === "superadmin") {
+      return supabaseResponse;
+    }
+
+    // Fast path 2: department from JWT claims (set by Supabase trigger) — skip usuarios query
+    if (claimsDepartamento === 3 || claimsDepartamento === 6) {
+      return supabaseResponse;
+    }
+
+    // Fallback: fetch user data from 'usuarios' table to get user ID and department
+    // (needed for users whose JWT doesn't yet contain departamento in app_metadata)
     const { data: userData, error: userError } = await supabase
       .from("usuarios")
       .select("id, departamento")
-      .eq("id_auth", user.id)
+      .eq("id_auth", userId)
       .single();
 
     if (userError || !userData) {

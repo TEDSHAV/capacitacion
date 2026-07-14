@@ -323,10 +323,30 @@ export async function getOSIsForManagement(
     const offset = (page - 1) * limit;
     query = query.range(offset, offset + limit - 1);
 
-    // Order by fecha_emision descending
-    const { data, error, count } = await query.order("fecha_emision", {
-      ascending: false,
-    });
+    // Run main query and aggregate RPC in parallel
+    const [
+      { data, error, count },
+      { data: aggData },
+    ] = await Promise.all([
+      query.order("fecha_emision", { ascending: false }),
+      supabase.rpc("get_osi_aggregate_metrics", {
+        p_tipo_servicio: filters.tipoServicio ?? null,
+        p_company_name: filters.companyName ?? null,
+        p_nro_osi: filters.nroOsi ?? null,
+        p_status: filters.status ? parseInt(filters.status) : null,
+        p_date_service_from: filters.dateServiceFrom ?? null,
+        p_date_service_to: filters.dateServiceTo ?? null,
+        p_date_issued_from: filters.dateIssuedFrom ?? null,
+        p_date_issued_to: filters.dateIssuedTo ?? null,
+        p_num_sesiones_min: filters.numSesionesMin ?? null,
+        p_num_sesiones_max: filters.numSesionesMax ?? null,
+        p_num_hours_min: filters.numHoursMin ?? null,
+        p_num_hours_max: filters.numHoursMax ?? null,
+        p_location: filters.location ?? null,
+        p_ejecutivo: filters.ejecutivo ?? null,
+        p_month_issued: filters.monthIssued ?? null,
+      }),
+    ]);
 
     if (error) {
       console.error("Error fetching OSIs for management:", error);
@@ -336,21 +356,25 @@ export async function getOSIsForManagement(
       };
     }
 
-    // Fetch statuses to enrich data
-    const statuses = await getOSIStatuses();
-    const statusMap = new Map(statuses.map((s) => [s.id, s]));
-
-    // Enrich OSI data with status information
+    // Fetch statuses and acknowledgments in parallel
     const osiIds = (data || []).map((osi: any) => osi.id_osi);
+    const [
+      statuses,
+      ackResult,
+    ] = await Promise.all([
+      getOSIStatuses(),
+      osiIds.length > 0
+        ? supabase
+            .from("facilitador_acknowledgments")
+            .select("osi_id")
+            .in("osi_id", osiIds)
+        : Promise.resolve({ data: null }),
+    ]);
+
+    const statusMap = new Map(statuses.map((s) => [s.id, s]));
     let acknowledgedOsiIds = new Set<number>();
-    if (osiIds.length > 0) {
-      const { data: ackData } = await supabase
-        .from("facilitador_acknowledgments")
-        .select("osi_id")
-        .in("osi_id", osiIds);
-      if (ackData) {
-        acknowledgedOsiIds = new Set(ackData.map((a: any) => a.osi_id as number));
-      }
+    if (ackResult.data) {
+      acknowledgedOsiIds = new Set(ackResult.data.map((a: any) => a.osi_id as number));
     }
 
     const enrichedOSIs = (data || []).map((osi: any) => {
@@ -364,139 +388,13 @@ export async function getOSIsForManagement(
       } as OSIManagement;
     });
 
-    // Calculate aggregate metrics for all filtered OSIs (not just current page)
+    // Use aggregate metrics from RPC (3 numbers instead of fetching all rows)
+    const aggRow = aggData?.[0];
     const metrics = {
-      total_hours: 0,
-      total_sesiones: 0,
-      unique_companies: 0,
+      total_hours: aggRow?.total_hours ?? 0,
+      total_sesiones: aggRow?.total_sesiones ?? 0,
+      unique_companies: aggRow?.unique_companies ?? 0,
     };
-
-    try {
-      // Build the same query without pagination to get aggregates
-      let aggregateQuery = supabase
-        .from("v_osi_formato_completo")
-        .select("horas_academicas_ejecucion, sesiones_ejecucion, id_empresa");
-
-      // Apply the same filters
-      if (filters.tipoServicio) {
-        aggregateQuery = aggregateQuery.eq(
-          "tipo_servicio",
-          filters.tipoServicio,
-        );
-      } else {
-        aggregateQuery = aggregateQuery.or(
-          "tipo_servicio.ilike.%capacitacion%,tipo_servicio.eq.1",
-        );
-      }
-
-      if (filters.companyName) {
-        aggregateQuery = aggregateQuery.ilike(
-          "nombre_empresa",
-          `%${filters.companyName}%`,
-        );
-      }
-
-      if (filters.nroOsi) {
-        aggregateQuery = aggregateQuery.ilike("nro_osi", `%${filters.nroOsi}%`);
-      }
-
-      if (filters.status) {
-        aggregateQuery = aggregateQuery.eq(
-          "id_estatus",
-          parseInt(filters.status),
-        );
-      }
-
-      if (filters.dateServiceFrom) {
-        aggregateQuery = aggregateQuery.gte(
-          "fecha_inicio_real",
-          filters.dateServiceFrom,
-        );
-      }
-
-      if (filters.dateServiceTo) {
-        aggregateQuery = aggregateQuery.lte(
-          "fecha_inicio_real",
-          filters.dateServiceTo,
-        );
-      }
-
-      if (filters.dateIssuedFrom) {
-        aggregateQuery = aggregateQuery.gte(
-          "fecha_emision",
-          filters.dateIssuedFrom,
-        );
-      }
-
-      if (filters.dateIssuedTo) {
-        aggregateQuery = aggregateQuery.lte(
-          "fecha_emision",
-          filters.dateIssuedTo,
-        );
-      }
-
-      if (filters.numSesionesMin !== undefined) {
-        aggregateQuery = aggregateQuery.gte(
-          "sesiones_ejecucion",
-          filters.numSesionesMin,
-        );
-      }
-
-      if (filters.numSesionesMax !== undefined) {
-        aggregateQuery = aggregateQuery.lte(
-          "sesiones_ejecucion",
-          filters.numSesionesMax,
-        );
-      }
-
-      if (filters.numHoursMin !== undefined) {
-        aggregateQuery = aggregateQuery.gte(
-          "horas_academicas_ejecucion",
-          filters.numHoursMin,
-        );
-      }
-
-      if (filters.numHoursMax !== undefined) {
-        aggregateQuery = aggregateQuery.lte(
-          "horas_academicas_ejecucion",
-          filters.numHoursMax,
-        );
-      }
-
-      if (filters.location) {
-        aggregateQuery = aggregateQuery.ilike(
-          "direccion_ejecucion",
-          `%${filters.location}%`,
-        );
-      }
-
-      if (filters.ejecutivo) {
-        aggregateQuery = aggregateQuery.ilike(
-          "ejecutivo_negocios",
-          `%${filters.ejecutivo}%`,
-        );
-      }
-
-      const { data: aggregateData } = await aggregateQuery;
-
-      if (aggregateData && aggregateData.length > 0) {
-        metrics.total_hours = aggregateData.reduce(
-          (sum, row) => sum + (row.horas_academicas_ejecucion || 0),
-          0,
-        );
-        metrics.total_sesiones = aggregateData.reduce(
-          (sum, row) => sum + (row.sesiones_ejecucion || 0),
-          0,
-        );
-        const uniqueCompanyIds = new Set(
-          aggregateData.map((row) => row.id_empresa),
-        );
-        metrics.unique_companies = uniqueCompanyIds.size;
-      }
-    } catch (err) {
-      console.error("Error calculating aggregate metrics:", err);
-      // Fall back to page-level metrics if aggregate query fails
-    }
 
     return {
       osis: enrichedOSIs,
@@ -517,44 +415,22 @@ export async function getOSIFilterOptions() {
   try {
     const supabase = await createClient();
 
-    const [companiesResult, ejecutivosResult, statusesResult] =
-      await Promise.all([
-        // Get unique companies
-        supabase
-          .from("v_osi_formato_completo")
-          .select("id_empresa, nombre_empresa")
-          .not("nombre_empresa", "is", null)
-          .order("nombre_empresa"),
+    const { data, error } = await supabase.rpc("get_osi_filter_options");
 
-        // Get unique ejecutivos
-        supabase
-          .from("v_osi_formato_completo")
-          .select("ejecutivo_negocios")
-          .not("ejecutivo_negocios", "is", null)
-          .order("ejecutivo_negocios"),
+    if (error || !data || data.length === 0) {
+      console.error("Error fetching OSI filter options:", error);
+      return {
+        companies: [],
+        ejecutivos: [],
+        statuses: [],
+      };
+    }
 
-        // Get statuses
-        getOSIStatuses(),
-      ]);
-
-    const companies = Array.from(
-      new Map(
-        (companiesResult.data || []).map((c: any) => [c.id_empresa, c]),
-      ).values(),
-    );
-
-    const ejecutivos = Array.from(
-      new Set(
-        (ejecutivosResult.data || []).map((e: any) => e.ejecutivo_negocios),
-      ),
-    )
-      .filter(Boolean)
-      .sort();
-
+    const row = data[0];
     return {
-      companies,
-      ejecutivos,
-      statuses: statusesResult,
+      companies: row.companies || [],
+      ejecutivos: row.ejecutivos || [],
+      statuses: row.statuses || [],
     };
   } catch (err) {
     console.error("Error fetching OSI filter options:", err);
@@ -577,114 +453,31 @@ export async function getManualOSIBatchesAction(
   try {
     const supabase = await createClient();
 
-    // 1. Get all real OSI IDs to exclude them
-    const { data: realOSIs, error: osiError } = await supabase
-      .from("ejecucion_osi")
-      .select("id");
-
-    if (osiError) throw osiError;
-    const realOSIIds = (realOSIs || []).map((osi) => osi.id);
-
-    // 2. Query certificates that are NOT linked to real OSIs
-    // We group them by nro_osi, id_curso, id_empresa, and fecha_emision
-    let query = supabase
-      .from("certificados")
-      .select(
-        `
-        nro_osi,
-        id_curso,
-        id_empresa,
-        fecha_emision,
-        id_facilitador,
-        snapshot_contenido,
-        catalogo_servicios(nombre, tipo_servicio),
-        empresas(razon_social)
-      `,
-        { count: "exact" },
-      )
-      .eq("is_active", true);
-
-    // Exclude real OSIs
-    if (realOSIIds.length > 0) {
-      query = query.not("nro_osi", "in", `(${realOSIIds.join(",")})`);
-    }
-
-    // Apply filters if applicable
-    if (filters.nroOsi) {
-      // Manual OSIs might be stored as numbers in nro_osi but represented as strings in snapshots
-      // We'll search by the numeric part if possible
-      const numericOSI = parseInt(filters.nroOsi.replace(/[^\d]/g, ""));
-      if (!isNaN(numericOSI)) {
-        query = query.eq("nro_osi", numericOSI);
-      }
-    }
-
-    if (filters.companyName) {
-      query = query.ilike("empresas.razon_social", `%${filters.companyName}%`);
-    }
-
-    const { data: certs, error: certError } = await query.order("fecha_emision", {
-      ascending: false,
+    const { data, error } = await supabase.rpc("get_manual_osi_batches", {
+      p_page: page,
+      p_limit: limit,
+      p_nro_osi: filters.nroOsi ?? null,
+      p_company_name: filters.companyName ?? null,
     });
 
-    if (certError) throw certError;
+    if (error) throw error;
 
-    // 3. Group certificates into batches manually since PostgREST doesn't support complex GROUP BY easily
-    const batchMap = new Map<string, OSIManagement>();
-
-    (certs || []).forEach((cert: any) => {
-      const nro_osi = cert.nro_osi;
-      const id_curso = cert.id_curso;
-      const id_empresa = cert.id_empresa;
-      const fecha = cert.fecha_emision;
-
-      const snapshot =
-        typeof cert.snapshot_contenido === "string"
-          ? JSON.parse(cert.snapshot_contenido)
-          : cert.snapshot_contenido;
-
-      // Use a composite key for grouping
-      const key = `${nro_osi}_${id_curso}_${id_empresa}_${fecha}`;
-
-      if (!batchMap.has(key)) {
-        // Map to OSIManagement type
-        batchMap.set(key, {
-          id_osi: nro_osi || 0,
-          nro_osi: snapshot?.osi?.nro_osi || nro_osi?.toString() || "MANUAL",
-          nombre_empresa:
-            cert.empresas?.razon_social || snapshot?.empresa?.name || "Manual",
-          servicio:
-            cert.catalogo_servicios?.nombre || snapshot?.curso?.name || "Manual",
-          tipo_servicio:
-            cert.catalogo_servicios?.tipo_servicio?.toString() || "Manual",
-          fecha_emision: fecha,
-          fecha_inicio_real: fecha,
-          fecha_fin_real: fecha,
-          id_empresa: id_empresa,
-          id_servicio: id_curso,
-          status_name: "Manual",
-          status_color: "#6B7280",
-          status_order: 0,
-          // Add indicator for manual mode
-          is_manual_batch: true,
-        } as any);
-      }
-    });
-
-    const allBatches = Array.from(batchMap.values());
-    const totalCount = allBatches.length;
-
-    // Apply pagination to grouped results
-    const offset = (page - 1) * limit;
-    const paginatedBatches = allBatches.slice(offset, offset + limit);
+    const row = data?.[0];
+    if (!row) {
+      return {
+        osis: [],
+        totalCount: 0,
+        metrics: { total_hours: 0, total_sesiones: 0, unique_companies: 0 },
+      };
+    }
 
     return {
-      osis: paginatedBatches,
-      totalCount,
+      osis: (row.batches || []) as OSIManagement[],
+      totalCount: row.total_count ?? 0,
       metrics: {
         total_hours: 0,
         total_sesiones: 0,
-        unique_companies: new Set(allBatches.map((b) => b.id_empresa)).size,
+        unique_companies: row.unique_companies ?? 0,
       },
     };
   } catch (err) {

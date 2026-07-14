@@ -11,46 +11,30 @@ export default async function CapacitacionPage() {
   const firstDayStr = firstDayOfMonth.toISOString().split("T")[0];
 
   const [
-    {
-      data: { user },
-    },
-    { count: cursosCount },
-    { count: participantesCount },
-    { count: certificadosCount },
-    { count: facilitadoresCount },
-    { count: certificadosMesCount },
+    { data: claimsData },
+    { data: countsData },
   ] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase
-      .from("catalogo_servicios")
-      .select("*", { count: "exact", head: true })
-      .eq("esta_activo", true)
-      .eq("id_departamento_ejecutante", 3),
-    supabase
-      .from("participantes_certificados")
-      .select("*", { count: "exact", head: true })
-      .eq("is_active", true),
-    supabase.from("certificados").select("*", { count: "exact", head: true }),
-    supabase.from("facilitadores").select("*", { count: "exact", head: true }),
-    supabase
-      .from("certificados")
-      .select("*", { count: "exact", head: true })
-      .gte("fecha_emision", firstDayStr),
+    supabase.auth.getClaims(),
+    supabase.rpc("get_capacitacion_dashboard_counts", {
+      p_first_day_of_month: firstDayStr,
+    }),
   ]);
 
-  if (!user) {
+  if (!claimsData?.claims) {
     redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
   }
 
+  const counts = countsData?.[0];
+
   return (
     <CapacitacionClient
-      user={user}
+      user={claimsData.claims as any}
       stats={{
-        cursosActivos: cursosCount ?? 0,
-        participantes: participantesCount ?? 0,
-        certificados: certificadosCount ?? 0,
-        facilitadores: facilitadoresCount ?? 0,
-        certificadosMes: certificadosMesCount ?? 0,
+        cursosActivos: counts?.cursos_activos ?? 0,
+        participantes: counts?.participantes ?? 0,
+        certificados: counts?.certificados ?? 0,
+        facilitadores: counts?.facilitadores ?? 0,
+        certificadosMes: counts?.certificados_mes ?? 0,
       }}
     />
   );

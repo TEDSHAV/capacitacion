@@ -16,24 +16,22 @@ export default async function GeneracionCertificadoPage({
     editId && typeof editId === "string" ? parseInt(editId) : null;
 
   const [
-    {
-      data: { user },
-    },
+    { data: claimsData },
     certificateData,
     editCertificateData,
   ] = await Promise.all([
-    supabase.auth.getUser(),
+    supabase.auth.getClaims(),
     getOptimizedCertificateData(),
     editIdNum ? getCertificateForEdit(editIdNum) : Promise.resolve(null),
   ]);
 
-  if (!user) {
+  if (!claimsData?.claims) {
     redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
   }
 
   return (
     <GeneracionCertificadoClient
-      user={user}
+      user={claimsData.claims as any}
       initialData={certificateData}
       editData={editCertificateData}
     />

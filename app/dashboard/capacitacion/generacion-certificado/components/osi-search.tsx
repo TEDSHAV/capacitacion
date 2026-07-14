@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { CertificateOSI, CourseTopic, OSISearchProps } from "@/types";
 import { Button } from "@/components/ui/button";
 import { X, Search } from "lucide-react";
@@ -53,32 +53,40 @@ export default function OSISearch({
     return null;
   };
 
-  const filteredOSIs = osis.filter(
-    (osi) =>
-      osi.is_active !== false &&
-      ((osi.nro_osi &&
-        osi.nro_osi
-          .toString()
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())) ||
-        (osi.cliente_nombre_empresa &&
-          osi.cliente_nombre_empresa
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())) ||
-        (osi.curso_nombre &&
-          osi.curso_nombre.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (osi.detalle_capacitacion &&
-          osi.detalle_capacitacion
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())) ||
-        (osi.tipo_servicio &&
-          osi.tipo_servicio.toLowerCase().includes(searchTerm.toLowerCase()))),
+  const filteredOSIs = useMemo(
+    () =>
+      osis.filter(
+        (osi) =>
+          osi.is_active !== false &&
+          ((osi.nro_osi &&
+            osi.nro_osi
+              .toString()
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())) ||
+            (osi.cliente_nombre_empresa &&
+              osi.cliente_nombre_empresa
+                .toLowerCase()
+                .includes(searchTerm.toLowerCase())) ||
+            (osi.curso_nombre &&
+              osi.curso_nombre.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (osi.detalle_capacitacion &&
+              osi.detalle_capacitacion
+                .toLowerCase()
+                .includes(searchTerm.toLowerCase())) ||
+            (osi.tipo_servicio &&
+              osi.tipo_servicio.toLowerCase().includes(searchTerm.toLowerCase()))),
+      ),
+    [osis, searchTerm],
   );
 
   // Show last 10 OSIs by default, or search results
-  const displayOSIs = searchTerm
-    ? filteredOSIs.slice(0, visibleCount)
-    : osis.slice(0, visibleCount);
+  const displayOSIs = useMemo(
+    () =>
+      searchTerm
+        ? filteredOSIs.slice(0, visibleCount)
+        : osis.slice(0, visibleCount),
+    [filteredOSIs, osis, searchTerm, visibleCount],
+  );
 
   const handleSelect = (osi: CertificateOSI) => {
     onSelect(osi);

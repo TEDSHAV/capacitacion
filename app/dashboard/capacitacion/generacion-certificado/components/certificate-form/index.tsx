@@ -1,21 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Lock, Unlock } from "lucide-react";
 import { CertificateFormProps } from "@/types";
 import { ParticipantsSection } from "./ParticipantsSection";
-import { CertificatePreview } from "./CertificatePreview";
 import { CourseTemplateSection } from "./CourseTemplateSection";
 import { LocationSearch } from "./LocationSearch";
 import { SignatureSection } from "./SignatureSection";
 import { FormActionButtons } from "./FormActionButtons";
 import { useCertificateForm } from "./use-certificate-form";
 
+const CertificatePreview = dynamic(
+  () => import("./CertificatePreview").then((m) => m.CertificatePreview),
+  { ssr: false },
+);
+
 export const CertificateForm = ({
   certificateData,
   selectedOSI,
   selectedCourseTopic,
   courseTopics,
+  initialSignatures,
   isGenerating = false,
   isEditMode = false,
   generationProgress,
@@ -33,6 +39,7 @@ export const CertificateForm = ({
     selectedOSI,
     selectedCourseTopic,
     isEditMode,
+    initialSignatures,
     onDataChange,
   });
 

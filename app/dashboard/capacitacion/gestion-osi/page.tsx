@@ -5,13 +5,11 @@ import GestionOSIClient from "./GestionOSIClient";
 export default async function GestionOSIPage() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: claimsData } = await supabase.auth.getClaims();
 
-  if (!user) {
+  if (!claimsData?.claims) {
     redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
   }
 
-  return <GestionOSIClient user={user} />;
+  return <GestionOSIClient user={claimsData.claims as any} />;
 }

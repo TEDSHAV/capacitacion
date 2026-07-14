@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { createClient } from "@/utils/supabase/server";
 
 import {
@@ -1785,7 +1786,7 @@ function updateContentSnapshotWithControlNumbers(
 /**
  * Get certificate by ID for editing
  */
-export async function getCertificateForEdit(certificateId: number) {
+export const getCertificateForEdit = cache(async (certificateId: number) => {
   try {
     const supabase = await createClient();
 
@@ -1822,7 +1823,7 @@ export async function getCertificateForEdit(certificateId: number) {
     console.error("Error fetching certificate for edit:", error);
     return null;
   }
-}
+});
 
 /**
  * Update an existing certificate record

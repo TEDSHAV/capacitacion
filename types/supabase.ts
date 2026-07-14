@@ -1689,6 +1689,7 @@ export type Database = {
           cerrado_por: number | null
           cierre_programado_activo: boolean
           created_at: string
+          es_canonico: boolean
           estado: string
           etiqueta: string
           fecha_fin: string
@@ -1704,6 +1705,7 @@ export type Database = {
           cerrado_por?: number | null
           cierre_programado_activo?: boolean
           created_at?: string
+          es_canonico?: boolean
           estado?: string
           etiqueta: string
           fecha_fin: string
@@ -1719,6 +1721,7 @@ export type Database = {
           cerrado_por?: number | null
           cierre_programado_activo?: boolean
           created_at?: string
+          es_canonico?: boolean
           estado?: string
           etiqueta?: string
           fecha_fin?: string
@@ -3241,6 +3244,30 @@ export type Database = {
           },
         ]
       }
+      facilitador_acknowledgments: {
+        Row: {
+          acknowledged_at: string
+          disclaimer_text: string
+          facilitador_id: number
+          id: string
+          osi_id: number
+        }
+        Insert: {
+          acknowledged_at?: string
+          disclaimer_text: string
+          facilitador_id: number
+          id?: string
+          osi_id: number
+        }
+        Update: {
+          acknowledged_at?: string
+          disclaimer_text?: string
+          facilitador_id?: number
+          id?: string
+          osi_id?: number
+        }
+        Relationships: []
+      }
       facilitador_credenciales: {
         Row: {
           created_at: string | null
@@ -4384,6 +4411,98 @@ export type Database = {
           },
         ]
       }
+      presupuesto_comprobaciones: {
+        Row: {
+          fecha_comprobante: string
+          id: number
+          id_presupuesto: number
+          numero_comprobante: string
+          registrado_at: string
+          registrado_por: number | null
+          tipo_id: number
+        }
+        Insert: {
+          fecha_comprobante: string
+          id?: number
+          id_presupuesto: number
+          numero_comprobante: string
+          registrado_at?: string
+          registrado_por?: number | null
+          tipo_id: number
+        }
+        Update: {
+          fecha_comprobante?: string
+          id?: number
+          id_presupuesto?: number
+          numero_comprobante?: string
+          registrado_at?: string
+          registrado_por?: number | null
+          tipo_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presupuesto_comprobaciones_id_presupuesto_fkey"
+            columns: ["id_presupuesto"]
+            isOneToOne: false
+            referencedRelation: "presupuestos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_comprobaciones_id_presupuesto_fkey"
+            columns: ["id_presupuesto"]
+            isOneToOne: false
+            referencedRelation: "vw_kpi_presupuestos_base"
+            referencedColumns: ["id_presupuesto"]
+          },
+          {
+            foreignKeyName: "presupuesto_comprobaciones_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_comprobaciones_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "presupuesto_comprobante_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      presupuesto_comprobante_tipos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          cuenta_como_venta: boolean
+          id: number
+          nombre: string
+          orden: number
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          cuenta_como_venta?: boolean
+          id?: number
+          nombre: string
+          orden?: number
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          cuenta_como_venta?: boolean
+          id?: number
+          nombre?: string
+          orden?: number
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       presupuesto_detalles: {
         Row: {
           cantidad: number | null
@@ -4506,7 +4625,10 @@ export type Database = {
         Row: {
           created_at: string
           cuerpo_presupuesto_html: string | null
+          fecha_aprobacion_contable: string | null
           fecha_emision: string | null
+          fecha_proyectado: string | null
+          fecha_venta_contable: string | null
           id: number
           id_datos_bancarios: number | null
           id_estatus: number | null
@@ -4522,7 +4644,10 @@ export type Database = {
         Insert: {
           created_at?: string
           cuerpo_presupuesto_html?: string | null
+          fecha_aprobacion_contable?: string | null
           fecha_emision?: string | null
+          fecha_proyectado?: string | null
+          fecha_venta_contable?: string | null
           id?: number
           id_datos_bancarios?: number | null
           id_estatus?: number | null
@@ -4538,7 +4663,10 @@ export type Database = {
         Update: {
           created_at?: string
           cuerpo_presupuesto_html?: string | null
+          fecha_aprobacion_contable?: string | null
           fecha_emision?: string | null
+          fecha_proyectado?: string | null
+          fecha_venta_contable?: string | null
           id?: number
           id_datos_bancarios?: number | null
           id_estatus?: number | null
@@ -4719,6 +4847,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           dias_traslado: number | null
+          estatus_admin: string | null
           facilitador: string | null
           fecha_solicitud: string | null
           gerencia_solicitante: string | null
@@ -4734,6 +4863,8 @@ export type Database = {
           nro_cuenta: string | null
           observaciones_compras: string | null
           prioridad: string | null
+          procesada_at: string | null
+          procesada_por: string | null
           solicitante: string | null
           tipo_servicio: string | null
           tipo_solicitud: string | null
@@ -4753,6 +4884,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           dias_traslado?: number | null
+          estatus_admin?: string | null
           facilitador?: string | null
           fecha_solicitud?: string | null
           gerencia_solicitante?: string | null
@@ -4768,6 +4900,8 @@ export type Database = {
           nro_cuenta?: string | null
           observaciones_compras?: string | null
           prioridad?: string | null
+          procesada_at?: string | null
+          procesada_por?: string | null
           solicitante?: string | null
           tipo_servicio?: string | null
           tipo_solicitud?: string | null
@@ -4787,6 +4921,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           dias_traslado?: number | null
+          estatus_admin?: string | null
           facilitador?: string | null
           fecha_solicitud?: string | null
           gerencia_solicitante?: string | null
@@ -4802,6 +4937,8 @@ export type Database = {
           nro_cuenta?: string | null
           observaciones_compras?: string | null
           prioridad?: string | null
+          procesada_at?: string | null
+          procesada_por?: string | null
           solicitante?: string | null
           tipo_servicio?: string | null
           tipo_solicitud?: string | null
@@ -4841,6 +4978,35 @@ export type Database = {
             columns: ["id_proveedor_sugerido"]
             isOneToOne: false
             referencedRelation: "proveedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requisiciones_osis: {
+        Row: {
+          created_at: string | null
+          id: number
+          id_osi: number
+          id_requisicion: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          id_osi: number
+          id_requisicion: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          id_osi?: number
+          id_requisicion?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisiciones_osis_id_requisicion_fkey"
+            columns: ["id_requisicion"]
+            isOneToOne: false
+            referencedRelation: "requisiciones"
             referencedColumns: ["id"]
           },
         ]
@@ -6066,22 +6232,33 @@ export type Database = {
       }
       vw_kpi_presupuestos_base: {
         Row: {
+          aprobado_contable_fecha: string | null
           aprobado_flag: boolean | null
           aprobado_por_estatus: boolean | null
           aprobado_por_osi: boolean | null
+          comprobante_cuenta_como_venta: boolean | null
+          comprobante_tipo_slug: string | null
           descartado_flag: boolean | null
           ejecutivo_id: number | null
           ejecutivo_nombre: string | null
+          emitido_base_fecha: string | null
+          emitido_contable_fecha: string | null
           evento_at: string | null
           evento_fecha: string | null
+          fecha_comprobante: string | null
           fecha_emision: string | null
+          fecha_proyectado: string | null
           id_ecc: number | null
           id_estatus: number | null
           id_presupuesto: number | null
           id_trato: number | null
           monto_presupuesto: number | null
+          numero_comprobante: string | null
+          proyectado_flag: boolean | null
           tipo_contabilizacion: string | null
           unidad_indicador: string | null
+          venta_contable_fecha: string | null
+          venta_flag: boolean | null
         }
         Relationships: [
           {
@@ -6426,6 +6603,29 @@ export type Database = {
         Args: { p_id_osi: number }
         Returns: undefined
       }
+      get_capacitacion_dashboard_counts: {
+        Args: { p_first_day_of_month: string }
+        Returns: {
+          certificados: number
+          certificados_mes: number
+          cursos_activos: number
+          facilitadores: number
+          participantes: number
+        }[]
+      }
+      get_certificate_generation_data: {
+        Args: never
+        Returns: {
+          active_carnet_template: Json
+          active_certificate_template: Json
+          all_carnet_templates: Json
+          all_certificate_templates: Json
+          courses: Json
+          osis: Json
+          osis_with_certificates: string[]
+          signatures: Json
+        }[]
+      }
       get_certificate_metrics: {
         Args: {
           p_company_id?: number
@@ -6468,6 +6668,19 @@ export type Database = {
         }[]
       }
       get_contacto_vinculos: { Args: { p_contacto_id: number }; Returns: Json }
+      get_manual_osi_batches: {
+        Args: {
+          p_company_name?: string
+          p_limit?: number
+          p_nro_osi?: string
+          p_page?: number
+        }
+        Returns: {
+          batches: Json
+          total_count: number
+          unique_companies: number
+        }[]
+      }
       get_my_app_context: { Args: { target_app_slug: string }; Returns: Json }
       get_my_notifications_cursor: {
         Args: {
@@ -6491,6 +6704,38 @@ export type Database = {
         }[]
       }
       get_next_control_numbers: { Args: { batch_size?: number }; Returns: Json }
+      get_osi_aggregate_metrics: {
+        Args: {
+          p_company_name?: string
+          p_date_issued_from?: string
+          p_date_issued_to?: string
+          p_date_service_from?: string
+          p_date_service_to?: string
+          p_ejecutivo?: string
+          p_location?: string
+          p_month_issued?: string
+          p_nro_osi?: string
+          p_num_hours_max?: number
+          p_num_hours_min?: number
+          p_num_sesiones_max?: number
+          p_num_sesiones_min?: number
+          p_status?: number
+          p_tipo_servicio?: string
+        }
+        Returns: {
+          total_hours: number
+          total_sesiones: number
+          unique_companies: number
+        }[]
+      }
+      get_osi_filter_options: {
+        Args: never
+        Returns: {
+          companies: Json
+          ejecutivos: string[]
+          statuses: Json
+        }[]
+      }
       get_pending_high_priority_email: {
         Args: { p_limit?: number; p_older_than?: string }
         Returns: {
@@ -6665,6 +6910,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      sp_cerrar_periodos_vencidos: { Args: { p_max?: number }; Returns: number }
       sp_dashboard_presupuesto_ejecutivos: {
         Args: {
           p_fecha_fin?: string
@@ -6718,6 +6964,15 @@ export type Database = {
           porcentaje_aprobacion_meta: number
           real_presupuestado: number
         }[]
+      }
+      sp_provision_periodos_canonicos: {
+        Args: { p_max_por_tipo?: number }
+        Returns: number
+      }
+      sp_provision_periodos_canonicos_mensual: { Args: never; Returns: number }
+      sp_provision_periodos_canonicos_tipo: {
+        Args: { p_max?: number; p_periodo_tipo: string }
+        Returns: number
       }
       sp_register_dashboard_close_jobs: { Args: never; Returns: undefined }
       sp_set_cierre_programado_periodo: {

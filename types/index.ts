@@ -471,6 +471,7 @@ export interface CertificateFormProps {
   selectedOSI: CertificateOSI | null;
   selectedCourseTopic: CourseTopic | null;
   courseTopics: CourseTopic[];
+  initialSignatures?: any[];
   isGenerating?: boolean;
   isEditMode?: boolean;
   generationProgress?: {

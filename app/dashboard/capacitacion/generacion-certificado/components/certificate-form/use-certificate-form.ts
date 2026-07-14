@@ -6,7 +6,6 @@ import {
   CourseTopic,
 } from "@/types";
 import {
-  getSignaturesForDropdownAction,
   getCourseTemplatesByOSIAction,
 } from "@/app/actions/dropdown-data";
 
@@ -15,6 +14,7 @@ interface UseCertificateFormProps {
   selectedOSI: CertificateOSI | null;
   selectedCourseTopic: CourseTopic | null;
   isEditMode: boolean;
+  initialSignatures?: any[];
   onDataChange: (field: keyof CertificateGeneration, value: any) => void;
 }
 
@@ -23,39 +23,29 @@ export function useCertificateForm({
   selectedOSI,
   selectedCourseTopic,
   isEditMode,
+  initialSignatures,
   onDataChange,
 }: UseCertificateFormProps) {
-  const [shaSignatures, setShaSignatures] = useState<Signature[]>([]);
+  const [shaSignatures, setShaSignatures] = useState<Signature[]>(
+    initialSignatures
+      ? (initialSignatures.filter(
+          (sig: any) => sig.tipo === "representante_sha",
+        ) as Signature[])
+      : [],
+  );
   const [courseTemplates, setCourseTemplates] = useState<any[]>([]);
   const isInitialLoad = useRef(true);
 
+  // Use server-provided signatures directly — no redundant POST needed
   useEffect(() => {
-    const loadFormData = async () => {
-      try {
-        // Load SHA signatures
-        const signaturesResult = await getSignaturesForDropdownAction();
-        if (signaturesResult.data) {
-          const shaOnly = signaturesResult.data.filter(
-            (sig: any) => sig.tipo === "representante_sha",
-          );
-          setShaSignatures(shaOnly as Signature[]);
-        }
-
-        // Load course templates (all active templates initially)
-        const courseTemplatesResult = await getCourseTemplatesByOSIAction();
-        if (courseTemplatesResult.data) {
-          setCourseTemplates(courseTemplatesResult.data);
-        }
-
-        // Always set generate_documents to true
-        onDataChange("generate_documents", true);
-      } catch (error) {
-        // Error loading form data
-      }
-    };
-
-    loadFormData();
-  }, []); // Only run once on mount
+    if (initialSignatures) {
+      const shaOnly = initialSignatures.filter(
+        (sig: any) => sig.tipo === "representante_sha",
+      );
+      setShaSignatures(shaOnly as Signature[]);
+    }
+    onDataChange("generate_documents", true);
+  }, []);
 
   // Auto-select the active SHA signature if not set (handles initial load and form reset)
   useEffect(() => {
@@ -65,7 +55,6 @@ export function useCertificateForm({
       );
       if (activeShaSignature) {
         onDataChange("sha_signature_id", activeShaSignature.id.toString());
-        // Also set sha_signature_data immediately to avoid a second API call
         onDataChange("sha_signature_data", {
           id: activeShaSignature.id,
           nombre: (activeShaSignature as any).nombre,
@@ -77,42 +66,28 @@ export function useCertificateForm({
     }
   }, [shaSignatures, certificateData.sha_signature_id]);
 
-  // Separate effect to handle SHA signature data when certificateData changes
+  // Resolve SHA signature data synchronously from initialSignatures (no POST needed)
   useEffect(() => {
-    const ensureSHASignatureData = async () => {
-      if (
-        certificateData.sha_signature_id &&
-        !certificateData.sha_signature_data
-      ) {
-        try {
-          const signaturesResult = await getSignaturesForDropdownAction();
-          if (signaturesResult.data) {
-            const sigs = signaturesResult.data.filter(
-              (sig: any) => sig.tipo === "representante_sha",
-            );
-            const selected = sigs.find(
-              (sig: any) =>
-                sig.id.toString() === certificateData.sha_signature_id,
-            );
-            if (selected) {
-              // Ensure we pass the full signature object with url_imagen
-              onDataChange("sha_signature_data", {
-                id: selected.id,
-                nombre: selected.nombre,
-                tipo: selected.tipo,
-                url_imagen: selected.url_imagen,
-                is_active: selected.is_active,
-              });
-            }
-          }
-        } catch (error) {
-          console.error("Error loading SHA signature data:", error);
-        }
+    if (
+      certificateData.sha_signature_id &&
+      !certificateData.sha_signature_data &&
+      shaSignatures.length > 0
+    ) {
+      const selected = shaSignatures.find(
+        (sig: any) =>
+          sig.id.toString() === certificateData.sha_signature_id,
+      );
+      if (selected) {
+        onDataChange("sha_signature_data", {
+          id: selected.id,
+          nombre: selected.nombre,
+          tipo: selected.tipo,
+          url_imagen: selected.url_imagen,
+          is_active: selected.is_active,
+        });
       }
-    };
-
-    ensureSHASignatureData();
-  }, [certificateData.sha_signature_id, certificateData.sha_signature_data]);
+    }
+  }, [certificateData.sha_signature_id, certificateData.sha_signature_data, shaSignatures]);
 
   // Effect to load course templates when course changes
   useEffect(() => {

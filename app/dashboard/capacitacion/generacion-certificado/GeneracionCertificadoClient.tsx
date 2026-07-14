@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import JSZip from "jszip";
 import {
   CourseTopic,
   CertificateGeneration,
@@ -16,20 +15,14 @@ import {
 import OSISearch from "./components/osi-search";
 import { CertificateForm } from "./components/certificate-form";
 import { ManualOSIInput as ManualOSIInputComponent } from "./components/manual-osi-input";
-import { CarnetDebug } from "@/components/carnets/carnet-debug";
 import {
   saveCertificatesToDatabase,
   updateCertificateAction,
   getPreviousParticipantsByOSIAction,
 } from "@/app/actions/certificados";
 import { getFacilitatorByOSI } from "@/app/actions/facilitador-portal";
-import {
-  getCarnetTemplatesAction,
-  getCertificateTemplatesAction,
-} from "@/app/actions/dropdown-data";
 import { getCompaniesAndCities } from "@/app/actions/companies-cities";
 import { updateParticipant } from "@/app/actions/participants";
-import { QRService } from "@/lib/qr-service";
 import { generateDocumentsServer } from "@/lib/document-server-actions";
 import {
   getDocumentFileName,
@@ -59,8 +52,12 @@ export default function GeneracionCertificadoClient({
   const [selectedCourseTopic, setSelectedCourseTopic] =
     useState<CourseTopic | null>(null);
   const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
-  const [carnetTemplates, setCarnetTemplates] = useState<any[]>([]);
-  const [certificateTemplates, setCertificateTemplates] = useState<any[]>([]);
+  const [carnetTemplates, setCarnetTemplates] = useState<any[]>(
+    initialData.allCarnetTemplates || [],
+  );
+  const [certificateTemplates, setCertificateTemplates] = useState<any[]>(
+    initialData.allCertificateTemplates || [],
+  );
 
   // Manual mode state
   const [osiInputMode, setOsiInputMode] = useState<"automatic" | "manual">(
@@ -144,55 +141,58 @@ export default function GeneracionCertificadoClient({
     }
   })();
 
-  // Load carnet and certificate templates
+  // Auto-set active templates from server-provided data (no POST needed)
   useEffect(() => {
-    const loadTemplates = async () => {
+    if (carnetTemplates.length > 0) {
+      const activeCarnetTemplate = carnetTemplates.find(
+        (t: any) => t.is_active,
+      );
+      if (activeCarnetTemplate) {
+        setCertificateData((prev) => ({
+          ...prev,
+          id_plantilla_carnet:
+            prev.id_plantilla_carnet || activeCarnetTemplate.id,
+        }));
+      }
+    }
+    if (certificateTemplates.length > 0) {
+      const activeTemplate = certificateTemplates.find((t: any) => t.is_active);
+      if (activeTemplate) {
+        setCertificateData((prev) => ({
+          ...prev,
+          id_plantilla_certificado:
+            prev.id_plantilla_certificado || activeTemplate.id,
+          plantilla_certificado_archivo:
+            prev.plantilla_certificado_archivo || activeTemplate.archivo,
+        }));
+      }
+    }
+  }, []);
+
+  // Lazy-load companies and cities only when manual mode is activated
+  useEffect(() => {
+    if (osiInputMode !== "manual" || companies.length > 0) return;
+
+    let cancelled = false;
+    const loadCompaniesAndCities = async () => {
       try {
-        const [carnetResult, certResult, companiesCitiesResult] =
-          await Promise.all([
-            getCarnetTemplatesAction(),
-            getCertificateTemplatesAction(),
-            getCompaniesAndCities(),
-          ]);
-        if (carnetResult.data) {
-          setCarnetTemplates(carnetResult.data);
-          // Auto-set the active carnet template if not already set
-          const activeCarnetTemplate = carnetResult.data.find(
-            (t: any) => t.is_active,
-          );
-          if (activeCarnetTemplate) {
-            setCertificateData((prev) => ({
-              ...prev,
-              id_plantilla_carnet:
-                prev.id_plantilla_carnet || activeCarnetTemplate.id,
-            }));
-          }
-        }
-        if (certResult.data) {
-          setCertificateTemplates(certResult.data);
-          // Auto-set the active certificate template if not already set
-          const activeTemplate = certResult.data.find((t: any) => t.is_active);
-          if (activeTemplate) {
-            setCertificateData((prev) => ({
-              ...prev,
-              id_plantilla_certificado:
-                prev.id_plantilla_certificado || activeTemplate.id,
-              plantilla_certificado_archivo:
-                prev.plantilla_certificado_archivo || activeTemplate.archivo,
-            }));
-          }
-        }
-        if (companiesCitiesResult.success) {
-          setCompanies(companiesCitiesResult.companies || []);
-          setCities(companiesCitiesResult.cities || []);
+        const result = await getCompaniesAndCities();
+        if (cancelled) return;
+        if (result.success) {
+          setCompanies(result.companies || []);
+          setCities(result.cities || []);
         }
       } catch (error) {
-        // Continue without templates
+        // Continue without companies/cities
       }
     };
 
-    loadTemplates();
-  }, []);
+    loadCompaniesAndCities();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [osiInputMode, companies.length]);
 
   // Pre-fill form if in edit mode
   useEffect(() => {
@@ -1371,6 +1371,7 @@ export default function GeneracionCertificadoClient({
                 // Generate QR code for carnet using the certificate ID
                 let qrDataURL: string | undefined;
                 try {
+                  const { QRService } = await import("@/lib/qr-service");
                   const certificateId = carnetReq.carnetData.id_certificado;
                   const qrData = QRService.generateQRData(certificateId);
                   qrDataURL = await QRService.generateQRDataURL({
@@ -1498,6 +1499,7 @@ export default function GeneracionCertificadoClient({
       });
 
       // Initialize JSZip and create folders
+      const { default: JSZip } = await import("jszip");
       const zip = new JSZip();
       const certFolder = zip.folder("Certificados");
       const docsFolder = zip.folder("Documentos_Adicionales");
@@ -1780,6 +1782,7 @@ export default function GeneracionCertificadoClient({
           selectedOSI={selectedOSI}
           selectedCourseTopic={selectedCourseTopic}
           courseTopics={courses}
+          initialSignatures={initialData.signatures}
           isGenerating={isGenerating}
           isEditMode={!!editData}
           generationProgress={generationProgress}

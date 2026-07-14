@@ -17,11 +17,6 @@ export default async function PlanificacionServiciosPage() {
     allowedRoles.includes(scapacitacionRole || "") ||
     allowedRoles.includes(sgestionRole || "");
 
-  console.log("[PlanificacionServiciosPage] Access Decision:", {
-    roles: { requisicionesRole, scapacitacionRole, sgestionRole },
-    canAccessRequisiciones
-  });
-
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
       <div className="mb-8">
