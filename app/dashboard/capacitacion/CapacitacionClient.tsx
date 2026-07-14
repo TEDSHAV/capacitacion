@@ -177,11 +177,11 @@ export default function CapacitacionClient({
                     certificados: 'from-blue-600 to-blue-600'
                   };
                   
-                  const categoryBgColors = {
-                    all: 'bg-gray-800',
-                    cursos: 'bg-gray-800',
-                    participantes: 'bg-gray-800',
-                    certificados: 'bg-gray-800'
+                  const categoryBadgeColors = {
+                    all: 'bg-gray-200 text-gray-700 border-gray-400',
+                    cursos: 'bg-emerald-100 text-emerald-700 border-emerald-300',
+                    participantes: 'bg-blue-100 text-blue-700 border-blue-300',
+                    certificados: 'bg-amber-100 text-amber-700 border-amber-300'
                   };
 
                   const neonColors = {
@@ -210,8 +210,8 @@ export default function CapacitacionClient({
                         <span className={`
                           px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-300
                           ${isActive 
-                            ? 'bg-white text-gray-900 border border-white shadow-lg' 
-                            : 'bg-gray-200 text-gray-600 border border-gray-400'
+                            ? `${categoryBadgeColors[category.id as keyof typeof categoryBadgeColors]} border-2 border-white shadow-lg` 
+                            : categoryBadgeColors[category.id as keyof typeof categoryBadgeColors]
                           }
                         `}>
                           {category.count}
