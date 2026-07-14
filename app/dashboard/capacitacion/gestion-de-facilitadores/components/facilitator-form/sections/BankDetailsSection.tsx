@@ -12,17 +12,29 @@ export const BankDetailsSection = ({
 }: BankDetailsSectionProps) => {
   const [showAddBank, setShowAddBank] = useState(false);
   const [newBankName, setNewBankName] = useState("");
+  const [isCedulaTitularDirty, setIsCedulaTitularDirty] = useState(false);
+  const [isTelefonoPagoMovilDirty, setIsTelefonoPagoMovilDirty] = useState(false);
+
+  // Initialize dirty state if values already exist (e.g., when editing)
+  useEffect(() => {
+    if (formData.cedula_titular) {
+      setIsCedulaTitularDirty(true);
+    }
+    if (formData.telefono_pago_movil) {
+      setIsTelefonoPagoMovilDirty(true);
+    }
+  }, []);
 
   // Auto-populate logic for Pago Móvil
   useEffect(() => {
-    // Only auto-populate if the fields are currently empty
-    if (!formData.telefono_pago_movil && formData.telefono) {
+    // Sync if not manually edited (not dirty)
+    if (!isTelefonoPagoMovilDirty && formData.telefono) {
       handleInputChange("telefono_pago_movil", formData.telefono);
     }
-    if (!formData.cedula_titular && formData.cedula) {
+    if (!isCedulaTitularDirty && formData.cedula) {
       handleInputChange("cedula_titular", formData.cedula);
     }
-  }, [formData.telefono, formData.cedula]);
+  }, [formData.telefono, formData.cedula, isTelefonoPagoMovilDirty, isCedulaTitularDirty]);
 
   const handleAddBank = async () => {
     if (!newBankName.trim()) return;
@@ -42,7 +54,13 @@ export const BankDetailsSection = ({
 
   const handlePhonePagoMovilChange = (value: string) => {
     const numericOnly = value.replace(/\D/g, "").slice(0, 11);
+    setIsTelefonoPagoMovilDirty(true);
     handleInputChange("telefono_pago_movil", numericOnly);
+  };
+
+  const handleCedulaTitularChange = (value: string) => {
+    setIsCedulaTitularDirty(true);
+    handleInputChange("cedula_titular", value);
   };
 
   return (
@@ -112,6 +130,19 @@ export const BankDetailsSection = ({
             </div>
           )}
         </div>
+        {/* Titular ID */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Cédula/RIF del Titular
+          </label>
+          <input
+            type="text"
+            value={formData.cedula_titular}
+            onChange={(e) => handleCedulaTitularChange(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="V-12345678"
+          />
+        </div>
 
         {/* Account Number */}
         <div>
@@ -158,19 +189,6 @@ export const BankDetailsSection = ({
           />
         </div>
 
-        {/* Titular ID */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Cédula/RIF del Titular
-          </label>
-          <input
-            type="text"
-            value={formData.cedula_titular}
-            onChange={(e) => handleInputChange("cedula_titular", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="V-12345678"
-          />
-        </div>
       </div>
     </div>
   );
