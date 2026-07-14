@@ -33,8 +33,12 @@ export async function getFacilitators() {
     if (error) throw error;
 
     return { facilitadores: data || [] };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Error al cargar los facilitadores' };
+  } catch (err) {
+    console.error("Error en facilitadores:", err);
+    return { 
+      error: err instanceof Error ? err.message : 'Error al cargar los facilitadores. Por favor intente nuevamente.',
+      facilitadores: [] 
+    };
   }
 }
 

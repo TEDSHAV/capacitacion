@@ -18,9 +18,10 @@ export async function getParticipants(): Promise<{ participants: ParticipanteCer
     return { participants: participants || [] };
 
   } catch (error) {
+    console.error("Error en participantes:", error);
     return { 
       participants: null, 
-      error: error instanceof Error ? error.message : 'Error al cargar los participantes' 
+      error: error instanceof Error ? error.message : 'Error al cargar los participantes. Por favor intente nuevamente.'
     };
   }
 }

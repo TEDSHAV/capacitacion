@@ -28,7 +28,8 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
         setFacilitadores(result.data.facilitadores as any[]);
       }
     } catch (err) {
-      setError("Error al cargar datos");
+      console.error('Error loading facilitator state stats:', err);
+      setError(`Error al cargar datos: ${err instanceof Error ? err.message : 'Error desconocido'}`);
     } finally {
       setLoading(false);
     }
@@ -64,6 +65,9 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
 
   const activeFacilitadores = facilitadores.filter(f => f.is_active);
   const inactiveFacilitadores = facilitadores.filter(f => !f.is_active);
+
+  // Calculate max count for bar width
+  const maxCount = stateStats.length > 0 ? Math.max(...stateStats.map(s => s.count)) : 1;
 
   return (
     <div className="space-y-6">
@@ -110,7 +114,7 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
                       <div
                         className="bg-indigo-600 h-2 rounded-full"
                         style={{
-                          width: `${(state.count / Math.max(...stateStats.map(s => s.count))) * 100}%`
+                          width: `${(state.count / maxCount) * 100}%`
                         }}
                       ></div>
                     </div>
@@ -139,13 +143,13 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
                   Cédula
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Estado
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Email
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado Geográfico
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado
+                  Estatus
                 </th>
               </tr>
             </thead>
@@ -159,10 +163,10 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
                     {facilitador.cedula || "N/A"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {facilitador.email || "N/A"}
+                    {getStateName(facilitador.id_estado_geografico)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {getStateName(facilitador.id_estado_geografico)}
+                    {facilitador.email || "N/A"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
