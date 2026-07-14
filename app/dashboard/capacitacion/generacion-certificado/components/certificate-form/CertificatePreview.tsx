@@ -287,8 +287,8 @@ export const CertificatePreview = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b">
+      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-900">
             Vista Previa del Certificado{selectedCourse?.emite_carnet ? ' y Carnet' : ''}
           </h3>
@@ -338,12 +338,11 @@ export const CertificatePreview = ({
           </div>
         </div>
 
-        <div className="p-6">
-          {/* Participant Selection */}
+        <div className="flex-1 overflow-y-auto p-6">
           {certificateData.participants.length > 1 && (
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Seleccionar Participante para Vista Previa:
+                Seleccionar Participante:
               </label>
               <div className="flex items-center space-x-4">
                 <select
@@ -402,7 +401,7 @@ export const CertificatePreview = ({
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <iframe
                   src={showCarnet ? carnetPreviewUrl : previewUrl}
-                  className={`w-full ${showCarnet ? 'h-[400px]' : 'h-[600px]'}`}
+                  className={`w-full ${showCarnet ? 'h-[300px]' : 'h-[400px]'}`}
                   title={`${showCarnet ? 'Carnet' : 'Certificate'} Preview`}
                 />
               </div>
