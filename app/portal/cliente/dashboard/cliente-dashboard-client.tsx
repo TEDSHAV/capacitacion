@@ -15,6 +15,7 @@ interface ClienteDashboardClientProps {
   initialBatches: ClienteBatchSummary[];
   initialTotalCount: number;
   filterOptions: ClienteFilterOptions;
+  showSedeFilter?: boolean;
 }
 
 const DEFAULT_FILTERS: ClienteCertificateFilters = {
@@ -27,6 +28,7 @@ export function ClienteDashboardClient({
   initialBatches,
   initialTotalCount,
   filterOptions,
+  showSedeFilter = false,
 }: ClienteDashboardClientProps) {
   const [filters, setFilters] = useState<ClienteCertificateFilters>(DEFAULT_FILTERS);
   const [metrics, setMetrics] = useState<ClienteMetrics>(initialMetrics);
@@ -45,6 +47,7 @@ export function ClienteDashboardClient({
     !!filters.courseId ||
     !!filters.stateId ||
     !!filters.cityId ||
+    !!filters.sedeId ||
     !!filters.dateFrom ||
     !!filters.dateTo;
 
@@ -135,6 +138,7 @@ export function ClienteDashboardClient({
         onChange={handleFilterChange}
         onClear={handleClearFilters}
         options={filterOptions}
+        showSedeFilter={showSedeFilter}
       />
 
       {loading ? (

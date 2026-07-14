@@ -530,13 +530,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "certificados_id_sede_fkey"
-            columns: ["id_sede"]
-            isOneToOne: false
-            referencedRelation: "empresa_sedes"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "certificados_id_curso_fkey"
             columns: ["id_curso"]
             isOneToOne: false
@@ -598,6 +591,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "plantillas_certificados"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_id_sede_fkey"
+            columns: ["id_sede"]
+            isOneToOne: false
+            referencedRelation: "empresa_sedes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_id_sede_fkey"
+            columns: ["id_sede"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_sede"]
           },
         ]
       }
@@ -666,6 +673,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "empresa_sedes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cliente_credenciales_id_sede_fkey"
+            columns: ["id_sede"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_sede"]
           },
         ]
       }
@@ -2949,6 +2963,45 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
             referencedColumns: ["id_osi"]
+          },
+        ]
+      }
+      empresa_logos: {
+        Row: {
+          empresa_id: number
+          id: number
+          logo_url: string
+          storage_path: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          empresa_id: number
+          id?: never
+          logo_url: string
+          storage_path: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          empresa_id?: number
+          id?: never
+          logo_url?: string
+          storage_path?: string
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empresa_logos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "empresa_logos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
           },
         ]
       }
@@ -6589,6 +6642,7 @@ export type Database = {
           p_limit?: number
           p_page?: number
           p_search_term?: string
+          p_sede_id?: number
           p_state_id?: number
         }
         Returns: {

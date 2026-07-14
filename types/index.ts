@@ -1679,6 +1679,15 @@ export interface ClienteSession {
   display_name: string | null;
   id_ciudad?: number | null;
   id_sede?: number | null;
+  logo_url?: string | null;
+}
+
+export interface EmpresaLogo {
+  id: number;
+  empresa_id: number;
+  logo_url: string;
+  storage_path: string;
+  uploaded_at: string | null;
 }
 
 export interface ClienteCertificateFilters {
@@ -1686,6 +1695,7 @@ export interface ClienteCertificateFilters {
   courseId?: number;
   stateId?: number;
   cityId?: number;
+  sedeId?: number;
   dateFrom?: string;
   dateTo?: string;
   type: "all" | "certificates" | "carnets";
@@ -1752,4 +1762,5 @@ export interface ClienteFilterOptions {
   courses: { id: number; nombre: string }[];
   states: { id: number; nombre_estado: string }[];
   cities: { id: number; nombre_ciudad: string }[];
+  sedes: { id: number; nombre_sede: string }[];
 }

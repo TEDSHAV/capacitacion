@@ -13,16 +13,16 @@ export function PortalNavbar({ title, logoutAction, loginPath }: PortalNavbarPro
   return (
     <nav className="bg-white shadow-md z-50 sticky top-0">
       <div className="max-w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-40">
+        <div className="flex items-center justify-between h-28">
           <div className="flex-1" />
 
           <div className="flex flex-col items-center">
             <Image
               src="/logo.png"
               alt="SHA de Venezuela"
-              width={128}
-              height={128}
-              className="object-contain w-32 h-32"
+              width={120}
+              height={120}
+              className="object-contain w-28 h-28"
             />
           </div>
 

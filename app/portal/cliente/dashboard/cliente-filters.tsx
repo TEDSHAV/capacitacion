@@ -9,6 +9,7 @@ interface ClienteFiltersProps {
   onChange: (filters: ClienteCertificateFilters) => void;
   onClear: () => void;
   options: ClienteFilterOptions;
+  showSedeFilter?: boolean;
 }
 
 export function ClienteFilters({
@@ -16,12 +17,14 @@ export function ClienteFilters({
   onChange,
   onClear,
   options,
+  showSedeFilter = false,
 }: ClienteFiltersProps) {
   const hasActiveFilters =
     !!filters.searchTerm ||
     !!filters.courseId ||
     !!filters.stateId ||
     !!filters.cityId ||
+    !!filters.sedeId ||
     !!filters.dateFrom ||
     !!filters.dateTo;
 
@@ -106,6 +109,7 @@ export function ClienteFilters({
         </div>
 
         {/* City */}
+        {showSedeFilter && (
         <div className="space-y-1">
           <label className="text-xs font-medium text-gray-600">Ciudad / Sede</label>
           <select
@@ -125,6 +129,30 @@ export function ClienteFilters({
             ))}
           </select>
         </div>
+        )}
+
+        {/* Sede */}
+        {showSedeFilter && (
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-gray-600">Sede</label>
+          <select
+            value={filters.sedeId || ""}
+            onChange={(e) =>
+              updateFilter({
+                sedeId: e.target.value ? Number(e.target.value) : undefined,
+              })
+            }
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+          >
+            <option value="">Todas las sedes</option>
+            {options.sedes.map((sede) => (
+              <option key={sede.id} value={sede.id}>
+                {sede.nombre_sede}
+              </option>
+            ))}
+          </select>
+        </div>
+        )}
 
         {/* Date Range */}
         <div className="space-y-1">

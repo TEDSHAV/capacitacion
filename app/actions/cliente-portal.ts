@@ -14,6 +14,7 @@ import type {
   ClienteCertificateRow,
   ClienteCarnetRow,
   ClienteFilterOptions,
+  EmpresaLogo,
 } from "@/types";
 
 // ─── Auth Helpers ───
@@ -165,7 +166,7 @@ export async function loginCliente(
 
   const { data: creds, error: credError } = await supabase
     .from("cliente_credenciales")
-    .select("*, empresas(razon_social)")
+    .select("*, empresas(razon_social, empresa_logos(logo_url))")
     .eq("username", username)
     .eq("password_hash", passwordHash)
     .eq("is_active", true)
@@ -188,6 +189,7 @@ export async function loginCliente(
     display_name: creds.display_name,
     id_ciudad: creds.id_ciudad ?? null,
     id_sede: creds.id_sede ?? null,
+    logo_url: creds.empresas?.empresa_logos?.logo_url ?? null,
   };
 
   const cookieStore = await cookies();
@@ -265,6 +267,7 @@ export async function getClienteCertificates(
 
     if (sessionSedeId) query = query.eq("id_sede", sessionSedeId);
     else if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
+    if (filters.sedeId) query = query.eq("id_sede", filters.sedeId);
 
     if (filters.searchTerm) {
       query = query.or(
@@ -339,6 +342,7 @@ export async function getClienteCertificates(
 
   if (sessionSedeId) rpcParams.p_sede_id = sessionSedeId;
   else if (sessionCityId) rpcParams.p_city_id = sessionCityId;
+  if (filters.sedeId) rpcParams.p_sede_id = filters.sedeId;
   if (filters.searchTerm) rpcParams.p_search_term = filters.searchTerm;
   if (filters.courseId) rpcParams.p_course_id = filters.courseId;
   if (filters.stateId) rpcParams.p_state_id = filters.stateId;
@@ -650,6 +654,7 @@ export async function getClienteBatchesFiltered(
 
   if (sessionSedeId) query = query.eq("id_sede", sessionSedeId);
   else if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
+  if (filters.sedeId) query = query.eq("id_sede", filters.sedeId);
   if (filters.cityId) query = query.eq("id_ciudad", filters.cityId);
 
   if (filters.courseId) query = query.eq("id_curso", filters.courseId);
@@ -818,6 +823,35 @@ export async function getClienteFilterOptions(
     }
   }
 
+  // Get distinct sedes for this company's certificates (only if not session-restricted)
+  const sedeMap = new Map<number, string>();
+  if (!sessionSedeId) {
+    let sedeDataQuery = supabase
+      .from("certificados")
+      .select(`id_sede, empresa_sedes!inner(id, nombre_sede)`)
+      .eq("id_empresa", empresaId)
+      .eq("is_active", true)
+      .not("id_sede", "is", null);
+    if (sessionCityId) sedeDataQuery = sedeDataQuery.eq("id_ciudad", sessionCityId);
+    const { data: sedeData, error: sedeError } = await sedeDataQuery;
+
+    if (sedeError) {
+      console.error("Error fetching sede options:", sedeError);
+    }
+
+    if (sedeData) {
+      for (const row of sedeData) {
+        const sedeInfo = row.empresa_sedes as unknown as {
+          id: number;
+          nombre_sede: string;
+        };
+        if (sedeInfo && !sedeMap.has(sedeInfo.id)) {
+          sedeMap.set(sedeInfo.id, sedeInfo.nombre_sede);
+        }
+      }
+    }
+  }
+
   return {
     data: {
       courses: Array.from(courseMap.entries()).map(([id, nombre]) => ({
@@ -828,10 +862,176 @@ export async function getClienteFilterOptions(
         id,
         nombre_estado,
       })),
-      cities: Array.from(cityMap.entries()).map(([id, nombre_ciudad]) => ({
+      cities: sessionSedeId ? [] : Array.from(cityMap.entries()).map(([id, nombre_ciudad]) => ({
         id,
         nombre_ciudad,
       })),
+      sedes: Array.from(sedeMap.entries()).map(([id, nombre_sede]) => ({
+        id,
+        nombre_sede,
+      })),
     },
   };
+}
+
+// ─── Company Logo Management ───
+
+export async function getEmpresaLogoAction(
+  empresaId: number,
+): Promise<{ data?: EmpresaLogo | null; error?: string }> {
+  try {
+    const supabase = await createAdminClient();
+    const { data, error } = await supabase
+      .from("empresa_logos")
+      .select("*")
+      .eq("empresa_id", empresaId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error fetching empresa logo:", error);
+      return { error: error.message };
+    }
+
+    return { data: (data as EmpresaLogo) || null };
+  } catch (error) {
+    console.error("Error in getEmpresaLogoAction:", error);
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error fetching logo",
+    };
+  }
+}
+
+export async function uploadEmpresaLogoAction(
+  empresaId: number,
+  base64Data: string,
+): Promise<{ success?: boolean; error?: string; logoUrl?: string }> {
+  try {
+    const supabase = await createAdminClient();
+
+    // Ensure the storage bucket exists
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some((b) => b.name === "empresa-logos");
+    if (!bucketExists) {
+      const { error: bucketError } = await supabase.storage.createBucket(
+        "empresa-logos",
+        { public: true },
+      );
+      if (bucketError) {
+        console.error("Error creating bucket:", bucketError);
+        return { error: `Error creating storage bucket: ${bucketError.message}` };
+      }
+    }
+
+    // Check if logo already exists (to delete old file)
+    const { data: existing } = await supabase
+      .from("empresa_logos")
+      .select("storage_path")
+      .eq("empresa_id", empresaId)
+      .maybeSingle();
+
+    if (existing?.storage_path) {
+      await supabase.storage
+        .from("empresa-logos")
+        .remove([existing.storage_path]);
+    }
+
+    // Convert base64 to blob
+    const base64Parts = base64Data.split(",");
+    const base64String = base64Parts[1] || base64Parts[0];
+    const buffer = Buffer.from(base64String, "base64");
+
+    const timestamp = Date.now();
+    const storagePath = `empresa-${empresaId}-${timestamp}.webp`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("empresa-logos")
+      .upload(storagePath, buffer, {
+        contentType: "image/webp",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Error uploading logo:", uploadError);
+      return { error: uploadError.message };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("empresa-logos")
+      .getPublicUrl(storagePath);
+
+    const logoUrl = publicUrlData.publicUrl;
+
+    // Upsert into empresa_logos table
+    const { error: dbError } = await supabase
+      .from("empresa_logos")
+      .upsert(
+        {
+          empresa_id: empresaId,
+          logo_url: logoUrl,
+          storage_path: storagePath,
+          uploaded_at: new Date().toISOString(),
+        },
+        { onConflict: "empresa_id" },
+      );
+
+    if (dbError) {
+      console.error("Error saving logo record:", dbError);
+      return { error: dbError.message };
+    }
+
+    revalidatePath("/dashboard/capacitacion");
+    return { success: true, logoUrl };
+  } catch (error) {
+    console.error("Error in uploadEmpresaLogoAction:", error);
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error uploading logo",
+    };
+  }
+}
+
+export async function removeEmpresaLogoAction(
+  empresaId: number,
+): Promise<{ success?: boolean; error?: string }> {
+  try {
+    const supabase = await createAdminClient();
+
+    const { data: existing } = await supabase
+      .from("empresa_logos")
+      .select("storage_path")
+      .eq("empresa_id", empresaId)
+      .maybeSingle();
+
+    if (existing?.storage_path) {
+      await supabase.storage
+        .from("empresa-logos")
+        .remove([existing.storage_path]);
+    }
+
+    const { error: dbError } = await supabase
+      .from("empresa_logos")
+      .delete()
+      .eq("empresa_id", empresaId);
+
+    if (dbError) {
+      console.error("Error deleting logo record:", dbError);
+      return { error: dbError.message };
+    }
+
+    revalidatePath("/dashboard/capacitacion");
+    return { success: true };
+  } catch (error) {
+    console.error("Error in removeEmpresaLogoAction:", error);
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error removing logo",
+    };
+  }
 }

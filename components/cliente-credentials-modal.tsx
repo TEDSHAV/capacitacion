@@ -18,6 +18,8 @@ import {
   Copy,
   Check,
   MapPin,
+  ImagePlus,
+  Upload,
 } from "lucide-react";
 import {
   getClienteCompanies,
@@ -25,9 +27,13 @@ import {
   createClienteCredentials,
   deleteClienteCredentials,
   updateClienteCredentials,
+  getEmpresaLogoAction,
+  uploadEmpresaLogoAction,
+  removeEmpresaLogoAction,
 } from "@/app/actions/cliente-portal";
 import { getCompaniesAndCities } from "@/app/actions/companies-cities";
 import { getSedesByEmpresaAction, type Sede } from "@/app/actions/sedes";
+import { compressImage } from "@/lib/image-compression";
 import type { ClienteCredential } from "@/types";
 import type { City } from "@/app/actions/companies-cities";
 
@@ -67,6 +73,10 @@ export const ClienteCredentialsModal = ({
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [isLoadingSedes, setIsLoadingSedes] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isRemovingLogo, setIsRemovingLogo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function loadCompanies() {
@@ -116,6 +126,24 @@ export const ClienteCredentialsModal = ({
       setNewSedeId(null);
     };
     fetchSedes();
+  }, [selectedCompanyId]);
+
+  // Fetch logo when a company is selected
+  useEffect(() => {
+    const fetchLogo = async () => {
+      if (selectedCompanyId) {
+        try {
+          const result = await getEmpresaLogoAction(selectedCompanyId);
+          setLogoUrl(result.data?.logo_url || null);
+        } catch (error) {
+          console.error("Error fetching logo:", error);
+          setLogoUrl(null);
+        }
+      } else {
+        setLogoUrl(null);
+      }
+    };
+    fetchLogo();
   }, [selectedCompanyId]);
 
   useEffect(() => {
@@ -355,6 +383,101 @@ export const ClienteCredentialsModal = ({
 
             {selectedCompanyId && (
               <>
+                {/* Company Logo Section */}
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  {logoUrl ? (
+                    <img
+                      src={logoUrl}
+                      alt="Logo de la empresa"
+                      className="w-12 h-12 rounded-lg object-contain ring-1 ring-gray-200 bg-white p-1 shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-white ring-1 ring-gray-200 flex items-center justify-center shadow-sm">
+                      <Building2 className="w-6 h-6 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">Logo de la empresa</p>
+                    <p className="text-xs text-gray-400">Se mostrará en el portal del cliente al iniciar sesión</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !selectedCompanyId) return;
+                        setIsUploadingLogo(true);
+                        setError(null);
+                        try {
+                          const compressed = await compressImage(file, 200, 0.8);
+                          const result = await uploadEmpresaLogoAction(selectedCompanyId, compressed);
+                          if (result.error) {
+                            setError(result.error);
+                          } else if (result.logoUrl) {
+                            setLogoUrl(result.logoUrl);
+                            setSuccess("Logo actualizado exitosamente");
+                          }
+                        } catch (err) {
+                          setError("Error al procesar la imagen");
+                        } finally {
+                          setIsUploadingLogo(false);
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingLogo}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 transition-colors disabled:opacity-50"
+                    >
+                      {isUploadingLogo ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : logoUrl ? (
+                        <Upload className="w-3.5 h-3.5" />
+                      ) : (
+                        <ImagePlus className="w-3.5 h-3.5" />
+                      )}
+                      {logoUrl ? "Cambiar" : "Subir logo"}
+                    </button>
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!selectedCompanyId) return;
+                          setIsRemovingLogo(true);
+                          setError(null);
+                          try {
+                            const result = await removeEmpresaLogoAction(selectedCompanyId);
+                            if (result.error) {
+                              setError(result.error);
+                            } else {
+                              setLogoUrl(null);
+                              setSuccess("Logo eliminado");
+                            }
+                          } catch (err) {
+                            setError("Error al eliminar el logo");
+                          } finally {
+                            setIsRemovingLogo(false);
+                          }
+                        }}
+                        disabled={isRemovingLogo}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50"
+                      >
+                        {isRemovingLogo ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Credentials List */}
                 {loadingCreds ? (
                   <div className="flex flex-col items-center py-6">
