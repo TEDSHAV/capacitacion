@@ -24,6 +24,7 @@ export interface DocumentGenerationResult {
     [key: string]: string; // Base64 encoded documents
   };
   error?: string;
+  errors?: string[]; // Add support for multiple errors
 }
 
 export async function generateDocumentsServer(request: DocumentGenerationRequest): Promise<DocumentGenerationResult> {
@@ -33,8 +34,70 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
     if (!certificates || !certificates.length) {
       return {
         success: false,
-        error: 'No certificates provided for document generation'
+        documents: {},
+        errors: ['No certificates provided']
       };
+    }
+
+    console.log('🔍 SERVER: Starting document generation process...');
+    console.log('🔍 SERVER: OSI data:', osiData);
+    console.log('🔍 SERVER: OSI id_curso:', osiData.id_curso);
+    console.log('🔍 SERVER: First certificate course_title:', certificates[0]?.course_title);
+    console.log('🔍 SERVER: First certificate control_number:', certificates[0]?.control_number);
+
+    // Function to format cédula with proper prefix based on participant data
+    const formatCedula = (participant: any): string => {
+      const idNumber = participant.participant_id_number || '';
+      if (!idNumber) return '';
+      
+      const cleanCedula = idNumber.replace(/[^\d]/g, ''); // Remove non-digits
+      if (cleanCedula.length === 0) return idNumber;
+      
+      // Check if ID type is explicitly provided
+      if (participant.participant_id_type) {
+        const idType = participant.participant_id_type.toUpperCase();
+        if (idType.startsWith('V') || idType.startsWith('E')) {
+          return `${idType}-${cleanCedula}`;
+        }
+        return `${idType}-${cleanCedula}`;
+      }
+      
+      // Check nationality as fallback
+      if (participant.participant_nationality) {
+        const nationality = participant.participant_nationality.toLowerCase();
+        if (nationality === 'extranjero') {
+          return `E-${cleanCedula}`;
+        }
+      }
+      
+      // Default to Venezuelan if no specific info
+      return `V-${cleanCedula}`;
+    };
+
+    // Fetch course name if id_curso is available
+    let cursoNombre = osiData.tema || ''; // fallback to tema
+    if (osiData.id_curso && !osiData.curso_nombre) {
+      try {
+        const { createClient } = await import('@/utils/supabase/server');
+        const supabase = await createClient();
+        
+        const { data: cursoData, error } = await supabase
+          .from('cursos')
+          .select('nombre')
+          .eq('id', osiData.id_curso)
+          .single();
+          
+        if (!error && cursoData) {
+          cursoNombre = cursoData.nombre;
+          console.log('✅ SERVER: Fetched course name:', cursoNombre);
+        } else {
+          console.warn('⚠️ SERVER: Could not fetch course name:', error);
+        }
+      } catch (error) {
+        console.error('❌ SERVER: Error fetching course name:', error);
+      }
+    } else if (osiData.curso_nombre) {
+      cursoNombre = osiData.curso_nombre;
     }
 
     // Prepare template data to match DOCX template structure exactly
@@ -63,7 +126,7 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
       
       // OSI and course information
       nombre_cliente: osiData.cliente_nombre_empresa || '',
-      titulo_curso: osiData.tema || '',
+      titulo_curso: certificates[0]?.course_title || cursoNombre || osiData.tema || '', // Use course_title from certificate records first
       ciudad: osiData.ciudad || 'Puerto La Cruz',
       nro_osi: osiData.nro_osi || '',
       
@@ -82,10 +145,10 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
       participantes: certificates.map((cert, index) => ({
         index: index + 1,
         nombre_apellido: cert.participant_name || '',
-        cedula: cert.participant_id_number || '',
+        cedula: formatCedula(cert), // Use conditional formatting based on participant data
         puntuacion: cert.score?.toString() || '',
         condicion: cert.score && cert.score >= 14 ? 'APROBADO' : 'REPROBADO',
-        numero_control: cert.control_number || '',
+        numero_control: cert.control_number?.toString() || '', // No fallback - use actual data only
       })),
     } as TemplateData;
 

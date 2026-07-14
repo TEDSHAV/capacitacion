@@ -382,9 +382,11 @@ export default function GeneracionCertificadoClient({
           console.log('📄 Generating additional documents...');
           
           // Prepare certificate data for document generation
-          const certificateRecords = certificates.map(({ participant }) => ({
+          const certificateRecords = certificates.map(({ participant }, index) => ({
             participant_name: participant.name,
             participant_id_number: participant.id_number,
+            participant_id_type: participant.id_type, // V- or E- prefix info
+            participant_nationality: participant.nationality, // venezolano or extranjero
             course_title: certificateData.certificate_title,
             company_name: selectedOSI?.cliente_nombre_empresa || '',
             osi_number: selectedOSI?.nro_osi || '',
@@ -393,7 +395,7 @@ export default function GeneracionCertificadoClient({
             execution_address: selectedOSI?.direccion_ejecucion || '',
             execution_date: selectedOSI?.fecha_ejecucion1 || certificateData.date,
             score: participant.score || 14,
-            control_number: '', // This would come from database if needed
+            control_number: dbResult.certificateNumbers![index]?.nro_control?.toString() || '', // Use actual control numbers from database
           }));
 
           // Call server action for document generation
