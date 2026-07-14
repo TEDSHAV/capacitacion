@@ -1961,13 +1961,22 @@ export async function getCertificatesForManagement(
       console.log(`[FILTER DEBUG] Applied dateTo filter: ${filters.dateTo}`);
     }
 
-    // Apply search term across joined tables if present
+    // Apply search term if present
     if (filters.searchTerm?.trim()) {
-      const term = `%${filters.searchTerm.trim()}%`;
-      // Use explicit table names for joins
-      query = query.or(
-        `participantes_certificados.nombre.ilike.${term},participantes_certificados.cedula.ilike.${term},catalogo_servicios.nombre.ilike.${term},empresas.razon_social.ilike.${term}`,
-      );
+      const term = filters.searchTerm.trim();
+      const ilikeTerm = `%${term}%`;
+
+      // If it's a number, we can search by nro_osi exactly
+      // Otherwise we use a general search on the snapshot content which contains all fields
+      if (/^\d+$/.test(term)) {
+        const nroOsi = parseInt(term);
+        query = query.or(
+          `nro_osi.eq.${nroOsi},snapshot_contenido.ilike.${ilikeTerm}`,
+        );
+      } else {
+        query = query.ilike("snapshot_contenido", ilikeTerm);
+      }
+
       console.log(
         `[FILTER DEBUG] Applied search term filter: ${filters.searchTerm}`,
       );
@@ -2087,13 +2096,21 @@ async function calculateCertificateMetrics(
     if (filters.dateFrom) query = query.gte("fecha_emision", filters.dateFrom);
     if (filters.dateTo) query = query.lte("fecha_emision", filters.dateTo);
 
-    // Apply search term across joined tables if present
+    // Apply search term if present
     if (filters.searchTerm?.trim()) {
-      const term = `%${filters.searchTerm.trim()}%`;
-      // Use explicit table names for joins and cast nro_osi to text if it's numeric
-      query = query.or(
-        `participantes_certificados.nombre.ilike.${term},participantes_certificados.cedula.ilike.${term},catalogo_servicios.nombre.ilike.${term},empresas.razon_social.ilike.${term}`,
-      );
+      const term = filters.searchTerm.trim();
+      const ilikeTerm = `%${term}%`;
+
+      // If it's a number, we can search by nro_osi exactly
+      // Otherwise we use a general search on the snapshot content which contains all fields
+      if (/^\d+$/.test(term)) {
+        const nroOsi = parseInt(term);
+        query = query.or(
+          `nro_osi.eq.${nroOsi},snapshot_contenido.ilike.${ilikeTerm}`,
+        );
+      } else {
+        query = query.ilike("snapshot_contenido", ilikeTerm);
+      }
     }
 
     // Fetch the live data for aggregation
