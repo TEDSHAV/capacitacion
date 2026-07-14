@@ -1,3 +1,6 @@
+Need to install the following packages:
+supabase@2.92.1
+Ok to proceed? (y) 
 export type Json =
   | string
   | number
@@ -638,6 +641,7 @@ export type Database = {
           esta_activo: boolean | null
           fecha_creacion: string | null
           id: number
+          id_ejecutivo_owner: number | null
           id_empresa: number | null
           id_estado_ubicacion: number | null
           id_estatus: number | null
@@ -657,6 +661,7 @@ export type Database = {
           esta_activo?: boolean | null
           fecha_creacion?: string | null
           id?: number
+          id_ejecutivo_owner?: number | null
           id_empresa?: number | null
           id_estado_ubicacion?: number | null
           id_estatus?: number | null
@@ -676,6 +681,7 @@ export type Database = {
           esta_activo?: boolean | null
           fecha_creacion?: string | null
           id?: number
+          id_ejecutivo_owner?: number | null
           id_empresa?: number | null
           id_estado_ubicacion?: number | null
           id_estatus?: number | null
@@ -684,6 +690,13 @@ export type Database = {
           tipo_cliente?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "contactos_id_ejecutivo_owner_fkey"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contactos_id_empresa_fkey"
             columns: ["id_empresa"]
@@ -907,6 +920,7 @@ export type Database = {
           id_categoria: number | null
           id_tipo_calculo: number | null
           id_unidad: number | null
+          mapeo_recurso_osi: string | null
           nombre_item: string
         }
         Insert: {
@@ -916,6 +930,7 @@ export type Database = {
           id_categoria?: number | null
           id_tipo_calculo?: number | null
           id_unidad?: number | null
+          mapeo_recurso_osi?: string | null
           nombre_item: string
         }
         Update: {
@@ -925,6 +940,7 @@ export type Database = {
           id_categoria?: number | null
           id_tipo_calculo?: number | null
           id_unidad?: number | null
+          mapeo_recurso_osi?: string | null
           nombre_item?: string
         }
         Relationships: [
@@ -1265,16 +1281,24 @@ export type Database = {
           fecha_firma_verificacion: string | null
           fecha_inicio_real: string | null
           hora_inicio_servicio: string | null
+          horas_academicas_ejecucion: number | null
           id: number
           id_direccion_ejecucion_real: number | null
           id_direccion_envio_real: number | null
           id_ecc: number
+          id_ecc_origen: number | null
           id_estatus: number | null
           id_presupuesto: number | null
           id_responsable_recepcion: number | null
+          impacto_ecc_delta: number | null
+          impacto_ecc_en: string | null
+          impacto_ecc_pendiente: boolean
+          impacto_ecc_resuelto_por: string | null
           nro_osi_secuencial: string
           observaciones_adicionales_osi: string | null
+          participantes_ejecucion: number | null
           pretenciones_adicionales_osi: string | null
+          sesiones_ejecucion: number | null
           sesiones_programadas: Json
           updated_at: string | null
         }
@@ -1292,16 +1316,24 @@ export type Database = {
           fecha_firma_verificacion?: string | null
           fecha_inicio_real?: string | null
           hora_inicio_servicio?: string | null
+          horas_academicas_ejecucion?: number | null
           id?: number
           id_direccion_ejecucion_real?: number | null
           id_direccion_envio_real?: number | null
           id_ecc: number
+          id_ecc_origen?: number | null
           id_estatus?: number | null
           id_presupuesto?: number | null
           id_responsable_recepcion?: number | null
+          impacto_ecc_delta?: number | null
+          impacto_ecc_en?: string | null
+          impacto_ecc_pendiente?: boolean
+          impacto_ecc_resuelto_por?: string | null
           nro_osi_secuencial: string
           observaciones_adicionales_osi?: string | null
+          participantes_ejecucion?: number | null
           pretenciones_adicionales_osi?: string | null
+          sesiones_ejecucion?: number | null
           sesiones_programadas?: Json
           updated_at?: string | null
         }
@@ -1319,16 +1351,24 @@ export type Database = {
           fecha_firma_verificacion?: string | null
           fecha_inicio_real?: string | null
           hora_inicio_servicio?: string | null
+          horas_academicas_ejecucion?: number | null
           id?: number
           id_direccion_ejecucion_real?: number | null
           id_direccion_envio_real?: number | null
           id_ecc?: number
+          id_ecc_origen?: number | null
           id_estatus?: number | null
           id_presupuesto?: number | null
           id_responsable_recepcion?: number | null
+          impacto_ecc_delta?: number | null
+          impacto_ecc_en?: string | null
+          impacto_ecc_pendiente?: boolean
+          impacto_ecc_resuelto_por?: string | null
           nro_osi_secuencial?: string
           observaciones_adicionales_osi?: string | null
+          participantes_ejecucion?: number | null
           pretenciones_adicionales_osi?: string | null
+          sesiones_ejecucion?: number | null
           sesiones_programadas?: Json
           updated_at?: string | null
         }
@@ -1406,6 +1446,7 @@ export type Database = {
           esta_activo: boolean | null
           fecha_creacion: string | null
           id: number
+          id_ejecutivo_owner: number | null
           id_estado_ubicacion: number | null
           observaciones: string | null
           que_hace_la_empresa: string | null
@@ -1420,6 +1461,7 @@ export type Database = {
           esta_activo?: boolean | null
           fecha_creacion?: string | null
           id?: number
+          id_ejecutivo_owner?: number | null
           id_estado_ubicacion?: number | null
           observaciones?: string | null
           que_hace_la_empresa?: string | null
@@ -1434,6 +1476,7 @@ export type Database = {
           esta_activo?: boolean | null
           fecha_creacion?: string | null
           id?: number
+          id_ejecutivo_owner?: number | null
           id_estado_ubicacion?: number | null
           observaciones?: string | null
           que_hace_la_empresa?: string | null
@@ -1442,6 +1485,13 @@ export type Database = {
           sector_industrial?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "empresas_id_ejecutivo_owner_fkey"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "empresas_id_estado_ubicacion_fkey"
             columns: ["id_estado_ubicacion"]
@@ -2064,6 +2114,7 @@ export type Database = {
           id: number
           id_contacto: number | null
           id_departamento_recibe: number | null
+          id_ejecutivo_owner: number | null
           id_ejecutivo_recibe: number | null
           id_estatus: number | null
           id_origen: number | null
@@ -2074,12 +2125,14 @@ export type Database = {
           raw_empresa: string | null
           raw_nombre_apellido: string | null
           raw_telefono: string | null
+          telefono_ejecutivo: string | null
         }
         Insert: {
           fecha_ingreso?: string | null
           id?: number
           id_contacto?: number | null
           id_departamento_recibe?: number | null
+          id_ejecutivo_owner?: number | null
           id_ejecutivo_recibe?: number | null
           id_estatus?: number | null
           id_origen?: number | null
@@ -2090,12 +2143,14 @@ export type Database = {
           raw_empresa?: string | null
           raw_nombre_apellido?: string | null
           raw_telefono?: string | null
+          telefono_ejecutivo?: string | null
         }
         Update: {
           fecha_ingreso?: string | null
           id?: number
           id_contacto?: number | null
           id_departamento_recibe?: number | null
+          id_ejecutivo_owner?: number | null
           id_ejecutivo_recibe?: number | null
           id_estatus?: number | null
           id_origen?: number | null
@@ -2106,6 +2161,7 @@ export type Database = {
           raw_empresa?: string | null
           raw_nombre_apellido?: string | null
           raw_telefono?: string | null
+          telefono_ejecutivo?: string | null
         }
         Relationships: [
           {
@@ -2120,6 +2176,13 @@ export type Database = {
             columns: ["id_departamento_recibe"]
             isOneToOne: false
             referencedRelation: "departamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_ejecutivo_owner_fkey"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
           {
@@ -2315,11 +2378,14 @@ export type Database = {
           costo_pop: number | null
           costo_traslado: number | null
           created_at: string | null
+          dias_hospedaje_facilitador: number | null
+          dias_logistica_facilitador: number | null
           horas_honorarios_instructor: number | null
           id: number
           id_osi: number
           pop_incluido: boolean | null
           tarifa_hora_honorarios: number | null
+          traslado_externo: number | null
         }
         Insert: {
           costo_bateria?: number | null
@@ -2333,11 +2399,14 @@ export type Database = {
           costo_pop?: number | null
           costo_traslado?: number | null
           created_at?: string | null
+          dias_hospedaje_facilitador?: number | null
+          dias_logistica_facilitador?: number | null
           horas_honorarios_instructor?: number | null
           id?: number
           id_osi: number
           pop_incluido?: boolean | null
           tarifa_hora_honorarios?: number | null
+          traslado_externo?: number | null
         }
         Update: {
           costo_bateria?: number | null
@@ -2351,11 +2420,14 @@ export type Database = {
           costo_pop?: number | null
           costo_traslado?: number | null
           created_at?: string | null
+          dias_hospedaje_facilitador?: number | null
+          dias_logistica_facilitador?: number | null
           horas_honorarios_instructor?: number | null
           id?: number
           id_osi?: number
           pop_incluido?: boolean | null
           tarifa_hora_honorarios?: number | null
+          traslado_externo?: number | null
         }
         Relationships: [
           {
@@ -2367,6 +2439,51 @@ export type Database = {
           },
           {
             foreignKeyName: "osi_recursos_estimados_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_osi"]
+          },
+        ]
+      }
+      osi_sesion: {
+        Row: {
+          created_at: string
+          fecha: string
+          hora_fin: string | null
+          hora_inicio: string | null
+          id: number
+          id_osi: number
+          nro_sesion: number
+        }
+        Insert: {
+          created_at?: string
+          fecha: string
+          hora_fin?: string | null
+          hora_inicio?: string | null
+          id?: number
+          id_osi: number
+          nro_sesion: number
+        }
+        Update: {
+          created_at?: string
+          fecha?: string
+          hora_fin?: string | null
+          hora_inicio?: string | null
+          id?: number
+          id_osi?: number
+          nro_sesion?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "osi_sesion_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "ejecucion_osi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "osi_sesion_id_osi_fkey"
             columns: ["id_osi"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
@@ -2875,29 +2992,37 @@ export type Database = {
           },
         ]
       }
-      roles: {
+      rr_ejecutivos_pool: {
         Row: {
           created_at: string
-          descripcion: string | null
+          esta_activo: boolean
           id: number
-          nombre: string
-          updated_at: string
+          prioridad: number
+          usuario_id: number
         }
         Insert: {
           created_at?: string
-          descripcion?: string | null
+          esta_activo?: boolean
           id?: number
-          nombre: string
-          updated_at?: string
+          prioridad?: number
+          usuario_id: number
         }
         Update: {
           created_at?: string
-          descripcion?: string | null
+          esta_activo?: boolean
           id?: number
-          nombre?: string
-          updated_at?: string
+          prioridad?: number
+          usuario_id?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "rr_ejecutivos_pool_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       servicio_modalidades_permitidas: {
         Row: {
@@ -2933,6 +3058,61 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
             referencedColumns: ["id_servicio"]
+          },
+        ]
+      }
+      suplencias_ejecutivos: {
+        Row: {
+          created_at: string
+          created_by_usuario_id: number | null
+          esta_activa: boolean
+          fecha_fin: string
+          fecha_inicio: string
+          id: number
+          id_ejecutivo_suplente: number
+          id_ejecutivo_titular: number
+        }
+        Insert: {
+          created_at?: string
+          created_by_usuario_id?: number | null
+          esta_activa?: boolean
+          fecha_fin: string
+          fecha_inicio: string
+          id?: number
+          id_ejecutivo_suplente: number
+          id_ejecutivo_titular: number
+        }
+        Update: {
+          created_at?: string
+          created_by_usuario_id?: number | null
+          esta_activa?: boolean
+          fecha_fin?: string
+          fecha_inicio?: string
+          id?: number
+          id_ejecutivo_suplente?: number
+          id_ejecutivo_titular?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suplencias_ejecutivos_created_by_usuario_id_fkey"
+            columns: ["created_by_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suplencias_ejecutivos_id_ejecutivo_suplente_fkey"
+            columns: ["id_ejecutivo_suplente"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suplencias_ejecutivos_id_ejecutivo_titular_fkey"
+            columns: ["id_ejecutivo_titular"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3080,8 +3260,8 @@ export type Database = {
           email_corporativo: string | null
           esta_activo: boolean | null
           id: number
+          id_auth: string | null
           nombre_apellido: string
-          rol: number | null
           telefono: string | null
         }
         Insert: {
@@ -3090,8 +3270,8 @@ export type Database = {
           email_corporativo?: string | null
           esta_activo?: boolean | null
           id?: number
+          id_auth?: string | null
           nombre_apellido: string
-          rol?: number | null
           telefono?: string | null
         }
         Update: {
@@ -3100,8 +3280,8 @@ export type Database = {
           email_corporativo?: string | null
           esta_activo?: boolean | null
           id?: number
+          id_auth?: string | null
           nombre_apellido?: string
-          rol?: number | null
           telefono?: string | null
         }
         Relationships: [
@@ -3110,13 +3290,6 @@ export type Database = {
             columns: ["departamento"]
             isOneToOne: false
             referencedRelation: "departamentos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "usuarios_rol_fkey"
-            columns: ["rol"]
-            isOneToOne: false
-            referencedRelation: "roles"
             referencedColumns: ["id"]
           },
         ]
@@ -3577,7 +3750,10 @@ export type Database = {
           costo_otros: number | null
           costo_pop: number | null
           costo_traslado: number | null
+          dias_hospedaje_facilitador: number | null
+          dias_logistica_facilitador: number | null
           direccion_ejecucion: string | null
+          direccion_ejecucion_real: string | null
           direccion_envio: string | null
           direccion_fiscal: string | null
           ejecutivo_negocios: string | null
@@ -3591,16 +3767,31 @@ export type Database = {
           fecha_firma_verificacion: string | null
           fecha_inicio_real: string | null
           hora_inicio_servicio: string | null
+          horas_academicas_ejecucion: number | null
           horas_academicas_solped: number | null
           horas_honorarios_instructor: number | null
+          id_ciudad_direccion_contrato: number | null
+          id_ciudad_direccion_ejecucion_efectiva: number | null
+          id_direccion_ejecucion_real: number | null
+          id_direccion_ejecucion_solped: number | null
+          id_ecc_actual: number | null
+          id_ecc_origen: number | null
           id_empresa: number | null
+          id_estado_direccion_contrato: number | null
+          id_estado_direccion_ejecucion_efectiva: number | null
           id_estatus: number | null
           id_osi: number | null
           id_servicio: number | null
+          id_trato: number | null
+          impacto_ecc_delta: number | null
+          impacto_ecc_en: string | null
+          impacto_ecc_pendiente: boolean | null
+          impacto_ecc_resuelto_por: string | null
           nombre_empresa: string | null
           nro_osi: string | null
           nro_presupuesto: number | null
           observaciones_totales: string | null
+          participantes_ejecucion: number | null
           participantes_max_solped: number | null
           persona_contacto: string | null
           pop_incluido: boolean | null
@@ -3608,12 +3799,91 @@ export type Database = {
           requiere_audiovisuales: boolean | null
           responsable_recepcion: string | null
           servicio: string | null
+          sesiones_ejecucion: number | null
           sesiones_programadas: Json | null
           sesiones_solped: number | null
           tarifa_hora_honorarios: number | null
           tipo_servicio: string | null
+          traslado_externo: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "direcciones_cliente_id_ciudad_fkey"
+            columns: ["id_ciudad_direccion_contrato"]
+            isOneToOne: false
+            referencedRelation: "cat_ciudades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direcciones_cliente_id_estado_fkey"
+            columns: ["id_estado_direccion_contrato"]
+            isOneToOne: false
+            referencedRelation: "cat_estados_venezuela"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecc_encabezado_id_direccion_ejecucion_solped_fkey"
+            columns: ["id_direccion_ejecucion_solped"]
+            isOneToOne: false
+            referencedRelation: "direcciones_cliente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecc_encabezado_id_trato_fkey"
+            columns: ["id_trato"]
+            isOneToOne: false
+            referencedRelation: "tratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecc_encabezado_id_trato_fkey"
+            columns: ["id_trato"]
+            isOneToOne: false
+            referencedRelation: "v_ecc_preview_context"
+            referencedColumns: ["trato_table_id"]
+          },
+          {
+            foreignKeyName: "ecc_encabezado_id_trato_fkey"
+            columns: ["id_trato"]
+            isOneToOne: false
+            referencedRelation: "v_funnel_comercial_detallado"
+            referencedColumns: ["trato_id"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_id_direccion_ejecucion_real_fkey"
+            columns: ["id_direccion_ejecucion_real"]
+            isOneToOne: false
+            referencedRelation: "direcciones_cliente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_id_ecc_fkey"
+            columns: ["id_ecc_actual"]
+            isOneToOne: false
+            referencedRelation: "ecc_encabezado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_id_ecc_fkey"
+            columns: ["id_ecc_actual"]
+            isOneToOne: false
+            referencedRelation: "v_ecc_preview_context"
+            referencedColumns: ["ecc_id"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_id_ecc_fkey"
+            columns: ["id_ecc_actual"]
+            isOneToOne: false
+            referencedRelation: "v_ecc_resumen"
+            referencedColumns: ["id_ecc"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_id_ecc_fkey"
+            columns: ["id_ecc_actual"]
+            isOneToOne: false
+            referencedRelation: "v_funnel_comercial_detallado"
+            referencedColumns: ["ecc_id"]
+          },
           {
             foreignKeyName: "ejecucion_osi_id_estatus_fkey"
             columns: ["id_estatus"]
@@ -3625,6 +3895,13 @@ export type Database = {
       }
     }
     Functions: {
+      can_mutate_contacto: { Args: { p_contacto_id: number }; Returns: boolean }
+      can_mutate_empresa: { Args: { p_empresa_id: number }; Returns: boolean }
+      can_mutate_marketing_lead: {
+        Args: { p_lead_id: number }
+        Returns: boolean
+      }
+      can_mutate_trato: { Args: { p_trato_id: number }; Returns: boolean }
       fn_generar_presupuesto_desde_ecc:
         | {
             Args: {
@@ -3650,6 +3927,7 @@ export type Database = {
             }
             Returns: number
           }
+      fn_get_next_lead_owner_round_robin: { Args: never; Returns: number }
       fn_mark_cliente_from_trato: {
         Args: { p_trato_id: number }
         Returns: undefined
@@ -3698,6 +3976,76 @@ export type Database = {
               tipo_registro: string
             }[]
           }
+      fn_sync_osi_dates_from_sessions: {
+        Args: { p_id_osi: number }
+        Returns: undefined
+      }
+      get_my_app_context: { Args: { target_app_slug: string }; Returns: Json }
+      get_my_notifications_cursor: {
+        Args: {
+          p_app_slug?: string
+          p_before?: string
+          p_event_key?: string
+          p_limit?: number
+          p_search?: string
+        }
+        Returns: {
+          app_slug: string
+          body: string
+          created_at: string
+          event_key: string
+          id: string
+          link_path: string
+          metadata: Json
+          priority: number
+          read_at: string
+          title: string
+        }[]
+      }
+      get_pending_high_priority_email: {
+        Args: { p_limit?: number; p_older_than?: string }
+        Returns: {
+          body: string
+          created_at: string
+          inbox_id: string
+          link_path: string
+          recipient_id_auth: string
+          title: string
+        }[]
+      }
+      get_user_permissions_by_app: {
+        Args: { p_usuario_id: number }
+        Returns: {
+          app_slug: string
+          permission_slug: string
+        }[]
+      }
+      get_user_roles_by_app: {
+        Args: { p_usuario_id: number }
+        Returns: {
+          app_slug: string
+          role_slug: string
+        }[]
+      }
+      is_admin_or_superadmin: { Args: never; Returns: boolean }
+      is_suplente_activo: {
+        Args: { p_suplente_id: number; p_titular_id: number }
+        Returns: boolean
+      }
+      mark_all_read: { Args: never; Returns: number }
+      mark_notification_read: {
+        Args: { p_notification_id: string }
+        Returns: boolean
+      }
+      notify_osi_change_saved: {
+        Args: {
+          p_change_type: string
+          p_dedupe_key?: string
+          p_id_osi: number
+          p_summary: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       firma_tipo: "facilitador" | "representante_sha"
