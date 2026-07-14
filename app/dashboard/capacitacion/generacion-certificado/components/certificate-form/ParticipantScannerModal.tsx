@@ -16,7 +16,7 @@ import {
   AlertCircle,
   Search,
 } from "lucide-react";
-import { SeniatVerificationModal } from "./SeniatVerificationModal";
+import { SeniatVerificationPopover } from "./SeniatVerificationPopover";
 
 interface ParticipantScannerModalProps {
   isOpen: boolean;
@@ -653,7 +653,7 @@ export const ParticipantScannerModal = ({
                                 max="20"
                               />
                             </td>
-                            <td className="px-4 py-2 text-center">
+                            <td className="px-4 py-2 text-center relative">
                               {verificationResults.has(participant.idNumber) ? (
                                 <div className="flex flex-col items-center gap-1">
                                   {verificationResults.get(participant.idNumber)
@@ -687,6 +687,21 @@ export const ParticipantScannerModal = ({
                                   <Search className="h-3 w-3 mr-1" />
                                   Verificar
                                 </Button>
+                              )}
+
+                              {activeVerificationIndex === index && (
+                                <SeniatVerificationPopover
+                                  participant={participant}
+                                  sessionId={seniatSessionId}
+                                  initialCaptchaImage={
+                                    initialCaptchaImage || undefined
+                                  }
+                                  onVerify={handleVerificationComplete}
+                                  onClose={() =>
+                                    setActiveVerificationIndex(null)
+                                  }
+                                  onSessionRestart={startSeniatSession}
+                                />
                               )}
                             </td>
                             <td className="px-4 py-2">
@@ -793,20 +808,6 @@ export const ParticipantScannerModal = ({
             </div>
           </div>
         )}
-
-        {/* SENIAT Verification Modal */}
-        {activeVerificationIndex !== null &&
-          extractedParticipants[activeVerificationIndex] && (
-            <SeniatVerificationModal
-              isOpen={activeVerificationIndex !== null}
-              participant={extractedParticipants[activeVerificationIndex]}
-              sessionId={seniatSessionId}
-              initialCaptchaImage={initialCaptchaImage || undefined}
-              onVerify={handleVerificationComplete}
-              onClose={() => setActiveVerificationIndex(null)}
-              onSessionRestart={startSeniatSession}
-            />
-          )}
       </div>
     </div>
   );
