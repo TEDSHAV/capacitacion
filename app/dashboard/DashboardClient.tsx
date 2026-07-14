@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { memo, useState, useEffect } from "react";
 import { DashboardClientProps, StatCard, ActivityItem } from "@/types/dashboard";
+import { Users, CheckCircle, BookOpen, Clock, TrendingUp, TrendingDown, BarChart3, Settings, Megaphone, FileText } from "lucide-react";
 
 const DashboardClient = ({
   user,
@@ -22,28 +23,28 @@ const DashboardClient = ({
           title: "Total Clientes",
           value: "1,248",
           change: 12.5,
-          icon: "👥",
+          icon: <Users className="w-6 h-6" />,
           color: "blue"
         },
         {
           title: "OSIs Activas", 
           value: "342",
           change: 8.2,
-          icon: "✅",
+          icon: <CheckCircle className="w-6 h-6" />,
           color: "green"
         },
         {
           title: "Cursos Completados",
           value: "89",
           change: -2.3,
-          icon: "📚",
+          icon: <BookOpen className="w-6 h-6" />,
           color: "purple"
         },
         {
           title: "Tareas Pendientes",
           value: "27",
           change: -15.7,
-          icon: "⏰",
+          icon: <Clock className="w-6 h-6" />,
           color: "yellow"
         }
       ]);
@@ -137,10 +138,11 @@ const DashboardClient = ({
                       <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                     </div>
                   </div>
-                  <div className={`text-sm font-medium ${
+                  <div className={`text-sm font-medium flex items-center ${
                     stat.change > 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {stat.change > 0 ? '↑' : '↓'} {Math.abs(stat.change)}%
+                    {stat.change > 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+                    {Math.abs(stat.change)}%
                   </div>
                 </div>
               </div>
@@ -159,9 +161,7 @@ const DashboardClient = ({
                   className="flex items-center p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg hover:from-blue-100 hover:to-blue-200 transition-all duration-200 text-left group"
                 >
                   <div className="flex-shrink-0 bg-blue-500 rounded-md p-2 mr-3 group-hover:bg-blue-600 transition-colors">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
+                    <BookOpen className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h3 className="font-medium text-gray-900">Gestionar Cursos</h3>
@@ -174,9 +174,7 @@ const DashboardClient = ({
                   className="flex items-center p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-lg hover:from-green-100 hover:to-green-200 transition-all duration-200 text-left group"
                 >
                   <div className="flex-shrink-0 bg-green-500 rounded-md p-2 mr-3 group-hover:bg-green-600 transition-colors">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
+                    <Settings className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h3 className="font-medium text-gray-900">Administración</h3>
@@ -189,9 +187,7 @@ const DashboardClient = ({
                   className="flex items-center p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg hover:from-purple-100 hover:to-purple-200 transition-all duration-200 text-left group"
                 >
                   <div className="flex-shrink-0 bg-purple-500 rounded-md p-2 mr-3 group-hover:bg-purple-600 transition-colors">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                    </svg>
+                    <Megaphone className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h3 className="font-medium text-gray-900">Marketing</h3>
@@ -204,9 +200,7 @@ const DashboardClient = ({
                   className="flex items-center p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg hover:from-yellow-100 hover:to-yellow-200 transition-all duration-200 text-left group"
                 >
                   <div className="flex-shrink-0 bg-yellow-500 rounded-md p-2 mr-3 group-hover:bg-yellow-600 transition-colors">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
+                    <FileText className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h3 className="font-medium text-gray-900">Reportes</h3>
@@ -221,7 +215,7 @@ const DashboardClient = ({
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Actividad Reciente</h2>
               <div className="h-64 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-4xl mb-2">📊</div>
+                  <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                   <p className="text-gray-600">Gráfico de actividad en desarrollo</p>
                   <p className="text-sm text-gray-500 mt-1">Próximamente disponible</p>
                 </div>
@@ -251,8 +245,8 @@ const DashboardClient = ({
                         activity.type === 'client' ? 'bg-green-100' :
                         'bg-yellow-100'
                       }`}>
-                        {activity.type === 'course' ? '📚' :
-                         activity.type === 'client' ? '👥' : '✅'}
+                        {activity.type === 'course' ? <BookOpen className="w-4 h-4 text-blue-600" /> :
+                         activity.type === 'client' ? <Users className="w-4 h-4 text-green-600" /> : <CheckCircle className="w-4 h-4 text-yellow-600" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">{activity.description}</p>

@@ -48,7 +48,7 @@ const Navbar = () => {
   return (
     <nav className="bg-white shadow-md z-50">
       <div className="max-w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           {/* Left side - Navigation buttons */}
           <div className="flex items-center space-x-4">
             {/* Back button - only shown when user is authenticated */}
@@ -65,8 +65,15 @@ const Navbar = () => {
             )}
           </div>
           
-          {/* Center - Empty space since logo is now in sidebar */}
-          <div className="flex-1"></div>
+          {/* Center - Logo */}
+          <div className="flex-1 flex items-center justify-center">
+            <img 
+              src="/logo.png" 
+              alt="Logo de la Empresa" 
+              className="h-10 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
+              onClick={() => router.push('/dashboard')}
+            />
+          </div>
           
           {/* Right side - User menu */}
           <div className="flex items-center space-x-6">

@@ -46,14 +46,14 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
     <div className="w-64 bg-gray-900 text-white h-screen flex flex-col">
       {/* Logo Section */}
       <div className="p-6 border-b border-gray-800">
-        <div className="flex items-center justify-center mb-4">
+        {/* Favicon-style logo indicator */}
+        <div className="flex items-center justify-center">
           <Image 
-            src="/logo-dark-theme.png" 
-            alt="Logo de la Empresa" 
-            width={120} 
-            height={120}
-            loading='lazy'
-            className="h-12 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
+            src="/favicon.ico" 
+            alt="Favicon" 
+            width={40}
+            height={40}
+            className="object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
             onClick={() => router.push('/dashboard')}
           />
         </div>

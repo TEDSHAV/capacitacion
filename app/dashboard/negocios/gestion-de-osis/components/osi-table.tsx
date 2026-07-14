@@ -1,6 +1,7 @@
 'use client'
 
 import { OSI } from '@/types'
+import { ChevronRight } from 'lucide-react'
 
 interface OSITableProps {
   osis: OSI[]
@@ -91,7 +92,7 @@ export default function OSITable({ osis, onOSIClick, getStatusColor }: OSITableP
 
               {/* Status */}
               <div className="col-span-1">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(osi.estado)}`}>
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(osi.estado || '')}`}>
                   {osi.estado === 'active' || osi.estado === 'activo' ? 'Activa' : 
                    osi.estado === 'pendiente' ? 'Pendiente' : 'Cerrada'}
                 </span>
@@ -104,12 +105,10 @@ export default function OSITable({ osis, onOSIClick, getStatusColor }: OSITableP
                     e.stopPropagation()
                     onOSIClick(osi)
                   }}
-                  className="text-blue-600 hover:text-blue-900 text-sm font-medium inline-flex items-center"
+                  className="inline-flex items-center px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-100 hover:border-blue-300 hover:text-blue-800 transition-colors duration-200"
                 >
                   Ver detalles
-                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  <ChevronRight className="w-4 h-4 ml-1" />
                 </button>
               </div>
             </div>

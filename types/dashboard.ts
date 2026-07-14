@@ -1,3 +1,5 @@
+import React from 'react';
+
 export interface Department {
   id: string;
   nombre: string;
@@ -23,7 +25,7 @@ export interface StatCard {
   title: string;
   value: string;
   change: number;
-  icon: string;
+  icon: React.ReactNode;
   color: string;
 }
 
