@@ -1,30 +1,5 @@
-'use client'
+import { redirect } from 'next/navigation'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-
-const SHELL_LOGIN_URL = `${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`
-
-const Home = () => {
-  const router = useRouter()
-
-  useEffect(() => {
-    const user = localStorage.getItem('user')
-    if (user) {
-      router.push('/dashboard')
-    } else {
-      window.location.href = SHELL_LOGIN_URL
-    }
-  }, [router])
-
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Redirecting...</h1>
-        <p className="mt-2 text-gray-600">Please wait while we direct you to the right page.</p>
-      </div>
-    </div>
-  )
+export default function Home() {
+  redirect('/dashboard')
 }
-
-export default Home
