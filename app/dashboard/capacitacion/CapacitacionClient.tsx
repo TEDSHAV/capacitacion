@@ -2,16 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-interface Company {
-  id: string;
-  nombre: string;
-}
-
-interface CapacitacionClientProps {
-  user: any;
-  companies: Company[];
-}
+import { Company, CapacitacionClientProps } from "./types";
 
 export default function CapacitacionClient({
   user,

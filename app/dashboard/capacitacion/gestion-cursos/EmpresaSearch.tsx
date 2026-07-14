@@ -1,14 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-
-interface Empresa {
-  id: string;
-  razon_social: string;
-  rif: string;
-  direccion_fiscal: string;
-  codigo_cliente: string;
-}
+import { Empresa } from "./types";
 
 interface EmpresaSearchProps {
   empresas: Empresa[];

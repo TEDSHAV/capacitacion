@@ -1,13 +1,4 @@
-interface Curso {
-  id: string;
-  nombre: string;
-  contenido_curso: string;
-  cliente_asociado?: string;
-  created_at: string;
-  empresas?: {
-    razon_social: string;
-  };
-}
+import { Curso } from "./types";
 
 interface CourseActionsProps {
   curso: Curso;

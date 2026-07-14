@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import GestionCursosClient from './GestionCursosClient'
+import { Empresa, Curso } from './types'
 
 export default async function GestionCursosPage() {
   // Check authentication
@@ -12,13 +13,13 @@ export default async function GestionCursosPage() {
   }
 
   // Fetch companies for dropdown
-  const { data: companies } = await supabase
+  const { data: companies }: { data: Empresa[] | null } = await supabase
     .from("empresas")
     .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
     .order("razon_social")
 
   // Fetch existing courses from catalogo_servicios where tipo_servicio = 1
-  const { data: courses } = await supabase
+  const { data: courses }: { data: Curso[] | null } = await supabase
     .from("catalogo_servicios")
     .select(`
       *,

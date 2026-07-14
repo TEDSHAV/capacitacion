@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import CapacitacionClient from './CapacitacionClient'
+import { Company } from './types'
 
 export default async function CapacitacionPage() {
   // Check authentication
@@ -12,7 +13,10 @@ export default async function CapacitacionPage() {
   }
 
   // Fetch companies for dropdown (for course binding)
-  const { data: companies } = await supabase.from("empresas").select("*").order("nombre")
+  const { data: companies }: { data: Company[] | null } = await supabase
+    .from("empresas")
+    .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
+    .order("razon_social")
 
   return <CapacitacionClient user={user} companies={companies || []} />
 }

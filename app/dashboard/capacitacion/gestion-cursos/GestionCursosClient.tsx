@@ -6,32 +6,7 @@ import { createCurso, updateCurso, deleteCurso, duplicateCurso } from "./actions
 import CourseActions from "./CourseActions";
 import CreateCourseButton from "./CreateCourseButton";
 import EmpresaSearch from "./EmpresaSearch";
-
-interface Empresa {
-  id: string;
-  razon_social: string;
-  rif: string;
-  direccion_fiscal: string;
-  codigo_cliente: string;
-}
-
-interface Curso {
-  id: string;
-  nombre: string;
-  contenido_curso: string;
-  cliente_asociado?: string;
-  tipo_servicio?: number;
-  created_at: string;
-  empresas?: {
-    razon_social: string;
-  };
-}
-
-interface GestionCursosClientProps {
-  user: any;
-  empresas: Empresa[];
-  cursos: Curso[] | undefined;
-}
+import { Empresa, Curso, GestionCursosClientProps } from "./types";
 
 export default function GestionCursosClient({
   user,
