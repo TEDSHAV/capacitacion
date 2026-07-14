@@ -1366,6 +1366,7 @@ export interface FacilitadorReportItem {
   totalCerts: number;
   totalHours: number;
   uniqueCourses: number;
+  courseNames: string[];
   avgScore: number;
   lastActivity: string | null;
 }

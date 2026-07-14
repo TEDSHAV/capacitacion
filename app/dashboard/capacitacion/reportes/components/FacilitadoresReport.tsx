@@ -62,6 +62,19 @@ export default function FacilitadoresReport({
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "inactive"
   >("all");
+  const [expandedCourses, setExpandedCourses] = useState<Set<number>>(new Set());
+
+  const toggleCourseExpansion = (facilitatorId: number) => {
+    setExpandedCourses(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(facilitatorId)) {
+        newSet.delete(facilitatorId);
+      } else {
+        newSet.add(facilitatorId);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -325,7 +338,7 @@ export default function FacilitadoresReport({
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
                     Horas
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
                     Cursos
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
@@ -368,10 +381,32 @@ export default function FacilitadoresReport({
                         {f.totalHours > 0 ? `${f.totalHours}h` : "—"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="text-xs text-gray-600">
-                        {f.uniqueCourses}
-                      </span>
+                    <td className="px-4 py-3">
+                      <div className="max-w-xs">
+                        {f.courseNames && f.courseNames.length > 0 ? (
+                          <>
+                            <span className="text-xs text-gray-600">
+                              {expandedCourses.has(f.id) 
+                                ? f.courseNames.join(', ')
+                                : f.courseNames.slice(0, 2).join(', ')
+                              }
+                            </span>
+                            {f.courseNames.length > 2 && (
+                              <button
+                                onClick={() => toggleCourseExpansion(f.id)}
+                                className="text-xs text-sky-600 hover:text-sky-800 ml-1 underline cursor-pointer"
+                              >
+                                {expandedCourses.has(f.id) 
+                                  ? 'mostrar menos'
+                                  : `+${f.courseNames.length - 2} más`
+                                }
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       {f.avgScore > 0 ? (

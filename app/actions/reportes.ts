@@ -82,7 +82,7 @@ export async function getOverviewMetrics(
       .from("certificados")
       .select(
         `id, is_active, fecha_emision, calificacion,
-         id_curso, id_facilitador, id_participante, id_empresa, id_estado,
+         id_curso, id_facilitador, id_participante, id_empresa, id_estado, nro_osi,
          facilitadores(id, nombre_apellido),
          empresas(id, razon_social)`,
       )
@@ -92,11 +92,15 @@ export async function getOverviewMetrics(
     if (dateTo) query = query.lte("fecha_emision", dateTo);
     if (stateId) query = query.eq("id_estado", stateId);
 
-    const [{ data: certs, error }, { data: servicios }] = await Promise.all([
+    const [{ data: certs, error }, { data: servicios }, { data: osiData }] = await Promise.all([
       query,
       supabase
         .from("catalogo_servicios")
         .select("id, nombre, carga_horaria_std"),
+      supabase
+        .from("v_osi_formato_completo")
+        .select("id_osi, nro_osi, horas_academicas_ejecucion")
+        .limit(5000),
     ]);
 
     if (error) return { error: error.message, data: null };
@@ -106,6 +110,11 @@ export async function getOverviewMetrics(
 
     // Create a map of servicios for quick lookup
     const serviciosMap = new Map((servicios || []).map((s: any) => [s.id, s]));
+
+    // Create OSI map for hours deduplication
+    const osiMap = new Map(
+      (osiData || []).map((osi: any) => [osi.nro_osi?.toString(), osi]),
+    );
 
     const empty: OverviewMetrics = {
       totalCertificates: 0,
@@ -144,6 +153,9 @@ export async function getOverviewMetrics(
     const companyMap = new Map<number, { name: string; count: number }>();
     const monthMap = new Map<string, number>();
 
+    // Track processed OSIs to avoid double-counting hours
+    const processedOSIs = new Set<string>();
+
     certs.forEach((cert: any) => {
       if (cert.is_active) activeCerts++;
 
@@ -152,10 +164,14 @@ export async function getOverviewMetrics(
         scoreCount++;
       }
 
-      // Note: OverviewMetrics uses carga_horaria_std directly for performance
-      // For consistency with FacilitadoresReport, we could fetch OSI data and use calculateHoursForCertificate()
-      const servicio = serviciosMap.get(cert.id_curso);
-      totalHours += servicio?.carga_horaria_std || 0;
+      // Use OSI deduplication for hours calculation (consistent with FacilitadoresReport)
+      const osiId = cert.nro_osi?.toString();
+      if (!processedOSIs.has(osiId)) {
+        processedOSIs.add(osiId);
+        const osiData = osiMap.get(osiId);
+        const hours = calculateHoursForCertificate(cert, osiData, serviciosMap);
+        totalHours += hours || 0;
+      }
 
       if (cert.fecha_emision) {
         const d = new Date(cert.fecha_emision + "T12:00:00");
@@ -267,7 +283,7 @@ export async function getCursosReport(
     let query = supabase
       .from("certificados")
       .select(
-        `id, fecha_emision, calificacion, id_curso, id_facilitador, id_estado,
+        `id, fecha_emision, calificacion, id_curso, id_facilitador, id_estado, nro_osi,
          facilitadores(id, nombre_apellido)`,
       )
       .not("id_curso", "is", null)
@@ -277,11 +293,15 @@ export async function getCursosReport(
     if (dateTo) query = query.lte("fecha_emision", dateTo);
     if (stateId) query = query.eq("id_estado", stateId);
 
-    const [{ data: certs, error }, { data: servicios }] = await Promise.all([
+    const [{ data: certs, error }, { data: servicios }, { data: osiData }] = await Promise.all([
       query,
       supabase
         .from("catalogo_servicios")
         .select("id, nombre, carga_horaria_std"),
+      supabase
+        .from("v_osi_formato_completo")
+        .select("id_osi, nro_osi, horas_academicas_ejecucion")
+        .limit(5000),
     ]);
 
     if (error) return { error: error.message, data: [] };
@@ -292,6 +312,14 @@ export async function getCursosReport(
     // Create a map of servicios for quick lookup
     const serviciosMap = new Map((servicios || []).map((s: any) => [s.id, s]));
 
+    // Create OSI map for hours deduplication
+    const osiMap = new Map(
+      (osiData || []).map((osi: any) => [osi.nro_osi?.toString(), osi]),
+    );
+
+    // Use global OSI deduplication (consistent with Vista General)
+    const processedOSIs = new Set<string>();
+
     const courseMap = new Map<
       number,
       {
@@ -301,6 +329,7 @@ export async function getCursosReport(
         totalCerts: number;
         totalScore: number;
         scoreCount: number;
+        totalHours: number;
         facilitadores: Map<
           number,
           { id: number; nombre: string; certs: number }
@@ -322,6 +351,7 @@ export async function getCursosReport(
           totalCerts: 0,
           totalScore: 0,
           scoreCount: 0,
+          totalHours: 0,
           facilitadores: new Map(),
           lastActivity: null,
         });
@@ -329,6 +359,16 @@ export async function getCursosReport(
 
       const course = courseMap.get(cid)!;
       course.totalCerts++;
+      
+      // Use global OSI deduplication for hours calculation (consistent with Vista General)
+      const osiId = cert.nro_osi?.toString();
+      if (osiId && !processedOSIs.has(osiId)) {
+        processedOSIs.add(osiId);
+        const osiData = osiMap.get(osiId);
+        const hours = calculateHoursForCertificate(cert, osiData, serviciosMap);
+        course.totalHours += hours || 0;
+      }
+      
       if (cert.calificacion != null) {
         course.totalScore += cert.calificacion;
         course.scoreCount++;
@@ -360,7 +400,7 @@ export async function getCursosReport(
           c.scoreCount > 0
             ? parseFloat((c.totalScore / c.scoreCount).toFixed(1))
             : 0,
-        totalHours: c.horas_estimadas * c.totalCerts,
+        totalHours: c.totalHours,
         facilitadoresCount: c.facilitadores.size,
         facilitadores: Array.from(c.facilitadores.values()).sort(
           (a, b) => b.certs - a.certs,
@@ -429,7 +469,7 @@ export async function getFacilitadoresReport(
           .select("id, nombre_estado")
           .order("nombre_estado"),
 
-        supabase.from("catalogo_servicios").select("id, carga_horaria_std"),
+        supabase.from("catalogo_servicios").select("id, nombre, carga_horaria_std"),
       ]);
 
     if (certsRes.error) return { error: certsRes.error.message, data: null };
@@ -462,6 +502,7 @@ export async function getFacilitadoresReport(
         scoreCount: number;
         totalHours: number;
         uniqueCourses: Set<number>;
+        courseNames: Set<string>;
         lastActivity: string | null;
       }
     >();
@@ -477,6 +518,7 @@ export async function getFacilitadoresReport(
           scoreCount: 0,
           totalHours: 0,
           uniqueCourses: new Set(),
+          courseNames: new Set(),
           lastActivity: null,
         });
         
@@ -505,7 +547,14 @@ export async function getFacilitadoresReport(
         s.totalScore += cert.calificacion;
         s.scoreCount++;
       }
-      if (cert.id_curso) s.uniqueCourses.add(cert.id_curso);
+      if (cert.id_curso) {
+        s.uniqueCourses.add(cert.id_curso);
+        // Also collect course name
+        const servicio = serviciosMap.get(cert.id_curso);
+        if (servicio?.nombre) {
+          s.courseNames.add(servicio.nombre);
+        }
+      }
       if (
         cert.fecha_emision &&
         (!s.lastActivity || cert.fecha_emision > s.lastActivity)
@@ -528,6 +577,7 @@ export async function getFacilitadoresReport(
           totalCerts: s?.totalCerts || 0,
           totalHours: s?.totalHours || 0,
           uniqueCourses: s?.uniqueCourses.size || 0,
+          courseNames: s?.courseNames ? Array.from(s.courseNames) : [],
           avgScore:
             s && s.scoreCount > 0
               ? parseFloat((s.totalScore / s.scoreCount).toFixed(1))
