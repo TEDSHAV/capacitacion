@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState, useCallback, memo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { User } from '@/types/dashboard'
+import Image from 'next/image'
 
 const Navbar = () => {
   const router = useRouter()
@@ -67,10 +68,12 @@ const Navbar = () => {
           
           {/* Center - Logo */}
           <div className="flex-1 flex items-center justify-center">
-            <img 
-              src="/logo.png" 
+            <Image 
+              src="/favicon.ico" 
               alt="Logo de la Empresa" 
-              className="h-13 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
+              width={56}
+              height={56}
+              className="object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
               onClick={() => router.push('/dashboard')}
             />
           </div>

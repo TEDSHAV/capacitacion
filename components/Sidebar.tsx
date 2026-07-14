@@ -4,11 +4,13 @@ import { useRouter, usePathname } from "next/navigation";
 import { useCallback, memo, useState } from "react";
 import Image from "next/image";
 import { Department, SidebarProps } from "@/types/dashboard";
+import { ChevronLeft, ChevronRight, Home, Users, FileText, Settings } from "lucide-react";
 
 const Sidebar = ({ departamentos }: SidebarProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const [expandedDepartment, setExpandedDepartment] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Memoize department click handler
   const handleDepartmentClick = useCallback((nombreDepartamento: string) => {
@@ -43,39 +45,70 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
   }, [pathname]);
 
   return (
-    <div className="w-64 bg-gray-900 text-white h-screen flex flex-col">
+    <div className={`bg-gray-900 text-white h-screen flex flex-col transition-all duration-300 ${
+      isCollapsed ? 'w-16' : 'w-64'
+    }`}>
       {/* Logo Section */}
-      <div className="p-6 border-b border-gray-800">
-        {/* Favicon-style logo indicator */}
-        <div className="flex items-center justify-center">
-          <Image 
-            src="/favicon.ico" 
-            alt="Favicon" 
-            width={40}
-            height={40}
-            className="object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
-            onClick={() => router.push('/dashboard')}
-          />
+      <div className={`p-4 border-b border-gray-800 ${
+        isCollapsed ? 'flex justify-center' : ''
+      }`}>
+        <div className={`flex items-center ${
+          isCollapsed ? 'justify-center' : 'justify-between'
+        }`}>
+          {/* Logo */}
+          <div className={`flex items-center justify-center ${
+            isCollapsed ? '' : 'flex-1'
+          }`}>
+            <Image 
+              src="/logo-dark-theme.png" 
+              alt="Logo de SHA de Venezuela" 
+              width={isCollapsed ? 73 : 125}
+              height={isCollapsed ? 73 : 125}
+              className="object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
+              onClick={() => router.push('/dashboard')}
+            />
+          </div>
+          
+          {/* Toggle button - only show when not collapsed */}
+          {!isCollapsed && (
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-2 rounded-lg hover:bg-gray-800 transition-colors duration-200"
+              title="Contraer sidebar"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
         </div>
+        
+        {/* Toggle button for collapsed state */}
+        {isCollapsed && (
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="w-full p-2 rounded-lg hover:bg-gray-800 transition-colors duration-200 flex justify-center mt-2"
+            title="Expandir sidebar"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
       
       {/* Navigation Section */}
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className={`flex-1 overflow-y-auto ${
+        isCollapsed ? 'p-2' : 'p-6'
+      }`}>
         {/* Dashboard Home Link */}
         <button
           onClick={() => router.push('/dashboard')}
-          className={`w-full text-left px-4 py-3 rounded-lg mb-2 transition-colors duration-200 cursor-pointer ${
+          className={`w-full text-left rounded-lg mb-2 transition-colors duration-200 cursor-pointer flex items-center ${
             pathname === '/dashboard' 
               ? 'bg-blue-600 text-white' 
               : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-          }`}
+          } ${isCollapsed ? 'p-3 justify-center' : 'px-4 py-3'}`}
+          title={isCollapsed ? "Inicio" : ""}
         >
-          <div className="flex items-center space-x-3">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span>Inicio</span>
-          </div>
+          <Home className="w-5 h-5 flex-shrink-0" />
+          {!isCollapsed && <span className="ml-3">Inicio</span>}
         </button>
 
         {/* Department Links */}
@@ -88,31 +121,44 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
             return (
               <div key={department.id} className="mb-2">
                 <button
-                  onClick={() => handleDepartmentClick(department.nombre)}
-                  className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 cursor-pointer ${
+                  onClick={() => {
+                    if (!isCollapsed) {
+                      handleDepartmentClick(department.nombre);
+                    } else {
+                      router.push(`/dashboard/${department.nombre}`);
+                    }
+                  }}
+                  className={`w-full text-left rounded-lg transition-all duration-200 cursor-pointer flex items-center ${
                     isActive 
                       ? 'bg-blue-600 text-white shadow-lg' 
                       : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-                  }`}
+                  } ${isCollapsed ? 'p-3 justify-center' : 'px-4 py-3'}`}
+                  title={isCollapsed ? department.nombre : ""}
                 >
-                  <div className="flex items-center space-x-3">
-                    <span className="font-medium capitalize">{department.nombre}</span>
-                    {/* Add chevron icon to indicate expand/collapse */}
-                    <svg 
-                      className={`w-4 h-4 transition-transform duration-200 ${
+                  {/* Icon based on department name */}
+                  <div className="flex-shrink-0">
+                    {department.nombre === 'capacitacion' ? (
+                      <FileText className="w-5 h-5" />
+                    ) : department.nombre === 'negocios' ? (
+                      <Users className="w-5 h-5" />
+                    ) : (
+                      <Settings className="w-5 h-5" />
+                    )}
+                  </div>
+                  {!isCollapsed && (
+                    <span className="ml-3 font-medium capitalize">{department.nombre}</span>
+                  )}
+                  {!isCollapsed && departmentSubmodules.length > 0 && (
+                    <ChevronRight 
+                      className={`w-4 h-4 ml-auto transition-transform duration-200 ${
                         isExpanded ? 'rotate-90' : ''
                       }`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
+                    />
+                  )}
                 </button>
                 
-                {/* Show submodules only when department is expanded */}
-                {isExpanded && departmentSubmodules.length > 0 && (
+                {/* Show submodules only when department is expanded and sidebar is not collapsed */}
+                {!isCollapsed && isExpanded && departmentSubmodules.length > 0 && (
                   <div className="ml-8 mt-2 space-y-1">
                     {departmentSubmodules.map((submodule, index) => (
                       <button
