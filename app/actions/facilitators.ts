@@ -17,7 +17,8 @@ export interface CertificateFacilitator {
     id: number;
     representante_sha: string;
     firma: string;
-    url_imagen?: string;
+    url_imagen?: string; // Legacy field, kept for backward compatibility
+    imagen_base64?: string; // New field for base64 storage
   };
 }
 

@@ -180,11 +180,23 @@ export const SignatureListOptimized = ({
                 className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
               >
                 <div className="aspect-w-4 aspect-h-3 mb-3">
-                  <img
-                    src={item.signature.url_imagen}
-                    alt={`Firma de ${item.nombre_apellido}`}
-                    className="w-full h-32 object-contain border border-gray-200 rounded bg-white"
-                  />
+                  {item.signature.imagen_base64 ? (
+                    <img
+                      src={`data:image/png;base64,${item.signature.imagen_base64}`}
+                      alt={`Firma de ${item.nombre_apellido}`}
+                      className="w-full h-32 object-contain border border-gray-200 rounded bg-white"
+                    />
+                  ) : item.signature.url_imagen ? (
+                    <img
+                      src={item.signature.url_imagen}
+                      alt={`Firma de ${item.nombre_apellido}`}
+                      className="w-full h-32 object-contain border border-gray-200 rounded bg-white"
+                    />
+                  ) : (
+                    <div className="w-full h-32 flex items-center justify-center border border-gray-200 rounded bg-gray-100 text-gray-400 text-sm">
+                      Sin imagen
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <p className="font-medium text-gray-900">
@@ -225,11 +237,23 @@ export const SignatureListOptimized = ({
                 className="border border-green-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-green-50"
               >
                 <div className="aspect-w-4 aspect-h-3 mb-3">
-                  <img
-                    src={signature.url_imagen}
-                    alt={`Firma de ${signature.nombre}`}
-                    className="w-full h-32 object-contain border border-gray-200 rounded bg-white"
-                  />
+                  {signature.imagen_base64 ? (
+                    <img
+                      src={`data:image/png;base64,${signature.imagen_base64}`}
+                      alt={`Firma de ${signature.nombre}`}
+                      className="w-full h-32 object-contain border border-gray-200 rounded bg-white"
+                    />
+                  ) : signature.url_imagen ? (
+                    <img
+                      src={signature.url_imagen}
+                      alt={`Firma de ${signature.nombre}`}
+                      className="w-full h-32 object-contain border border-gray-200 rounded bg-white"
+                    />
+                  ) : (
+                    <div className="w-full h-32 flex items-center justify-center border border-gray-200 rounded bg-gray-100 text-gray-400 text-sm">
+                      Sin imagen
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -272,11 +296,23 @@ export const SignatureListOptimized = ({
                 className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-gray-50"
               >
                 <div className="aspect-w-4 aspect-h-3 mb-3">
-                  <img
-                    src={signature.url_imagen}
-                    alt={`Firma de ${signature.nombre}`}
-                    className="w-full h-32 object-contain border border-gray-200 rounded bg-white opacity-75"
-                  />
+                  {signature.imagen_base64 ? (
+                    <img
+                      src={`data:image/png;base64,${signature.imagen_base64}`}
+                      alt={`Firma de ${signature.nombre}`}
+                      className="w-full h-32 object-contain border border-gray-200 rounded bg-white opacity-75"
+                    />
+                  ) : signature.url_imagen ? (
+                    <img
+                      src={signature.url_imagen}
+                      alt={`Firma de ${signature.nombre}`}
+                      className="w-full h-32 object-contain border border-gray-200 rounded bg-white opacity-75"
+                    />
+                  ) : (
+                    <div className="w-full h-32 flex items-center justify-center border border-gray-200 rounded bg-gray-100 text-gray-400 text-sm opacity-75">
+                      Sin imagen
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">

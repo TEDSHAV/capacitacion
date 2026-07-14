@@ -337,7 +337,8 @@ export interface Signature {
   id: number;
   nombre: string;
   tipo: string;
-  url_imagen: string;
+  url_imagen?: string; // Legacy field, kept for backward compatibility
+  imagen_base64?: string; // New field for base64 storage
   fecha_creacion: string;
   fecha_actualizacion: string;
   is_active: boolean;
@@ -380,7 +381,8 @@ export interface Facilitador {
   firmas?: {
     id: number;
     nombre: string;
-    url_imagen: string;
+    url_imagen?: string; // Legacy field, kept for backward compatibility
+    imagen_base64?: string; // New field for base64 storage
     tipo: string;
     is_active: boolean;
   } | null;

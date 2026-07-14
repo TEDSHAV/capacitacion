@@ -229,8 +229,15 @@ export type Database = {
             foreignKeyName: "carnets_id_curso_fkey"
             columns: ["id_curso"]
             isOneToOne: false
-            referencedRelation: "cursos"
+            referencedRelation: "catalogo_servicios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carnets_id_curso_fkey"
+            columns: ["id_curso"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_servicio"]
           },
           {
             foreignKeyName: "carnets_id_empresa_fkey"
@@ -480,8 +487,15 @@ export type Database = {
             foreignKeyName: "certificados_id_curso_fkey"
             columns: ["id_curso"]
             isOneToOne: false
-            referencedRelation: "cursos"
+            referencedRelation: "catalogo_servicios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_id_curso_fkey"
+            columns: ["id_curso"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_servicio"]
           },
           {
             foreignKeyName: "certificados_id_empresa_fkey"
@@ -1017,6 +1031,7 @@ export type Database = {
           id_empresa: number | null
           id_facilitador: number | null
           id_proveedor: number | null
+          nombre_titular: string | null
           nro_cuenta: string
           telefono_pago_movil: string | null
         }
@@ -1029,6 +1044,7 @@ export type Database = {
           id_empresa?: number | null
           id_facilitador?: number | null
           id_proveedor?: number | null
+          nombre_titular?: string | null
           nro_cuenta: string
           telefono_pago_movil?: string | null
         }
@@ -1041,6 +1057,7 @@ export type Database = {
           id_empresa?: number | null
           id_facilitador?: number | null
           id_proveedor?: number | null
+          nombre_titular?: string | null
           nro_cuenta?: string
           telefono_pago_movil?: string | null
         }
@@ -2165,33 +2182,47 @@ export type Database = {
       }
       firmas: {
         Row: {
+          facilitador_id: number | null
           fecha_actualizacion: string | null
           fecha_creacion: string | null
           id: number
+          imagen_base64: string | null
           is_active: boolean | null
           nombre: string
           tipo: Database["public"]["Enums"]["firma_tipo"]
           url_imagen: string
         }
         Insert: {
+          facilitador_id?: number | null
           fecha_actualizacion?: string | null
           fecha_creacion?: string | null
           id?: number
+          imagen_base64?: string | null
           is_active?: boolean | null
           nombre: string
           tipo: Database["public"]["Enums"]["firma_tipo"]
           url_imagen: string
         }
         Update: {
+          facilitador_id?: number | null
           fecha_actualizacion?: string | null
           fecha_creacion?: string | null
           id?: number
+          imagen_base64?: string | null
           is_active?: boolean | null
           nombre?: string
           tipo?: Database["public"]["Enums"]["firma_tipo"]
           url_imagen?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "firmas_facilitador_id_fkey"
+            columns: ["facilitador_id"]
+            isOneToOne: false
+            referencedRelation: "facilitadores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       historial_calibracion: {
         Row: {
@@ -2858,8 +2889,15 @@ export type Database = {
             foreignKeyName: "plantillas_cursos_id_curso_fkey"
             columns: ["id_curso"]
             isOneToOne: false
-            referencedRelation: "cursos"
+            referencedRelation: "catalogo_servicios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_cursos_id_curso_fkey"
+            columns: ["id_curso"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_servicio"]
           },
           {
             foreignKeyName: "plantillas_cursos_id_empresa_fkey"
@@ -2983,6 +3021,7 @@ export type Database = {
       }
       presupuestos: {
         Row: {
+          cuerpo_presupuesto_html: string | null
           fecha_emision: string | null
           id: number
           id_datos_bancarios: number | null
@@ -2995,6 +3034,7 @@ export type Database = {
           valido_hasta: string | null
         }
         Insert: {
+          cuerpo_presupuesto_html?: string | null
           fecha_emision?: string | null
           id?: number
           id_datos_bancarios?: number | null
@@ -3007,6 +3047,7 @@ export type Database = {
           valido_hasta?: string | null
         }
         Update: {
+          cuerpo_presupuesto_html?: string | null
           fecha_emision?: string | null
           id?: number
           id_datos_bancarios?: number | null

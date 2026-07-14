@@ -49,11 +49,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Optimize and save the signature image
-    const { url: imageUrl, filepath } = await saveOptimizedSignature(
-      file,
-      type,
-    );
+    // Optimize and convert signature to base64
+    const { imagen_base64 } = await saveOptimizedSignature(file, type);
 
     // Get the name for the signature record
     let signatureName: string;
@@ -68,14 +65,6 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (facilitadorError || !facilitador) {
-        // Clean up uploaded file if facilitator not found
-        try {
-          const fs = require("fs/promises");
-          await fs.unlink(filepath);
-        } catch (cleanupError) {
-          console.error("Error cleaning up file:", cleanupError);
-        }
-
         return NextResponse.json(
           { error: "Facilitator not found" },
           { status: 404 },
@@ -111,7 +100,10 @@ export async function POST(request: NextRequest) {
         {
           nombre: signatureName,
           tipo: type,
-          url_imagen: imageUrl,
+          url_imagen: "", // Empty string for backward compatibility
+          imagen_base64: imagen_base64,
+          facilitador_id:
+            type === "facilitador" ? parseInt(facilitadorId) : null,
           fecha_creacion: new Date().toISOString(),
           fecha_actualizacion: new Date().toISOString(),
           is_active: true,
@@ -121,14 +113,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (signatureError) {
-      // If database insert fails, clean up the uploaded file
-      try {
-        const fs = require("fs/promises");
-        await fs.unlink(filepath);
-      } catch (cleanupError) {
-        console.error("Error cleaning up file:", cleanupError);
-      }
-
       throw signatureError;
     }
 

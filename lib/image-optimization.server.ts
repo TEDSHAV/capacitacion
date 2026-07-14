@@ -47,36 +47,32 @@ export async function optimizeSignatureImage(
 }
 
 /**
- * Saves an optimized signature image to the filesystem.
+ * Saves an optimized signature image as base64 for database storage.
+ * This approach works reliably in containerized environments (Coolify, Docker, etc.)
+ * without requiring filesystem access or volume mounts.
  */
 export async function saveOptimizedSignature(
   file: File,
   type: string,
   filename_prefix: string = "",
-): Promise<{ filename: string; filepath: string; url: string }> {
+): Promise<{ filename: string; imagen_base64: string }> {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
   // Optimize the buffer
   const optimizedBuffer = await optimizeSignatureImage(buffer);
 
-  // Create signatures directory if it doesn't exist
-  const signaturesDir = join(process.cwd(), "public", "signatures");
-  await mkdir(signaturesDir, { recursive: true });
+  // Convert to base64
+  const base64String = optimizedBuffer.toString("base64");
 
-  // Generate unique filename
+  // Generate filename for reference (not used for storage)
   const timestamp = Date.now();
   const nameWithoutExt = file.name.replace(/\.[^.]+$/, ""); // strip extension to avoid double .png.png
   const sanitizedOriginalName = nameWithoutExt.replace(/[^a-zA-Z0-9._-]/g, "_");
   const filename = `${type}_${timestamp}_${sanitizedOriginalName}.png`;
-  const filepath = join(signaturesDir, filename);
-
-  // Save to public/signatures directory
-  await writeFile(filepath, optimizedBuffer);
 
   return {
     filename,
-    filepath,
-    url: `/signatures/${filename}`,
+    imagen_base64: base64String,
   };
 }

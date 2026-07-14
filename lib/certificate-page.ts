@@ -502,7 +502,22 @@ export class CertificatePage {
         return;
       }
 
-      // Add facilitator signature if available
+      // 🚀 USE BASE64 FROM DATABASE IF AVAILABLE (new approach for containerized environments)
+      if (facilitator.signature_data?.imagen_base64) {
+        this.doc.addImage(
+          `data:image/png;base64,${facilitator.signature_data.imagen_base64}`,
+          "PNG",
+          this.config.facilitatorSignature.x,
+          this.config.facilitatorSignature.y,
+          signatureConfig.width,
+          signatureConfig.height,
+          undefined,
+          "FAST",
+        );
+        return;
+      }
+
+      // Add facilitator signature if available (fallback to URL-based loading)
       let signatureUrl = null;
 
       // Check signature from firmas relationship (primary source)
@@ -559,7 +574,22 @@ export class CertificatePage {
 
       // SHA signature name removed - only showing signature image
 
-      // Add SHA signature image if available
+      // 🚀 USE BASE64 FROM DATABASE IF AVAILABLE (new approach for containerized environments)
+      if (signatureData.imagen_base64) {
+        this.doc.addImage(
+          `data:image/png;base64,${signatureData.imagen_base64}`,
+          "PNG",
+          signatureConfig.rightX + this.config.shaSignatureOffset.x,
+          signatureConfig.y + this.config.shaSignatureOffset.y,
+          signatureConfig.width,
+          signatureConfig.height,
+          undefined,
+          "FAST",
+        );
+        return;
+      }
+
+      // Add SHA signature image if available (fallback to URL-based loading)
       if (signatureData.url_imagen) {
         await this.addSignatureImage(
           signatureData.url_imagen,

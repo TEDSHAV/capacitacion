@@ -15,17 +15,19 @@ async function handleFacilitatorSignature(
   try {
     const type = "facilitador";
 
-    // Optimize and save the signature image
-    const { url: imageUrl } = await saveOptimizedSignature(signatureFile, type);
+    // Optimize and convert signature to base64
+    const { imagen_base64 } = await saveOptimizedSignature(signatureFile, type);
 
-    // Create signature record
+    // Create signature record with base64
     const { data: signatureData, error: signatureError } = await supabase
       .from("firmas")
       .insert([
         {
           nombre: facilitador.nombre_apellido,
           tipo: type,
-          url_imagen: imageUrl,
+          url_imagen: "", // Empty string for backward compatibility
+          imagen_base64: imagen_base64,
+          facilitador_id: facilitador.id, // Foreign key to facilitadores table
           fecha_creacion: new Date().toISOString(),
           fecha_actualizacion: new Date().toISOString(),
           is_active: true,
