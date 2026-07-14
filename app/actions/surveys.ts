@@ -44,9 +44,13 @@ export async function getOSIDataForSurvey(osiId: number): Promise<SurveyOSIData 
       .limit(1)
       .maybeSingle();
 
-    const facilitadores = assignmentData?.facilitadores;
-    if (Array.isArray(facilitadores) && facilitadores.length > 0 && facilitadores[0]?.nombre_apellido) {
-      facilitador_nombre = facilitadores[0].nombre_apellido;
+    const facilitadorRelation = assignmentData?.facilitadores;
+    const facilitadorObj = Array.isArray(facilitadorRelation)
+      ? facilitadorRelation[0]
+      : facilitadorRelation;
+
+    if (facilitadorObj?.nombre_apellido) {
+      facilitador_nombre = facilitadorObj.nombre_apellido;
     } else {
       // Fallback: search in certificates for this OSI
       const { data: certData } = await supabase
