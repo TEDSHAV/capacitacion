@@ -8,6 +8,8 @@ import {
   CertificateFilters,
   CertificateSearchResult,
   CertificateMetrics,
+  BatchUpdateData,
+  BatchUpdateResult,
 } from "@/types";
 
 import { QRService } from "@/lib/qr-service";
@@ -2508,5 +2510,269 @@ export async function getFacilitatorsForFilters(): Promise<
     return data || [];
   } catch (error) {
     return [];
+  }
+}
+
+/**
+ * Get unique OSIs that have active certificates
+ */
+export async function getOSIsWithCertificatesAction(): Promise<{
+  nro_osi: number;
+  company_name: string;
+  course_name: string;
+}[]> {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("certificados")
+      .select(`
+        nro_osi,
+        empresas!inner(razon_social),
+        catalogo_servicios!inner(nombre)
+      `)
+      .eq("is_active", true)
+      .not("nro_osi", "is", null);
+
+    if (error) throw error;
+
+    // Use a Map to keep only unique OSIs
+    const osiMap = new Map<number, { nro_osi: number; company_name: string; course_name: string }>();
+    
+    data?.forEach((item: any) => {
+      if (!osiMap.has(item.nro_osi)) {
+        osiMap.set(item.nro_osi, {
+          nro_osi: item.nro_osi,
+          company_name: item.empresas?.razon_social || "S/N",
+          course_name: item.catalogo_servicios?.nombre || "S/N"
+        });
+      }
+    });
+
+    return Array.from(osiMap.values()).sort((a, b) => b.nro_osi - a.nro_osi);
+  } catch (error) {
+    console.error("Error in getOSIsWithCertificatesAction:", error);
+    return [];
+  }
+}
+
+/**
+ * Get details for a single certificate from a batch to pre-populate edit form
+ */
+export async function getBatchCertificateDetailsAction(osiNumber: number) {
+  try {
+    const supabase = await createClient();
+
+    // Fetch with joins as fallbacks for the snapshot
+    const { data, error } = await supabase
+      .from("certificados")
+      .select(`
+        snapshot_contenido, 
+        fecha_emision, 
+        fecha_vencimiento,
+        catalogo_servicios(nombre)
+      `)
+      .eq("nro_osi", osiNumber)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return { success: false, message: "No se encontró el lote" };
+
+    let snapshotData: any = {};
+    if (data.snapshot_contenido) {
+      try {
+        snapshotData = JSON.parse(data.snapshot_contenido);
+      } catch (e) {
+        console.warn("Failed to parse snapshot in getBatchCertificateDetailsAction");
+      }
+    }
+
+    // Try multiple levels of nesting for resilience
+    const certificate_title = 
+      snapshotData.certificado_detalles?.title || 
+      snapshotData.certificate_title || 
+      snapshotData.titulo_curso ||
+      (Array.isArray(data.catalogo_servicios) ? data.catalogo_servicios[0]?.nombre : (data.catalogo_servicios as any)?.nombre) ||
+      "";
+
+    const certificate_subtitle = 
+      snapshotData.certificado_detalles?.subtitle || 
+      snapshotData.certificate_subtitle || 
+      snapshotData.subtitulo_curso ||
+      "";
+
+    const location = 
+      snapshotData.certificado_detalles?.location || 
+      snapshotData.location || 
+      "";
+
+    // Helper to ensure date is YYYY-MM-DD without timezone shifts
+    const formatDate = (dateInput: any) => {
+      if (!dateInput) return "";
+      // If it's already YYYY-MM-DD string, return it
+      if (typeof dateInput === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+        return dateInput;
+      }
+      // Otherwise, parse and format to YYYY-MM-DD in UTC to avoid shifts
+      const d = new Date(dateInput);
+      if (isNaN(d.getTime())) return "";
+      // Use UTC methods to get the date parts to prevent local timezone from shifting it back/forward
+      // especially when the input is just YYYY-MM-DD (which is treated as midnight UTC)
+      const year = d.getUTCFullYear();
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    return {
+      success: true,
+      data: {
+        certificate_title,
+        certificate_subtitle,
+        date: formatDate(snapshotData.certificado_detalles?.date || data.fecha_emision),
+        fecha_vencimiento: formatDate(snapshotData.fecha_vencimiento || data.fecha_vencimiento),
+        location,
+      }
+    };
+  } catch (error) {
+    console.error("Error in getBatchCertificateDetailsAction:", error);
+    return { success: false, message: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}
+
+/**
+ * Batch update certificates and carnets for a specific OSI number
+ */
+export async function batchUpdateCertificatesAction(
+  osiNumber: number,
+  updates: BatchUpdateData
+): Promise<BatchUpdateResult> {
+  try {
+    const supabase = await createClient();
+
+    // 1. Fetch all certificates for this OSI
+    const { data: certificates, error: fetchError } = await supabase
+      .from("certificados")
+      .select("*")
+      .eq("nro_osi", osiNumber)
+      .eq("is_active", true);
+
+    if (fetchError) throw fetchError;
+    if (!certificates || certificates.length === 0) {
+      return {
+        success: false,
+        message: `No se encontraron certificados activos para la OSI ${osiNumber}`,
+        updatedCount: 0,
+      };
+    }
+
+    let updatedCount = 0;
+
+    // 2. Process each certificate
+    for (const cert of certificates) {
+      try {
+        // Prepare DB updates (Only fields that actually exist as columns)
+        const dbUpdate: any = {};
+        if (updates.date) dbUpdate.fecha_emision = updates.date;
+        if (updates.fecha_vencimiento) dbUpdate.fecha_vencimiento = updates.fecha_vencimiento;
+
+        // Update snapshot (Where all fields are stored)
+        let finalSnapshot = cert.snapshot_contenido;
+        if (cert.snapshot_contenido) {
+          try {
+            const snapshotObj = JSON.parse(cert.snapshot_contenido);
+            
+            // Handle both flat and nested structures for robustness
+            if (updates.certificate_title) {
+              if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.title = updates.certificate_title;
+              snapshotObj.certificate_title = updates.certificate_title;
+            }
+            if (updates.certificate_subtitle) {
+              if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.subtitle = updates.certificate_subtitle;
+              snapshotObj.certificate_subtitle = updates.certificate_subtitle;
+            }
+            if (updates.date) {
+              if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.date = updates.date;
+              snapshotObj.date = updates.date;
+            }
+            if (updates.fecha_vencimiento) {
+              snapshotObj.fecha_vencimiento = updates.fecha_vencimiento;
+            }
+            if (updates.location) {
+              if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.location = updates.location;
+              snapshotObj.location = updates.location;
+            }
+            
+            finalSnapshot = JSON.stringify(snapshotObj, null, 2);
+            dbUpdate.snapshot_contenido = finalSnapshot;
+          } catch (e) {
+            console.warn(`Failed to parse snapshot for cert ${cert.id}`);
+          }
+        }
+
+        // 3. Update certificate record
+        const { error: updateError } = await supabase
+          .from("certificados")
+          .update(dbUpdate)
+          .eq("id", cert.id);
+
+        if (updateError) throw updateError;
+
+        // 4. Update associated carnet if it exists
+        const { data: carnet } = await supabase
+          .from("carnets")
+          .select("*")
+          .eq("id_certificado", cert.id)
+          .maybeSingle();
+
+        if (carnet) {
+          const carnetUpdate: any = {};
+          if (updates.certificate_title) carnetUpdate.titulo_curso = updates.certificate_title;
+          if (updates.certificate_subtitle) carnetUpdate.subtitulo_curso = updates.certificate_subtitle;
+          if (updates.date) carnetUpdate.fecha_emision = updates.date;
+          if (updates.fecha_vencimiento) carnetUpdate.fecha_vencimiento = updates.fecha_vencimiento;
+
+          let carnetSnapshot = carnet.snapshot_contenido;
+          if (carnet.snapshot_contenido) {
+            try {
+              const cSnapshotObj = JSON.parse(carnet.snapshot_contenido);
+              if (updates.certificate_title) cSnapshotObj.titulo_curso = updates.certificate_title;
+              if (updates.certificate_subtitle) cSnapshotObj.subtitulo_curso = updates.certificate_subtitle;
+              if (updates.date) cSnapshotObj.fecha_emision = updates.date;
+              if (updates.fecha_vencimiento) cSnapshotObj.fecha_vencimiento = updates.fecha_vencimiento;
+              
+              carnetSnapshot = JSON.stringify(cSnapshotObj, null, 2);
+              carnetUpdate.snapshot_contenido = carnetSnapshot;
+            } catch (e) {
+              console.warn(`Failed to parse snapshot for carnet ${carnet.id}`);
+            }
+          }
+
+          await supabase
+            .from("carnets")
+            .update(carnetUpdate)
+            .eq("id", carnet.id);
+        }
+
+        updatedCount++;
+      } catch (err) {
+        console.error(`Error updating certificate ${cert.id}:`, err);
+      }
+    }
+
+    return {
+      success: true,
+      message: `Se actualizaron ${updatedCount} certificados y sus respectivos carnets para la OSI ${osiNumber}`,
+      updatedCount,
+    };
+  } catch (error) {
+    console.error("Error in batchUpdateCertificatesAction:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Error desconocido",
+      updatedCount: 0,
+    };
   }
 }

@@ -1114,6 +1114,20 @@ export interface ParticipantLookupResponse {
   statistics: ParticipantStatistics;
 }
 
+export interface BatchUpdateData {
+  certificate_title?: string;
+  certificate_subtitle?: string;
+  date?: string;
+  fecha_vencimiento?: string;
+  location?: string;
+}
+
+export interface BatchUpdateResult {
+  success: boolean;
+  message: string;
+  updatedCount: number;
+}
+
 // Certificate Management Interfaces
 export interface CertificateManagement {
   id: number;

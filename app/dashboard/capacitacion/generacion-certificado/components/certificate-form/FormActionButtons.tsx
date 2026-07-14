@@ -62,10 +62,10 @@ export const FormActionButtons = ({
                   d="M4 4v16m1.414 0l3.586-3.586a2 2 0 013.414 3.414L20 8.586a2 2 0 01-3.414-3.414L12 15.414a2 2 0 01-3.414-3.414L4 8.586a2 2 0 013.414 3.414z"
                 />
               </svg>
-              <span>{isEditMode ? "Editando..." : "Generando..."}</span>
+              <span>{isEditMode ? "Guardando..." : "Generando..."}</span>
             </div>
           ) : isEditMode ? (
-            "Editar Certificado"
+            "Guardar Cambios"
           ) : (
             "Generar Certificados"
           )}

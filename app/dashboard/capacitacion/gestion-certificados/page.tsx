@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { Button } from "@/components/ui/button";
 import CertificateMetricsComponent from "./components/certificate-metrics";
 import CertificateFiltersComponent from "./components/certificate-filters";
 import CertificateTableComponent from "./components/certificate-table";
 import CertificatePaginationComponent from "./components/certificate-pagination";
+import { BatchEditModal } from "./components/batch-edit-modal";
 import {
   getCertificatesForManagement,
   getCompaniesForFilters,
@@ -26,6 +28,7 @@ export default function GestionCertificadosPage() {
   const [filters, setFilters] = useState<CertificateFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
 
   // Filter options
   const [companies, setCompanies] = useState<
@@ -66,30 +69,30 @@ export default function GestionCertificadosPage() {
     loadFilterOptions();
   }, []);
 
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const result: CertificateSearchResult =
+        await getCertificatesForManagement(
+          filters,
+          currentPage,
+          itemsPerPage,
+        );
+
+      setCertificates(result.certificates);
+      setTotalCount(result.totalCount);
+      setMetrics(result.metrics);
+    } catch (error) {
+      console.error("Error loading certificates:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, currentPage, itemsPerPage]);
+
   // Load certificates data
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const result: CertificateSearchResult =
-          await getCertificatesForManagement(
-            filters,
-            currentPage,
-            itemsPerPage,
-          );
-
-        setCertificates(result.certificates);
-        setTotalCount(result.totalCount);
-        setMetrics(result.metrics);
-      } catch (error) {
-        console.error("Error loading certificates:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadData();
-  }, [filters, currentPage, itemsPerPage]);
+  }, [loadData]);
 
   const handleFiltersChange = useCallback((newFilters: CertificateFilters) => {
     setFilters(newFilters);
@@ -160,13 +163,36 @@ export default function GestionCertificadosPage() {
 
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Gestión de Certificados
-        </h1>
-        <p className="mt-2 text-gray-600">
-          Administra los certificados emitidos y su historial
-        </p>
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Gestión de Certificados
+          </h1>
+          <p className="mt-2 text-gray-600">
+            Administra los certificados emitidos y su historial
+          </p>
+        </div>
+        <div className="flex shrink-0">
+          <Button
+            onClick={() => setIsBatchEditOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded-xl shadow-lg shadow-blue-100 flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+            Edición por Lote
+          </Button>
+        </div>
       </div>
 
       {/* Metrics Dashboard */}
@@ -208,6 +234,18 @@ export default function GestionCertificadosPage() {
           loading={loading}
         />
       </div>
+
+      {/* Batch Edit Modal */}
+      <BatchEditModal
+        isOpen={isBatchEditOpen}
+        onClose={() => setIsBatchEditOpen(false)}
+        onSuccess={loadData}
+        initialOsi={
+          filters.searchTerm && /^\d+$/.test(filters.searchTerm)
+            ? filters.searchTerm
+            : ""
+        }
+      />
     </div>
   );
 }

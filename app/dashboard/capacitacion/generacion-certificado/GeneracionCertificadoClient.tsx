@@ -737,20 +737,9 @@ export default function GeneracionCertificadoClient({
           return;
         }
 
-        dbResult = {
-          success: true,
-          certificateIds: [editData.certificate.id],
-          certificateNumbers: [
-            {
-              id: editData.certificate.id,
-              nro_libro: editData.certificate.nro_libro,
-              nro_hoja: editData.certificate.nro_hoja,
-              nro_linea: editData.certificate.nro_linea,
-              nro_control: editData.certificate.nro_control,
-            },
-          ],
-          participantIds: [editData.certificate.id_participante],
-        };
+        alert("¡Certificado actualizado exitosamente!");
+        router.push("/dashboard/capacitacion/gestion-certificados");
+        return;
       } else {
         // Create new certificates
         dbResult = await saveCertificatesToDatabase(
