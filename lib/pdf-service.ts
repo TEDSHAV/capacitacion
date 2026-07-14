@@ -1,4 +1,4 @@
-import puppeteer, { Browser, Page } from 'puppeteer';
+import puppeteer, { Browser, Page } from "puppeteer";
 
 let browserInstance: Browser | null = null;
 
@@ -12,17 +12,20 @@ export async function getBrowser(): Promise<Browser> {
   }
 
   try {
+    const isProduction = process.env.NODE_ENV === "production";
     browserInstance = await puppeteer.launch({
       headless: true,
+      executablePath: isProduction ? "/usr/bin/chromium" : undefined,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage', // Reduce memory usage
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
       ],
     });
 
     // Graceful shutdown on process exit
-    process.on('exit', async () => {
+    process.on("exit", async () => {
       if (browserInstance) {
         await browserInstance.close();
       }
@@ -31,7 +34,7 @@ export async function getBrowser(): Promise<Browser> {
     return browserInstance;
   } catch (error) {
     throw new Error(
-      `Failed to launch browser: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Failed to launch browser: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
@@ -51,16 +54,16 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
     await page.setViewport({ width: 1200, height: 1600 });
 
     // Set content and wait for network idle
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, { waitUntil: "networkidle0" });
 
     // Generate PDF with letter format and margins
     const pdfBuffer = await page.pdf({
-      format: 'letter',
+      format: "letter",
       margin: {
-        top: '0.5in',
-        right: '0.5in',
-        bottom: '0.5in',
-        left: '0.5in',
+        top: "0.5in",
+        right: "0.5in",
+        bottom: "0.5in",
+        left: "0.5in",
       },
       printBackground: true,
       scale: 1,
@@ -69,7 +72,7 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
     return Buffer.from(pdfBuffer);
   } catch (error) {
     throw new Error(
-      `Failed to generate PDF from HTML: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Failed to generate PDF from HTML: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   } finally {
     if (page) {
