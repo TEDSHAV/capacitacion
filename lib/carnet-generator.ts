@@ -316,8 +316,13 @@ export class CarnetGenerator {
 
     // Add participant name (centered below course title)
     const nameY = 42; // Below course info
-    pdf.text(`Nombre: ${participant.name}`, 3, nameY - 10, {
-      maxWidth: 70,
+    const titleCaseName = participant.name
+      .toLowerCase()
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+    pdf.text(`Nombre: ${titleCaseName}`, 3, nameY - 10, {
+      maxWidth: 45,
     });
 
     // Add ID number (centered below name)
@@ -358,7 +363,7 @@ export class CarnetGenerator {
       carnetData.fecha_emision + "T12:00:00",
     ).toLocaleDateString("es-VE");
     pdf.text("Emisión: ", 50, 32);
-    pdf.text(emissionDate, 72, 32);
+    pdf.text(emissionDate, 70, 32);
 
     // Add expiration date if available (left side, below emission date)
     if (carnetData.fecha_vencimiento) {
@@ -368,7 +373,7 @@ export class CarnetGenerator {
       pdf.setTextColor(255, 0, 0); // Set text color to red
       pdf.text("Vencimiento: ", 50, 40);
       pdf.setTextColor(0, 0, 0); // Reset text color to black
-      pdf.text(expirationDate, 72, 40); // Position date after "Vencimiento: "
+      pdf.text(expirationDate, 70, 40); // Position date after "Vencimiento: "
     }
 
     // Add control number at bottom right
