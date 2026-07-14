@@ -91,6 +91,7 @@ export interface CourseTopic {
   created_at?: string;
   nota_aprobatoria?: number; // Passing grade from cursos table
   horas_estimadas?: number; // Estimated hours from cursos table
+  emite_carnet?: boolean; // Whether course emits card/certificate
 }
 
 export interface PersonalInfoSectionProps {
@@ -198,6 +199,9 @@ export interface CertificateGeneration {
   horas_estimadas?: number;
   facilitator_id?: string; // ID of selected facilitator (includes signature)
   sha_signature_id?: string; // ID of SHA representative signature (separate from facilitator)
+  fecha_vencimiento?: string; // Certificate expiration date
+  id_estado?: number; // Venezuelan state ID for certificate record
+  id_plantilla_certificado?: number; // Certificate template ID
 }
 
 export interface CertificateParticipant {

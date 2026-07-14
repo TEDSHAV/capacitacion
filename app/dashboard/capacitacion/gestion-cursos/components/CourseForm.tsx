@@ -169,7 +169,9 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
         {/* Certificate Type */}
         <div>
           <label htmlFor="tipo_certificado" className="block text-sm font-medium text-gray-700 mb-1">
-            Tipo de Certificado *
+            Tipo de Certificado * 
+            <br /> 
+            <span className='font-normal'>modificar solo si el certificado es de "Participación" </span>
           </label>
           <select
             id="tipo_certificado"
@@ -244,7 +246,7 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
               className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
             />
             <span className="text-sm font-medium text-gray-700">
-              Emitir Carnet
+              Emite Carnet
             </span>
           </label>
           <p className="text-sm text-gray-500 mt-1">

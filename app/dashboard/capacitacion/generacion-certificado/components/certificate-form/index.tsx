@@ -26,23 +26,44 @@ export const CertificateForm = ({
 }: CertificateFormProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [shaSignatures, setShaSignatures] = useState([]);
+  const [certificateTemplates, setCertificateTemplates] = useState([]);
+  const [venezuelanStates, setVenezuelanStates] = useState([]);
 
   useEffect(() => {
-    const loadShaSignatures = async () => {
+    const loadFormData = async () => {
       try {
-        const response = await fetch("/api/signatures");
-        if (response.ok) {
-          const data = await response.json();
-          // Filter only SHA representative signatures
+        // Load SHA signatures
+        const signaturesResponse = await fetch("/api/signatures");
+        if (signaturesResponse.ok) {
+          const data = await signaturesResponse.json();
           const shaOnly = data.filter((sig: any) => sig.tipo === 'representante_sha');
           setShaSignatures(shaOnly);
         }
+
+        // Load certificate templates
+        const templatesResponse = await fetch("/api/certificate-templates");
+        if (templatesResponse.ok) {
+          const templates = await templatesResponse.json();
+          setCertificateTemplates(templates);
+          
+          // Auto-select default template (first active template)
+          if (templates.length > 0 && !certificateData.id_plantilla_certificado) {
+            onDataChange("id_plantilla_certificado", templates[0].id);
+          }
+        }
+
+        // Load Venezuelan states
+        const statesResponse = await fetch("/api/venezuelan-states");
+        if (statesResponse.ok) {
+          const states = await statesResponse.json();
+          setVenezuelanStates(states);
+        }
       } catch (error) {
-        console.error("Error loading SHA signatures:", error);
+        console.error("Error loading form data:", error);
       }
     };
 
-    loadShaSignatures();
+    loadFormData();
   }, []);
 
   const handleGenerateCertificate = () => {
@@ -55,6 +76,12 @@ export const CertificateForm = ({
       !certificateData.date
     ) {
       alert("Por favor completa todos los campos obligatorios");
+      return;
+    }
+
+    // Additional validation for expiration date if course emits card
+    if (selectedCourseTopic?.emite_carnet && !certificateData.fecha_vencimiento) {
+      alert("Este curso emite carnet, por lo que la fecha de vencimiento es requerida");
       return;
     }
 
@@ -71,6 +98,12 @@ export const CertificateForm = ({
       !certificateData.date
     ) {
       alert("Por favor completa todos los campos obligatorios para generar la vista previa");
+      return;
+    }
+
+    // Additional validation for expiration date if course emits card
+    if (selectedCourseTopic?.emite_carnet && !certificateData.fecha_vencimiento) {
+      alert("Este curso emite carnet, por lo que la fecha de vencimiento es requerida para la vista previa");
       return;
     }
 
@@ -247,12 +280,12 @@ export const CertificateForm = ({
       </div>
 
       {/* Date */}
-      <div className="mb-6">
+      <div className="mb-4">
         <label
           htmlFor="date"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Fecha *
+          Fecha de Emisión *
         </label>
         <input
           type="date"
@@ -261,6 +294,81 @@ export const CertificateForm = ({
           onChange={(e) => onDataChange("date", e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
+      </div>
+
+      {/* Expiration Date - Only show if course emits card */}
+      {selectedCourseTopic?.emite_carnet && (
+        <div className="mb-4">
+          <label
+            htmlFor="fecha_vencimiento"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Fecha de Vencimiento (Requerido para carnet)
+          </label>
+          <input
+            type="date"
+            id="fecha_vencimiento"
+            value={certificateData.fecha_vencimiento || ""}
+            onChange={(e) => onDataChange("fecha_vencimiento", e.target.value || undefined)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Este curso emite carnet, por lo que la fecha de vencimiento es requerida
+          </p>
+        </div>
+      )}
+
+      {/* Certificate Template */}
+      <div className="mb-4">
+        <label
+          htmlFor="id_plantilla_certificado"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Plantilla de Certificado
+        </label>
+        <select
+          id="id_plantilla_certificado"
+          value={certificateData.id_plantilla_certificado || ""}
+          onChange={(e) => onDataChange("id_plantilla_certificado", e.target.value ? parseInt(e.target.value) : undefined)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="">Seleccionar plantilla...</option>
+          {certificateTemplates.map((template: any) => (
+            <option key={template.id} value={template.id}>
+              {template.nombre}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-gray-500 mt-1">
+          Selecciona la plantilla a utilizar para este certificado
+        </p>
+      </div>
+
+      {/* Venezuelan State */}
+      <div className="mb-6">
+        <label
+          htmlFor="id_estado"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Estado de Registro
+        </label>
+        <select
+          id="id_estado"
+          value={certificateData.id_estado || ""}
+          onChange={(e) => onDataChange("id_estado", e.target.value ? parseInt(e.target.value) : undefined)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="">Seleccionar estado...</option>
+          {venezuelanStates.map((state: any) => (
+            <option key={state.id} value={state.id}>
+              {state.nombre_estado}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-gray-500 mt-1">
+          Estado venezolano para fines administrativos
+        </p>
       </div>
 
       {/* Signature Selection */}

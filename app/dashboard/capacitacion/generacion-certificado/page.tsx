@@ -11,6 +11,7 @@ import {
 import OSISearch from "./components/osi-search";
 import { CertificateForm } from './components/certificate-form';
 import { getCertificateData } from '@/app/actions/certificate';
+import { saveCertificatesToDatabase } from '@/app/actions/certificados';
 
 export default function GeneracionCertificadoPage() {
   const router = useRouter();
@@ -34,6 +35,9 @@ export default function GeneracionCertificadoPage() {
     horas_estimadas: undefined,
     facilitator_id: undefined,
     sha_signature_id: undefined,
+    fecha_vencimiento: undefined,
+    id_estado: undefined,
+    id_plantilla_certificado: undefined,
   });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingFacilitator, setEditingFacilitator] = useState<any>(null);
@@ -222,6 +226,8 @@ export default function GeneracionCertificadoPage() {
           course_content: selectedTopic.contenido_curso || '',
           passing_grade: passingGrade, // Use course's passing grade
           horas_estimadas: selectedTopic.horas_estimadas, // Add horas_estimadas from course topic
+          // Clear expiration date if course doesn't emit card
+          fecha_vencimiento: selectedTopic.emite_carnet ? prev.fecha_vencimiento : undefined,
         }));
         setSelectedCourseTopic(selectedTopic);
       } else {
@@ -231,6 +237,7 @@ export default function GeneracionCertificadoPage() {
           [field]: value,
           course_content: '',
           passing_grade: 14, // Default to 14 if no course selected
+          fecha_vencimiento: undefined, // Clear expiration date if no course selected
         }));
         setSelectedCourseTopic(null);
       }
@@ -261,6 +268,12 @@ export default function GeneracionCertificadoPage() {
       return;
     }
 
+    // Additional validation for expiration date if course emits card
+    if (selectedCourseTopic?.emite_carnet && !certificateData.fecha_vencimiento) {
+      alert("Este curso emite carnet, por lo que la fecha de vencimiento es requerida");
+      return;
+    }
+
     try {
       setIsGenerating(true);
       
@@ -280,13 +293,29 @@ export default function GeneracionCertificadoPage() {
         sealImageUrl
       );
 
+      // Save certificates to database
+      const dbResult = await saveCertificatesToDatabase(
+        certificateData,
+        certificateData.participants
+      );
+
+      if (!dbResult.success) {
+        console.error("Database save error:", dbResult.message);
+        alert(`Error guardando certificados en base de datos: ${dbResult.message}`);
+        // Still download PDFs even if database save fails
+      }
+
       // Download each certificate
       certificates.forEach(({ participant, blob }) => {
         const filename = `certificado_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
         generator.downloadBlob(blob, filename);
       });
 
-      alert(`Se generaron ${certificates.length} certificados exitosamente!`);
+      const successMessage = dbResult.success 
+        ? `Se generaron y guardaron ${certificates.length} certificados exitosamente! (${dbResult.certificateIds?.length} registros en base de datos)`
+        : `Se generaron ${certificates.length} certificados, pero hubo errores al guardar en base de datos`;
+      
+      alert(successMessage);
 
       // Reset form
       setSelectedOSI(null);
@@ -297,9 +326,16 @@ export default function GeneracionCertificadoPage() {
         certificate_subtitle: "",
         passing_grade: 14,
         course_topic_id: "",
+        course_content: "",
         participants: [],
         location: "",
         date: new Date().toISOString().split("T")[0],
+        horas_estimadas: undefined,
+        facilitator_id: undefined,
+        sha_signature_id: undefined,
+        fecha_vencimiento: undefined,
+        id_estado: undefined,
+        id_plantilla_certificado: undefined,
       });
     } catch (error) {
       console.error("Error generating certificates:", error);
