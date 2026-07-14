@@ -1,7 +1,7 @@
 import { LocationSearchProps } from '@/types'
 import { useLocationSearch } from './use-location-search'
 
-export const LocationSearch = ({ value, onChange }: LocationSearchProps) => {
+export const LocationSearch = ({ value, onChange, highlight }: LocationSearchProps) => {
   const {
     locationInput,
     isDropdownOpen,
@@ -17,7 +17,7 @@ export const LocationSearch = ({ value, onChange }: LocationSearchProps) => {
   return (
     <div className="mb-4">
       <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-        Ubicación *
+        Ciudad * 
       </label>
       <div className="relative">
         <div className="relative">
@@ -31,8 +31,12 @@ export const LocationSearch = ({ value, onChange }: LocationSearchProps) => {
               setIsDropdownOpen(true)
             }}
             onBlur={() => setTimeout(() => setIsDropdownOpen(false), 150)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Buscar ciudad en Venezuela..."
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              highlight && !locationInput
+                ? 'border-amber-400 bg-amber-50'
+                : 'border-gray-300'
+            }`}
+            placeholder="Escriba la ciudad..."
           />
           {locationInput && (
             <button
@@ -83,6 +87,11 @@ export const LocationSearch = ({ value, onChange }: LocationSearchProps) => {
           </div>
         )}
       </div>
+      {highlight && !locationInput && (
+        <p className="text-xs text-amber-700 font-medium mt-1">
+          Escriba el nombre de la ciudad donde se realizó el curso.
+        </p>
+      )}
     </div>
   )
 }

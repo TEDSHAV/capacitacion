@@ -57,7 +57,7 @@ export interface DocumentGenerationResult {
  */
 async function resolveCityName(
   cityId?: number | null,
-  fallbackCity: string = "Puerto La Cruz",
+  fallbackCity: string = "",
 ): Promise<string> {
   if (!cityId) return fallbackCity;
   try {
@@ -178,7 +178,7 @@ export async function generateDocumentsServer(
     }
 
     // Fetch city name if needed
-    let cityResolved = osiData.ciudad || "Puerto La Cruz";
+    let cityResolved = osiData.ciudad || "";
     if (!osiData.ciudad && osiData.id_ciudad) {
       cityResolved = await resolveCityName(osiData.id_ciudad, cityResolved);
     }
@@ -370,7 +370,7 @@ export async function previewDocumentsServer(
       cursoNombre = osiData.curso_nombre;
     }
 
-    let cityResolved = osiData.ciudad || "Puerto La Cruz";
+    let cityResolved = osiData.ciudad || "";
     if (!osiData.ciudad && osiData.id_ciudad) {
       cityResolved = await resolveCityName(osiData.id_ciudad, cityResolved);
     }

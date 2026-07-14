@@ -394,6 +394,7 @@ export const CertificateForm = ({
         <LocationSearch
           value={certificateData.location || ""}
           onChange={(val) => onDataChange("location", val)}
+          highlight={!!selectedOSI && !certificateData.location}
         />
         {hasAttemptedSubmission && !certificateData.location && (
           <p className="text-xs text-amber-700 font-medium -mt-3 mb-4 flex items-center gap-1">

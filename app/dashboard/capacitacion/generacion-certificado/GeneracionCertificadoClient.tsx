@@ -260,7 +260,7 @@ export default function GeneracionCertificadoClient({
             company: certificate.empresas?.razon_social || "",
           },
         ],
-        location: snapshot?.certificado_detalles?.location || "Puerto La Cruz",
+        location: snapshot?.certificado_detalles?.location || "",
         date:
           certificate.fecha_emision || new Date().toISOString().split("T")[0],
         horas_estimadas:
@@ -345,7 +345,7 @@ export default function GeneracionCertificadoClient({
           const city = cities.find((c) => c.id === osi.id_ciudad);
           if (city) return city.nombre_ciudad;
         }
-        return osi.direccion_ejecucion || "Puerto La Cruz";
+        return "";
       })();
 
       // 5. Perform SINGLE state update to avoid race conditions
@@ -381,7 +381,7 @@ export default function GeneracionCertificadoClient({
         course_content: "",
         passing_grade: 14,
         certificate_title: "",
-        location: "Puerto La Cruz",
+        location: "",
         horas_estimadas: undefined,
         facilitator_id: undefined,
         facilitator_data: undefined,
@@ -776,7 +776,7 @@ export default function GeneracionCertificadoClient({
           course_subtitle: certificateData.certificate_subtitle,
           company_name: selectedOSI?.cliente_nombre_empresa || "",
           osi_number: selectedOSI?.nro_osi || "",
-          city: certificateData.location || "Puerto La Cruz",
+          city: certificateData.location || "",
           location: certificateData.location || "",
           execution_address: selectedOSI?.direccion_ejecucion || "",
           execution_date: certificateData.date,
@@ -1100,7 +1100,7 @@ export default function GeneracionCertificadoClient({
                         course_title: certificateData.certificate_title,
                         company_name: selectedOSI?.cliente_nombre_empresa || "",
                         osi_number: selectedOSI?.nro_osi || "",
-                        city: certificateData.location || "Puerto La Cruz",
+                        city: certificateData.location || "",
                         location: certificateData.location || "",
                         execution_address:
                           selectedOSI?.direccion_ejecucion || "",

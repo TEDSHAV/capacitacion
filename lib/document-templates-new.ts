@@ -235,7 +235,7 @@ export class DocumentTemplateProcessor {
       fecha: formattedDate,
       nombre_cliente: osiData.cliente_nombre_empresa || "",
       titulo_curso: osiData.tema || "",
-      ciudad: osiData.ciudad || "Puerto La Cruz",
+      ciudad: osiData.ciudad || "",
       dia: currentDate.getDate().toString(),
       mes: currentDate.toLocaleDateString("es-ES", { month: "long" }),
       anio: currentDate.getFullYear().toString(),

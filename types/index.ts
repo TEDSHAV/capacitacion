@@ -483,6 +483,7 @@ export interface CertificateFormProps {
 export interface LocationSearchProps {
   value: string;
   onChange: (value: string) => void;
+  highlight?: boolean;
 }
 
 export interface PlantillaCertificado {
