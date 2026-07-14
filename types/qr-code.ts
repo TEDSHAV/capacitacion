@@ -1,5 +1,5 @@
 // QR Code related interfaces
-import type { ControlNumbers } from './index';
+import type { ControlNumbers } from "./index";
 
 export type { ControlNumbers };
 
@@ -13,7 +13,7 @@ export interface QRCodeData {
 export interface QRCodeProps {
   data: QRCodeData;
   size?: number;
-  level?: 'L' | 'M' | 'Q' | 'H';
+  level?: "L" | "M" | "Q" | "H";
   includeMargin?: boolean;
   image?: string; // Optional logo to embed in center
 }
@@ -32,6 +32,7 @@ export interface QRCodeVerificationData {
     issueDate: string;
     expirationDate?: string;
     controlNumbers: ControlNumbers;
+    facilitatorData?: any;
   };
   error?: string;
 }

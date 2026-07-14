@@ -1,26 +1,28 @@
 "use server";
 
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from "@/utils/supabase/server";
 
 /**
  * Server-side action to fetch signature data by ID
  */
-export async function getSignatureDataServer(signatureId: string): Promise<any | null> {
+export async function getSignatureDataServer(
+  signatureId: string,
+): Promise<any | null> {
   try {
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
-      .from('firmas')
-      .select('*')
-      .eq('id', parseInt(signatureId))
-      .eq('is_active', true)
+      .from("firmas")
+      .select("*")
+      .eq("id", parseInt(signatureId))
+      .eq("is_active", true)
       .single();
-      
+
     if (error) {
       console.error("Error fetching signature from database:", error);
       return null;
     }
-    
+
     return data;
   } catch (error) {
     console.error("Error fetching signature:", error);
@@ -31,13 +33,16 @@ export async function getSignatureDataServer(signatureId: string): Promise<any |
 /**
  * Server-side action to fetch facilitator data by ID
  */
-export async function getFacilitatorDataServer(facilitatorId: string): Promise<any | null> {
+export async function getFacilitatorDataServer(
+  facilitatorId: string,
+): Promise<any | null> {
   try {
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
-      .from('facilitadores')
-      .select(`
+      .from("facilitadores")
+      .select(
+        `
         id,
         nombre_apellido,
         cedula,
@@ -45,23 +50,25 @@ export async function getFacilitatorDataServer(facilitatorId: string): Promise<a
         email,
         direccion,
         firma_id,
-        firmas (
+        firmas!facilitadores_firma_id_fkey (
           id,
           nombre,
           url_imagen,
+          imagen_base64,
           tipo,
           is_active
         )
-      `)
-      .eq('id', parseInt(facilitatorId))
-      .eq('is_active', true)
+      `,
+      )
+      .eq("id", parseInt(facilitatorId))
+      .eq("is_active", true)
       .single();
-      
+
     if (error) {
       console.error("Error fetching facilitator from database:", error);
       return null;
     }
-    
+
     return data;
   } catch (error) {
     console.error("Error fetching facilitator:", error);
@@ -72,22 +79,27 @@ export async function getFacilitatorDataServer(facilitatorId: string): Promise<a
 /**
  * Server-side action to fetch certificate template by ID
  */
-export async function getCertificateTemplateServer(templateId: number): Promise<{ id: number; nombre: string; archivo: string } | null> {
+export async function getCertificateTemplateServer(
+  templateId: number,
+): Promise<{ id: number; nombre: string; archivo: string } | null> {
   try {
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
-      .from('plantillas_certificados')
-      .select('id, nombre, archivo')
-      .eq('id', templateId)
-      .eq('is_active', true)
+      .from("plantillas_certificados")
+      .select("id, nombre, archivo")
+      .eq("id", templateId)
+      .eq("is_active", true)
       .single();
-      
+
     if (error) {
-      console.error("Error fetching certificate template from database:", error);
+      console.error(
+        "Error fetching certificate template from database:",
+        error,
+      );
       return null;
     }
-    
+
     return data;
   } catch (error) {
     console.error("Error fetching certificate template:", error);

@@ -148,21 +148,27 @@ export async function GET(
     }
 
     if (facilitatorRaw) {
+      const facilitatorSignature =
+        Array.isArray(facilitatorRaw.firmas) && facilitatorRaw.firmas.length > 0
+          ? facilitatorRaw.firmas[0]
+          : facilitatorRaw.firmas;
+
       (certificateData as any).facilitator_data = {
         id: facilitatorRaw.id,
         name: facilitatorRaw.nombre_apellido,
         nombre_apellido: facilitatorRaw.nombre_apellido,
         facilitator: facilitatorRaw.nombre_apellido,
-        cargo: "Facilitador",
-        firma: facilitatorRaw.firmas?.url_imagen,
+        cargo: "Facilitador", // Default value since column doesn't exist in database
+        firma: facilitatorSignature?.url_imagen,
         firma_id: facilitatorRaw.firma_id,
         sha_signature_id: facilitatorRaw.firma_id?.toString(),
-        signature_data: facilitatorRaw.firmas
+        signature_data: facilitatorSignature
           ? {
-              id: facilitatorRaw.firmas.id,
-              representante_sha: facilitatorRaw.firmas.nombre,
-              firma: facilitatorRaw.firmas.url_imagen,
-              url_imagen: facilitatorRaw.firmas.url_imagen,
+              id: facilitatorSignature.id,
+              representante_sha: facilitatorSignature.nombre,
+              firma: facilitatorSignature.url_imagen,
+              url_imagen: facilitatorSignature.url_imagen,
+              imagen_base64: facilitatorSignature.imagen_base64,
             }
           : undefined,
       };

@@ -884,7 +884,7 @@ export default function GeneracionCertificadoClient({
         );
       }
 
-      // Generate carnets if course requires them
+      // Carnets are now created automatically by saveCertificatesToDatabase if emite_carnet is true
       let carnetsGenerated = 0;
       const carnetBlobs: { participant: any; blob: Blob }[] = [];
       if (selectedCourseTopic?.emite_carnet) {
@@ -899,50 +899,8 @@ export default function GeneracionCertificadoClient({
           const { CarnetGenerator } = await import("@/lib/carnet-generator");
           const carnetGenerator = new CarnetGenerator();
 
-          // Prepare carnet data for all participants
-          const carnetData: CarnetGeneration[] =
-            certificateData.participants.map((participant, index) => {
-              return {
-                id_certificado: dbResult.certificateIds![index],
-                id_participante: dbResult.participantIds?.[index] || 0, // Use REAL database ID
-                id_empresa: selectedOSI?.empresa_id || null,
-                id_curso: certificateData.course_topic_data?.id
-                  ? parseInt(certificateData.course_topic_data.id)
-                  : null, // FK → catalogo_servicios
-                id_osi: null, // nro_osi is the reference; stored in snapshot_contenido. carnets.id_osi FK → osi not applicable here.
-                titulo_curso: certificateData.certificate_title,
-                fecha_emision: certificateData.date,
-                fecha_vencimiento: certificateData.fecha_vencimiento || null,
-                nombre_participante: participant.name,
-                cedula_participante: participant.idNumber,
-                empresa_participante: participant.company || null,
-                nro_control: dbResult.certificateNumbers![index].nro_control,
-              };
-            });
-
-          const carnetActions = await import("@/app/actions/carnets");
-          let carnetDbResult;
-
-          if (editData) {
-            // Update existing carnet
-            const updateResult = await carnetActions.updateCarnetAction(
-              dbResult.certificateIds![0],
-              carnetData[0],
-            );
-            carnetDbResult = {
-              success: updateResult.success,
-              message: (updateResult as any).message || "",
-              carnetIds: updateResult.carnetId ? [updateResult.carnetId] : [],
-            };
-          } else {
-            // Create new carnets
-            carnetDbResult = await carnetActions.saveCarnetsToDatabase(
-              carnetData,
-              dbResult.certificateIds!,
-            );
-          }
-
-          if (carnetDbResult.success && carnetDbResult.carnetIds) {
+          // Carnets were already created server-side, now generate PDFs for download
+          if (dbResult.certificateIds && dbResult.certificateIds.length > 0) {
             // Preload carnet template image as base64
             let carnetTemplateBase64 = "";
             let finalCarnetTemplateUrl = "/templates/carnet.png"; // Default fallback
@@ -989,19 +947,37 @@ export default function GeneracionCertificadoClient({
             }
 
             // Generate carnet PDFs concurrently in batches
-            const carnetRequests = carnetData.map((carnet, index) => {
-              // Use preloaded base64 if available, otherwise use final URL
-              const templateImage =
-                carnetTemplateBase64 || finalCarnetTemplateUrl;
+            const carnetRequests = certificateData.participants.map(
+              (participant, index) => {
+                // Use preloaded base64 if available, otherwise use final URL
+                const templateImage =
+                  carnetTemplateBase64 || finalCarnetTemplateUrl;
 
-              return {
-                participant: certificateData.participants[index],
-                carnetData: carnet,
-                templateImage,
-                isPreview: false,
-                carnetId: carnetDbResult.carnetIds![index],
-              };
-            });
+                return {
+                  participant,
+                  carnetData: {
+                    id_certificado: dbResult.certificateIds![index],
+                    id_participante: dbResult.participantIds?.[index] || 0,
+                    id_empresa: selectedOSI?.empresa_id || null,
+                    id_curso: certificateData.course_topic_data?.id
+                      ? parseInt(certificateData.course_topic_data.id)
+                      : null,
+                    id_osi: null,
+                    titulo_curso: certificateData.certificate_title,
+                    fecha_emision: certificateData.date,
+                    fecha_vencimiento:
+                      certificateData.fecha_vencimiento || null,
+                    nombre_participante: participant.name,
+                    cedula_participante: participant.idNumber,
+                    empresa_participante: participant.company || null,
+                    nro_control:
+                      dbResult.certificateNumbers![index].nro_control,
+                  },
+                  templateImage,
+                  isPreview: false,
+                };
+              },
+            );
 
             // Generate carnet PDFs in batches
             const CARNET_BATCH_SIZE = 15;

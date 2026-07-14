@@ -156,11 +156,9 @@ export async function getFacilitatorData(
         `
         id,
         nombre_apellido,
-        cargo,
-        firma,
         firma_id,
         sha_signature_id,
-        firmas!firmas_facilitador_id_fkey (
+        firmas!facilitadores_firma_id_fkey (
           id,
           nombre,
           tipo,
@@ -183,11 +181,11 @@ export async function getFacilitatorData(
     // Transform the data to match the expected interface
     const facilitator: CertificateFacilitator = {
       id: data.id,
-      name: toTitleCase(data.nombre_apellido || ""), // Map nombre_apellido to name with title case
+      name: toTitleCase(data.nombre_apellido || ""),
       nombre_apellido: toTitleCase(data.nombre_apellido || ""),
       facilitator: toTitleCase(data.nombre_apellido || ""),
-      cargo: data.cargo,
-      firma: data.firma,
+      cargo: "Facilitador",
+      firma: data.firmas?.[0]?.url_imagen,
       firma_id: data.firma_id,
       sha_signature_id: data.sha_signature_id,
       signature_data:

@@ -86,7 +86,8 @@ export async function saveCertificatesToDatabase(
 
     const fetchTasks: Promise<void>[] = [];
 
-    if (certificateData.facilitator_id && !certificateData.facilitator_data) {
+    // ALWAYS fetch facilitator data if facilitator_id is provided
+    if (certificateData.facilitator_id) {
       fetchTasks.push(
         (async () => {
           const facilitatorData = await getFacilitatorData(
@@ -125,6 +126,20 @@ export async function saveCertificatesToDatabase(
 
     const afterFetchTime = Date.now();
 
+    console.log("After fetching facilitator and SHA data:");
+    console.log(
+      "facilitator_data present?",
+      !!updatedCertificateData.facilitator_data,
+    );
+    console.log(
+      "facilitator_data value:",
+      JSON.stringify(updatedCertificateData.facilitator_data, null, 2),
+    );
+    console.log(
+      "sha_signature_data present?",
+      !!updatedCertificateData.sha_signature_data,
+    );
+
     const supabase = await createClient();
 
     if (!certificateData.osi_data || !certificateData.course_topic_data) {
@@ -161,38 +176,55 @@ export async function saveCertificatesToDatabase(
         .single();
 
       if (configData && !configError) {
-        // Use the configured starting values if no certificates exist yet
-        const { count: certCount } = await supabase
+        // Check for the absolute LAST certificate created
+        const { data: lastCert, error: lastCertError } = await supabase
           .from("certificados")
-          .select("id", { count: "exact", head: true });
+          .select("nro_libro, nro_hoja, nro_linea, nro_control")
+          .order("id", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        if (certCount === 0) {
-          // No certificates yet, use the configured values
+        if (lastCertError || !lastCert) {
+          // No certificates exist yet, use the initial configuration values
           nextControlNumbers = {
             nro_libro: configData.nro_libro,
             nro_hoja: configData.nro_hoja,
             nro_linea: configData.nro_linea,
             nro_control: configData.nro_control,
           };
-          console.log("Using configured control sequence:", nextControlNumbers);
+          console.log(
+            "Using initial configuration (First Batch):",
+            nextControlNumbers,
+          );
         } else {
-          // Certificates exist, use RPC to get next numbers from last certificate
-          const { data: controlNumbersData, error: rpcError } =
-            await supabase.rpc("get_next_control_numbers", {
-              batch_size: participants.length,
-            });
+          // Certificates exist! Calculate the NEXT numbers based on the last one
+          // using your 10 lines/sheet and 100 sheets/book rule
+          let nextLine = lastCert.nro_linea + 1;
+          let nextSheet = lastCert.nro_hoja;
+          let nextBook = lastCert.nro_libro;
 
-          if (!rpcError && controlNumbersData) {
-            nextControlNumbers = controlNumbersData as any;
-          } else {
-            console.warn(
-              "RPC error for control numbers, using last certificate:",
-              rpcError,
-            );
+          if (nextLine > 10) {
+            nextLine = 1;
+            nextSheet += 1;
+            if (nextSheet > 100) {
+              nextSheet = 1;
+              nextBook += 1;
+            }
           }
+
+          nextControlNumbers = {
+            nro_libro: nextBook,
+            nro_hoja: nextSheet,
+            nro_linea: nextLine,
+            nro_control: (lastCert.nro_control || 0) + 1,
+          };
+          console.log(
+            "Calculated next sequence from last certificate:",
+            nextControlNumbers,
+          );
         }
       } else {
-        // No configuration found, use RPC
+        // Fallback to RPC only if no sequence configuration exists
         const { data: controlNumbersData, error: rpcError } =
           await supabase.rpc("get_next_control_numbers", {
             batch_size: participants.length,
@@ -200,16 +232,11 @@ export async function saveCertificatesToDatabase(
 
         if (!rpcError && controlNumbersData) {
           nextControlNumbers = controlNumbersData as any;
-        } else {
-          console.warn(
-            "RPC error for control numbers, using fallback:",
-            rpcError,
-          );
         }
       }
     } catch (error) {
       console.warn(
-        "Failed to get control numbers via RPC, using defaults:",
+        "Failed to determine next control numbers, using defaults:",
         error,
       );
     }
@@ -516,6 +543,49 @@ export async function saveCertificatesToDatabase(
         success: false,
         message: "No certificates were saved to database",
       };
+    }
+
+    // Create carnets if the course requires them
+    if (
+      updatedCertificateData.course_topic_data?.emite_carnet &&
+      certificateIds.length > 0
+    ) {
+      try {
+        const { saveCarnetsToDatabase } = await import("./carnets");
+
+        // Build carnet data for each certificate
+        const carnetDataList = participants.map((participant, index) => ({
+          id_certificado: certificateIds[index],
+          id_participante: participantIds[index],
+          id_empresa: updatedCertificateData.osi_data?.empresa_id || null,
+          id_curso: updatedCertificateData.course_topic_data?.id
+            ? parseInt(updatedCertificateData.course_topic_data.id)
+            : null,
+          id_osi: updatedCertificateData.osi_data?.id || null,
+          titulo_curso: updatedCertificateData.course_topic_data?.nombre || "",
+          fecha_emision: today,
+          fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
+          nombre_participante: participant.name,
+          cedula_participante: participant.idNumber,
+          empresa_participante: null,
+          nro_control: certificateNumbers[index]?.nro_control || 0,
+        }));
+
+        const carnetResult = await saveCarnetsToDatabase(
+          carnetDataList,
+          certificateIds,
+        );
+
+        if (carnetResult.success) {
+          console.log(
+            `✅ Successfully created ${carnetResult.carnetIds?.length || 0} carnets`,
+          );
+        } else {
+          console.warn("⚠️ Failed to create carnets:", carnetResult.error);
+        }
+      } catch (carnetError) {
+        console.warn("⚠️ Error creating carnets:", carnetError);
+      }
     }
 
     return {

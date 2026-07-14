@@ -379,16 +379,6 @@ export async function getCarnetsByCertificateId(
           contenido_curso,
           carga_horaria_std,
           emite_carnet
-        ),
-        osi:osi(
-          id,
-          nro_osi,
-          nro_orden_compra,
-          tipo_servicio,
-          ejecutivo_negocios,
-          cliente_nombre_empresa,
-          estado,
-          fecha_ejecucion1
         )
       `,
       )
