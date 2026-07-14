@@ -211,60 +211,57 @@ const getCourseTemplatesByOSI = cache(async (courseId?: string, empresaId?: stri
       return { data: data || [], error: null };
     }
 
-    // Build query to get templates that are:
-    // 1. Related to this specific course (id_curso = courseId)
-    // 2. Related to this company (id_empresa = empresaId)
-    // 3. OR general templates (id_curso IS NULL AND id_empresa IS NULL)
-    // 4. Must be active
+    // Fetch all active templates and filter in JS to avoid complex PostgREST query issues
+    // and ensure we don't miss any data due to syntax edge cases
     let query = supabase
       .from('plantillas_cursos')
-      .select('*')
-      .eq('is_active', true);
-
-    const orConditions = [];
-
-    // Add course-specific templates if courseId is provided
-    if (courseId) {
-      orConditions.push(`id_curso.eq.${courseId}`);
-    }
-
-    // Add company-specific templates if empresaId is provided
-    if (empresaId) {
-      orConditions.push(`id_empresa.eq.${empresaId}`);
-    }
-
-    // Always include general templates
-    orConditions.push('id_curso.is.null,id_empresa.is.null');
-
-    console.log('🔧 OR conditions:', orConditions);
-
-    query = query.or(orConditions.join(','));
-    query = query.order('created_at', { ascending: false });
+      .select(`
+        *,
+        empresas (
+          id,
+          razon_social
+        )
+      `)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
 
     const { data, error } = await query;
 
-    console.log('📊 Filtered templates query result:', {
-      dataLength: data?.length || 0,
-      data: data,
-      error,
-      courseId,
-      empresaId,
-      orConditions: orConditions.join(','),
-      templateDetails: data?.map(t => ({
-        id: t.id,
-        idType: typeof t.id,
-        descripcion: t.descripcion,
-        nombre: t.nombre
-      }))
-    });
-
     if (error) {
-      console.error('❌ Error in filtered templates query:', error);
+      console.error('❌ Error fetching templates:', error);
       return { error: error.message, data: [] };
     }
 
-    console.log('✅ Returning filtered templates:', data?.length || 0);
-    return { data: data || [], error: null };
+    // Filter in JS for exact matches
+    const filteredData = (data || []).filter(t => {
+      const tCourseId = t.id_curso ? String(t.id_curso) : null;
+      const tEmpresaId = t.id_empresa ? String(t.id_empresa) : null;
+      const targetCourseId = courseId ? String(courseId) : null;
+      const targetEmpresaId = empresaId ? String(empresaId) : null;
+
+      // Logic:
+      // 1. If it's a course-specific template, it must match our course
+      if (tCourseId && tCourseId !== targetCourseId) return false;
+      
+      // 2. If it's a company-specific template, it must match our company
+      if (tEmpresaId && tEmpresaId !== targetEmpresaId) return false;
+
+      // 3. If it's global (both null), it's always included
+      // 4. If it's course-only, it matches if the course IDs match (handled by rule 1)
+      // 5. If it's company-only, it matches if the company IDs match (handled by rule 2)
+      
+      return true;
+    });
+
+    console.log('📊 Template filtering details:', {
+      courseId,
+      empresaId,
+      totalActiveInDB: data?.length || 0,
+      filteredCount: filteredData.length,
+      sampleTemplates: data?.slice(0, 5).map(t => ({ id: t.id, cId: t.id_curso, eId: t.id_empresa }))
+    });
+
+    return { data: filteredData, error: null };
   } catch (err) {
     console.error('💥 Unexpected error in getCourseTemplatesByOSI:', err);
     return {

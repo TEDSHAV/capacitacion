@@ -99,6 +99,18 @@ export const CertificateForm = ({
         const empresaId = selectedOSI?.empresa_id?.toString();
 
         const templatesResult = await getCourseTemplatesByOSIAction(courseId, empresaId);
+        console.log('🧪 Course templates result:', { 
+          courseId, 
+          empresaId, 
+          templatesFound: templatesResult.data?.length,
+          templates: templatesResult.data?.map((t: any) => ({
+            id: t.id,
+            desc: t.descripcion,
+            id_curso: t.id_curso,
+            id_empresa: t.id_empresa
+          }))
+        });
+
         if (templatesResult.data) {
           const templates = templatesResult.data;
 
@@ -106,7 +118,7 @@ export const CertificateForm = ({
           const allOptions = selectedCourseTopic ? [
             {
               id: 'original-course',
-              descripcion: selectedCourseTopic.nombre || 'Curso sin nombre',
+              descripcion: selectedCourseTopic.nombre || 'Contenido base del curso',
               contenido: selectedCourseTopic.contenido_curso || ''
             },
             ...templates
@@ -114,16 +126,25 @@ export const CertificateForm = ({
 
           setCourseTemplates(allOptions);
           
-          // If no templates exist for this course, use course's default content
-          if (templates.length === 0 && selectedCourseTopic?.contenido_curso) {
-            onDataChange("course_content", selectedCourseTopic.contenido_curso);
-            // Auto-select the original course option
-            onDataChange("course_template_id", 'original-course');
-          } else if (selectedCourseTopic?.contenido_curso) {
-            // Auto-select the original course option by default
-            onDataChange("course_template_id", 'original-course');
-            onDataChange("course_content", selectedCourseTopic.contenido_curso);
+          // Logic for auto-selecting the best template
+          let templateToSelect = 'original-course';
+          let contentToUse = selectedCourseTopic?.contenido_curso || '';
+
+          // Check if there's a specific template for this course and company
+          if (courseId && empresaId) {
+            const companySpecificTemplate = templates.find(
+              (t: any) => t.id_curso?.toString() === courseId && t.id_empresa?.toString() === empresaId
+            );
+            
+            if (companySpecificTemplate) {
+              templateToSelect = companySpecificTemplate.id.toString();
+              contentToUse = companySpecificTemplate.contenido || '';
+            }
           }
+
+          // Update the form data
+          onDataChange("course_template_id", templateToSelect);
+          onDataChange("course_content", contentToUse);
         }
       } catch (error) {
         // Continue without templates
@@ -299,14 +320,26 @@ export const CertificateForm = ({
           disabled={!selectedOSI}
         >
           <option value="">Selecciona una plantilla...</option>
-          {courseTemplates.map((template: any) => (
-            <option key={template.id} value={template.id}>
-              {template.id === 'original-course' 
-                ? selectedCourseTopic?.nombre || 'Curso sin nombre'
-                : template.nombre || template.descripcion || `Plantilla ${template.id}`
-              }
-            </option>
-          ))}
+          {courseTemplates.map((template: any) => {
+            let label = template.nombre || template.descripcion || `Plantilla ${template.id}`;
+            
+            if (template.id === 'original-course') {
+              label = selectedCourseTopic?.nombre || 'Contenido base del curso';
+            } else if (template.empresas) {
+              const courseName = selectedCourseTopic?.nombre || '';
+              const companyName = template.empresas.razon_social || '';
+              label = `${courseName} ${companyName}`;
+            } else if (template.id_curso) {
+              const courseName = selectedCourseTopic?.nombre || '';
+              label = `${courseName} - ${template.descripcion}`;
+            }
+            
+            return (
+              <option key={template.id} value={template.id}>
+                {label}
+              </option>
+            );
+          })}
         </select>
         <p className="text-xs text-gray-500 mt-1">
           {!selectedOSI 
