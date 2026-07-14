@@ -72,7 +72,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: `frame-ancestors 'self' ${process.env.NEXT_PUBLIC_SHELL_URL || 'http://localhost:3000'}`
+            value: `frame-ancestors 'self' ${process.env.NEXT_PUBLIC_SHELL_URL || ''} http://localhost:3000`
           },
           {
             key: 'X-Content-Type-Options',
