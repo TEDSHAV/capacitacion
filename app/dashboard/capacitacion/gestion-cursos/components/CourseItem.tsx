@@ -30,7 +30,18 @@ const formatDate = (dateString: string | null) => {
 
 export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: CourseItemProps) {
   return (
-    <div className="px-6 py-4 hover:bg-gray-50 transition-colors">
+    <div
+      onClick={() => onEdit(curso)}
+      className="px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded"
+      tabIndex={0}
+      role="button"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onEdit(curso);
+        }
+      }}
+    >
       <div className="grid grid-cols-12 gap-4 items-center">
         {/* Course Information */}
         <div className="col-span-4">
@@ -39,7 +50,7 @@ export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: Cou
               {curso.nombre}
             </div>
             <div className="text-xs text-gray-500 line-clamp-2">
-              {curso.contenido?.substring(0, 80)}{curso.contenido?.length > 80 ? '...' : ''}
+              {curso.contenido?.substring(0, 80)}{(curso.contenido && curso.contenido.length > 80) ? '...' : ''}
             </div>
           </div>
         </div>
@@ -53,27 +64,20 @@ export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: Cou
 
         {/* Duration */}
         <div className="col-span-2">
-          <div className="flex items-center space-x-2">
-            <div className="text-sm font-medium text-gray-900">
-              {curso.horas_estimadas || 0}h
-            </div>
-            {curso.tipo_servicio && (
-              <div className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
-                Tipo {curso.tipo_servicio}
-              </div>
-            )}
+          <div className="text-sm font-medium text-gray-900">
+            {curso.horas_estimadas || 0}h
           </div>
         </div>
 
         {/* Creation Date */}
         <div className="col-span-2">
           <div className="text-xs text-gray-500">
-            {formatDate(curso.created_at || curso.creado)}
+            {formatDate(curso.created_at)}
           </div>
         </div>
 
         {/* Actions */}
-        <div className="col-span-2 flex justify-end">
+        <div className="col-span-2 flex justify-end" onClick={(e) => e.stopPropagation()}>
           <CourseActions 
             curso={curso}
             onEdit={onEdit}
