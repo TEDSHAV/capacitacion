@@ -50,7 +50,12 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
   const handleMouseEnter = useCallback(() => {
     setIsUserHovering(true);
     if (isCollapsed) {
-      setIsCollapsed(false);
+      // Add a small delay before expanding to prevent accidental triggers
+      setTimeout(() => {
+        if (isCollapsed) {
+          setIsCollapsed(false);
+        }
+      }, 400); // Increased from 250ms to 400ms for better UX
     }
   }, [isCollapsed]);
 
@@ -82,7 +87,7 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
       const timer = setTimeout(() => {
         setIsCollapsed(true);
         autoHideTimerRef.current = null;
-      }, 1000);
+      }, 100); // Reduced from 300ms to 100ms for faster collapse
       autoHideTimerRef.current = timer;
     }
   }, [isUserHovering, isCollapsed]);
