@@ -41,7 +41,7 @@ export async function getCertificateData() {
         contenido_curso: curso.contenido,
         cliente_asociado: curso.cliente_asociado,
         created_at: curso.created_at,
-        nota_aprobatoria: curso.nota_aprobatoria || 0, // Default to 0 if no nota_aprobatoria
+        nota_aprobatoria: curso.nota_aprobatoria ?? 14, // Default to 14 if no nota_aprobatoria
       }))
     };
 

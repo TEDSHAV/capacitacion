@@ -19,6 +19,7 @@ export async function createCurso(formData: FormData) {
     const contenido = formData.get('contenido') as string;
     const horas_estimadas = formData.get('horas_estimadas') as string;
     const nota_aprobatoria = formData.get('nota_aprobatoria') as string;
+    const emite_carnet = formData.get('emite_carnet') as string;
 
     // Validate required fields
     if (!titulo?.trim()) {
@@ -40,7 +41,8 @@ export async function createCurso(formData: FormData) {
         cliente_asociado: cliente_asociado?.trim() ? parseInt(cliente_asociado) : null,
         created_at: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
         is_active: true,
-        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14
+        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
+        emite_carnet: emite_carnet === 'true' // Convert string to boolean
       })
       .select(`
         *,
@@ -74,6 +76,7 @@ export async function updateCurso(id: string, formData: FormData) {
     const contenido = formData.get('contenido') as string;
     const horas_estimadas = formData.get('horas_estimadas') as string;
     const nota_aprobatoria = formData.get('nota_aprobatoria') as string;
+    const emite_carnet = formData.get('emite_carnet') as string;
 
     // Validate required fields
     if (!titulo || !contenido) {
@@ -88,7 +91,8 @@ export async function updateCurso(id: string, formData: FormData) {
         contenido: contenido,
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
         cliente_asociado: cliente_asociado && cliente_asociado.trim() ? parseInt(cliente_asociado) : null,
-        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14
+        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
+        emite_carnet: emite_carnet === 'true' // Convert string to boolean
       })
       .eq('id', id)
       .select(`
@@ -147,7 +151,8 @@ export async function duplicateCurso(id: string) {
         cliente_asociado: originalCourse.cliente_asociado,
         created_at: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
         is_active: true,
-        nota_aprobatoria: originalCourse.nota_aprobatoria || 14
+        nota_aprobatoria: originalCourse.nota_aprobatoria || 14,
+        emite_carnet: originalCourse.emite_carnet || false // Copy the original emite_carnet value
       })
       .select(`
         *,
