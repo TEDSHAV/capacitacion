@@ -5,6 +5,38 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import OSIActionButtons from '../components/OSIActionButtons'
 
+interface Empresa {
+  id: string;
+  razon_social: string;
+  rif: string;
+  direccion_fiscal: string;
+  codigo_cliente: string;
+}
+
+interface Servicio {
+  id: number;
+  nombre: string;
+}
+
+interface Usuario {
+  id: number;
+  nombre_apellido: string;
+}
+
+interface CatalogoServicio {
+  id: number;
+  nombre: string;
+}
+
+interface Contacto {
+  id: number;
+  nombre: string;
+  apellido: string;
+  telefono: string;
+  email: string;
+  email2: string;
+}
+
 interface OSI {
   id: number
   nro_osi: string
@@ -103,15 +135,15 @@ export default function OSIDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [empresas, setEmpresas] = useState<any[]>([])
+  const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [filteredEmpresas, setFilteredEmpresas] = useState<any[]>([])
-  const [servicios, setServicios] = useState<any[]>([])
-  const [usuarios, setUsuarios] = useState<any[]>([])
-  const [catalogoServicios, setCatalogoServicios] = useState<any[]>([])
+  const [filteredEmpresas, setFilteredEmpresas] = useState<Empresa[]>([])
+  const [servicios, setServicios] = useState<Servicio[]>([])
+  const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [catalogoServicios, setCatalogoServicios] = useState<CatalogoServicio[]>([])
   const [temaSearchTerm, setTemaSearchTerm] = useState('')
-  const [filteredCatalogoServicios, setFilteredCatalogoServicios] = useState<any[]>([])
-  const [contactos, setContactos] = useState<any[]>([])
+  const [filteredCatalogoServicios, setFilteredCatalogoServicios] = useState<CatalogoServicio[]>([])
+  const [contactos, setContactos] = useState<Contacto[]>([])
 
   useEffect(() => {
     const nro_osi = params.nro_osi as string
@@ -487,8 +519,13 @@ export default function OSIDetailPage() {
     }
   }
 
-  const updateFormData = (field: keyof OSI, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+  const updateFormData = (field: keyof Partial<OSI>, value: string | number | boolean | Date | null) => {
+    // Convert string numbers to actual numbers for numeric fields
+    let processedValue = value;
+    if (typeof value === 'string' && ['nro_horas', 'costo_honorarios', 'costo_impresion_material', 'costo_traslado', 'costo_logistica_comida', 'costo_otros', 'participantes_max', 'nro_sesiones', 'ejecutivo_negocios', 'persona_contacto_id'].includes(field)) {
+      processedValue = parseFloat(value) || 0;
+    }
+    setFormData(prev => ({ ...prev, [field]: processedValue }))
     // Clear error when user starts typing in required fields
     if (error && (field === 'nro_osi' || field === 'tipo_servicio')) {
       setError(null)
@@ -984,8 +1021,8 @@ export default function OSIDetailPage() {
                 </label>
                 <input
                   type="datetime-local"
-                  value={String(formData[`fecha_ejecucion${index + 1}` as keyof OSI] ?? '')}
-                  onChange={(e) => updateFormData(`fecha_ejecucion${index + 1}` as keyof OSI, e.target.value)}
+                  value={String(formData[`fecha_ejecucion${index + 1}` as keyof Partial<OSI>] ?? '')}
+                  onChange={(e) => updateFormData(`fecha_ejecucion${index + 1}` as keyof Partial<OSI>, e.target.value)}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
@@ -1118,12 +1155,12 @@ export default function OSIDetailPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.nro_horas || 0)
-                      updateFormData('nro_horas', String(currentValue + 1))
+                      const currentValue = typeof formData.nro_horas === 'number' ? formData.nro_horas : parseFloat(formData.nro_horas || '0')
+                      updateFormData('nro_horas', currentValue + 1)
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.nro_horas || 0)
-                      updateFormData('nro_horas', String(Math.max(0, currentValue - 1)))
+                      const currentValue = typeof formData.nro_horas === 'number' ? formData.nro_horas : parseFloat(formData.nro_horas || '0')
+                      updateFormData('nro_horas', Math.max(0, currentValue - 1))
                     }
                   }}
                   disabled={!isEditing && !isNew}
@@ -1142,12 +1179,12 @@ export default function OSIDetailPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.costo_honorarios || 0)
-                      updateFormData('costo_honorarios', String(currentValue + 1))
+                      const currentValue = typeof formData.costo_honorarios === 'number' ? formData.costo_honorarios : parseFloat(formData.costo_honorarios || '0')
+                      updateFormData('costo_honorarios', currentValue + 1)
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.costo_honorarios || 0)
-                      updateFormData('costo_honorarios', String(Math.max(0, currentValue - 1)))
+                      const currentValue = typeof formData.costo_honorarios === 'number' ? formData.costo_honorarios : parseFloat(formData.costo_honorarios || '0')
+                      updateFormData('costo_honorarios', Math.max(0, currentValue - 1))
                     }
                   }}
                   disabled={!isEditing && !isNew}
@@ -1172,12 +1209,12 @@ export default function OSIDetailPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.costo_impresion_material || 0)
-                      updateFormData('costo_impresion_material', String(currentValue + 1))
+                      const currentValue = typeof formData.costo_impresion_material === 'number' ? formData.costo_impresion_material : parseFloat(formData.costo_impresion_material || '0')
+                      updateFormData('costo_impresion_material', currentValue + 1)
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.costo_impresion_material || 0)
-                      updateFormData('costo_impresion_material', String(Math.max(0, currentValue - 1)))
+                      const currentValue = typeof formData.costo_impresion_material === 'number' ? formData.costo_impresion_material : parseFloat(formData.costo_impresion_material || '0')
+                      updateFormData('costo_impresion_material', Math.max(0, currentValue - 1))
                     }
                   }}
                   disabled={!isEditing && !isNew}
@@ -1196,12 +1233,12 @@ export default function OSIDetailPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.costo_traslado || 0)
-                      updateFormData('costo_traslado', String(currentValue + 1))
+                      const currentValue = typeof formData.costo_traslado === 'number' ? formData.costo_traslado : parseFloat(formData.costo_traslado || '0')
+                      updateFormData('costo_traslado', currentValue + 1)
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.costo_traslado || 0)
-                      updateFormData('costo_traslado', String(Math.max(0, currentValue - 1)))
+                      const currentValue = typeof formData.costo_traslado === 'number' ? formData.costo_traslado : parseFloat(formData.costo_traslado || '0')
+                      updateFormData('costo_traslado', Math.max(0, currentValue - 1))
                     }
                   }}
                   disabled={!isEditing && !isNew}
@@ -1220,12 +1257,12 @@ export default function OSIDetailPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.costo_logistica_comida || 0)
-                      updateFormData('costo_logistica_comida', String(currentValue + 1))
+                      const currentValue = typeof formData.costo_logistica_comida === 'number' ? formData.costo_logistica_comida : parseFloat(formData.costo_logistica_comida || '0')
+                      updateFormData('costo_logistica_comida', currentValue + 1)
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.costo_logistica_comida || 0)
-                      updateFormData('costo_logistica_comida', String(Math.max(0, currentValue - 1)))
+                      const currentValue = typeof formData.costo_logistica_comida === 'number' ? formData.costo_logistica_comida : parseFloat(formData.costo_logistica_comida || '0')
+                      updateFormData('costo_logistica_comida', Math.max(0, currentValue - 1))
                     }
                   }}
                   disabled={!isEditing && !isNew}
@@ -1244,12 +1281,12 @@ export default function OSIDetailPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.costo_otros || 0)
-                      updateFormData('costo_otros', String(currentValue + 1))
+                      const currentValue = typeof formData.costo_otros === 'number' ? formData.costo_otros : parseFloat(formData.costo_otros || '0')
+                      updateFormData('costo_otros', currentValue + 1)
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
-                      const currentValue = parseFloat(formData.costo_otros || 0)
-                      updateFormData('costo_otros', String(Math.max(0, currentValue - 1)))
+                      const currentValue = typeof formData.costo_otros === 'number' ? formData.costo_otros : parseFloat(formData.costo_otros || '0')
+                      updateFormData('costo_otros', Math.max(0, currentValue - 1))
                     }
                   }}
                   disabled={!isEditing && !isNew}
