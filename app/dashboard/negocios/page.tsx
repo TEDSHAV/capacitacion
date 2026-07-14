@@ -42,22 +42,29 @@ export default function NegociosPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [osis, setOsis] = useState<OSI[]>([])
+  const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        router.push('/login')
-        return
-      }
-      setUser(user)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!user) {
+          router.push('/login')
+          return
+        }
+        setUser(user)
 
-      // Fetch OSI data from Supabase
-      const { data: osiData } = await supabase.from("osi").select("*")
-      setOsis(osiData || [])
+        // Fetch OSI data from Supabase
+        const { data: osiData } = await supabase.from("osi").select("*")
+        setOsis(osiData || [])
+      } catch (error) {
+        console.error('Error loading data:', error)
+      } finally {
+        setLoading(false)
+      }
     }
 
     checkAuth()
@@ -103,12 +110,25 @@ export default function NegociosPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white min-h-screen">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Cargando...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!user) {
     return null
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
       <div className="mb-8">
         <button
           onClick={() => router.push('/dashboard')}
@@ -127,7 +147,8 @@ export default function NegociosPage() {
           </div>
           <button
             onClick={() => router.push('/dashboard/negocios/osi/new')}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors shadow-md"
+            style={{ backgroundColor: '#4f46e5', color: 'white' }}
           >
             + Nueva OSI
           </button>
@@ -135,38 +156,58 @@ export default function NegociosPage() {
       </div>
 
       {/* OSI List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {osis.map((osi) => (
-          <div
-            key={osi.id}
-            onClick={() => router.push(`/dashboard/negocios/osi/${osi.nro_osi}`)}
-            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg min-h-[120px] cursor-pointer transform hover:scale-105 transition-all duration-200"
-          >
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {osi.nro_osi}
-              </h3>
-              <p className="text-gray-600 text-sm mb-4">
-                {osi.nombre_empresa}
-              </p>
-              <div className="flex items-center justify-between">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(osi.estado)}`}>
-                  {osi.estado}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    router.push(`/dashboard/negocios/osi/${osi.nro_osi}`)
-                  }}
-                  className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                >
-                  Editar
-                </button>
+      {osis.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="bg-gray-50 rounded-lg p-8">
+            <div className="text-gray-400 mb-4">
+              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay OSI registradas</h3>
+            <p className="text-gray-500 mb-4">Comienza creando tu primera Orden de Servicio de Ingeniería</p>
+            <button
+              onClick={() => router.push('/dashboard/negocios/osi/new')}
+              className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 transition-colors"
+            >
+              + Crear Primera OSI
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {osis.map((osi) => (
+            <div
+              key={osi.id}
+              onClick={() => router.push(`/dashboard/negocios/osi/${osi.nro_osi}`)}
+              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg min-h-[120px] cursor-pointer transform hover:scale-105 transition-all duration-200"
+            >
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {osi.nro_osi}
+                </h3>
+                <p className="text-gray-600 text-sm mb-4">
+                  {osi.nombre_empresa}
+                </p>
+                <div className="flex items-center justify-between">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(osi.estado)}`}>
+                    {osi.estado}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      router.push(`/dashboard/negocios/osi/${osi.nro_osi}`)
+                    }}
+                    className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                  >
+                    Editar
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
