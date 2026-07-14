@@ -51,7 +51,7 @@ export class CitizenService {
       const url = new URL(this.API_URL);
       url.searchParams.append("app_id", this.APP_ID);
       url.searchParams.append("token", this.TOKEN);
-      url.searchParams.append("nacionalidad", "V"); // Always Venezuelan as requested
+      url.searchParams.append("nacionalidad", "V");
       url.searchParams.append("cedula", idNumber.replace(/\D/g, "")); // Only digits
 
       const response = await fetch(url.toString(), {
