@@ -12,6 +12,8 @@ import {
   Loader2,
   AlertCircle,
   TrendingUp,
+  CreditCard,
+  AlertTriangle,
 } from "lucide-react";
 import { getOverviewMetrics } from "@/app/actions/reportes";
 import { OverviewMetrics } from "@/types";
@@ -193,6 +195,11 @@ export default function OverviewReport({
             <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
         </div>
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Skeleton className="h-52 rounded-xl lg:col-span-1" />
           <Skeleton className="h-52 rounded-xl" />
@@ -261,6 +268,38 @@ export default function OverviewReport({
           value={data.uniqueParticipants.toLocaleString("es-VE")}
           sub={`${data.uniqueFacilitators} facilitadores activos`}
           color="bg-pink-50 text-pink-600"
+        />
+      </div>
+
+      {/* Carnets KPI row */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPICard
+          icon={CreditCard}
+          label="Total Carnets"
+          value={data.totalCarnets.toLocaleString("es-VE")}
+          sub={`${data.activeCarnets} activos`}
+          color="bg-purple-50 text-purple-600"
+        />
+        <KPICard
+          icon={AlertTriangle}
+          label="Por Vencer"
+          value={data.expiringSoonCarnets}
+          sub="Próximos 30 días"
+          color="bg-yellow-50 text-yellow-600"
+        />
+        <KPICard
+          icon={AlertTriangle}
+          label="Vencidos"
+          value={data.expiredCarnets}
+          sub="Carnets expirados"
+          color="bg-red-50 text-red-600"
+        />
+        <KPICard
+          icon={Calendar}
+          label="Este Mes"
+          value={data.carnetsThisMonth || 0}
+          sub="Generados este mes"
+          color="bg-blue-50 text-blue-600"
         />
       </div>
 

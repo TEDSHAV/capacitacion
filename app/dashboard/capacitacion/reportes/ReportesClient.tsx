@@ -13,12 +13,14 @@ import {
   ClipboardList,
   Calendar,
   X,
+  CreditCard,
 } from "lucide-react";
 import { State } from "@/types";
 import OverviewReport from "./components/OverviewReport";
 import CursosReport from "./components/CursosReport";
 import FacilitadoresReport from "./components/FacilitadoresReport";
 import EmpresasReport from "./components/EmpresasReport";
+import CarnetsReport from "./components/CarnetsReport";
 import TendenciasReport from "./components/TendenciasReport";
 import SurveysReport from "./components/SurveysReport";
 
@@ -27,6 +29,7 @@ type ReportTab =
   | "cursos"
   | "facilitadores"
   | "empresas"
+  | "carnets"
   | "tendencias"
   | "surveys";
 
@@ -59,6 +62,12 @@ const NAV_ITEMS: {
     label: "Empresas",
     description: "Clientes capacitados",
     icon: Building2,
+  },
+  {
+    id: "carnets",
+    label: "Carnets",
+    description: "Tarjetas de identificación",
+    icon: CreditCard,
   },
   {
     id: "surveys",
@@ -363,6 +372,13 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
           )}
           {activeTab === "empresas" && (
             <EmpresasReport
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              selectedState={selectedState}
+            />
+          )}
+          {activeTab === "carnets" && (
+            <CarnetsReport
               dateFrom={dateFrom}
               dateTo={dateTo}
               selectedState={selectedState}

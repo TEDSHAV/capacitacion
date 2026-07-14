@@ -92,7 +92,7 @@ export async function getOverviewMetrics(
     if (dateTo) query = query.lte("fecha_emision", dateTo);
     if (stateId) query = query.eq("id_estado", stateId);
 
-    const [{ data: certs, error }, { data: servicios }, { data: osiData }] = await Promise.all([
+    const [{ data: certs, error }, { data: servicios }, { data: osiData }, { data: carnets }] = await Promise.all([
       query,
       supabase
         .from("catalogo_servicios")
@@ -100,6 +100,10 @@ export async function getOverviewMetrics(
       supabase
         .from("v_osi_formato_completo")
         .select("id_osi, nro_osi, horas_academicas_ejecucion")
+        .limit(5000),
+      supabase
+        .from("carnets")
+        .select("id, is_active, fecha_emision, fecha_vencimiento, id_certificado, created_at")
         .limit(5000),
     ]);
 
@@ -244,6 +248,33 @@ export async function getOverviewMetrics(
       .slice(0, 5)
       .map((c) => ({ name: c.name, count: c.count }));
 
+    // Calculate carnet metrics
+    console.log("🔍 Carnets data received:", carnets?.length || 0, "carnets");
+    const totalCarnets = carnets?.length || 0;
+    const activeCarnets = carnets?.filter(c => c.is_active).length || 0;
+    console.log("🔍 Carnet metrics calculated:", { totalCarnets, activeCarnets });
+    
+    // Calculate expiration metrics
+    const currentDate = new Date();
+    const thirtyDaysFromNow = new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    const expiringSoonCarnets = carnets?.filter(c => 
+      c.fecha_vencimiento && 
+      new Date(c.fecha_vencimiento) <= thirtyDaysFromNow &&
+      new Date(c.fecha_vencimiento) > currentDate
+    ).length || 0;
+
+    const expiredCarnets = carnets?.filter(c => 
+      c.fecha_vencimiento && 
+      new Date(c.fecha_vencimiento) <= currentDate
+    ).length || 0;
+
+    // Calculate carnets this month
+    const carnetsThisMonth = carnets?.filter(c => {
+      const carnetDate = new Date(c.fecha_emision);
+      return carnetDate.getMonth() === currentMonth && carnetDate.getFullYear() === currentYear;
+    }).length || 0;
+
     return {
       data: {
         totalCertificates: certs.length,
@@ -260,6 +291,12 @@ export async function getOverviewMetrics(
         topCourses,
         topCompanies,
         monthlyTrend,
+        // Carnets metrics
+        totalCarnets,
+        activeCarnets,
+        expiringSoonCarnets,
+        expiredCarnets,
+        carnetsThisMonth,
       },
       error: truncationWarning.isTruncated ? (truncationWarning.message || null) : null,
     };
@@ -918,6 +955,129 @@ export async function getSurveysReport(
     return {
       error: err instanceof Error ? err.message : "Error desconocido",
       data: [],
+    };
+  }
+}
+
+// ─── Carnets Metrics ────────────────────────────────────────────────────────────────
+
+export async function getCarnetsMetrics(
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<{ data?: CarnetsMetrics; error?: string }> {
+  try {
+    const supabase = await createClient();
+
+    // Build date filter
+    let dateFilter = "";
+    if (dateFrom && dateTo) {
+      dateFilter = `and fecha_emision.gte.${dateFrom},fecha_emission.lte.${dateTo}`;
+    } else if (dateFrom) {
+      dateFilter = `and fecha_emision.gte.${dateFrom}`;
+    } else if (dateTo) {
+      dateFilter = `and fecha_emision.lte.${dateTo}`;
+    }
+
+    // Get carnets data with related information
+    const { data: carnets, error: carnetsError } = await supabase
+      .from("carnets")
+      .select(`
+        *,
+        certificado:certificados(id, created_at),
+        curso:catalogo_servicios(id, nombre)
+      `)
+      .order("created_at", { ascending: false });
+
+    if (carnetsError) {
+      console.error("Error fetching carnets:", carnetsError);
+      return { error: "Error fetching carnets data" };
+    }
+
+    console.log("🔍 getCarnetsMetrics - Raw carnets data:", carnets?.length || 0, "carnets");
+
+    // Apply date filtering if needed
+    const filteredCarnets = carnets?.filter(carnet => {
+      if (!dateFrom && !dateTo) return true;
+      const carnetDate = carnet.fecha_emision;
+      if (dateFrom && carnetDate < dateFrom) return false;
+      if (dateTo && carnetDate > dateTo) return false;
+      return true;
+    }) || [];
+
+    console.log("🔍 getCarnetsMetrics - Filtered carnets:", filteredCarnets.length, "carnets");
+
+    // Calculate basic metrics
+    const totalCarnets = filteredCarnets.length;
+    const activeCarnets = filteredCarnets.filter(c => c.is_active).length;
+    const inactiveCarnets = totalCarnets - activeCarnets;
+
+    // Calculate expiration metrics
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    const expiringSoon = filteredCarnets.filter(c => 
+      c.fecha_vencimiento && 
+      new Date(c.fecha_vencimiento) <= thirtyDaysFromNow &&
+      new Date(c.fecha_vencimiento) > now
+    ).length;
+
+    const expired = filteredCarnets.filter(c => 
+      c.fecha_vencimiento && 
+      new Date(c.fecha_vencimiento) <= now
+    ).length;
+
+    // Average carnets per certificate not needed (1:1 relationship)
+
+    // Template usage not needed - removed
+
+    // Calculate monthly generation data (last 12 months)
+    const monthlyMap = new Map<string, { count: number; activeCount: number }>();
+    const now2 = new Date();
+    
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(now2.getFullYear(), now2.getMonth() - i, 1);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      monthlyMap.set(key, { count: 0, activeCount: 0 });
+    }
+
+    filteredCarnets.forEach(carnet => {
+      const date = new Date(carnet.created_at);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const existing = monthlyMap.get(key);
+      if (existing) {
+        existing.count++;
+        if (carnet.is_active) {
+          existing.activeCount++;
+        }
+      }
+    });
+
+    const monthlyGeneration: MonthlyCarnetData[] = Array.from(monthlyMap.entries()).map(([monthYear, data]) => {
+      const [year, month] = monthYear.split('-').map(Number);
+      return {
+        month: new Date(year, month - 1).toLocaleDateString('es-ES', { month: 'short' }),
+        year,
+        count: data.count,
+        activeCount: data.activeCount,
+      };
+    });
+
+    return {
+      data: {
+        totalCarnets,
+        activeCarnets,
+        inactiveCarnets,
+        expiringSoon,
+        expired,
+        averageCarnetsPerCertificate: 0,
+        templateUsage: [],
+        monthlyGeneration,
+      },
+    };
+  } catch (err) {
+    console.error("Error in getCarnetsMetrics:", err);
+    return {
+      error: err instanceof Error ? err.message : "Error desconocido",
     };
   }
 }

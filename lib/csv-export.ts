@@ -221,3 +221,10 @@ export function exportSurveysReport(data: any[]): void {
   const excelContent = createExcelHTMLContent(excelData, headers, 'Reporte de Satisfacción');
   downloadExcelFile(excelContent, `reporte-satisfaccion-${new Date().toISOString().split('T')[0]}.xls`);
 }
+
+export function exportCarnetsReport(data: any[]): void {
+  const headers = ['Métrica', 'Valor', 'Descripción'];
+  
+  const excelContent = createExcelHTMLContent(data, headers, 'Métricas de Carnets');
+  downloadExcelFile(excelContent, `carnets-metrics-${new Date().toISOString().split('T')[0]}.xls`);
+}

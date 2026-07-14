@@ -1343,6 +1343,12 @@ export interface OverviewMetrics {
   topCourses: Array<{ name: string; count: number; avgScore: number }>;
   topCompanies: Array<{ name: string; count: number }>;
   monthlyTrend: MonthlyTrendPoint[];
+  // Carnets metrics
+  totalCarnets: number;
+  activeCarnets: number;
+  expiringSoonCarnets: number;
+  expiredCarnets: number;
+  carnetsThisMonth: number;
 }
 
 export interface CursoReportItem {
@@ -1442,6 +1448,44 @@ export interface SurveyOSIData {
   servicio: string;
   fecha_inicio_real: string;
   facilitador_nombre?: string;
+}
+
+// Carnets Metrics Types
+export interface CarnetsMetrics {
+  totalCarnets: number;
+  activeCarnets: number;
+  inactiveCarnets: number;
+  expiringSoon: number;
+  expired: number;
+  averageCarnetsPerCertificate: number;
+  templateUsage: TemplateUsageStats[];
+  monthlyGeneration: MonthlyCarnetData[];
+}
+
+export interface TemplateUsageStats {
+  templateId: number;
+  templateName: string;
+  count: number;
+  percentage: number;
+  lastUsed: string | null;
+}
+
+export interface MonthlyCarnetData {
+  month: string;
+  year: number;
+  count: number;
+  activeCount: number;
+}
+
+export interface CarnetReportItem {
+  id: number;
+  templateName: string;
+  totalGenerated: number;
+  activeCount: number;
+  averageExpiryDays: number;
+  lastGenerated: string;
+  expiringSoonCount: number;
+  expiredCount: number;
 }
 
 // Planificación de Servicios Types
