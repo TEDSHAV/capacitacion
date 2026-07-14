@@ -39,6 +39,15 @@ export const FacilitadorCrud = ({
   const [showAssignOSIModal, setShowAssignOSIModal] = useState(false);
   const [facilitadorForAssignment, setFacilitadorForAssignment] = useState<Facilitador | null>(null);
 
+  useEffect(() => {
+    if (showDetailsModal) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [showDetailsModal]);
+
   // Client-side only: Check if we're in the browser
   const isClient = typeof window !== "undefined";
 

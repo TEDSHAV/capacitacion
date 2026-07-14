@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Loader2, UserPlus, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, UserPlus, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   getAssignmentByOSI,
   getActiveFacilitatorsForDropdown,
@@ -113,12 +113,12 @@ export default function AssignFacilitadorModal({
               {osiNumber} — {osiCompany}
             </p>
           </div>
-          <button
+          <Button
+            variant="ghost"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="w-5 h-5" />
-          </button>
+            ✕
+          </Button>
         </div>
 
         {loading ? (

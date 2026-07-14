@@ -12,6 +12,29 @@ export async function assignOSIToFacilitador(
   const userResponse = await supabase.auth.getUser();
   const assignedBy = userResponse.data.user?.id || null;
 
+  // Find the currently active assignment to get the previous facilitador
+  const { data: prevAssignment } = await supabase
+    .from("facilitador_osi_assignments")
+    .select("facilitador_id")
+    .eq("osi_id", osiId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  // If reassigning to a different facilitador, clean up the old one's data
+  if (prevAssignment?.facilitador_id && prevAssignment.facilitador_id !== facilitadorId) {
+    const oldFacilitadorId = prevAssignment.facilitador_id;
+    await supabase
+      .from("ejecucion_osi_participantes")
+      .delete()
+      .eq("osi_id", osiId)
+      .eq("facilitador_id", oldFacilitadorId);
+    await supabase
+      .from("facilitador_acknowledgments")
+      .delete()
+      .eq("osi_id", osiId)
+      .eq("facilitador_id", oldFacilitadorId);
+  }
+
   // Deactivate any existing active assignment for this OSI
   const { error: deactivateError } = await supabase
     .from("facilitador_osi_assignments")
@@ -51,6 +74,27 @@ export async function assignOSIToFacilitador(
 
 export async function unassignOSIToFacilitador(assignmentId: number) {
   const supabase = await createClient();
+
+  // Fetch the assignment to get osi_id and facilitador_id before deactivating
+  const { data: assignment } = await supabase
+    .from("facilitador_osi_assignments")
+    .select("osi_id, facilitador_id")
+    .eq("id", assignmentId)
+    .single();
+
+  // Clean up the facilitador's participants and acknowledgments for this OSI
+  if (assignment?.osi_id && assignment?.facilitador_id) {
+    await supabase
+      .from("ejecucion_osi_participantes")
+      .delete()
+      .eq("osi_id", assignment.osi_id)
+      .eq("facilitador_id", assignment.facilitador_id);
+    await supabase
+      .from("facilitador_acknowledgments")
+      .delete()
+      .eq("osi_id", assignment.osi_id)
+      .eq("facilitador_id", assignment.facilitador_id);
+  }
 
   const { error } = await supabase
     .from("facilitador_osi_assignments")

@@ -162,6 +162,15 @@ export const ParticipantForm = ({
     }
   }, [success]);
 
+  const hasOnlyEmptyRow = participants.length === 1 && !participants[0].nombre_apellido && !participants[0].cedula;
+  const hasValidParticipants = participants.some(p => p.nombre_apellido && p.cedula);
+
+  useEffect(() => {
+    if (!hasValidParticipants && hasAcknowledged) {
+      setHasAcknowledged(false);
+    }
+  }, [hasValidParticipants, hasAcknowledged]);
+
   const addParticipant = () => {
     setParticipants([...participants, { nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" }]);
     setSuccess(null);
@@ -182,8 +191,6 @@ export const ParticipantForm = ({
     setShowClearConfirm(false);
   };
 
-  const hasOnlyEmptyRow = participants.length === 1 && !participants[0].nombre_apellido && !participants[0].cedula;
-
   const updateParticipant = (index: number, field: keyof Participant, value: string) => {
     const newParticipants = [...participants];
     newParticipants[index] = { ...newParticipants[index], [field]: value };
@@ -193,11 +200,13 @@ export const ParticipantForm = ({
   };
 
   const handleSave = async (status: "draft" | "final" = "draft") => {
-    // Basic validation
-    const emptyRows = participants.some(p => !p.nombre_apellido || !p.cedula);
-    if (emptyRows) {
-      setError("Por favor completa el nombre y cédula de todos los participantes");
-      return;
+    // For final submission, validate that all rows are complete
+    if (status === "final") {
+      const emptyRows = participants.some(p => !p.nombre_apellido || !p.cedula);
+      if (emptyRows) {
+        setError("Por favor completa el nombre y cédula de todos los participantes");
+        return;
+      }
     }
 
     // Require acknowledgment for final submission
@@ -218,10 +227,15 @@ export const ParticipantForm = ({
     setError(null);
     setSuccess(null);
 
+    // For drafts, filter out empty rows so we don't send blank records
+    const participantsToSave = status === "draft"
+      ? participants.filter(p => p.nombre_apellido && p.cedula)
+      : participants;
+
     const result = await saveParticipants(
       osiId,
       facilitadorId,
-      participants.map(p => ({
+      participantsToSave.map(p => ({
         nombre_apellido: p.nombre_apellido,
         cedula: p.cedula,
         score: p.score === "" ? null : Number(p.score),
@@ -605,10 +619,11 @@ export const ParticipantForm = ({
                 <p className="text-xs sm:text-sm text-gray-700 leading-relaxed mb-3">
                   {DISCLAIMER_TEXT}
                 </p>
-                <label className="flex items-start gap-2.5 cursor-pointer group">
+                <label className={`flex items-start gap-2.5 group ${hasValidParticipants ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}>
                   <input
                     type="checkbox"
                     checked={hasAcknowledged}
+                    disabled={!hasValidParticipants}
                     onChange={(e) => {
                       setHasAcknowledged(e.target.checked);
                       setError(null);
@@ -689,9 +704,9 @@ export const ParticipantForm = ({
             <Button 
               id="tour-submit-button"
               onClick={() => handleSave("final")}
-              disabled={saving || !hasAcknowledged}
+              disabled={saving || !hasAcknowledged || !hasValidParticipants}
               className={`w-full sm:w-auto transition-colors ${
-                hasAcknowledged 
+                hasAcknowledged && hasValidParticipants
                   ? "bg-blue-600 hover:bg-blue-700" 
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}

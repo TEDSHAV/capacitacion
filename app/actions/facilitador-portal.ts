@@ -185,8 +185,8 @@ export async function getAssignedOSIs(facilitadorId: number) {
       .select("osi_id, status")
       .in("osi_id", allOsiIds);
 
+    const osiStatusMap = new Map<number, string>();
     if (participantsData && participantsData.length > 0) {
-      const osiStatusMap = new Map<number, string>();
       for (const p of participantsData) {
         const current = osiStatusMap.get(p.osi_id);
         if (p.status === "final") {
@@ -195,11 +195,11 @@ export async function getAssignedOSIs(facilitadorId: number) {
           osiStatusMap.set(p.osi_id, "draft");
         }
       }
-      enrichedData = enrichedData.map((osi: any) => ({
-        ...osi,
-        participant_status: osiStatusMap.get(osi.id_osi) || null,
-      }));
     }
+    enrichedData = enrichedData.map((osi: any) => ({
+      ...osi,
+      participant_status: osiStatusMap.get(osi.id_osi) || null,
+    }));
   }
 
   return { data: enrichedData };
@@ -341,6 +341,18 @@ export async function saveParticipants(
     score: p.score,
     status: status,
   }));
+
+  if (records.length === 0) {
+    // Clear any existing acknowledgment since there are no participants
+    await supabase
+      .from("facilitador_acknowledgments")
+      .delete()
+      .eq("osi_id", osiId)
+      .eq("facilitador_id", facilitadorId);
+
+    revalidatePath("/portal/facilitador/dashboard");
+    return { success: true };
+  }
 
   const { data, error } = await supabase
     .from("ejecucion_osi_participantes")
