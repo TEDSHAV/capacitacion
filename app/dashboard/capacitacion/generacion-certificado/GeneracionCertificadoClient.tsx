@@ -13,6 +13,7 @@ import { CertificateForm } from './components/certificate-form';
 import { CarnetDebug } from '@/components/carnets/carnet-debug';
 import { saveCertificatesToDatabase } from '@/app/actions/certificados';
 import { getCarnetTemplatesAction } from '@/app/actions/dropdown-data';
+import { QRService } from '@/lib/qr-service';
 
 interface GeneracionCertificadoClientProps {
   user: any;
@@ -69,6 +70,17 @@ export default function GeneracionCertificadoClient({
     
     loadCarnetTemplates();
   }, []);
+
+  // Effect to set default course content when course topic changes (but no template selected)
+  useEffect(() => {
+    if (selectedCourseTopic && !certificateData.course_template_id) {
+      // Use course's default content if available
+      if (selectedCourseTopic.contenido_curso) {
+        handleCertificateDataChange("course_content", selectedCourseTopic.contenido_curso);
+        console.log('Setting default course content:', selectedCourseTopic.contenido_curso);
+      }
+    }
+  }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, certificateData.course_template_id]);
 
   const handleOSISelect = (osi: CertificateOSI | null) => {
     setSelectedOSI(osi);
@@ -238,24 +250,6 @@ export default function GeneracionCertificadoClient({
         certificateGenerator.downloadBlob(blob, filename);
       });
 
-      // Effect to set default course content when course topic changes (but no template selected)
-      useEffect(() => {
-        if (selectedCourseTopic && !certificateData.course_template_id) {
-          // Use course's default content if available
-          if (selectedCourseTopic.contenido_curso) {
-            onDataChange("course_content", selectedCourseTopic.contenido_curso);
-            console.log('Setting default course content:', selectedCourseTopic.contenido_curso);
-            console.log('Available course fields:', {
-              id: selectedCourseTopic.id,
-              name: selectedCourseTopic.name,
-              contenido_curso: selectedCourseTopic.contenido_curso,
-              contenido: selectedCourseTopic.contenido_curso,
-              descripcion: selectedCourseTopic.descripcion
-            });
-          }
-        }
-      }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, selectedCourseTopic?.name, selectedCourseTopic?.descripcion, certificateData.course_template_id]);
-
       // Generate carnets if course requires them
       let carnetsGenerated = 0;
       if (selectedCourseTopic?.emite_carnet) {
@@ -324,8 +318,35 @@ export default function GeneracionCertificadoClient({
               };
             });
 
+            // Generate carnet PDFs
+            const carnetRequestsWithQR = await Promise.all(
+              carnetRequests.map(async (carnetReq, index) => {
+                // Generate QR code for carnet using the certificate ID
+                let qrDataURL: string | undefined;
+                try {
+                  const certificateId = dbResult.certificateIds![index];
+                  const qrData = QRService.generateQRData(certificateId);
+                  qrDataURL = await QRService.generateQRDataURL({
+                    data: qrData,
+                    size: 60,
+                    level: 'M',
+                    includeMargin: true
+                  });
+                  console.log(`✅ QR code generated for carnet ${index + 1} (certificate ID: ${certificateId})`);
+                } catch (qrError) {
+                  console.warn(`⚠️ Could not generate QR code for carnet ${index + 1}:`, qrError);
+                  // Continue without QR code - carnet generator will use placeholder
+                }
+
+                return {
+                  ...carnetReq,
+                  qrDataURL
+                };
+              })
+            );
+
             console.log('🔄 Generating carnet PDFs...');
-            const carnetBlobs = await carnetGenerator.generateMultipleCarnets(carnetRequests);
+            const carnetBlobs = await carnetGenerator.generateMultipleCarnets(carnetRequestsWithQR);
             console.log('📄 Generated carnet blobs:', carnetBlobs.length);
             
             // Download carnets

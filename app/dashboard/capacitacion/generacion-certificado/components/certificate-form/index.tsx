@@ -5,7 +5,7 @@ import { CourseTopic, CertificateFormProps, Signature } from "@/types";
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
-import { getSignaturesForDropdownAction, getCertificateTemplatesAction, getVenezuelanStatesAction, getCertificateTemplatesByCourseAction, getCarnetTemplatesAction, getActiveTemplateAction, getCourseTemplatesByOSIAction, getCourseTemplatesTestAction } from "@/app/actions/dropdown-data";
+import { getSignaturesForDropdownAction, getVenezuelanStatesAction, getCourseTemplatesByOSIAction } from "@/app/actions/dropdown-data";
 import { FacilitatorSelection } from "@/app/dashboard/capacitacion/participantes/gestion-de-facilitadores/components/facilitator-selection";
 
 export const CertificateForm = ({
@@ -20,10 +20,7 @@ export const CertificateForm = ({
 }: CertificateFormProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [shaSignatures, setShaSignatures] = useState<Signature[]>([]);
-  const [certificateTemplates, setCertificateTemplates] = useState<any[]>([]);
   const [courseTemplates, setCourseTemplates] = useState<any[]>([]);
-  const [carnetTemplates, setCarnetTemplates] = useState<any[]>([]);
-  const [activeCarnetTemplate, setActiveCarnetTemplate] = useState<any>(null);
   const [venezuelanStates, setVenezuelanStates] = useState<any[]>([]);
 
   useEffect(() => {
@@ -53,33 +50,11 @@ export const CertificateForm = ({
           }
         }
 
-        // Load certificate templates
-        const templatesResult = await getCertificateTemplatesAction();
-        if (templatesResult.data) {
-          const templates = templatesResult.data;
-          setCertificateTemplates(templates);
-          // Note: Template selection will be handled by course-based effect
-        }
-
         // Load course templates (all active templates initially)
         const courseTemplatesResult = await getCourseTemplatesByOSIAction();
         if (courseTemplatesResult.data) {
           const courseTemplates = courseTemplatesResult.data;
           setCourseTemplates(courseTemplates);
-        }
-
-        // Load carnet templates
-        const carnetTemplatesResult = await getCarnetTemplatesAction();
-        if (carnetTemplatesResult.data) {
-          setCarnetTemplates(carnetTemplatesResult.data);
-        }
-
-        // Load active carnet template
-        const activeCarnetResult = await getActiveTemplateAction('carnet');
-        if (activeCarnetResult.success && activeCarnetResult.data) {
-          setActiveCarnetTemplate(activeCarnetResult.data);
-          // Auto-set the active template in certificate data
-          onDataChange("id_plantilla_carnet", activeCarnetResult.data.id);
         }
 
         // Load Venezuelan states
@@ -120,56 +95,6 @@ export const CertificateForm = ({
 
     ensureSHASignatureData();
   }, [certificateData.sha_signature_id, certificateData.sha_signature_data]);
-
-  // Effect to load filtered templates when course changes
-  useEffect(() => {
-    const loadFilteredTemplates = async () => {
-      if (selectedCourseTopic?.id) {
-        try {
-          // Load templates filtered by course
-          const templatesResult = await getCertificateTemplatesByCourseAction(selectedCourseTopic.id);
-          if (templatesResult.data) {
-            const templates = templatesResult.data;
-            setCertificateTemplates(templates);
-
-            // Auto-select template if course has a preferred one
-            if (selectedCourseTopic.id_plantilla_certificado) {
-              const courseTemplate = templates.find(
-                (template: any) => template.id === selectedCourseTopic.id_plantilla_certificado
-              );
-              if (courseTemplate) {
-                onDataChange("id_plantilla_certificado", courseTemplate.id);
-                console.log('Auto-selected course-specific template:', courseTemplate);
-              }
-            } else if (templates.length > 0 && !certificateData.id_plantilla_certificado) {
-              // Fallback to first template if no course preference and no template selected
-              onDataChange("id_plantilla_certificado", templates[0].id);
-            }
-          }
-        } catch (error) {
-          console.error('Error loading filtered templates:', error);
-        }
-      } else {
-        // Load all templates when no course is selected
-        try {
-          const templatesResult = await getCertificateTemplatesAction();
-          if (templatesResult.data) {
-            const templates = templatesResult.data;
-            setCertificateTemplates(templates);
-
-            // Auto-select default template (first active template) if none selected
-            if (templates.length > 0 && !certificateData.id_plantilla_certificado) {
-              onDataChange("id_plantilla_certificado", templates[0].id);
-            }
-          }
-        } catch (error) {
-          console.error('Error loading all templates:', error);
-        }
-      }
-    };
-
-    loadFilteredTemplates();
-  }, [selectedCourseTopic?.id, selectedCourseTopic?.id_plantilla_certificado]);
 
   // Effect to load course templates when course changes
   useEffect(() => {
@@ -534,82 +459,6 @@ export const CertificateForm = ({
         </div>
       )}
 
-      {/* Carne Template - Only show if course emits card */}
-      {selectedCourseTopic?.emite_carnet && (
-        <div className="mb-4">
-          <label
-            htmlFor="id_plantilla_carnet"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
-            Plantilla de Carnet
-          </label>
-          {activeCarnetTemplate ? (
-            <div className="p-3 border border-green-300 bg-green-50 rounded-md">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-green-800">{activeCarnetTemplate.nombre}</p>
-                  <p className="text-sm text-green-600">Plantilla activa seleccionada automáticamente</p>
-                </div>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Activa
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="p-3 border border-yellow-300 bg-yellow-50 rounded-md">
-              <p className="text-sm text-yellow-800">
-                No hay una plantilla de carnet activa. 
-                <a href="/dashboard/capacitacion/plantillas-carnets" className="underline hover:text-yellow-900 ml-1">
-                  Configurar plantilla activa
-                </a>
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Certificate Template */}
-      <div className="mb-4">
-        <label
-          htmlFor="id_plantilla_certificado"
-          className="block text-sm font-medium text-gray-700 mb-2"
-        >
-          Plantilla de Certificado
-          {selectedCourseTopic && (
-            <span className="ml-2 text-xs text-blue-600">
-              (Filtradas por curso: {selectedCourseTopic.name})
-            </span>
-          )}
-        </label>
-        <select
-          id="id_plantilla_certificado"
-          value={certificateData.id_plantilla_certificado || ""}
-          onChange={(e) =>
-            onDataChange(
-              "id_plantilla_certificado",
-              e.target.value ? parseInt(e.target.value) : undefined,
-            )
-          }
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">Seleccionar plantilla...</option>
-          {certificateTemplates.map((template: any) => (
-            <option key={template.id} value={template.id}>
-              {template.nombre}
-              {selectedCourseTopic?.id_plantilla_certificado === template.id && (
-                " (Recomendada para este curso)"
-              )}
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-gray-500 mt-1">
-          {selectedCourseTopic 
-            ? `Plantillas disponibles para el curso seleccionado. ${selectedCourseTopic.id_plantilla_certificado ? 'Se recomienda usar la plantilla marcada.' : 'Puedes seleccionar cualquier plantilla disponible.'}`
-            : 'Selecciona la plantilla a utilizar para este certificado'
-          }
-        </p>
-      </div>
-
       {/* Venezuelan State */}
       <div className="mb-6">
         <label
@@ -783,7 +632,6 @@ export const CertificateForm = ({
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         selectedCourse={selectedCourseTopic}
-        carnetTemplates={carnetTemplates}
       />
     </div>
   );

@@ -3,8 +3,9 @@
 import { CertificateGenerator } from "@/lib/certificate-generator";
 import { CarnetGenerator } from "@/lib/carnet-generator";
 import { CertificateGeneration, CertificateParticipant } from "@/types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getSignaturesForDropdownAction } from "@/app/actions/dropdown-data";
+import { QRService } from "@/lib/qr-service";
 
 interface CertificatePreviewProps {
   certificateData: CertificateGeneration;
@@ -12,7 +13,6 @@ interface CertificatePreviewProps {
   isOpen: boolean;
   onClose: () => void;
   selectedCourse?: any; // Add course data to check if it emits carnets
-  carnetTemplates?: any[]; // Add carnet templates for preview
 }
 
 export const CertificatePreview = ({
@@ -20,8 +20,7 @@ export const CertificatePreview = ({
   selectedOSI,
   isOpen,
   onClose,
-  selectedCourse,
-  carnetTemplates = []
+  selectedCourse
 }: CertificatePreviewProps) => {
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [carnetPreviewUrl, setCarnetPreviewUrl] = useState<string>("");
@@ -30,16 +29,73 @@ export const CertificatePreview = ({
   const [error, setError] = useState<string>("");
   const [selectedParticipantIndex, setSelectedParticipantIndex] = useState(0);
   const [showCarnet, setShowCarnet] = useState(false);
+  const [cachedSignatures, setCachedSignatures] = useState<any[]>([]);
+  const [cachedFacilitators, setCachedFacilitators] = useState<Map<string, any>>(new Map());
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const currentGenerationRef = useRef<number>(0); // Track current generation to avoid race conditions
 
-  useEffect(() => {
-    if (isOpen && certificateData.participants.length > 0) {
+  // Debounced preview generation
+  const debouncedGeneratePreview = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
       generatePreview();
-      // Generate carnet preview if course emits carnets
       if (selectedCourse?.emite_carnet) {
         generateCarnetPreview();
       }
+    }, 300); // 300ms debounce
+  }, [certificateData, selectedParticipantIndex, selectedCourse]);
+
+  useEffect(() => {
+    if (isOpen && certificateData.participants.length > 0) {
+      debouncedGeneratePreview();
     }
-  }, [isOpen, certificateData, selectedParticipantIndex, selectedCourse]);
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [isOpen, debouncedGeneratePreview]);
+
+  // Cache and fetch all required data in parallel
+  const fetchRequiredData = async () => {
+    const promises: Promise<any>[] = [];
+    
+    // Fetch signatures if not cached
+    if (cachedSignatures.length === 0) {
+      promises.push(
+        getSignaturesForDropdownAction().then(result => {
+          if (result.data) {
+            setCachedSignatures(result.data);
+            return { signatures: result.data };
+          }
+          return { signatures: [] };
+        })
+      );
+    }
+    
+    // Fetch facilitator data if not cached
+    if (certificateData.facilitator_id && !cachedFacilitators.has(certificateData.facilitator_id)) {
+      promises.push(
+        import("@/app/actions/facilitators").then(({ getFacilitatorData }) =>
+          getFacilitatorData(certificateData.facilitator_id!).then(facilitatorData => {
+            if (facilitatorData) {
+              setCachedFacilitators(prev => new Map(prev.set(certificateData.facilitator_id!, facilitatorData)));
+              return { facilitatorData };
+            }
+            return { facilitatorData: null };
+          })
+        )
+      );
+    }
+    
+    const results = await Promise.all(promises);
+    return results.reduce((acc, result) => ({ ...acc, ...result }), {});
+  };
 
   const generateCarnetPreview = async () => {
     setIsGeneratingCarnet(true);
@@ -70,33 +126,30 @@ export const CertificatePreview = ({
         qr_code: undefined // Preview doesn't need QR code
       };
 
+      // Generate QR code for carnet (same as certificate)
+      let qrDataURL: string | undefined;
+      try {
+        // Use dummy certificate ID for preview
+        const dummyCertificateId = 999999;
+        const qrData = QRService.generateQRData(dummyCertificateId);
+        qrDataURL = await QRService.generateQRDataURL({
+          data: qrData,
+          size: 60,
+          level: 'M',
+          includeMargin: true
+        });
+        console.log('✅ QR code generated for carnet preview');
+      } catch (qrError) {
+        console.warn('⚠️ Could not generate QR code for carnet preview:', qrError);
+        // Continue without QR code - carnet generator will use placeholder
+      }
+
       const carnetPreviewUrl = await carnetGenerator.previewCarnet({
         participant: previewParticipant,
         carnetData,
-        templateImage: (() => {
-          // Default fallback
-          const defaultTemplate = '/templates/carnet.png';
-          
-          if (!certificateData.id_plantilla_carnet) {
-            return defaultTemplate;
-          }
-          
-          const selectedTemplate = carnetTemplates.find((t: any) => t.id === certificateData.id_plantilla_carnet);
-          
-          if (!selectedTemplate?.archivo) {
-            return defaultTemplate;
-          }
-          
-          // Check if it's already the default template
-          if (selectedTemplate.archivo === 'carnet.png') {
-            return defaultTemplate;
-          }
-          
-          // For custom templates, try to use them but they might not exist
-          // The carnet generator will handle the fallback to default design
-          return `/templates/${selectedTemplate.archivo}`;
-        })(),
-        isPreview: true
+        templateImage: '/templates/carnet.png', // Always use default template for preview
+        isPreview: true,
+        qrDataURL // Pass the QR code data URL
       });
       
       setCarnetPreviewUrl(carnetPreviewUrl);
@@ -108,6 +161,7 @@ export const CertificatePreview = ({
   };
 
   const generatePreview = async () => {
+    const generationId = ++currentGenerationRef.current;
     setIsGenerating(true);
     setError("");
 
@@ -122,83 +176,70 @@ export const CertificatePreview = ({
         return;
       }
       
+      // Check if this generation is still current
+      if (generationId !== currentGenerationRef.current) {
+        return; // Cancelled by newer generation
+      }
+      
+      // Fetch all required data in parallel (with caching)
+      const { signatures = [], facilitatorData } = await fetchRequiredData();
+      
+      // Check again after async operations
+      if (generationId !== currentGenerationRef.current) {
+        return; // Cancelled by newer generation
+      }
+      
       // Get template and seal images
       let templateImage = "/templates/certificado.png";
       let sealImage = "/templates/sello.png";
 
-      // Get actual template if available
-      if (certificateData.id_plantilla_certificado) {
-        try {
-          const templatesResult = await getSignaturesForDropdownAction();
-          if (templatesResult.data) {
-            // Find certificate templates from the signatures result
-            const certificateTemplates = templatesResult.data.filter((sig: any) => sig.tipo === 'plantilla_certificado');
-            const selectedTemplate = certificateTemplates.find((tmpl: any) => tmpl.id === certificateData.id_plantilla_certificado);
-            if (selectedTemplate?.url_imagen) {
-              templateImage = selectedTemplate.url_imagen;
-            }
-          }
-        } catch (error) {
-          // Could not fetch template for preview
+      // Get actual template if available (use cached signatures)
+      if (certificateData.id_plantilla_certificado && signatures.length > 0) {
+        const certificateTemplates = signatures.filter((sig: any) => sig.tipo === 'plantilla_certificado');
+        const selectedTemplate = certificateTemplates.find((tmpl: any) => tmpl.id === certificateData.id_plantilla_certificado);
+        if (selectedTemplate?.url_imagen) {
+          templateImage = selectedTemplate.url_imagen;
         }
       }
 
-      // Fetch active SHA signature if not already in certificateData
+      // Prepare certificate data with SHA and facilitator info (use cached data)
       let certificateDataWithSHA = { ...certificateData };
-      if (!certificateData.sha_signature_id) {
-        try {
-          const signaturesResult = await getSignaturesForDropdownAction();
-          if (signaturesResult.data) {
-            const signatures = signaturesResult.data;
-            const activeSHASignature = signatures.find((sig: any) => 
-              sig.tipo === 'representante_sha' && sig.is_active
-            );
-            if (activeSHASignature) {
-              certificateDataWithSHA = {
-                ...certificateData,
-                sha_signature_id: activeSHASignature.id.toString()
-              };
-            }
-          }
-        } catch (error) {
-          // Could not fetch SHA signature for preview
+      
+      // Add SHA signature if not already present (use cached signatures)
+      if (!certificateData.sha_signature_id && signatures.length > 0) {
+        const activeSHASignature = signatures.find((sig: any) => 
+          sig.tipo === 'representante_sha' && sig.is_active
+        );
+        if (activeSHASignature) {
+          certificateDataWithSHA = {
+            ...certificateData,
+            sha_signature_id: activeSHASignature.id.toString()
+          };
         }
       }
 
-      // Fetch facilitator data for preview
-      if (certificateDataWithSHA.facilitator_id) {
-        try {
-          const { getFacilitatorData } = await import("@/app/actions/facilitators");
-          const facilitatorData = await getFacilitatorData(certificateDataWithSHA.facilitator_id);
-          if (facilitatorData) {
-            certificateDataWithSHA = {
-              ...certificateDataWithSHA,
-              facilitator_data: facilitatorData
-            };
-            console.log('Fetched facilitator data for preview:', facilitatorData);
-          }
-        } catch (error) {
-          console.error('Could not fetch facilitator for preview:', error);
-        }
+      // Add facilitator data (use cached facilitator)
+      if (certificateData.facilitator_id && cachedFacilitators.has(certificateData.facilitator_id)) {
+        certificateDataWithSHA = {
+          ...certificateDataWithSHA,
+          facilitator_data: cachedFacilitators.get(certificateData.facilitator_id)
+        };
+      } else if (facilitatorData) {
+        certificateDataWithSHA = {
+          ...certificateDataWithSHA,
+          facilitator_data: facilitatorData
+        };
       }
 
-      // Fetch SHA signature data for preview
-      if (certificateDataWithSHA.sha_signature_id) {
-        try {
-          const signaturesResult = await getSignaturesForDropdownAction();
-          if (signaturesResult.data) {
-            const shaSignatures = signaturesResult.data.filter((sig: any) => sig.tipo === 'representante_sha');
-            const selectedSHASignature = shaSignatures.find((sig: any) => sig.id.toString() === certificateDataWithSHA.sha_signature_id);
-            if (selectedSHASignature) {
-              certificateDataWithSHA = {
-                ...certificateDataWithSHA,
-                sha_signature_data: selectedSHASignature
-              };
-              console.log('Fetched SHA signature for preview:', selectedSHASignature);
-            }
-          }
-        } catch (error) {
-          console.error('Could not fetch SHA signature for preview:', error);
+      // Add SHA signature data (use cached signatures)
+      if (certificateDataWithSHA.sha_signature_id && signatures.length > 0) {
+        const shaSignatures = signatures.filter((sig: any) => sig.tipo === 'representante_sha');
+        const selectedSHASignature = shaSignatures.find((sig: any) => sig.id.toString() === certificateDataWithSHA.sha_signature_id);
+        if (selectedSHASignature) {
+          certificateDataWithSHA = {
+            ...certificateDataWithSHA,
+            sha_signature_data: selectedSHASignature
+          };
         }
       }
 
@@ -210,12 +251,21 @@ export const CertificatePreview = ({
         isPreview: true
       });
 
+      // Final check before setting state
+      if (generationId !== currentGenerationRef.current) {
+        return; // Cancelled by newer generation
+      }
+
       const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
     } catch (err) {
-      setError("Error al generar la vista previa. Por favor intenta nuevamente.");
+      if (generationId === currentGenerationRef.current) {
+        setError("Error al generar la vista previa. Por favor intenta nuevamente.");
+      }
     } finally {
-      setIsGenerating(false);
+      if (generationId === currentGenerationRef.current) {
+        setIsGenerating(false);
+      }
     }
   };
 

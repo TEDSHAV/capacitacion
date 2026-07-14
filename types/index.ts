@@ -965,6 +965,7 @@ export interface CarnetRequest {
   templateImage: string;
   isPreview?: boolean;
   carnetId?: number;
+  qrDataURL?: string; // QR code data URL from certificate
 }
 
 export interface CarnetGeneration {

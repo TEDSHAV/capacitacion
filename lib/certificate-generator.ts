@@ -10,6 +10,7 @@ export class CertificateGenerator {
   private pageHeight: number;
   private certificatePage: CertificatePage;
   private contentPage: ContentPage;
+  private lastGeneratedQRCode?: string; // Store last generated QR code
 
   constructor() {
     this.doc = new jsPDF(CERTIFICATE_CONFIG.page);

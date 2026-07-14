@@ -363,7 +363,8 @@ export class CertificatePage {
       }
     } catch (error) {
       console.error('Error adding facilitator signature:', error);
-      throw new Error(`Failed to add facilitator signature: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.warn('Continuing without facilitator signature - certificate generation will proceed');
+      // Don't throw error, just continue without the signature
     }
   }
 
@@ -405,7 +406,8 @@ export class CertificatePage {
       }
     } catch (error) {
       console.error('Error adding SHA signature:', error);
-      throw new Error(`Failed to add SHA signature: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.warn('Continuing without SHA signature - certificate generation will proceed');
+      // Don't throw error, just continue without the signature
     }
   }
 
@@ -582,13 +584,14 @@ export class CertificatePage {
         
         img.onerror = (error) => {
           console.error('Failed to load signature image in browser:', finalImageUrl, error);
-          reject(error);
+          reject(new Error(`Signature image not found: ${finalImageUrl}`));
         };
         
         img.src = finalImageUrl;
       });
     } catch (error) {
       console.error('Error in addSignatureImage:', error);
+      // Don't throw error, let the caller handle it gracefully
       throw error;
     }
   }

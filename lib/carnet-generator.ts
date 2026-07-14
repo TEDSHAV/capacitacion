@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { CarnetGeneration, CarnetRequest } from '@/types';
+import { QRService } from '@/lib/qr-service';
 
 export class CarnetGenerator {
   private pdf: jsPDF;
@@ -17,7 +18,7 @@ export class CarnetGenerator {
   }
 
   async generateCarnet(request: CarnetRequest): Promise<Blob> {
-    const { participant, carnetData, templateImage, isPreview = false, carnetId } = request;
+    const { participant, carnetData, templateImage, isPreview = false, carnetId, qrDataURL } = request;
 
     try {
       console.log('🎨 Generating carnet PDF for:', participant.name);
@@ -37,7 +38,7 @@ export class CarnetGenerator {
       await this.addDates(carnetData);
 
       // Add QR code
-      await this.addQRCode(carnetData, carnetId);
+      await this.addQRCode(qrDataURL);
 
       // Add preview watermark if needed
       if (isPreview) {
@@ -139,12 +140,14 @@ export class CarnetGenerator {
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
+          console.log('✅ Carne template loaded successfully:', templatePath);
           // Add image to PDF - cover the entire carnet
           this.pdf.addImage(img, "PNG", 0, 0, this.pageWidth, this.pageHeight);
           resolve();
         };
         img.onerror = (error) => {
-          console.error('Error loading carnet template image in browser:', error);
+          console.error('Error loading carnet template image in browser:', templatePath, error);
+          console.warn('🔄 Falling back to background design for carnet');
           this.addBackgroundDesign();
           resolve();
         };
@@ -204,42 +207,58 @@ export class CarnetGenerator {
     }
   }
 
-  private async addQRCode(carnetData: CarnetGeneration, carnetId?: number): Promise<void> {
-    if (carnetData.qr_code) {
-      try {
-        // For now, add a placeholder QR code since we can't load images directly
-        // In a full implementation, you'd convert the QR data URL to a format jsPDF can use
-        
-        // Add QR code placeholder in bottom right corner
-        const qrSize = 15;
-        const qrX = this.pageWidth - qrSize - 5;
-        const qrY = this.pageHeight - qrSize - 5;
-        
-        // Draw QR code placeholder
-        this.pdf.setDrawColor(0);
-        this.pdf.rect(qrX, qrY, qrSize, qrSize);
-        
-        // Add some QR-like pattern
-        this.pdf.setDrawColor(50);
-        for (let i = 0; i < 3; i++) {
-          for (let j = 0; j < 3; j++) {
-            if ((i + j) % 2 === 0) {
-              this.pdf.rect(qrX + i * 5, qrY + j * 5, 5, 5, 'F');
-            }
-          }
+  private async addQRCode(qrDataURL?: string): Promise<void> {
+    try {
+      if (!qrDataURL) {
+        console.warn('No QR code data provided for carnet, using placeholder');
+        this.addQRPlaceholder();
+        return;
+      }
+      
+      // Add QR code to bottom right corner of carnet
+      const qrSize = 15; // 15mm for carnet
+      const qrX = this.pageWidth - qrSize - 3;
+      const qrY = this.pageHeight - qrSize - 3;
+      
+      // Add QR code image to PDF
+      this.pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
+      
+      // Add "Escanear" text below QR
+      this.pdf.setFontSize(3);
+      this.pdf.setFont('helvetica', 'normal');
+      this.pdf.text('Escanear', qrX + qrSize/2, qrY - 1, { align: 'center' });
+      
+      console.log('✅ QR code added to carnet from certificate');
+    } catch (error) {
+      console.error('Error adding QR code to carnet:', error);
+      // Add fallback placeholder if QR addition fails
+      this.addQRPlaceholder();
+    }
+  }
+
+  private addQRPlaceholder(): void {
+    // Fallback QR code placeholder
+    const qrSize = 15;
+    const qrX = this.pageWidth - qrSize - 3;
+    const qrY = this.pageHeight - qrSize - 3;
+    
+    this.pdf.setDrawColor(0);
+    this.pdf.rect(qrX, qrY, qrSize, qrSize);
+    
+    this.pdf.setDrawColor(50);
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        if ((i + j) % 2 === 0) {
+          this.pdf.rect(qrX + i * 5, qrY + j * 5, 5, 5, 'F');
         }
-        
-        // Add "Scan to Verify" text below QR
-        this.pdf.setFontSize(3);
-        this.pdf.setFont('helvetica', 'normal');
-        this.pdf.text('Escanear para verificar', qrX, qrY - 2, { maxWidth: qrSize });
-        
-        console.log('✅ QR code placeholder added');
-      } catch (error) {
-        console.error('Error adding QR code to carnet:', error);
-        // Continue without QR code if it fails
       }
     }
+    
+    this.pdf.setFontSize(3);
+    this.pdf.setFont('helvetica', 'normal');
+    this.pdf.text('Escanear', qrX + qrSize/2, qrY - 1, { align: 'center' });
+    
+    console.log('⚠️ QR placeholder added due to error');
   }
 
   private addPreviewWatermark(): void {
