@@ -1,10 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { CourseTopic, CertificateFormProps, Signature } from "@/types";
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
-import { useState, useEffect } from "react";
+import { getSignaturesForDropdownAction, getCertificateTemplatesAction, getVenezuelanStatesAction } from "../../../../../actions/dropdown-data";
 import { FacilitatorSelection } from "../../../gestion-de-facilitadores/components/facilitator-selection";
 
 export const CertificateForm = ({
@@ -26,17 +27,16 @@ export const CertificateForm = ({
     const loadFormData = async () => {
       try {
         // Load SHA signatures
-        const signaturesResponse = await fetch("/api/signatures");
-        if (signaturesResponse.ok) {
-          const data = await signaturesResponse.json();
-          const shaOnly = data.filter(
-            (sig: Signature) => sig.tipo === "representante_sha",
+        const signaturesResult = await getSignaturesForDropdownAction();
+        if (signaturesResult.data) {
+          const shaOnly = signaturesResult.data.filter(
+            (sig: any) => sig.tipo === "representante_sha",
           );
-          setShaSignatures(shaOnly);
+          setShaSignatures(shaOnly as Signature[]);
 
           // Auto-select the active SHA signature
           const activeShaSignature = shaOnly.find(
-            (sig: Signature) => sig.is_active,
+            (sig: any) => sig.is_active,
           );
 
           if (activeShaSignature && !certificateData.sha_signature_id) {
@@ -45,9 +45,9 @@ export const CertificateForm = ({
         }
 
         // Load certificate templates
-        const templatesResponse = await fetch("/api/certificate-templates");
-        if (templatesResponse.ok) {
-          const templates = await templatesResponse.json();
+        const templatesResult = await getCertificateTemplatesAction();
+        if (templatesResult.data) {
+          const templates = templatesResult.data;
           setCertificateTemplates(templates);
 
           // Auto-select default template (first active template)
@@ -60,9 +60,9 @@ export const CertificateForm = ({
         }
 
         // Load Venezuelan states
-        const statesResponse = await fetch("/api/venezuelan-states");
-        if (statesResponse.ok) {
-          const states = await statesResponse.json();
+        const statesResult = await getVenezuelanStatesAction();
+        if (statesResult.data) {
+          const states = statesResult.data;
           setVenezuelanStates(states);
         }
       } catch (error) {

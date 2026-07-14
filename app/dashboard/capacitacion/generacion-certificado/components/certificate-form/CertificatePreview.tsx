@@ -3,6 +3,7 @@
 import { CertificateGenerator } from "@/lib/certificate-generator";
 import { CertificateGeneration, CertificateParticipant } from "@/types";
 import { useState, useEffect } from "react";
+import { getSignaturesForDropdownAction } from "../../../../../actions/dropdown-data";
 
 interface CertificatePreviewProps {
   certificateData: CertificateGeneration;
@@ -50,9 +51,9 @@ export const CertificatePreview = ({
       let certificateDataWithSHA = { ...certificateData };
       if (!certificateData.sha_signature_id) {
         try {
-          const signaturesResponse = await fetch("/api/signatures");
-          if (signaturesResponse.ok) {
-            const signatures = await signaturesResponse.json();
+          const signaturesResult = await getSignaturesForDropdownAction();
+          if (signaturesResult.data) {
+            const signatures = signaturesResult.data;
             const activeSHASignature = signatures.find((sig: any) => 
               sig.tipo === 'representante_sha' && sig.is_active
             );

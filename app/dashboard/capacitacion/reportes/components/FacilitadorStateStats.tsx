@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getFacilitatorStateStatsAction } from "../../../../actions/reportes-stats";
 import { FacilitadorStateStatsProps, StateStat, FacilitadorReport } from "@/types";
 
 export default function FacilitadorStateStats({ selectedState }: FacilitadorStateStatsProps) {
@@ -17,22 +18,18 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
     try {
       setLoading(true);
       setError(null);
-
-      const url = selectedState 
-        ? `/api/reportes/facilitadores?stateId=${selectedState}`
-        : "/api/reportes/facilitadores";
-
-      const response = await fetch(url);
       
-      if (!response.ok) {
-        throw new Error("Error fetching data");
+      const result = await getFacilitatorStateStatsAction(selectedState);
+      
+      if (result.error) {
+        setError(result.error);
+      } else if (result.data && result.data.estadoStats) {
+        console.log('Facilitadores data:', result.data.facilitadores);
+        setStateStats(result.data.estadoStats);
+        setFacilitadores(result.data.facilitadores as any[]);
       }
-
-      const data = await response.json();
-      setStateStats(data.stateStats || []);
-      setFacilitadores(data.facilitadores || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError("Error al cargar datos");
     } finally {
       setLoading(false);
     }
@@ -47,7 +44,7 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
 
   // Function to get facilitador state name (now using API data)
   const getFacilitadorStateName = (facilitador: FacilitadorReport) => {
-    return facilitador.estado_base_nombre || facilitador.estado_geografico_nombre || "N/A";
+    return facilitador.nombre_apellido || "N/A";
   };
 
   if (loading) {
@@ -146,10 +143,7 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
                   Email
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado Base
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estatus
+                  Estado Geográfico
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Estado
@@ -157,7 +151,7 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {facilitadores.map((facilitador) => (
+              {facilitadores.map((facilitador: any) => (
                 <tr key={facilitador.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {facilitador.nombre_apellido}
@@ -169,10 +163,7 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
                     {facilitador.email || "N/A"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {getFacilitadorStateName(facilitador)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {facilitador.id_estatus ? `Estatus ${facilitador.id_estatus}` : "N/A"}
+                    {getStateName(facilitador.id_estado_geografico)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

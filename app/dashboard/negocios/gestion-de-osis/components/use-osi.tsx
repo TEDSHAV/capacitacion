@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { OSI } from "@/types";
 import ErrorDialog, { useErrorDialog } from "@/components/ui/error-dialog";
+import { createOSIAction, updateOSIAction, getOSIByIdAction } from "../../../../actions/osi-crud";
 
 const supabase = createClient();
 
@@ -79,7 +80,7 @@ export function useOSI(empresas: any[] = []) {
   // Load OSI data
   const loadOSI = async (osiNumber: string) => {
     try {
-      // First, get the OSI data (only active records)
+      // First, get the OSI data (only active records) - using Supabase for now since we need nro_osi lookup
       const { data: osiData, error: osiError } = await supabase
         .from("osi")
         .select("*")
@@ -264,20 +265,17 @@ export function useOSI(empresas: any[] = []) {
       };
 
       if (isNew) {
-        const { data, error } = await supabase.from("osi").insert([dataToSave]);
-        if (error) {
-          console.error("Insert error:", error);
-          throw error;
+        const result = await createOSIAction(dataToSave);
+        if (result.error) {
+          throw new Error(result.error);
         }
+        return result.data;
       } else if (osi) {
-        const { error } = await supabase
-          .from("osi")
-          .update(dataToSave)
-          .eq("id", osi.id);
-        if (error) {
-          console.error("Update error:", error);
-          throw error;
+        const result = await updateOSIAction(osi.id, dataToSave);
+        if (result.error) {
+          throw new Error(result.error);
         }
+        return result.data;
       }
 
       router.push("/dashboard/negocios/gestion-de-osis");
