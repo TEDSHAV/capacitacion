@@ -493,6 +493,56 @@ export default function GeneracionCertificadoClient({
     }));
   };
 
+  // Synchronize manualOSIData with selectedOSI in manual mode reactively
+  // This allows the CourseTemplate hook in CertificateForm to detect company/course changes
+  useEffect(() => {
+    if (
+      osiInputMode === "manual" &&
+      (manualOSIData.company_id || manualOSIData.osi_number || manualOSIData.city_id)
+    ) {
+      const mockOSI = buildMockOSI(manualOSIData);
+
+      // Update selectedOSI for the hook in CertificateForm
+      setSelectedOSI((prev) => {
+        // Only update if actually different to prevent unnecessary re-renders
+        if (
+          prev &&
+          prev.id === mockOSI.id &&
+          prev.empresa_id === mockOSI.empresa_id &&
+          prev.nro_osi === mockOSI.nro_osi &&
+          prev.id_ciudad === mockOSI.id_ciudad &&
+          prev.has_certificates === mockOSI.has_certificates
+        ) {
+          return prev;
+        }
+        return mockOSI;
+      });
+
+      // Update certificateData to ensure it has the latest OSI data
+      setCertificateData((prev) => {
+        if (
+          prev.osi_id === mockOSI.id &&
+          prev.osi_data?.empresa_id === mockOSI.empresa_id &&
+          prev.osi_data?.nro_osi === mockOSI.nro_osi
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          osi_id: mockOSI.id,
+          osi_data: mockOSI,
+          manual_mode: true,
+          manual_osi_data: manualOSIData,
+        };
+      });
+    }
+  }, [
+    osiInputMode,
+    manualOSIData,
+    manualOSIHasAnyCertificates,
+    manualOSIHasCourseCertificates,
+  ]);
+
   // Handler for preview - build mock OSI if in manual mode
   const handlePreview = async () => {
     if (osiInputMode === "manual") {
@@ -1620,14 +1670,15 @@ export default function GeneracionCertificadoClient({
             onDataChange={handleManualOSIDataChange}
             onCourseSelect={(courseTopic) => {
               setSelectedCourseTopic(courseTopic);
-              handleCertificateDataChange("course_topic_id", courseTopic.id);
               const passingGrade = courseTopic.nota_aprobatoria ?? 14;
               setCertificateData((prev) => ({
                 ...prev,
                 course_topic_id: courseTopic.id,
                 course_topic_data: courseTopic,
-                course_content: courseTopic.contenido_curso || "",
-                course_template_id: "original-course",
+                // Don't set content here - let the hook in CertificateForm handle it
+                // to ensure company templates are applied correctly
+                course_content: "",
+                course_template_id: "",
                 passing_grade: passingGrade,
                 horas_estimadas: courseTopic.horas_estimadas,
                 certificate_title: prev.certificate_title || courseTopic.name,
