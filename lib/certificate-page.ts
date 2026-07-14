@@ -14,6 +14,7 @@ import {
   compressImageToJpeg,
   compressServerImageToJpeg,
 } from "./image-compress";
+import { toTitleCase } from "@/utils/string-utils";
 
 const _serverTemplateCache = new Map<string, string>();
 const _browserTemplateCache = new Map<string, string>();
@@ -340,9 +341,9 @@ export class CertificatePage {
         const preloadedData = this.preloadedAssets.facilitator;
         facilitator = {
           id: preloadedData.id,
-          name: preloadedData.nombre_apellido,
-          nombre_apellido: preloadedData.nombre_apellido,
-          facilitator: preloadedData.nombre_apellido,
+          name: toTitleCase(preloadedData.nombre_apellido || ""),
+          nombre_apellido: toTitleCase(preloadedData.nombre_apellido || ""),
+          facilitator: toTitleCase(preloadedData.nombre_apellido || ""),
           cargo: "Facilitator",
           firma: preloadedData.firmas?.url_imagen,
           firma_id: preloadedData.firma_id,
@@ -376,9 +377,9 @@ export class CertificatePage {
                 // Transform API response to match expected interface
                 facilitator = {
                   id: data.id,
-                  name: data.nombre_apellido,
-                  nombre_apellido: data.nombre_apellido,
-                  facilitator: data.nombre_apellido,
+                  name: toTitleCase(data.nombre_apellido || ""),
+                  nombre_apellido: toTitleCase(data.nombre_apellido || ""),
+                  facilitator: toTitleCase(data.nombre_apellido || ""),
                   cargo: "Facilitator",
                   firma: data.firmas?.url_imagen,
                   firma_id: data.firma_id,
@@ -444,7 +445,9 @@ export class CertificatePage {
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(8);
       this.doc.text(
-        (facilitator.name || facilitator.nombre_apellido).toUpperCase(),
+        toTitleCase(
+          facilitator.name || facilitator.nombre_apellido || "",
+        ).toUpperCase(),
         60,
         100,
         { align: "center" },

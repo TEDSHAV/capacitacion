@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { cache } from "react";
+import { toLowerCase } from "@/utils/string-utils";
 
 // Get all facilitators
 const getFacilitators = cache(async () => {
@@ -97,7 +98,7 @@ const createFacilitator = cache(async (formData: FormData) => {
         {
           fuente,
           fecha_ingreso: fecha_ingreso_to_save,
-          nombre_apellido,
+          nombre_apellido: toLowerCase(nombre_apellido),
           cedula,
           rif,
           email,
@@ -138,9 +139,17 @@ const updateFacilitator = cache(async (id: string, facilitatorData: any) => {
   const supabase = await createClient();
 
   try {
+    // Convert nombre_apellido to lowercase if present
+    const dataToUpdate = {
+      ...facilitatorData,
+      ...(facilitatorData.nombre_apellido && {
+        nombre_apellido: toLowerCase(facilitatorData.nombre_apellido),
+      }),
+    };
+
     const { data, error } = await supabase
       .from("facilitadores")
-      .update(facilitatorData)
+      .update(dataToUpdate)
       .eq("id", id)
       .select()
       .single();

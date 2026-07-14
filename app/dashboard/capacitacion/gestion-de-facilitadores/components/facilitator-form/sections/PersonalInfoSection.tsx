@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { PersonalInfoSectionProps } from "@/types";
+import { toTitleCase } from "@/utils/string-utils";
 
 export const PersonalInfoSection = ({
   formData,
@@ -81,9 +82,12 @@ export const PersonalInfoSection = ({
           </label>
           <input
             type="text"
-            value={formData.nombre_apellido}
+            value={toTitleCase(formData.nombre_apellido || "")}
             onChange={(e) =>
               handleInputChange("nombre_apellido", e.target.value)
+            }
+            onBlur={(e) =>
+              handleInputChange("nombre_apellido", toTitleCase(e.target.value))
             }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Ej: Juan Pérez"
