@@ -426,8 +426,8 @@ export class ContentPage {
     try {
       // Check if we're in a server environment
       if (typeof window === "undefined") {
-        const fs = await import("fs");
-        const path = await import("path");
+        const fs = require("fs");
+        const path = require("path");
 
         let imagePath = sealImage;
         if (sealImage.startsWith("/")) {
