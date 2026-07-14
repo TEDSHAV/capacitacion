@@ -1,39 +1,27 @@
-# Stage 1: Install dependencies only when needed
+# Stage 1: Build native dependencies
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
-
-# Install build tools for native dependencies (like Sharp)
-RUN apt-get update && apt-get install -y \
-    python3 \
-    make \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json* ./
-# Install ALL dependencies (including devDeps for the build)
 RUN npm ci
 
-# Stage 2: Rebuild the source code only when needed
+# Stage 2: Build Next.js
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Set Next.js to production mode
-ENV NEXT_TELEMETRY_DISABLED=1 \
-    NODE_ENV=production
-
+ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production
 RUN npm run build
 
-# Stage 3: Production image, copy all the files and run next
+# Stage 3: Runner
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
-# Install required fonts/libraries and Chromium
+# 1. Install ONLY essential Chromium/Sharp dependencies
+# I removed the heavy CJK fonts to prevent the build-crash (255)
 RUN apt-get update && apt-get install -y \
+    chromium \
     fonts-liberation \
-    fonts-noto \
-    fonts-noto-cjk \
     libnss3 \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
@@ -44,40 +32,24 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     libgtk-3-0 \
     libvips-dev \
-    wget \
-    locales \
-    chromium \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure locale
-RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
-    locale-gen en_US.UTF-8 && \
-    update-locale LANG=en_US.UTF-8
-
-# Setup non-root user
+# 2. Setup user and permissions properly
 RUN groupadd --system --gid 1001 nodejs && \
-    useradd --system --uid 1001 nextjs
+    useradd --system --uid 1001 nextjs && \
+    mkdir -p /home/nextjs/.cache/puppeteer && \
+    chown -R nextjs:nodejs /home/nextjs
 
-# Create required directories with correct permissions for nextjs user
-RUN mkdir -p /home/nextjs/.cache/puppeteer \
-    /home/nextjs/.config \
-    /home/nextjs/.local/share/fonts \
-    /tmp/chromium && \
-    chown -R nextjs:nodejs /home/nextjs && \
-    chmod 1777 /tmp/chromium
-
-# Environment variables for Puppeteer
+# 3. Environment variables (Debian path for Chromium is /usr/bin/chromium)
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    LANG=en_US.UTF-8 \
-    LC_ALL=en_US.UTF-8 \
     NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME="0.0.0.0"
 
-# Copy standalone build artifacts
+# 4. Copy build artifacts
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
@@ -86,5 +58,4 @@ RUN chown -R nextjs:nodejs /app
 USER nextjs
 
 EXPOSE 3000
-
 CMD ["node", "server.js"]
