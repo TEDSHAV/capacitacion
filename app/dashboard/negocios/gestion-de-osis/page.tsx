@@ -6,6 +6,7 @@ import LoadingSpinner from '@/components/ui/loading-spinner'
 import { OSI } from "@/types";
 import OSIFilters from "./components/osi-filters";
 import OSITable from "./components/osi-table";
+import VirtualizedTable from "./components/VirtualizedTable";
 import OSIPagination from "./components/osi-pagination";
 import OSIEmptyState from "./components/osi-empty-state";
 
@@ -60,7 +61,7 @@ export default function GestionDeOSIsPage() {
         startIndex,
         endIndex,
         currentItems
-      }) => {
+      }: any) => {
         if (loading) {
           return <LoadingSpinner message="Cargando..." color="blue" />;
         }
@@ -93,11 +94,19 @@ export default function GestionDeOSIsPage() {
               />
             ) : (
               <>
-                <OSITable
-                  osis={currentItems}
-                  onOSIClick={handleOSIClick}
-                  getStatusColor={() => ''} // This will be handled internally
-                />
+                {/* Use virtualized table for large datasets, regular table for smaller ones */}
+                {currentItems.length > 50 ? (
+                  <VirtualizedTable
+                    osis={currentItems}
+                    onOSIClick={handleOSIClick}
+                  />
+                ) : (
+                  <OSITable
+                    osis={currentItems}
+                    onOSIClick={handleOSIClick}
+                    getStatusColor={() => ''} // This will be handled internally
+                  />
+                )}
 
                 <OSIPagination
                   currentPage={currentPage}
