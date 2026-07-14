@@ -6,13 +6,6 @@ RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt
 COPY package.json package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 
-# Stage 1b: Prune to production-only dependencies for runner image
-FROM node:22-bookworm-slim AS deps-prod
-WORKDIR /app
-COPY --from=deps /app/package.json /app/package-lock.json* ./
-COPY --from=deps /app/node_modules ./node_modules
-RUN npm prune --production
-
 # Stage 2: Build Next.js
 FROM node:22-bookworm-slim AS builder
 ARG DEBIAN_FRONTEND=noninteractive
@@ -33,6 +26,13 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production NODE_OPTIONS="--max-old-space-size=4096" TURBOPACK_DISABLED=1
 RUN --mount=type=cache,target=/app/.next/cache npm run build
+
+# Stage 2b: Prune to production-only dependencies for runner image.
+# Chained FROM builder (instead of a fresh base + separate COPY from deps) so this
+# stage runs sequentially after builder's node_modules copy/build, avoiding a
+# concurrent duplicate COPY of the large node_modules directory during the build.
+FROM builder AS deps-prod
+RUN npm prune --production
 
 # Stage 3: Runner
 FROM node:22-bookworm-slim AS runner
