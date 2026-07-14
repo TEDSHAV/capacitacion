@@ -93,20 +93,20 @@ export class TextRenderer {
    * Render ID text with nationality-based conditional logic
    */
   renderIDText(
-    participant: { nacionalidad?: 'venezolano' | 'extranjero'; id_number: string },
+    participant: { nationality?: 'venezolano' | 'extranjero'; id_number: string },
     x: number,
     y: number
   ): void {
     // Debug logging to see what we're receiving
     console.log('renderIDText received participant:', JSON.stringify(participant, null, 2));
     
-    // Use nacionalidad field to determine prefix and label
-    const isVenezolano = participant.nacionalidad === 'venezolano';
-    const idLabel = isVenezolano ? "CI:" : "Pasaporte:";
+    // Use nationality field to determine prefix and label
+    const isVenezolano = participant.nationality === 'venezolano';
+    const idLabel = isVenezolano ? "Cédula:" : "Pasaporte:";
     const idPrefix = isVenezolano ? "V-" : "E-";
     
     console.log('ID rendering logic:', {
-      nacionalidad: participant.nacionalidad,
+      nationality: participant.nationality,
       isVenezolano,
       idLabel,
       idPrefix,

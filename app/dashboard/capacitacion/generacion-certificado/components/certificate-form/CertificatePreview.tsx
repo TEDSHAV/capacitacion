@@ -385,7 +385,7 @@ export const CertificatePreview = ({
                 <p>Vista previa de: <strong>{showCarnet ? 'Carnet' : 'Certificado'}</strong></p>
                 <p>Para: <strong>{certificateData.participants[selectedParticipantIndex]?.name}</strong></p>
                 <p className="text-blue-600">
-                  Cédula: {certificateData.participants[selectedParticipantIndex]?.id_number}
+                  {certificateData.participants[selectedParticipantIndex]?.nationality === 'extranjero' ? 'Pasaporte' : 'Cédula'}: {certificateData.participants[selectedParticipantIndex]?.id_number}
                 </p>
                 {certificateData.horas_estimadas && (
                   <p className="text-blue-600">
