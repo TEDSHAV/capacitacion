@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
+import OSIActionButtons from '../components/OSIActionButtons'
 
 interface OSI {
   id: number
@@ -285,19 +286,99 @@ export default function OSIDetailPage() {
   const loadOSI = async (osiNumber: string) => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
+      
+      // Load OSI data first
+      const { data: osiData, error: osiError } = await supabase
         .from("osi")
         .select("*")
         .eq("nro_osi", osiNumber)
         .single()
 
-      if (error) {
-        console.error('Error loading OSI:', error)
+      if (osiError) {
+        console.error('Error loading OSI:', osiError)
         setError('OSI not found')
-      } else if (data) {
-        setOsi(data)
-        setFormData(data)
+        return
       }
+
+      if (!osiData) {
+        setError('OSI not found')
+        return
+      }
+
+      // Load related empresa data if empresa_id exists
+      let empresaData = null
+      if (osiData.empresa_id) {
+        const { data: empData, error: empError } = await supabase
+          .from("empresas")
+          .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
+          .eq("id", osiData.empresa_id)
+          .single()
+        
+        if (!empError && empData) {
+          empresaData = empData
+        }
+      }
+
+      // Load related contacto data if persona_contacto_id exists
+      let contactoData = null
+      if (osiData.persona_contacto_id) {
+        const { data: contData, error: contError } = await supabase
+          .from("contactos")
+          .select("id, nombre, apellido, telefono, email, email2")
+          .eq("id", osiData.persona_contacto_id)
+          .single()
+        
+        if (!contError && contData) {
+          contactoData = contData
+        }
+      }
+
+      // Merge OSI data with related empresa and contacto data
+      const mergedData = {
+        ...osiData,
+        // Populate empresa fields from related data
+        codigo_cliente: empresaData?.codigo_cliente || '',
+        rif: empresaData?.rif || '',
+        direccion_fiscal: empresaData?.direccion_fiscal || '',
+        direccion_envio: osiData.direccion_envio || '',
+        // Populate contacto fields from related data
+        contacto_nombre: contactoData?.nombre || '',
+        contacto_apellido: contactoData?.apellido || '',
+        contacto_telefono: contactoData?.telefono || '',
+        contacto_email: contactoData?.email || '',
+        contacto_email2: contactoData?.email2 || '',
+        // Ensure costos fields are properly loaded
+        costo_honorarios: osiData.costo_honorarios || 0,
+        nro_horas: osiData.nro_horas || 0,
+        costo_total: osiData.costo_total || 0,
+        costo_impresion_material: osiData.costo_impresion_material || 0,
+        costo_traslado: osiData.costo_traslado || 0,
+        costo_logistica_comida: osiData.costo_logistica_comida || 0,
+        costo_otros: osiData.costo_otros || 0,
+        // Ensure other fields are loaded
+        detalle_capacitacion: osiData.detalle_capacitacion || '',
+        observaciones_adicionales: osiData.observaciones_adicionales || '',
+        detalle_sesion: osiData.detalle_sesion || '',
+        participantes_max: osiData.participantes_max || 0,
+        certificado_impreso: osiData.certificado_impreso || false,
+        carnet_impreso: osiData.carnet_impreso || false,
+        // Date fields
+        fecha_emision: osiData.fecha_emision ? new Date(osiData.fecha_emision) : null,
+        fecha_servicio: osiData.fecha_servicio ? new Date(osiData.fecha_servicio) : null,
+        fecha_ejecucion1: osiData.fecha_ejecucion1 || null,
+        fecha_ejecucion2: osiData.fecha_ejecucion2 || null,
+        fecha_ejecucion3: osiData.fecha_ejecucion3 || null,
+        fecha_ejecucion4: osiData.fecha_ejecucion4 || null,
+        fecha_ejecucion5: osiData.fecha_ejecucion5 || null,
+        // Other fields
+        nro_sesiones: osiData.nro_sesiones || 1,
+        ejecutivo_negocios: osiData.ejecutivo_negocios || null,
+        persona_contacto_id: osiData.persona_contacto_id || null,
+        direccion_ejecucion: osiData.direccion_ejecucion || '',
+      }
+      
+      setOsi(osiData)
+      setFormData(mergedData)
     } catch (err) {
       console.error('Error loading OSI:', err)
       setError('Failed to load OSI')
@@ -344,7 +425,28 @@ export default function OSIDetailPage() {
         fecha_ejecucion4: formData.fecha_ejecucion4 || null,
         fecha_ejecucion5: formData.fecha_ejecucion5 || null,
         participantes_max: Number(formData.participantes_max) || null,
-        direccion_ejecucion: formData.direccion_ejecucion?.trim() || ''
+        detalle_sesion: formData.detalle_sesion?.trim() || null,
+        certificado_impreso: Boolean(formData.certificado_impreso),
+        carnet_impreso: Boolean(formData.carnet_impreso),
+        observaciones_adicionales: formData.observaciones_adicionales?.trim() || null,
+        detalle_capacitacion: formData.detalle_capacitacion?.trim() || null,
+        costo_honorarios: Number(formData.costo_honorarios) || 0,
+        nro_horas: Number(formData.nro_horas) || 0,
+        costo_total: (
+          ((formData.nro_horas || 0) * (formData.costo_honorarios || 0)) +
+          (formData.costo_impresion_material || 0) +
+          (formData.costo_traslado || 0) +
+          (formData.costo_logistica_comida || 0) +
+          (formData.costo_otros || 0)
+        ),
+        costo_impresion_material: Number(formData.costo_impresion_material) || 0,
+        costo_traslado: Number(formData.costo_traslado) || null,
+        costo_logistica_comida: Number(formData.costo_logistica_comida) || null,
+        costo_otros: Number(formData.costo_otros) || null,
+        estado: formData.estado || 'pendiente',
+        persona_contacto_id: Number(formData.persona_contacto_id) || null,
+        direccion_ejecucion: formData.direccion_ejecucion?.trim() || '',
+        direccion_envio: formData.direccion_envio?.trim() || null
       }
       
       if (isNew) {
@@ -453,53 +555,15 @@ export default function OSIDetailPage() {
                 {formData.estado || 'pendiente'}
               </span>
             )}
-            {(isEditing || isNew) ? (
-              <>
-                <button
-                  onClick={handleSave}
-                  disabled={isLoading}
-                  className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-md"
-                  style={{ backgroundColor: '#4f46e5', color: 'white' }}
-                >
-                  {isLoading ? 'Guardando...' : (isNew ? 'Crear' : 'Actualizar')}
-                </button>
-                {!isNew && (
-                  <button
-                    onClick={cancelEditing}
-                    className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition-colors shadow-md"
-                    style={{ backgroundColor: '#4b5563', color: 'white' }}
-                  >
-                    Cancelar
-                  </button>
-                )}
-                {!isNew && (
-                  <button
-                    onClick={handleDelete}
-                    className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors shadow-md"
-                    style={{ backgroundColor: '#dc2626', color: 'white' }}
-                  >
-                    Eliminar
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={startEditing}
-                  className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors shadow-md"
-                  style={{ backgroundColor: '#4f46e5', color: 'white' }}
-                >
-                  Editar
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors shadow-md"
-                  style={{ backgroundColor: '#dc2626', color: 'white' }}
-                >
-                  Eliminar
-                </button>
-              </>
-            )}
+            <OSIActionButtons
+              isNew={isNew}
+              isEditing={isEditing}
+              isLoading={isLoading}
+              onSave={handleSave}
+              onCancel={cancelEditing}
+              onEdit={startEditing}
+              onDelete={handleDelete}
+            />
           </div>
         </div>
       </div>
@@ -1234,30 +1298,22 @@ export default function OSIDetailPage() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Bottom Action Bar - Only show for new OSI */}
-      {isNew && (
-        <div className="bg-white rounded-lg shadow-md p-4 border-t">
+        {/* Bottom Action Buttons */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
           <div className="flex justify-end gap-3">
-            <button
-              onClick={() => router.push('/dashboard/negocios')}
-              className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition-colors shadow-md"
-              style={{ backgroundColor: '#4b5563', color: 'white' }}
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isLoading}
-              className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-md"
-              style={{ backgroundColor: '#4f46e5', color: 'white' }}
-            >
-              {isLoading ? 'Creando...' : 'Crear OSI'}
-            </button>
+            <OSIActionButtons
+              isNew={isNew}
+              isEditing={isEditing}
+              isLoading={isLoading}
+              onSave={handleSave}
+              onCancel={cancelEditing}
+              onEdit={startEditing}
+              onDelete={handleDelete}
+            />
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

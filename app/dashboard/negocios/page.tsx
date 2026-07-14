@@ -184,7 +184,7 @@ export default function NegociosPage() {
             >
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {osi.nro_osi}
+                  OSI - {osi.nro_osi}
                 </h3>
                 <p className="text-gray-600 text-sm mb-4">
                   {osi.nombre_empresa}
