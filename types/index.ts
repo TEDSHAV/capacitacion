@@ -77,7 +77,7 @@ export interface SearchableSelectProps {
 // Facilitator Form Types
 export interface FacilitadorFormData {
   fuente: string;
-  ano_ingreso: string;
+  fecha_ingreso: string;
   nombre_apellido: string;
   cedula: string;
   rif: string;
@@ -86,7 +86,7 @@ export interface FacilitadorFormData {
   direccion: string;
   nivel_tecnico: string;
   formacion_docente_certificada: boolean;
-  tipo_impacto: string;
+  alcance: string;
   notas_observaciones: string;
   id_estado_base: number | null;
   id_ciudad_base: number | null;
@@ -97,6 +97,9 @@ export interface FacilitadorFormData {
   calificacion: number | null;
   url_curriculum: string;
   firma_id: number | null;
+  tiene_curriculum: boolean;
+  tiene_certificaciones: boolean;
+  tiene_foto_perfil: boolean;
 }
 
 export interface State {
@@ -264,7 +267,7 @@ export enum SignatureType {
 export interface Facilitador {
   id: number;
   fuente: string | null;
-  ano_ingreso: number | null;
+  fecha_ingreso: string | null;
   nombre_apellido: string;
   cedula: string | null;
   rif: string | null;
@@ -273,7 +276,7 @@ export interface Facilitador {
   direccion: string | null;
   nivel_tecnico: string | null;
   formacion_docente_certificada: boolean | null;
-  tipo_impacto: string | null;
+  alcance: string | null;
   notas_observaciones: string | null;
   id_estado_base: number | null;
   id_ciudad_base: number | null;
@@ -286,6 +289,10 @@ export interface Facilitador {
   firma_id: number | null;
   fecha_creacion: string | null;
   fecha_actualizacion: string | null;
+  is_active: boolean;
+  tiene_curriculum: boolean | null;
+  tiene_certificaciones: boolean | null;
+  tiene_foto_perfil: boolean | null;
 }
 
 // Keep the old interface for backward compatibility

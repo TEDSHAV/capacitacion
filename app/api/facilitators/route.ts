@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     
     // Extract form fields
     const fuente = formData.get('fuente') as string;
-    const ano_ingreso = formData.get('ano_ingreso') as string;
+    const fecha_ingreso = formData.get('fecha_ingreso') as string;
     const nombre_apellido = formData.get('nombre_apellido') as string;
     const cedula = formData.get('cedula') as string;
     const rif = formData.get('rif') as string;
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const direccion = formData.get('direccion') as string;
     const nivel_tecnico = formData.get('nivel_tecnico') as string;
     const formacion_docente_certificada = formData.get('formacion_docente_certificada') === 'true';
-    const tipo_impacto = formData.get('tipo_impacto') as string;
+    const alcance = formData.get('alcance') as string;
     const notas_observaciones = formData.get('notas_observaciones') as string;
     const id_estado_base = formData.get('id_estado_base') ? parseInt(formData.get('id_estado_base') as string) : null;
     const id_ciudad_base = formData.get('id_ciudad_base') ? parseInt(formData.get('id_ciudad_base') as string) : null;
@@ -28,6 +28,9 @@ export async function POST(request: NextRequest) {
     const ficha_tecnica = formData.get('ficha_tecnica') as string;
     const calificacion = formData.get('calificacion') ? parseFloat(formData.get('calificacion') as string) : null;
     const firma_id = formData.get('firma_id') ? parseInt(formData.get('firma_id') as string) : null;
+    const tiene_curriculum = formData.get('tiene_curriculum') === 'true';
+    const tiene_certificaciones = formData.get('tiene_certificaciones') === 'true';
+    const tiene_foto_perfil = formData.get('tiene_foto_perfil') === 'true';
     const resumeFile = formData.get('resume') as File | null;
     const signatureFile = formData.get('signature') as File | null;
 
@@ -130,7 +133,8 @@ export async function POST(request: NextRequest) {
       .insert([
         {
           fuente: fuente || null,
-          ano_ingreso: ano_ingreso ? parseInt(ano_ingreso) : null,
+          fecha_ingreso: fecha_ingreso || null,
+          ano_ingreso: fecha_ingreso ? new Date(fecha_ingreso).getFullYear() : null,
           nombre_apellido,
           cedula,
           rif: rif || null,
@@ -139,7 +143,7 @@ export async function POST(request: NextRequest) {
           direccion: direccion || null,
           nivel_tecnico: nivel_tecnico || null,
           formacion_docente_certificada,
-          tipo_impacto: tipo_impacto || null,
+          alcance: alcance || null,
           notas_observaciones: notas_observaciones || null,
           id_estado_base,
           id_ciudad_base: null, // Not using foreign key anymore
@@ -148,6 +152,9 @@ export async function POST(request: NextRequest) {
           temas_cursos,
           ficha_tecnica: ficha_tecnica || null,
           calificacion,
+          tiene_curriculum,
+          tiene_certificaciones,
+          tiene_foto_perfil,
           url_curriculum: url_curriculum,
           firma_id: signatureId,
           fecha_creacion: new Date().toISOString(),

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 // Force TypeScript recompilation
 import { useRouter } from "next/navigation";
 import { Facilitador, State } from "@/types";
+import { Button } from "@/components/ui/button";
 
 interface FacilitadorCrudProps {
   onFacilitadorSaved?: () => void;
@@ -22,10 +23,9 @@ export const FacilitadorCrud = ({
   const [loading, setLoading] = useState(true);
   const [loadingStates, setLoadingStates] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [editingFacilitador, setEditingFacilitador] = useState<Facilitador | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [selectedFacilitador, setSelectedFacilitador] = useState<Facilitador | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [justification, setJustification] = useState("");
 
   // Client-side only: Check if we're in the browser
   const isClient = typeof window !== 'undefined';
@@ -86,6 +86,12 @@ export const FacilitadorCrud = ({
     }
   };
 
+  // Show facilitador details
+  const handleShowDetails = (facilitador: Facilitador) => {
+    setSelectedFacilitador(facilitador);
+    setShowDetailsModal(true);
+  };
+
   // Edit facilitator
   const handleEdit = (facilitador: Facilitador) => {
     // Only navigate on client-side
@@ -94,63 +100,43 @@ export const FacilitadorCrud = ({
     }
   };
 
-  // Update facilitador
-  const handleUpdate = async (updatedData: Partial<Facilitador>) => {
-    if (!editingFacilitador) return;
-
+  // Inhabilitar facilitador (instead of delete)
+  const handleInhabilitar = async (id: string) => {
+    // Show confirmation dialog with textarea
+    const justification = prompt(
+      "¿Estás seguro de que quieres inhabilitar este facilitador? Esta acción lo marcará como inactivo y no podrá ser asignado a nuevas capacitaciones.\n\nPor favor, indica el motivo por el cual se está inhabilitando este facilitador:"
+    );
+    
+    if (!justification || justification.trim() === '') {
+      alert("Debe proporcionar un motivo para inhabilitar al facilitador.");
+      return;
+    }
+    
     try {
-      const response = await fetch(`/api/facilitators/${editingFacilitador.id}`, {
+      const timestamp = Date.now();
+      const response = await fetch(`/api/facilitators/${id}?t=${timestamp}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(updatedData),
+        body: JSON.stringify({ 
+          is_active: false,
+          notas_observaciones: justification.trim()
+        }),
       });
 
       if (response.ok) {
-        alert("Facilitador actualizado exitosamente");
-        setShowEditModal(false);
-        setEditingFacilitador(null);
-        await loadFacilitadores();
-        onFacilitadorUpdated?.();
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || "Error al actualizar el facilitador";
-        throw new Error(errorMessage);
-      }
-    } catch (error) {
-      alert(`Error al actualizar el facilitador: ${error instanceof Error ? error.message : 'Por favor intenta nuevamente.'}`);
-    }
-  };
-
-  // Delete facilitator
-  const handleDelete = async (id: string) => {
-    try {
-      const timestamp = Date.now();
-      const response = await fetch(`/api/facilitators/${id}?t=${timestamp}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        alert("Facilitador eliminado exitosamente");
-        setShowDeleteModal(false);
-        setDeleteTarget(null);
+        alert("Facilitador inhabilitado exitosamente");
         await loadFacilitadores();
         onFacilitadorDeleted?.();
       } else {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || "Error al eliminar el facilitador";
+        const errorMessage = errorData.error || "Error al inhabilitar el facilitador";
         throw new Error(errorMessage);
       }
     } catch (error) {
-      alert(`Error al eliminar el facilitador: ${error instanceof Error ? error.message : 'Por favor intenta nuevamente.'}`);
+      alert(`Error al inhabilitar el facilitador: ${error instanceof Error ? error.message : 'Por favor intenta nuevamente.'}`);
     }
-  };
-
-  // Confirm delete
-  const confirmDelete = (id: string) => {
-    setDeleteTarget(id);
-    setShowDeleteModal(true);
   };
 
   // Filter facilitadores
@@ -180,12 +166,9 @@ export const FacilitadorCrud = ({
       {/* Header with Actions */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Gestión de Facilitadores</h2>
-        <button
-          onClick={handleCreate}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-        >
+        <Button onClick={handleCreate}>
           Nuevo Facilitador
-        </button>
+        </Button>
       </div>
 
       {/* Search */}
@@ -226,10 +209,40 @@ export const FacilitadorCrud = ({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredFacilitadores.map((facilitador) => (
-              <tr key={facilitador.id}>
+              <tr 
+                key={facilitador.id}
+                className="hover:bg-gray-50 cursor-pointer transition-colors"
+                onClick={() => handleShowDetails(facilitador)}
+              >
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
-                    {facilitador.nombre_apellido}
+                  <div className="flex flex-col">
+                    <div className="text-sm font-medium text-gray-900">
+                      {facilitador.nombre_apellido}
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        facilitador.is_active
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}>
+                        {facilitador.is_active ? "Activo" : "Inactivo"}
+                      </span>
+                      {facilitador.tiene_curriculum && (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                          CV
+                        </span>
+                      )}
+                      {facilitador.tiene_certificaciones && (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                          Cert
+                        </span>
+                      )}
+                      {facilitador.tiene_foto_perfil && (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                          Foto
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -245,25 +258,21 @@ export const FacilitadorCrud = ({
                   {getStateName(facilitador.id_estado_geografico)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex space-x-2">
-                    <button
+                  <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
                       onClick={() => handleEdit(facilitador)}
-                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
                     >
-                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
                       Editar
-                    </button>
-                    <button
-                      onClick={() => confirmDelete(facilitador.id.toString())}
-                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-colors"
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => handleInhabilitar(facilitador.id.toString())}
                     >
-                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Eliminar
-                    </button>
+                      Inhabilitar
+                    </Button>
                   </div>
                 </td>
               </tr>
@@ -278,122 +287,144 @@ export const FacilitadorCrud = ({
         )}
       </div>
 
-      {/* Edit Modal */}
-      {showEditModal && editingFacilitador && (
+      {/* Facilitador Details Modal */}
+      {showDetailsModal && selectedFacilitador && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Editar Facilitador</h3>
-              <button
+              <h3 className="text-lg font-semibold text-gray-900">Detalles del Facilitador</h3>
+              <Button
+                variant="ghost"
                 onClick={() => {
-                  setShowEditModal(false);
-                  setEditingFacilitador(null);
+                  setShowDetailsModal(false);
+                  setSelectedFacilitador(null);
                 }}
-                className="text-gray-400 hover:text-gray-600"
               >
                 ✕
-              </button>
+              </Button>
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre y Apellido
-                </label>
-                <input
-                  type="text"
-                  value={editingFacilitador.nombre_apellido || ""}
-                  onChange={(e) => setEditingFacilitador({...editingFacilitador, nombre_apellido: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre y Apellido
+                  </label>
+                  <div className="flex flex-col">
+                    <p className="text-sm text-gray-900">{selectedFacilitador.nombre_apellido}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {selectedFacilitador.tiene_curriculum && (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                          CV
+                        </span>
+                      )}
+                      {selectedFacilitador.tiene_certificaciones && (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                          Cert
+                        </span>
+                      )}
+                      {selectedFacilitador.tiene_foto_perfil && (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                          Foto
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cédula
+                  </label>
+                  <p className="text-sm text-gray-900">{selectedFacilitador.cedula || "N/A"}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <p className="text-sm text-gray-900">{selectedFacilitador.email || "N/A"}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Teléfono
+                  </label>
+                  <p className="text-sm text-gray-900">{selectedFacilitador.telefono || "N/A"}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    RIF
+                  </label>
+                  <p className="text-sm text-gray-900">{selectedFacilitador.rif || "N/A"}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Estado
+                  </label>
+                  <p className="text-sm text-gray-900">{getStateName(selectedFacilitador.id_estado_geografico)}</p>
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Dirección
                 </label>
-                <input
-                  type="email"
-                  value={editingFacilitador.email || ""}
-                  onChange={(e) => setEditingFacilitador({...editingFacilitador, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <p className="text-sm text-gray-900">{selectedFacilitador.direccion || "N/A"}</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cédula
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nivel Técnico
                 </label>
-                <input
-                  type="text"
-                  value={editingFacilitador.cedula || ""}
-                  onChange={(e) => setEditingFacilitador({...editingFacilitador, cedula: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <p className="text-sm text-gray-900">{selectedFacilitador.nivel_tecnico || "N/A"}</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Teléfono
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Alcance
                 </label>
-                <input
-                  type="tel"
-                  value={editingFacilitador.telefono || ""}
-                  onChange={(e) => setEditingFacilitador({...editingFacilitador, telefono: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <p className="text-sm text-gray-900">{selectedFacilitador.alcance || "N/A"}</p>
               </div>
 
-              <div className="flex justify-end space-x-3">
-                <button
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notas y Observaciones
+                </label>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                  {selectedFacilitador.notas_observaciones || "No hay notas u observaciones"}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Temas de Cursos
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {selectedFacilitador.temas_cursos && selectedFacilitador.temas_cursos.length > 0 ? (
+                    selectedFacilitador.temas_cursos.map((topic, index) => (
+                      <span key={index} className="inline-flex px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                        {topic}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-900">No hay temas asignados</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
                   onClick={() => {
-                    setShowEditModal(false);
-                    setEditingFacilitador(null);
+                    setShowDetailsModal(false);
+                    setSelectedFacilitador(null);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                 >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => handleUpdate(editingFacilitador)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  Guardar Cambios
-                </button>
+                  Cerrar
+                </Button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirmar Eliminación</h3>
-            <p className="text-gray-600 mb-6">
-              ¿Estás seguro de que quieres eliminar este facilitador? Esta acción no se puede deshacer.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteTarget(null);
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => handleDelete(deleteTarget!)}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 };
