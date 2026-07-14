@@ -68,10 +68,12 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
 
   useEffect(() => {
     const checkAuth = async () => {
+      // Use getSession() instead of getUser() to avoid hitting Supabase auth API
+      // on every page render. getSession reads from cookies/storage only.
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser(user);
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
     };
 
     checkAuth();

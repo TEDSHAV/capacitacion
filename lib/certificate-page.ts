@@ -65,6 +65,15 @@ export class CertificatePage {
       return;
     }
 
+    const margin = 10;
+    const upperHalfHeight = this.pageHeight / 2;
+    const templateArea = {
+      x: margin,
+      y: margin,
+      width: this.pageWidth - margin * 2,
+      height: upperHalfHeight - margin * 2,
+    };
+
     try {
       // Check if we're in a server environment
       if (typeof window === "undefined") {
@@ -87,7 +96,6 @@ export class CertificatePage {
           } else {
             const imageBuffer = await fs.promises.readFile(imagePath);
             const base64Png = imageBuffer.toString("base64");
-            // Compress to JPEG if sharp is available (huge size reduction)
             const compressed = await compressServerImageToJpeg(
               base64Png,
               82,
@@ -99,19 +107,9 @@ export class CertificatePage {
             _serverTemplateCache.set(imagePath, cachedDataUrl);
           }
 
-          const upperHalfHeight = this.pageHeight / 2;
-          const margin = 10;
-          const templateArea = {
-            x: margin,
-            y: margin,
-            width: this.pageWidth - margin * 2,
-            height: upperHalfHeight - margin * 2,
-          };
-
           const format = cachedDataUrl.startsWith("data:image/jpeg")
             ? "JPEG"
             : "PNG";
-          // FAST compression keeps generation quick; stream is also zlib-compressed via compress:true
           this.doc.addImage(
             cachedDataUrl,
             format,
@@ -126,20 +124,14 @@ export class CertificatePage {
         return;
       }
 
-      // Browser environment - use Image constructor
-      if (_browserTemplateCache.has(imageUrl)) {
-        const jpegDataUrl = _browserTemplateCache.get(imageUrl)!;
-        const upperHalfHeight = this.pageHeight / 2;
-        const margin = 10;
-        const templateArea = {
-          x: margin,
-          y: margin,
-          width: this.pageWidth - margin * 2,
-          height: upperHalfHeight - margin * 2,
-        };
+      // Browser environment
+
+      // Fast path: already a data URL (preloaded) — add directly without canvas
+      if (imageUrl.startsWith("data:")) {
+        const format = imageUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
         this.doc.addImage(
-          jpegDataUrl,
-          "JPEG",
+          imageUrl,
+          format,
           templateArea.x,
           templateArea.y,
           templateArea.width,
@@ -150,38 +142,72 @@ export class CertificatePage {
         return;
       }
 
+      // Cache check for URL inputs
+      if (_browserTemplateCache.has(imageUrl)) {
+        const cachedDataUrl = _browserTemplateCache.get(imageUrl)!;
+        const format = cachedDataUrl.startsWith("data:image/jpeg")
+          ? "JPEG"
+          : "PNG";
+        this.doc.addImage(
+          cachedDataUrl,
+          format,
+          templateArea.x,
+          templateArea.y,
+          templateArea.width,
+          templateArea.height,
+          undefined,
+          "FAST",
+        );
+        return;
+      }
+
+      // Fetch-based approach for URL inputs (avoids canvas/CORS taint issues)
       return new Promise(async (resolve) => {
         try {
-          // Compress PNG → JPEG (max width 1600px at ~82% quality)
-          const jpegDataUrl = await compressImageToJpeg(imageUrl, 0.82, 1600);
-          _browserTemplateCache.set(imageUrl, jpegDataUrl);
-
-          const upperHalfHeight = this.pageHeight / 2;
-          const margin = 10;
-          const templateArea = {
-            x: margin,
-            y: margin,
-            width: this.pageWidth - margin * 2,
-            height: upperHalfHeight - margin * 2,
+          const response = await fetch(imageUrl);
+          if (!response.ok) {
+            console.error(
+              `Template image not found: ${imageUrl} (${response.status})`,
+            );
+            resolve();
+            return;
+          }
+          const blob = await response.blob();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            try {
+              const dataUrl = reader.result as string;
+              _browserTemplateCache.set(imageUrl, dataUrl);
+              const format = dataUrl.startsWith("data:image/jpeg")
+                ? "JPEG"
+                : "PNG";
+              this.doc.addImage(
+                dataUrl,
+                format,
+                templateArea.x,
+                templateArea.y,
+                templateArea.width,
+                templateArea.height,
+                undefined,
+                "FAST",
+              );
+            } catch (e) {
+              console.error("Failed to add template to PDF:", e);
+            }
+            resolve();
           };
-
-          this.doc.addImage(
-            jpegDataUrl,
-            "JPEG",
-            templateArea.x,
-            templateArea.y,
-            templateArea.width,
-            templateArea.height,
-            undefined,
-            "FAST",
-          );
-          resolve();
+          reader.onerror = () => {
+            console.error("Failed to read template image blob");
+            resolve();
+          };
+          reader.readAsDataURL(blob);
         } catch (error) {
+          console.error("Failed to load template image:", error);
           resolve();
         }
       });
     } catch (error) {
-      // Continue without template instead of failing
+      console.error("Unexpected error in addTemplate:", error);
     }
   }
 
@@ -704,47 +730,49 @@ export class CertificatePage {
         return;
       }
 
-      // Browser environment - convert to absolute URL if needed, then load as base64
-      let finalImageUrl = imageUrl;
-
-      // Convert relative paths to absolute URLs
-      if (imageUrl.startsWith("/")) {
-        finalImageUrl = window.location.origin + imageUrl;
-      } else if (imageUrl.startsWith("file://")) {
+      // Browser environment - use fetch + FileReader to avoid canvas CORS/taint issues
+      if (imageUrl.startsWith("file://")) {
         return;
       }
 
-      return new Promise((resolve, reject) => {
-        const img = new Image();
+      // If already a data URL, add directly
+      if (imageUrl.startsWith("data:")) {
+        const format = imageUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
+        this.doc.addImage(imageUrl, format, x, y, width, height);
+        return;
+      }
 
-        // Enable cross-origin for external images
-        img.crossOrigin = "anonymous";
-
-        img.onload = () => {
-          try {
-            // Create canvas to convert to base64
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx?.drawImage(img, 0, 0);
-
-            // Convert to base64 data URL
-            const base64DataUrl = canvas.toDataURL("image/png");
-
-            // Add to PDF using base64 data URL
-            this.doc.addImage(base64DataUrl, "PNG", x, y, width, height);
-            resolve();
-          } catch (error) {
-            reject(error);
+      return new Promise(async (resolve, reject) => {
+        try {
+          const response = await fetch(imageUrl);
+          if (!response.ok) {
+            reject(
+              new Error(
+                `Signature image not found: ${imageUrl} (${response.status})`,
+              ),
+            );
+            return;
           }
-        };
-
-        img.onerror = (error) => {
-          reject(new Error(`Signature image not found: ${finalImageUrl}`));
-        };
-
-        img.src = finalImageUrl;
+          const blob = await response.blob();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            try {
+              const dataUrl = reader.result as string;
+              const format = dataUrl.startsWith("data:image/jpeg")
+                ? "JPEG"
+                : "PNG";
+              this.doc.addImage(dataUrl, format, x, y, width, height);
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          };
+          reader.onerror = () =>
+            reject(new Error("Failed to read signature blob"));
+          reader.readAsDataURL(blob);
+        } catch (error) {
+          reject(error);
+        }
       });
     } catch (error) {
       throw error;

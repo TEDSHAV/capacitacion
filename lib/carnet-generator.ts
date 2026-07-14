@@ -197,18 +197,15 @@ export class CarnetGenerator {
         return;
       }
 
-      const { compressImageToJpeg } = await import("./image-compress");
-      return new Promise(async (resolve, reject) => {
+      // Fast path: already a data URL (preloaded) — add directly without canvas
+      if (templatePath.startsWith("data:")) {
+        const format = templatePath.startsWith("data:image/jpeg")
+          ? "JPEG"
+          : "PNG";
         try {
-          const jpegDataUrl = await compressImageToJpeg(
+          pdf.addImage(
             templatePath,
-            0.82,
-            1200,
-          );
-          _browserCarnetCache.set(templatePath, jpegDataUrl);
-          pdf.addImage(
-            jpegDataUrl,
-            "JPEG",
+            format,
             0,
             0,
             this.pageWidth,
@@ -216,30 +213,79 @@ export class CarnetGenerator {
             undefined,
             "FAST",
           );
-          resolve();
-          return;
         } catch (e) {
-          // Fall back to raw image
+          console.error("Failed to add carnet template data URL to PDF:", e);
+          this.addBackgroundDesign(pdf);
         }
-        const img = new Image();
-        img.onload = () => {
-          pdf.addImage(
-            img,
-            "PNG",
-            0,
-            0,
-            this.pageWidth,
-            this.pageHeight,
-            undefined,
-            "FAST",
-          );
-          resolve();
-        };
-        img.onerror = (error) => {
+        return;
+      }
+
+      // Cache check for URL inputs
+      if (_browserCarnetCache.has(templatePath)) {
+        const cachedDataUrl = _browserCarnetCache.get(templatePath)!;
+        const format = cachedDataUrl.startsWith("data:image/jpeg")
+          ? "JPEG"
+          : "PNG";
+        pdf.addImage(
+          cachedDataUrl,
+          format,
+          0,
+          0,
+          this.pageWidth,
+          this.pageHeight,
+          undefined,
+          "FAST",
+        );
+        return;
+      }
+
+      // Fetch-based approach (avoids canvas CORS/taint issues)
+      return new Promise(async (resolve) => {
+        try {
+          const response = await fetch(templatePath);
+          if (!response.ok) {
+            console.error(
+              `Carnet template not found: ${templatePath} (${response.status})`,
+            );
+            this.addBackgroundDesign(pdf);
+            resolve();
+            return;
+          }
+          const blob = await response.blob();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            try {
+              const dataUrl = reader.result as string;
+              _browserCarnetCache.set(templatePath, dataUrl);
+              const format = dataUrl.startsWith("data:image/jpeg")
+                ? "JPEG"
+                : "PNG";
+              pdf.addImage(
+                dataUrl,
+                format,
+                0,
+                0,
+                this.pageWidth,
+                this.pageHeight,
+                undefined,
+                "FAST",
+              );
+            } catch (e) {
+              console.error("Failed to add carnet template to PDF:", e);
+              this.addBackgroundDesign(pdf);
+            }
+            resolve();
+          };
+          reader.onerror = () => {
+            this.addBackgroundDesign(pdf);
+            resolve();
+          };
+          reader.readAsDataURL(blob);
+        } catch (error) {
+          console.error("Failed to load carnet template:", error);
           this.addBackgroundDesign(pdf);
           resolve();
-        };
-        img.src = templatePath;
+        }
       });
     } catch (error) {
       this.addBackgroundDesign(pdf);

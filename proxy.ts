@@ -48,9 +48,22 @@ export async function proxy(request: NextRequest) {
 
   // Protect all /dashboard routes
   if (request.nextUrl.pathname.startsWith("/dashboard")) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    let user: any = null;
+    try {
+      const result = await supabase.auth.getUser();
+      user = result.data.user;
+    } catch (err: any) {
+      // If Supabase rate-limits us (429), don't redirect — that triggers a
+      // login redirect loop where /login also hits the limit. Allow the
+      // request through; the page-level checks will handle it on retry.
+      if (err?.status === 429 || err?.code === "over_request_rate_limit") {
+        console.warn(
+          "Supabase auth rate-limited in proxy; allowing request through",
+        );
+        return supabaseResponse;
+      }
+      throw err;
+    }
 
     if (!user) {
       const loginUrl =

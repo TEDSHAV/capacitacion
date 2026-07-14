@@ -490,6 +490,9 @@ export default function GeneracionCertificadoClient({
       // Helper function to preload images as base64
       async function preloadImage(url: string): Promise<string> {
         const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to load image: ${url} (${response.status})`);
+        }
         const blob = await response.blob();
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -563,6 +566,12 @@ export default function GeneracionCertificadoClient({
       assetPromises.push(
         (async () => {
           try {
+            // First try to use the data already in certificateData
+            if (certificateData.sha_signature_data) {
+              shaSignatureDataToUse = certificateData.sha_signature_data;
+            }
+
+            // If still no data, fetch from API
             if (!shaSignatureDataToUse && certificateData.sha_signature_id) {
               const response = await fetch(
                 `/api/signatures/${certificateData.sha_signature_id}`,
@@ -571,10 +580,14 @@ export default function GeneracionCertificadoClient({
                 shaSignatureDataToUse = await response.json();
               }
             }
-            if (shaSignatureDataToUse?.url_imagen) {
-              shaSignatureBase64 = await preloadImage(
-                shaSignatureDataToUse.url_imagen,
-              );
+
+            // Preload the image if we have the URL
+            if (shaSignatureDataToUse) {
+              const imageUrl =
+                shaSignatureDataToUse.url_imagen || shaSignatureDataToUse.firma;
+              if (imageUrl) {
+                shaSignatureBase64 = await preloadImage(imageUrl);
+              }
             }
           } catch (error) {
             console.error("Failed to preload SHA signature:", error);
@@ -780,25 +793,52 @@ export default function GeneracionCertificadoClient({
           }
 
           if (carnetDbResult.success && carnetDbResult.carnetIds) {
+            // Preload carnet template image as base64
+            let carnetTemplateBase64 = "";
+            try {
+              const carnetTemplateUrl = (() => {
+                const defaultTemplate = "/templates/carnet.png";
+                if (certificateData.id_plantilla_carnet) {
+                  const selectedTemplate = carnetTemplates.find(
+                    (template: any) =>
+                      template.id === certificateData.id_plantilla_carnet,
+                  );
+                  if (
+                    selectedTemplate?.archivo &&
+                    selectedTemplate.archivo !== "carnet.png"
+                  ) {
+                    return `/templates/${selectedTemplate.archivo}`;
+                  }
+                }
+                return defaultTemplate;
+              })();
+
+              carnetTemplateBase64 = await preloadImage(carnetTemplateUrl);
+            } catch (error) {
+              console.error("Failed to preload carnet template:", error);
+            }
+
             // Generate carnet PDFs concurrently in batches
             const carnetRequests = carnetData.map((carnet, index) => {
-              // Get template image based on selected carnet template
-              const defaultTemplate = "/templates/carnet.png";
-              let templateImage = defaultTemplate;
-
-              if (certificateData.id_plantilla_carnet) {
-                const selectedTemplate = carnetTemplates.find(
-                  (template: any) =>
-                    template.id === certificateData.id_plantilla_carnet,
-                );
-                if (
-                  selectedTemplate?.archivo &&
-                  selectedTemplate.archivo !== "carnet.png"
-                ) {
-                  // Try to use custom template, carnet generator will fallback if it doesn't exist
-                  templateImage = `/templates/${selectedTemplate.archivo}`;
-                }
-              }
+              // Use preloaded base64 if available, otherwise use URL
+              const templateImage =
+                carnetTemplateBase64 ||
+                (() => {
+                  const defaultTemplate = "/templates/carnet.png";
+                  if (certificateData.id_plantilla_carnet) {
+                    const selectedTemplate = carnetTemplates.find(
+                      (template: any) =>
+                        template.id === certificateData.id_plantilla_carnet,
+                    );
+                    if (
+                      selectedTemplate?.archivo &&
+                      selectedTemplate.archivo !== "carnet.png"
+                    ) {
+                      return `/templates/${selectedTemplate.archivo}`;
+                    }
+                  }
+                  return defaultTemplate;
+                })();
 
               return {
                 participant: certificateData.participants[index],

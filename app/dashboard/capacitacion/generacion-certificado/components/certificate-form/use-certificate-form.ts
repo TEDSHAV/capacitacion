@@ -65,6 +65,14 @@ export function useCertificateForm({
       );
       if (activeShaSignature) {
         onDataChange("sha_signature_id", activeShaSignature.id.toString());
+        // Also set sha_signature_data immediately to avoid a second API call
+        onDataChange("sha_signature_data", {
+          id: activeShaSignature.id,
+          nombre: (activeShaSignature as any).nombre,
+          tipo: (activeShaSignature as any).tipo,
+          url_imagen: (activeShaSignature as any).url_imagen,
+          is_active: activeShaSignature.is_active,
+        });
       }
     }
   }, [shaSignatures, certificateData.sha_signature_id]);
@@ -86,9 +94,20 @@ export function useCertificateForm({
               (sig: any) =>
                 sig.id.toString() === certificateData.sha_signature_id,
             );
-            if (selected) onDataChange("sha_signature_data", selected);
+            if (selected) {
+              // Ensure we pass the full signature object with url_imagen
+              onDataChange("sha_signature_data", {
+                id: selected.id,
+                nombre: selected.nombre,
+                tipo: selected.tipo,
+                url_imagen: selected.url_imagen,
+                is_active: selected.is_active,
+              });
+            }
           }
-        } catch (error) {}
+        } catch (error) {
+          console.error("Error loading SHA signature data:", error);
+        }
       }
     };
 
