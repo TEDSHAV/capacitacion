@@ -76,6 +76,18 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
   const pagination = getPaginationStrategy(data.participantes.length);
   const totalPages = pagination.pages;
 
+  // Calculate average score (ignoring zeros and nulls)
+  const validScores = data.participantes
+    .map((p) => Number(p.puntuacion))
+    .filter((score) => !isNaN(score) && score > 0);
+  const averageScore =
+    validScores.length > 0
+      ? (
+          validScores.reduce((sum, score) => sum + score, 0) /
+          validScores.length
+        ).toFixed(2)
+      : "";
+
   const tableRows = data.participantes
     .map(
       (p) => `
@@ -205,6 +217,15 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
         <tbody>
           ${tableRows}
         </tbody>
+        <tfoot>
+          <tr>
+            <td></td>
+            <td colspan="2">Puntuacion promedio</td>
+            <td class="text-center">${averageScore}</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tfoot>
       </table>
     `;
     pagesHtml = generatePage(1, introContent + tableContent, true);
@@ -243,6 +264,15 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
         <tbody>
           ${secondPageRows}
         </tbody>
+        <tfoot>
+          <tr>
+            <td></td>
+            <td colspan="2">Puntuacion promedio</td>
+            <td class="text-center">${averageScore}</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tfoot>
       </table>
     `;
 
@@ -266,12 +296,12 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 
     @page {
       size: letter;
-      margin: 0.5in;
+      margin: 0.75in;
     }
 
     body {
       font-family: Helvetica, Arial, sans-serif;
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.4;
       color: #000;
       background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
@@ -336,32 +366,32 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     .date-right {
       text-align: right;
       margin-bottom: 10px;
-      font-size: 13px;
+      font-size: 14px;
     }
 
     .recipient {
       font-weight: bold;
       margin-bottom: 10px;
-      font-size: 13px;
+      font-size: 14px;
     }
 
     .body-text {
       text-align: justify;
       margin-bottom: 15px;
-      font-size: 12px;
+      font-size: 13px;
       line-height: 1.5;
     }
 
     .min-score {
       margin-bottom: 12px;
-      font-size: 12px;
+      font-size: 14px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 15px;
-      font-size: 11px;
+      font-size: 12px;
     }
 
     th {
@@ -370,7 +400,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       padding: 6px 4px;
       text-align: center;
       font-weight: bold;
-      font-size: 11px;
+      font-size: 12px;
     }
 
     td {
@@ -381,6 +411,23 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 
     td.text-center {
       text-align: center;
+    }
+
+    tfoot td {
+      border: none;
+    }
+
+    tfoot td:first-child {
+      border-left: 0.5px solid #000;
+    }
+
+    tfoot td:last-child {
+      border-right: 0.5px solid #000;
+    }
+
+    tfoot tr {
+      border-top: 0.5px solid #000;
+      border-bottom: 0.5px solid #000;
     }
 
     tr {
@@ -403,13 +450,13 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 
     .signature-text {
       font-weight: bold;
-      font-size: 12px;
+      font-size: 13px;
       margin-bottom: 20px;
     }
 
     .signature-name {
       font-weight: bold;
-      font-size: 12px;
+      font-size: 13px;
       margin-top: 15px;
     }
 
@@ -631,12 +678,12 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
 
     @page {
       size: letter;
-      margin: 0.5in;
+      margin: 0.75in;
     }
 
     body {
       font-family: Helvetica, Arial, sans-serif;
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.4;
       color: #000;
       background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
@@ -701,19 +748,19 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     .date-right {
       text-align: right;
       margin-bottom: 10px;
-      font-size: 13px;
+      font-size: 14px;
     }
 
     .recipient {
       font-weight: bold;
       margin-bottom: 10px;
-      font-size: 13px;
+      font-size: 14px;
     }
 
     .body-text {
       text-align: justify;
       margin-bottom: 15px;
-      font-size: 12px;
+      font-size: 13px;
       line-height: 1.5;
     }
 
@@ -721,7 +768,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 15px;
-      font-size: 11px;
+      font-size: 12px;
     }
 
     th {
@@ -730,7 +777,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       padding: 6px 4px;
       text-align: center;
       font-weight: bold;
-      font-size: 11px;
+      font-size: 12px;
     }
 
     td {
@@ -763,20 +810,20 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
 
     .signature-text {
       font-weight: bold;
-      font-size: 12px;
+      font-size: 13px;
       margin-bottom: 20px;
     }
 
     .signature-name {
       text-align: center;
       font-weight: bold;
-      font-size: 12px;
+      font-size: 13px;
       margin-top: 15px;
     }
 
     .received-section {
       margin-top: 20px;
-      font-size: 13px;
+      font-size: 14px;
     }
 
     .received-label {
@@ -793,20 +840,20 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     .seal-label {
       text-align: center;
       font-weight: bold;
-      font-size: 12px;
+      font-size: 13px;
       margin-bottom: 5px;
     }
 
     .received-name {
       text-align: center;
       font-weight: bold;
-      font-size: 12px;
+      font-size: 13px;
       margin-bottom: 5px;
     }
 
     .received-cargo {
       text-align: center;
-      font-size: 12px;
+      font-size: 13px;
       margin-bottom: 15px;
     }
 
@@ -1030,12 +1077,12 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
 
     @page {
       size: letter;
-      margin: 0.5in;
+      margin: 0.75in;
     }
 
     body {
       font-family: Helvetica, Arial, sans-serif;
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.4;
       color: #000;
       background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
@@ -1100,19 +1147,19 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     .date-right {
       text-align: right;
       margin-bottom: 10px;
-      font-size: 13px;
+      font-size: 14px;
     }
 
     .recipient {
       font-weight: bold;
       margin-bottom: 10px;
-      font-size: 13px;
+      font-size: 14px;
     }
 
     .body-text {
       text-align: justify;
       margin-bottom: 15px;
-      font-size: 12px;
+      font-size: 13px;
       line-height: 1.5;
     }
 
@@ -1120,7 +1167,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 15px;
-      font-size: 11px;
+      font-size: 12px;
     }
 
     th {
@@ -1129,7 +1176,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       padding: 6px 4px;
       text-align: center;
       font-weight: bold;
-      font-size: 11px;
+      font-size: 12px;
     }
 
     td {
@@ -1162,13 +1209,13 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
 
     .signature-text {
       font-weight: bold;
-      font-size: 12px;
+      font-size: 13px;
       margin-bottom: 20px;
     }
 
     .signature-name {
       font-weight: bold;
-      font-size: 12px;
+      font-size: 13px;
       margin-top: 15px;
     }
 
