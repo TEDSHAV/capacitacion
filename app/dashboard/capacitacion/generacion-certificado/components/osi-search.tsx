@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { CertificateOSI, OSISearchProps } from '@/types'
+import { CertificateOSI, CourseTopic, OSISearchProps } from '@/types'
 
-export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProps) {
+export default function OSISearch({ osis, selectedOSI, onSelect, matchedCourse }: OSISearchProps & { matchedCourse?: CourseTopic | null }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
@@ -154,7 +154,7 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
                 Cliente: {selectedOSI.cliente_nombre_empresa || 'N/A'}
               </div>
               <div className="text-sm text-blue-700">
-                Curso: {selectedOSI.curso_nombre || selectedOSI.detalle_capacitacion || 'N/A - Sin curso especificado'}
+                Curso: {matchedCourse?.nombre || selectedOSI.curso_nombre || selectedOSI.detalle_capacitacion || 'N/A - Sin curso especificado'}
               </div>
             </div>
             <button
@@ -197,7 +197,7 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
                     {osi.cliente_nombre_empresa}
                   </div>
                   <div className="text-sm text-gray-500">
-                    Curso: {osi.curso_nombre || 'Sin curso especificado'}
+                    Curso: {matchedCourse?.nombre || osi.curso_nombre || osi.detalle_capacitacion || 'Sin curso especificado'}
                   </div>
                 </div>
               ))}

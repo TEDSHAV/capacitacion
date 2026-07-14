@@ -289,6 +289,7 @@ export default function GeneracionCertificadoClient({
           osis={osis}
           selectedOSI={selectedOSI}
           onSelect={handleOSISelect}
+          matchedCourse={selectedCourseTopic}
         />
 
         <CertificateForm

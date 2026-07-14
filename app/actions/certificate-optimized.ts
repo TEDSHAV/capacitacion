@@ -60,6 +60,14 @@ const getOptimizedCertificateData = cache(async () => {
       throw new Error(`Failed to load courses: ${coursesResult.error.message}`);
     }
 
+    console.log('🔍 Courses Debug:', {
+      totalCourses: coursesResult.data?.length || 0,
+      sampleCourses: coursesResult.data?.slice(0, 10) || [],
+      courseIds: coursesResult.data?.map((c: any) => ({ id: c.id, name: c.nombre })) || [],
+      'looking for course ID': 62,
+      'course 62 exists': coursesResult.data?.some((c: any) => c.id === 62)
+    });
+
     // Transform data efficiently
     const transformedOSIs = (osisResult.data || []).map((osi: any) => ({
       id: osi.id.toString(),
@@ -81,9 +89,9 @@ const getOptimizedCertificateData = cache(async () => {
       fecha_emision: null,
       nro_horas: null,
       costo_total: null,
-      detalle_capacitacion: null,
+      detalle_capacitacion: osi.detalle_capacitacion,
       codigo_cliente: null,
-      curso_nombre: null,
+      curso_nombre: osi.detalle_capacitacion || 'N/A - Sin curso especificado',
     }));
 
     const transformedCourses = (coursesResult.data || []).map((course: any) => ({
