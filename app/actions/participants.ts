@@ -206,14 +206,179 @@ export async function getAnalyticsMetrics(): Promise<any> {
   try {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from("analytics_metrics")
-      .select("*")
-      .single();
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const [{ data: certs, error }, { count: totalParticipants }] =
+      await Promise.all([
+        supabase
+          .from("certificados")
+          .select(
+            `id, is_active, fecha_emision, calificacion,
+           id_curso, id_facilitador, id_participante,
+           cursos(nombre), facilitadores(nombre_apellido)`,
+          )
+          .limit(3000),
+        supabase
+          .from("participantes_certificados")
+          .select("*", { count: "exact", head: true })
+          .eq("is_active", true),
+      ]);
 
     if (error) throw error;
 
-    return data;
+    if (!certs || certs.length === 0) {
+      return {
+        total_certificates: 0,
+        active_certificates: 0,
+        average_score: 0,
+        certificates_this_month: 0,
+        certificates_this_year: 0,
+        unique_courses_with_certificates: 0,
+        unique_facilitators_with_certificates: 0,
+        unique_participants_with_certificates: 0,
+        total_participants: totalParticipants || 0,
+        top_courses: [],
+        top_facilitators: [],
+      };
+    }
+
+    let activeCertificates = 0;
+    let totalScore = 0;
+    let scoreCount = 0;
+    let certificatesThisMonth = 0;
+    let certificatesThisYear = 0;
+
+    const uniqueCourses = new Set<number>();
+    const uniqueFacilitators = new Set<number>();
+    const uniqueParticipants = new Set<number>();
+
+    const courseMap: Record<
+      number,
+      {
+        name: string;
+        count: number;
+        participantCount: number;
+        totalScore: number;
+        scoreCount: number;
+      }
+    > = {};
+    const facilitatorMap: Record<
+      number,
+      {
+        name: string;
+        count: number;
+        participantCount: number;
+        totalScore: number;
+        scoreCount: number;
+      }
+    > = {};
+
+    certs.forEach((cert: any) => {
+      if (cert.is_active) activeCertificates++;
+
+      if (cert.calificacion != null) {
+        totalScore += cert.calificacion;
+        scoreCount++;
+      }
+
+      if (cert.fecha_emision) {
+        const emissionDate = new Date(cert.fecha_emision + "T12:00:00");
+        if (
+          emissionDate.getMonth() === currentMonth &&
+          emissionDate.getFullYear() === currentYear
+        ) {
+          certificatesThisMonth++;
+        }
+        if (emissionDate.getFullYear() === currentYear) {
+          certificatesThisYear++;
+        }
+      }
+
+      if (cert.id_curso) {
+        uniqueCourses.add(cert.id_curso);
+        if (!courseMap[cert.id_curso]) {
+          courseMap[cert.id_curso] = {
+            name: (cert.cursos as any)?.nombre || "Desconocido",
+            count: 0,
+            participantCount: 0,
+            totalScore: 0,
+            scoreCount: 0,
+          };
+        }
+        courseMap[cert.id_curso].count++;
+        if (cert.id_participante) courseMap[cert.id_curso].participantCount++;
+        if (cert.calificacion != null) {
+          courseMap[cert.id_curso].totalScore += cert.calificacion;
+          courseMap[cert.id_curso].scoreCount++;
+        }
+      }
+
+      if (cert.id_facilitador) {
+        uniqueFacilitators.add(cert.id_facilitador);
+        if (!facilitatorMap[cert.id_facilitador]) {
+          facilitatorMap[cert.id_facilitador] = {
+            name: (cert.facilitadores as any)?.nombre_apellido || "Desconocido",
+            count: 0,
+            participantCount: 0,
+            totalScore: 0,
+            scoreCount: 0,
+          };
+        }
+        facilitatorMap[cert.id_facilitador].count++;
+        if (cert.id_participante)
+          facilitatorMap[cert.id_facilitador].participantCount++;
+        if (cert.calificacion != null) {
+          facilitatorMap[cert.id_facilitador].totalScore += cert.calificacion;
+          facilitatorMap[cert.id_facilitador].scoreCount++;
+        }
+      }
+
+      if (cert.id_participante) uniqueParticipants.add(cert.id_participante);
+    });
+
+    const topCourses = Object.values(courseMap)
+      .map((data) => ({
+        course_name: data.name,
+        certificate_count: data.count,
+        participant_count: data.participantCount,
+        avg_score:
+          data.scoreCount > 0
+            ? (data.totalScore / data.scoreCount).toFixed(1)
+            : "0",
+      }))
+      .sort((a, b) => b.certificate_count - a.certificate_count)
+      .slice(0, 5);
+
+    const topFacilitators = Object.values(facilitatorMap)
+      .map((data) => ({
+        facilitator_name: data.name,
+        certificate_count: data.count,
+        participant_count: data.participantCount,
+        avg_score:
+          data.scoreCount > 0
+            ? (data.totalScore / data.scoreCount).toFixed(1)
+            : "0",
+        total_hours: 0,
+      }))
+      .sort((a, b) => b.certificate_count - a.certificate_count)
+      .slice(0, 5);
+
+    return {
+      total_certificates: certs.length,
+      active_certificates: activeCertificates,
+      average_score:
+        scoreCount > 0 ? parseFloat((totalScore / scoreCount).toFixed(1)) : 0,
+      certificates_this_month: certificatesThisMonth,
+      certificates_this_year: certificatesThisYear,
+      unique_courses_with_certificates: uniqueCourses.size,
+      unique_facilitators_with_certificates: uniqueFacilitators.size,
+      unique_participants_with_certificates: uniqueParticipants.size,
+      total_participants: totalParticipants || 0,
+      top_courses: topCourses,
+      top_facilitators: topFacilitators,
+    };
   } catch (error) {
     console.error("Error fetching analytics metrics:", error);
     return null;

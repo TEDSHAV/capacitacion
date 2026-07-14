@@ -1103,3 +1103,80 @@ export interface ExtractedParticipant {
   score?: number;
   confidence?: number;
 }
+
+// ─── Comprehensive Reportes Module Types ───────────────────────────────────
+
+export interface MonthlyTrendPoint {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface OverviewMetrics {
+  totalCertificates: number;
+  activeCertificates: number;
+  certificatesThisMonth: number;
+  certificatesThisYear: number;
+  averageScore: number;
+  totalHoursDelivered: number;
+  uniqueParticipants: number;
+  uniqueFacilitators: number;
+  uniqueCourses: number;
+  uniqueCompanies: number;
+  topCourses: Array<{ name: string; count: number; avgScore: number }>;
+  topCompanies: Array<{ name: string; count: number }>;
+  monthlyTrend: MonthlyTrendPoint[];
+}
+
+export interface CursoReportItem {
+  id: number;
+  nombre: string;
+  totalCertificates: number;
+  avgScore: number;
+  totalHours: number;
+  facilitadoresCount: number;
+  facilitadores: Array<{ id: number; nombre: string; certs: number }>;
+  lastActivity: string | null;
+}
+
+export interface FacilitadorReportItem {
+  id: number;
+  nombre_apellido: string;
+  is_active: boolean;
+  estado_nombre: string;
+  cedula: string | null;
+  email: string | null;
+  totalCerts: number;
+  totalHours: number;
+  uniqueCourses: number;
+  avgScore: number;
+  lastActivity: string | null;
+}
+
+export interface FacilitadoresReportData {
+  facilitadores: FacilitadorReportItem[];
+  stateStats: Array<{ nombre: string; count: number }>;
+}
+
+export interface EmpresaReportItem {
+  id: number;
+  razon_social: string;
+  rif: string;
+  totalCerts: number;
+  uniqueParticipants: number;
+  uniqueCourses: number;
+  lastActivity: string | null;
+  firstActivity: string | null;
+}
+
+export interface TendenciasData {
+  monthlyData: Array<{
+    key: string;
+    label: string;
+    year: number;
+    month: number;
+    count: number;
+  }>;
+  yearlyTotals: Array<{ year: number; count: number }>;
+  stateDistribution: Array<{ nombre: string; count: number }>;
+}
