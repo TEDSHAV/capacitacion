@@ -11,6 +11,7 @@ export interface CertCoordinateConfig {
   durationY: number;
   durationOffsetX: number;
   seal: { x: number; y: number; size: number };
+  presentationText?: { text: string; x: number; y: number; fontSize: number; color: string; font?: string; style?: string };
 }
 
 export interface CarnetCoordinateConfig {
@@ -37,6 +38,15 @@ export const DEFAULT_CERT_COORDINATES: CertCoordinateConfig = {
   durationY: 98.5,
   durationOffsetX: 8,
   seal: { x: 160, y: 45, size: 25 },
+  presentationText: {
+    text: "Se otorga el presente certificado a:",
+    x: 104.95,
+    y: 40,
+    fontSize: 11,
+    color: "rgb(12, 63, 105)",
+    font: "helvetica",
+    style: "normal"
+  }
 };
 
 export const DEFAULT_CARNET_COORDINATES: CarnetCoordinateConfig = {

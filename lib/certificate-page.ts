@@ -232,6 +232,9 @@ export class CertificatePage {
       certificateData.certificate_subtitle ||
       (certificateData as any).subtitulo_curso;
 
+    // Render presentation text (e.g. "Se otorga el presente certificado a:")
+    this.renderPresentationText();
+
     // Calculate content layout
     const contentLayout = this.calculateContentLayout(
       name,
@@ -320,6 +323,11 @@ export class CertificatePage {
 
       // Add signatures
       await this.addSignatures(certificateData);
+    }
+
+    // Add seal image if provided
+    if (sealImage) {
+      await this.addSealImage(sealImage);
     }
   }
 
@@ -853,5 +861,87 @@ export class CertificatePage {
     } catch (error) {
       throw error;
     }
+  }
+
+  private async addSealImage(sealImage: string): Promise<void> {
+    const seal = this.config.seal;
+    if (!seal) return;
+
+    const sealX = seal.x;
+    const sealY = seal.y;
+    const sealSize = seal.size ?? 25;
+
+    try {
+      // Check if we're in a server environment
+      if (typeof window === "undefined") {
+        const fs = require("fs");
+        const path = require("path");
+
+        let imagePath = sealImage;
+        if (sealImage.startsWith("/")) {
+          imagePath = path.join(process.cwd(), "public", sealImage);
+        }
+
+        if (fs.existsSync(imagePath)) {
+          const imageBuffer = fs.readFileSync(imagePath);
+          const base64Image = imageBuffer.toString("base64");
+          this.doc.addImage(
+            `data:image/png;base64,${base64Image}`,
+            "PNG",
+            sealX,
+            sealY,
+            sealSize,
+            sealSize,
+            undefined,
+            "FAST",
+          );
+        }
+        return;
+      }
+
+      // Browser environment
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          this.doc.addImage(
+            img,
+            "PNG",
+            sealX,
+            sealY,
+            sealSize,
+            sealSize,
+            undefined,
+            "FAST",
+          );
+          resolve();
+        };
+        img.onerror = () => {
+          this.doc.setDrawColor(200, 200, 200);
+          this.doc.rect(sealX, sealY, sealSize, sealSize);
+          resolve();
+        };
+        img.src = sealImage;
+      });
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  private renderPresentationText(): void {
+    const pText = this.config.presentationText;
+    if (!pText || !pText.text) return;
+
+    this.doc.setFont(pText.font || "helvetica", pText.style || "normal");
+    this.doc.setFontSize(pText.fontSize || 11);
+
+    const colorMatch = pText.color.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i);
+    if (colorMatch) {
+      this.doc.setTextColor(parseInt(colorMatch[1]), parseInt(colorMatch[2]), parseInt(colorMatch[3]));
+    } else {
+      this.doc.setTextColor(0, 0, 0);
+    }
+
+    this.doc.text(pText.text, pText.x, pText.y, { align: "center" });
+    this.doc.setTextColor(0, 0, 0);
   }
 }

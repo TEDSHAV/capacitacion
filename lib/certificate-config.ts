@@ -61,6 +61,15 @@ export interface CertificateLayoutConfig {
   durationOffsetX: number;
   qrY: number;
   seal?: { x: number; y: number; size?: number };
+  presentationText?: {
+    text: string;
+    x: number;
+    y: number;
+    fontSize: number;
+    color: string;
+    font?: string;
+    style?: string;
+  };
 }
 
 export const CERTIFICATE_CONFIG: CertificateLayoutConfig = {

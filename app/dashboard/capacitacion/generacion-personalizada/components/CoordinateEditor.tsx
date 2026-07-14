@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CertCoordinateConfig,
   CarnetCoordinateConfig,
@@ -52,29 +52,66 @@ export function CoordinateEditor({
     return null;
   };
 
+  // Automatically load saved coordinates when template changes
+  useEffect(() => {
+    if (certTemplateKey) {
+      const loaded = loadFromLocalStorage("cert", certTemplateKey) as CertCoordinateConfig | null;
+      if (loaded) {
+        onCertCoordsChange(loaded);
+      } else {
+        onCertCoordsChange({ ...DEFAULT_CERT_COORDINATES });
+      }
+    }
+  }, [certTemplateKey]);
+
+  useEffect(() => {
+    if (carnetTemplateKey) {
+      const loaded = loadFromLocalStorage("carnet", carnetTemplateKey) as CarnetCoordinateConfig | null;
+      if (loaded) {
+        onCarnetCoordsChange(loaded);
+      } else {
+        onCarnetCoordsChange({ ...DEFAULT_CARNET_COORDINATES });
+      }
+    }
+  }, [carnetTemplateKey]);
+
   const handleSave = () => {
     if (activeTab === "cert" && certTemplateKey) {
       saveToLocalStorage("cert", certTemplateKey, certCoords);
+      alert("¡Coordenadas de certificado guardadas correctamente!");
     } else if (activeTab === "carnet" && carnetTemplateKey) {
       saveToLocalStorage("carnet", carnetTemplateKey, carnetCoords);
+      alert("¡Coordenadas de carnet guardadas correctamente!");
     }
   };
 
   const handleLoad = () => {
     if (activeTab === "cert" && certTemplateKey) {
       const loaded = loadFromLocalStorage("cert", certTemplateKey) as CertCoordinateConfig | null;
-      if (loaded) onCertCoordsChange(loaded);
+      if (loaded) {
+        onCertCoordsChange(loaded);
+        alert("¡Coordenadas de certificado cargadas correctamente!");
+      } else {
+        alert("No se encontraron coordenadas guardadas para esta plantilla.");
+      }
     } else if (activeTab === "carnet" && carnetTemplateKey) {
       const loaded = loadFromLocalStorage("carnet", carnetTemplateKey) as CarnetCoordinateConfig | null;
-      if (loaded) onCarnetCoordsChange(loaded);
+      if (loaded) {
+        onCarnetCoordsChange(loaded);
+        alert("¡Coordenadas de carnet cargadas correctamente!");
+      } else {
+        alert("No se encontraron coordenadas guardadas para esta plantilla.");
+      }
     }
   };
 
   const handleReset = () => {
     if (activeTab === "cert") {
       onCertCoordsChange({ ...DEFAULT_CERT_COORDINATES });
+      alert("Coordenadas de certificado restablecidas a valores por defecto.");
     } else {
       onCarnetCoordsChange({ ...DEFAULT_CARNET_COORDINATES });
+      alert("Coordenadas de carnet restablecidas a valores por defecto.");
     }
   };
 
@@ -255,6 +292,24 @@ export function CoordinateEditor({
             { value: "italic", label: "Italic" },
             { value: "bolditalic", label: "Bold Italic" }
           ], (v) => updateCertField("subtitle.style", v))}
+
+          {sectionTitle("Texto de Presentación")}
+          {textInput("Texto", certCoords.presentationText?.text ?? "Se otorga el presente certificado a:", (v) => updateCertField("presentationText.text", v))}
+          {numInput("X", certCoords.presentationText?.x ?? 104.95, (v) => updateCertField("presentationText.x", v))}
+          {numInput("Y", certCoords.presentationText?.y ?? 40, (v) => updateCertField("presentationText.y", v))}
+          {numInput("fontSize", certCoords.presentationText?.fontSize ?? 11, (v) => updateCertField("presentationText.fontSize", v), 1)}
+          {textInput("color", certCoords.presentationText?.color ?? "rgb(12, 63, 105)", (v) => updateCertField("presentationText.color", v))}
+          {selectInput("font", certCoords.presentationText?.font || "helvetica", [
+            { value: "helvetica", label: "Helvetica" },
+            { value: "times", label: "Times" },
+            { value: "courier", label: "Courier" }
+          ], (v) => updateCertField("presentationText.font", v))}
+          {selectInput("style", certCoords.presentationText?.style || "normal", [
+            { value: "normal", label: "Normal" },
+            { value: "bold", label: "Bold" },
+            { value: "italic", label: "Italic" },
+            { value: "bolditalic", label: "Bold Italic" }
+          ], (v) => updateCertField("presentationText.style", v))}
 
           {sectionTitle("Layout")}
           {numInput("centerPoint", certCoords.centerPoint, (v) => updateCertField("centerPoint", v))}
