@@ -150,14 +150,16 @@ export function PlantillaCursoList({
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="p-4 border-t border-gray-200">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={onPageChange}
-        />
-      </div>
+      {/* Pagination - Only show when there are plantillas */}
+      {plantillas.length > 0 && (
+        <div className="p-4 border-t border-gray-200">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

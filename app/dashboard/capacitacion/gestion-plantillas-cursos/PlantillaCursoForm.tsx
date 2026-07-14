@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { PlantillaCurso } from "./types";
 
@@ -28,6 +28,39 @@ export function PlantillaCursoForm({
     id_curso: plantilla?.id_curso || "",
     id_empresa: plantilla?.id_empresa || "",
   });
+
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Handle ESC key press
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleEscKey);
+    return () => {
+      document.removeEventListener("keydown", handleEscKey);
+    };
+  }, [onCancel]);
+
+  // Handle click outside modal
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(event.target as Node)
+      ) {
+        onCancel();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onCancel]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,16 +121,40 @@ export function PlantillaCursoForm({
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-full max-w-5xl shadow-lg rounded-lg bg-white">
-        <div className="mb-4">
-          <h3 className="text-lg font-medium text-gray-900">
-            {plantilla ? "Editar Plantilla" : "Nueva Plantilla de Curso"}
-          </h3>
-          <p className="text-sm text-gray-600 mt-1">
-            {plantilla
-              ? "Modifica los datos de la plantilla existente"
-              : "Crea una nueva plantilla de contenido para cursos"}
-          </p>
+      <div
+        ref={modalRef}
+        className="relative top-20 mx-auto p-5 border w-full max-w-5xl shadow-lg rounded-lg bg-white"
+      >
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900">
+              {plantilla ? "Editar Plantilla" : "Nueva Plantilla de Curso"}
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              {plantilla
+                ? "Modifica los datos de la plantilla existente"
+                : "Crea una nueva plantilla de contenido para cursos"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          >
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
