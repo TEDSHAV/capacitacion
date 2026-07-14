@@ -24,6 +24,7 @@ import {
   downloadBatchAction,
   DownloadChoice,
 } from "@/lib/batch-download-utils";
+import OSICompleteFormat from "./osi-complete-format";
 
 interface OSIDetailsModalV2Props {
   osi: OSIManagement | null;
@@ -121,16 +122,26 @@ export default function OSIDetailsModalV2({
   const handleDownload = async (batch: any, choice: DownloadChoice) => {
     setDownloadingBatch(`${batch.id}_${choice}`);
     try {
-      await downloadBatchAction(
+      const results = await downloadBatchAction(
         choice,
         batch.certificates,
         osi,
         batch.course,
         batch.date,
       );
+
+      if (!results.success) {
+        const errorMsg = results.errors.length > 0 
+          ? results.errors.join("\n") 
+          : "Ocurrió un error desconocido al generar los archivos.";
+        alert("Atención:\n" + errorMsg);
+      } else if (results.errors.length > 0) {
+        // Some items failed but the process continued
+        alert("Descarga completada con algunas observaciones:\n" + results.errors.join("\n"));
+      }
     } catch (error) {
       alert(
-        "Error al descargar el lote: " +
+        "Error fatal al descargar el lote: " +
           (error instanceof Error ? error.message : "Error desconocido"),
       );
     } finally {
@@ -142,11 +153,16 @@ export default function OSIDetailsModalV2({
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const day = date.getUTCDate().toString().padStart(2, '0');
+      const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+      const year = date.getUTCFullYear();
+      return `${day}/${month}/${year}`;
+    } catch (e) {
+      return dateString || "-";
+    }
   };
 
   const formatCurrency = (amount: number | null) => {
@@ -159,502 +175,156 @@ export default function OSIDetailsModalV2({
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"
     >
-      <div className="flex min-h-screen items-center justify-center p-4">
-        {/* Background overlay */}
-        <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-          onClick={onClose}
-          aria-hidden="true"
-        />
+      {/* Background overlay */}
+      <div className="fixed inset-0 transition-opacity" onClick={onClose} aria-hidden="true" />
 
-        {/* Modal panel */}
-        <div className="relative inline-block w-full max-w-5xl transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 sm:px-8">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <FileText className="w-6 h-6 text-white" />
-                  <h3 className="text-xl font-bold text-white" id="modal-title">
-                    Orden de Servicio Interna
-                  </h3>
-                </div>
-                <div className="flex items-center gap-4 text-blue-100">
-                  <span className="text-lg font-semibold">{osi.nro_osi}</span>
-                  <span className="text-blue-200">|</span>
-                  <span>{osi.nombre_empresa}</span>
+      {/* Modal panel */}
+      <div className="relative w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all border border-gray-200 flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-100 px-6 py-4 flex-none">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-50 p-2 rounded-xl">
+                <FileText className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900" id="modal-title">
+                  Visor de Orden de Servicio
+                </h3>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">{osi.nro_osi}</span>
+                  <span className="text-gray-300">|</span>
+                  <span className="text-xs text-gray-500 font-semibold truncate max-w-[300px]">{osi.nombre_empresa}</span>
                 </div>
               </div>
-              <button
-                type="button"
-                className="bg-white/10 hover:bg-white/20 rounded-md text-white p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                onClick={onClose}
-              >
-                <span className="sr-only">Cerrar</span>
-                <X className="h-6 w-6" aria-hidden="true" />
-              </button>
             </div>
+            <button
+              type="button"
+              className="bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 p-2 transition-all hover:rotate-90"
+              onClick={onClose}
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
           </div>
+        </div>
 
-          {/* Tabs-like Navigation */}
-          <div className="flex border-b border-gray-200 px-6 sm:px-8 bg-white py-3">
-            <div className="flex p-1 bg-gray-100 rounded-xl">
-              <button
-                onClick={() => setExpandedSection("info")}
-                className={`py-2 px-6 text-sm font-medium rounded-lg transition-all duration-200 ${
-                  expandedSection === "info"
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-200"
-                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
-                }`}
-              >
-                Información General
-              </button>
-              <button
-                onClick={() => setExpandedSection("documents")}
-                className={`py-2 px-6 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
-                  expandedSection === "documents"
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-200"
-                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
-                }`}
-              >
-                Documentos Generados
-                {batches.length > 0 && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
-                    expandedSection === "documents"
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-200 text-gray-600"
-                  }`}>
-                    {batches.length}
-                  </span>
-                )}
-              </button>
-            </div>
+        {/* Navigation Tabs */}
+        <div className="px-6 py-2 bg-gray-50 border-b border-gray-100 flex-none">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setExpandedSection("info")}
+              className={`px-5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                expandedSection === "info"
+                  ? "bg-white text-blue-700 shadow-sm border border-gray-200"
+                  : "text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              Documento Principal
+            </button>
+            <button
+              onClick={() => setExpandedSection("documents")}
+              className={`px-5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
+                expandedSection === "documents"
+                  ? "bg-white text-blue-700 shadow-sm border border-gray-200"
+                  : "text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              Archivos Generados
+              {batches.length > 0 && (
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                  expandedSection === "documents" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
+                }`}>
+                  {batches.length}
+                </span>
+              )}
+            </button>
           </div>
+        </div>
 
-          {/* Content */}
-          <div className="px-6 py-6 sm:p-8 bg-gray-50 max-h-[60vh] overflow-y-auto">
+        {/* Content Area - Scrollable */}
+        <div className="bg-gray-200/50 p-4 sm:p-8 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
+          <div className="max-w-3xl mx-auto">
             {expandedSection === "info" ? (
-              /* Document-like layout */
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                {/* Status Banner */}
-                <div
-                  className="px-6 py-4 border-b border-gray-200"
-                  style={{
-                    backgroundColor: `${osi.status_color || "#6B7280"}10`,
-                    borderColor: `${osi.status_color || "#6B7280"}30`,
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2
-                        className="w-5 h-5"
-                        style={{ color: osi.status_color || "#6B7280" }}
-                      />
-                      <span
-                        className="text-sm font-semibold"
-                        style={{ color: osi.status_color || "#6B7280" }}
-                      >
-                        Estado: {osi.status_name || "Desconocido"}
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      ID: {osi.id_osi}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Main Content */}
-                <div className="p-6 space-y-6">
-                  {/* Section 1: Información del Servicio */}
-                  <section>
-                    <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Información del Servicio
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            Tipo de Servicio
-                          </label>
-                          <p className="text-sm font-medium text-gray-900">
-                            {osi.tipo_servicio}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            Servicio
-                          </label>
-                          <p className="text-sm font-medium text-gray-900">
-                            {osi.servicio}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            N° de Presupuesto
-                          </label>
-                          <p className="text-sm font-medium text-gray-900">
-                            {osi.nro_presupuesto || "-"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            Horas Académicas
-                          </label>
-                          <p className="text-sm font-medium text-gray-900">
-                            {osi.horas_academicas_ejecucion || "-"}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            N° de Sesiones
-                          </label>
-                          <p className="text-sm font-medium text-gray-900">
-                            {osi.sesiones_ejecucion || "-"}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            ID Servicio
-                          </label>
-                          <p className="text-sm font-medium text-gray-900">
-                            {osi.id_servicio || "-"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  <hr className="border-gray-200" />
-
-                  {/* Section 2: Cliente y Ejecutivo */}
-                  <section>
-                    <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                      <Building2 className="w-4 h-4" />
-                      Cliente y Ejecutivo
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            Empresa
-                          </label>
-                          <p className="text-sm font-medium text-gray-900">
-                            {osi.nombre_empresa}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            ID Empresa
-                          </label>
-                          <p className="text-sm font-medium text-gray-900">
-                            {osi.id_empresa}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            Código Cliente
-                          </label>
-                          <p className="text-sm font-medium text-gray-900">
-                            {osi.codigo_cliente || "-"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            Ejecutivo de Negocios
-                          </label>
-                          <p className="text-sm font-medium text-gray-900">
-                            {osi.ejecutivo_negocios || "-"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  <hr className="border-gray-200" />
-
-                  {/* Section 3: Fechas */}
-                  <section>
-                    <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Fechas
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">
-                          Fecha de Emisión
-                        </label>
-                        <p className="text-sm font-medium text-gray-900">
-                          {formatDate(osi.fecha_emision)}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">
-                          Fecha Inicio Servicio
-                        </label>
-                        <p className="text-sm font-medium text-gray-900">
-                          {formatDate(osi.fecha_inicio_real)}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">
-                          Fecha Fin Servicio
-                        </label>
-                        <p className="text-sm font-medium text-gray-900">
-                          {formatDate(osi.fecha_fin_real)}
-                        </p>
-                      </div>
-                    </div>
-                  </section>
-
-                  <hr className="border-gray-200" />
-
-                  {/* Section 4: Ubicación */}
-                  <section>
-                    <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      Ubicación de Ejecución
-                    </h4>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">
-                        Dirección
-                      </label>
-                      <p className="text-sm font-medium text-gray-900">
-                        {osi.direccion_ejecucion || "-"}
-                      </p>
-                    </div>
-                  </section>
-
-                  {/* Content Description */}
-                  {osi.contenido_servicio && (
-                    <>
-                      <hr className="border-gray-200" />
-                      <section>
-                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          Contenido del Servicio
-                        </h4>
-                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                            {osi.contenido_servicio}
-                          </p>
-                        </div>
-                      </section>
-                    </>
-                  )}
-
-                  {/* Observaciones */}
-                  {osi.observaciones_totales && (
-                    <>
-                      <hr className="border-gray-200" />
-                      <section>
-                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          Observaciones
-                        </h4>
-                        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                            {osi.observaciones_totales}
-                          </p>
-                        </div>
-                      </section>
-                    </>
-                  )}
-
-                  {/* Costs */}
-                  {(osi.costo_honorarios_instructor ||
-                    osi.costo_traslado ||
-                    osi.costo_impresion_material ||
-                    osi.costo_logistica_comida ||
-                    osi.costo_otros) && (
-                    <>
-                      <hr className="border-gray-200" />
-                      <section>
-                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                          <DollarSign className="w-4 h-4" />
-                          Costos del Servicio
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {osi.costo_honorarios_instructor && (
-                            <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                              <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Honorarios Instructor
-                              </label>
-                              <p className="text-sm font-semibold text-gray-900">
-                                {formatCurrency(
-                                  osi.costo_honorarios_instructor,
-                                )}
-                              </p>
-                            </div>
-                          )}
-                          {osi.costo_traslado && (
-                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                              <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Traslado
-                              </label>
-                              <p className="text-sm font-semibold text-gray-900">
-                                {formatCurrency(osi.costo_traslado)}
-                              </p>
-                            </div>
-                          )}
-                          {osi.costo_impresion_material && (
-                            <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
-                              <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Impresión de Material
-                              </label>
-                              <p className="text-sm font-semibold text-gray-900">
-                                {formatCurrency(osi.costo_impresion_material)}
-                              </p>
-                            </div>
-                          )}
-                          {osi.costo_logistica_comida && (
-                            <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
-                              <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Logística y Comida
-                              </label>
-                              <p className="text-sm font-semibold text-gray-900">
-                                {formatCurrency(osi.costo_logistica_comida)}
-                              </p>
-                            </div>
-                          )}
-                          {osi.costo_otros && (
-                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                              <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Otros
-                              </label>
-                              <p className="text-sm font-semibold text-gray-900">
-                                {formatCurrency(osi.costo_otros)}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </section>
-                    </>
-                  )}
-                </div>
+              <div className="bg-white shadow-xl ring-1 ring-black/5 rounded-sm overflow-hidden">
+                <OSICompleteFormat osi={osi} />
               </div>
             ) : (
               /* Generated Documents Section */
               <div className="space-y-6">
                 {loadingCerts ? (
-                  <div className="flex flex-col items-center justify-center py-12 bg-white rounded-lg border border-gray-200">
+                  <div className="flex flex-col items-center justify-center py-12 bg-white rounded-xl border border-gray-200 shadow-sm">
                     <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
-                    <p className="text-gray-500">
-                      Buscando documentos generados...
-                    </p>
+                    <p className="text-gray-500 font-medium text-sm">Buscando documentos...</p>
                   </div>
                 ) : batches.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 bg-white rounded-lg border border-gray-200 text-center px-4">
+                  <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200 text-center px-4 shadow-sm">
                     <Archive className="w-12 h-12 text-gray-300 mb-4" />
-                    <h5 className="text-lg font-medium text-gray-900">
-                      No se encontraron lotes
-                    </h5>
-                    <p className="text-gray-500 max-w-sm mt-1">
-                      Esta OSI aún no tiene certificados o carnets generados en
-                      el sistema.
+                    <h5 className="text-lg font-bold text-gray-900">Sin Archivos</h5>
+                    <p className="text-gray-500 max-w-xs mt-1 text-sm leading-relaxed">
+                      Esta OSI aún no tiene certificados o carnets generados en el sistema.
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-6">
+                  <div className="grid grid-cols-1 gap-4">
                     {batches.map((batch) => (
                       <div
                         key={batch.id}
-                        className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:border-blue-300 transition-colors"
+                        className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:border-blue-300 transition-all hover:shadow-md"
                       >
-                        <div className="p-5 border-b border-gray-100 bg-gray-50/50">
-                          <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
-                              <div className="bg-blue-100 p-2.5 rounded-lg">
+                              <div className="bg-blue-100 p-2 rounded-lg">
                                 <Archive className="w-5 h-5 text-blue-600" />
                               </div>
                               <div>
-                                <h5 className="font-bold text-gray-900 line-clamp-1">
-                                  {batch.course}
-                                </h5>
-                                <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
+                                <h5 className="font-bold text-gray-900 text-sm">{batch.course}</h5>
+                                <p className="text-[10px] text-gray-500 flex items-center gap-1.5 mt-0.5">
                                   <Calendar className="w-3 h-3" />
-                                  Emitido el{" "}
-                                  {new Date(
-                                    batch.date + "T12:00:00",
-                                  ).toLocaleDateString("es-VE", {
-                                    day: "numeric",
-                                    month: "long",
-                                    year: "numeric",
-                                  })}
+                                  Emitido el {formatDate(batch.date)}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold border border-blue-100">
-                                {batch.certificates.length} Participantes
-                              </span>
-                            </div>
+                            <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-blue-100">
+                              {batch.certificates.length} Participantes
+                            </span>
                           </div>
                         </div>
-                        <div className="p-5 bg-white">
-                          <p className="text-sm font-medium text-gray-700 mb-4">
-                            Opciones de descarga:
-                          </p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="p-4 bg-white">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             <button
                               disabled={downloadingBatch !== null}
                               onClick={() => handleDownload(batch, "full")}
-                              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all disabled:opacity-50 shadow-sm shadow-blue-100 group"
+                              className="flex items-center justify-center gap-2 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all disabled:opacity-50 group"
                             >
-                              {downloadingBatch === `${batch.id}_full` ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Archive className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                              )}
-                              ZIP Completo
+                              {downloadingBatch === `${batch.id}_full` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
+                              ZIP
                             </button>
                             <button
                               disabled={downloadingBatch !== null}
-                              onClick={() =>
-                                handleDownload(batch, "certificates")
-                              }
-                              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-blue-400 hover:text-blue-600 transition-all disabled:opacity-50 group"
+                              onClick={() => handleDownload(batch, "certificates")}
+                              className="flex items-center justify-center gap-2 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-bold hover:border-blue-500 hover:text-blue-600 transition-all disabled:opacity-50"
                             >
-                              {downloadingBatch ===
-                              `${batch.id}_certificates` ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                              ) : (
-                                <FileText className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                              )}
                               Certificados
                             </button>
                             <button
                               disabled={downloadingBatch !== null}
                               onClick={() => handleDownload(batch, "carnets")}
-                              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-blue-400 hover:text-blue-600 transition-all disabled:opacity-50 group"
+                              className="flex items-center justify-center gap-2 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-bold hover:border-blue-500 hover:text-blue-600 transition-all disabled:opacity-50"
                             >
-                              {downloadingBatch === `${batch.id}_carnets` ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                              ) : (
-                                <User className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                              )}
                               Carnets
                             </button>
                             <button
                               disabled={downloadingBatch !== null}
                               onClick={() => handleDownload(batch, "documents")}
-                              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-blue-400 hover:text-blue-600 transition-all disabled:opacity-50 group"
+                              className="flex items-center justify-center gap-2 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-bold hover:border-blue-500 hover:text-blue-600 transition-all disabled:opacity-50"
                             >
-                              {downloadingBatch === `${batch.id}_documents` ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                              ) : (
-                                <ExternalLink className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                              )}
-                              Doc. Adic.
+                              Docs
                             </button>
                           </div>
                         </div>
@@ -665,17 +335,17 @@ export default function OSIDetailsModalV2({
               </div>
             )}
           </div>
+        </div>
 
-          {/* Footer */}
-          <div className="bg-gray-100 px-6 py-4 sm:px-8 sm:flex sm:flex-row-reverse">
-            <button
-              type="button"
-              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-6 py-2.5 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
-              onClick={onClose}
-            >
-              Cerrar
-            </button>
-          </div>
+        {/* Footer Action Bar */}
+        <div className="bg-white border-t border-gray-100 px-6 py-3 flex justify-end flex-none">
+          <button
+            type="button"
+            className="px-6 py-2 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition-all shadow-md active:scale-95"
+            onClick={onClose}
+          >
+            Cerrar Visor
+          </button>
         </div>
       </div>
     </div>

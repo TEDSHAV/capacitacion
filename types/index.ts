@@ -980,11 +980,31 @@ export interface OSIManagement {
   costo_impresion_material?: number | null;
   costo_logistica_comida?: number | null;
   costo_otros?: number | null;
+  // Missing fields for complete format
+  cliente_rif?: string | null;
+  direccion_fiscal?: string | null;
+  direccion_envio?: string | null;
+  persona_contacto?: string | null;
+  contacto_telefono?: string | null;
+  contacto_email?: string | null;
+  participantes_ejecucion?: number | null;
+  horas_honorarios_instructor?: number | null;
+  tarifa_hora_honorarios?: number | null;
+  costo_hospedaje?: number | null;
+  dias_hospedaje_facilitador?: number | null;
+  dias_logistica_facilitador?: number | null;
+  pretensiones_totales?: string | null;
+  certificado_impreso?: boolean | null;
+  carnet_impreso?: boolean | null;
+  pop_incluido?: boolean | null;
+  traslado_externo?: number | null;
+  sesiones_programadas?: any[] | null;
   // Computed fields
   status_name?: string;
   status_color?: string;
   status_order?: number;
   num_participants?: number;
+  is_manual_batch?: boolean;
 }
 
 export interface OSISearchResult {

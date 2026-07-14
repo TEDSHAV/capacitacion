@@ -58,7 +58,7 @@ export class QRService {
   /**
    * Generate QR code as buffer for database storage
    */
-  static async generateQRBuffer(props: QRCodeProps): Promise<Buffer> {
+  static async generateQRBuffer(props: QRCodeProps): Promise<Buffer | null> {
     const { data, size = 150, level = "M", includeMargin = true } = props;
 
     // Use the verification URL directly instead of JSON
@@ -75,9 +75,18 @@ export class QRService {
     };
 
     try {
-      return await QRCode.toBuffer(qrData, options);
+      // QRCode.toBuffer is only available in Node.js environment
+      if (typeof window === "undefined") {
+        return await QRCode.toBuffer(qrData, options);
+      }
+      
+      // In browser, we can't easily generate a Node Buffer
+      // Return null or convert DataURL if absolutely needed
+      console.warn("QRService.generateQRBuffer called in browser, returning null as toBuffer is Node-only");
+      return null;
     } catch (error) {
-      throw new Error("Failed to generate QR code buffer");
+      console.error("Failed to generate QR code buffer:", error);
+      return null;
     }
   }
 
@@ -193,7 +202,7 @@ export class QRService {
     certificateId: number,
     controlNumbers?: ControlNumbers,
     options?: Partial<QRCodeProps>,
-  ): Promise<{ dataUrl: string; buffer: Buffer; data: QRCodeData }> {
+  ): Promise<{ dataUrl: string; buffer: Buffer | null; data: QRCodeData }> {
     const qrData = this.generateQRData(certificateId, controlNumbers);
     const props: QRCodeProps = {
       data: qrData,
@@ -202,6 +211,16 @@ export class QRService {
       includeMargin: true,
       ...options,
     };
+
+    // In browser, we only need the dataUrl
+    if (typeof window !== "undefined") {
+      const dataUrl = await this.generateQRDataURL(props);
+      return {
+        dataUrl,
+        buffer: null,
+        data: qrData,
+      };
+    }
 
     const [dataUrl, buffer] = await Promise.all([
       this.generateQRDataURL(props),
