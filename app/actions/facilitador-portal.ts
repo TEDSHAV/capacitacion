@@ -266,14 +266,7 @@ export async function getAcknowledgmentByOSI(osiId: number) {
 
   const { data, error } = await supabase
     .from("facilitador_acknowledgments")
-    .select(`
-      acknowledged_at,
-      disclaimer_text,
-      facilitadores (
-        id,
-        nombre_apellido
-      )
-    `)
+    .select("acknowledged_at, disclaimer_text, facilitador_id")
     .eq("osi_id", osiId)
     .maybeSingle();
 
@@ -282,7 +275,32 @@ export async function getAcknowledgmentByOSI(osiId: number) {
     return { error: error.message };
   }
 
-  return { data };
+  if (!data) {
+    return { data: null };
+  }
+
+  let facilitador: { id: number; nombre_apellido: string } | null = null;
+  if (data.facilitador_id) {
+    const { data: facData, error: facError } = await supabase
+      .from("facilitadores")
+      .select("id, nombre_apellido")
+      .eq("id", data.facilitador_id)
+      .maybeSingle();
+
+    if (facError) {
+      console.error("Error fetching facilitador for acknowledgment:", facError);
+    } else {
+      facilitador = facData;
+    }
+  }
+
+  return {
+    data: {
+      acknowledged_at: data.acknowledged_at,
+      disclaimer_text: data.disclaimer_text,
+      facilitadores: facilitador,
+    },
+  };
 }
 
 export async function saveParticipants(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { OSIFilters, OSIStatus } from "@/types";
 import { Search, X, Filter, ChevronDown, Calendar, Building2, User } from "lucide-react";
 
@@ -22,6 +22,24 @@ export default function OSIFiltersV2({
   loading = false,
 }: OSIFiltersV2Props) {
   const [expanded, setExpanded] = useState(true);
+  const [localNroOsi, setLocalNroOsi] = useState(filters.nroOsi || "");
+
+  useEffect(() => {
+    setLocalNroOsi(filters.nroOsi || "");
+  }, [filters.nroOsi]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if ((filters.nroOsi || "") !== localNroOsi) {
+        onFiltersChange({
+          ...filters,
+          nroOsi: localNroOsi || undefined,
+        });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localNroOsi]);
 
   const handleFilterChange = (key: keyof OSIFilters, value: any) => {
     onFiltersChange({
@@ -96,10 +114,9 @@ export default function OSIFiltersV2({
                 <input
                   type="text"
                   placeholder="Buscar..."
-                  value={filters.nroOsi || ""}
-                  onChange={(e) => handleFilterChange("nroOsi", e.target.value)}
+                  value={localNroOsi}
+                  onChange={(e) => setLocalNroOsi(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={loading}
                 />
               </div>
             </div>
