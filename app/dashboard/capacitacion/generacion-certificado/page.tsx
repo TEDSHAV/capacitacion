@@ -74,17 +74,30 @@ export default function GeneracionCertificadoPage() {
       }));
       setSelectedCourseTopic(null);
 
-      // Filter course topics by client from OSI
+      // Filter course topics by client from OSI AND by course content matching
       const clientCourses = allCourseTopics.filter((topic: CourseTopic) => {
         // OSI has empresa_id (number) and CourseTopic has cliente_asociado (number from DB)
         const osiClientId = osi.empresa_id;
         const courseClientId = topic.cliente_asociado;
         
-        // Skip courses with no client association
-        if (!courseClientId) return false;
+        // Include courses associated with the client
+        const isClientMatch = courseClientId && osiClientId === courseClientId;
         
-        // Number comparison since both are numbers now
-        return osiClientId === courseClientId;
+        // Include courses that match the OSI content (tema, detalle_capacitacion, or detalle_sesion)
+        const isContentMatch = (
+          (osi.tema && topic.name.toLowerCase().includes(osi.tema!.toLowerCase())) ||
+          (osi.detalle_capacitacion && (
+            topic.name.toLowerCase().includes(osi.detalle_capacitacion!.toLowerCase()) ||
+            (topic.description && topic.description.toLowerCase().includes(osi.detalle_capacitacion!.toLowerCase()))
+          )) ||
+          (osi.detalle_sesion && (
+            topic.name.toLowerCase().includes(osi.detalle_sesion!.toLowerCase()) ||
+            (topic.description && topic.description.toLowerCase().includes(osi.detalle_sesion!.toLowerCase()))
+          ))
+        );
+        
+        // Include if either client matches OR content matches
+        return isClientMatch || isContentMatch;
       });
       
       setFilteredCourseTopics(clientCourses);
