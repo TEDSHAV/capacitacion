@@ -213,7 +213,7 @@ export async function GET(
         controlNumbers: controlNumbersForGenerator,
         isPreview: false,
         certificateId: certificateId, // Pass actual certificate ID for QR code
-        singlePage: true, // Use single-page mode for verification certificates
+        singlePage: false, // Use two-page mode (front and back)
       });
 
       // Return PDF as response

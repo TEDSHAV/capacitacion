@@ -36,6 +36,24 @@ export const CertificatePreview = ({
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentGenerationRef = useRef<number>(0); // Track current generation to avoid race conditions
 
+  // Helper function to preload images as base64
+  const preloadImage = async (url: string): Promise<string> => {
+    if (!url) return "";
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error(`Failed to preload image: ${url}`, error);
+      return "";
+    }
+  };
+
   // Debounced preview generation
   const debouncedGeneratePreview = useCallback(() => {
     if (debounceTimeoutRef.current) {
@@ -259,6 +277,7 @@ export const CertificatePreview = ({
       }
 
       // Add SHA signature data (use cached signatures)
+      let shaSignatureBase64 = "";
       if (certificateDataWithSHA.sha_signature_id && signatures.length > 0) {
         const shaSignatures = signatures.filter(
           (sig: any) => sig.tipo === "representante_sha",
@@ -272,15 +291,46 @@ export const CertificatePreview = ({
             ...certificateDataWithSHA,
             sha_signature_data: selectedSHASignature,
           };
+
+          // Preload SHA signature image
+          if (selectedSHASignature.url_imagen) {
+            shaSignatureBase64 = await preloadImage(
+              selectedSHASignature.url_imagen,
+            );
+          }
         }
       }
+
+      // Preload facilitator signature image
+      let facilitatorSignatureBase64 = "";
+      if (certificateDataWithSHA.facilitator_data?.firmas?.url_imagen) {
+        facilitatorSignatureBase64 = await preloadImage(
+          certificateDataWithSHA.facilitator_data.firmas.url_imagen,
+        );
+      } else if (facilitatorData?.firmas?.url_imagen) {
+        facilitatorSignatureBase64 = await preloadImage(
+          facilitatorData.firmas.url_imagen,
+        );
+      }
+
+      // Preload template and seal images
+      const [templateBase64, sealBase64] = await Promise.all([
+        preloadImage(templateImage),
+        preloadImage(sealImage),
+      ]);
 
       const blob = await generator.generateCertificate({
         participant: previewParticipant,
         certificateData: certificateDataWithSHA,
-        templateImage,
-        sealImage,
+        templateImage: templateBase64 || templateImage,
+        sealImage: sealBase64 || sealImage,
         isPreview: true,
+        preloadedAssets: {
+          facilitator:
+            certificateDataWithSHA.facilitator_data || facilitatorData,
+          facilitatorSignature: facilitatorSignatureBase64,
+          shaSignature: shaSignatureBase64,
+        },
       });
 
       // Final check before setting state

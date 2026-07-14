@@ -39,12 +39,6 @@ export function useCertificateForm({
             (sig: any) => sig.tipo === "representante_sha",
           );
           setShaSignatures(shaOnly as Signature[]);
-
-          // Auto-select the active SHA signature only if not already set (important for Edit Mode)
-          const activeShaSignature = shaOnly.find((sig: any) => sig.is_active);
-          if (activeShaSignature && !certificateData.sha_signature_id) {
-            onDataChange("sha_signature_id", activeShaSignature.id.toString());
-          }
         }
 
         // Load course templates (all active templates initially)
@@ -62,6 +56,18 @@ export function useCertificateForm({
 
     loadFormData();
   }, []); // Only run once on mount
+
+  // Auto-select the active SHA signature if not set (handles initial load and form reset)
+  useEffect(() => {
+    if (shaSignatures.length > 0 && !certificateData.sha_signature_id) {
+      const activeShaSignature = shaSignatures.find(
+        (sig: any) => sig.is_active,
+      );
+      if (activeShaSignature) {
+        onDataChange("sha_signature_id", activeShaSignature.id.toString());
+      }
+    }
+  }, [shaSignatures, certificateData.sha_signature_id]);
 
   // Separate effect to handle SHA signature data when certificateData changes
   useEffect(() => {

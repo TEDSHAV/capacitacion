@@ -39,21 +39,21 @@ export class ContentPage {
       height: contentPage.upperHalfHeight - contentPage.margin * 2,
     };
 
-    // Add "CONTENIDO" title
-    this.renderContentTitle(contentArea);
-
     // Define column layout
-    const { leftColumnX, rightColumnX, columnWidth, currentY } =
-      this.defineColumnLayout(contentArea);
+    const layout = this.defineColumnLayout(contentArea);
 
-    // Render course content in left column, clipped to certificate image bounds with 5mm safety buffer
-    const PRINT_BUFFER = 5; // mm gap from certificate image edge to avoid print bleed
+    // Add "CONTENIDO" title (aligned to the left column start)
+    this.renderContentTitle(contentArea, layout.leftColumnX);
+
+    // Render course content in left column
+    const PRINT_BUFFER = 5;
     const maxY = contentArea.y + contentArea.height - PRINT_BUFFER;
+
     this.renderCourseContent(
       certificateData.course_content,
-      leftColumnX,
-      currentY,
-      columnWidth,
+      layout.leftColumnX,
+      layout.currentY,
+      layout.columnWidth,
       maxY,
     );
 
@@ -61,9 +61,9 @@ export class ContentPage {
     await this.renderContentTable(
       participant,
       certificateData,
-      rightColumnX,
-      currentY,
-      columnWidth,
+      layout.rightColumnX,
+      layout.currentY,
+      layout.columnWidth,
       sealImage,
       controlNumbers,
       isPreview,
@@ -85,27 +85,27 @@ export class ContentPage {
     // Define content area in lower half of page
     const contentArea = {
       x: contentPage.margin,
-      y: contentPage.upperHalfHeight + contentPage.margin, // Start in lower half
+      y: contentPage.upperHalfHeight + contentPage.margin,
       width: this.pageWidth - contentPage.margin * 2,
       height:
-        this.pageHeight - contentPage.upperHalfHeight - contentPage.margin * 2, // Calculate lower half height
+        this.pageHeight - contentPage.upperHalfHeight - contentPage.margin * 2,
     };
 
+    // Define column layout
+    const layout = this.defineColumnLayout(contentArea);
+
     // Add "CONTENIDO" title
-    this.renderContentTitle(contentArea);
+    this.renderContentTitle(contentArea, layout.leftColumnX);
 
-    // Define column layout for lower half
-    const { leftColumnX, rightColumnX, columnWidth, currentY } =
-      this.defineColumnLayout(contentArea);
-
-    // Render course content in left column, clipped to lower half boundary with 5mm safety buffer
-    const PRINT_BUFFER = 5; // mm gap from content area edge to avoid print bleed
+    // Render course content in left column
+    const PRINT_BUFFER = 5;
     const maxY = contentArea.y + contentArea.height - PRINT_BUFFER;
+
     this.renderCourseContent(
       certificateData.course_content,
-      leftColumnX,
-      currentY,
-      columnWidth,
+      layout.leftColumnX,
+      layout.currentY,
+      layout.columnWidth,
       maxY,
     );
 
@@ -113,9 +113,9 @@ export class ContentPage {
     await this.renderContentTable(
       participant,
       certificateData,
-      rightColumnX,
-      currentY,
-      columnWidth,
+      layout.rightColumnX,
+      layout.currentY,
+      layout.columnWidth,
       sealImage,
       controlNumbers,
       isPreview,
@@ -125,12 +125,19 @@ export class ContentPage {
   /**
    * Render "CONTENIDO" title
    */
-  private renderContentTitle(contentArea: { x: number; y: number }): void {
+  private renderContentTitle(
+    contentArea: { x: number; y: number },
+    leftX: number,
+  ): void {
+    this.doc.saveGraphicsState();
     this.doc.setFont("helvetica", "bold");
     this.doc.setFontSize(16);
-    this.doc.text("CONTENIDO", this.pageWidth / 2, contentArea.y + 10, {
-      align: "center",
+    this.doc.setCharSpace(0); // CRITICAL: Fix spacing
+    this.doc.setTextColor(0, 0, 0);
+    this.doc.text("CONTENIDO", leftX, contentArea.y + 10, {
+      align: "left",
     });
+    this.doc.restoreGraphicsState();
   }
 
   /**
@@ -141,9 +148,11 @@ export class ContentPage {
     y: number;
     width: number;
   }) {
+    const columnGap = 15;
+    const columnWidth = (contentArea.width - columnGap) / 2;
+
     const leftColumnX = contentArea.x;
-    const rightColumnX = contentArea.x + contentArea.width / 2 + 5;
-    const columnWidth = contentArea.width / 2 - 5;
+    const rightColumnX = contentArea.x + columnWidth + columnGap;
     const currentY = contentArea.y + 20;
 
     return { leftColumnX, rightColumnX, columnWidth, currentY };
@@ -161,53 +170,96 @@ export class ContentPage {
   ): void {
     if (!courseContent) return;
 
+    // Pre-process text
     const plainText = stripHtml(courseContent);
+
+    // Default settings
     const BASE_SIZE = 9;
-    const MIN_SIZE = 5.5;
-    const BASE_LINE_HEIGHT = 5; // mm at font size 9
+    const MIN_SIZE = 6;
+    const BASE_LINE_HEIGHT = 4.5;
+    const WRAP_SAFETY = 7; // Increased safety margin to prevent overflow past column boundary
 
     let fontSize = BASE_SIZE;
     let lineHeight = BASE_LINE_HEIGHT;
     let contentLines: string[] = [];
 
+    // Set font state STRICTLY before any measurement
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setCharSpace(0);
+    this.doc.setLineHeightFactor(1.15);
+
     if (maxY !== undefined) {
       const availableHeight = maxY - currentY;
 
-      // Reduce font size in 0.5pt steps until content fits or we hit the minimum
+      // Reduce font size until it fits
       while (fontSize >= MIN_SIZE) {
-        lineHeight = BASE_LINE_HEIGHT * (fontSize / BASE_SIZE);
-        this.doc.setFont("helvetica", "normal");
         this.doc.setFontSize(fontSize);
+        lineHeight = BASE_LINE_HEIGHT * (fontSize / BASE_SIZE);
 
-        // Manually split by newlines, then wrap each paragraph
         const paragraphs = plainText.split("\n").filter((p) => p.trim());
         contentLines = [];
         for (const para of paragraphs) {
-          const wrapped = this.doc.splitTextToSize(para, columnWidth);
+          // splitTextToSize uses current font settings
+          const wrapped = this.doc.splitTextToSize(
+            para.trim(),
+            columnWidth - WRAP_SAFETY,
+          );
           contentLines.push(...wrapped);
         }
 
         if (contentLines.length * lineHeight <= availableHeight) break;
         fontSize -= 0.5;
       }
-    } else {
-      this.doc.setFont("helvetica", "normal");
-      this.doc.setFontSize(fontSize);
 
+      // Hard-cap lines to avoid bleeding out of bottom
+      const maxLines = Math.floor(availableHeight / lineHeight);
+      if (contentLines.length > maxLines) {
+        contentLines = contentLines.slice(0, maxLines);
+      }
+    } else {
+      this.doc.setFontSize(fontSize);
       const paragraphs = plainText.split("\n").filter((p) => p.trim());
-      contentLines = [];
       for (const para of paragraphs) {
-        const wrapped = this.doc.splitTextToSize(para, columnWidth);
+        const wrapped = this.doc.splitTextToSize(
+          para.trim(),
+          columnWidth - WRAP_SAFETY,
+        );
         contentLines.push(...wrapped);
       }
     }
 
+    // FINAL RENDERING
+    this.doc.saveGraphicsState();
+
+    // Set up proper clipping path via jsPDF's built-in methods.
+    const clipHeight = (maxY || currentY + 200) - currentY + 5;
+    this.doc.rect(leftColumnX, currentY - 5, columnWidth - 2, clipHeight, null);
+    this.doc.clip();
+
     let y = currentY;
     for (const line of contentLines) {
-      if (maxY !== undefined && y > maxY) break;
-      this.doc.text(line, leftColumnX, y);
+      if (maxY !== undefined && y + lineHeight > maxY) break;
+
+      // Force state on every line to prevent leakage
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(fontSize);
+      this.doc.setCharSpace(0);
+      this.doc.setTextColor(0, 0, 0);
+
+      // Final check: if line is somehow still too wide, truncate it
+      const lineWidth = this.doc.getTextWidth(line.trim());
+      let finalLine = line.trim();
+      if (lineWidth > columnWidth - WRAP_SAFETY + 2) {
+        // Truncate as last resort
+        finalLine =
+          finalLine.substring(0, Math.floor(finalLine.length * 0.9)) + "...";
+      }
+
+      this.doc.text(finalLine, leftColumnX, y, { align: "left" });
       y += lineHeight;
     }
+
+    this.doc.restoreGraphicsState();
   }
 
   /**
@@ -226,6 +278,10 @@ export class ContentPage {
     const { contentPage } = this.config;
     const tableY = currentY - 5;
     const cellHeight = contentPage.tableCellHeight;
+
+    // Reset state for table
+    this.doc.setCharSpace(0);
+    this.doc.setLineHeightFactor(1.15);
 
     // Draw table structure
     this.drawTableStructure(rightColumnX, tableY, columnWidth, cellHeight);
@@ -263,40 +319,29 @@ export class ContentPage {
     tableWidth: number,
     cellHeight: number,
   ): void {
-    // Draw outer table border
     this.doc.setDrawColor(100, 100, 100);
+    this.doc.setLineWidth(0.1);
     this.doc.rect(tableX, tableY, tableWidth, cellHeight * 4);
 
-    // Draw horizontal lines for rows
-    this.doc.line(
-      tableX,
-      tableY + cellHeight,
-      tableX + tableWidth,
-      tableY + cellHeight,
-    );
-    this.doc.line(
-      tableX,
-      tableY + cellHeight * 2,
-      tableX + tableWidth,
-      tableY + cellHeight * 2,
-    );
-    this.doc.line(
-      tableX,
-      tableY + cellHeight * 3,
-      tableX + tableWidth,
-      tableY + cellHeight * 3,
-    );
+    // Horizontal rows
+    for (let i = 1; i <= 3; i++) {
+      this.doc.line(
+        tableX,
+        tableY + cellHeight * i,
+        tableX + tableWidth,
+        tableY + cellHeight * i,
+      );
+    }
 
-    // Draw vertical lines for columns
-    // Row 2: Two columns (50% each)
+    // Vertical columns
+    // Row 2: Two columns
     this.doc.line(
       tableX + tableWidth / 2,
       tableY + cellHeight,
       tableX + tableWidth / 2,
       tableY + cellHeight * 2,
     );
-
-    // Row 3: Three columns (1/3 each)
+    // Row 3: Three columns
     this.doc.line(
       tableX + tableWidth / 3,
       tableY + cellHeight * 2,
@@ -326,8 +371,9 @@ export class ContentPage {
   ): void {
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8);
+    this.doc.setCharSpace(0);
 
-    // Row 1: REGISTRO title
+    // Row 1: REGISTRO
     this.doc.text(
       "REGISTRO",
       tableX + tableWidth / 2,
@@ -335,41 +381,38 @@ export class ContentPage {
       { align: "center" },
     );
 
-    // Row 2: Libro Nro and Nro Control
-    const libroNro = controlNumbers?.nro_libro ?? "";
-    const controlNro = controlNumbers?.nro_control ?? "";
-
+    // Row 2
+    const libro = controlNumbers?.nro_libro ?? "";
+    const control = controlNumbers?.nro_control ?? "";
     this.doc.text(
-      libroNro ? `Libro Nro: ${libroNro}` : "Libro Nro:",
+      libro ? `Libro Nro: ${libro}` : "Libro Nro:",
       tableX + tableWidth / 4,
       tableY + cellHeight + cellHeight / 2 + 1.5,
       { align: "center" },
     );
     this.doc.text(
-      controlNro ? `Nro. Control: ${controlNro}` : "Nro. Control:",
+      control ? `Nro. Control: ${control}` : "Nro. Control:",
       tableX + (tableWidth * 3) / 4,
       tableY + cellHeight + cellHeight / 2 + 1.5,
       { align: "center" },
     );
 
-    // Row 3: Fecha Ejecucion, Hoja Nro and Mes
-    const executionDate = this.formatDate(certificateData.date);
+    // Row 3
+    const dateStr = this.formatDate(certificateData.date);
+    const hoja = controlNumbers?.nro_hoja ?? "";
+    const month = this.formatMonth(certificateData.date);
     this.doc.text(
-      `Fecha: ${executionDate}`,
+      `Fecha: ${dateStr}`,
       tableX + tableWidth / 6,
       tableY + cellHeight * 2 + cellHeight / 2 + 1.5,
       { align: "center" },
     );
-
-    const hojaNro = controlNumbers?.nro_hoja ?? "";
     this.doc.text(
-      hojaNro ? `Hoja Nro: ${hojaNro}` : "Hoja Nro:",
+      hoja ? `Hoja Nro: ${hoja}` : "Hoja Nro:",
       tableX + tableWidth / 2,
       tableY + cellHeight * 2 + cellHeight / 2 + 1.5,
       { align: "center" },
     );
-
-    const month = this.formatMonth(certificateData.date);
     this.doc.text(
       `Mes: ${month}`,
       tableX + (tableWidth * 5) / 6,
@@ -377,17 +420,14 @@ export class ContentPage {
       { align: "center" },
     );
 
-    // Row 4: CI and Nombre
+    // Row 4
     this.doc.setFont("helvetica", "bold");
     this.doc.setFontSize(6);
-
-    // Use TextRenderer for ID text
     this.textRenderer.renderIDText(
       participant,
       tableX + tableWidth / 2,
       tableY + cellHeight * 3 + cellHeight / 2 - 1,
     );
-
     this.doc.text(
       `Nombre: ${participant.name}`,
       tableX + tableWidth / 2,
@@ -396,9 +436,6 @@ export class ContentPage {
     );
   }
 
-  /**
-   * Add seal image below table
-   */
   private async addSealImage(
     sealImage: string,
     tableX: number,
@@ -407,12 +444,11 @@ export class ContentPage {
     cellHeight: number,
   ): Promise<void> {
     const { contentPage } = this.config;
-    const sealY = tableY + cellHeight * 4 + 8; // After all 4 table rows + 8mm spacing
+    const sealY = tableY + cellHeight * 4 + 8;
     const sealX = tableX + tableWidth / 2 - contentPage.sealSize / 2;
 
     try {
-      // Simple image loading
-      await new Promise<void>((resolve, reject) => {
+      await new Promise<void>((resolve) => {
         const img = new Image();
         img.onload = () => {
           this.doc.addImage(
@@ -428,7 +464,6 @@ export class ContentPage {
           resolve();
         };
         img.onerror = () => {
-          // Draw placeholder
           this.doc.setDrawColor(200, 200, 200);
           this.doc.rect(
             sealX,
@@ -440,46 +475,22 @@ export class ContentPage {
         };
         img.src = sealImage;
       });
-    } catch (error) {
-      // Error adding seal image
-    }
+    } catch (e) {}
   }
 
-  /**
-   * Format date for display
-   */
   private formatDate(date: string | undefined): string {
-    if (!date) {
-      return new Date().toLocaleDateString("es-ES", {
-        year: "numeric",
-        month: "numeric",
-        day: "numeric",
-      });
-    }
-
-    // Adding T12:00:00 to avoid timezone shift for YYYY-MM-DD strings
-    const dateObj = date.includes("T")
+    if (!date) return new Date().toLocaleDateString("es-ES");
+    const d = date.includes("T")
       ? new Date(date)
       : new Date(date + "T12:00:00");
-    return dateObj.toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-    });
+    return d.toLocaleDateString("es-ES");
   }
 
-  /**
-   * Format month for display
-   */
   private formatMonth(date: string | undefined): string {
-    if (!date) {
-      return new Date().toLocaleDateString("es-ES", { month: "long" });
-    }
-
-    // Adding T12:00:00 to avoid timezone shift for YYYY-MM-DD strings
-    const dateObj = date.includes("T")
+    if (!date) return new Date().toLocaleDateString("es-ES", { month: "long" });
+    const d = date.includes("T")
       ? new Date(date)
       : new Date(date + "T12:00:00");
-    return dateObj.toLocaleDateString("es-ES", { month: "long" });
+    return d.toLocaleDateString("es-ES", { month: "long" });
   }
 }

@@ -626,6 +626,7 @@ export interface CertificateOSI {
   is_active: boolean;
   curso_nombre?: string; // Mapped from v_osi_formato_completo.servicio (catalogo_servicios.nombre)
   tema?: string | null;
+  has_certificates?: boolean;
 }
 
 export interface CertificateTemplateProps {

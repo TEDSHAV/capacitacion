@@ -284,7 +284,16 @@ export default function OSISearch({
                       : "hover:bg-gray-50"
                   }`}
                 >
-                  <div className="font-medium text-gray-900">{osi.nro_osi}</div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <div className="font-medium text-gray-900">
+                      {osi.nro_osi}
+                    </div>
+                    {osi.has_certificates && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-bold bg-green-100 text-green-800 rounded-full border border-green-200 uppercase tracking-wider">
+                        Generado
+                      </span>
+                    )}
+                  </div>
                   <div className="text-sm text-gray-600">
                     {osi.cliente_nombre_empresa}
                   </div>
