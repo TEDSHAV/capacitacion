@@ -38,7 +38,7 @@ export const AdditionalInfoSection = ({
           onChange={(e) =>
             handleInputChange(
               "calificacion",
-              e.target.value ? parseFloat(e.target.value) : undefined,
+              e.target.value ? parseFloat(e.target.value) || null : null,
             )
           }
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

@@ -12,6 +12,7 @@ import { join } from "path";
 
 const LOG_FILE = join(process.cwd(), "document-generation.log");
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function log(message: string, data?: any) {
   const timestamp = new Date().toISOString();
   const logMessage = `[${timestamp}] ${message}${data ? ` ${JSON.stringify(data)}` : ""}\n`;
@@ -23,7 +24,9 @@ function log(message: string, data?: any) {
 }
 
 export interface DocumentGenerationRequest {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   certificates: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   osiData: any;
   firmanteData?: { nombre: string; cargo: string };
   options?: {
@@ -100,6 +103,7 @@ async function resolveCourseName(
 /**
  * Format cédula with proper prefix
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const formatCedula = (participant: any): string => {
   // Support multiple field name variations
   const idNumber =

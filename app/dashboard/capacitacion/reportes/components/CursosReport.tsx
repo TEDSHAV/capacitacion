@@ -161,8 +161,8 @@ export default function CursosReport({
       list = list.filter((c) => c.nombre.toLowerCase().includes(q));
     }
     list.sort((a, b) => {
-      let av: any = a[sortField as keyof CursoReportItem] ?? "";
-      let bv: any = b[sortField as keyof CursoReportItem] ?? "";
+      const av: any = a[sortField as keyof CursoReportItem] ?? "";
+      const bv: any = b[sortField as keyof CursoReportItem] ?? "";
       if (typeof av === "string" && typeof bv === "string")
         return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
       return sortDir === "asc"

@@ -182,19 +182,28 @@ export interface CourseTopic {
 
 export interface PersonalInfoSectionProps {
   formData: FacilitadorFormData;
-  handleInputChange: (field: keyof FacilitadorFormData, value: any) => void;
+  handleInputChange: (
+    field: keyof FacilitadorFormData,
+    value: FacilitadorFormData[keyof FacilitadorFormData],
+  ) => void;
 }
 
 export interface ProfessionalInfoSectionProps {
   formData: FacilitadorFormData;
-  handleInputChange: (field: keyof FacilitadorFormData, value: any) => void;
+  handleInputChange: (
+    field: keyof FacilitadorFormData,
+    value: FacilitadorFormData[keyof FacilitadorFormData],
+  ) => void;
   states: State[];
   loadingStates: boolean;
 }
 
 export interface LocationSectionProps {
   formData: FacilitadorFormData;
-  handleInputChange: (field: keyof FacilitadorFormData, value: any) => void;
+  handleInputChange: (
+    field: keyof FacilitadorFormData,
+    value: FacilitadorFormData[keyof FacilitadorFormData],
+  ) => void;
   states: State[];
   cities: City[];
   loadingStates: boolean;
@@ -204,14 +213,20 @@ export interface LocationSectionProps {
 
 export interface CourseTopicsSectionProps {
   formData: FacilitadorFormData;
-  handleInputChange: (field: keyof FacilitadorFormData, value: any) => void;
+  handleInputChange: (
+    field: keyof FacilitadorFormData,
+    value: FacilitadorFormData[keyof FacilitadorFormData],
+  ) => void;
   courseTopics: CourseTopic[];
   loadingCourseTopics: boolean;
 }
 
 export interface AdditionalInfoSectionProps {
   formData: FacilitadorFormData;
-  handleInputChange: (field: keyof FacilitadorFormData, value: any) => void;
+  handleInputChange: (
+    field: keyof FacilitadorFormData,
+    value: FacilitadorFormData[keyof FacilitadorFormData],
+  ) => void;
 }
 
 export interface FileUploadSectionProps {
@@ -281,7 +296,7 @@ export interface CertificateRequest {
   singlePage?: boolean; // Whether to generate single-page certificate
   paperSize?: PaperSize; // Preference for paper size
   preloadedAssets?: {
-    facilitator?: any;
+    facilitator?: Facilitador;
     facilitatorSignature?: string;
     shaSignature?: string;
   };
@@ -311,9 +326,9 @@ export interface CertificateGeneration {
   created_at?: string;
   horas_estimadas?: number;
   facilitator_id?: string; // ID of selected facilitator (includes signature)
-  facilitator_data?: any; // Full facilitator data
+  facilitator_data?: Facilitador; // Full facilitator data
   sha_signature_id?: string; // ID of SHA representative signature (separate from facilitator)
-  sha_signature_data?: any; // Full SHA signature data
+  sha_signature_data?: Signature; // Full SHA signature data
   fecha_vencimiento?: string; // Certificate expiration date
   id_estado?: number; // Venezuelan state ID for certificate record
   id_plantilla_certificado?: number; // Certificate template ID
@@ -425,7 +440,10 @@ export interface CertificateFormProps {
     currentCertificate: number;
     totalCertificates: number;
   };
-  onDataChange: (field: keyof CertificateGeneration, value: any) => void;
+  onDataChange: (
+    field: keyof CertificateGeneration,
+    value: CertificateGeneration[keyof CertificateGeneration],
+  ) => void;
   onParticipantsChange: (participants: CertificateParticipant[]) => void;
   onGenerate: () => void;
   onPreview?: () => Promise<boolean>;
@@ -474,13 +492,13 @@ export interface DashboardStats {
 }
 
 export interface CapacitacionClientProps {
-  user: any;
+  user: User;
   companies: Company[];
   stats?: DashboardStats;
 }
 
 export interface GestionCursosClientProps {
-  user: any;
+  user: User;
   empresas: Empresa[];
   cursos: Curso[] | undefined;
 }
@@ -525,42 +543,42 @@ export interface OSIFormProps {
   contactos?: Contacto[];
   servicios?: Servicio[];
   filteredEmpresas?: Empresa[];
-  cursos?: any[];
-  filteredCursos?: any[];
+  cursos?: Curso[];
+  filteredCursos?: Curso[];
   empresaSearchTerm?: string;
   temaSearchTerm?: string;
   setEmpresaSearchTerm?: (term: string) => void;
   setTemaSearchTerm?: (term: string) => void;
-  updateFormData?: (field: string, value: any) => void;
+  updateFormData?: (field: string, value: unknown) => void;
 }
 
 // Common OSI component props
 export interface ServiceDetailsProps {
-  formData: any;
+  formData: Record<string, unknown>;
   isEditing: boolean;
   isNew: boolean;
-  updateFormData: (field: string, value: any) => void;
+  updateFormData: (field: string, value: unknown) => void;
 }
 
 export interface ExecutionDatesProps {
-  formData: any;
+  formData: Record<string, unknown>;
   isEditing: boolean;
   isNew: boolean;
-  updateFormData: (field: string, value: any) => void;
+  updateFormData: (field: string, value: unknown) => void;
 }
 
 export interface CostCalculationProps {
-  formData: any;
+  formData: Record<string, unknown>;
   isEditing: boolean;
   isNew: boolean;
-  updateFormData: (field: string, value: any) => void;
+  updateFormData: (field: string, value: unknown) => void;
 }
 
 export interface AdditionalInfoProps {
-  formData: any;
+  formData: Record<string, unknown>;
   isEditing: boolean;
   isNew: boolean;
-  updateFormData: (field: string, value: any) => void;
+  updateFormData: (field: string, value: unknown) => void;
 }
 
 export interface OSIEmptyStateProps {
@@ -592,7 +610,7 @@ export interface SidebarProps {
 }
 
 export interface DashboardClientProps {
-  user: any;
+  user: User;
 }
 
 export interface User {
@@ -747,12 +765,12 @@ export interface ParticipantFormData {
 }
 
 export interface ParticipantsClientProps {
-  user: any;
+  user: User;
 }
 
 // Reportes interfaces
 export interface ReportesClientProps {
-  user: any;
+  user: User;
   states: State[];
   courses?: CourseTopic[];
 }
@@ -1024,7 +1042,7 @@ export interface ParticipantCertificate {
     id: number;
     nombre_apellido: string;
   };
-  parsed_snapshot?: any;
+  parsed_snapshot?: Record<string, unknown>;
 }
 
 export interface ParticipantStatistics {

@@ -72,7 +72,7 @@ export class OCRService {
 
       // Mistral OCR returns a pages array with markdown
       const fullMarkdown =
-        data.pages?.map((p: any) => p.markdown).join("\n") ||
+        data.pages?.map((p: { markdown?: string }) => p.markdown).join("\n") ||
         data.markdown ||
         data.text ||
         "";

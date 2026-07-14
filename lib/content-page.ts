@@ -1,5 +1,9 @@
 import jsPDF from "jspdf";
-import { CertificateParticipant, CertificateGeneration } from "@/types";
+import {
+  CertificateParticipant,
+  CertificateGeneration,
+  ControlNumbers,
+} from "@/types";
 import { getDynamicConfig } from "./certificate-config";
 import { TextRenderer } from "./text-renderer";
 import { stripHtml } from "./strip-html";
@@ -31,7 +35,7 @@ export class ContentPage {
     participant: CertificateParticipant,
     certificateData: CertificateGeneration,
     sealImage?: string,
-    controlNumbers?: any,
+    controlNumbers?: ControlNumbers,
     isPreview?: boolean,
   ): Promise<void> {
     const { contentPage } = this.config;
@@ -83,7 +87,7 @@ export class ContentPage {
     participant: CertificateParticipant,
     certificateData: CertificateGeneration,
     sealImage?: string,
-    controlNumbers?: any,
+    controlNumbers?: ControlNumbers,
     isPreview?: boolean,
   ): Promise<void> {
     const { contentPage } = this.config;
@@ -242,7 +246,7 @@ export class ContentPage {
     currentY: number,
     columnWidth: number,
     sealImage?: string,
-    controlNumbers?: any,
+    controlNumbers?: ControlNumbers,
     isPreview?: boolean,
   ): Promise<void> {
     const { contentPage } = this.config;
@@ -336,7 +340,7 @@ export class ContentPage {
     tableY: number,
     tableWidth: number,
     cellHeight: number,
-    controlNumbers?: any,
+    controlNumbers?: ControlNumbers,
     isPreview?: boolean,
   ): void {
     this.doc.setFont("helvetica", "normal");
@@ -426,7 +430,11 @@ export class ContentPage {
     try {
       // Check if we're in a server environment
       if (typeof window === "undefined") {
+        /* eslint-disable-next-line @typescript-eslint/no-require-imports */
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require("fs");
+        /* eslint-disable-next-line @typescript-eslint/no-require-imports */
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const path = require("path");
 
         let imagePath = sealImage;

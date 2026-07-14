@@ -6,7 +6,7 @@ export async function getCoursesByClient(clientId?: string) {
   try {
     const supabase = await createClient();
 
-    let query = supabase
+    const query = supabase
       .from("catalogo_servicios")
       .select("id, nombre, contenido_curso, created_at")
       .eq("tipo_servicio", 1)

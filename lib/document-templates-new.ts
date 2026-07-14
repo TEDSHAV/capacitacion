@@ -209,8 +209,11 @@ export class DocumentTemplateProcessor {
   }
 
   static prepareTemplateData(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     certificates: any[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     osiData: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     firmanteData: any,
     recibidoData?: { nombre: string; cargo: string },
   ): TemplateData {

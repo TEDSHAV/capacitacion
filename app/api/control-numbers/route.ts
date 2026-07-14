@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let nextNumbers = {
+    const nextNumbers = {
       nro_libro: 1,
       nro_hoja: 1,
       nro_linea: 1,

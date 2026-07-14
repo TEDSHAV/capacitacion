@@ -362,7 +362,7 @@ export const CertificatePreview = ({
 
       // Get template and seal images
       let templateImage = "/templates/certificado.png";
-      let sealImage = "/templates/sello.png";
+      const sealImage = "/templates/sello.png";
 
       // Use active certificate template if available
       if (certificateData.plantilla_certificado_archivo) {
@@ -448,20 +448,23 @@ export const CertificatePreview = ({
       // Preload facilitator signature image
       let facilitatorSignatureBase64 = "";
       if (
-        certificateDataWithSHA.facilitator_data?.signature_data?.imagen_base64
+        (certificateDataWithSHA.facilitator_data as any)?.signature_data
+          ?.imagen_base64
       ) {
-        facilitatorSignatureBase64 = `data:image/png;base64,${certificateDataWithSHA.facilitator_data.signature_data.imagen_base64}`;
-      } else if (facilitatorData?.signature_data?.imagen_base64) {
-        facilitatorSignatureBase64 = `data:image/png;base64,${facilitatorData.signature_data.imagen_base64}`;
+        facilitatorSignatureBase64 = `data:image/png;base64,${(certificateDataWithSHA.facilitator_data as any).signature_data.imagen_base64}`;
+      } else if ((facilitatorData as any)?.signature_data?.imagen_base64) {
+        facilitatorSignatureBase64 = `data:image/png;base64,${(facilitatorData as any).signature_data.imagen_base64}`;
       }
       // Fall back to URL fields if base64 not available
       else {
         const signatureUrl =
-          certificateDataWithSHA.facilitator_data?.signature_data?.url_imagen ||
-          certificateDataWithSHA.facilitator_data?.signature_data?.firma ||
-          facilitatorData?.signature_data?.url_imagen ||
-          facilitatorData?.signature_data?.firma ||
-          certificateDataWithSHA.facilitator_data?.firma; // Legacy fallback
+          (certificateDataWithSHA.facilitator_data as any)?.signature_data
+            ?.url_imagen ||
+          (certificateDataWithSHA.facilitator_data as any)?.signature_data
+            ?.firma ||
+          (facilitatorData as any)?.signature_data?.url_imagen ||
+          (facilitatorData as any)?.signature_data?.firma ||
+          (certificateDataWithSHA.facilitator_data as any)?.firma; // Legacy fallback
 
         if (signatureUrl) {
           facilitatorSignatureBase64 = await preloadImage(signatureUrl);

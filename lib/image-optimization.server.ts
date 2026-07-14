@@ -23,7 +23,7 @@ export async function optimizeSignatureImage(
     // Get image metadata to decide if resizing is needed
     const metadata = await sharpInstance.metadata();
 
-    let pipeline = sharpInstance
+    const pipeline = sharpInstance
       .rotate() // Auto-rotate based on EXIF
       .resize({
         width: maxWidth,

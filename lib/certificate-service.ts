@@ -2,9 +2,9 @@ import { Signature, Facilitador, ControlNumbers } from "@/types";
 
 export class CertificateService {
   private static instance: CertificateService;
-  
+
   private constructor() {}
-  
+
   static getInstance(): CertificateService {
     if (!CertificateService.instance) {
       CertificateService.instance = new CertificateService();
@@ -17,18 +17,18 @@ export class CertificateService {
    */
   async getControlNumbers(): Promise<ControlNumbers | null> {
     try {
-      const response = await fetch('/api/control-numbers');
-      
+      const response = await fetch("/api/control-numbers");
+
       if (!response.ok) {
         return null;
       }
-      
+
       const data = await response.json();
       return {
         nro_libro: data.nro_libro,
         nro_hoja: data.nro_hoja,
         nro_linea: data.nro_linea,
-        nro_control: data.nro_control
+        nro_control: data.nro_control,
       };
     } catch (error) {
       return null;
@@ -39,19 +39,20 @@ export class CertificateService {
    * Fetch signature data by ID
    * Uses Next.js 15+ compatible API call pattern
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getSignatureData(signatureId: string): Promise<any | null> {
     try {
       const response = await fetch(`/api/signatures/${signatureId}`);
-      
+
       if (!response.ok) {
         return null;
       }
-      
+
       const data = await response.json();
-      
+
       // The API returns the firma table structure directly
       // Transform it to match expected format if needed
-      if (data && typeof data === 'object') {
+      if (data && typeof data === "object") {
         return {
           id: data.id,
           nombre: data.nombre,
@@ -59,10 +60,10 @@ export class CertificateService {
           firma: data.url_imagen,
           url_imagen: data.url_imagen,
           tipo: data.tipo,
-          is_active: data.is_active
+          is_active: data.is_active,
         };
       }
-      
+
       return data;
     } catch (error) {
       return null;
@@ -76,15 +77,15 @@ export class CertificateService {
   async getFacilitatorData(facilitatorId: string): Promise<Facilitador | null> {
     try {
       const response = await fetch(`/api/facilitators/${facilitatorId}`);
-      
+
       if (!response.ok) {
         return null;
       }
-      
+
       const data = await response.json();
-      
+
       // The API returns facilitator data, but we need to transform it
-      if (data && typeof data === 'object') {
+      if (data && typeof data === "object") {
         return {
           id: data.id,
           nombre_apellido: data.nombre_apellido,
@@ -114,10 +115,10 @@ export class CertificateService {
           is_active: true,
           tiene_curriculum: null,
           tiene_certificaciones: null,
-          tiene_foto_perfil: null
+          tiene_foto_perfil: null,
         };
       }
-      
+
       return data;
     } catch (error) {
       return null;
@@ -127,14 +128,16 @@ export class CertificateService {
   /**
    * Fetch certificate template by ID
    */
-  async getCertificateTemplate(templateId: number): Promise<{ id: number; nombre: string; archivo: string } | null> {
+  async getCertificateTemplate(
+    templateId: number,
+  ): Promise<{ id: number; nombre: string; archivo: string } | null> {
     try {
       const response = await fetch(`/api/certificate-templates/${templateId}`);
-      
+
       if (!response.ok) {
         return null;
       }
-      
+
       const data = await response.json();
       return data;
     } catch (error) {
@@ -145,15 +148,18 @@ export class CertificateService {
   /**
    * Batch fetch multiple signatures
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getMultipleSignatures(signatureIds: string[]): Promise<any[]> {
-    const promises = signatureIds.map(id => this.getSignatureData(id));
+    const promises = signatureIds.map((id) => this.getSignatureData(id));
     const results = await Promise.allSettled(promises);
-    
+
     return results
-      .filter((result): result is PromiseFulfilledResult<any> => 
-        result.status === 'fulfilled' && result.value !== null
+      .filter(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (result): result is PromiseFulfilledResult<any> =>
+          result.status === "fulfilled" && result.value !== null,
       )
-      .map(result => result.value);
+      .map((result) => result.value);
   }
 }
 

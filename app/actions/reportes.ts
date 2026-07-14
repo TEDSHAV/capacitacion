@@ -409,7 +409,7 @@ export async function getFacilitadoresReport(
       }
     });
 
-    let facilitadoresList = (facilitadoresRes.data || [])
+    const facilitadoresList = (facilitadoresRes.data || [])
       .map((f) => {
         const s = certStats.get(f.id);
         return {

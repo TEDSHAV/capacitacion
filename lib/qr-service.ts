@@ -45,7 +45,7 @@ export class QRService {
         dark: "#000000",
         light: "#FFFFFF",
       },
-      errorCorrectionLevel: level as any,
+      errorCorrectionLevel: level as "L" | "M" | "Q" | "H",
     };
 
     try {
@@ -71,7 +71,7 @@ export class QRService {
         dark: "#000000",
         light: "#FFFFFF",
       },
-      errorCorrectionLevel: level as any,
+      errorCorrectionLevel: level as "L" | "M" | "Q" | "H",
     };
 
     try {
@@ -112,6 +112,7 @@ export class QRService {
    */
   static createVerificationData(
     isValid: boolean,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     certificate?: any,
     error?: string,
   ): QRCodeVerificationData {

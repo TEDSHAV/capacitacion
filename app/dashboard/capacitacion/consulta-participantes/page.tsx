@@ -363,8 +363,8 @@ export default function ParticipantLookup() {
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-semibold text-gray-900">
-                          {certificate.parsed_snapshot?.certificado_detalles
-                            ?.title ||
+                          {(certificate.parsed_snapshot as any)
+                            ?.certificado_detalles?.title ||
                             certificate.cursos?.nombre ||
                             "Certificado"}
                         </h3>

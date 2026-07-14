@@ -199,7 +199,7 @@ export async function GET(
     }
 
     // Get seal image
-    let sealImage = "/templates/sello.png";
+    const sealImage = "/templates/sello.png";
 
     // Debug logging for control numbers
     const controlNumbersForGenerator = {

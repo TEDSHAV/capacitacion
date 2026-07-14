@@ -919,7 +919,8 @@ export default function GeneracionCertificadoClient({
             // Preload the image if we have the URL
             if (shaSignatureDataToUse) {
               const imageUrl =
-                shaSignatureDataToUse.url_imagen || shaSignatureDataToUse.firma;
+                (shaSignatureDataToUse as any).url_imagen ||
+                (shaSignatureDataToUse as any).firma;
               if (imageUrl) {
                 try {
                   shaSignatureBase64 = await preloadImage(imageUrl);

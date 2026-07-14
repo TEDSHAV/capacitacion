@@ -1,5 +1,5 @@
 // QR Code related interfaces
-import type { ControlNumbers } from "./index";
+import type { ControlNumbers, Facilitador } from "./index";
 
 export type { ControlNumbers };
 
@@ -32,7 +32,7 @@ export interface QRCodeVerificationData {
     issueDate: string;
     expirationDate?: string;
     controlNumbers: ControlNumbers;
-    facilitatorData?: any;
+    facilitatorData?: Facilitador;
   };
   error?: string;
 }

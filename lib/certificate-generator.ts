@@ -120,6 +120,7 @@ export class CertificateGenerator {
     certificateData: CertificateGeneration,
     templateImage: string,
     sealImage: string | undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     controlNumbers: any,
     isPreview: boolean,
     certificateId: number,
@@ -176,6 +177,7 @@ export class CertificateGenerator {
     certificateData: CertificateGeneration,
     templateImage: string,
     sealImage: string | undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     controlNumbers: any,
     isPreview: boolean,
     certificateId: number,

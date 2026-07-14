@@ -1,6 +1,6 @@
-import { CertificateGenerator } from './certificate-generator';
-import { certificateService } from './certificate-service';
-import { CertificateRequest, ControlNumbers } from '@/types';
+import { CertificateGenerator } from "./certificate-generator";
+import { certificateService } from "./certificate-service";
+import { CertificateRequest, ControlNumbers } from "@/types";
 
 export class CertificatePreviewHelper {
   private generator: CertificateGenerator;
@@ -13,22 +13,24 @@ export class CertificatePreviewHelper {
    * Generate certificate preview with estimated control numbers
    */
   async generatePreview(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     participant: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     certificateData: any,
     templateImage: string,
-    sealImage?: string
+    sealImage?: string,
   ): Promise<Blob> {
     try {
       // Get estimated control numbers for preview
       const controlNumbers = await certificateService.getControlNumbers();
-      
+
       const request: CertificateRequest = {
         participant,
         certificateData,
         templateImage,
         sealImage,
         controlNumbers: controlNumbers || undefined,
-        isPreview: true
+        isPreview: true,
       };
 
       return await this.generator.generateCertificate(request);
@@ -41,11 +43,13 @@ export class CertificatePreviewHelper {
    * Generate final certificate with actual control numbers
    */
   async generateFinalCertificate(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     participant: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     certificateData: any,
     templateImage: string,
     sealImage?: string,
-    actualControlNumbers?: ControlNumbers
+    actualControlNumbers?: ControlNumbers,
   ): Promise<Blob> {
     try {
       const request: CertificateRequest = {
@@ -54,7 +58,7 @@ export class CertificatePreviewHelper {
         templateImage,
         sealImage,
         controlNumbers: actualControlNumbers,
-        isPreview: false
+        isPreview: false,
       };
 
       return await this.generator.generateCertificate(request);
@@ -66,12 +70,16 @@ export class CertificatePreviewHelper {
   /**
    * Download certificate with proper filename
    */
-  downloadCertificate(blob: Blob, participantName: string, isPreview: boolean = false): void {
-    const sanitizedName = participantName.replace(/[^a-zA-Z0-9]/g, '_');
-    const timestamp = new Date().toISOString().split('T')[0];
-    const prefix = isPreview ? 'PREVIEW_' : '';
+  downloadCertificate(
+    blob: Blob,
+    participantName: string,
+    isPreview: boolean = false,
+  ): void {
+    const sanitizedName = participantName.replace(/[^a-zA-Z0-9]/g, "_");
+    const timestamp = new Date().toISOString().split("T")[0];
+    const prefix = isPreview ? "PREVIEW_" : "";
     const filename = `${prefix}Certificado_${sanitizedName}_${timestamp}.pdf`;
-    
+
     this.generator.downloadBlob(blob, filename);
   }
 }

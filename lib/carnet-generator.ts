@@ -1,5 +1,9 @@
 import jsPDF from "jspdf";
-import { CarnetGeneration, CarnetRequest } from "@/types";
+import {
+  CarnetGeneration,
+  CarnetRequest,
+  CertificateParticipant,
+} from "@/types";
 import { QRService } from "@/lib/qr-service";
 
 import {
@@ -131,7 +135,9 @@ export class CarnetGenerator {
       // Check if we're in a server environment
       if (typeof window === "undefined") {
         // Server environment - use fs to read image file
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const path = require("path");
 
         // Convert URL to file path
@@ -307,7 +313,7 @@ export class CarnetGenerator {
 
   private async addParticipantInfo(
     pdf: jsPDF,
-    participant: any,
+    participant: CertificateParticipant,
     carnetData: CarnetGeneration,
   ): Promise<void> {
     // Set font styles
@@ -326,7 +332,7 @@ export class CarnetGenerator {
     pdf.setFont("helvetica", "bold");
 
     // Determine ID label and prefix based on nationality
-    const idPrefix = participant.nationality === "extranjero" ? "e-" : "V-";
+    const idPrefix = participant.nationality === "extranjero" ? "E-" : "V-";
     pdf.text(`Cédula: ${idPrefix}${participant.idNumber}`, 3, nameY - 5);
   }
 

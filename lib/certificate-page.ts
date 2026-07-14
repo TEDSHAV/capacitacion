@@ -26,6 +26,7 @@ export class CertificatePage {
   private pageWidth: number;
   private pageHeight: number;
   private isSinglePage: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private preloadedAssets?: any;
   private templateKey?: string;
 
@@ -43,6 +44,7 @@ export class CertificatePage {
     pageWidth: number,
     pageHeight: number,
     isSinglePage: boolean = false,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     preloadedAssets?: any,
     templateKey?: string,
   ) {
@@ -79,7 +81,9 @@ export class CertificatePage {
       // Check if we're in a server environment
       if (typeof window === "undefined") {
         // Server environment - use fs to read image file
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const path = require("path");
 
         // Convert URL to file path
@@ -368,7 +372,7 @@ export class CertificatePage {
     // Add facilitator signature if available
     if (certificateData.facilitator_id) {
       let facilitator: CertificateFacilitator | null =
-        certificateData.facilitator_data as CertificateFacilitator | null;
+        certificateData.facilitator_data as unknown as CertificateFacilitator | null;
 
       // Use preloaded facilitator data if available (from batch generation)
       if (!facilitator && this.preloadedAssets?.facilitator) {
@@ -544,6 +548,7 @@ export class CertificatePage {
    * Add SHA signature
    */
   private async addSHASignature(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     shaSignature: any,
     signatureConfig: typeof this.config.signature,
   ): Promise<void> {
@@ -722,7 +727,9 @@ export class CertificatePage {
       // Check if we're in a server environment
       if (typeof window === "undefined") {
         // Server environment - use fs to read image file
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require("fs");
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const path = require("path");
 
         // Convert URL to file path, handle both relative and absolute paths

@@ -130,7 +130,7 @@ const getCertificateTemplatesByCourse = cache(async (courseId?: string) => {
   try {
     // For now, get all active templates
     // In the future, this can be enhanced to filter by course when the relationship is established
-    let query = supabase
+    const query = supabase
       .from("plantillas_certificados")
       .select("*")
       .eq("is_active", true)
@@ -168,7 +168,7 @@ const getCourseTemplatesByOSI = cache(
 
       // Fetch all active templates and filter in JS to avoid complex PostgREST query issues
       // and ensure we don't miss any data due to syntax edge cases
-      let query = supabase
+      const query = supabase
         .from("plantillas_cursos")
         .select(
           `

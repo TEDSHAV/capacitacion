@@ -82,7 +82,7 @@ export async function saveCertificatesToDatabase(
 
     // Fetch facilitator and SHA signature in parallel — they are independent
 
-    let updatedCertificateData = { ...certificateData };
+    const updatedCertificateData = { ...certificateData };
 
     const fetchTasks: Promise<void>[] = [];
 
@@ -95,7 +95,8 @@ export async function saveCertificatesToDatabase(
           );
 
           if (facilitatorData) {
-            updatedCertificateData.facilitator_data = facilitatorData;
+            updatedCertificateData.facilitator_data =
+              facilitatorData as any;
           }
         })().catch((e) => {
           console.warn("Failed to fetch facilitator data:", e);
@@ -891,7 +892,7 @@ function generateContentSnapshot(
 ): string {
   // Get the actual participant data from database for snapshot
 
-  let actualParticipantData = participant;
+  const actualParticipantData = participant;
 
   // Note: This function doesn't have access to existingParticipant data,
 

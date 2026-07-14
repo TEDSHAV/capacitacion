@@ -350,7 +350,7 @@ export async function getOSIsForManagement(
     });
 
     // Calculate aggregate metrics for all filtered OSIs (not just current page)
-    let metrics = {
+    const metrics = {
       total_hours: 0,
       total_sesiones: 0,
       unique_companies: 0,
