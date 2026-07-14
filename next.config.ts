@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Output configuration for Docker deployment
+  output: "standalone",
+
   // Turbopack configuration
   turbopack: {},
 
