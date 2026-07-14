@@ -95,11 +95,9 @@ export function PlantillaCursoForm({
             <RichTextEditor
               value={formData.contenido}
               onChange={(html) => setFormData(prev => ({ ...prev, contenido: html }))}
-              placeholder="Ingresa el contenido detallado de la plantilla... (puedes pegar desde Word)"
               rows={10}
             />
             <div className="flex justify-between items-center mt-1">
-              <p className="text-xs text-gray-500">Soporta formato: negrita, cursiva, listas. Puedes pegar directamente desde Word.</p>
               <p className={`text-xs font-medium ${(formData.contenido?.length || 0) > 2000 ? 'text-red-600' : (formData.contenido?.length || 0) > 1800 ? 'text-yellow-600' : 'text-gray-500'}`}>
                 {formData.contenido?.length || 0} / 2000 caracteres
               </p>
