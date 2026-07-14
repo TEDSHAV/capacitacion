@@ -28,7 +28,7 @@ export const ProfessionalInfoSection = ({ formData, handleInputChange, states, l
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Nivel Técnico
+            Nivel de Educación
           </label>
           <select
             value={formData.nivel_tecnico}
