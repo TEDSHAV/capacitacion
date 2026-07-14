@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { getFacilitatorStateStatsAction } from "@/app/actions/reportes-stats";
 import { FacilitadorStateStatsProps, StateStat, FacilitadorReport } from "@/types";
 
-export default function FacilitadorStateStats({ selectedState }: FacilitadorStateStatsProps) {
+export default function FacilitadorStateStats({ selectedState, selectedCourse }: FacilitadorStateStatsProps) {
   const [stateStats, setStateStats] = useState<StateStat[]>([]);
   const [facilitadores, setFacilitadores] = useState<FacilitadorReport[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12,18 +12,18 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
 
   useEffect(() => {
     fetchData();
-  }, [selectedState]);
+  }, [selectedState, selectedCourse]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const result = await getFacilitatorStateStatsAction(selectedState);
+      const result = await getFacilitatorStateStatsAction(selectedState, selectedCourse);
       
       if (result.error) {
         setError(result.error);
-      } else if (result.data && result.data.estadoStats) {
+      } else if (result.data && 'estadoStats' in result.data) {
         setStateStats(result.data.estadoStats);
         setFacilitadores(result.data.facilitadores as any[]);
       }

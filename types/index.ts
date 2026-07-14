@@ -615,14 +615,41 @@ export interface ParticipantsClientProps {
 export interface ReportesClientProps {
   user: any;
   states: State[];
+  courses?: CourseTopic[];
 }
 
 export interface FacilitadorStateStatsProps {
   selectedState: string;
+  selectedCourse?: string;
 }
 
 export interface FacilitadorHoursStatsProps {
   selectedState: string;
+  selectedCourse?: string;
+}
+
+export interface CourseStatsProps {
+  selectedState?: string;
+  selectedCourse?: string;
+}
+
+export interface CourseStat {
+  id: string;
+  nombre: string;
+  totalHours: number;
+  totalCertificates: number;
+  facilitadores: CourseFacilitator[];
+  isActive: boolean;
+}
+
+export interface CourseFacilitator {
+  id: number;
+  nombre_apellido: string;
+  totalHours: number;
+  totalCertificates: number;
+  estado_nombre: string;
+  is_active: boolean;
+  certificates: CertificateInfo[];
 }
 
 export interface StateStat {
