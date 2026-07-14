@@ -14,6 +14,7 @@ export const CertificateForm = ({
   certificateData,
   selectedOSI,
   selectedCourseTopic,
+  courseTopics,
   onDataChange,
   onParticipantsChange,
   onGenerate,
@@ -131,20 +132,27 @@ export const CertificateForm = ({
         </p>
       </div>
 
-      {/* Course Topic Display */}
-      {selectedCourseTopic && (
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Tema del Curso
-          </label>
-          <input
-            type="text"
-            value={selectedCourseTopic.name}
-            readOnly
-            className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-600"
-          />
-        </div>
-      )}
+      {/* Course Template Selection */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Seleccionar Plantilla
+        </label>
+        <select
+          value={certificateData.course_topic_id || ""}
+          onChange={(e) => onDataChange("course_topic_id", e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="">Selecciona una plantilla...</option>
+          {courseTopics.map((topic: CourseTopic) => (
+            <option key={topic.id} value={topic.id}>
+              {topic.name}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-gray-500 mt-1">
+          Selecciona una plantilla de curso existente
+        </p>
+      </div>
 
       {/* Course Content */}
       <div className="mb-4">

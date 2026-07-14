@@ -34,7 +34,7 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               min="0"
-              step="0.01"
+              step="1"
             />
           </div>
           
@@ -53,7 +53,7 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Subtotal Honorarios</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Subtotal Honorarios x Sesión</label>
             <input
               type="text"
               value={`${(formData.costo_honorarios || 0) * (formData.nro_horas || 0)}`}
@@ -75,7 +75,7 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               min="0"
-              step="0.01"
+              step="1"
             />
           </div>
           
@@ -89,7 +89,7 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               min="0"
-              step="0.01"
+              step="1"
             />
           </div>
           
@@ -103,7 +103,7 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               min="0"
-              step="0.01"
+              step="1"
             />
           </div>
           
@@ -117,7 +117,7 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               min="0"
-              step="0.01"
+              step="1"
             />
           </div>
         </div>
@@ -125,18 +125,7 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
         <div className="border-t pt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Costo Total</label>
-              <input
-                type="text"
-                value={totalCost.toFixed(2)}
-                disabled
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed font-semibold"
-                readOnly
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Detalle Capacitación</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Detalles (para Capacitación)</label>
               <textarea
                 value={formData.detalle_capacitacion || ''}
                 onChange={(e) => updateFormData('detalle_capacitacion', e.target.value)}
@@ -145,6 +134,21 @@ const CostCalculation = ({ formData, isEditing, isNew, updateFormData }: CostCal
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 rows={3}
                 placeholder="Detalle del contenido de capacitación..."
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Costo Total (Referencia)</label>
+              <input
+                type="text"
+                value={totalCost.toFixed(2)}
+                disabled
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed font-semibold"
+                readOnly
               />
             </div>
           </div>

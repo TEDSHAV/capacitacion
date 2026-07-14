@@ -13,7 +13,8 @@ import OSIActionButtons from '../components/OSIActionButtons'
 
 const supabase = createClient()
 
-const OSIDetailPage = () => {
+export default function OSIDetailPage() {
+
   const router = useRouter()
   const params = useParams()
   
@@ -31,6 +32,7 @@ const OSIDetailPage = () => {
     nro_presupuesto: null,
     ejecutivo_negocios: null,
     cliente_nombre_empresa: null,
+    rif: null,
     tema: null,
     fecha_emision: null,
     fecha_servicio: null,
@@ -84,12 +86,13 @@ const OSIDetailPage = () => {
         .order("nombre")
       
       if (error) {
-        console.error('Servicios database error:', error)
+        console.error('Error loading servicios:', error)
         throw error
       }
+      console.log('Servicios loaded:', data?.length || 0)
       setServicios(data || [])
     } catch (err) {
-      console.error('Error loading servicios:', err)
+      console.error('Error in loadServicios:', err)
     }
   }
 
@@ -100,10 +103,14 @@ const OSIDetailPage = () => {
         .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
         .order("razon_social")
       
-      if (error) throw error
+      if (error) {
+        console.error('Error loading empresas:', error)
+        throw error
+      }
+      console.log('Empresas loaded:', data?.length || 0)
       setEmpresas(data || [])
     } catch (err) {
-      console.error('Error loading empresas:', err)
+      console.error('Error in loadEmpresas:', err)
     }
   }
 
@@ -116,10 +123,14 @@ const OSIDetailPage = () => {
         .in("rol", [10, 2])  // rol ID is 10 or 2
         .order("nombre_apellido")
       
-      if (error) throw error
+      if (error) {
+        console.error('Error loading usuarios:', error)
+        throw error
+      }
+      console.log('Usuarios loaded:', data?.length || 0)
       setUsuarios(data || [])
     } catch (err) {
-      console.error('Error loading usuarios:', err)
+      console.error('Error in loadUsuarios:', err)
     }
   }
 
@@ -145,10 +156,13 @@ const OSIDetailPage = () => {
         .eq("tipo_servicio", selectedServicio.id)
         .order("nombre")
       
-      if (error) throw error
+      if (error) {
+        console.error('Error loading catalogo_servicios:', error)
+        throw error
+      }
+      console.log('Catalogo servicios loaded:', data?.length || 0, 'for tipo_servicio:', selectedServicio.id)
       setCatalogoServicios(data || [])
     } catch (err) {
-      console.error('Error loading catalogo_servicios:', err)
     }
   }
 
@@ -176,7 +190,6 @@ const OSIDetailPage = () => {
       if (error) throw error
       setContactos(data || [])
     } catch (err) {
-      console.error('Error loading contactos:', err)
     }
   }
 
@@ -213,7 +226,6 @@ const OSIDetailPage = () => {
         .single()
 
       if (osiError) {
-        console.error('Error loading OSI:', osiError)
         setError('OSI not found')
         return
       }
@@ -226,7 +238,6 @@ const OSIDetailPage = () => {
       setOsi(osiData)
       setFormData(osiData)
     } catch (err) {
-      console.error('Error loading OSI:', err)
       setError('Failed to load OSI')
     } finally {
       setLoading(false)
@@ -254,15 +265,13 @@ const OSIDetailPage = () => {
         nro_presupuesto: formData.nro_presupuesto?.trim() || null,
         empresa_id: (() => {
           const selectedEmpresa = empresas.find(e => e.razon_social === formData.cliente_nombre_empresa)
-          return selectedEmpresa ? selectedEmpresa.id : null
+          return selectedEmpresa ? selectedEmpresa.id : null;
         })(),
         ejecutivo_negocios: Number(formData.ejecutivo_negocios) || null,
         cliente_nombre_empresa: formData.cliente_nombre_empresa?.trim() || '',
         tema: formData.tema?.trim() || null,
-        fecha_emision: formData.fecha_emision ? 
-          (formData.fecha_emision instanceof Date ? formData.fecha_emision : new Date(formData.fecha_emision)).toISOString().split('T')[0] : null,
-        fecha_servicio: formData.fecha_servicio ? 
-          (formData.fecha_servicio instanceof Date ? formData.fecha_servicio : new Date(formData.fecha_servicio)).toISOString().split('T')[0] : null,
+        fecha_emision: formData.fecha_emision || null,
+        fecha_servicio: formData.fecha_servicio || null,
         nro_sesiones: Number(formData.nro_sesiones) || 1,
         fecha_ejecucion1: formData.fecha_ejecucion1 || null,
         fecha_ejecucion2: formData.fecha_ejecucion2 || null,
@@ -273,7 +282,7 @@ const OSIDetailPage = () => {
         detalle_sesion: formData.detalle_sesion?.trim() || null,
         certificado_impreso: Boolean(formData.certificado_impreso),
         carnet_impreso: Boolean(formData.carnet_impreso),
-        observaciones_adicionales: formData.observaciones_adicionales?.trim() || null,
+        observaciones_adicionales: formData.observaciones_adicionales?.trim() || '',
         detalle_capacitacion: formData.detalle_capacitacion?.trim() || null,
         costo_honorarios: Number(formData.costo_honorarios) || 0,
         nro_horas: Number(formData.nro_horas) || 0,
@@ -289,13 +298,17 @@ const OSIDetailPage = () => {
         costo_logistica_comida: Number(formData.costo_logistica_comida) || null,
         costo_otros: Number(formData.costo_otros) || null,
         estado: formData.estado || 'pendiente',
-        persona_contacto_id: Number(formData.persona_contacto_id) || null,
+        direccion_fiscal: (() => {
+          const selectedEmpresa = empresas.find(e => e.razon_social === formData.cliente_nombre_empresa)
+          return selectedEmpresa ? selectedEmpresa.direccion_fiscal : null;
+        })(),
+        direccion_envio: formData.direccion_ejecucion?.trim() || '',
         direccion_ejecucion: formData.direccion_ejecucion?.trim() || '',
         codigo_cliente: (() => {
           const selectedEmpresa = empresas.find(e => e.razon_social === formData.cliente_nombre_empresa)
-          return selectedEmpresa ? selectedEmpresa.codigo_cliente : null
+          return selectedEmpresa ? selectedEmpresa.codigo_cliente : null;
         })(),
-        contacto_id: Number(formData.contacto_id) || null
+        persona_contacto_id: Number(formData.persona_contacto_id) || null
       }
       
       if (isNew) {
@@ -323,7 +336,6 @@ const OSIDetailPage = () => {
       
       router.push('/dashboard/negocios/gestion-de-osis')
     } catch (error) {
-      console.error('Error deleting OSI:', error)
     }
   }
 
@@ -350,7 +362,50 @@ const OSIDetailPage = () => {
     if (nro_osi === 'new') {
       setIsNew(true)
       setIsEditing(true) // New OSIs start in edit mode
-      loadInitialData() // Load initial data for new OSI
+      // Set default values for new OSI
+      const defaultFormData = {
+        id: 0,
+        nro_osi: '',
+        nro_orden_compra: '',
+        tipo_servicio: '',
+        nro_presupuesto: '',
+        empresa_id: null,
+        ejecutivo_negocios: null,
+        cliente_nombre_empresa: '',
+        rif: '',
+        tema: '',
+        fecha_emision: new Date(), // Default to today's date
+        fecha_servicio: null,
+        nro_sesiones: 1,
+        fecha_ejecucion1: null,
+        fecha_ejecucion2: null,
+        fecha_ejecucion3: null,
+        fecha_ejecucion4: null,
+        fecha_ejecucion5: null,
+        participantes_max: null,
+        detalle_sesion: '',
+        certificado_impreso: false,
+        carnet_impreso: false,
+        observaciones_adicionales: '',
+        detalle_capacitacion: '',
+        costo_honorarios: 12, // Default hourly rate
+        nro_horas: 6, // Default 6 hours
+        costo_total: 72, // Default total (12 * 6)
+        costo_impresion_material: 0, // Default printing cost
+        costo_traslado: 0, // Default transport cost
+        costo_logistica_comida: 0, // Default food logistics cost
+        costo_otros: 0,
+        estado: 'pendiente' as const,
+        persona_contacto_id: null,
+        direccion_fiscal: '',
+        direccion_envio: '',
+        direccion_ejecucion: '',
+        codigo_cliente: '',
+        contacto_id: null
+      }
+      setFormData(defaultFormData)
+      // Load initial data for both new and existing OSIs to populate dropdowns
+      loadInitialData()
     } else if (nro_osi) {
       loadInitialData() // Load initial data before loading OSI
       loadOSI(nro_osi)
@@ -484,5 +539,3 @@ const OSIDetailPage = () => {
     </div>
   )
 }
-
-export default OSIDetailPage

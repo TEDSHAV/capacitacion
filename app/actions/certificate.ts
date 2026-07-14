@@ -21,7 +21,7 @@ export async function getCertificateData() {
     // Fetch course topics from catalogo_servicios where tipo_servicio = 1
     const { data: courseData, error: courseError } = await supabase
       .from("catalogo_servicios")
-      .select("id, nombre, contenido_curso, created_at")
+      .select("id, nombre, contenido_curso, cliente_asociado, created_at")
       .eq("tipo_servicio", 1)
       .order("created_at", { ascending: false });
 
@@ -37,6 +37,7 @@ export async function getCertificateData() {
         name: course.nombre,
         description: course.nombre,
         contenido_curso: course.contenido_curso,
+        cliente_asociado: course.cliente_asociado, // Keep as number from DB
         created_at: course.created_at,
       }))
     };

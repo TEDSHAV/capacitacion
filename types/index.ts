@@ -40,14 +40,22 @@ export interface OSI {
   nro_presupuesto: string | null
   ejecutivo_negocios: number | null
   cliente_nombre_empresa: string | null
+  rif: string | null
   tema: string | null
   fecha_emision: Date | null
   fecha_servicio: Date | null
+  nro_sesiones: number | null
+  fecha_ejecucion1: Date | null
+  fecha_ejecucion2: Date | null
+  fecha_ejecucion3: Date | null
+  fecha_ejecucion4: Date | null
+  fecha_ejecucion5: Date | null
   participantes_max: number | null
   detalle_sesion: string | null
   certificado_impreso: boolean | null
   carnet_impreso: boolean | null
   observaciones_adicionales: string | null
+  detalle_capacitacion: string | null
   costo_honorarios: number | null
   nro_horas: number | null
   costo_total: number | null
@@ -58,18 +66,11 @@ export interface OSI {
   estado: 'pendiente' | 'active' | 'activo' | 'inactive' | 'cerrado' | null
   empresa_id: number | null
   persona_contacto_id: number | null
-  direccion_fiscal: number | null
+  direccion_fiscal: string | null
   direccion_envio: string | null
   direccion_ejecucion: string | null
-  nro_sesiones: number | null
-  fecha_ejecucion1: Date | null
-  fecha_ejecucion2: Date | null
-  fecha_ejecucion3: Date | null
-  fecha_ejecucion4: Date | null
-  fecha_ejecucion5: Date | null
-  codigo_cliente: number | null
+  codigo_cliente: string | null
   contacto_id: number | null
-  detalle_capacitacion: string | null
 }
 
 export interface CertificateGeneration {
@@ -94,6 +95,7 @@ export interface CourseTopic {
   name: string;
   description?: string;
   contenido_curso?: string; // Course content from catalogo_servicios
+  cliente_asociado?: number; // Client ID associated with this course (number from DB)
   created_at?: string;
 }
 
@@ -108,6 +110,7 @@ export interface CertificateFormProps {
   certificateData: CertificateGeneration;
   selectedOSI: OSI | null;
   selectedCourseTopic: CourseTopic | null;
+  courseTopics: CourseTopic[];
   onDataChange: (field: keyof CertificateGeneration, value: any) => void;
   onParticipantsChange: (participants: CertificateParticipant[]) => void;
   onGenerate: () => void;

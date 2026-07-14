@@ -157,6 +157,34 @@ export default function OSIDetailPage() {
     if (nro_osi === 'new') {
       setIsNew(true)
       setIsEditing(true) // New OSIs start in edit mode
+      // Set default values for new OSI
+      const defaultFormData = {
+        nro_osi: '',
+        nro_orden_compra: '',
+        tipo_servicio: '',
+        nro_presupuesto: '',
+        ejecutivo_negocios: 0,
+        cliente_nombre_empresa: '',
+        tema: '',
+        fecha_emision: new Date(), // Default to today's date
+        fecha_servicio: null,
+        nro_sesiones: 1,
+        fecha_ejecucion1: '',
+        fecha_ejecucion2: '',
+        fecha_ejecucion3: '',
+        fecha_ejecucion4: '',
+        fecha_ejecucion5: '',
+        participantes_max: 0,
+        detalle_sesion: '',
+        certificado_impreso: false,
+        carnet_impreso: false,
+        detalle_capacitacion: '',
+        observaciones_adicionales: '',
+        // Add other default fields as needed
+      };
+      
+      
+      setFormData(defaultFormData)
       setLoading(false)
     } else if (nro_osi) {
       loadOSI(nro_osi)
@@ -242,7 +270,6 @@ export default function OSIDetailPage() {
       if (error) throw error
       setEmpresas(data || [])
     } catch (err) {
-      console.error('Error loading empresas:', err)
     }
   }
 
@@ -256,7 +283,6 @@ export default function OSIDetailPage() {
       if (error) throw error
       setServicios(data || [])
     } catch (err) {
-      console.error('Error loading servicios:', err)
     }
   }
 
@@ -272,7 +298,6 @@ export default function OSIDetailPage() {
       if (error) throw error
       setUsuarios(data || [])
     } catch (err) {
-      console.error('Error loading usuarios:', err)
     }
   }
 
@@ -297,7 +322,6 @@ export default function OSIDetailPage() {
       setCatalogoServicios(data || [])
       setFilteredCatalogoServicios(data || [])
     } catch (err) {
-      console.error('Error loading catalogo_servicios:', err)
     }
   }
 
@@ -320,7 +344,6 @@ export default function OSIDetailPage() {
       if (error) throw error
       setContactos(data || [])
     } catch (err) {
-      console.error('Error loading contactos:', err)
     }
   }
 
@@ -336,7 +359,6 @@ export default function OSIDetailPage() {
         .single()
 
       if (osiError) {
-        console.error('Error loading OSI:', osiError)
         setError('OSI not found')
         return
       }
@@ -421,7 +443,6 @@ export default function OSIDetailPage() {
       setOsi(osiData)
       setFormData(mergedData)
     } catch (err) {
-      console.error('Error loading OSI:', err)
       setError('Failed to load OSI')
     } finally {
       setLoading(false)
@@ -515,7 +536,6 @@ export default function OSIDetailPage() {
       
       router.push('/dashboard/negocios')
     } catch (error) {
-      console.error('Error deleting OSI:', error)
     }
   }
 
@@ -977,7 +997,15 @@ export default function OSIDetailPage() {
               <input
                 type="date"
                 value={formData.fecha_emision ? 
-                  (formData.fecha_emision instanceof Date ? formData.fecha_emision : new Date(formData.fecha_emision)).toISOString().split('T')[0] : ''}
+                  (() => {
+                    const date = formData.fecha_emision;
+                    if (date instanceof Date) {
+                      const adjustedDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+                      const isoString = adjustedDate.toISOString().split('T')[0];
+                      return isoString;
+                    }
+                    return '';
+                  })() : ''}
                 onChange={(e) => updateFormData('fecha_emision', e.target.value ? new Date(e.target.value) : null)}
                 disabled={!isEditing && !isNew}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"

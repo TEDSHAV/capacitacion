@@ -16,7 +16,8 @@ export default function GeneracionCertificadoPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [osis, setOsis] = useState<OSI[]>([]);
-  const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
+  const [allCourseTopics, setAllCourseTopics] = useState<CourseTopic[]>([]);
+  const [filteredCourseTopics, setFilteredCourseTopics] = useState<CourseTopic[]>([]);
   const [selectedOSI, setSelectedOSI] = useState<OSI | null>(null);
   const [selectedCourseTopic, setSelectedCourseTopic] =
     useState<CourseTopic | null>(null);
@@ -47,7 +48,8 @@ export default function GeneracionCertificadoPage() {
         }
 
         setOsis(result.osis || []);
-        setCourseTopics(result.courseTopics || []);
+        setAllCourseTopics(result.courseTopics || []);
+        setFilteredCourseTopics(result.courseTopics || []);
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
@@ -66,27 +68,26 @@ export default function GeneracionCertificadoPage() {
         ...prev,
         osi_id: osi.nro_osi,
         osi_data: osi,
+        course_topic_id: "",
+        course_topic_data: undefined,
+        course_content: "",
       }));
+      setSelectedCourseTopic(null);
 
-      // Auto-populate course topic based on OSI data
-      const matchingTopic = findMatchingCourseTopic(osi);
-      if (matchingTopic) {
-        setSelectedCourseTopic(matchingTopic);
-        setCertificateData((prev) => ({
-          ...prev,
-          course_topic_id: matchingTopic.id,
-          course_topic_data: matchingTopic,
-          course_content: matchingTopic.contenido_curso || "", // Use course content from database
-        }));
-      } else {
-        setSelectedCourseTopic(null);
-        setCertificateData((prev) => ({
-          ...prev,
-          course_topic_id: "",
-          course_topic_data: undefined,
-          course_content: "",
-        }));
-      }
+      // Filter course topics by client from OSI
+      const clientCourses = allCourseTopics.filter((topic: CourseTopic) => {
+        // OSI has empresa_id (number) and CourseTopic has cliente_asociado (number from DB)
+        const osiClientId = osi.empresa_id;
+        const courseClientId = topic.cliente_asociado;
+        
+        // Skip courses with no client association
+        if (!courseClientId) return false;
+        
+        // Number comparison since both are numbers now
+        return osiClientId === courseClientId;
+      });
+      
+      setFilteredCourseTopics(clientCourses);
     } else {
       // Clear all related data when OSI is cleared
       setCertificateData((prev) => ({
@@ -98,6 +99,8 @@ export default function GeneracionCertificadoPage() {
         course_content: "",
       }));
       setSelectedCourseTopic(null);
+      // Show all courses when no OSI is selected
+      setFilteredCourseTopics(allCourseTopics);
     }
   };
 
@@ -107,15 +110,15 @@ export default function GeneracionCertificadoPage() {
     }
 
     // Try to find exact match with tema
-    let match = courseTopics.find(
-      (topic) =>
+    let match = allCourseTopics.find(
+      (topic: CourseTopic) =>
         osi.tema && topic.name.toLowerCase().includes(osi.tema!.toLowerCase()),
     );
 
     // If no exact match, try with detalle_capacitacion
     if (!match && osi.detalle_capacitacion) {
-      match = courseTopics.find(
-        (topic) =>
+      match = allCourseTopics.find(
+        (topic: CourseTopic) =>
           topic.name
             .toLowerCase()
             .includes(osi.detalle_capacitacion!.toLowerCase()) ||
@@ -128,8 +131,8 @@ export default function GeneracionCertificadoPage() {
 
     // If still no match, try with detalle_sesion
     if (!match && osi.detalle_sesion) {
-      match = courseTopics.find(
-        (topic) =>
+      match = allCourseTopics.find(
+        (topic: CourseTopic) =>
           topic.name
             .toLowerCase()
             .includes(osi.detalle_sesion!.toLowerCase()) ||
@@ -147,10 +150,30 @@ export default function GeneracionCertificadoPage() {
     field: keyof CertificateGeneration,
     value: any,
   ) => {
-    setCertificateData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    if (field === 'course_topic_id') {
+      // Find the selected course topic and populate course content
+      const selectedTopic = allCourseTopics.find(topic => topic.id === value);
+      if (selectedTopic) {
+        setCertificateData((prev) => ({
+          ...prev,
+          [field]: value,
+          course_content: selectedTopic.contenido_curso || '',
+        }));
+        setSelectedCourseTopic(selectedTopic);
+      } else {
+        setCertificateData((prev) => ({
+          ...prev,
+          [field]: value,
+          course_content: '',
+        }));
+        setSelectedCourseTopic(null);
+      }
+    } else {
+      setCertificateData((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+    }
   };
 
   const handleParticipantsChange = (participants: CertificateParticipant[]) => {
@@ -232,6 +255,7 @@ export default function GeneracionCertificadoPage() {
           certificateData={certificateData}
           selectedOSI={selectedOSI}
           selectedCourseTopic={selectedCourseTopic}
+          courseTopics={filteredCourseTopics}
           onDataChange={handleCertificateDataChange}
           onParticipantsChange={handleParticipantsChange}
           onGenerate={handleGenerateCertificate}
