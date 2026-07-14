@@ -16,7 +16,7 @@ const getPlantillaCursos = cache(async (page: number = 1, limit: number = 10, se
         *,
         cursos(id, nombre),
         empresas(id, razon_social)
-      `)
+      `, { count: 'exact' })
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 

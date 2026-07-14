@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ParticipanteCertificado, ParticipantFormData, ParticipantsClientProps } from "@/types";
-import { getParticipants, createParticipant, updateParticipant, deleteParticipant } from "@/app/actions/participants";
+import { getParticipantsPaginated, createParticipant, updateParticipant, deleteParticipant } from "@/app/actions/participants";
 import { Button } from "@/components/ui/button";
 import ErrorDialog from "@/components/ui/error-dialog";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Plus, Edit, Trash2, Search, X } from "lucide-react";
 
-export function ParticipantsClient({ user, initialParticipants }: ParticipantsClientProps & { initialParticipants: ParticipanteCertificado[] }) {
+const ITEMS_PER_PAGE = 20;
+
+export function ParticipantsClient({ user, initialParticipants, initialTotal }: ParticipantsClientProps & { initialParticipants: ParticipanteCertificado[]; initialTotal: number }) {
   const [participants, setParticipants] = useState<ParticipanteCertificado[]>(initialParticipants);
+  const [total, setTotal] = useState(initialTotal);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -24,12 +28,36 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
     isOpen: false,
     message: ""
   });
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filteredParticipants = participants.filter(participant =>
-    participant.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    participant.cedula.includes(searchTerm) ||
-    participant.nacionalidad.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+
+  const loadParticipants = async (page: number, search: string) => {
+    setIsLoading(true);
+    try {
+      const result = await getParticipantsPaginated(page, ITEMS_PER_PAGE, search);
+      if (result.participants) {
+        setParticipants(result.participants);
+        setTotal(result.total);
+      }
+    } catch (err) {
+      setError({ isOpen: true, message: "Error al cargar participantes" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    searchDebounce.current = setTimeout(() => loadParticipants(1, value), 350);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    loadParticipants(page, searchTerm);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,17 +66,18 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
     try {
       if (editingParticipant) {
         const result = await updateParticipant(editingParticipant.id, formData);
-        if (result.success && result.data) {
-          setParticipants(prev => prev.map(p => p.id === result.data!.id ? result.data! : p));
+        if (result.success) {
           resetForm();
+          loadParticipants(currentPage, searchTerm);
         } else {
           setError({ isOpen: true, message: result.error || "Error al actualizar participante" });
         }
       } else {
         const result = await createParticipant(formData);
-        if (result.success && result.data) {
-          setParticipants(prev => [result.data!, ...prev]);
+        if (result.success) {
           resetForm();
+          loadParticipants(1, searchTerm);
+          setCurrentPage(1);
         } else {
           setError({ isOpen: true, message: result.error || "Error al crear participante" });
         }
@@ -80,7 +109,9 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
         try {
           const result = await deleteParticipant(id);
           if (result.success) {
-            setParticipants(prev => prev.filter(p => p.id !== id));
+            const newPage = participants.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+            setCurrentPage(newPage);
+            loadParticipants(newPage, searchTerm);
           } else {
             setError({ isOpen: true, message: result.error || "Error al eliminar participante" });
           }
@@ -118,9 +149,9 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
-            placeholder="Buscar por nombre, cédula o nacionalidad..."
+            placeholder="Buscar por nombre o cédula..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
@@ -226,14 +257,18 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredParticipants.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">Cargando...</td>
+                </tr>
+              ) : participants.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
                     {searchTerm ? "No se encontraron participantes que coincidan con la búsqueda." : "No hay participantes registrados."}
                   </td>
                 </tr>
               ) : (
-                filteredParticipants.map((participant) => (
+                participants.map((participant) => (
                   <tr key={participant.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {participant.nombre}
@@ -273,6 +308,24 @@ export function ParticipantsClient({ user, initialParticipants }: ParticipantsCl
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 px-2">
+          <span className="text-sm text-gray-500">
+            Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, total)} de {total} participantes
+          </span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1 || isLoading}>
+              Anterior
+            </Button>
+            <span className="px-3 py-1 text-sm text-gray-700">Página {currentPage} de {totalPages}</span>
+            <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages || isLoading}>
+              Siguiente
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Error Dialog */}
       <ErrorDialog

@@ -1,5 +1,6 @@
 import { PlantillaCurso } from "./types";
 import { Pagination } from "./Pagination";
+import { Button } from "@/components/ui/button";
 
 interface PlantillaCursoListProps {
   plantillas: PlantillaCurso[];
@@ -33,9 +34,9 @@ export function PlantillaCursoList({
   };
 
   return (
-    <div className="bg-white shadow rounded-lg">
+    <div className="bg-white rounded-lg shadow overflow-hidden">
       {/* Search Bar */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="px-6 py-4 border-b border-gray-200">
         <div className="max-w-md">
           <input
             type="text"
@@ -48,7 +49,7 @@ export function PlantillaCursoList({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto w-full">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -118,18 +119,22 @@ export function PlantillaCursoList({
                     }
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => onEdit(plantilla)}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => onDelete(plantilla.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Eliminar
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEdit(plantilla)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => onDelete(plantilla.id)}
+                      >
+                        Eliminar
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))

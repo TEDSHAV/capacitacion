@@ -15,11 +15,16 @@ const MAX_Y = FOOTER_Y - 6;           // ~261 mm — hard stop before footer (fa
 let actualFooterH = FOOTER_H;         // Will be set dynamically based on image aspect ratio
 let actualMaxY = MAX_Y;               // Will be set dynamically
 
+const _imageCache = new Map<string, string>();
+
 export class TemplateBasedPdfGenerator {
   private getImageBase64(filename: string): string {
+    if (_imageCache.has(filename)) return _imageCache.get(filename)!;
     try {
       const imgPath = path.join(process.cwd(), 'public', filename);
-      return `data:image/png;base64,${fs.readFileSync(imgPath).toString('base64')}`;
+      const result = `data:image/png;base64,${fs.readFileSync(imgPath).toString('base64')}`;
+      _imageCache.set(filename, result);
+      return result;
     } catch (error) {
       console.error(`❌ Failed to load ${filename}:`, error);
       return '';

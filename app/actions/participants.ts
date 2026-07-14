@@ -3,6 +3,40 @@
 import { createClient } from '@/utils/supabase/server';
 import { ParticipanteCertificado, ParticipantFormData } from '@/types';
 
+export async function getParticipantsPaginated(
+  page: number = 1,
+  limit: number = 20,
+  search: string = ""
+): Promise<{ participants: ParticipanteCertificado[] | null; total: number; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from("participantes_certificados")
+      .select("*", { count: 'exact' })
+      .eq("is_active", true)
+      .order("nombre", { ascending: true });
+
+    if (search.trim()) {
+      query = query.or(`nombre.ilike.%${search}%,cedula.ilike.%${search}%`);
+    }
+
+    const { data, error, count } = await query.range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    return { participants: data || [], total: count || 0 };
+  } catch (error) {
+    console.error("Error en participantes:", error);
+    return {
+      participants: null,
+      total: 0,
+      error: error instanceof Error ? error.message : 'Error al cargar los participantes.'
+    };
+  }
+}
+
 export async function getParticipants(): Promise<{ participants: ParticipanteCertificado[] | null; error?: string }> {
   try {
     const supabase = await createClient();

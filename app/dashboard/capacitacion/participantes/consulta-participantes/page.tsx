@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Search, User, Award, Clock, Building, BookOpen, Download, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -10,10 +10,22 @@ import {
 } from '@/types';
 
 export default function ParticipantLookup() {
+  const CERTS_PER_PAGE = 5;
   const [searchId, setSearchId] = useState('');
   const [loading, setLoading] = useState(false);
   const [participantData, setParticipantData] = useState<ParticipantLookupResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [certPage, setCertPage] = useState(1);
+
+  const paginatedCerts = useMemo(() => {
+    if (!participantData) return [];
+    const start = (certPage - 1) * CERTS_PER_PAGE;
+    return participantData.certificates.slice(start, start + CERTS_PER_PAGE);
+  }, [participantData, certPage]);
+
+  const totalCertPages = participantData
+    ? Math.ceil(participantData.certificates.length / CERTS_PER_PAGE)
+    : 0;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9]/g, ''); // Only allow numbers
@@ -45,6 +57,7 @@ export default function ParticipantLookup() {
 
       const data = await response.json();
       setParticipantData(data);
+      setCertPage(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch participant data');
     } finally {
@@ -207,12 +220,20 @@ export default function ParticipantLookup() {
 
           {/* Certificates List */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Historial de Certificados</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Historial de Certificados</h2>
+              {participantData.certificates.length > 0 && (
+                <span className="text-sm text-gray-500">
+                  {participantData.certificates.length} certificado{participantData.certificates.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
             {participantData.certificates.length === 0 ? (
               <p className="text-gray-500">No se encontraron certificados para este participante.</p>
             ) : (
+              <>
               <div className="space-y-4">
-                {participantData.certificates.map((certificate: ParticipantCertificate) => (
+                {paginatedCerts.map((certificate: ParticipantCertificate) => (
                   <div key={certificate.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -298,6 +319,32 @@ export default function ParticipantLookup() {
                   </div>
                 ))}
               </div>
+              {totalCertPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                  <span className="text-sm text-gray-500">
+                    Página {certPage} de {totalCertPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCertPage(p => Math.max(1, p - 1))}
+                      disabled={certPage === 1}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCertPage(p => Math.min(totalCertPages, p + 1))}
+                      disabled={certPage === totalCertPages}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+              )}
+              </>
             )}
           </div>
         </div>

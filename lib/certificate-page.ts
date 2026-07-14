@@ -6,6 +6,8 @@ import { TextRenderer } from "./text-renderer";
 import { certificateService } from "./certificate-service";
 import { QRService } from "./qr-service";
 
+const _serverTemplateCache = new Map<string, string>();
+
 export class CertificatePage {
   private doc: jsPDF;
   private textRenderer: TextRenderer;
@@ -59,9 +61,15 @@ export class CertificatePage {
         
         // Check if file exists
         if (fs.existsSync(imagePath)) {
-          // Read file as base64
-          const imageBuffer = fs.readFileSync(imagePath);
-          const base64Image = imageBuffer.toString('base64');
+          // Read file as base64 — cache to avoid repeated disk reads
+          let base64Image: string;
+          if (_serverTemplateCache.has(imagePath)) {
+            base64Image = _serverTemplateCache.get(imagePath)!;
+          } else {
+            const imageBuffer = await fs.promises.readFile(imagePath);
+            base64Image = imageBuffer.toString('base64');
+            _serverTemplateCache.set(imagePath, base64Image);
+          }
           
           const upperHalfHeight = this.pageHeight / 2;
           const margin = 10;

@@ -90,65 +90,61 @@ export async function saveCertificatesToDatabase(
 
 
 
-    // Fetch facilitator data if not available but facilitator_id is provided
+    // Fetch facilitator and SHA signature in parallel — they are independent
 
     let updatedCertificateData = { ...certificateData };
 
+    const fetchTasks: Promise<void>[] = [];
+
     if (certificateData.facilitator_id && !certificateData.facilitator_data) {
 
-      try {
+      fetchTasks.push(
 
-        console.log('Fetching facilitator data for certificate generation...');
+        (async () => {
 
-        const { getFacilitatorData } = await import('./facilitators');
+          const { getFacilitatorData } = await import('./facilitators');
 
-        const facilitatorData = await getFacilitatorData(certificateData.facilitator_id);
+          const facilitatorData = await getFacilitatorData(certificateData.facilitator_id!);
 
-        if (facilitatorData) {
+          if (facilitatorData) {
 
-          updatedCertificateData.facilitator_data = facilitatorData;
+            updatedCertificateData.facilitator_data = facilitatorData;
 
-          console.log('Successfully fetched facilitator data:', facilitatorData.name);
+            console.log('Successfully fetched facilitator data:', facilitatorData.name);
 
-        }
+          }
 
-      } catch (error) {
+        })().catch(e => { console.warn('Failed to fetch facilitator data:', e); })
 
-        console.warn('Failed to fetch facilitator data:', error);
-
-      }
+      );
 
     }
-
-
-
-    // Fetch SHA signature data if not available but sha_signature_id is provided
 
     if (certificateData.sha_signature_id && !certificateData.sha_signature_data) {
 
-      try {
+      fetchTasks.push(
 
-        console.log('Fetching SHA signature data for certificate generation...');
+        (async () => {
 
-        const { certificateService } = await import('@/lib/certificate-service');
+          const { certificateService } = await import('@/lib/certificate-service');
 
-        const shaSignatureData = await certificateService.getSignatureData(certificateData.sha_signature_id);
+          const shaSignatureData = await certificateService.getSignatureData(certificateData.sha_signature_id!);
 
-        if (shaSignatureData) {
+          if (shaSignatureData) {
 
-          updatedCertificateData.sha_signature_data = shaSignatureData;
+            updatedCertificateData.sha_signature_data = shaSignatureData;
 
-          console.log('Successfully fetched SHA signature data:', shaSignatureData.nombre);
+            console.log('Successfully fetched SHA signature data:', shaSignatureData.nombre);
 
-        }
+          }
 
-      } catch (error) {
+        })().catch(e => { console.warn('Failed to fetch SHA signature data:', e); })
 
-        console.warn('Failed to fetch SHA signature data:', error);
-
-      }
+      );
 
     }
+
+    if (fetchTasks.length > 0) await Promise.all(fetchTasks);
 
 
 

@@ -1,4 +1,4 @@
-import { getParticipants } from "@/app/actions/participants";
+import { getParticipantsPaginated } from "@/app/actions/participants";
 import { ParticipantsClient } from "./ParticipantsClient";
 import { createClient } from "@/utils/supabase/server";
 
@@ -6,7 +6,7 @@ export default async function ParticipantesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
-  const { participants, error } = await getParticipants();
+  const { participants, total, error } = await getParticipantsPaginated(1, 20, "");
 
   if (error) {
     return (
@@ -23,6 +23,7 @@ export default async function ParticipantesPage() {
     <ParticipantsClient 
       user={user} 
       initialParticipants={participants || []}
+      initialTotal={total}
     />
   );
 }

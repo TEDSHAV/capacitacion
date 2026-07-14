@@ -90,44 +90,40 @@ export async function GET(
       id_plantilla_certificado: snapshotData.plantilla?.id_plantilla_certificado || null
     };
 
-    // Fetch SHA signature data only if not already present in snapshot
-    if (certificateData.sha_signature_id && !(certificateData as any).sha_signature_data) {
-      try {
-        const shaSignatureData = await getSignatureDataServer(certificateData.sha_signature_id);
-        if (shaSignatureData) {
-          (certificateData as any).sha_signature_data = shaSignatureData;
-        }
-      } catch (error) {
-        console.warn('Failed to fetch SHA signature data for PDF generation:', error);
-      }
+    // Fetch sha signature, facilitator and template in parallel — they are independent
+    const [shaSignatureData, facilitatorRaw, templateData] = await Promise.all([
+      (certificateData.sha_signature_id && !(certificateData as any).sha_signature_data)
+        ? getSignatureDataServer(certificateData.sha_signature_id).catch(e => { console.warn('Failed to fetch SHA signature data for PDF generation:', e); return null; })
+        : Promise.resolve(null),
+      (certificateData.facilitator_id && !certificateData.facilitator_data)
+        ? getFacilitatorDataServer(certificateData.facilitator_id).catch(e => { console.warn('Failed to fetch facilitator data for PDF generation:', e); return null; })
+        : Promise.resolve(null),
+      certificateData.id_plantilla_certificado
+        ? getCertificateTemplateServer(certificateData.id_plantilla_certificado).catch(e => { console.warn('Failed to fetch certificate template, using default:', e); return null; })
+        : Promise.resolve(null),
+    ]);
+
+    if (shaSignatureData) {
+      (certificateData as any).sha_signature_data = shaSignatureData;
     }
 
-    // Fetch facilitator data if ID is available and not already in data
-    if (certificateData.facilitator_id && !certificateData.facilitator_data) {
-      try {
-        const facilitatorData = await getFacilitatorDataServer(certificateData.facilitator_id);
-        if (facilitatorData) {
-          // Transform to match expected CertificateFacilitator interface
-          (certificateData as any).facilitator_data = {
-            id: facilitatorData.id,
-            name: facilitatorData.nombre_apellido, // Map nombre_apellido to name
-            nombre_apellido: facilitatorData.nombre_apellido,
-            facilitator: facilitatorData.nombre_apellido,
-            cargo: 'Facilitador',
-            firma: facilitatorData.firmas?.url_imagen,
-            firma_id: facilitatorData.firma_id,
-            sha_signature_id: facilitatorData.firma_id?.toString(),
-            signature_data: facilitatorData.firmas ? {
-              id: facilitatorData.firmas.id,
-              representante_sha: facilitatorData.firmas.nombre,
-              firma: facilitatorData.firmas.url_imagen,
-              url_imagen: facilitatorData.firmas.url_imagen,
-            } : undefined,
-          };
-        }
-      } catch (error) {
-        console.warn('Failed to fetch facilitator data for PDF generation:', error);
-      }
+    if (facilitatorRaw) {
+      (certificateData as any).facilitator_data = {
+        id: facilitatorRaw.id,
+        name: facilitatorRaw.nombre_apellido,
+        nombre_apellido: facilitatorRaw.nombre_apellido,
+        facilitator: facilitatorRaw.nombre_apellido,
+        cargo: 'Facilitador',
+        firma: facilitatorRaw.firmas?.url_imagen,
+        firma_id: facilitatorRaw.firma_id,
+        sha_signature_id: facilitatorRaw.firma_id?.toString(),
+        signature_data: facilitatorRaw.firmas ? {
+          id: facilitatorRaw.firmas.id,
+          representante_sha: facilitatorRaw.firmas.nombre,
+          firma: facilitatorRaw.firmas.url_imagen,
+          url_imagen: facilitatorRaw.firmas.url_imagen,
+        } : undefined,
+      };
     }
 
     // Validate reconstructed data
@@ -140,24 +136,10 @@ export async function GET(
 
     const participant = certificateData.participants[0];
 
-    // Get template image
-    let templateImage = '';
-    
-    if (certificateData.id_plantilla_certificado) {
-      try {
-        const template = await getCertificateTemplateServer(certificateData.id_plantilla_certificado);
-        
-        if (template?.archivo) {
-          templateImage = template.archivo.startsWith('/') ? template.archivo : `/templates/${template.archivo}`;
-        } else {
-          templateImage = '/templates/certificado.png';
-        }
-      } catch (error) {
-        console.warn('Failed to fetch certificate template, using default:', error);
-        templateImage = '/templates/certificado.png';
-      }
-    } else {
-      templateImage = '/templates/certificado.png';
+    // Resolve template path from parallel fetch result
+    let templateImage = '/templates/certificado.png';
+    if (templateData?.archivo) {
+      templateImage = templateData.archivo.startsWith('/') ? templateData.archivo : `/templates/${templateData.archivo}`;
     }
 
     // Get seal image
