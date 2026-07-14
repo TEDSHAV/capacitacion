@@ -66,22 +66,22 @@ export default function OSITableV2({
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 OSI
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Empresa
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Servicio
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Estado
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Fecha Servicio
+              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Fecha
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider w-24">
                 Acciones
               </th>
             </tr>
@@ -93,39 +93,39 @@ export default function OSITableV2({
                 className="hover:bg-blue-50 transition-colors cursor-pointer group"
                 onClick={() => onViewDetails(osi)}
               >
-                <td className="px-4 py-4 whitespace-nowrap">
+                <td className="px-3 py-4">
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-600">
                       {osi.nro_osi}
                     </span>
                     {osi.nro_presupuesto && (
-                      <span className="text-xs text-gray-500">
-                        Presupuesto: {osi.nro_presupuesto}
+                      <span className="text-[10px] text-gray-500">
+                        {osi.nro_presupuesto}
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap">
+                <td className="px-3 py-4">
                   <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <span className="text-sm text-gray-900 max-w-xs truncate">
+                    <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                    <span className="text-sm text-gray-900 max-w-[150px] truncate">
                       {osi.nombre_empresa}
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-3 py-4">
                   <div className="flex flex-col">
-                    <span className="text-sm text-gray-900 max-w-xs truncate font-medium">
+                    <span className="text-sm text-gray-900 max-w-[180px] truncate font-medium">
                       {osi.servicio}
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-[10px] text-gray-500 truncate max-w-[180px]">
                       {osi.tipo_servicio}
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap">
+                <td className="px-3 py-4 whitespace-nowrap">
                   <span
-                    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border"
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border"
                     style={{
                       backgroundColor: `${osi.status_color || "#6B7280"}15`,
                       color: osi.status_color || "#6B7280",
@@ -135,33 +135,33 @@ export default function OSITableV2({
                     {osi.status_name || "Desconocido"}
                   </span>
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <td className="px-3 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-700">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                     <span>{formatDate(osi.fecha_inicio_real)}</span>
                   </div>
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap text-right">
-                  <div className="flex justify-end gap-2">
+                <td className="px-3 py-4 whitespace-nowrap text-right">
+                  <div className="flex justify-end gap-1.5">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onSurvey(osi);
                       }}
-                      className="inline-flex items-center p-2 border border-green-600 text-green-600 hover:bg-green-600 hover:text-white rounded-md transition-colors shadow-sm"
+                      className="inline-flex items-center p-1.5 border border-green-600 text-green-600 hover:bg-green-600 hover:text-white rounded-md transition-colors shadow-sm"
                       title="Generar/Ver Encuesta de Satisfacción"
                     >
-                      <ClipboardList className="w-4 h-4" />
+                      <ClipboardList className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onViewDetails(osi, "documents");
                       }}
-                      className="inline-flex items-center p-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-md transition-colors shadow-sm"
+                      className="inline-flex items-center p-1.5 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-md transition-colors shadow-sm"
                       title="Ver documentos generados"
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </td>

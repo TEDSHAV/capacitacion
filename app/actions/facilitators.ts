@@ -232,3 +232,123 @@ export async function getCertificateTemplate(
     return null;
   }
 }
+
+/**
+ * Get aggregated ratings for facilitators based on participant surveys
+ */
+export async function getFacilitatorRatings() {
+  try {
+    const supabase = await createClient();
+
+    // 1. Get all surveys
+    const { data: surveys, error: surveyError } = await supabase
+      .from("course_satisfaction_surveys")
+      .select("id_osi, q1, q2, q3, q4, q5");
+
+    if (surveyError) throw surveyError;
+    if (!surveys || surveys.length === 0) return { ratings: {} };
+
+    // 2. Get OSI to Facilitator mapping from both control_servicios_ejecutados and certificados
+    const [mappingRes, certsRes] = await Promise.all([
+      supabase
+        .from("control_servicios_ejecutados")
+        .select("id_osi, cod_facilitador")
+        .not("id_osi", "is", null)
+        .not("cod_facilitador", "is", null),
+      supabase
+        .from("certificados")
+        .select("id_facilitador, nro_osi, snapshot_contenido")
+        .not("id_facilitador", "is", null)
+    ]);
+
+    const { data: mapping, error: mappingError } = mappingRes;
+    const { data: certMapping, error: certError } = certsRes;
+
+    if (mappingError) console.error("[getFacilitatorRatings] Mapping error:", mappingError);
+    if (certError) console.error("[getFacilitatorRatings] Cert mapping error:", certError);
+
+    // Create a lookup map: OSI ID -> Facilitator ID
+    const osiToFacilitator = new Map<number, number>();
+
+    // Step 1: Map from control_servicios_ejecutados (Most direct)
+    mapping?.forEach((m) => {
+      if (m.id_osi && m.cod_facilitador) {
+        osiToFacilitator.set(m.id_osi, m.cod_facilitador);
+      }
+    });
+
+    // Step 2: Map from certificados (Fallback/Additional)
+    if (certMapping) {
+      // We also need a way to link nro_osi to id_osi if we only have nro_osi
+      const { data: osis } = await supabase
+        .from("v_osi_formato_completo")
+        .select("id_osi, nro_osi");
+      
+      const nroOsiToIdOsi = new Map<number, number>();
+      osis?.forEach(o => {
+        if (o.nro_osi) {
+          const numericPart = parseInt(o.nro_osi.replace(/[^\d]/g, ""));
+          if (!isNaN(numericPart)) {
+            nroOsiToIdOsi.set(numericPart, o.id_osi);
+          }
+        }
+      });
+
+      certMapping.forEach(cert => {
+        let osiId = null;
+
+        // Try getting it from numeric nro_osi column if it matches
+        if (cert.nro_osi) {
+          osiId = nroOsiToIdOsi.get(cert.nro_osi);
+        }
+
+        // Try getting it from snapshot_contenido if nro_osi failed
+        if (!osiId && cert.snapshot_contenido) {
+          try {
+            const snapshot = typeof cert.snapshot_contenido === 'string' 
+              ? JSON.parse(cert.snapshot_contenido) 
+              : cert.snapshot_contenido;
+            osiId = snapshot?.osi?.id || snapshot?.id_osi;
+          } catch (e) {}
+        }
+
+        if (osiId && cert.id_facilitador) {
+          osiToFacilitator.set(osiId, cert.id_facilitador);
+        }
+      });
+    }
+
+    // 3. Aggregate scores per facilitator
+    const facilitatorStats = new Map<
+      number,
+      { totalScore: number; count: number }
+    >();
+
+    surveys.forEach((survey) => {
+      const facilitatorId = osiToFacilitator.get(survey.id_osi);
+      if (facilitatorId) {
+        // Average of Q1 to Q5 for this specific survey response
+        const surveyAvg = (survey.q1 + survey.q2 + survey.q3 + survey.q4 + survey.q5) / 5;
+
+        if (!facilitatorStats.has(facilitatorId)) {
+          facilitatorStats.set(facilitatorId, { totalScore: 0, count: 0 });
+        }
+
+        const stats = facilitatorStats.get(facilitatorId)!;
+        stats.totalScore += surveyAvg;
+        stats.count += 1;
+      }
+    });
+
+    // 4. Calculate final average per facilitator
+    const ratings: Record<number, number> = {};
+    facilitatorStats.forEach((stats, facilitatorId) => {
+      ratings[facilitatorId] = parseFloat((stats.totalScore / stats.count).toFixed(1));
+    });
+
+    return { ratings };
+  } catch (err) {
+    console.error("Error calculating facilitator ratings:", err);
+    return { error: "Failed to load ratings", ratings: {} };
+  }
+}

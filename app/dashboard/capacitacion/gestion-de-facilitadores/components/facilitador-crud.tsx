@@ -5,9 +5,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Facilitador, State } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, Check } from "lucide-react";
+import { Edit, Trash2, Check, Star, StarHalf } from "lucide-react";
 import { toTitleCase } from "@/utils/string-utils";
 import { createClient } from "@/utils/supabase/client";
+import { getFacilitatorRatings } from "@/app/actions/facilitators";
 
 interface FacilitadorCrudProps {
   onFacilitadorSaved?: () => void;
@@ -23,6 +24,7 @@ export const FacilitadorCrud = ({
   const router = useRouter();
   const [facilitadores, setFacilitadores] = useState<Facilitador[]>([]);
   const [states, setStates] = useState<State[]>([]);
+  const [ratings, setRatings] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [loadingStates, setLoadingStates] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -48,6 +50,21 @@ export const FacilitadorCrud = ({
     }
   };
 
+  // Load ratings
+  const loadRatings = async () => {
+    try {
+      const { ratings: ratingsData, error } = await getFacilitatorRatings();
+      if (error) {
+        console.error("FacilitadorCrud: Error from getFacilitatorRatings:", error);
+      }
+      if (ratingsData) {
+        setRatings(ratingsData);
+      }
+    } catch (error) {
+      console.error("FacilitadorCrud: Exception loading ratings:", error);
+    }
+  };
+
   // Load states
   const loadStates = async () => {
     try {
@@ -64,9 +81,49 @@ export const FacilitadorCrud = ({
   };
 
   useEffect(() => {
-    loadFacilitadores();
-    loadStates();
+    const loadAllData = async () => {
+      setLoading(true);
+      await Promise.all([
+        loadFacilitadores(),
+        loadStates(),
+        loadRatings()
+      ]);
+      setLoading(false);
+    };
+    
+    loadAllData();
   }, []);
+
+  // Update ratings whenever facilitators are reloaded
+  useEffect(() => {
+    if (facilitadores.length > 0) {
+      loadRatings();
+    }
+  }, [facilitadores.length]);
+
+  // Helper function to get stars based on rating
+  const renderStars = (rating: number | undefined) => {
+    if (rating === undefined || rating === 0) {
+      return <span className="text-gray-400 text-xs italic">Sin datos</span>;
+    }
+
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+    return (
+      <div className="flex items-center gap-0.5" title={`Rating: ${rating}/5`}>
+        {[...Array(fullStars)].map((_, i) => (
+          <Star key={`full-${i}`} className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+        ))}
+        {hasHalfStar && <StarHalf className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />}
+        {[...Array(emptyStars)].map((_, i) => (
+          <Star key={`empty-${i}`} className="w-3.5 h-3.5 text-gray-300" />
+        ))}
+        <span className="ml-1 text-xs font-bold text-gray-600">{rating}</span>
+      </div>
+    );
+  };
 
   // Helper function to get state name by ID
   const getStateName = (stateId: number | string | null) => {
@@ -203,10 +260,6 @@ export const FacilitadorCrud = ({
       ),
   );
 
-  useEffect(() => {
-    loadFacilitadores();
-  }, []);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -246,6 +299,9 @@ export const FacilitadorCrud = ({
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Email
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Rating
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Cédula
@@ -303,6 +359,9 @@ export const FacilitadorCrud = ({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {facilitador.email}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  {renderStars(ratings[facilitador.id])}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {facilitador.cedula}
@@ -427,6 +486,14 @@ export const FacilitadorCrud = ({
                   <p className="text-sm text-gray-900">
                     {selectedFacilitador.cedula || "N/A"}
                   </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Rating (Promedio de Encuestas)
+                  </label>
+                  <div className="mt-1">
+                    {renderStars(ratings[selectedFacilitador.id])}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
