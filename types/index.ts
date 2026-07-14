@@ -12,6 +12,45 @@ export interface Empresa {
 // Alias for Empresa for consistency
 export type Company = Empresa;
 
+// Document generation types
+export interface TemplateParticipant {
+  index: number;
+  nombre_apellido: string;
+  cedula: string;
+  puntuacion?: string;
+  condicion?: string;
+  numero_control: string;
+}
+
+export interface TemplateData {
+  fecha: string;
+  nombre_cliente: string;
+  titulo_curso: string;
+  ciudad: string;
+  dia: string;
+  mes: string;
+  anio: string;
+  nro_osi: string;
+  nombre_firmante: string;
+  cargo_firmante: string;
+  nombre_recibido?: string;
+  cargo_recibido?: string;
+  localidad?: string;
+  localidad_cliente?: string;
+  fecha_ejecucion?: string;
+  participantes: TemplateParticipant[];
+}
+
+export interface DocumentGenerationOptions {
+  includeCertificacionCompetencias?: boolean;
+  includeNotaEntrega?: boolean;
+  includeValidacionDatos?: boolean;
+  recibidoData?: {
+    nombre: string;
+    cargo: string;
+  };
+}
+
 export interface Curso {
   id: number;
   nombre: string;
@@ -243,6 +282,7 @@ export interface CertificateGeneration {
   id_estado?: number; // Venezuelan state ID for certificate record
   id_plantilla_certificado?: number; // Certificate template ID
   id_plantilla_carnet?: number; // Carne template ID
+  generate_documents?: boolean; // Whether to generate additional documents
 }
 
 export interface CertificateParticipant {

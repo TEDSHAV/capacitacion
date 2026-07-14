@@ -570,6 +570,24 @@ export const CertificateForm = ({
         passing_grade={certificateData.passing_grade}
       />
 
+      {/* Document Generation Options */}
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+        <h4 className="text-sm font-medium text-blue-900 mb-2">Opciones de Documentos Adicionales</h4>
+        <div className="space-y-2">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={certificateData.generate_documents || false}
+              onChange={(e) => onDataChange("generate_documents", e.target.checked)}
+              className="rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="ml-2 text-sm text-blue-800">
+              Generar documentos adicionales (Certificación de Competencias, Nota de Entrega, Validación de Datos)
+            </span>
+          </label>
+        </div>
+      </div>
+
       {/* Action Buttons */}
       <div className="flex space-x-3 mb-4">
         {/* Preview Button */}

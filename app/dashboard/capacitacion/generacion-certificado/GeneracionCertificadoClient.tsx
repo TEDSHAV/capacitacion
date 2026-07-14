@@ -14,6 +14,8 @@ import { CarnetDebug } from '@/components/carnets/carnet-debug';
 import { saveCertificatesToDatabase } from '@/app/actions/certificados';
 import { getCarnetTemplatesAction } from '@/app/actions/dropdown-data';
 import { QRService } from '@/lib/qr-service';
+import { generateDocumentsServer } from '@/lib/document-server-actions';
+import { getDocumentFileName, getDefaultFirmante } from '@/lib/document-client-utils';
 
 interface GeneracionCertificadoClientProps {
   user: any;
@@ -48,6 +50,7 @@ export default function GeneracionCertificadoClient({
     fecha_vencimiento: undefined,
     id_estado: undefined,
     id_plantilla_certificado: undefined,
+    generate_documents: true, // Default to true for convenience
   });
 
   // Use initial data from server component
@@ -372,7 +375,88 @@ export default function GeneracionCertificadoClient({
         console.log('ℹ️ Course does not emit carnets, skipping carnet generation');
       }
 
-      const successMessage = `Se generaron y guardaron ${certificates.length} certificados${carnetsGenerated > 0 ? ` y ${carnetsGenerated} carnets` : ''} exitosamente!`;
+      // Generate and download additional documents
+      let documentsGenerated = 0;
+      if (certificateData.generate_documents) {
+        try {
+          console.log('📄 Generating additional documents...');
+          
+          // Prepare certificate data for document generation
+          const certificateRecords = certificates.map(({ participant }) => ({
+            participant_name: participant.name,
+            participant_id_number: participant.id_number,
+            course_title: certificateData.certificate_title,
+            company_name: selectedOSI?.cliente_nombre_empresa || '',
+            osi_number: selectedOSI?.nro_osi || '',
+            city: certificateData.location || 'Puerto La Cruz',
+            location: certificateData.location || '',
+            execution_address: selectedOSI?.direccion_ejecucion || '',
+            execution_date: selectedOSI?.fecha_ejecucion1 || certificateData.date,
+            score: participant.score || 14,
+            control_number: '', // This would come from database if needed
+          }));
+
+          // Call server action for document generation
+          const result = await generateDocumentsServer({
+            certificates: certificateRecords,
+            osiData: selectedOSI || {},
+            firmanteData: {
+              nombre: 'DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.',
+              cargo: 'Jefe de Capacitación'
+            },
+            options: {
+              includeCertificacionCompetencias: true,
+              includeNotaEntrega: true,
+              includeValidacionDatos: true,
+            }
+          });
+
+          if (result.success && result.documents) {
+            // Download all generated documents
+            for (const [docType, base64String] of Object.entries(result.documents)) {
+              const filename = getDocumentFileName(docType, selectedOSI?.nro_osi);
+              
+              // Convert Base64 string back to Buffer
+              const binaryString = atob(base64String);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              const buffer = Buffer.from(bytes);
+              
+              const blob = new Blob([buffer], { 
+                type: docType.includes('pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+              });
+              
+              const url = window.URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = filename;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              window.URL.revokeObjectURL(url);
+              
+              console.log(`⬇️ Downloaded document: ${filename}`);
+            }
+
+            documentsGenerated = Object.keys(result.documents).length;
+            console.log(`📄 Successfully generated ${documentsGenerated} additional documents`);
+          } else {
+            console.error('❌ Server-side document generation failed:', result.error);
+          }
+          
+        } catch (error) {
+          console.error('💥 Error generating additional documents:', error);
+          // Don't show alert for document errors since certificates/carnets were generated successfully
+          console.log('ℹ️ Certificates and carnets were generated successfully, but additional documents failed');
+        }
+      } else {
+        console.log('ℹ️ Document generation disabled by user');
+      }
+
+      const documentText = documentsGenerated > 0 ? ` y ${documentsGenerated} documentos adicionales` : '';
+      const successMessage = `Se generaron y guardaron ${certificates.length} certificados${carnetsGenerated > 0 ? ` y ${carnetsGenerated} carnets` : ''}${documentText} exitosamente!`;
       alert(successMessage);
 
       // Reset form
@@ -394,6 +478,7 @@ export default function GeneracionCertificadoClient({
         fecha_vencimiento: undefined,
         id_estado: undefined,
         id_plantilla_certificado: undefined,
+        generate_documents: true, // Reset to default
       });
       setSelectedOSI(null);
       setSelectedCourseTopic(null);
