@@ -177,10 +177,10 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
   const introContent = `
     <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha || "")}</div>
 
-    <div class="recipient">Sres. ${escapeHtml(data.nombre_cliente || "")}</div>
+    <div class="recipient"><strong>Sres. ${escapeHtml(data.nombre_cliente || "")}</strong></div>
 
     <div class="body-text">
-      SHA DE VENEZUELA, C.A. certifica las competencias de cada uno de los participantes descritos en el cuadro anexo, quienes asistieron al curso de ${escapeHtml(data.titulo_curso || "")}, realizado en ${escapeHtml(data.ciudad || "")} el ${escapeHtml(data.dia || "")} de ${escapeHtml(data.mes || "")} del ${escapeHtml(data.anio || "")} como parte del proceso de Capacitación bajo la Orden de Servicio Interna ${escapeHtml(data.nro_osi || "")}, en consideración de su desempeño y los resultados obtenidos en las evaluaciones efectuadas durante el mismo.
+      <strong>SHA DE VENEZUELA, C.A.</strong> certifica las competencias de cada uno de los participantes descritos en el cuadro anexo, quienes asistieron al curso de <strong>${escapeHtml(data.titulo_curso || "")}</strong>, realizado en <strong>${escapeHtml(data.ciudad || "")}</strong> el ${escapeHtml(data.dia || "")} de ${escapeHtml(data.mes || "")} del ${escapeHtml(data.anio || "")} como parte del proceso de Capacitación bajo la Orden de Servicio Interna <strong>${escapeHtml(data.nro_osi || "")}</strong>, en consideración de su desempeño y los resultados obtenidos en las evaluaciones efectuadas durante el mismo.
     </div>
 
     <div class="min-score">La nota mínima aprobatoria es de 14 puntos.</div>
@@ -551,10 +551,10 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
   const introContent = `
     <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha || "")}</div>
 
-    <div class="recipient">Sres. ${escapeHtml(data.nombre_cliente || "")}</div>
+    <div class="recipient"><strong>Sres. ${escapeHtml(data.nombre_cliente || "")}</strong></div>
 
     <div class="body-text">
-      Sirva la presente para hacer entrega de CERTIFICADOS correspondientes a la formación en materia de ${escapeHtml(data.titulo_curso || "")}, realizado en ${escapeHtml(data.ciudad || "")}, el día ${escapeHtml(data.dia || "")} de ${escapeHtml(data.mes || "")} del ${escapeHtml(data.anio || "")}, como parte del proceso de Capacitación bajo la Orden de Servicio Interna ${escapeHtml(data.nro_osi || "")}, siendo aprobados los siguientes participantes:
+      Sirva la presente para hacer entrega de CERTIFICADOS correspondientes a la formación en materia de <strong>${escapeHtml(data.titulo_curso || "")}</strong>, realizado en <strong>${escapeHtml(data.ciudad || "")}</strong>, el día ${escapeHtml(data.dia || "")} de ${escapeHtml(data.mes || "")} del ${escapeHtml(data.anio || "")}, como parte del proceso de Capacitación bajo la Orden de Servicio Interna <strong>${escapeHtml(data.nro_osi || "")}</strong>, siendo aprobados los siguientes participantes:
     </div>
   `;
 
@@ -947,13 +947,14 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     <div class="recipient">
       ${
         data.localidad_cliente
-          ? `Sres. ${escapeHtml(data.nombre_cliente || "")} – ${escapeHtml(data.localidad_cliente)}`
-          : `Sres. ${escapeHtml(data.nombre_cliente || "")}`
+          ? // ? `Sres. ${escapeHtml(data.nombre_cliente || "")} – ${escapeHtml(data.localidad_cliente)}`
+            `<strong>Sres. ${escapeHtml(data.nombre_cliente || "")}</strong>`
+          : `<strong>Sres. ${escapeHtml(data.nombre_cliente || "")}</strong>`
       }
     </div>
 
     <div class="body-text">
-      Sirva la presente para formalizar el proceso de Validación de Datos de los participantes que asistieron al curso de ${escapeHtml(data.titulo_curso || "")}, realizado en ${escapeHtml(data.ciudad || "")}, el (los) día (s) ${escapeHtml(data.fecha_ejecucion || data.fecha || "")}, como parte del proceso de Capacitación bajo la Orden de Servicio Interna ${escapeHtml(data.nro_osi || "")}. Recibir esta validación es indispensable para proceder a imprimir los certificados y carnet, según aplique. Este proceso es limitativo para la entrega formal y física de los mismos.
+      Sirva la presente para formalizar el proceso de Validación de Datos de los participantes que asistieron al curso de <strong>${escapeHtml(data.titulo_curso || "")}</strong>, realizado en <strong>${escapeHtml(data.ciudad || "")}</strong>, el (los) día (s) ${escapeHtml(data.fecha_ejecucion || data.fecha || "")}, como parte del proceso de Capacitación bajo la Orden de Servicio Interna <strong>${escapeHtml(data.nro_osi || "")}</strong>. Recibir esta validación es indispensable para proceder a imprimir los certificados y carnet, según aplique. Este proceso es limitativo para la entrega formal y física de los mismos.
     </div>
   `;
 
