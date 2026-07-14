@@ -22,9 +22,10 @@ import { OSIAttachment } from "@/types";
 interface PhysicalListUploadProps {
   osiId: number;
   facilitadorId: number;
+  onAttachmentCountChange?: (count: number) => void;
 }
 
-export const PhysicalListUpload = ({ osiId, facilitadorId }: PhysicalListUploadProps) => {
+export const PhysicalListUpload = ({ osiId, facilitadorId, onAttachmentCountChange }: PhysicalListUploadProps) => {
   const [attachments, setAttachments] = useState<OSIAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -35,9 +36,12 @@ export const PhysicalListUpload = ({ osiId, facilitadorId }: PhysicalListUploadP
     const result = await getOSIAttachments(osiId, facilitadorId);
     if (result.data) {
       setAttachments(result.data as OSIAttachment[]);
+      onAttachmentCountChange?.(result.data.length);
+    } else {
+      onAttachmentCountChange?.(0);
     }
     setLoading(false);
-  }, [osiId, facilitadorId]);
+  }, [osiId, facilitadorId, onAttachmentCountChange]);
 
   useEffect(() => {
     fetchAttachments();
@@ -77,19 +81,20 @@ export const PhysicalListUpload = ({ osiId, facilitadorId }: PhysicalListUploadP
   };
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl overflow-hidden mt-6 shadow-sm">
-      <div className="p-4 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
+    <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+      <div className="p-3 sm:p-4 bg-gray-50/50 border-b border-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
           <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
             <ImageIcon className="w-4 h-4 text-blue-600" />
-            Cargar Listas Físicas (Opcional)
+            Cargar Listas Físicas
+            <span className="text-[10px] font-bold uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded ml-1">Requerido</span>
           </h3>
           <p className="text-[10px] text-gray-500 mt-0.5">
-            Sube fotos o PDFs de las listas de asistencia firmadas.
+            Sube fotos o PDFs de las listas de asistencia firmadas. Este es el primer paso obligatorio.
           </p>
         </div>
         
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <input
             type="file"
             multiple
@@ -102,7 +107,7 @@ export const PhysicalListUpload = ({ osiId, facilitadorId }: PhysicalListUploadP
             variant="outline" 
             size="sm" 
             disabled={uploading}
-            className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50 h-8 text-xs"
+            className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50 h-8 text-xs w-full sm:w-auto"
           >
             {uploading ? (
               <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
@@ -114,7 +119,7 @@ export const PhysicalListUpload = ({ osiId, facilitadorId }: PhysicalListUploadP
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg flex items-start gap-2 text-red-700 text-[11px]">
             <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
@@ -137,7 +142,7 @@ export const PhysicalListUpload = ({ osiId, facilitadorId }: PhysicalListUploadP
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {attachments.map((att) => (
               <div 
                 key={att.id}
@@ -165,7 +170,7 @@ export const PhysicalListUpload = ({ osiId, facilitadorId }: PhysicalListUploadP
                 </div>
                 <button
                   onClick={() => handleDelete(att.id, att.storage_path)}
-                  className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                  className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

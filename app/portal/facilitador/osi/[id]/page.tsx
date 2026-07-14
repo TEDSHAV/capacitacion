@@ -49,7 +49,7 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <PortalNavbar title="Portal de Facilitadores" logoutAction={logoutFacilitator} loginPath="/portal/facilitador/login" />
-      <div className="max-w-5xl mx-auto py-10 px-4">
+      <div className="max-w-5xl mx-auto py-4 sm:py-10 px-4">
       <Link 
         href="/portal/facilitador/dashboard"
         className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 mb-8 group"
@@ -58,7 +58,7 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
         Volver al Dashboard
       </Link>
 
-      <header className="mb-10">
+      <header className="mb-6 sm:mb-10">
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <span className="text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-2 py-1 rounded">
             OSI #{osi.nro_osi}
@@ -67,10 +67,10 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
             {osi.servicio || "Servicio General"}
           </span>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">{osi.nombre_empresa}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{osi.nombre_empresa}</h1>
         <p className="text-gray-600 flex items-center gap-2">
           <Info className="w-4 h-4" />
-          Por favor, ingresa el listado de participantes y sus calificaciones finales.
+          Sube la foto de la lista de asistencia firmada.
         </p>
       </header>
 

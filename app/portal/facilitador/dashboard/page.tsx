@@ -24,10 +24,10 @@ export default async function FacilitadorDashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <PortalNavbar title="Portal de Facilitadores" logoutAction={logoutFacilitator} loginPath="/portal/facilitador/login" />
-      <div className="max-w-5xl mx-auto py-10 px-4">
-      <header className="mb-10">
+      <div className="max-w-5xl mx-auto py-4 sm:py-10 px-4">
+      <header className="mb-6 sm:mb-10">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Bienvenido, {toTitleCase(session.nombre)}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Bienvenido, {toTitleCase(session.nombre)}</h1>
           <p className="text-gray-600">Aquí puedes gestionar tus servicios asignados.</p>
         </div>
       </header>
@@ -44,11 +44,11 @@ export default async function FacilitadorDashboardPage() {
               <Link 
                 key={osi.id_osi} 
                 href={`/portal/facilitador/osi/${osi.id_osi}`}
-                className="block bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow group"
+                className="block bg-white border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-md transition-shadow group"
               >
-                <div className="flex justify-between items-start">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="space-y-3 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-2 py-1 rounded">
                         OSI #{osi.nro_osi}
                       </span>
@@ -57,7 +57,7 @@ export default async function FacilitadorDashboardPage() {
                       </span>
                     </div>
                     
-                    <h3 className="text-xl font-bold text-gray-900">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">
                       {osi.nombre_empresa}
                     </h3>
 
@@ -71,9 +71,24 @@ export default async function FacilitadorDashboardPage() {
                         <span>RIF: {osi.cliente_rif || 'N/A'}</span>
                       </div>
                     </div>
+
+                    {/* Status badge visible on mobile */}
+                    <div className="sm:hidden">
+                      {osi.participant_status === "final" ? (
+                        <div className="flex items-center gap-1 text-green-600 font-medium text-xs">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Listado Enviado</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-amber-600 font-medium text-xs">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Pendiente Datos</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 shrink-0">
                     <div className="text-right hidden sm:block">
                       <p className="text-xs text-gray-400 uppercase font-bold tracking-tight">Estado</p>
                       {osi.participant_status === "final" ? (
@@ -88,7 +103,7 @@ export default async function FacilitadorDashboardPage() {
                         </div>
                       )}
                     </div>
-                    <ChevronRight className="w-6 h-6 text-gray-300 group-hover:text-blue-600 transition-colors" />
+                    <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300 group-hover:text-blue-600 transition-colors" />
                   </div>
                 </div>
               </Link>

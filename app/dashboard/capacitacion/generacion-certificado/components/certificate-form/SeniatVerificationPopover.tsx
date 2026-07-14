@@ -108,8 +108,8 @@ export const SeniatVerificationPopover = ({
 
   return (
     <div className={useFixedPosition
-      ? "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[200] bg-white border border-gray-300 rounded-lg shadow-xl p-4 w-80 animate-in fade-in zoom-in duration-200"
-      : "absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[60] bg-white border border-gray-300 rounded-lg shadow-xl p-4 w-80 animate-in fade-in zoom-in duration-200"
+      ? "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[200] bg-white border border-gray-300 rounded-lg shadow-xl p-4 w-[90vw] sm:w-80 max-w-[320px] animate-in fade-in zoom-in duration-200"
+      : "absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-[60] bg-white border border-gray-300 rounded-lg shadow-xl p-4 w-[90vw] sm:w-80 max-w-[320px] animate-in fade-in zoom-in duration-200"
     }>
       <div className="flex justify-between items-center mb-3">
         <h4 className="text-sm font-bold text-gray-900">

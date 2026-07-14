@@ -241,16 +241,16 @@ export const ParticipantScannerModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-2 md:p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[1700px] h-[95vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-0 sm:p-2 md:p-4">
+      <div className="bg-white rounded-none sm:rounded-xl shadow-2xl w-full max-w-[1700px] h-[100vh] sm:h-[95vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
         {/* Header - Sticky */}
-        <div className="px-6 py-3 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <Camera className="h-5 w-5 text-white" />
+        <div className="px-3 sm:px-6 py-3 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="bg-blue-600 p-1.5 sm:p-2 rounded-lg">
+              <Camera className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900 leading-none">
+              <h2 className="text-base sm:text-xl font-bold text-gray-900 leading-none">
                 Escanear Lista de Participantes
               </h2>
             </div>
@@ -261,19 +261,19 @@ export const ParticipantScannerModal = ({
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
           >
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
           </Button>
         </div>
 
         {/* Modal Body - Flexible */}
         <div
-          className={`flex-1 flex flex-col min-h-0 ${!hasProcessed ? "overflow-y-auto p-8" : "p-4"} bg-gray-50/50`}
+          className={`flex-1 flex flex-col min-h-0 ${!hasProcessed ? "overflow-y-auto p-4 sm:p-8" : "overflow-y-auto p-3 sm:p-4"} bg-gray-50/50`}
         >
           {!hasProcessed && !error ? (
-            <div className="max-w-2xl mx-auto space-y-8 py-8 w-full">
+            <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8 py-4 sm:py-8 w-full">
               {/* API Key Input - Only show if not set in environment */}
               {!hasEnvApiKey && (
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
                   <div className="flex items-center gap-2 text-blue-600 mb-1">
                     <RefreshCw className="h-4 w-4" />
                     <span className="text-sm font-semibold uppercase tracking-wider">
@@ -305,7 +305,7 @@ export const ParticipantScannerModal = ({
               )}
 
               {/* File Upload */}
-              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+              <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 text-blue-600 mb-1">
                   <Upload className="h-4 w-4" />
                   <span className="text-sm font-semibold uppercase tracking-wider">
@@ -313,7 +313,7 @@ export const ParticipantScannerModal = ({
                   </span>
                 </div>
                 <div
-                  className={`border-2 border-dashed rounded-xl p-10 text-center transition-all ${
+                  className={`border-2 border-dashed rounded-xl p-6 sm:p-10 text-center transition-all ${
                     isProcessing
                       ? "border-blue-200 bg-blue-50/30"
                       : "border-gray-200 hover:border-blue-400 hover:bg-blue-50/10 cursor-pointer"
@@ -364,12 +364,12 @@ export const ParticipantScannerModal = ({
                         <div className="bg-blue-50 p-4 rounded-full mb-4 group-hover:bg-blue-100 transition-colors">
                           <Upload className="h-10 w-10 text-blue-600" />
                         </div>
-                        <p className="text-lg font-semibold text-gray-900 mb-1">
+                        <p className="text-base sm:text-lg font-semibold text-gray-900 mb-1">
                           {file
                             ? file.name
                             : "Selecciona tu lista de asistencia"}
                         </p>
-                        <p className="text-sm text-gray-500 mb-6">
+                        <p className="text-sm text-gray-500 mb-4 sm:mb-6">
                           Arrastra y suelta o haz clic para buscar en tu equipo
                         </p>
                         <div className="flex items-center gap-4 text-xs font-medium text-gray-400 uppercase tracking-widest">
@@ -399,9 +399,9 @@ export const ParticipantScannerModal = ({
               )}
             </div>
           ) : hasProcessed ? (
-            <div className="h-full flex flex-col gap-6">
+            <div className="h-full flex flex-col gap-4 sm:gap-6">
               {/* Header inside body */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm shrink-0">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 bg-white p-3 sm:p-4 rounded-xl border border-gray-200 shadow-sm shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="bg-green-100 p-2 rounded-lg">
                     <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -431,9 +431,9 @@ export const ParticipantScannerModal = ({
               </div>
 
               {/* Side-by-side layout */}
-              <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+              <div className="flex-1 flex flex-col lg:flex-row gap-4 sm:gap-6 min-h-0">
                 {/* Left: Original Viewer - Even narrower */}
-                <div className="flex-[3] flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[400px] lg:min-h-0">
+                <div className="flex-[3] flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[250px] sm:min-h-[400px] lg:min-h-0">
                   <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">
@@ -495,7 +495,7 @@ export const ParticipantScannerModal = ({
                 </div>
 
                 {/* Right: Participants Table - Even wider */}
-                <div className="flex-[7] flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[400px] lg:min-h-0">
+                <div className="flex-[7] flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[300px] sm:min-h-[400px] lg:min-h-0">
                   <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">
                       Datos Extraídos
@@ -516,7 +516,7 @@ export const ParticipantScannerModal = ({
                   </div>
 
                   <div className="flex-1 overflow-auto">
-                    <table className="w-full text-sm border-separate border-spacing-0">
+                    <table className="w-full text-sm border-separate border-spacing-0 min-w-[600px]">
                       <thead className="sticky top-0 z-10 bg-gray-50">
                         <tr>
                           <th className="px-4 py-3 text-left font-bold text-gray-600 border-b border-gray-200 uppercase tracking-tighter text-[11px]">
@@ -732,28 +732,28 @@ export const ParticipantScannerModal = ({
 
         {/* Footer - Sticky */}
         {hasProcessed && (
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <span>
                 {extractedParticipants.length} participantes listos para
                 importar
               </span>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
               <Button
                 variant="outline"
                 onClick={handleClose}
-                className="px-6 h-11 font-semibold border-gray-300 text-gray-700 hover:bg-white hover:shadow-sm"
+                className="flex-1 sm:flex-none px-4 sm:px-6 h-10 sm:h-11 font-semibold border-gray-300 text-gray-700 hover:bg-white hover:shadow-sm"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleAddAll}
                 disabled={extractedParticipants.length === 0}
-                className="px-8 h-11 font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+                className="flex-1 sm:flex-none px-4 sm:px-8 h-10 sm:h-11 font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 text-xs sm:text-sm"
               >
-                Importar a la lista de participantes
+                Importar
               </Button>
             </div>
           </div>
