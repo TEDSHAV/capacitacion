@@ -953,7 +953,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     </div>
 
     <div class="body-text">
-      Sirva la presente para formalizar el proceso de Validación de Datos de los participantes que asistieron al curso de ${escapeHtml(data.titulo_curso || "")}, realizado en ${escapeHtml(data.localidad_cliente || data.ciudad || "")}, el (los) día (s) ${escapeHtml(data.fecha_ejecucion || data.fecha || "")}, como parte del proceso de Capacitación bajo la Orden de Servicio Interna ${escapeHtml(data.nro_osi || "")}. Recibir esta validación es indispensable para proceder a imprimir los certificados y carnet, según aplique. Este proceso es limitativo para la entrega formal y física de los mismos.
+      Sirva la presente para formalizar el proceso de Validación de Datos de los participantes que asistieron al curso de ${escapeHtml(data.titulo_curso || "")}, realizado en ${escapeHtml(data.ciudad || "")}, el (los) día (s) ${escapeHtml(data.fecha_ejecucion || data.fecha || "")}, como parte del proceso de Capacitación bajo la Orden de Servicio Interna ${escapeHtml(data.nro_osi || "")}. Recibir esta validación es indispensable para proceder a imprimir los certificados y carnet, según aplique. Este proceso es limitativo para la entrega formal y física de los mismos.
     </div>
   `;
 

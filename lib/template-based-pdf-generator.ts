@@ -459,7 +459,7 @@ export class TemplateBasedPdfGenerator {
       pdf.setFont("helvetica", "normal").setFontSize(10);
       const bodyText =
         `Sirva la presente para formalizar el proceso de Validación de Datos de los participantes que asistieron` +
-        ` al curso de ${data.titulo_curso || ""}, realizado en ${data.localidad_cliente || data.ciudad || ""},` +
+        ` al curso de ${data.titulo_curso || ""}, realizado en ${data.ciudad || ""},` +
         ` el (los) día (s) ${data.fecha_ejecucion || data.fecha || ""}, como parte del proceso de Capacitación` +
         ` bajo la Orden de Servicio Interna ${data.nro_osi || ""}. Recibir esta validación es indispensable para` +
         ` proceder a imprimir los certificados y carnet, según aplique. Este proceso es limitativo para la` +
