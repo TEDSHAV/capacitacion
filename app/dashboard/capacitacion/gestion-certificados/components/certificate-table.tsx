@@ -101,170 +101,106 @@ export default function CertificateTableComponent({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200">
+    <div className="bg-white rounded-lg shadow">
+      <div className="px-4 py-3 border-b border-gray-200">
         <h3 className="text-lg font-medium text-gray-900">
           Certificados ({certificates.length})
         </h3>
       </div>
-      
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Participante
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Empresa
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Curso
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Facilitador
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Emisión
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Vencimiento
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Puntaje
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Estado
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {certificates.map((certificate) => (
-              <tr key={certificate.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {certificate.participantes_certificados?.nombre || '-'}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {certificate.participantes_certificados && (
-                        formatCedula(
-                          certificate.participantes_certificados.cedula,
-                          certificate.participantes_certificados.nacionalidad
-                        )
-                      )}
-                    </div>
-                  </div>
-                </td>
-                
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {certificate.empresas?.razon_social || '-'}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {certificate.empresas?.rif || '-'}
-                  </div>
-                </td>
-                
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {certificate.cursos?.nombre || '-'}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {certificate.cursos?.horas_estimadas ? `${certificate.cursos.horas_estimadas}h` : ''}
-                  </div>
-                </td>
-                
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {certificate.facilitadores?.nombre_apellido || '-'}
-                  </div>
-                </td>
-                
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {formatDate(certificate.fecha_emision)}
-                  </div>
-                  {certificate.nro_osi && (
-                    <div className="text-sm text-gray-500">
-                      OSI: {certificate.nro_osi}
-                    </div>
+
+      <table className="w-full table-fixed divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="w-[17%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participante</th>
+            <th className="w-[17%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
+            <th className="w-[22%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Curso</th>
+            <th className="hidden lg:table-cell w-[13%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Facilitador</th>
+            <th className="w-[11%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Emisión</th>
+            <th className="hidden lg:table-cell w-[11%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimiento</th>
+            <th className="w-[7%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pts</th>
+            <th className="w-[15%] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {certificates.map((certificate) => (
+            <tr key={certificate.id} className="hover:bg-gray-50">
+              <td className="px-3 py-3">
+                <div className="text-sm font-medium text-gray-900 truncate" title={certificate.participantes_certificados?.nombre || ''}>
+                  {certificate.participantes_certificados?.nombre || '-'}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {certificate.participantes_certificados && formatCedula(
+                    certificate.participantes_certificados.cedula,
+                    certificate.participantes_certificados.nacionalidad
                   )}
-                </td>
-                
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {formatDate(certificate.fecha_vencimiento)}
-                  </div>
-                </td>
-                
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className={`text-sm ${getScoreColor(certificate.calificacion)}`}>
-                    {certificate.calificacion.toFixed(1)}
-                  </div>
-                </td>
-                
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {getStatusBadge(certificate.is_active, certificate.fecha_vencimiento)}
-                </td>
-                
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center space-x-2">
-                    {onViewCertificate && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onViewCertificate(certificate)}
-                        className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                        title="Ver certificado"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        <span className="sr-only">Ver</span>
-                      </Button>
-                    )}
-                    
-                    {onDownloadCertificate && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onDownloadCertificate(certificate)}
-                        className="text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300 hover:text-green-700"
-                        title="Descargar certificado"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span className="sr-only">Descargar</span>
-                      </Button>
-                    )}
-                    
-                    {onVerifyCertificate && certificate.qr_code && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onVerifyCertificate(certificate)}
-                        className="text-purple-600 border-purple-200 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
-                        title="Verificar certificado"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="sr-only">Verificar</span>
-                      </Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </div>
+              </td>
+
+              <td className="px-3 py-3">
+                <div className="text-sm text-gray-900 truncate" title={certificate.empresas?.razon_social || ''}>
+                  {certificate.empresas?.razon_social || '-'}
+                </div>
+                <div className="text-xs text-gray-500 truncate">{certificate.empresas?.rif || ''}</div>
+              </td>
+
+              <td className="px-3 py-3">
+                <div className="text-sm text-gray-900 line-clamp-2" title={certificate.cursos?.nombre || ''}>
+                  {certificate.cursos?.nombre || '-'}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {certificate.cursos?.horas_estimadas ? `${certificate.cursos.horas_estimadas}h` : ''}
+                </div>
+              </td>
+
+              <td className="hidden lg:table-cell px-3 py-3">
+                <div className="text-sm text-gray-900 truncate" title={certificate.facilitadores?.nombre_apellido || ''}>
+                  {certificate.facilitadores?.nombre_apellido || '-'}
+                </div>
+              </td>
+
+              <td className="px-3 py-3 whitespace-nowrap">
+                <div className="text-sm text-gray-900">{formatDate(certificate.fecha_emision)}</div>
+                {certificate.nro_osi && (
+                  <div className="text-xs text-gray-500">OSI: {certificate.nro_osi}</div>
+                )}
+              </td>
+
+              <td className="hidden lg:table-cell px-3 py-3 whitespace-nowrap">
+                <div className="text-sm text-gray-900">{formatDate(certificate.fecha_vencimiento)}</div>
+              </td>
+
+              <td className="px-3 py-3 whitespace-nowrap">
+                <div className={`text-sm font-medium ${getScoreColor(certificate.calificacion)}`}>
+                  {certificate.calificacion.toFixed(1)}
+                </div>
+              </td>
+
+              <td className="px-3 py-3">
+                <div className="flex flex-col gap-1">
+                  {onViewCertificate && (
+                    <button
+                      onClick={() => onViewCertificate(certificate)}
+                      className="w-full text-xs text-center py-1 px-2 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                      title="Ver certificado"
+                    >
+                      Ver
+                    </button>
+                  )}
+                  {onDownloadCertificate && (
+                    <button
+                      onClick={() => onDownloadCertificate(certificate)}
+                      className="w-full text-xs text-center py-1 px-2 rounded border border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 transition-colors"
+                      title="Descargar certificado"
+                    >
+                      Descargar
+                    </button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

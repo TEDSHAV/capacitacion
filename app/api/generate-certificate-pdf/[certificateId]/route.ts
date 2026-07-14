@@ -84,14 +84,14 @@ export async function GET(
       facilitator_id: snapshotData.firmas?.facilitator_id?.toString(),
       facilitator_data: snapshotData.firmas?.facilitator_data || null,
       sha_signature_id: snapshotData.firmas?.sha_signature_id?.toString() || null,
-      sha_signature_data: undefined, // Will be populated below
+      sha_signature_data: snapshotData.firmas?.sha_signature_data || undefined,
       fecha_vencimiento: snapshotData.certificado?.fecha_vencimiento,
       id_estado: snapshotData.certificado?.id_estado,
       id_plantilla_certificado: snapshotData.plantilla?.id_plantilla_certificado || null
     };
 
-    // Fetch SHA signature data if ID is available
-    if (certificateData.sha_signature_id) {
+    // Fetch SHA signature data only if not already present in snapshot
+    if (certificateData.sha_signature_id && !(certificateData as any).sha_signature_data) {
       try {
         const shaSignatureData = await getSignatureDataServer(certificateData.sha_signature_id);
         if (shaSignatureData) {
