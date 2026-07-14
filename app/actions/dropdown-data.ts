@@ -182,80 +182,94 @@ const getCourseTemplatesTest = cache(async () => {
   }
 });
 
-// Get course templates (plantillas_cursos) filtered by course
-const getCourseTemplatesByOSI = cache(async (courseId?: string) => {
+// Get course templates (plantillas_cursos) filtered by course and company
+const getCourseTemplatesByOSI = cache(async (courseId?: string, empresaId?: string) => {
   const supabase = await createClient();
-  
+
   try {
-    console.log('🔍 getCourseTemplatesByOSI called with:', { courseId });
-    
-    if (!courseId) {
-      // If no course selected, return all active templates
+    console.log('🔍 getCourseTemplatesByOSI called with:', { courseId, empresaId });
+
+    if (!courseId && !empresaId) {
+      // If no course or company selected, return all active templates
       console.log('📋 Loading all active course templates');
       let query = supabase
         .from('plantillas_cursos')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
-      
+
       const { data, error } = await query;
-      
+
       console.log('📊 All templates query result:', { data: data?.length || 0, error });
-      
+
       if (error) {
         console.error('❌ Error in all templates query:', error);
         return { error: error.message, data: [] };
       }
-      
+
       console.log('✅ Returning all templates:', data?.length || 0);
       return { data: data || [], error: null };
     }
 
     // Build query to get templates that are:
     // 1. Related to this specific course (id_curso = courseId)
-    // 2. OR general templates (id_curso IS NULL AND id_empresa IS NULL)
-    // 3. Must be active
+    // 2. Related to this company (id_empresa = empresaId)
+    // 3. OR general templates (id_curso IS NULL AND id_empresa IS NULL)
+    // 4. Must be active
     let query = supabase
       .from('plantillas_cursos')
       .select('*')
       .eq('is_active', true);
-    
-    const orConditions = [`id_curso.eq.${courseId}`]; // Course-specific templates
-    orConditions.push('id_curso.is.null,id_empresa.is.null'); // General templates
-    
+
+    const orConditions = [];
+
+    // Add course-specific templates if courseId is provided
+    if (courseId) {
+      orConditions.push(`id_curso.eq.${courseId}`);
+    }
+
+    // Add company-specific templates if empresaId is provided
+    if (empresaId) {
+      orConditions.push(`id_empresa.eq.${empresaId}`);
+    }
+
+    // Always include general templates
+    orConditions.push('id_curso.is.null,id_empresa.is.null');
+
     console.log('🔧 OR conditions:', orConditions);
-    
+
     query = query.or(orConditions.join(','));
     query = query.order('created_at', { ascending: false });
-    
+
     const { data, error } = await query;
-    
-    console.log('📊 Filtered templates query result:', { 
-      dataLength: data?.length || 0, 
+
+    console.log('📊 Filtered templates query result:', {
+      dataLength: data?.length || 0,
       data: data,
       error,
       courseId,
+      empresaId,
       orConditions: orConditions.join(','),
       templateDetails: data?.map(t => ({
         id: t.id,
         idType: typeof t.id,
         descripcion: t.descripcion,
-        nombre: t.nombre // Add this to see if templates have nombre field
+        nombre: t.nombre
       }))
     });
-    
+
     if (error) {
       console.error('❌ Error in filtered templates query:', error);
       return { error: error.message, data: [] };
     }
-    
+
     console.log('✅ Returning filtered templates:', data?.length || 0);
     return { data: data || [], error: null };
   } catch (err) {
     console.error('💥 Unexpected error in getCourseTemplatesByOSI:', err);
-    return { 
+    return {
       error: err instanceof Error ? err.message : 'Unknown error',
-      data: [] 
+      data: []
     };
   }
 });
@@ -286,8 +300,8 @@ export async function getCourseTemplatesTestAction() {
   return await getCourseTemplatesTest();
 }
 
-export async function getCourseTemplatesByOSIAction(courseId?: string) {
-  return await getCourseTemplatesByOSI(courseId);
+export async function getCourseTemplatesByOSIAction(courseId?: string, empresaId?: string) {
+  return await getCourseTemplatesByOSI(courseId, empresaId);
 }
 
 export async function getVenezuelanStatesAction() {

@@ -102,11 +102,13 @@ export const CertificateForm = ({
       try {
         // Use cursos_id (cursos.id) not id (catalogo_servicios.id) — plantillas_cursos.id_curso FK → cursos
         const courseId = selectedCourseTopic?.cursos_id?.toString();
-        
-        const templatesResult = await getCourseTemplatesByOSIAction(courseId);
+        // Get empresaId from selectedOSI to filter by company-specific templates
+        const empresaId = selectedOSI?.empresa_id?.toString();
+
+        const templatesResult = await getCourseTemplatesByOSIAction(courseId, empresaId);
         if (templatesResult.data) {
           const templates = templatesResult.data;
-          
+
           // Add original course content as first option if course exists
           const allOptions = selectedCourseTopic ? [
             {
@@ -116,7 +118,7 @@ export const CertificateForm = ({
             },
             ...templates
           ] : templates;
-          
+
           console.log('🔧 Template options created:', {
             courseName: selectedCourseTopic?.name || 'No course selected',
             originalCourse: selectedCourseTopic ? {
@@ -128,7 +130,7 @@ export const CertificateForm = ({
             totalOptions: allOptions.length,
             allOptions: allOptions
           });
-          
+
           setCourseTemplates(allOptions);
           console.log('Course templates loaded:', allOptions);
           
@@ -150,7 +152,7 @@ export const CertificateForm = ({
     };
 
     loadCourseTemplates();
-  }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, selectedCourseTopic?.name]);
+  }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, selectedCourseTopic?.name, selectedOSI?.empresa_id]);
 
   // Effect to set default course content when course topic changes (but no template selected)
   useEffect(() => {
