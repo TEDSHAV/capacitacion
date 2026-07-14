@@ -27,7 +27,6 @@ export function PlantillaCursoForm({
     contenido: plantilla?.contenido || "",
     id_curso: plantilla?.id_curso || "",
     id_empresa: plantilla?.id_empresa || "",
-    is_active: plantilla?.is_active ?? true,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -50,6 +49,7 @@ export function PlantillaCursoForm({
       id_empresa: formData.id_empresa
         ? parseInt(formData.id_empresa.toString())
         : null,
+      is_active: true,
     };
 
     onSave(plantillaData);
@@ -71,6 +71,19 @@ export function PlantillaCursoForm({
             ? value.toUpperCase()
             : value,
     }));
+
+    // When a course is selected, populate the content field with the course's content
+    if (name === "id_curso" && value) {
+      const selectedCourse = courses.find(
+        (course) => course.id === parseInt(value.toString()),
+      );
+      if (selectedCourse?.contenido) {
+        setFormData((prev) => ({
+          ...prev,
+          contenido: selectedCourse.contenido,
+        }));
+      }
+    }
   };
 
   return (
@@ -182,27 +195,6 @@ export function PlantillaCursoForm({
             <p className="text-xs text-gray-500 mt-1">
               Si seleccionas una empresa, esta plantilla estará disponible
               específicamente para esa empresa.
-            </p>
-          </div>
-
-          {/* Active Status */}
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="is_active"
-              name="is_active"
-              checked={formData.is_active}
-              onChange={handleChange}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label
-              htmlFor="is_active"
-              className="ml-2 block text-sm text-gray-900"
-            >
-              Plantilla activa
-            </label>
-            <p className="text-xs text-gray-500 ml-4">
-              Las plantillas inactivas no aparecerán en el listado
             </p>
           </div>
 
