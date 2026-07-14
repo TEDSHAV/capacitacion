@@ -5,7 +5,7 @@ import { CertificateParticipant, ParticipantsSectionProps } from "@/types";
 import { useParticipants } from "./use-participants";
 import { ParticipantScannerModal } from "./ParticipantScannerModal";
 import { Button } from "@/components/ui/button";
-import { X, Camera } from "lucide-react";
+import { X, Camera, CheckCircle2, AlertCircle } from "lucide-react";
 
 export const ParticipantsSection = ({
   participants,
@@ -220,6 +220,32 @@ export const ParticipantsSection = ({
                             : "E-"}
                           {participant.idNumber})
                         </span>
+
+                        {/* SENIAT Verification Status */}
+                        {participant.seniatVerification && (
+                          <div className="flex flex-col ml-2">
+                            {participant.seniatVerification.status ===
+                            "verified" ? (
+                              <div className="flex items-center text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                                <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
+                                <span
+                                  className="truncate max-w-[150px]"
+                                  title={
+                                    participant.seniatVerification.seniatName
+                                  }
+                                >
+                                  {participant.seniatVerification.seniatName}
+                                </span>
+                              </div>
+                            ) : participant.seniatVerification.status ===
+                              "not_found" ? (
+                              <div className="flex items-center text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
+                                <AlertCircle className="h-2.5 w-2.5 mr-1" />
+                                No en SENIAT
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
                       </>
                     )}
                   </div>

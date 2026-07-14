@@ -16,11 +16,11 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ExtractedParticipant } from "@/lib/ocr-service";
-import { VerificationStatus } from "@/types";
+import { SeniatVerificationStatus } from "@/types";
 import Link from "next/link";
 
 interface ParticipantWithVerification extends ExtractedParticipant {
-  verificationStatus: VerificationStatus;
+  verificationStatus: SeniatVerificationStatus;
   seniatName?: string;
   verificationError?: string;
 }
@@ -125,7 +125,7 @@ export default function VerificacionRifPage() {
         const participantsWithStatus: ParticipantWithVerification[] =
           result.participants.map((p: ExtractedParticipant) => ({
             ...p,
-            verificationStatus: "pending" as VerificationStatus,
+            verificationStatus: "pending" as SeniatVerificationStatus,
           }));
         setExtractedParticipants(participantsWithStatus);
       } else {
@@ -272,12 +272,10 @@ export default function VerificacionRifPage() {
     XLSX.writeFile(workbook, fileName);
   };
 
-  const getStatusLabel = (status: VerificationStatus): string => {
+  const getStatusLabel = (status: SeniatVerificationStatus): string => {
     switch (status) {
-      case "match":
-        return "Coincide";
-      case "mismatch":
-        return "No coincide";
+      case "verified":
+        return "Verificado";
       case "not_found":
         return "No encontrado";
       case "error":
@@ -287,16 +285,14 @@ export default function VerificacionRifPage() {
     }
   };
 
-  const getStatusColor = (status: VerificationStatus): string => {
+  const getStatusColor = (status: SeniatVerificationStatus): string => {
     switch (status) {
-      case "match":
+      case "verified":
         return "bg-emerald-100 text-emerald-700 border-emerald-200";
-      case "mismatch":
-        return "bg-orange-100 text-orange-700 border-orange-200";
       case "not_found":
-        return "bg-red-100 text-red-700 border-red-200";
+        return "bg-orange-100 text-orange-700 border-orange-200";
       case "error":
-        return "bg-gray-100 text-gray-700 border-gray-200";
+        return "bg-red-100 text-red-700 border-red-200";
       default:
         return "bg-gray-50 text-gray-500 border-gray-200";
     }

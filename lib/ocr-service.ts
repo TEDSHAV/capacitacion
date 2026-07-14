@@ -129,13 +129,12 @@ export class OCRService {
     const hasTable = lines.some((line) => line.includes("|"));
 
     for (const line of lines) {
-      // TABLE LOCK: If a table exists in the document, ignore all non-table lines
-      if (hasTable && !line.includes("|")) continue;
-
       // Skip markdown table headers/separators
       if (
         line.includes("---") ||
-        line.toLowerCase().includes("nombre y apellido")
+        line.toLowerCase().includes("nombre y apellido") ||
+        line.toLowerCase().includes("nro") ||
+        line.toLowerCase().includes("cédula")
       )
         continue;
 
@@ -146,10 +145,9 @@ export class OCRService {
 
       // APPROACH 1: Markdown Table Parsing
       if (line.includes("|")) {
-        const cells = line
-          .split("|")
-          .map((c) => c.trim())
-          .filter((c) => c);
+        const cells = line.split("|").map((c) => c.trim());
+
+        // Find ID cell index (ignoring first/last empty cells from split)
         const idCellIndex = cells.findIndex((cell) => idPattern.test(cell));
 
         if (idCellIndex >= 0) {
@@ -158,16 +156,52 @@ export class OCRService {
             if (idMatch[1]) prefix = idMatch[1].toUpperCase();
             idNumberValue = idMatch[2].replace(/\./g, "");
 
-            if (idCellIndex > 0) {
+            // IMPROVED NAME DETECTION: Look for the most likely name column
+            // Usually it's the longest non-numeric cell that isn't the ID itself
+            let bestNameCandidate = "";
+            for (let i = 0; i < cells.length; i++) {
+              if (i === idCellIndex) continue;
+              const cell = cells[i].trim();
+              // Skip headers, empty cells, and numeric-only cells
+              if (
+                !cell ||
+                cell.length < 3 ||
+                /^\d+$/.test(cell.replace(/[.,\s]/g, ""))
+              )
+                continue;
+              if (
+                cell.toLowerCase().includes("nro") ||
+                cell.toLowerCase().includes("cédula")
+              )
+                continue;
+
+              if (cell.length > bestNameCandidate.length) {
+                bestNameCandidate = cell;
+              }
+            }
+
+            if (bestNameCandidate) {
+              name = this.cleanName(bestNameCandidate);
+            } else if (idCellIndex > 0) {
+              // Fallback to previous column
               name = this.cleanName(cells[idCellIndex - 1]);
             }
 
-            // Extract score from the column after ID (if exists)
-            if (idCellIndex + 1 < cells.length) {
-              const scoreText = cells[idCellIndex + 1].replace(/[^0-9]/g, "");
-              const scoreNum = parseInt(scoreText, 10);
-              if (!isNaN(scoreNum)) {
-                score = scoreNum;
+            // Extract score - Look in ALL columns after the ID
+            for (let i = idCellIndex + 1; i < cells.length; i++) {
+              const cellText = cells[i].trim();
+              if (!cellText) continue;
+
+              // Try to find a number in the cell
+              const scoreMatch = cellText.match(/(\d{1,2}(?:[.,]\d)?)/);
+              if (scoreMatch) {
+                const scoreNum = parseFloat(scoreMatch[1].replace(",", "."));
+
+                // Valid scores are typically between 0 and 20
+                if (!isNaN(scoreNum) && scoreNum >= 0 && scoreNum <= 20) {
+                  score = Math.round(scoreNum);
+                  break; // Found a valid score
+                }
               }
             }
           }
@@ -185,6 +219,18 @@ export class OCRService {
 
           const nameMatch = textBeforeId.match(namePattern);
           name = nameMatch ? nameMatch[0] : this.cleanName(textBeforeId);
+
+          // Try to find a score after the ID in plain text
+          const textAfterId = line
+            .substring(idIndex + idMatch[0].length)
+            .trim();
+          const scoreMatch = textAfterId.match(/\b(\d{1,2}(?:[.,]\d)?)\b/);
+          if (scoreMatch) {
+            const scoreNum = parseFloat(scoreMatch[1].replace(",", "."));
+            if (!isNaN(scoreNum) && scoreNum >= 0 && scoreNum <= 20) {
+              score = Math.round(scoreNum);
+            }
+          }
         }
       }
 

@@ -1,12 +1,19 @@
 // Global types for OSI system
 
 // SENIAT Verification Types
-export type VerificationStatus =
+export type SeniatVerificationStatus =
   | "pending"
-  | "match"
-  | "mismatch"
+  | "verified"
   | "not_found"
   | "error";
+
+export interface ParticipantVerificationResult {
+  rif: string;
+  ocrName: string;
+  seniatName?: string;
+  status: SeniatVerificationStatus;
+  error?: string;
+}
 
 export interface Empresa {
   id: string;
@@ -324,6 +331,7 @@ export interface CertificateParticipant {
   email?: string;
   phone?: string;
   nationality?: "venezolano" | "extranjero";
+  seniatVerification?: ParticipantVerificationResult;
 }
 
 export interface Signature {
