@@ -70,10 +70,10 @@ const Navbar = () => {
           {/* Center - Logo */}
           <div className="flex-1 flex items-center justify-center">
             <Image 
-              src="/favicon.ico" 
+              src="/logo.png" 
               alt="Logo de la Empresa" 
-              width={56}
-              height={56}
+              width={100}
+              height={100}
               className="object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
               onClick={() => router.push('/dashboard')}
             />
