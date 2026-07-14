@@ -395,6 +395,7 @@ export type Database = {
           created_at: string | null
           emite_carnet: boolean | null
           esta_activo: boolean | null
+          estatus: string | null
           id: number
           id_departamento_ejecutante: number | null
           nombre: string
@@ -407,6 +408,7 @@ export type Database = {
           created_at?: string | null
           emite_carnet?: boolean | null
           esta_activo?: boolean | null
+          estatus?: string | null
           id?: number
           id_departamento_ejecutante?: number | null
           nombre: string
@@ -419,6 +421,7 @@ export type Database = {
           created_at?: string | null
           emite_carnet?: boolean | null
           esta_activo?: boolean | null
+          estatus?: string | null
           id?: number
           id_departamento_ejecutante?: number | null
           nombre?: string
@@ -2306,6 +2309,122 @@ export type Database = {
           },
         ]
       }
+      ejecucion_osi_asistencia: {
+        Row: {
+          created_at: string | null
+          facilitador_id: number | null
+          file_name: string
+          file_size: number | null
+          file_type: string
+          id: string
+          osi_id: number | null
+          storage_path: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          facilitador_id?: number | null
+          file_name: string
+          file_size?: number | null
+          file_type: string
+          id?: string
+          osi_id?: number | null
+          storage_path: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          facilitador_id?: number | null
+          file_name?: string
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          osi_id?: number | null
+          storage_path?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ejecucion_osi_asistencia_facilitador_id_fkey"
+            columns: ["facilitador_id"]
+            isOneToOne: false
+            referencedRelation: "facilitadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_asistencia_osi_id_fkey"
+            columns: ["osi_id"]
+            isOneToOne: false
+            referencedRelation: "ejecucion_osi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_asistencia_osi_id_fkey"
+            columns: ["osi_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_osi"]
+          },
+        ]
+      }
+      ejecucion_osi_participantes: {
+        Row: {
+          cedula: string
+          created_at: string | null
+          facilitador_id: number
+          id: number
+          nombre_apellido: string
+          osi_id: number
+          score: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cedula: string
+          created_at?: string | null
+          facilitador_id: number
+          id?: number
+          nombre_apellido: string
+          osi_id: number
+          score?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cedula?: string
+          created_at?: string | null
+          facilitador_id?: number
+          id?: number
+          nombre_apellido?: string
+          osi_id?: number
+          score?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ejecucion_osi_participantes_facilitador_id_fkey"
+            columns: ["facilitador_id"]
+            isOneToOne: false
+            referencedRelation: "facilitadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_participantes_osi_id_fkey"
+            columns: ["osi_id"]
+            isOneToOne: false
+            referencedRelation: "ejecucion_osi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_participantes_osi_id_fkey"
+            columns: ["osi_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_osi"]
+          },
+        ]
+      }
       empresa_sedes: {
         Row: {
           esta_activo: boolean
@@ -2552,6 +2671,44 @@ export type Database = {
             columns: ["id_proveedor"]
             isOneToOne: false
             referencedRelation: "proveedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facilitador_credenciales: {
+        Row: {
+          created_at: string | null
+          facilitador_id: number
+          id: number
+          is_active: boolean | null
+          password_hash: string
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          facilitador_id: number
+          id?: number
+          is_active?: boolean | null
+          password_hash: string
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          facilitador_id?: number
+          id?: number
+          is_active?: boolean | null
+          password_hash?: string
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facilitador_credenciales_facilitador_id_fkey"
+            columns: ["facilitador_id"]
+            isOneToOne: true
+            referencedRelation: "facilitadores"
             referencedColumns: ["id"]
           },
         ]
@@ -4196,6 +4353,102 @@ export type Database = {
           },
         ]
       }
+      solicitudes_diseno_servicio: {
+        Row: {
+          bloque_controles_diseno: Json | null
+          bloque_higiene_seguridad_ambiente: Json | null
+          bloque_planificacion_factibilidad: Json | null
+          bloque_recursos_requisitos: Json | null
+          bloque_salidas_diseno: Json | null
+          cargo_solicitante: string
+          fecha_aprobacion: string | null
+          fecha_solicitud: string | null
+          id: number
+          id_estatus: number
+          id_servicio_relacionado: number
+          id_solicitante: number
+          id_usuario_aprobador: number | null
+          nombre_sugerido: string
+          objetivo_proposito: string
+          observaciones_cierre: string | null
+          tipo_solicitud: string
+        }
+        Insert: {
+          bloque_controles_diseno?: Json | null
+          bloque_higiene_seguridad_ambiente?: Json | null
+          bloque_planificacion_factibilidad?: Json | null
+          bloque_recursos_requisitos?: Json | null
+          bloque_salidas_diseno?: Json | null
+          cargo_solicitante: string
+          fecha_aprobacion?: string | null
+          fecha_solicitud?: string | null
+          id?: number
+          id_estatus?: number
+          id_servicio_relacionado: number
+          id_solicitante: number
+          id_usuario_aprobador?: number | null
+          nombre_sugerido: string
+          objetivo_proposito: string
+          observaciones_cierre?: string | null
+          tipo_solicitud?: string
+        }
+        Update: {
+          bloque_controles_diseno?: Json | null
+          bloque_higiene_seguridad_ambiente?: Json | null
+          bloque_planificacion_factibilidad?: Json | null
+          bloque_recursos_requisitos?: Json | null
+          bloque_salidas_diseno?: Json | null
+          cargo_solicitante?: string
+          fecha_aprobacion?: string | null
+          fecha_solicitud?: string | null
+          id?: number
+          id_estatus?: number
+          id_servicio_relacionado?: number
+          id_solicitante?: number
+          id_usuario_aprobador?: number | null
+          nombre_sugerido?: string
+          objetivo_proposito?: string
+          observaciones_cierre?: string | null
+          tipo_solicitud?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_diseno_servicio_id_estatus_fkey"
+            columns: ["id_estatus"]
+            isOneToOne: false
+            referencedRelation: "conf_estatus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_diseno_servicio_id_servicio_relacionado_fkey"
+            columns: ["id_servicio_relacionado"]
+            isOneToOne: false
+            referencedRelation: "catalogo_servicios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_diseno_servicio_id_servicio_relacionado_fkey"
+            columns: ["id_servicio_relacionado"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_servicio"]
+          },
+          {
+            foreignKeyName: "solicitudes_diseno_servicio_id_solicitante_fkey"
+            columns: ["id_solicitante"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_diseno_servicio_id_usuario_aprobador_fkey"
+            columns: ["id_usuario_aprobador"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suplencias_ejecutivos: {
         Row: {
           created_at: string
@@ -4477,6 +4730,7 @@ export type Database = {
       }
       usuarios: {
         Row: {
+          cargo: string | null
           cedula: string | null
           departamento: number | null
           email_corporativo: string | null
@@ -4487,6 +4741,7 @@ export type Database = {
           telefono: string | null
         }
         Insert: {
+          cargo?: string | null
           cedula?: string | null
           departamento?: number | null
           email_corporativo?: string | null
@@ -4497,6 +4752,7 @@ export type Database = {
           telefono?: string | null
         }
         Update: {
+          cargo?: string | null
           cedula?: string | null
           departamento?: number | null
           email_corporativo?: string | null
@@ -5446,6 +5702,9 @@ export type Database = {
           role_slug: string
         }[]
       }
+      horas_habiles:
+        | { Args: { p_fin: string; p_inicio: string }; Returns: number }
+        | { Args: { p_fin: string; p_inicio: string }; Returns: number }
       is_admin_or_superadmin: { Args: never; Returns: boolean }
       is_app_admin: {
         Args: { target_app_id: number; target_user_id: number }
