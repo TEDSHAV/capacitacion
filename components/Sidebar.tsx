@@ -2,9 +2,10 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { useCallback, memo, useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import { SidebarProps } from "@/types";
 import { ChevronLeft, ChevronRight, Home, Users, FileText, Settings } from "lucide-react";
+import { createClient } from '@/utils/supabase/client';
+import { User } from '@/types/dashboard';
 
 // Define submodules for each department - moved outside component to prevent re-creation
 const submodules = {
@@ -28,6 +29,26 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
   const pathname = usePathname();
   const [expandedDepartment, setExpandedDepartment] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+
+    checkAuth()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null)
+      }
+    )
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   // Memoize department click handler
   const handleDepartmentClick = useCallback((nombreDepartamento: string) => {
@@ -77,6 +98,10 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
     setIsCollapsed(!isCollapsed);
   }, [isCollapsed]);
 
+  const handleBackClick = useCallback(() => {
+    router.back();
+  }, [router]);
+
 
   return (
     <div 
@@ -86,29 +111,25 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Logo Section */}
-      <div className={`border-b border-gray-800 ${
-        isCollapsed ? 'p-4 flex justify-center' : 'py-2'
+      {/* Top Section - Same height as navbar (h-20) */}
+      <div className={`border-b border-gray-800 flex items-center justify-center h-20 ${
+        isCollapsed ? 'px-2' : 'px-4'
       }`}>
-        <div className={`flex items-center justify-center ${
-          isCollapsed ? '' : ''
-        }`}>
-          {/* Logo */}
-          <div className={`flex items-center justify-center ${
-            isCollapsed ? '' : 'flex-1'
-          }`}>
-            <div className={`relative overflow-hidden transition-all duration-300 w-[32px] h-[32px]`}>
-              <Image 
-                src="/favicon.ico" 
-                alt="Logo de SHA de Venezuela" 
-                fill
-                className="object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
-                onClick={handleLogoClick}
-                sizes="32px"
-              />
-            </div>
-          </div>
-        </div>
+        {/* Back button - only shown when user is authenticated and not on dashboard */}
+        {user && pathname !== '/dashboard' ? (
+          <button
+            onClick={handleBackClick}
+            className={`p-2 rounded-md hover:bg-gray-800 transition-colors duration-200 flex items-center justify-center ${
+              isCollapsed ? 'w-8 h-8' : 'w-12 h-12'
+            }`}
+            title="Volver"
+          >
+            <ChevronLeft className={`text-white ${isCollapsed ? 'w-4 h-4' : 'w-5 h-5'}`} />
+          </button>
+        ) : (
+          /* Invisible spacer to maintain height symmetry */
+          <div className={`${isCollapsed ? 'w-8 h-8' : 'w-12 h-12'}`}></div>
+        )}
       </div>  
       
       {/* Navigation Section */}

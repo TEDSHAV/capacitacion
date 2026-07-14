@@ -35,10 +35,6 @@ const Navbar = () => {
     await logout();
   }, [])
 
-  const handleBackClick = useCallback(() => {
-    router.back()
-  }, [router])
-
   const handleLoginClick = useCallback(() => {
     router.push('/login')
   }, [])
@@ -51,20 +47,9 @@ const Navbar = () => {
     <nav className="bg-white shadow-md z-50">
       <div className="max-w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
-          {/* Left side - Navigation buttons */}
-          <div className="flex items-center space-x-4">
-            {/* Back button - only shown when user is authenticated and not on dashboard */}
-            {user && pathname !== '/dashboard' && (
-              <button
-                onClick={handleBackClick}
-                className="p-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
-                title="Volver"
-              >
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-            )}
+          {/* Left side - Spacer for symmetry */}
+          <div className="flex items-center space-x-4 w-12">
+            {/* Back button removed - now in sidebar */}
           </div>
           
           {/* Center - Logo */}
@@ -72,8 +57,8 @@ const Navbar = () => {
             <Image 
               src="/logo.png" 
               alt="Logo de la Empresa" 
-              width={100}
-              height={100}
+              width={150}
+              height={150}
               className="object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
               onClick={() => router.push('/dashboard')}
             />
