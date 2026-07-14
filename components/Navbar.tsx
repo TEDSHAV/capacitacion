@@ -70,7 +70,7 @@ const Navbar = () => {
             <img 
               src="/logo.png" 
               alt="Logo de la Empresa" 
-              className="h-10 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
+              className="h-13 w-auto object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
               onClick={() => router.push('/dashboard')}
             />
           </div>
