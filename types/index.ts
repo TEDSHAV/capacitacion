@@ -220,7 +220,7 @@ export interface ControlNumbers {
 export interface CertificateGeneration {
   id?: string;
   osi_id: string;
-  osi_data?: OSI;
+  osi_data?: CertificateOSI;
   certificate_title: string;
   certificate_subtitle?: string;
   passing_grade?: number; // Minimum score to pass (default 14, editable)
@@ -231,7 +231,6 @@ export interface CertificateGeneration {
   location: string;
   date: string;
   created_at?: string;
-  updated_at?: string;
   horas_estimadas?: number;
   facilitator_id?: string; // ID of selected facilitator (includes signature)
   sha_signature_id?: string; // ID of SHA representative signature (separate from facilitator)
@@ -315,7 +314,7 @@ export interface Facilitator {
 
 export interface CertificateFormProps {
   certificateData: CertificateGeneration;
-  selectedOSI: OSI | null;
+  selectedOSI: CertificateOSI | null;
   selectedCourseTopic: CourseTopic | null;
   courseTopics: CourseTopic[];
   isGenerating?: boolean;
@@ -497,6 +496,19 @@ export interface CertificateData {
   certificateId: string;
 }
 
+// Simplified OSI type for certificate generation
+export interface CertificateOSI {
+  id: string;
+  nro_osi: string;
+  cliente_nombre_empresa: string;
+  tema: string;
+  tipo_servicio: string;
+  empresa_id: number;
+  is_active: boolean;
+  detalle_capacitacion?: string;
+  detalle_sesion?: string;
+}
+
 export interface CertificateTemplateProps {
   data: CertificateData;
   svgBackgroundPath?: string;
@@ -542,9 +554,9 @@ export interface CourseActionsProps {
 }
 
 export interface OSISearchProps {
-  osis: OSI[]
-  selectedOSI: OSI | null
-  onSelect: (osi: OSI | null) => void
+  osis: CertificateOSI[]
+  selectedOSI: CertificateOSI | null
+  onSelect: (osi: CertificateOSI | null) => void
 }
 
 export interface CourseTopicSearchProps {
@@ -630,6 +642,7 @@ export interface OptimizedDataProviderProps {
   children: (props: {
     osis: OSI[]
     filteredOsis: OSI[]
+    totalCount: number
     loading: boolean
     searchTerm: string
     selectedMonth: string

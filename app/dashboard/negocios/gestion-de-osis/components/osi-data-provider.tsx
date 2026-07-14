@@ -39,7 +39,6 @@ export function useOSIData() {
         )
         return
       }
-      console.log('Usuarios loaded:', data?.length || 0)
       setUsuarios(data || [])
     } catch (err) {
       console.error('Error in loadUsuarios:', err)
@@ -67,7 +66,6 @@ export function useOSIData() {
         )
         return
       }
-      console.log('Empresas loaded:', data?.length || 0)
       setEmpresas(data || [])
       setFilteredEmpresas(data || [])
     } catch (err) {
@@ -98,7 +96,6 @@ export function useOSIData() {
         )
         return
       }
-      console.log('Cursos loaded:', data?.length || 0)
       setCursos(data || [])
       setFilteredCursos(data || [])
     } catch (err) {
@@ -129,7 +126,6 @@ export function useOSIData() {
         )
         return
       }
-      console.log('Contactos loaded:', data?.length || 0)
       setContactos(data || [])
     } catch (err) {
       console.error('Error in loadContactos:', err)
@@ -158,7 +154,6 @@ export function useOSIData() {
         )
         return
       }
-      console.log('Tipos de servicio loaded:', data?.length || 0)
       setServicios(data || [])
     } catch (err) {
       console.error('Error in loadTiposServicio:', err)
@@ -170,18 +165,26 @@ export function useOSIData() {
     }
   }
 
-  // Load initial data
-  const loadInitialData = async () => {
+  // Load initial data - optimized to only load what's needed
+  const loadInitialData = async (options?: { includeCursos?: boolean; includeContactos?: boolean }) => {
     setLoading(true)
     setError(null)
     
+    const { includeCursos = false, includeContactos = false } = options || {}
+    
     try {
-      await Promise.all([
+      const promises = [
         loadUsuarios(),
         loadEmpresas(),
-        loadCursos(),
         loadTiposServicio()
-      ])
+      ]
+      
+      // Only load cursos if explicitly requested
+      if (includeCursos) {
+        promises.push(loadCursos())
+      }
+      
+      await Promise.all(promises)
     } catch (err) {
       setError('Error al cargar los datos iniciales')
     } finally {

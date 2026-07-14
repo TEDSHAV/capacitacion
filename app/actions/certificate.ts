@@ -2,36 +2,48 @@
 
 import { createClient } from '@/utils/supabase/server';
 
-export async function getCertificateData() {
+// Simplified OSI type for certificate generation
+export interface CertificateOSI {
+  id: string;
+  nro_osi: string;
+  cliente_nombre_empresa: string;
+  tema: string;
+  tipo_servicio: string;
+  empresa_id: number;
+  is_active: boolean;
+}
+
+export async function getCertificateData(options?: { osiLimit?: number; courseLimit?: number }) {
   try {
     const supabase = await createClient();
+    const { osiLimit = 50, courseLimit = 100 } = options || {};
 
-    // Fetch OSIs
+    // Fetch OSIs with pagination - only fields needed for certificate generation
     const { data: osis, error: osiError } = await supabase
       .from("osi")
-      .select("*")
+      .select("id, nro_osi, cliente_nombre_empresa, tema, tipo_servicio, empresa_id, is_active")
+      .eq("is_active", true)
       .order("nro_osi", { ascending: false })
-      .limit(100);
+      .limit(osiLimit);
 
     if (osiError) {
       throw osiError;
     }
 
-    // Fetch cursos directly - no longer using catalogo_servicios
+    // Fetch cursos with pagination and only necessary fields
     const { data: cursosData, error: cursosError } = await supabase
       .from("cursos")
-      .select("id, nombre, contenido, cliente_asociado, created_at, nota_aprobatoria, horas_estimadas, emite_carnet")
+      .select("id, nombre, contenido, cliente_asociado, nota_aprobatoria, horas_estimadas, emite_carnet")
       .eq("is_active", true)
-      .order("created_at", { ascending: false });
+      .order("nombre", { ascending: true })
+      .limit(courseLimit);
 
     if (cursosError) {
       throw cursosError;
     }
 
-    console.log('Cursos data:', cursosData);
-
     return {
-      osis: osis || [],
+      osis: (osis || []) as CertificateOSI[],
       courseTopics: (cursosData || []).map((curso) => ({
         id: curso.id.toString(),
         nombre: curso.nombre,
@@ -39,7 +51,6 @@ export async function getCertificateData() {
         description: curso.nombre,
         contenido_curso: curso.contenido,
         cliente_asociado: curso.cliente_asociado,
-        created_at: curso.created_at,
         nota_aprobatoria: curso.nota_aprobatoria ?? 14, // Default to 14 if no nota_aprobatoria
         horas_estimadas: curso.horas_estimadas, // Add horas_estimadas from database
         emite_carnet: curso.emite_carnet, // Add emite_carnet field

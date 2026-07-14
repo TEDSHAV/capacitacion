@@ -7,6 +7,7 @@ import {
   CourseTopic,
   CertificateGeneration,
   CertificateParticipant,
+  CertificateOSI,
 } from "@/types";
 import OSISearch from "./components/osi-search";
 import { CertificateForm } from './components/certificate-form';
@@ -17,10 +18,10 @@ export default function GeneracionCertificadoPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [osis, setOsis] = useState<OSI[]>([]);
+  const [osis, setOsis] = useState<CertificateOSI[]>([]);
   const [allCourseTopics, setAllCourseTopics] = useState<CourseTopic[]>([]);
   const [filteredCourseTopics, setFilteredCourseTopics] = useState<CourseTopic[]>([]);
-  const [selectedOSI, setSelectedOSI] = useState<OSI | null>(null);
+  const [selectedOSI, setSelectedOSI] = useState<CertificateOSI | null>(null);
   const [selectedCourseTopic, setSelectedCourseTopic] = useState<CourseTopic | null>(null);
   const [certificateData, setCertificateData] = useState<CertificateGeneration>({
     osi_id: "",
@@ -46,7 +47,11 @@ export default function GeneracionCertificadoPage() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const result = await getCertificateData();
+        // Load with optimized limits - only what we need for the UI
+        const result = await getCertificateData({ 
+          osiLimit: 50,    // More than enough for dropdown (shows 10)
+          courseLimit: 100  // Reasonable limit for course selection
+        });
 
         if (result.error) {
           // Don't redirect, just show error
@@ -66,7 +71,7 @@ export default function GeneracionCertificadoPage() {
     loadData();
   }, []);
 
-  const handleOSISelect = (osi: OSI | null) => {
+  const handleOSISelect = (osi: CertificateOSI | null) => {
     setSelectedOSI(osi);
 
     if (osi) {
@@ -144,7 +149,7 @@ export default function GeneracionCertificadoPage() {
     }
   };
 
-  const findMatchingCourseTopic = (osi: OSI): CourseTopic | null => {
+  const findMatchingCourseTopic = (osi: CertificateOSI): CourseTopic | null => {
     if (!osi.tema && !osi.detalle_capacitacion && !osi.detalle_sesion) {
       return null;
     }

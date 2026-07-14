@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { OSI, OSISearchProps } from '@/types'
+import { CertificateOSI, OSISearchProps } from '@/types'
 
 export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProps) {
   const [searchTerm, setSearchTerm] = useState('')
