@@ -253,7 +253,7 @@ export const CertificatePreview = ({
 
       // Use active certificate template if available
       if (certificateData.plantilla_certificado_archivo) {
-        templateImage = `/templates/${certificateData.plantilla_certificado_archivo}`;
+        templateImage = `/templates/${certificateData.plantilla_certificado_archivo.toLowerCase()}`;
       } else if (certificateData.id_plantilla_certificado) {
         // Fallback: try to fetch the template info
         try {
@@ -265,7 +265,7 @@ export const CertificatePreview = ({
               (t: any) => t.id === certificateData.id_plantilla_certificado,
             );
             if (tmpl?.archivo) {
-              templateImage = `/templates/${tmpl.archivo}`;
+              templateImage = `/templates/${tmpl.archivo.toLowerCase()}`;
             }
           }
         } catch {

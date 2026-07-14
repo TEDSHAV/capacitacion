@@ -184,12 +184,12 @@ export async function GET(
     // Resolve template path from parallel fetch result
     let templateImage = "/templates/certificado.png";
     if (templateData?.archivo) {
+      const archivoLower = templateData.archivo.toLowerCase();
       templateImage = templateData.archivo.startsWith("/")
         ? templateData.archivo
-        : `/templates/${templateData.archivo}`;
+        : `/templates/${archivoLower}`;
       // Set the template filename in the data so the generator can use it for coordinate overrides
-      (certificateData as any).plantilla_certificado_archivo =
-        templateData.archivo;
+      (certificateData as any).plantilla_certificado_archivo = archivoLower;
     }
 
     // Get seal image
