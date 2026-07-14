@@ -41,7 +41,7 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
         {/* Dashboard Home Link */}
         <button
           onClick={() => router.push('/dashboard')}
-          className={`w-full text-left px-4 py-3 rounded-lg mb-2 transition-colors duration-200 ${
+          className={`w-full text-left px-4 py-3 rounded-lg mb-2 transition-colors duration-200 cursor-pointer ${
             pathname === '/dashboard' 
               ? 'bg-blue-600 text-white' 
               : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
@@ -64,7 +64,7 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
               <button
                 key={department.id}
                 onClick={() => handleDepartmentClick(department.nombre)}
-                className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
+                className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 cursor-pointer ${
                   isActive 
                     ? 'bg-blue-600 text-white shadow-lg' 
                     : 'bg-gray-800 hover:bg-gray-700 text-gray-300'

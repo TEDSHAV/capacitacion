@@ -59,8 +59,8 @@ html, body {
   animation: twinkle 2s ease-in-out infinite;
 }
 
-/* Ensure buttons have proper styling */
-button:not([class*="text-blue-600"]):not([class*="bg-gray-50"]) {
+/* Ensure buttons have proper styling - only apply to buttons without explicit backgrounds */
+button:not([class*="bg-gray"]):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-blue"]):not([style*="background"]) {
   background-color: var(--primary-blue) !important;
   color: white !important;
 }
@@ -77,6 +77,12 @@ button.bg-blue-600 {
 }
 
 button.bg-red-600 {
+  background-color: var(--primary-red) !important;
+  color: white !important;
+}
+
+/* Ensure delete buttons in course actions have red background */
+button[class*="bg-red-600"][class*="text-white"] {
   background-color: var(--primary-red) !important;
   color: white !important;
 }
