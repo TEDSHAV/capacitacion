@@ -161,9 +161,8 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
         CERTIFICACIÓN DE COMPETENCIAS
       </div>
       <div class="code-box">
-        <div><span class="code-label">CÓDIGO:</span> <span>SHA-RG-CAP-006</span></div>
-        <div><span class="code-label">FECHA:</span> <span>01/04/2026</span></div>
-        <div><span class="code-label">REVISIÓN:</span> <span>00</span></div>
+      <div><span class="code-label">REVISIÓN:</span> <span>0</span></div>
+        <div><span class="code-label">FECHA:</span> <span>01/06/2026</span></div>
         <div><span class="code-label">PÁGINA:</span> <span>${pageNumber} de ${totalPages}</span></div>
       </div>
     </div>
@@ -176,8 +175,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       <div class="signature-block ${signatureClass}">
         <div class="signature-text">Atentamente,</div>
         <div class="signature-dept">DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.</div>
-        <div class="signature-name">[NOMBRE Y APELLIDO]</div>
-        <div class="signature-cargo">[CARGO]</div>
+        
       </div>
       `
           : ""
@@ -583,8 +581,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       <div class="signature-block ${signatureClass}">
         <div class="signature-text">Atentamente,</div>
         <div class="signature-dept">DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.</div>
-        <div class="signature-name">[NOMBRE Y APELLIDO]</div>
-        <div class="signature-cargo">[CARGO]</div>
+        
 
         <div class="received-section">
           <div class="received-label">Recibido por:</div>
@@ -613,9 +610,8 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       </div>
       <div class="title">NOTA DE ENTREGA</div>
       <div class="code-box">
-        <div><span class="code-label">CÓDIGO:</span> <span>SHA-RG-CAP-006</span></div>
-        <div><span class="code-label">FECHA:</span> <span>01/04/2026</span></div>
-        <div><span class="code-label">REVISIÓN:</span> <span>00</span></div>
+      <div><span class="code-label">REVISIÓN:</span> <span>0</span></div>
+      <div><span class="code-label">FECHA:</span> <span>01/06/2026</span></div>
         <div><span class="code-label">PÁGINA:</span> <span>${pageNumber} de ${totalPages}</span></div>
       </div>
     </div>
@@ -1026,9 +1022,8 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       </div>
       <div class="title">VALIDACIÓN DE DATOS</div>
       <div class="code-box">
-        <div><span class="code-label">CÓDIGO:</span> <span>SHA-RG-CAP-004</span></div>
-        <div><span class="code-label">FECHA:</span> <span>01/04/2026</span></div>
-        <div><span class="code-label">REVISIÓN:</span> <span>00</span></div>
+      <div><span class="code-label">REVISIÓN:</span> <span>0</span></div>
+        <div><span class="code-label">FECHA:</span> <span>01/06/2026</span></div>
         <div><span class="code-label">PÁGINA:</span> <span>${pageNumber} de ${totalPages}</span></div>
       </div>
     </div>
@@ -1041,8 +1036,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       <div class="signature-block ${signatureClass}">
         <div class="signature-text">Atentamente,</div>
         <div class="signature-dept">DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.</div>
-        <div class="signature-name">[NOMBRE Y APELLIDO]</div>
-        <div class="signature-cargo">[CARGO]</div>
+       
       </div>
       `
           : ""

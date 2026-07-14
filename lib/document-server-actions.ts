@@ -1,15 +1,18 @@
 "use server";
 
-import { TemplateData } from "./document-templates-new";
-import { generatePdfFromHtml } from "./pdf-service";
+import {
+  TemplateData,
+  DocumentTemplateProcessor,
+} from "./document-templates-new";
 import {
   buildCertificacionCompetenciasHtml,
   buildNotaEntregaHtml,
   buildValidacionDatosHtml,
 } from "./document-html-templates";
 import { appendFileSync } from "fs";
-import { join } from "path";
+import { TemplateBasedPdfGenerator } from "./template-based-pdf-generator";
 
+import { join } from "path";
 const LOG_FILE = join(process.cwd(), "document-generation.log");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -257,8 +260,9 @@ export async function generateDocumentsServer(
       tasks.push(
         (async () => {
           try {
-            const html = buildCertificacionCompetenciasHtml(templateData);
-            const buffer = await generatePdfFromHtml(html);
+            const generator = new TemplateBasedPdfGenerator();
+            const buffer =
+              await generator.generateCertificacionCompetencias(templateData);
             documents.certificacion_competencias = buffer.toString("base64");
             log("certificacion_competencias generated successfully");
           } catch (error) {
@@ -275,8 +279,8 @@ export async function generateDocumentsServer(
       tasks.push(
         (async () => {
           try {
-            const html = buildNotaEntregaHtml(templateData);
-            const buffer = await generatePdfFromHtml(html);
+            const generator = new TemplateBasedPdfGenerator();
+            const buffer = await generator.generateNotaEntrega(templateData);
             documents.nota_entrega = buffer.toString("base64");
             log("nota_entrega generated successfully");
           } catch (error) {
@@ -293,8 +297,9 @@ export async function generateDocumentsServer(
       tasks.push(
         (async () => {
           try {
-            const html = buildValidacionDatosHtml(templateData);
-            const buffer = await generatePdfFromHtml(html);
+            const generator = new TemplateBasedPdfGenerator();
+            const buffer =
+              await generator.generateValidacionDatos(templateData);
             documents.validacion_datos = buffer.toString("base64");
             log("validacion_datos generated successfully");
           } catch (error) {
