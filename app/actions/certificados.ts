@@ -1442,7 +1442,7 @@ export async function getCertificateById(
   try {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
 
       .from("certificados")
 
@@ -1496,9 +1496,53 @@ export async function getCertificateById(
 
       .eq("is_active", true)
 
-      .single();
+      .maybeSingle();
 
-    if (error) {
+    // Fallback: If not found by ID, try searching by nro_control
+    if (!data && !error) {
+      console.log(
+        `Certificate not found by ID ${certificateId}, trying nro_control...`,
+      );
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("certificados")
+        .select(
+          `
+          *,
+          participantes_certificados (
+            id,
+            nombre,
+            cedula,
+            nacionalidad
+          ),
+          catalogo_servicios (
+            id,
+            nombre,
+            contenido_curso,
+            carga_horaria_std,
+            nota_aprobatoria,
+            emite_carnet
+          ),
+          empresas (
+            id,
+            razon_social,
+            rif
+          )
+        `,
+        )
+        .eq("nro_control", certificateId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (fallbackData) {
+        console.log(`✅ Certificate found by nro_control: ${certificateId}`);
+        data = fallbackData;
+      }
+      if (fallbackError) {
+        error = fallbackError;
+      }
+    }
+
+    if (error || !data) {
       return null;
     }
 

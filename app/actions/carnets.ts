@@ -166,16 +166,6 @@ export async function getCarnetsByFilters(
           contenido_curso,
           carga_horaria_std,
           emite_carnet
-        ),
-        osi:osi(
-          id,
-          nro_osi,
-          nro_orden_compra,
-          tipo_servicio,
-          ejecutivo_negocios,
-          cliente_nombre_empresa,
-          estado,
-          fecha_ejecucion1
         )
       `);
 
@@ -305,16 +295,6 @@ export async function getCarnetById(
           contenido_curso,
           carga_horaria_std,
           emite_carnet
-        ),
-        osi:osi(
-          id,
-          nro_osi,
-          nro_orden_compra,
-          tipo_servicio,
-          ejecutivo_negocios,
-          cliente_nombre_empresa,
-          estado,
-          fecha_ejecucion1
         )
       `,
       )
@@ -347,6 +327,8 @@ export async function getCarnetsByCertificateId(
 ): Promise<{ success: boolean; data?: Carnet[]; error?: string }> {
   try {
     const supabase = await createClient();
+
+    console.log(`🔍 Fetching carnets for certificate ID: ${certificateId}`);
 
     const { data, error } = await supabase
       .from("carnets")
@@ -391,12 +373,16 @@ export async function getCarnetsByCertificateId(
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching carnets by certificate ID:", error);
+      console.error("❌ Error fetching carnets by certificate ID:", error);
       return {
         success: false,
         error: "Error fetching carnets by certificate ID",
       };
     }
+
+    console.log(
+      `✅ Found ${data?.length || 0} carnets for certificate ${certificateId}`,
+    );
 
     return {
       success: true,

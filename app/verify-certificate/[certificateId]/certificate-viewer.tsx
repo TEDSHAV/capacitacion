@@ -47,12 +47,19 @@ export default function CertificateVerificationPage() {
         setCertificate(data.certificate);
         setPdfReady(true);
 
-        // Fetch carnets for this certificate
+        // Fetch carnets for this certificate using the database ID from the response
+        // This is more robust than using the ID from the URL
+        const actualCertificateId = data.certificate.id || certificateId;
+        console.log(
+          `🔍 Fetching carnets for certificate ID: ${actualCertificateId}`,
+        );
+
         const carnetsResponse = await fetch(
-          `/api/carnets/by-certificate/${certificateId}`,
+          `/api/carnets/by-certificate/${actualCertificateId}`,
         );
         if (carnetsResponse.ok) {
           const carnetsData = await carnetsResponse.json();
+          console.log("📋 Carnets data received:", carnetsData);
           if (carnetsData.success && carnetsData.data) {
             setCarnets(carnetsData.data);
             const ready: { [key: number]: boolean } = {};
@@ -60,7 +67,14 @@ export default function CertificateVerificationPage() {
               ready[c.id] = true;
             });
             setCarnetPdfReady(ready);
+          } else {
+            console.warn(
+              "⚠️ No carnets found or success was false:",
+              carnetsData,
+            );
           }
+        } else {
+          console.error("❌ Failed to fetch carnets:", carnetsResponse.status);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Verification failed");
