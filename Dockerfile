@@ -27,8 +27,7 @@ RUN npm run build
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
-# 1. Install ONLY essential Chromium/Sharp dependencies
-# I removed the heavy CJK fonts to prevent the build-crash (255)
+# 1. Install Playwright dependencies and system libraries
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
@@ -48,18 +47,26 @@ RUN apt-get update && apt-get install -y \
 # 2. Setup user and permissions properly
 RUN groupadd --system --gid 1001 nodejs && \
     useradd --system --uid 1001 nextjs && \
+    mkdir -p /home/nextjs/.cache/ms-playwright && \
     mkdir -p /home/nextjs/.cache/puppeteer && \
     chown -R nextjs:nodejs /home/nextjs
 
-# 3. Environment variables (Debian path for Chromium is /usr/bin/chromium)
+# 3. Copy node_modules to install Playwright browsers
+COPY --from=deps /app/node_modules ./node_modules
+
+# 4. Install Playwright browsers (must be done before changing user)
+RUN npx playwright install --with-deps chromium
+
+# 5. Environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=false \
     NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME="0.0.0.0"
 
-# 4. Copy build artifacts
+# 6. Copy build artifacts
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
