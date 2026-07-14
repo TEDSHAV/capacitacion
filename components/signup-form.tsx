@@ -2,48 +2,35 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/utils/supabase/client'
+import { handleSignup } from '@/app/actions/auth'
 
 const SignupForm = () => {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
     setSuccess('')
 
-    try {
-      const supabase = createClient()
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name: name
-          }
-        }
-      })
+    const formData = new FormData(e.currentTarget)
+    const result = await handleSignup(formData)
 
-      if (error) {
-        setError(error.message)
-      } else {
-        setSuccess('Cuenta creada exitosamente. Por favor verifica tu email.')
+    if (result.error) {
+      setError(result.error)
+    } else {
+      setSuccess(result.success || 'Cuenta creada exitosamente')
+      if (result.redirect) {
         setTimeout(() => {
-          router.push('/login')
+          router.push(result.redirect!)
         }, 2000)
       }
-    } catch (err) {
-      setError('Error al crear la cuenta')
-    } finally {
-      setIsLoading(false)
     }
+
+    setIsLoading(false)
   }
 
   return (
@@ -76,8 +63,6 @@ const SignupForm = () => {
               required
               className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
               placeholder="Nombre completo"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
             />
           </div>
           <div>
@@ -92,8 +77,6 @@ const SignupForm = () => {
               required
               className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
               placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
           <div>
@@ -108,8 +91,6 @@ const SignupForm = () => {
               required
               className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
               placeholder="Contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
         </div>

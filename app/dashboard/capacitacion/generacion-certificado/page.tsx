@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
 import {
   OSI,
   CourseTopic,
@@ -11,6 +10,7 @@ import {
 } from "@/types";
 import OSISearch from "./components/osi-search";
 import { CertificateForm } from './components/certificate-form';
+import { getCertificateData } from '@/app/actions/certificate';
 
 export default function GeneracionCertificadoPage() {
   const router = useRouter();
@@ -34,66 +34,27 @@ export default function GeneracionCertificadoPage() {
     },
   );
 
-  const supabase = createClient();
-
   useEffect(() => {
-    const checkAuth = async () => {
+    const loadData = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        setLoading(true);
+        const result = await getCertificateData();
 
-        if (!user) {
+        if (result.error) {
           router.push("/login");
           return;
         }
 
-        // Fetch OSI data
-        const { data: osiData, error: osiError } = await supabase
-          .from("osi")
-          .select("*")
-          .order("fecha_emision", { ascending: false })
-          .limit(100);
-
-        if (osiError) throw osiError;
-        setOsis(osiData || []);
-
-        // Fetch course topics from catalogo_servicios where tipo_servicio = 1
-        const { data: courseData, error: courseError } = await supabase
-          .from("catalogo_servicios")
-          .select("id, nombre, contenido_curso, created_at")
-          .eq("tipo_servicio", 1)
-          .order("created_at", { ascending: false });
-
-        if (courseError) throw courseError;
-        setCourseTopics(
-          (courseData || []).map((course) => ({
-            id: course.id.toString(),
-            name: course.nombre,
-            description: course.nombre, // Using nombre as description since description field might not exist
-            contenido_curso: course.contenido_curso, // Course content from database
-            created_at: course.created_at,
-          })),
-        );
+        setOsis(result.osis || []);
+        setCourseTopics(result.courseTopics || []);
       } catch (error) {
         console.error("Error loading data:", error);
-        setLoading(false);
       } finally {
         setLoading(false);
       }
     };
 
-    checkAuth();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      if (!session?.user) {
-        router.push("/login");
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    loadData();
   }, [router]);
 
   const handleOSISelect = (osi: OSI | null) => {

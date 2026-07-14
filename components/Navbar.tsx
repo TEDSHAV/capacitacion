@@ -29,8 +29,8 @@ const Navbar = () => {
   }, [])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut() // Use existing client
-    router.push('/login')
+    const { handleLogout: logout } = await import('@/app/actions/auth');
+    await logout();
   } 
 
   return (
