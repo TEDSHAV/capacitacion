@@ -344,21 +344,37 @@ export class CarnetGenerator {
     pdf.setFontSize(8);
     pdf.setFont("helvetica", "bold");
 
-    // Add course title (centered within border area)
-    const courseY = 18;
-    pdf.text(`${carnetData.titulo_curso.toUpperCase()}`, 40, courseY, {
+    const title = carnetData.titulo_curso.toUpperCase();
+    const maxWidth = 60;
+    const centerX = 33;
+    const courseY = 17; // Reverting to 17 to balance top/bottom space
+    const lineHeight = 3.2; // Tighter line height for size 8 font
+
+    // Split text into lines to calculate total height
+    const titleLines = pdf.splitTextToSize(title, maxWidth);
+    
+    // Add course title
+    pdf.text(titleLines, centerX, courseY, {
       align: "center",
-      maxWidth: 45 ,
+      maxWidth: maxWidth,
     });
 
     // Support both naming conventions for subtitle
-    const subtitle = carnetData.subtitulo_curso || (carnetData as any).certificate_subtitle;
+    const subtitle =
+      carnetData.subtitulo_curso || (carnetData as any).certificate_subtitle;
 
     // Add optional subtitle
     if (subtitle) {
       pdf.setFontSize(6);
       pdf.setFont("helvetica", "normal");
-      pdf.text(`${subtitle}`, 40, courseY + 4, {
+      
+      // Position subtitle dynamically based on title height
+      const titleTotalHeight = (titleLines.length - 1) * lineHeight;
+      
+      // Reduced gap from 6 to 4 for better fit with multi-line titles
+      const subtitleY = courseY + titleTotalHeight + 4;
+      
+      pdf.text(`${subtitle}`, centerX, subtitleY, {
         align: "center",
         maxWidth: 50,
       });

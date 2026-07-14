@@ -212,7 +212,7 @@ export default function ControlServiciosForm() {
               <RadioGroup 
                 value={formData.tipo_servicio} 
                 onValueChange={(v: any) => setFormData(p => ({...p, tipo_servicio: v}))}
-                className="flex gap-4"
+                className="grid-flow-col gap-4"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="Servicio Técnico" id="st" />
@@ -286,7 +286,7 @@ export default function ControlServiciosForm() {
               <RadioGroup 
                 value={formData.prioridad} 
                 onValueChange={(v: any) => setFormData(p => ({...p, prioridad: v}))}
-                className="flex gap-8"
+                className="grid-flow-col"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="Alta" id="p-alta" />
