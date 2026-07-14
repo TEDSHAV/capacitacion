@@ -5,8 +5,8 @@ import { CourseTopic, CertificateFormProps, Signature } from "@/types";
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
-import { getSignaturesForDropdownAction, getCertificateTemplatesAction, getVenezuelanStatesAction, getCertificateTemplatesByCourseAction } from "../../../../../actions/dropdown-data";
-import { FacilitatorSelection } from "../../../gestion-de-facilitadores/components/facilitator-selection";
+import { getSignaturesForDropdownAction, getCertificateTemplatesAction, getVenezuelanStatesAction, getCertificateTemplatesByCourseAction } from "@/app/actions/dropdown-data";
+import { FacilitatorSelection } from "@/app/dashboard/capacitacion/participantes/gestion-de-facilitadores/components/facilitator-selection";
 
 export const CertificateForm = ({
   certificateData,
@@ -488,7 +488,7 @@ export const CertificateForm = ({
               // Fetch facilitator data when selected
               if (id) {
                 try {
-                  const { getFacilitatorData } = await import("../../../../../actions/facilitators");
+                  const { getFacilitatorData } = await import("@/app/actions/facilitators");
                   const facilitatorData = await getFacilitatorData(id);
                   onDataChange("facilitator_data", facilitatorData);
                 } catch (error) {

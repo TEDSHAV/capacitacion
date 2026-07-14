@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { cache } from 'react'
+import CapacitacionClient from './CapacitacionClient'
 
 // Cache the companies fetch to avoid repeated database calls
 const getCompanies = cache(async () => {
@@ -23,9 +24,6 @@ export default async function CapacitacionPage() {
 
   // Fetch cached companies data
   const companies = await getCompanies()
-
-  // Dynamic import of optimized client component for better code splitting
-  const CapacitacionClient = (await import('./CapacitacionClient-optimized')).default
 
   return <CapacitacionClient user={user} companies={companies} />
 }

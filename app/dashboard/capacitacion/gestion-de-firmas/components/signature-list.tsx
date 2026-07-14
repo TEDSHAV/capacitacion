@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getSignaturesAction, deleteSignatureAction, updateSignatureAction } from "../../../../actions/signatures-crud";
-import { getFacilitatorsAction } from "../../../../actions/facilitators-crud";
+import { getSignaturesAction, deleteSignatureAction, updateSignatureAction } from "@/app/actions/signatures-crud";
+import { getFacilitatorsAction } from "@/app/actions/facilitators-crud";
 import { Signature, SignatureType, Facilitador } from "@/types";
 
 interface SignatureListProps {

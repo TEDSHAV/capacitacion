@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Curso, Empresa } from '@/types';
 import { createCurso, updateCurso, duplicateCurso, deleteCurso } from './actions';
-import CourseForm from './components/CourseForm';
-import CourseList from './components/CourseList';
+import CourseForm from './CourseForm';
+import CourseList from './CourseList';
 import CreateCourseButton from './CreateCourseButton';
 
 export default function GestionCursosClient({

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Signature, SignatureType } from "@/types";
 import { SignatureUpload } from "./signature-upload";
 import { SignatureList } from "./signature-list";
-import { getSignaturesAction } from "../../../../actions/signatures-crud";
+import { getSignaturesAction } from "@/app/actions/signatures-crud";
 
 export const SignatureManagement = () => {
   const [signatures, setSignatures] = useState<Signature[]>([]);

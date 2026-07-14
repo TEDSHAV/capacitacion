@@ -1,5 +1,5 @@
 import { Curso } from '@/types';
-import CourseActions from '../CourseActions';
+import CourseActions from './CourseActions';
 
 interface CourseItemProps {
   curso: Curso;

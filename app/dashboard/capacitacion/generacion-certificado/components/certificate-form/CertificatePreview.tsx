@@ -3,7 +3,7 @@
 import { CertificateGenerator } from "@/lib/certificate-generator";
 import { CertificateGeneration, CertificateParticipant } from "@/types";
 import { useState, useEffect } from "react";
-import { getSignaturesForDropdownAction } from "../../../../../actions/dropdown-data";
+import { getSignaturesForDropdownAction } from "@/app/actions/dropdown-data";
 
 interface CertificatePreviewProps {
   certificateData: CertificateGeneration;
@@ -89,7 +89,7 @@ export const CertificatePreview = ({
       // Fetch facilitator data for preview
       if (certificateDataWithSHA.facilitator_id) {
         try {
-          const { getFacilitatorData } = await import("../../../../../actions/facilitators");
+          const { getFacilitatorData } = await import("@/app/actions/facilitators");
           const facilitatorData = await getFacilitatorData(certificateDataWithSHA.facilitator_id);
           if (facilitatorData) {
             certificateDataWithSHA = {

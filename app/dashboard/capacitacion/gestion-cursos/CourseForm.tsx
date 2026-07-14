@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Curso, Empresa } from '@/types';
-import EmpresaSearch from '../EmpresaSearch';
+import EmpresaSearch from './EmpresaSearch';
 
 interface CourseFormProps {
   curso: Curso | null;

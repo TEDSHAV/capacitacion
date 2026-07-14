@@ -59,67 +59,95 @@ export default memo(function OptimizedCapacitacionClient({
 
   // Memoized submodules array to prevent recreation
   const submodules = [
-    {
-      id: 'participantes',
-      title: 'Gestión de Participantes',
-      description: 'Gestión de participantes en capacitaciones',
-      color: 'bg-blue-500'
-    },
-    {
-      id: 'consulta-participantes',
-      title: 'Consulta de Participantes',
-      description: 'Buscar participantes por cédula y ver historial de certificados',
-      color: 'bg-teal-500'
-    },
+    // Cursos Section
     {
       id: 'gestion-cursos',
       title: 'Gestión de Cursos',
       description: 'Crear y administrar contenidos de cursos',
-      color: 'bg-green-500'
-    },
-    {
-      id: 'gestion-de-facilitadores',
-      title: 'Gestión de Facilitadores',
-      description: 'Administración de facilitadores e instructores',
-      color: 'bg-blue-500'
-    },
-    {
-      id: 'gestion-de-firmas',
-      title: 'Gestión de Firmas',
-      description: 'Administrar firmas digitales para certificados',
-      color: 'bg-purple-500'
-    },
-    {
-      id: 'generacion-certificado',
-      title: 'Generación de Certificados',
-      description: 'Crear y generar certificados de capacitación',
-      color: 'bg-yellow-500'
+      color: 'bg-green-500',
+      section: 'cursos'
     },
     {
       id: 'plantillas-certificados',
       title: 'Plantillas de Certificados',
       description: 'Gestionar plantillas para generación de certificados',
-      color: 'bg-purple-500'
+      color: 'bg-emerald-500',
+      section: 'cursos'
+    },
+    // Participantes Section
+    {
+      id: 'participantes',
+      title: 'Gestión de Participantes',
+      description: 'Gestión de participantes en capacitaciones',
+      color: 'bg-blue-500',
+      section: 'participantes'
+    },
+    {
+      id: 'consulta-participantes',
+      title: 'Consulta de Participantes',
+      description: 'Consultar y buscar participantes',
+      color: 'bg-sky-500',
+      section: 'participantes'
+    },
+    {
+      id: 'gestion-de-facilitadores',
+      title: 'Gestión de Facilitadores',
+      description: 'Administración de facilitadores e instructores',
+      color: 'bg-cyan-500',
+      section: 'participantes'
+    },
+    // Certificados Section
+    {
+      id: 'generacion-certificado',
+      title: 'Generación de Certificados',
+      description: 'Crear y generar certificados de capacitación',
+      color: 'bg-yellow-500',
+      section: 'certificados'
     },
     {
       id: 'gestion-certificados',
       title: 'Gestión de Certificados',
       description: 'Administrar certificados emitidos',
-      color: 'bg-blue-500'
+      color: 'bg-amber-500',
+      section: 'certificados'
+    },
+    {
+      id: 'gestion-de-firmas',
+      title: 'Gestión de Firmas',
+      description: 'Administrar firmas digitales para certificados',
+      color: 'bg-purple-500',
+      section: 'certificados'
     },
     {
       id: 'control-secuencia',
-      title: 'Control de Números de Secuencia',
+      title: 'Control de Secuencia',
       description: 'Control de numeración de certificados',
-      color: 'bg-red-500'
+      color: 'bg-red-500',
+      section: 'certificados'
     },
     {
       id: 'reportes',
       title: 'Reportes',
-      description: 'Estadísticas y reportes de facilitadores',
-      color: 'bg-indigo-500'
+      description: 'Estadísticas y reportes de certificados',
+      color: 'bg-indigo-500',
+      section: 'certificados'
     }
   ];
+
+  // Group submodules by section
+  const groupedSubmodules = submodules.reduce((acc, submodule) => {
+    if (!acc[submodule.section]) {
+      acc[submodule.section] = [];
+    }
+    acc[submodule.section].push(submodule);
+    return acc;
+  }, {} as Record<string, typeof submodules>);
+
+  const sectionTitles = {
+    cursos: '📚 Cursos',
+    participantes: '👥 Participantes y Facilitadores',
+    certificados: '📜 Certificados y Control'
+  };
 
   // Memoized navigation handler
   const handleSubmoduleClick = useCallback((submoduleId: string) => {
@@ -142,13 +170,22 @@ export default memo(function OptimizedCapacitacionClient({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {submodules.map((submodule) => (
-            <SubmoduleCard
-              key={submodule.id}
-              submodule={submodule}
-              onClick={() => handleSubmoduleClick(submodule.id)}
-            />
+        <div className="space-y-8">
+          {Object.entries(groupedSubmodules).map(([section, modules]) => (
+            <div key={section}>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                {sectionTitles[section as keyof typeof sectionTitles]}
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {modules.map((submodule) => (
+                  <SubmoduleCard
+                    key={submodule.id}
+                    submodule={submodule}
+                    onClick={() => handleSubmoduleClick(submodule.id)}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>

@@ -11,13 +11,15 @@ import { User } from '@/types/dashboard';
 const submodules = {
   capacitacion: [
     { name: 'Gestión de Cursos', path: '/dashboard/capacitacion/gestion-cursos' },
+    { name: 'Plantillas de Certificados', path: '/dashboard/capacitacion/plantillas-certificados' },
+    { name: 'Gestión de Participantes', path: '/dashboard/capacitacion/participantes' },
+    { name: 'Consulta de Participantes', path: '/dashboard/capacitacion/consulta-participantes' },
+    { name: 'Gestión de Facilitadores', path: '/dashboard/capacitacion/gestion-de-facilitadores' },
     { name: 'Generación de Certificados', path: '/dashboard/capacitacion/generacion-certificado' },
     { name: 'Gestión de Certificados', path: '/dashboard/capacitacion/gestion-certificados' },
-    { name: 'Gestión de Facilitadores', path: '/dashboard/capacitacion/gestion-de-facilitadores' },
     { name: 'Gestión de Firmas', path: '/dashboard/capacitacion/gestion-de-firmas' },
-    { name: 'Gestión de Participantes', path: '/dashboard/capacitacion/participantes' },
-    { name: 'Plantillas de Certificados', path: '/dashboard/capacitacion/plantillas-certificados' },
-    { name: 'Control de Secuencia', path: '/dashboard/capacitacion/control-secuencia' }
+    { name: 'Control de Secuencia', path: '/dashboard/capacitacion/control-secuencia' },
+    { name: 'Reportes', path: '/dashboard/capacitacion/reportes' }
   ],
   negocios: [
     { name: 'Gestión de OSIs', path: '/dashboard/negocios/gestion-de-osis' }

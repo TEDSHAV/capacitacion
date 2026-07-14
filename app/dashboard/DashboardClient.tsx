@@ -235,7 +235,7 @@ const DashboardClient = ({
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button
-                  onClick={() => router.push('/dashboard/capacitacion/gestion-cursos')}
+                  onClick={() => router.push('/dashboard/capacitacion/cursos')}
                   className="flex items-center p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg hover:from-blue-100 hover:to-blue-200 transition-all duration-200 text-left group"
                 >
                   <div className="flex-shrink-0 bg-blue-500 rounded-md p-2 mr-3 group-hover:bg-blue-600 transition-colors">

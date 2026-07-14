@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getFacilitatorHoursStatsAction } from "../../../../actions/reportes-stats";
+import { getFacilitatorHoursStatsAction } from "@/app/actions/reportes-stats";
 import { FacilitadorHoursStatsProps, CertificateInfo, FacilitadorHoursStat } from "@/types";
 import { Button } from "@/components/ui/button";
 

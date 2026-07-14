@@ -81,7 +81,7 @@ export const SignatureSelection = ({
         {facilitatorSignatures.length === 0 && (
           <p className="text-xs text-gray-500 mt-1">
             No hay firmas de facilitadores registradas. 
-            <a href="/dashboard/capacitacion/gestion-de-firmas" className="text-blue-600 hover:underline ml-1">
+            <a href="/dashboard/capacitacion/certificados/gestion-de-firmas" className="text-blue-600 hover:underline ml-1">
               Agregar firmas
             </a>
           </p>
@@ -112,7 +112,7 @@ export const SignatureSelection = ({
         {shaSignatures.length === 0 && (
           <p className="text-xs text-gray-500 mt-1">
             No hay firmas de representantes SHA registradas. 
-            <a href="/dashboard/capacitacion/gestion-de-firmas" className="text-blue-600 hover:underline ml-1">
+            <a href="/dashboard/capacitacion/certificados/gestion-de-firmas" className="text-blue-600 hover:underline ml-1">
               Agregar firmas
             </a>
           </p>

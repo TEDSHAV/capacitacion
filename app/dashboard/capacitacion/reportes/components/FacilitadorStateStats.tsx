@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getFacilitatorStateStatsAction } from "../../../../actions/reportes-stats";
+import { getFacilitatorStateStatsAction } from "@/app/actions/reportes-stats";
 import { FacilitadorStateStatsProps, StateStat, FacilitadorReport } from "@/types";
 
 export default function FacilitadorStateStats({ selectedState }: FacilitadorStateStatsProps) {
