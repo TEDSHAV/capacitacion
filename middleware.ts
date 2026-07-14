@@ -43,18 +43,74 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect all /dashboard routes; unauthenticated users go to the shell login
-  // in production, or the local /login page in development.
-  if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
-    const isProduction = process.env.NODE_ENV === "production";
-    const loginUrl =
-      isProduction && process.env.NEXT_PUBLIC_SHELL_URL
-        ? `${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`
-        : new URL("/login", request.url).toString();
-    return NextResponse.redirect(loginUrl);
+  // Protect all /dashboard routes
+  if (request.nextUrl.pathname.startsWith("/dashboard")) {
+    if (!user) {
+      const isProduction = process.env.NODE_ENV === "production";
+      const loginUrl =
+        isProduction && process.env.NEXT_PUBLIC_SHELL_URL
+          ? `${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`
+          : new URL("/login", request.url).toString();
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Check if user belongs to 'capacitacion' department (id: 3)
+    const { data: userData, error: userError } = await supabase
+      .from("usuarios")
+      .select("id, departamento")
+      .eq("id_auth", user.id)
+      .single();
+
+    if (userError || !userData) {
+      return redirectToUnauthorized(request);
+    }
+
+    // Rule 1: Allow access if in 'capacitacion' department (id: 3)
+    if (userData.departamento === 3) {
+      return supabaseResponse;
+    }
+
+    // Rule 2: Allow access if user is admin (6) or superadmin (5)
+    // First, try to check if they have a global role in metadata
+    const userRole = user.app_metadata?.role || user.user_metadata?.role;
+    if (userRole === 'superadmin' || userRole === 'admin') {
+      return supabaseResponse;
+    }
+
+    // Rule 3: Check roles in authprisma via a Security Definer function
+    // This is the proper solution to avoid schema permission issues
+    try {
+      const { data: isAdmin } = await supabase
+        .rpc('is_app_admin', { 
+          target_user_id: userData.id, 
+          target_app_id: 2 
+        });
+
+      if (isAdmin) {
+        return supabaseResponse;
+      }
+    } catch (e) {
+      // Gracefully handle RPC errors
+    }
+
+    return redirectToUnauthorized(request);
   }
 
   return supabaseResponse;
+}
+
+// Helper to redirect to unauthorized page
+function redirectToUnauthorized(request: NextRequest) {
+  const isProduction = process.env.NODE_ENV === "production";
+  
+  // Try to use shell unauthorized page if in production, otherwise use local
+  if (isProduction && process.env.NEXT_PUBLIC_SHELL_URL) {
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/unauthorized`);
+  }
+  
+  // Use local unauthorized page
+  const unauthorizedUrl = new URL("/unauthorized", request.url);
+  return NextResponse.redirect(unauthorizedUrl);
 }
 
 export const config = {
