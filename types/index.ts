@@ -1326,3 +1326,80 @@ export interface TendenciasData {
   yearlyTotals: Array<{ year: number; count: number }>;
   stateDistribution: Array<{ nombre: string; count: number }>;
 }
+
+// Planificación de Servicios Types
+export interface ControlServiciosEjecutados {
+  id?: number;
+  id_osi?: number | null;
+
+  // Auto-populated from OSI
+  mes_recepcion?: string | null;
+  numero_osi?: string | null;
+  participante_x_osis?: number | null;
+  fecha_osi?: string | null;
+  cod_cliente?: number | null;
+  nombre_curso?: string | null;
+  fecha_ejecucion?: string | null;
+  monto_x_traslado_mt?: number | null;
+  horas_honorarios_h?: number | null;
+  costo_por_hora?: number | null;
+  gasto_impresion_i?: number | null;
+
+  // Manual inputs
+  ejecutada_mes_curso?: "ejecutada" | "no ejecutada" | "";
+  pendiente_mes_anterior?: string | null; // month name
+  participantes_asistidos?: number | null;
+  certificados_reales?: number | null;
+  pvc_reales?: number | null;
+  responsable?: string | null;
+  dias_traslado_t?: number | null;
+  cod_facilitador?: number | null;
+  facilitador?: string | null;
+  observaciones?: string | null;
+  indicador_facilitador?: number | null;
+
+  // Metadata
+  created_at?: string;
+  updated_at?: string;
+
+  // Relationship data
+  v_osi_formato_completo?: {
+    nro_osi: string | null;
+    nombre_empresa: string | null;
+    servicio: string | null;
+  };
+  facilitadores?: {
+    nombre_apellido: string;
+    cedula: string | null;
+  };
+}
+
+export interface ControlServiciosFormData {
+  selectedOSI?: OSIFullData | null;
+  ejecutada_mes_curso: "ejecutada" | "no ejecutada" | "";
+  pendiente_mes_anterior: string;
+  participantes_asistidos: number | null;
+  certificados_reales: number | null;
+  pvc_reales: number | null;
+  responsable: string;
+  dias_traslado_t: number | null;
+  cod_facilitador: string;
+  facilitador: string;
+  observaciones: string;
+  indicador_facilitador: number | null;
+}
+
+// Full OSI data from v_osi_formato_completo view for control servicios
+export interface OSIFullData {
+  id_osi: number;
+  nro_osi: string | null;
+  fecha_emision: string | null;
+  fecha_inicio_real: string | null;
+  codigo_cliente: number | null;
+  participantes_ejecucion: number | null;
+  servicio: string | null;
+  costo_traslado: number | null;
+  horas_honorarios_instructor: number | null;
+  tarifa_hora_honorarios: number | null;
+  costo_impresion_material: number | null;
+}
