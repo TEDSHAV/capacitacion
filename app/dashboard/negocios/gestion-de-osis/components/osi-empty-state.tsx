@@ -1,12 +1,8 @@
-'use client'
+"use client";
 
-interface OSIEmpyStateProps {
-  hasFilters: boolean
-  onClearFilters: () => void
-  onCreateNew: () => void
-}
+import { OSIEmptyStateProps } from "@/types";
 
-export default function OSIEmptyState({ hasFilters, onClearFilters, onCreateNew }: OSIEmpyStateProps) {
+export default function OSIEmptyState({ hasFilters, onClearFilters, onCreateNew }: OSIEmptyStateProps) {
   if (hasFilters) {
     return (
       <div className="text-center py-12">

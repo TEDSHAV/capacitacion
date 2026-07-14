@@ -231,3 +231,9 @@ export interface AdditionalInfoProps {
   isNew: boolean
   updateFormData: (field: string, value: any) => void
 }
+
+export interface OSIEmptyStateProps {
+  hasFilters: boolean
+  onClearFilters: () => void
+  onCreateNew: () => void
+}
