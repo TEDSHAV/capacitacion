@@ -2789,9 +2789,11 @@ export async function batchUpdateCertificatesAction(
             }
             if ('date' in updates) {
               if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.date = updates.date;
+              if (snapshotObj.certificado) snapshotObj.certificado.fecha_emision = updates.date;
               snapshotObj.date = updates.date;
             }
             if ('fecha_vencimiento' in updates) {
+              if (snapshotObj.certificado) snapshotObj.certificado.fecha_vencimiento = updates.fecha_vencimiento;
               snapshotObj.fecha_vencimiento = updates.fecha_vencimiento;
             }
             if ('location' in updates) {

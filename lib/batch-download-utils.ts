@@ -233,6 +233,7 @@ export async function downloadBatchAction(
           tema: firstSnapshot?.certificado_detalles?.title || courseTitle,
           id_curso: firstSnapshot?.certificado?.id_curso || firstCert.id_curso,
           id_ciudad: firstSnapshot?.osi?.id_ciudad || osiData.id_ciudad,
+          ciudad: firstSnapshot?.certificado_detalles?.location || firstSnapshot?.osi?.ciudad || osiData.ciudad,
         },
         firmanteData: {
           nombre: firstSnapshot?.firmas?.sha_signature_data?.nombre || "DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.",
