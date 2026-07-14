@@ -190,25 +190,9 @@ const getCourseTemplatesByOSI = cache(async (courseId?: string, empresaId?: stri
     console.log('🔍 getCourseTemplatesByOSI called with:', { courseId, empresaId });
 
     if (!courseId && !empresaId) {
-      // If no course or company selected, return all active templates
-      console.log('📋 Loading all active course templates');
-      let query = supabase
-        .from('plantillas_cursos')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
-      const { data, error } = await query;
-
-      console.log('📊 All templates query result:', { data: data?.length || 0, error });
-
-      if (error) {
-        console.error('❌ Error in all templates query:', error);
-        return { error: error.message, data: [] };
-      }
-
-      console.log('✅ Returning all templates:', data?.length || 0);
-      return { data: data || [], error: null };
+      // If no course or company selected, return empty list (not all templates)
+      console.log('📋 No course or company selected, returning empty templates list');
+      return { data: [], error: null };
     }
 
     // Fetch all active templates and filter in JS to avoid complex PostgREST query issues
