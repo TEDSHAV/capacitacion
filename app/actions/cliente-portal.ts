@@ -862,7 +862,7 @@ export async function getClienteFilterOptions(
         id,
         nombre_estado,
       })),
-      cities: sessionSedeId ? [] : Array.from(cityMap.entries()).map(([id, nombre_ciudad]) => ({
+      cities: sessionSedeIds && sessionSedeIds.length > 0 ? [] : Array.from(cityMap.entries()).map(([id, nombre_ciudad]) => ({
         id,
         nombre_ciudad,
       })),
