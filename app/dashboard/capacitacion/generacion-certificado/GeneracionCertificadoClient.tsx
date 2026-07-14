@@ -169,9 +169,9 @@ export default function GeneracionCertificadoClient({
     }
   }, []);
 
-  // Lazy-load companies and cities only when manual mode is activated
+  // Load companies and cities on mount (needed for city lookup in both OSI and manual modes)
   useEffect(() => {
-    if (osiInputMode !== "manual" || companies.length > 0) return;
+    if (companies.length > 0 && cities.length > 0) return;
 
     let cancelled = false;
     const loadCompaniesAndCities = async () => {
@@ -305,7 +305,6 @@ export default function GeneracionCertificadoClient({
     if (osi) {
       // 1. Determine default date from OSI
       const osiDate =
-        osi.fecha_emision ||
         osi.fecha_servicio ||
         new Date().toISOString().split("T")[0];
       const formattedDate =
