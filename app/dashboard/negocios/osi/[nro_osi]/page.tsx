@@ -26,8 +26,9 @@ interface OSI {
   costo_otros: number
   estado: string
   codigo_cliente: string
+  rif: string
+  direccion_fiscal: string
   persona_contacto_id: number
-  direccion_fiscal: number
   direccion_envio: string
   direccion_ejecucion: string
   nro_sesiones: number
@@ -71,8 +72,9 @@ export default function OSIDetailPage() {
     costo_otros: 0,
     estado: 'pendiente',
     codigo_cliente: '',
+    rif: '',
+    direccion_fiscal: '',
     persona_contacto_id: 0,
-    direccion_fiscal: 0,
     direccion_envio: '',
     direccion_ejecucion: ''
   })
@@ -130,7 +132,7 @@ export default function OSIDetailPage() {
     try {
       const { data, error } = await supabase
         .from("empresas")
-        .select("id, razon_social")
+        .select("id, razon_social, rif, direccion_fiscal")
         .order("razon_social")
       
       if (error) throw error
@@ -207,8 +209,9 @@ export default function OSIDetailPage() {
         costo_otros: Number(formData.costo_otros) || null,
         estado: formData.estado || 'pendiente',
         codigo_cliente: formData.codigo_cliente?.trim() || '',
+        rif: formData.rif?.trim() || '',
+        direccion_fiscal: formData.direccion_fiscal?.trim() || '',
         persona_contacto_id: Number(formData.persona_contacto_id) || null,
-        direccion_fiscal: Number(formData.direccion_fiscal) || null,
         direccion_envio: formData.direccion_envio?.trim() || '',
         direccion_ejecucion: formData.direccion_ejecucion?.trim() || ''
       }
@@ -436,6 +439,8 @@ export default function OSIDetailPage() {
                             className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                             onClick={() => {
                               updateFormData('cliente_nombre_empresa', empresa.razon_social)
+                              updateFormData('rif', empresa.rif || '')
+                              updateFormData('direccion_fiscal', empresa.direccion_fiscal || '')
                               setSearchTerm('')
                             }}
                           >
@@ -457,6 +462,28 @@ export default function OSIDetailPage() {
                     disabled={!isEditing && !isNew}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Codigo del cliente"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">RIF</label>
+                  <input
+                    type="text"
+                    value={formData.rif || ''}
+                    onChange={(e) => updateFormData('rif', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="RIF de la empresa"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Direccion Fiscal</label>
+                  <input
+                    type="text"
+                    value={formData.direccion_fiscal || ''}
+                    onChange={(e) => updateFormData('direccion_fiscal', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="Direccion fiscal"
                   />
                 </div>
                 <div>
