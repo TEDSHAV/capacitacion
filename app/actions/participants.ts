@@ -77,6 +77,26 @@ export async function getParticipants(): Promise<{
   }
 }
 
+export async function getRecentParticipants(): Promise<
+  ParticipanteCertificado[] | null
+> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("participantes_certificados")
+      .select("*")
+      .eq("is_active", true)
+      .order("id", { ascending: false })
+      .limit(5);
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("Error en participantes recientes:", error);
+    return null;
+  }
+}
+
 export async function createParticipant(
   formData: ParticipantFormData,
 ): Promise<{

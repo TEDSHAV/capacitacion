@@ -29,6 +29,7 @@ export default function ParticipantLookup() {
   const [stats, setStats] = useState<any>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [recentParticipants, setRecentParticipants] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadStats() {
@@ -36,6 +37,14 @@ export default function ParticipantLookup() {
       setStats(data);
     }
     loadStats();
+
+    async function loadRecent() {
+      const data = await import("@/app/actions/participants").then((m) =>
+        m.getRecentParticipants(),
+      );
+      setRecentParticipants(data || []);
+    }
+    loadRecent();
 
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -221,15 +230,17 @@ export default function ParticipantLookup() {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
             {showSuggestions && suggestions.length > 0 && (
-              <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 shadow-lg max-h-60 overflow-y-auto">
+              <ul className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1">
                 {suggestions.map((s, index) => (
                   <li
                     key={s.id}
-                    className={`px-4 py-2 cursor-pointer text-sm border-b last:border-b-0 ${index === selectedIndex ? "bg-blue-100" : "hover:bg-gray-100"}`}
+                    className={`px-4 py-3 cursor-pointer text-sm border-b border-gray-100 last:border-b-0 ${index === selectedIndex ? "bg-blue-50" : "hover:bg-gray-50"}`}
                     onClick={() => handleSelectParticipant(s)}
                   >
-                    {s.nombre}{" "}
-                    <span className="text-gray-500">(Cédula: {s.cedula})</span>
+                    <div className="font-medium text-gray-900">{s.nombre}</div>
+                    <div className="text-gray-500 text-xs mt-0.5">
+                      Cédula: {s.cedula}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -249,6 +260,45 @@ export default function ParticipantLookup() {
           </div>
         )}
       </div>
+
+      {!participantData && recentParticipants.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Participantes Recientes
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-gray-500 uppercase border-b border-gray-100">
+                <tr>
+                  <th className="px-4 py-3">Nombre</th>
+                  <th className="px-4 py-3">Cédula</th>
+                  <th className="px-4 py-3">Nacionalidad</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {recentParticipants.map((p) => (
+                  <tr
+                    key={p.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => {
+                      setSearchQuery(p.cedula);
+                      fetchParticipantData(p.cedula);
+                    }}
+                  >
+                    <td className="px-4 py-3 font-medium text-gray-900 text-blue-600">
+                      {p.nombre}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{p.cedula}</td>
+                    <td className="px-4 py-3 text-gray-600 capitalize">
+                      {p.nacionalidad}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {participantData && (
         <div className="space-y-8">
