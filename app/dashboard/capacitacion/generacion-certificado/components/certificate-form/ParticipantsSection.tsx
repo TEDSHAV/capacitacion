@@ -6,7 +6,7 @@ import { useParticipants } from "./use-participants";
 import { ParticipantScannerModal } from "./ParticipantScannerModal";
 import { SeniatVerificationPopover } from "./SeniatVerificationPopover";
 import { Button } from "@/components/ui/button";
-import { X, Camera, CheckCircle2, AlertCircle, Download, Loader2, FileSearch, Search } from "lucide-react";
+import { X, Camera, CheckCircle2, AlertCircle, Download, Loader2, FileSearch, Search, Database } from "lucide-react";
 import { getOSIParticipants, getOSIAttachments } from "@/app/actions/facilitador-portal";
 
 export const ParticipantsSection = ({
@@ -46,6 +46,7 @@ export const ParticipantsSection = ({
     updateNewParticipant,
     handleKeyPress: handleKeyPressHook,
     error,
+    nameAutoFilled,
   } = useParticipants(onChange, uniqueParticipants);
 
   const addParticipant = () => {
@@ -226,16 +227,24 @@ export const ParticipantsSection = ({
 
       {/* Add Participant Form - Hidden in Edit Mode */}
       {!isEditMode && (
-        <div className="flex gap-2 mb-3">
-          <input
-            ref={nameInputRef}
-            type="text"
-            value={newParticipant.name}
-            onChange={(e) => updateNewParticipant("name", e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Nombre del participante"
-            className="w-100 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+        <div className="flex gap-2 mb-3 items-center">
+          <div className="relative flex-1">
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={newParticipant.name}
+              onChange={(e) => updateNewParticipant("name", e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Nombre del participante"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {nameAutoFilled && (
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-200 whitespace-nowrap pointer-events-none">
+                <Database className="h-2.5 w-2.5" />
+                Auto
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-1">
             <select
               value={newParticipant.nationality || "venezolano"}
@@ -433,16 +442,40 @@ export const ParticipantsSection = ({
                     </div>
                   ) : (
                     <>
-                      <span className="font-medium text-gray-900 uppercase whitespace-nowrap">
-                        {participant.name}
-                      </span>
-                      <span className="text-gray-500 text-sm whitespace-nowrap">
-                        (
-                        {participant.nationality === "venezolano"
-                          ? "V-"
-                          : "E-"}
-                        {participant.idNumber})
-                      </span>
+                      <input
+                        type="text"
+                        value={participant.name}
+                        onChange={(e) => {
+                          const newParticipants = [...uniqueParticipants];
+                          newParticipants[index].name = e.target.value;
+                          onChange(newParticipants);
+                        }}
+                        className="font-medium text-gray-900 uppercase whitespace-nowrap px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
+                      />
+                      <div className="flex items-center gap-1">
+                        <select
+                          value={participant.nationality || "venezolano"}
+                          onChange={(e) => {
+                            const newParticipants = [...uniqueParticipants];
+                            newParticipants[index].nationality = e.target.value as "venezolano" | "extranjero";
+                            onChange(newParticipants);
+                          }}
+                          className="px-1 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="venezolano">V-</option>
+                          <option value="extranjero">E-</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={participant.idNumber}
+                          onChange={(e) => {
+                            const newParticipants = [...uniqueParticipants];
+                            newParticipants[index].idNumber = e.target.value;
+                            onChange(newParticipants);
+                          }}
+                          className="text-gray-500 text-sm whitespace-nowrap px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-28"
+                        />
+                      </div>
 
                       {/* SENIAT Verification Status */}
                       {participant.seniatVerification && (

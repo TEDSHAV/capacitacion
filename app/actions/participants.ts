@@ -77,6 +77,43 @@ export async function getParticipants(): Promise<{
   }
 }
 
+export async function getParticipantByCedula(
+  cedula: string,
+  nacionalidad?: "venezolano" | "extranjero",
+): Promise<{
+  participant: (ParticipanteCertificado & { is_active?: boolean }) | null;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+
+    let query = supabase
+      .from("participantes_certificados")
+      .select("*")
+      .ilike("cedula", cedula.trim())
+      .limit(1);
+
+    if (nacionalidad) {
+      query = query.eq("nacionalidad", nacionalidad);
+    }
+
+    const { data, error } = await query.maybeSingle();
+
+    if (error) throw error;
+
+    return { participant: data || null };
+  } catch (error) {
+    console.error("Error en getParticipantByCedula:", error);
+    return {
+      participant: null,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Error al buscar participante por cédula.",
+    };
+  }
+}
+
 export async function getRecentParticipants(): Promise<
   ParticipanteCertificado[] | null
 > {

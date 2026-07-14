@@ -381,6 +381,9 @@ export interface CertificateParticipant {
   phone?: string;
   nationality?: "venezolano" | "extranjero";
   seniatVerification?: ParticipantVerificationResult;
+  dbId?: number;
+  dbOriginalName?: string;
+  dbOriginalIdNumber?: string;
 }
 
 export interface Signature {

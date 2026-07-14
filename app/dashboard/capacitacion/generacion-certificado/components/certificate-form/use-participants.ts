@@ -1,11 +1,15 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { CertificateParticipant } from "@/types";
+import { getParticipantByCedula } from "@/app/actions/participants";
 
 const initialParticipant = {
   name: "",
   idNumber: "",
   score: 0,
   nationality: "venezolano" as "venezolano" | "extranjero",
+  dbId: undefined as number | undefined,
+  dbOriginalName: undefined as string | undefined,
+  dbOriginalIdNumber: undefined as string | undefined,
 };
 
 export const useParticipants = (
@@ -16,11 +20,54 @@ export const useParticipants = (
   const [currentParticipants, setCurrentParticipants] =
     useState<CertificateParticipant[]>(initialParticipants);
   const [error, setError] = useState<string>("");
+  const [nameAutoFilled, setNameAutoFilled] = useState(false);
+  const userEditedNameRef = useRef(false);
 
   // Sync with parent component when initial participants change
   useEffect(() => {
     setCurrentParticipants(initialParticipants || []);
   }, [initialParticipants]);
+
+  // Debounced auto-fill name from DB when idNumber changes
+  useEffect(() => {
+    const idNumberTrimmed = newParticipant.idNumber.trim();
+    if (!idNumberTrimmed) {
+      setNameAutoFilled(false);
+      userEditedNameRef.current = false;
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const result = await getParticipantByCedula(
+        idNumberTrimmed,
+        newParticipant.nationality,
+      );
+
+      if (result.participant) {
+        const dbParticipant = result.participant;
+        if (!userEditedNameRef.current) {
+          setNewParticipant((prev) => ({
+            ...prev,
+            name: dbParticipant.nombre,
+            dbId: dbParticipant.id,
+            dbOriginalName: dbParticipant.nombre,
+            dbOriginalIdNumber: dbParticipant.cedula,
+          }));
+          setNameAutoFilled(true);
+        }
+      } else {
+        setNewParticipant((prev) => ({
+          ...prev,
+          dbId: undefined,
+          dbOriginalName: undefined,
+          dbOriginalIdNumber: undefined,
+        }));
+        setNameAutoFilled(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [newParticipant.idNumber, newParticipant.nationality]);
 
   const addParticipant = useCallback((): boolean => {
     if (newParticipant.name.trim() && newParticipant.idNumber.trim()) {
@@ -53,11 +100,16 @@ export const useParticipants = (
         idNumber: newParticipant.idNumber.trim(),
         score: score,
         nationality: newParticipant.nationality || "venezolano",
+        dbId: newParticipant.dbId,
+        dbOriginalName: newParticipant.dbOriginalName,
+        dbOriginalIdNumber: newParticipant.dbOriginalIdNumber,
       };
       const updatedParticipants = [...currentParticipants, participant];
       setCurrentParticipants(updatedParticipants);
       onParticipantsChange(updatedParticipants);
       setNewParticipant(initialParticipant);
+      userEditedNameRef.current = false;
+      setNameAutoFilled(false);
       return true;
     }
     return false;
@@ -78,6 +130,14 @@ export const useParticipants = (
     (field: keyof typeof newParticipant, value: string | number) => {
       // Clear error when user starts typing
       setError("");
+      if (field === "name") {
+        userEditedNameRef.current = true;
+        setNameAutoFilled(false);
+      }
+      if (field === "idNumber") {
+        userEditedNameRef.current = false;
+        setNameAutoFilled(false);
+      }
       setNewParticipant((prev) => {
         return { ...prev, [field]: value };
       });
@@ -102,5 +162,6 @@ export const useParticipants = (
     updateNewParticipant,
     handleKeyPress,
     error,
+    nameAutoFilled,
   };
 };

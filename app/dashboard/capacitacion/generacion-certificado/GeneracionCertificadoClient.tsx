@@ -28,6 +28,7 @@ import {
   getCertificateTemplatesAction,
 } from "@/app/actions/dropdown-data";
 import { getCompaniesAndCities } from "@/app/actions/companies-cities";
+import { updateParticipant } from "@/app/actions/participants";
 import { QRService } from "@/lib/qr-service";
 import { generateDocumentsServer } from "@/lib/document-server-actions";
 import {
@@ -744,6 +745,28 @@ export default function GeneracionCertificadoClient({
         router.push("/dashboard/capacitacion/gestion-certificados");
         return;
       } else {
+        // Sync any DB-sourced participants whose name or ID was modified
+        for (const participant of certificateData.participants) {
+          if (
+            participant.dbId &&
+            (participant.name !== participant.dbOriginalName ||
+              participant.idNumber !== participant.dbOriginalIdNumber)
+          ) {
+            try {
+              await updateParticipant(participant.dbId, {
+                nombre: participant.name,
+                cedula: participant.idNumber,
+                nacionalidad: participant.nationality || "venezolano",
+              });
+            } catch (e) {
+              console.error(
+                `[Participant Sync] Failed to update participant ${participant.dbId}:`,
+                e,
+              );
+            }
+          }
+        }
+
         // Create new certificates
         dbResult = await saveCertificatesToDatabase(
           certificateData,
