@@ -25,7 +25,7 @@ interface OSI {
   costo_logistica_comida: number
   costo_otros: number
   estado: string
-  empresa_id: number
+  codigo_cliente: string
   persona_contacto_id: number
   direccion_fiscal: number
   direccion_envio: string
@@ -70,7 +70,7 @@ export default function OSIDetailPage() {
     costo_logistica_comida: 0,
     costo_otros: 0,
     estado: 'pendiente',
-    empresa_id: 0,
+    codigo_cliente: '',
     persona_contacto_id: 0,
     direccion_fiscal: 0,
     direccion_envio: '',
@@ -196,7 +196,7 @@ export default function OSIDetailPage() {
         costo_logistica_comida: Number(formData.costo_logistica_comida) || null,
         costo_otros: Number(formData.costo_otros) || null,
         estado: formData.estado || 'pendiente',
-        empresa_id: Number(formData.empresa_id) || null,
+        codigo_cliente: formData.codigo_cliente?.trim() || '',
         persona_contacto_id: Number(formData.persona_contacto_id) || null,
         direccion_fiscal: Number(formData.direccion_fiscal) || null,
         direccion_envio: formData.direccion_envio?.trim() || '',
@@ -389,10 +389,10 @@ export default function OSIDetailPage() {
         {/* Basic Information Section */}
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Información Básica</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div className="space-y-3">
               <h3 className="text-base font-medium text-gray-900 mb-2">Identificación</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Número OSI</label>
                   <input
@@ -421,16 +421,16 @@ export default function OSIDetailPage() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Empresa ID</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Codigo cliente</label>
                   <input
-                    type="number"
-                    value={formData.empresa_id || 0}
-                    onChange={(e) => updateFormData('empresa_id', parseInt(e.target.value) || 0)}
+                    type="text"
+                    value={formData.codigo_cliente || ''}
+                    onChange={(e) => updateFormData('codigo_cliente', e.target.value)}
                     disabled={!isEditing && !isNew}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    placeholder="ID de la empresa"
+                    placeholder="Codigo del cliente"
                   />
                 </div>
                 <div>
@@ -445,7 +445,7 @@ export default function OSIDetailPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Ejecutivo Negocios ID</label>
                   <input
