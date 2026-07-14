@@ -17,6 +17,11 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
   const [loading, setLoading] = useState(true);
   const [osis, setOsis] = useState<OSIManagement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [metrics, setMetrics] = useState({
+    total_hours: 0,
+    total_sesiones: 0,
+    unique_companies: 0,
+  });
   const [filters, setFilters] = useState<OSIFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
@@ -76,6 +81,13 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
 
         setOsis(result.osis);
         setTotalCount(result.totalCount);
+        setMetrics(
+          result.metrics || {
+            total_hours: 0,
+            total_sesiones: 0,
+            unique_companies: 0,
+          },
+        );
       } catch (error) {
         console.error("Error loading OSIs:", error);
       } finally {
@@ -127,7 +139,9 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
       <OSIDashboardMetrics
         osis={osis}
         statuses={statuses}
-        loading={loading || loadingFilters}
+        totalCount={totalCount}
+        metrics={metrics}
+        loading={loadingFilters}
       />
 
       {/* Filters */}

@@ -349,9 +349,144 @@ export async function getOSIsForManagement(
       } as OSIManagement;
     });
 
+    // Calculate aggregate metrics for all filtered OSIs (not just current page)
+    let metrics = {
+      total_hours: 0,
+      total_sesiones: 0,
+      unique_companies: 0,
+    };
+
+    try {
+      // Build the same query without pagination to get aggregates
+      let aggregateQuery = supabase
+        .from("v_osi_formato_completo")
+        .select("horas_academicas_ejecucion, sesiones_ejecucion, id_empresa");
+
+      // Apply the same filters
+      if (filters.tipoServicio) {
+        aggregateQuery = aggregateQuery.eq(
+          "tipo_servicio",
+          filters.tipoServicio,
+        );
+      } else {
+        aggregateQuery = aggregateQuery.or(
+          "tipo_servicio.ilike.%capacitacion%,tipo_servicio.eq.1",
+        );
+      }
+
+      if (filters.companyName) {
+        aggregateQuery = aggregateQuery.ilike(
+          "nombre_empresa",
+          `%${filters.companyName}%`,
+        );
+      }
+
+      if (filters.nroOsi) {
+        aggregateQuery = aggregateQuery.ilike("nro_osi", `%${filters.nroOsi}%`);
+      }
+
+      if (filters.status) {
+        aggregateQuery = aggregateQuery.eq(
+          "id_estatus",
+          parseInt(filters.status),
+        );
+      }
+
+      if (filters.dateServiceFrom) {
+        aggregateQuery = aggregateQuery.gte(
+          "fecha_inicio_real",
+          filters.dateServiceFrom,
+        );
+      }
+
+      if (filters.dateServiceTo) {
+        aggregateQuery = aggregateQuery.lte(
+          "fecha_inicio_real",
+          filters.dateServiceTo,
+        );
+      }
+
+      if (filters.dateIssuedFrom) {
+        aggregateQuery = aggregateQuery.gte(
+          "fecha_emision",
+          filters.dateIssuedFrom,
+        );
+      }
+
+      if (filters.dateIssuedTo) {
+        aggregateQuery = aggregateQuery.lte(
+          "fecha_emision",
+          filters.dateIssuedTo,
+        );
+      }
+
+      if (filters.numSesionesMin !== undefined) {
+        aggregateQuery = aggregateQuery.gte(
+          "sesiones_ejecucion",
+          filters.numSesionesMin,
+        );
+      }
+
+      if (filters.numSesionesMax !== undefined) {
+        aggregateQuery = aggregateQuery.lte(
+          "sesiones_ejecucion",
+          filters.numSesionesMax,
+        );
+      }
+
+      if (filters.numHoursMin !== undefined) {
+        aggregateQuery = aggregateQuery.gte(
+          "horas_academicas_ejecucion",
+          filters.numHoursMin,
+        );
+      }
+
+      if (filters.numHoursMax !== undefined) {
+        aggregateQuery = aggregateQuery.lte(
+          "horas_academicas_ejecucion",
+          filters.numHoursMax,
+        );
+      }
+
+      if (filters.location) {
+        aggregateQuery = aggregateQuery.ilike(
+          "direccion_ejecucion",
+          `%${filters.location}%`,
+        );
+      }
+
+      if (filters.ejecutivo) {
+        aggregateQuery = aggregateQuery.ilike(
+          "ejecutivo_negocios",
+          `%${filters.ejecutivo}%`,
+        );
+      }
+
+      const { data: aggregateData } = await aggregateQuery;
+
+      if (aggregateData && aggregateData.length > 0) {
+        metrics.total_hours = aggregateData.reduce(
+          (sum, row) => sum + (row.horas_academicas_ejecucion || 0),
+          0,
+        );
+        metrics.total_sesiones = aggregateData.reduce(
+          (sum, row) => sum + (row.sesiones_ejecucion || 0),
+          0,
+        );
+        const uniqueCompanyIds = new Set(
+          aggregateData.map((row) => row.id_empresa),
+        );
+        metrics.unique_companies = uniqueCompanyIds.size;
+      }
+    } catch (err) {
+      console.error("Error calculating aggregate metrics:", err);
+      // Fall back to page-level metrics if aggregate query fails
+    }
+
     return {
       osis: enrichedOSIs,
       totalCount: count || 0,
+      metrics,
     };
   } catch (err) {
     console.error("Unexpected error in getOSIsForManagement:", err);

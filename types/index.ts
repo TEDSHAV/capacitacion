@@ -906,7 +906,11 @@ export interface OSIManagement {
 export interface OSISearchResult {
   osis: OSIManagement[];
   totalCount: number;
-  metrics?: OSIMetrics;
+  metrics?: {
+    total_hours: number;
+    total_sesiones: number;
+    unique_companies: number;
+  };
 }
 
 export interface OSIMetrics {
