@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import JSZip from 'jszip';
 import {
   CourseTopic,
   CertificateGeneration,
@@ -254,6 +255,66 @@ export default function GeneracionCertificadoClient({
 
       const templateImageUrl = '/templates/certificado.png';
       const sealImageUrl = '/templates/sello.png';
+
+      // Helper function to preload images as base64
+      async function preloadImage(url: string): Promise<string> {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      // Pre-fetch shared assets once before generation loop
+      console.log("Pre-loading shared assets...");
+      
+      // Fetch facilitator data once
+      let facilitatorData: any = null;
+      let facilitatorSignatureBase64 = '';
+      if (selectedOSI?.id_facilitador) {
+        const facilitatorResponse = await fetch(`/api/facilitators/${selectedOSI.id_facilitador}`);
+        facilitatorData = await facilitatorResponse.json();
+        
+        // Preload facilitator signature if available
+        if (facilitatorData?.firmas?.url_imagen) {
+          try {
+            facilitatorSignatureBase64 = await preloadImage(facilitatorData.firmas.url_imagen);
+          } catch (error) {
+            console.error("Failed to preload facilitator signature:", error);
+          }
+        }
+      }
+
+      // Preload seal image
+      let selloBase64 = '';
+      try {
+        selloBase64 = await preloadImage(sealImageUrl);
+      } catch (error) {
+        console.error("Failed to preload seal image:", error);
+      }
+
+      // Preload template image
+      let templateBase64 = '';
+      try {
+        templateBase64 = await preloadImage(templateImageUrl);
+      } catch (error) {
+        console.error("Failed to preload template image:", error);
+      }
+
+      // Preload SHA signature if available
+      let shaSignatureBase64 = '';
+      if (certificateData.sha_signature_data?.url_imagen) {
+        try {
+          shaSignatureBase64 = await preloadImage(certificateData.sha_signature_data.url_imagen);
+        } catch (error) {
+          console.error("Failed to preload SHA signature:", error);
+        }
+      }
+
+      console.log("Assets loaded. Starting batch generation...");
       
       // Prepare data for additional documents (available before generation starts)
       const certificateRecords = certificateData.participants.map((participant, index) => ({
@@ -296,35 +357,60 @@ export default function GeneracionCertificadoClient({
           })()
         : Promise.resolve(null);
 
-      // Generate certificates sequentially to prevent race conditions
-      const certificates = [];
-      for (let i = 0; i < certificateData.participants.length; i++) {
-        const participant = certificateData.participants[i];
-        const controlNumbers = dbResult.certificateNumbers![i];
-        try {
-          const blob = await certificateGenerator.generateCertificate({
-            participant,
-            certificateData,
-            templateImage: templateImageUrl,
-            sealImage: sealImageUrl,
-            controlNumbers,
-            isPreview: false,
-            certificateId: dbResult.certificateIds![i]
-          });
-          certificates.push({ participant, blob });
-        } catch (error) {
-          // Continue with next participant if one fails
-        }
+      // Generate certificates concurrently in batches
+      const certificates: { participant: any; blob: Blob }[] = [];
+      const failedCertificates: { participant: any; error: any }[] = [];
+      const BATCH_SIZE = 5;
+
+      for (let i = 0; i < certificateData.participants.length; i += BATCH_SIZE) {
+        const batch = certificateData.participants.slice(i, i + BATCH_SIZE);
+        
+        const batchPromises = batch.map(async (participant, index) => {
+          const actualIndex = i + index;
+          const controlNumbers = dbResult.certificateNumbers![actualIndex];
+          
+          try {
+            const blob = await certificateGenerator.generateCertificate({
+              participant,
+              certificateData,
+              templateImage: templateBase64 || templateImageUrl,
+              sealImage: selloBase64 || sealImageUrl,
+              controlNumbers,
+              isPreview: false,
+              certificateId: dbResult.certificateIds![actualIndex],
+              preloadedAssets: {
+                facilitator: facilitatorData,
+                facilitatorSignature: facilitatorSignatureBase64,
+                shaSignature: shaSignatureBase64
+              }
+            });
+            return { success: true, participant, blob };
+          } catch (error) {
+            console.error(`Failed to generate certificate for participant ${participant.name}:`, error);
+            return { success: false, participant, error };
+          }
+        });
+
+        const results = await Promise.all(batchPromises);
+        
+        results.forEach(result => {
+          if (result.success) {
+            certificates.push({ participant: result.participant, blob: result.blob! });
+          } else {
+            failedCertificates.push({ participant: result.participant, error: result.error });
+          }
+        });
       }
 
-      // Download certificates sequentially
-      for (const { participant, blob } of certificates) {
-        const filename = `certificado_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
-        certificateGenerator.downloadBlob(blob, filename);
+      // Notify user about failed certificates
+      if (failedCertificates.length > 0) {
+        const failedNames = failedCertificates.map(f => f.participant.name).join(', ');
+        alert(`Error: ${failedCertificates.length} certificate(s) failed to generate: ${failedNames}. Please check the console for details.`);
       }
 
       // Generate carnets if course requires them
       let carnetsGenerated = 0;
+      const carnetBlobs: { participant: any; blob: Blob }[] = [];
       if (selectedCourseTopic?.emite_carnet) {
         try {
           const { CarnetGenerator } = await import('@/lib/carnet-generator');
@@ -355,7 +441,7 @@ export default function GeneracionCertificadoClient({
 
           if (carnetDbResult.success && carnetDbResult.carnetIds) {
             
-            // Generate carnet PDFs
+            // Generate carnet PDFs concurrently in batches
             const carnetRequests = carnetData.map((carnet, index) => {
               // Get template image based on selected carnet template
               const defaultTemplate = '/templates/carnet.png';
@@ -378,44 +464,50 @@ export default function GeneracionCertificadoClient({
               };
             });
 
-            // Generate carnet PDFs sequentially
-            const carnetBlobs = [];
-            for (let i = 0; i < carnetRequests.length; i++) {
-              const carnetReq = carnetRequests[i];
+            // Generate carnet PDFs in batches
+            const CARNET_BATCH_SIZE = 5;
+            for (let i = 0; i < carnetRequests.length; i += CARNET_BATCH_SIZE) {
+              const batch = carnetRequests.slice(i, i + CARNET_BATCH_SIZE);
               
-              // Generate QR code for carnet using the certificate ID
-              let qrDataURL: string | undefined;
-              try {
-                const certificateId = dbResult.certificateIds![i];
-                const qrData = QRService.generateQRData(certificateId);
-                qrDataURL = await QRService.generateQRDataURL({
-                  data: qrData,
-                  size: 60,
-                  level: 'M',
-                  includeMargin: true
-                });
-              } catch (qrError) {
-                // Continue without QR code - carnet generator will use placeholder
-              }
+              const batchPromises = batch.map(async (carnetReq, index) => {
+                const actualIndex = i + index;
+                
+                // Generate QR code for carnet using the certificate ID
+                let qrDataURL: string | undefined;
+                try {
+                  const certificateId = dbResult.certificateIds![actualIndex];
+                  const qrData = QRService.generateQRData(certificateId);
+                  qrDataURL = await QRService.generateQRDataURL({
+                    data: qrData,
+                    size: 60,
+                    level: 'M',
+                    includeMargin: true
+                  });
+                } catch (qrError) {
+                  // Continue without QR code - carnet generator will use placeholder
+                }
 
-              const carnetReqWithQR = {
-                ...carnetReq,
-                qrDataURL
-              };
+                const carnetReqWithQR = {
+                  ...carnetReq,
+                  qrDataURL
+                };
 
-              try {
-                const blob = await carnetGenerator.generateCarnet(carnetReqWithQR);
-                carnetBlobs.push(blob);
-              } catch (error) {
-                // Continue with next carnet if one fails
-              }
-            }
-            
-            // Download carnets sequentially
-            for (let i = 0; i < carnetBlobs.length; i++) {
-              const blob = carnetBlobs[i];
-              const filename = `carnet_${certificateData.participants[i].name.replace(/\s+/g, '_')}_${certificateData.participants[i].id_number}.pdf`;
-              carnetGenerator.downloadBlob(blob, filename);
+                try {
+                  const blob = await carnetGenerator.generateCarnet(carnetReqWithQR);
+                  return { success: true, participant: carnetReq.participant, blob };
+                } catch (error) {
+                  console.error(`Failed to generate carnet for participant ${carnetReq.participant.name}:`, error);
+                  return { success: false, participant: carnetReq.participant, error };
+                }
+              });
+
+              const results = await Promise.all(batchPromises);
+              
+              results.forEach(result => {
+                if (result.success) {
+                  carnetBlobs.push({ participant: result.participant, blob: result.blob! });
+                }
+              });
             }
 
             carnetsGenerated = carnetBlobs.length;
@@ -429,47 +521,65 @@ export default function GeneracionCertificadoClient({
 
       // Generate and download additional documents (already running in parallel)
       let documentsGenerated = 0;
+      let additionalDocsData: { [key: string]: string } | null = null;
       try {
         const additionalDocsResult = await additionalDocsPromise;
         
         if (additionalDocsResult && 'success' in additionalDocsResult && additionalDocsResult.success && 'documents' in additionalDocsResult && additionalDocsResult.documents) {
-          // Download all generated documents with staggered delay
-          const documentEntries = Object.entries(additionalDocsResult.documents);
-          for (let i = 0; i < documentEntries.length; i++) {
-            const [docType, base64String] = documentEntries[i];
-            const filename = getDocumentFileName(docType, selectedOSI?.nro_osi);
-            
-            // Convert Base64 string back to Buffer
-            const binaryString = atob(base64String as string);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let j = 0; j < binaryString.length; j++) {
-              bytes[j] = binaryString.charCodeAt(j);
-            }
-            const buffer = Buffer.from(bytes);
-            
-            const blob = new Blob([buffer], { 
-              type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            });
-            
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-            
-            // Reduced delay to 50ms for faster feel
-            if (i < documentEntries.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, 50));
-            }
-          }
-
+          additionalDocsData = additionalDocsResult.documents;
           documentsGenerated = Object.keys(additionalDocsResult.documents).length;
         }
       } catch (error) {
         // Don't show alert for document errors since certificates/carnets were generated successfully
+      }
+
+      // Initialize JSZip and create folders
+      const zip = new JSZip();
+      const certFolder = zip.folder("Certificados");
+      const docsFolder = zip.folder("Documentos_Adicionales");
+      const carnetsFolder = zip.folder("Carnets");
+
+      // Add certificates to ZIP
+      for (const { participant, blob } of certificates) {
+        const filename = `certificado_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
+        certFolder?.file(filename, blob);
+      }
+
+      // Add carnets to ZIP if generated
+      for (const { participant, blob } of carnetBlobs) {
+        const filename = `carnet_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
+        carnetsFolder?.file(filename, blob);
+      }
+
+      // Add additional documents to ZIP
+      if (additionalDocsData) {
+        const documentEntries = Object.entries(additionalDocsData);
+        for (const [docType, base64String] of documentEntries) {
+          const filename = getDocumentFileName(docType, selectedOSI?.nro_osi);
+          docsFolder?.file(filename, base64String, { base64: true });
+        }
+      }
+
+      // Generate and download the ZIP file
+      try {
+        const zipBlob = await zip.generateAsync({ 
+          type: "blob",
+          compression: "STORE" // Skip compression for PDFs (already compressed)
+        });
+        const batchName = selectedOSI?.nro_osi ? `OSI_${selectedOSI.nro_osi}` : 'Lote';
+        const zipFilename = `Certificados_y_Documentos_${batchName}.zip`;
+
+        const url = window.URL.createObjectURL(zipBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = zipFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error("Error bundling files into ZIP:", error);
+        alert('Error creando archivo ZIP. Por favor intente nuevamente.');
       }
 
       const documentText = documentsGenerated > 0 ? ` y ${documentsGenerated} documentos adicionales` : '';

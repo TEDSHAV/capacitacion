@@ -17,6 +17,7 @@ export class CertificatePage {
   private pageWidth: number;
   private pageHeight: number;
   private isSinglePage: boolean;
+  private preloadedAssets?: any;
 
   // QR Code configuration - shared between sample and real QR codes
   private static readonly QR_CONFIG = {
@@ -27,11 +28,12 @@ export class CertificatePage {
     Y_OFFSET: 12.4            // Additional Y offset adjustment
   };
 
-  constructor(doc: jsPDF, pageWidth: number, pageHeight: number, isSinglePage: boolean = false) {
+  constructor(doc: jsPDF, pageWidth: number, pageHeight: number, isSinglePage: boolean = false, preloadedAssets?: any) {
     this.doc = doc;
     this.pageWidth = pageWidth;
     this.pageHeight = pageHeight;
     this.isSinglePage = isSinglePage;
+    this.preloadedAssets = preloadedAssets;
     this.config = getDynamicConfig(pageWidth, pageHeight);
     this.textRenderer = new TextRenderer(doc);
   }
@@ -270,6 +272,11 @@ export class CertificatePage {
     if (certificateData.facilitator_id) {
       let facilitator: CertificateFacilitator | null = certificateData.facilitator_data as CertificateFacilitator | null;
       
+      // Use preloaded facilitator data if available
+      if (!facilitator && this.preloadedAssets?.facilitator) {
+        facilitator = this.preloadedAssets.facilitator;
+      }
+      
       // If facilitator_data is not available, try to fetch it
       if (!facilitator) {
         // Check if we're in a server environment
@@ -357,6 +364,12 @@ export class CertificatePage {
         { align: "center" }
       );
 
+      // 🚀 USE PRELOADED ASSET IF AVAILABLE TO SKIP CANVAS PROCESSING
+      if (this.preloadedAssets?.facilitatorSignature) {
+        this.doc.addImage(this.preloadedAssets.facilitatorSignature, "PNG", 38, 72, signatureConfig.width, signatureConfig.height, undefined, 'FAST');
+        return;
+      }
+
       // Add facilitator signature if available
       let signatureUrl = null;
       
@@ -391,6 +404,12 @@ export class CertificatePage {
     signatureConfig: typeof this.config.signature
   ): Promise<void> {
     try {
+      // 🚀 USE PRELOADED ASSET IF AVAILABLE TO SKIP CANVAS PROCESSING
+      if (this.preloadedAssets?.shaSignature) {
+        this.doc.addImage(this.preloadedAssets.shaSignature, "PNG", signatureConfig.rightX + 10, signatureConfig.y - 45, signatureConfig.width, signatureConfig.height, undefined, 'FAST');
+        return;
+      }
+
       // Handle both array and object structures
       let signatureData = shaSignature;
       if (Array.isArray(shaSignature) && shaSignature.length > 0) {
