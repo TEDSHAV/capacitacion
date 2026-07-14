@@ -2575,7 +2575,8 @@ export async function getBatchCertificateDetailsAction(osiNumber: number) {
         snapshot_contenido, 
         fecha_emision, 
         fecha_vencimiento,
-        catalogo_servicios(nombre)
+        id_facilitador,
+        catalogo_servicios(nombre, horas_estimadas)
       `)
       .eq("nro_osi", osiNumber)
       .eq("is_active", true)
@@ -2613,6 +2614,16 @@ export async function getBatchCertificateDetailsAction(osiNumber: number) {
       snapshotData.location || 
       "";
 
+    const horas_estimadas = 
+      snapshotData.certificado_detalles?.horas_estimadas?.toString() || 
+      (Array.isArray(data.catalogo_servicios) ? data.catalogo_servicios[0]?.horas_estimadas?.toString() : (data.catalogo_servicios as any)?.horas_estimadas?.toString()) ||
+      "";
+
+    const id_facilitador = 
+      data.id_facilitador?.toString() || 
+      snapshotData.firmas?.facilitator_id?.toString() || 
+      "";
+
     // Helper to ensure date is YYYY-MM-DD without timezone shifts
     const formatDate = (dateInput: any) => {
       if (!dateInput) return "";
@@ -2639,6 +2650,8 @@ export async function getBatchCertificateDetailsAction(osiNumber: number) {
         date: formatDate(snapshotData.certificado_detalles?.date || data.fecha_emision),
         fecha_vencimiento: formatDate(snapshotData.fecha_vencimiento || data.fecha_vencimiento),
         location,
+        horas_estimadas,
+        id_facilitador,
       }
     };
   } catch (error) {
@@ -2675,6 +2688,12 @@ export async function batchUpdateCertificatesAction(
 
     let updatedCount = 0;
 
+    // Pre-fetch facilitator data if facilitator is being updated
+    let facilitatorData: any = null;
+    if (updates.id_facilitador) {
+      facilitatorData = await getFacilitatorData(updates.id_facilitador);
+    }
+
     // 2. Process each certificate
     for (const cert of certificates) {
       try {
@@ -2682,6 +2701,7 @@ export async function batchUpdateCertificatesAction(
         const dbUpdate: any = {};
         if (updates.date) dbUpdate.fecha_emision = updates.date;
         if (updates.fecha_vencimiento) dbUpdate.fecha_vencimiento = updates.fecha_vencimiento;
+        if (updates.id_facilitador) dbUpdate.id_facilitador = parseInt(updates.id_facilitador);
 
         // Update snapshot (Where all fields are stored)
         let finalSnapshot = cert.snapshot_contenido;
@@ -2708,6 +2728,20 @@ export async function batchUpdateCertificatesAction(
             if (updates.location) {
               if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.location = updates.location;
               snapshotObj.location = updates.location;
+            }
+            if (updates.horas_estimadas) {
+              if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.horas_estimadas = updates.horas_estimadas;
+            }
+            if (updates.id_facilitador) {
+              if (snapshotObj.firmas) {
+                snapshotObj.firmas.facilitator_id = parseInt(updates.id_facilitador);
+                snapshotObj.firmas.facilitator_data = facilitatorData;
+              } else {
+                snapshotObj.firmas = {
+                  facilitator_id: parseInt(updates.id_facilitador),
+                  facilitator_data: facilitatorData,
+                };
+              }
             }
             
             finalSnapshot = JSON.stringify(snapshotObj, null, 2);

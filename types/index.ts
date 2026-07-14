@@ -1134,6 +1134,8 @@ export interface BatchUpdateData {
   date?: string;
   fecha_vencimiento?: string;
   location?: string;
+  horas_estimadas?: string;
+  id_facilitador?: string;
 }
 
 export interface BatchUpdateResult {

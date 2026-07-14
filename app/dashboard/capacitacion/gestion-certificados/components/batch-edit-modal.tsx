@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BatchUpdateData } from "@/types";
-import { 
-  batchUpdateCertificatesAction, 
+import {
+  batchUpdateCertificatesAction,
   getOSIsWithCertificatesAction,
-  getBatchCertificateDetailsAction
+  getBatchCertificateDetailsAction,
+  getFacilitatorsForFilters,
 } from "@/app/actions/certificados";
 import { Loader2, X, AlertCircle, Info, Search, ChevronDown, Check } from "lucide-react";
 
@@ -25,6 +26,11 @@ interface OSILookup {
   course_name: string;
 }
 
+interface FacilitatorLookup {
+  id: number;
+  nombre_apellido: string;
+}
+
 export function BatchEditModal({
   isOpen,
   onClose,
@@ -39,6 +45,10 @@ export function BatchEditModal({
   const [osiSearchTerm, setOsiSearchTerm] = useState("");
   const [isOsiDropdownOpen, setIsOsiDropdownOpen] = useState(false);
   const [selectedOsiData, setSelectedOsiData] = useState<OSILookup | null>(null);
+  const [facilitators, setFacilitators] = useState<FacilitatorLookup[]>([]);
+  const [facilitatorSearchTerm, setFacilitatorSearchTerm] = useState("");
+  const [isFacilitatorDropdownOpen, setIsFacilitatorDropdownOpen] = useState(false);
+  const [selectedFacilitator, setSelectedFacilitator] = useState<FacilitatorLookup | null>(null);
 
   const [updates, setUpdates] = useState<BatchUpdateData>({
     certificate_title: "",
@@ -46,6 +56,8 @@ export function BatchEditModal({
     date: "",
     fecha_vencimiento: "",
     location: "",
+    horas_estimadas: "",
+    id_facilitador: "",
   });
 
   // Load OSIs on mount
@@ -73,6 +85,16 @@ export function BatchEditModal({
         }
       };
       loadOsis();
+
+      // Load facilitators
+      (async () => {
+        try {
+          const facilitatorData = await getFacilitatorsForFilters();
+          setFacilitators(facilitatorData);
+        } catch (error) {
+          console.error("Error loading facilitators:", error);
+        }
+      })();
     }
   }, [isOpen, initialOsi]);
 
@@ -86,12 +108,19 @@ export function BatchEditModal({
       setLoadingDetails(true);
       const result = await getBatchCertificateDetailsAction(osi.nro_osi);
       if (result.success && result.data) {
+        const facilitatorId = result.data.id_facilitador || "";
+        const foundFacilitator = facilitatorId
+          ? facilitators.find(f => f.id.toString() === facilitatorId)
+          : null;
+        setSelectedFacilitator(foundFacilitator || null);
         setUpdates({
           certificate_title: result.data.certificate_title || "",
           certificate_subtitle: result.data.certificate_subtitle || "",
           date: result.data.date || "",
           fecha_vencimiento: result.data.fecha_vencimiento || "",
           location: result.data.location || "",
+          horas_estimadas: result.data.horas_estimadas || "",
+          id_facilitador: facilitatorId,
         });
       }
     } catch (error) {
@@ -110,6 +139,22 @@ export function BatchEditModal({
       o.course_name.toLowerCase().includes(term)
     ).slice(0, 50);
   }, [osis, osiSearchTerm]);
+
+  const filteredFacilitators = useMemo(() => {
+    if (!facilitatorSearchTerm.trim()) return facilitators.slice(0, 50);
+    const term = facilitatorSearchTerm.toLowerCase();
+    return facilitators.filter(f =>
+      f.id.toString().includes(term) ||
+      f.nombre_apellido.toLowerCase().includes(term)
+    ).slice(0, 50);
+  }, [facilitators, facilitatorSearchTerm]);
+
+  const handleFacilitatorSelect = (facilitator: FacilitatorLookup) => {
+    setSelectedFacilitator(facilitator);
+    handleUpdateChange("id_facilitador", facilitator.id.toString());
+    setIsFacilitatorDropdownOpen(false);
+    setFacilitatorSearchTerm("");
+  };
 
   // Prevent scrolling when modal is open
   useEffect(() => {
@@ -153,10 +198,14 @@ export function BatchEditModal({
           date: "",
           fecha_vencimiento: "",
           location: "",
+          horas_estimadas: "",
+          id_facilitador: "",
         });
         setSelectedOsiData(null);
+        setSelectedFacilitator(null);
         setOsiNumber("");
         setOsiSearchTerm("");
+        setFacilitatorSearchTerm("");
       } else {
         alert(`Error: ${result.message}`);
       }
@@ -366,6 +415,94 @@ export function BatchEditModal({
                       disabled={loading || loadingDetails}
                     />
                     {loadingDetails && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-400" />}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="horas" className="text-sm font-semibold text-gray-700">
+                      Número de Horas
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="horas"
+                        type="number"
+                        value={updates.horas_estimadas}
+                        onChange={(e) => handleUpdateChange("horas_estimadas", e.target.value)}
+                        className="h-11 border-gray-200 focus:border-blue-500 rounded-xl"
+                        placeholder="Ej: 8"
+                        disabled={loading || loadingDetails}
+                      />
+                      {loadingDetails && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-400" />}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 relative">
+                    <Label className="text-sm font-semibold text-gray-700">
+                      Facilitador
+                    </Label>
+                    <div
+                      className={`w-full px-4 h-11 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${
+                        isFacilitatorDropdownOpen ? "border-blue-500 ring-2 ring-blue-500/20" : "border-gray-200 hover:border-gray-300"
+                      } ${loading || loadingDetails ? "bg-gray-50 opacity-70 cursor-not-allowed" : "bg-white"}`}
+                      onClick={() => !(loading || loadingDetails) && setIsFacilitatorDropdownOpen(!isFacilitatorDropdownOpen)}
+                    >
+                      <div className="flex flex-col truncate">
+                        {selectedFacilitator ? (
+                          <span className="text-sm font-medium text-gray-900 truncate">{selectedFacilitator.nombre_apellido}</span>
+                        ) : (
+                          <span className="text-sm text-gray-400">Seleccionar...</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {loadingDetails ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                        ) : (
+                          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isFacilitatorDropdownOpen ? "rotate-180" : ""}`} />
+                        )}
+                      </div>
+                    </div>
+
+                    {isFacilitatorDropdownOpen && (
+                      <div className="absolute z-[60] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="p-3 border-b border-gray-100 flex items-center gap-2 bg-gray-50">
+                          <Search className="h-4 w-4 text-gray-400 shrink-0" />
+                          <input
+                            type="text"
+                            autoFocus
+                            placeholder="Buscar facilitador..."
+                            value={facilitatorSearchTerm}
+                            onChange={(e) => setFacilitatorSearchTerm(e.target.value)}
+                            className="w-full bg-transparent border-none focus:ring-0 text-sm p-0 h-6"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto py-1">
+                          {filteredFacilitators.length > 0 ? (
+                            filteredFacilitators.map((facilitator) => (
+                              <div
+                                key={facilitator.id}
+                                onClick={() => handleFacilitatorSelect(facilitator)}
+                                className={`px-4 py-3 cursor-pointer flex items-center justify-between hover:bg-blue-50 transition-colors ${
+                                  updates.id_facilitador === facilitator.id.toString() ? "bg-blue-50" : ""
+                                }`}
+                              >
+                                <span className={`text-sm font-medium ${updates.id_facilitador === facilitator.id.toString() ? "text-blue-700" : "text-gray-900"}`}>
+                                  {facilitator.nombre_apellido}
+                                </span>
+                                {updates.id_facilitador === facilitator.id.toString() && (
+                                  <Check className="h-4 w-4 text-blue-600 shrink-0" />
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="px-4 py-6 text-center text-gray-500 text-sm italic">
+                              No se encontraron facilitadores
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
