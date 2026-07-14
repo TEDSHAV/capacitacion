@@ -250,13 +250,15 @@ export async function getOSIsForManagement(
       .from("v_osi_formato_completo")
       .select("*", { count: "exact" });
 
-    // Filter by tipo_servicio - only capacitacion (assuming tipo_servicio = 1 or 'Capacitación')
-    // Based on the view, tipo_servicio appears to be a string or number
+    // Filter by tipo_servicio - only capacitacion
+    query = query.ilike("tipo_servicio", "%capacitacion%");
+
+    // Exclude pending OSIs
+    query = query.not("nro_osi", "ilike", "%PEN-%");
+
+    // Apply other filters
     if (filters.tipoServicio) {
       query = query.eq("tipo_servicio", filters.tipoServicio);
-    } else {
-      // Default to only capacitacion - filter by tipo_servicio that contains 'capacitacion' or equals 1
-      query = query.or("tipo_servicio.ilike.%capacitacion%,tipo_servicio.eq.1");
     }
 
     // Apply other filters

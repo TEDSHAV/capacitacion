@@ -1049,7 +1049,9 @@ export default function GeneracionCertificadoClient({
 
               const result = await generateDocumentsServer({
                 certificates: allParticipants,
-                osiData: selectedOSI || {},
+                osiData: {
+                  ...(selectedOSI || {}),
+                },
                 firmanteData: {
                   nombre: "DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.",
                   cargo: "Jefe de Capacitación",

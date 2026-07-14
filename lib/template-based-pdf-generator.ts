@@ -687,10 +687,7 @@ export class TemplateBasedPdfGenerator {
       y += 12;
 
       pdf.setFont("helvetica", "bold").setFontSize(11);
-      const clientLine = data.localidad_cliente
-        ? `Sres. ${data.nombre_cliente || ""} – ${data.localidad_cliente}`
-        : `Sres. ${data.nombre_cliente || ""}`;
-      pdf.text(clientLine, ML, y);
+      pdf.text(`Sres. ${data.nombre_cliente || ""}`, ML, y);
       y += 14;
 
       pdf.setFont("helvetica", "normal").setFontSize(10);

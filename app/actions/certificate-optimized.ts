@@ -49,7 +49,9 @@ const getOptimizedCertificateData = cache(async () => {
           id_estatus
         `,
         )
-        .order("nro_osi", { ascending: false })
+        .ilike("tipo_servicio", "%capacitacion%")
+        .not("nro_osi", "ilike", "%PEN-%")
+        .order("fecha_emision", { ascending: false })
         .limit(1000),
 
       // Fetch courses from catalogo_servicios — matches id_servicio in the view

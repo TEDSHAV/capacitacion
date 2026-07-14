@@ -174,7 +174,9 @@ export const CertificatePreview = ({
 
       const result = await previewDocumentsServer({
         certificates: allParticipants,
-        osiData: selectedOSI || {},
+        osiData: {
+          ...(selectedOSI || {}),
+        },
         firmanteData: {
           nombre: "DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.",
           cargo: "Jefe de Capacitación",

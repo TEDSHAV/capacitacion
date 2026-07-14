@@ -221,7 +221,8 @@ export async function generateDocumentsServer(
       fecha_hoy: formattedToday,
 
       // OSI and course information
-      nombre_cliente: osiData.cliente_nombre_empresa || "",
+      nombre_cliente:
+        osiData.cliente_nombre_empresa || osiData.nombre_empresa || "",
       titulo_curso:
         certificates[0]?.course_title || cursoNombre || osiData.tema || "", // Use course_title from certificate records first
       ciudad: cityResolved,
@@ -401,7 +402,8 @@ export async function previewDocumentsServer(
     const templateData = {
       ...dateComponents,
       fecha_hoy: formattedToday,
-      nombre_cliente: osiData.cliente_nombre_empresa || "",
+      nombre_cliente:
+        osiData.cliente_nombre_empresa || osiData.nombre_empresa || "",
       titulo_curso:
         certificates[0]?.course_title || cursoNombre || osiData.tema || "",
       ciudad: cityResolved,

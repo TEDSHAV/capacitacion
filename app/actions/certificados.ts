@@ -95,8 +95,7 @@ export async function saveCertificatesToDatabase(
           );
 
           if (facilitatorData) {
-            updatedCertificateData.facilitator_data =
-              facilitatorData as any;
+            updatedCertificateData.facilitator_data = facilitatorData as any;
           }
         })().catch((e) => {
           console.warn("Failed to fetch facilitator data:", e);
@@ -1197,6 +1196,47 @@ function generateContentSnapshotWithControlNumbers(
   };
 
   return JSON.stringify(snapshot, null, 2);
+}
+
+/**
+ * Get all certificates for an OSI including snapshots
+ */
+export async function getCertificatesByOSIAction(osiId: string | number) {
+  try {
+    const supabase = await createClient();
+
+    // Support both numeric and string OSI IDs
+    const nro_osi =
+      typeof osiId === "string" ? parseInt(osiId.replace(/[^\d]/g, "")) : osiId;
+
+    if (isNaN(nro_osi)) {
+      return { success: false, message: "Invalid OSI ID" };
+    }
+
+    const { data, error } = await supabase
+      .from("certificados")
+      .select(
+        `
+        *,
+        participantes_certificados(*),
+        catalogo_servicios(nombre),
+        empresas(razon_social)
+      `,
+      )
+      .eq("nro_osi", nro_osi)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching certificates by OSI:", error);
+      return { success: false, message: error.message };
+    }
+
+    return { success: true, certificates: data || [] };
+  } catch (err) {
+    console.error("Unexpected error in getCertificatesByOSIAction:", err);
+    return { success: false, message: "Internal server error" };
+  }
 }
 
 /**
