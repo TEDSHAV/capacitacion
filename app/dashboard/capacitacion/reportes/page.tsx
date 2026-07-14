@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { State, CourseTopic } from "@/types";
 import ReportesClient from "./ReportesClient";
@@ -10,7 +11,7 @@ export default async function ReportesPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return <div className="p-8 text-center text-gray-500">Sesión no encontrada. Por favor, accede desde el portal principal.</div>
+    redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`)
   }
 
   // Fetch states for filter dropdown
