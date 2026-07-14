@@ -16,6 +16,7 @@ export async function GET(
       .from('firmas')
       .select('*')
       .eq('id', id)
+      .eq('is_active', true)
       .single();
 
     if (error) {
@@ -44,7 +45,7 @@ export async function DELETE(
     const supabase = await createClient();
     const id = parseInt(resolvedParams.id);
 
-    // First, get the signature record to find the image file
+    // First, get the signature record to check if it exists and get its type
     const { data: signature, error: fetchError } = await supabase
       .from('firmas')
       .select('*')
@@ -58,30 +59,43 @@ export async function DELETE(
       );
     }
 
-    // Delete the signature record from database
-    const { error: deleteError } = await supabase
+    // Soft delete: set is_active to false instead of deleting the record
+    const { error: updateError } = await supabase
       .from('firmas')
-      .delete()
+      .update({
+        is_active: false,
+        fecha_actualizacion: new Date().toISOString(),
+      })
       .eq('id', id);
 
-    if (deleteError) {
-      throw deleteError;
+    if (updateError) {
+      throw updateError;
     }
 
-    // Delete the image file from the filesystem
-    try {
-      const filepath = join(process.cwd(), 'public', signature.url_imagen);
-      await unlink(filepath);
-    } catch (fileError) {
-      // File might not exist, but we don't want to fail the operation
-      console.warn('Could not delete signature file:', fileError);
+    // If it's a facilitator signature, also clear the firma_id from the facilitador
+    if (signature.tipo === 'facilitador') {
+      const { error: facilitatorUpdateError } = await supabase
+        .from('facilitadores')
+        .update({
+          firma_id: null,
+          fecha_actualizacion: new Date().toISOString(),
+        })
+        .eq('firma_id', id);
+
+      if (facilitatorUpdateError) {
+        console.error('Error updating facilitator to remove signature ID:', facilitatorUpdateError);
+        // Don't fail the operation, but log the error
+      }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Signature deactivated successfully' 
+    });
   } catch (error) {
     console.error('Signature delete error:', error);
     return NextResponse.json(
-      { error: 'Failed to delete signature' },
+      { error: 'Failed to deactivate signature' },
       { status: 500 }
     );
   }
