@@ -445,6 +445,7 @@ export interface DashboardStats {
   participantes: number;
   certificados: number;
   facilitadores: number;
+  certificadosMes: number;
 }
 
 export interface CapacitacionClientProps {

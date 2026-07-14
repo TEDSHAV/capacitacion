@@ -184,7 +184,7 @@ export default function CapacitacionClient({
                 Actividad Reciente
               </h4>
               <p className="text-sm text-gray-500">
-                Certificados emitidos hoy: {stats?.certificados || 0}
+                Certificados emitidos este mes: {stats?.certificadosMes || 0}
               </p>
             </div>
           </div>

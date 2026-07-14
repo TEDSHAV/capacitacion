@@ -6,49 +6,55 @@ export async function middleware(request: NextRequest) {
     request,
   });
 
+  const isProduction = process.env.NODE_ENV === "production";
+  const isLocalhost =
+    request.nextUrl.hostname === "localhost" ||
+    request.nextUrl.hostname === "127.0.0.1";
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      ...(process.env.NODE_ENV === "production" && {
-        cookieOptions: {
-          domain: ".shadevenezuela.com.ve",
-          sameSite: "lax" as const,
-          secure: true,
-        },
-      }),
+      ...(isProduction &&
+        !isLocalhost && {
+          cookieOptions: {
+            domain: ".shadevenezuela.com.ve",
+            sameSite: "lax" as const,
+            secure: true,
+          },
+        }),
       cookies: {
         getAll() {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
+            request.cookies.set(name, value),
           );
           supabaseResponse = NextResponse.next({
             request,
           });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options),
           );
         },
       },
-    }
+    },
   );
 
   // Refresh the session — this is the critical step that allows server
   // components to read an up-to-date session and writes refreshed tokens
   // back to the response cookies so the browser keeps a valid session.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   // Protect all /dashboard routes
   if (request.nextUrl.pathname.startsWith("/dashboard")) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
-      const isProduction = process.env.NODE_ENV === "production";
       const loginUrl =
-        isProduction && process.env.NEXT_PUBLIC_SHELL_URL
+        isProduction && !isLocalhost && process.env.NEXT_PUBLIC_SHELL_URL
           ? `${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`
           : new URL("/login", request.url).toString();
       return NextResponse.redirect(loginUrl);
@@ -71,20 +77,17 @@ export async function middleware(request: NextRequest) {
     }
 
     // Rule 2: Allow access if user is admin (6) or superadmin (5)
-    // First, try to check if they have a global role in metadata
     const userRole = user.app_metadata?.role || user.user_metadata?.role;
-    if (userRole === 'superadmin' || userRole === 'admin') {
+    if (userRole === "superadmin" || userRole === "admin") {
       return supabaseResponse;
     }
 
     // Rule 3: Check roles in authprisma via a Security Definer function
-    // This is the proper solution to avoid schema permission issues
     try {
-      const { data: isAdmin } = await supabase
-        .rpc('is_app_admin', { 
-          target_user_id: userData.id, 
-          target_app_id: 2 
-        });
+      const { data: isAdmin } = await supabase.rpc("is_app_admin", {
+        target_user_id: userData.id,
+        target_app_id: 2,
+      });
 
       if (isAdmin) {
         return supabaseResponse;
@@ -116,6 +119,6 @@ export const config = {
      * - verify-certificate  (public QR verification page)
      * - api           (API routes handle auth themselves)
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|verify-certificate|api).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|verify-certificate|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)",
   ],
 };

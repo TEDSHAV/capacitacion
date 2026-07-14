@@ -5,6 +5,11 @@ import CapacitacionClient from "./CapacitacionClient";
 export default async function CapacitacionPage() {
   const supabase = await createClient();
 
+  const firstDayOfMonth = new Date();
+  firstDayOfMonth.setDate(1);
+  firstDayOfMonth.setHours(0, 0, 0, 0);
+  const firstDayStr = firstDayOfMonth.toISOString().split("T")[0];
+
   const [
     {
       data: { user },
@@ -14,6 +19,7 @@ export default async function CapacitacionPage() {
     { count: participantesCount },
     { count: certificadosCount },
     { count: facilitadoresCount },
+    { count: certificadosMesCount },
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase
@@ -30,6 +36,10 @@ export default async function CapacitacionPage() {
       .eq("is_active", true),
     supabase.from("certificados").select("*", { count: "exact", head: true }),
     supabase.from("facilitadores").select("*", { count: "exact", head: true }),
+    supabase
+      .from("certificados")
+      .select("*", { count: "exact", head: true })
+      .gte("fecha_emision", firstDayStr),
   ]);
 
   if (!user) {
@@ -45,6 +55,7 @@ export default async function CapacitacionPage() {
         participantes: participantesCount ?? 0,
         certificados: certificadosCount ?? 0,
         facilitadores: facilitadoresCount ?? 0,
+        certificadosMes: certificadosMesCount ?? 0,
       }}
     />
   );
