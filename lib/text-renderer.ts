@@ -86,7 +86,7 @@ export class TextRenderer {
       ? "Por haber aprobado el curso:"
       : "Por haber asistido al curso:";
 
-    return this.renderCenteredText(conditionalText, x, y, config);
+    return this.renderCenteredText(conditionalText, x, y, config, false);
   }
 
   /**
@@ -116,7 +116,7 @@ export class TextRenderer {
    */
   renderDateText(date: string, x: number, y: number): void {
     this.doc.setFont("helvetica", "normal");
-    this.doc.setFontSize(12);
+    this.doc.setFontSize(9);
     this.doc.setTextColor(0, 0, 0);
 
     const localDate = new Date(date + "T12:00:00");
@@ -129,7 +129,7 @@ export class TextRenderer {
     this.doc.text(
       `Puerto la Cruz, ${formattedDate}`,
       x,
-      y,
+      105,
       { align: "center" }
     );
   }
@@ -138,8 +138,8 @@ export class TextRenderer {
    * Render duration text
    */
   renderDurationText(hours: number, x: number, y: number): void {
-    this.doc.setFont("helvetica", "bold");
-    this.doc.setFontSize(12);
-    this.doc.text(`${hours} horas`, x, y, { align: "center" });
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(9);
+    this.doc.text(`${hours} horas`, 114, 96.15, { align: "center" });
   }
 }

@@ -57,8 +57,8 @@ export const CERTIFICATE_CONFIG: CertificateLayoutConfig = {
   
   name: {
     maxWidth: 180,
-    maxFontSize: 24,
-    lineHeight: 8,
+    maxFontSize: 18,
+    lineHeight: 10,
     color: "rgb(12, 63, 105)",
     font: "helvetica",
     style: "bold",
@@ -66,33 +66,33 @@ export const CERTIFICATE_CONFIG: CertificateLayoutConfig = {
   
   conditionalText: {
     maxWidth: 80,
-    maxFontSize: 3,
-    lineHeight: 8,
+    maxFontSize: 11,
+    lineHeight: 2,
     color: "black",
     font: "helvetica",
     style: "bold",
   },
   
   title: {
-    maxWidth: 120,
-    maxFontSize: 24,
-    lineHeight: 8,
+    maxWidth: 160,
+    maxFontSize: 18,
+    lineHeight: 7,
     color: "rgb(12, 63, 120)",
     font: "helvetica",
     style: "bold",
   },
   
   subtitle: {
-    maxWidth: 120,
-    maxFontSize: 16,
-    lineHeight: 8,
+    maxWidth: 140,
+    maxFontSize: 14,
+    lineHeight: 4,
     color: "rgb(12, 63, 105)",
     font: "helvetica",
     style: "normal",
   },
   
-  centerPoint: 70,
-  uniformGap: 3,
+  centerPoint: 60,
+  uniformGap: 5,
   
   signature: {
     y: 118,

@@ -91,7 +91,7 @@ export class CertificatePage {
       currentY += conditionalHeight;
 
       if (certificate_title) {
-        currentY += this.config.uniformGap;
+        currentY += 2; // Smaller gap to move title up
       }
     }
 
@@ -120,15 +120,14 @@ export class CertificatePage {
       );
     }
 
-    // Render date and additional information
+    // Render hours and additional information
     if (date) {
       this.textRenderer.renderDateText(date, this.pageWidth / 2, 160);
       
       if (certificateData.horas_estimadas) {
         this.textRenderer.renderDurationText(
           certificateData.horas_estimadas,
-          this.pageWidth / 2 + 10,
-          150.9
+          this.pageWidth / 2 + 10, 97
         );
       }
 
@@ -217,8 +216,8 @@ export class CertificatePage {
         if (signature?.url_imagen) {
           await this.addSignatureImage(
             signature.url_imagen,
-            signatureConfig.leftX,
-            signatureConfig.y,
+            38,
+            72,
             signatureConfig.width,
             signatureConfig.height
           );
@@ -227,11 +226,11 @@ export class CertificatePage {
 
       // Add facilitator name
       this.doc.setFont("helvetica", "normal");
-      this.doc.setFontSize(10);
+      this.doc.setFontSize(8);
       this.doc.text(
         facilitator.nombre_apellido.toUpperCase(),
-        signatureConfig.leftX + 18,
-        signatureConfig.y + 35,
+        60,
+        100,
         { align: "center" }
       );
     } catch (error) {
