@@ -1601,10 +1601,10 @@ export interface ControlServiciosFormData {
 export interface OSIFullData {
   id_osi: number;
   nro_osi: string | null;
-  fecha_emision: string | null;
-  fecha_inicio_real: string | null;
-  codigo_cliente: number | null;
-  participantes_ejecucion: number | null;
+  fecha_emision?: string | null;
+  fecha_inicio_real?: string | null;
+  codigo_cliente?: number | null;
+  participantes_ejecucion?: number | null;
   servicio: string | null;
   costo_traslado: number | null;
   horas_honorarios_instructor: number | null;

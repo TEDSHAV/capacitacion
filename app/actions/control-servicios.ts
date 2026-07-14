@@ -13,7 +13,7 @@ export async function getAllOSIsForControlServicios() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("v_osi_formato_completo")
-    .select("id_osi, nro_osi, servicio, costo_traslado, horas_honorarios_instructor, tarifa_hora_honorarios, costo_impresion_material")
+    .select("*")
     .order("id_osi", { ascending: false });
 
   if (error) {
