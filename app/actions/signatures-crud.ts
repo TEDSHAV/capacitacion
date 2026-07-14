@@ -1,27 +1,28 @@
 "use server";
 
-import { createClient } from '@/utils/supabase/server';
-import { cache } from 'react';
+import { createClient } from "@/utils/supabase/server";
+import { cache } from "react";
 
 // Get all signatures
 const getSignatures = cache(async () => {
   const supabase = await createClient();
-  
+
   try {
     const { data, error } = await supabase
-      .from('firmas')
-      .select('*')
-      .order('fecha_creacion', { ascending: false });
-    
+      .from("firmas")
+      .select("*")
+      .eq("is_active", true)
+      .order("fecha_creacion", { ascending: false });
+
     if (error) {
       return { error: error.message, data: [] };
     }
-    
+
     return { data: data || [], error: null };
   } catch (err) {
-    return { 
-      error: err instanceof Error ? err.message : 'Unknown error',
-      data: [] 
+    return {
+      error: err instanceof Error ? err.message : "Unknown error",
+      data: [],
     };
   }
 });
@@ -29,23 +30,23 @@ const getSignatures = cache(async () => {
 // Get signature by ID
 const getSignatureById = cache(async (id: string) => {
   const supabase = await createClient();
-  
+
   try {
     const { data, error } = await supabase
-      .from('firmas')
-      .select('*')
-      .eq('id', id)
+      .from("firmas")
+      .select("*")
+      .eq("id", id)
       .single();
-    
+
     if (error) {
       return { error: error.message, data: null };
     }
-    
+
     return { data, error: null };
   } catch (err) {
-    return { 
-      error: err instanceof Error ? err.message : 'Unknown error',
-      data: null 
+    return {
+      error: err instanceof Error ? err.message : "Unknown error",
+      data: null,
     };
   }
 });
@@ -53,23 +54,23 @@ const getSignatureById = cache(async (id: string) => {
 // Create signature
 const createSignature = cache(async (signatureData: any) => {
   const supabase = await createClient();
-  
+
   try {
     const { data, error } = await supabase
-      .from('firmas')
+      .from("firmas")
       .insert([signatureData])
       .select()
       .single();
-    
+
     if (error) {
       return { error: error.message, data: null };
     }
-    
+
     return { data, error: null };
   } catch (err) {
-    return { 
-      error: err instanceof Error ? err.message : 'Unknown error',
-      data: null 
+    return {
+      error: err instanceof Error ? err.message : "Unknown error",
+      data: null,
     };
   }
 });
@@ -77,24 +78,24 @@ const createSignature = cache(async (signatureData: any) => {
 // Update signature
 const updateSignature = cache(async (id: string, signatureData: any) => {
   const supabase = await createClient();
-  
+
   try {
     const { data, error } = await supabase
-      .from('firmas')
+      .from("firmas")
       .update(signatureData)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
-    
+
     if (error) {
       return { error: error.message, data: null };
     }
-    
+
     return { data, error: null };
   } catch (err) {
-    return { 
-      error: err instanceof Error ? err.message : 'Unknown error',
-      data: null 
+    return {
+      error: err instanceof Error ? err.message : "Unknown error",
+      data: null,
     };
   }
 });
@@ -102,22 +103,19 @@ const updateSignature = cache(async (id: string, signatureData: any) => {
 // Delete signature
 const deleteSignature = cache(async (id: string) => {
   const supabase = await createClient();
-  
+
   try {
-    const { error } = await supabase
-      .from('firmas')
-      .delete()
-      .eq('id', id);
-    
+    const { error } = await supabase.from("firmas").delete().eq("id", id);
+
     if (error) {
       return { error: error.message, success: false };
     }
-    
+
     return { error: null, success: true };
   } catch (err) {
-    return { 
-      error: err instanceof Error ? err.message : 'Unknown error',
-      success: false 
+    return {
+      error: err instanceof Error ? err.message : "Unknown error",
+      success: false,
     };
   }
 });

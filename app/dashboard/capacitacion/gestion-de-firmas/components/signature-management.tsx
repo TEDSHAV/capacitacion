@@ -1,38 +1,46 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Signature, SignatureType } from "@/types";
+import { Signature, SignatureType, Facilitador } from "@/types";
 import { SignatureUpload } from "./signature-upload";
-import { SignatureList } from "./signature-list";
+import { SignatureListOptimized } from "./signature-list-optimized";
 import { getSignaturesAction } from "@/app/actions/signatures-crud";
+import { getFacilitatorsAction } from "@/app/actions/facilitators-crud";
 
 export const SignatureManagement = () => {
   const [signatures, setSignatures] = useState<Signature[]>([]);
+  const [facilitadores, setFacilitadores] = useState<Facilitador[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Load signatures on component mount
+  // Load signatures and facilitadores on component mount and when refreshKey changes
   useEffect(() => {
-    const loadSignatures = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const result = await getSignaturesAction();
-        if (result.data) {
-          setSignatures(result.data);
+        const [signaturesResult, facilitadoresResult] = await Promise.all([
+          getSignaturesAction(),
+          getFacilitatorsAction(),
+        ]);
+        if (signaturesResult.data) {
+          setSignatures(signaturesResult.data);
+        }
+        if (facilitadoresResult.data) {
+          setFacilitadores(facilitadoresResult.data);
         }
       } catch (error) {
-        console.error("Error loading signatures:", error);
+        console.error("Error loading data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadSignatures();
-  }, []);
+    loadData();
+  }, [refreshKey]);
 
   const handleSignatureUploaded = () => {
     // Refresh the signature list
-    setRefreshKey(prev => prev + 1);
+    setRefreshKey((prev) => prev + 1);
   };
 
   if (loading) {
@@ -48,10 +56,11 @@ export const SignatureManagement = () => {
     <div className="space-y-6">
       {/* Signature Upload Section */}
       <SignatureUpload onSignatureUploaded={handleSignatureUploaded} />
-      
+
       {/* Signature List Section */}
-      <SignatureList 
-        signatures={signatures} 
+      <SignatureListOptimized
+        signatures={signatures}
+        facilitadores={facilitadores}
         onSignatureDeleted={handleSignatureUploaded}
         refreshKey={refreshKey}
       />

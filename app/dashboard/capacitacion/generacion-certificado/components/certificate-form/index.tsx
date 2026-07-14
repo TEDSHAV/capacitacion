@@ -24,6 +24,7 @@ export const CertificateForm = ({
 }: CertificateFormProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isPassingGradeLocked, setIsPassingGradeLocked] = useState(true);
+  const [hasAttemptedSubmission, setHasAttemptedSubmission] = useState(false);
 
   const { shaSignatures, courseTemplates } = useCertificateForm({
     certificateData,
@@ -46,6 +47,7 @@ export const CertificateForm = ({
     !selectedCourseTopic?.emite_carnet || !!certificateData.fecha_vencimiento;
 
   const handleGenerateCertificate = () => {
+    setHasAttemptedSubmission(true);
     if (!isBaseFormValid) {
       alert("Por favor completa todos los campos obligatorios");
       return;
@@ -79,6 +81,7 @@ export const CertificateForm = ({
   };
 
   const handlePreview = () => {
+    setHasAttemptedSubmission(true);
     if (!isBaseFormValid) {
       alert(
         "Por favor completa todos los campos obligatorios para generar la vista previa",
@@ -154,14 +157,15 @@ export const CertificateForm = ({
           id="certificate_title"
           value={certificateData.certificate_title}
           onChange={(e) => onDataChange("certificate_title", e.target.value)}
+          autoFocus={false}
           className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-            !certificateData.certificate_title
+            hasAttemptedSubmission && !certificateData.certificate_title
               ? "border-amber-400 bg-amber-50"
               : "border-gray-300"
           }`}
           placeholder="Ej: Manejo de Montacargas (se autocompletará con el nombre del curso seleccionado)"
         />
-        {!certificateData.certificate_title && (
+        {hasAttemptedSubmission && !certificateData.certificate_title && (
           <p className="text-xs text-amber-700 font-medium mt-1 flex items-center gap-1">
             <svg
               className="w-3.5 h-3.5"
@@ -281,15 +285,17 @@ export const CertificateForm = ({
           min="0"
           step="1"
           className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-            !certificateData.horas_estimadas ||
-            certificateData.horas_estimadas === 0
+            hasAttemptedSubmission &&
+            (!certificateData.horas_estimadas ||
+              certificateData.horas_estimadas === 0)
               ? "border-amber-400 bg-amber-50"
               : "border-gray-300"
           }`}
           placeholder="Ej: 8"
         />
-        {!certificateData.horas_estimadas ||
-        certificateData.horas_estimadas === 0 ? (
+        {hasAttemptedSubmission &&
+        (!certificateData.horas_estimadas ||
+          certificateData.horas_estimadas === 0) ? (
           <p className="text-xs text-amber-700 font-medium mt-1 flex items-center gap-1">
             <svg
               className="w-3.5 h-3.5"
