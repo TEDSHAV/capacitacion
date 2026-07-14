@@ -279,9 +279,14 @@ export const ParticipantsSection = ({
                               : ""
                           }
                           onChange={(e) => {
+                            const newScore = parseInt(e.target.value) || 0;
+                            // Validate score range
+                            if (newScore < 0 || newScore > 20) {
+                              alert("La calificación debe estar entre 0 y 20");
+                              return;
+                            }
                             const newParticipants = [...uniqueParticipants];
-                            newParticipants[index].score =
-                              parseInt(e.target.value) || 0;
+                            newParticipants[index].score = newScore;
                             onChange(newParticipants);
                           }}
                           min="0"

@@ -360,14 +360,22 @@ export const ParticipantScannerModal = ({
                       <input
                         type="number"
                         value={participant.score || ""}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const newScore = parseInt(e.target.value) || 0;
+                          // Validate score range
+                          if (newScore < 0 || newScore > 20) {
+                            alert("La calificación debe estar entre 0 y 20");
+                            return;
+                          }
                           handleParticipantChange(
                             index,
                             "score",
                             e.target.value,
-                          )
-                        }
+                          );
+                        }}
                         placeholder="Nota"
+                        min="0"
+                        max="20"
                         className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>

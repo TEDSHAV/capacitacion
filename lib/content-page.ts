@@ -430,7 +430,7 @@ export class ContentPage {
     // Priority 1: Use specific contentPage overrides if they exist
     // Priority 2: Use top-level seal config if it exists
     // Priority 3: Fallback to dynamic calculation relative to the table
-    const sealY = contentPage.sealY ?? seal?.y ?? tableY + cellHeight * 4 + 8;
+    const sealY = contentPage.sealY ?? tableY + cellHeight * 4 + 8;
     const sealSize = seal?.size ?? contentPage.sealSize ?? 30;
     const sealX =
       contentPage.sealX ?? seal?.x ?? tableX + tableWidth / 2 - sealSize / 2;
@@ -486,7 +486,9 @@ export class ContentPage {
         };
         img.src = sealImage;
       });
-    } catch (e) {}
+    } catch (e) {
+      // Handle error silently
+    }
   }
 
   private formatDate(date: string | undefined): string {

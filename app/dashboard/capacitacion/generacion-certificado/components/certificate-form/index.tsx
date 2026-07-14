@@ -36,7 +36,8 @@ export const CertificateForm = ({
     !!certificateData.osi_id &&
     !!certificateData.course_topic_id &&
     certificateData.participants.length > 0 &&
-    !!certificateData.date;
+    !!certificateData.date &&
+    !!certificateData.horas_estimadas;
 
   const isCarnetValid =
     !selectedCourseTopic?.emite_carnet || !!certificateData.fecha_vencimiento;
@@ -51,6 +52,25 @@ export const CertificateForm = ({
         "Este curso emite carnet, por lo que la fecha de vencimiento es requerida",
       );
       return;
+    }
+    // Validate duration hours
+    if (
+      certificateData.horas_estimadas !== undefined &&
+      certificateData.horas_estimadas < 0
+    ) {
+      alert("La duración del curso no puede ser negativa");
+      return;
+    }
+    if (
+      certificateData.horas_estimadas &&
+      certificateData.horas_estimadas > 50
+    ) {
+      const confirmed = confirm(
+        `La duración del curso es de ${certificateData.horas_estimadas} horas. ¿Estás seguro de que esto es correcto?`,
+      );
+      if (!confirmed) {
+        return;
+      }
     }
     onGenerate();
   };
@@ -67,6 +87,25 @@ export const CertificateForm = ({
         "Este curso emite carnet, por lo que la fecha de vencimiento es requerida para la vista previa",
       );
       return;
+    }
+    // Validate duration hours
+    if (
+      certificateData.horas_estimadas !== undefined &&
+      certificateData.horas_estimadas < 0
+    ) {
+      alert("La duración del curso no puede ser negativa");
+      return;
+    }
+    if (
+      certificateData.horas_estimadas &&
+      certificateData.horas_estimadas > 50
+    ) {
+      const confirmed = confirm(
+        `La duración del curso es de ${certificateData.horas_estimadas} horas. ¿Estás seguro de que esto es correcto?`,
+      );
+      if (!confirmed) {
+        return;
+      }
     }
     setIsPreviewOpen(true);
   };
@@ -175,7 +214,7 @@ export const CertificateForm = ({
           htmlFor="horas_estimadas"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Duración del Curso (horas)
+          Duración del Curso (horas) *
         </label>
         <input
           type="number"
