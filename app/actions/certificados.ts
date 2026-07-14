@@ -2576,7 +2576,7 @@ export async function getBatchCertificateDetailsAction(osiNumber: number) {
         fecha_emision, 
         fecha_vencimiento,
         id_facilitador,
-        catalogo_servicios(nombre, horas_estimadas)
+        catalogo_servicios(nombre)
       `)
       .eq("nro_osi", osiNumber)
       .eq("is_active", true)
@@ -2616,7 +2616,6 @@ export async function getBatchCertificateDetailsAction(osiNumber: number) {
 
     const horas_estimadas = 
       snapshotData.certificado_detalles?.horas_estimadas?.toString() || 
-      (Array.isArray(data.catalogo_servicios) ? data.catalogo_servicios[0]?.horas_estimadas?.toString() : (data.catalogo_servicios as any)?.horas_estimadas?.toString()) ||
       "";
 
     const id_facilitador = 

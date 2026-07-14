@@ -168,6 +168,14 @@ export function BatchEditModal({
     };
   }, [isOpen]);
 
+  // Sync selectedFacilitator when facilitators list loads after id_facilitador is set
+  useEffect(() => {
+    if (updates.id_facilitador && facilitators.length > 0 && !selectedFacilitator) {
+      const found = facilitators.find(f => f.id.toString() === updates.id_facilitador);
+      if (found) setSelectedFacilitator(found);
+    }
+  }, [facilitators, updates.id_facilitador, selectedFacilitator]);
+
   const handleUpdateChange = (field: keyof BatchUpdateData, value: string) => {
     setUpdates((prev) => ({ ...prev, [field]: value }));
   };
