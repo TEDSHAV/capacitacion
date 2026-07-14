@@ -340,7 +340,7 @@ export class ContentPage {
       await new Promise<void>((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
-          this.doc.addImage(img, "PNG", sealX, sealY, contentPage.sealSize, contentPage.sealSize);
+          this.doc.addImage(img, "PNG", sealX, sealY, contentPage.sealSize, contentPage.sealSize, undefined, 'FAST');
           resolve();
         };
         img.onerror = () => {

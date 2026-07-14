@@ -144,21 +144,25 @@ export class CarnetGenerator {
 
         // Check if file exists
         if (fs.existsSync(imagePath)) {
-          // Read file as base64
+          // Read file as base64 and compress to JPEG for smaller PDF
           const imageBuffer = fs.readFileSync(imagePath);
-          const base64Image = imageBuffer.toString("base64");
+          const base64Png = imageBuffer.toString("base64");
+          const { compressServerImageToJpeg } = await import("./image-compress");
+          const compressed = await compressServerImageToJpeg(base64Png, 82, 1200);
+          const mime = compressed.format === "JPEG" ? "image/jpeg" : "image/png";
 
-          // Add base64 image to PDF - cover the entire carnet
           this.pdf.addImage(
-            `data:image/png;base64,${base64Image}`,
-            "PNG",
+            `data:${mime};base64,${compressed.base64}`,
+            compressed.format,
             0,
             0,
             this.pageWidth,
             this.pageHeight,
+            undefined,
+            "FAST",
           );
           console.log(
-            "Carnet template image loaded successfully in server environment",
+            `Carnet template image loaded in server environment (${compressed.format})`,
           );
         } else {
           console.warn("Carnet template image file not found:", imagePath);
@@ -167,13 +171,31 @@ export class CarnetGenerator {
         return;
       }
 
-      // Browser environment - use Image constructor
-      return new Promise((resolve, reject) => {
+      // Browser environment - use Image constructor with JPEG compression
+      const { compressImageToJpeg } = await import("./image-compress");
+      return new Promise(async (resolve, reject) => {
+        try {
+          const jpegDataUrl = await compressImageToJpeg(templatePath, 0.82, 1200);
+          console.log("✅ Carnet template compressed and loaded:", templatePath);
+          this.pdf.addImage(
+            jpegDataUrl,
+            "JPEG",
+            0,
+            0,
+            this.pageWidth,
+            this.pageHeight,
+            undefined,
+            "FAST",
+          );
+          resolve();
+          return;
+        } catch (e) {
+          console.warn("⚠️ Carnet compress failed, falling back to raw image:", e);
+        }
         const img = new Image();
         img.onload = () => {
           console.log("✅ Carne template loaded successfully:", templatePath);
-          // Add image to PDF - cover the entire carnet
-          this.pdf.addImage(img, "PNG", 0, 0, this.pageWidth, this.pageHeight);
+          this.pdf.addImage(img, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
           resolve();
         };
         img.onerror = (error) => {

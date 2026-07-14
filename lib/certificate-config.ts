@@ -4,6 +4,7 @@ export interface PDFOptions {
   orientation: "portrait" | "landscape";
   unit: "mm" | "pt" | "in" | "px";
   format: "a3" | "a4" | "a5" | "letter" | "legal";
+  compress?: boolean;
 }
 
 export interface TextLayoutConfig {
@@ -53,6 +54,7 @@ export const CERTIFICATE_CONFIG: CertificateLayoutConfig = {
     orientation: "portrait",
     unit: "mm",
     format: "letter",
+    compress: true,
   },
   
   name: {
