@@ -204,17 +204,14 @@ export class CarnetGenerator {
 
     // Add participant name (centered below course title)
     const nameY = 42; // Below course info
-    this.pdf.text(participant.name, 43, nameY, {
-      align: "center",
+    this.pdf.text(`Nombre: ${participant.name}`, 27, nameY - 10, {
       maxWidth: 70,
     });
 
     // Add ID number (centered below name)
-    this.pdf.setFontSize(5);
-    this.pdf.setFont("helvetica", "normal");
-    this.pdf.text(`ID: ${participant.id_number}`, 43, nameY + 4, {
-      align: "center",
-    });
+    this.pdf.setFontSize(7);
+    this.pdf.setFont("helvetica", "bold");
+    this.pdf.text(`Cédula/Pasaporte: ${participant.id_number}`, 27, nameY - 6);
   }
 
   private async addCourseInfo(carnetData: CarnetGeneration): Promise<void> {
@@ -232,21 +229,24 @@ export class CarnetGenerator {
 
   private async addDates(carnetData: CarnetGeneration): Promise<void> {
     // Set font styles
-    this.pdf.setFontSize(5);
-    this.pdf.setFont("helvetica", "normal");
+    this.pdf.setFontSize(7);
+    this.pdf.setFont("helvetica", "bold");
 
     // Add emission date (left side, below QR code)
     const emissionDate = new Date(carnetData.fecha_emision).toLocaleDateString(
       "es-VE",
     );
-    this.pdf.text(`Emisión: ${emissionDate}`, 8, 40);
+    this.pdf.text(`Emisión: ${emissionDate}`, 3, 40);
 
     // Add expiration date if available (left side, below emission date)
     if (carnetData.fecha_vencimiento) {
       const expirationDate = new Date(
         carnetData.fecha_vencimiento,
       ).toLocaleDateString("es-VE");
-      this.pdf.text(`Vencimiento: ${expirationDate}`, 8, 44);
+      this.pdf.setTextColor(255, 0, 0); // Set text color to red
+      this.pdf.text("Vencimiento: ", 3, 44);
+      this.pdf.setTextColor(0, 0, 0); // Reset text color to black
+      this.pdf.text(expirationDate, 22, 44); // Position date after "Vencimiento: "
     }
   }
 
