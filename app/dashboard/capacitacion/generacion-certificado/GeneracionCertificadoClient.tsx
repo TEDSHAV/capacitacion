@@ -225,9 +225,15 @@ export default function GeneracionCertificadoClient({
       return;
     }
 
+    // Validate content length
+    if ((certificateData.course_content?.length || 0) > 2000) {
+      alert('El contenido del curso excede el límite de 2000 caracteres. Por favor, reduce el contenido.');
+      return;
+    }
+
     try {
       setIsGenerating(true);
-      
+
       const dbResult = await saveCertificatesToDatabase(
         certificateData,
         certificateData.participants

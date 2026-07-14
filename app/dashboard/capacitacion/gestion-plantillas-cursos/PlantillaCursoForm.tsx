@@ -29,13 +29,19 @@ export function PlantillaCursoForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Validate content length
+    if ((formData.contenido?.length || 0) > 2000) {
+      alert('El contenido excede el límite de 2000 caracteres. Por favor, reduce el contenido.');
+      return;
+    }
+
     const plantillaData = {
       ...formData,
       id_curso: formData.id_curso ? parseInt(formData.id_curso.toString()) : null,
       id_empresa: formData.id_empresa ? parseInt(formData.id_empresa.toString()) : null
     };
-    
+
     onSave(plantillaData);
   };
 
@@ -92,7 +98,12 @@ export function PlantillaCursoForm({
               placeholder="Ingresa el contenido detallado de la plantilla... (puedes pegar desde Word)"
               rows={10}
             />
-            <p className="text-xs text-gray-500 mt-1">Soporta formato: negrita, cursiva, listas. Puedes pegar directamente desde Word.</p>
+            <div className="flex justify-between items-center mt-1">
+              <p className="text-xs text-gray-500">Soporta formato: negrita, cursiva, listas. Puedes pegar directamente desde Word.</p>
+              <p className={`text-xs font-medium ${(formData.contenido?.length || 0) > 2000 ? 'text-red-600' : (formData.contenido?.length || 0) > 1800 ? 'text-yellow-600' : 'text-gray-500'}`}>
+                {formData.contenido?.length || 0} / 2000 caracteres
+              </p>
+            </div>
           </div>
 
           {/* Course Selection */}

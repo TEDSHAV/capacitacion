@@ -83,7 +83,13 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
 
   const manejarEnvio = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Validate content length
+    if ((datosFormulario.contenido?.length || 0) > 2000) {
+      alert('El contenido excede el límite de 2000 caracteres. Por favor, reduce el contenido.');
+      return;
+    }
+
     // Create FormData properly
     const formData = new FormData();
     formData.append('titulo', datosFormulario.titulo);
@@ -91,12 +97,12 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
     formData.append('horas_estimadas', datosFormulario.horas_estimadas.toString());
     formData.append('nota_aprobatoria', datosFormulario.nota_aprobatoria.toString());
     formData.append('emite_carnet', datosFormulario.emite_carnet.toString());
-    
+
     // Note: empresa_id is no longer stored in database as cliente_asociado column doesn't exist
     // if (datosFormulario.empresa_id) {
     //   formData.append('cliente_asociado', datosFormulario.empresa_id.toString());
     // }
-    
+
     onSubmit(formData);
   };
 
@@ -229,7 +235,12 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
             placeholder="Agrega el contenido detallado del curso aquí... (puedes pegar desde Word)"
             rows={8}
           />
-          <p className="text-xs text-gray-500 mt-1">Soporta formato: negrita, cursiva, listas. Puedes pegar directamente desde Word.</p>
+          <div className="flex justify-between items-center mt-1">
+            <p className="text-xs text-gray-500">Soporta formato: negrita, cursiva, listas. Puedes pegar directamente desde Word.</p>
+            <p className={`text-xs font-medium ${(datosFormulario.contenido?.length || 0) > 2000 ? 'text-red-600' : (datosFormulario.contenido?.length || 0) > 1800 ? 'text-yellow-600' : 'text-gray-500'}`}>
+              {datosFormulario.contenido?.length || 0} / 2000 caracteres
+            </p>
+          </div>
         </div>
 
         {/* Emitir Carnet Checkbox */}

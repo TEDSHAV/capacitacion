@@ -381,12 +381,17 @@ export const CertificateForm = ({
             placeholder="Escribe o pega aquí el contenido temático del curso... (puedes pegar desde Word)"
             rows={8}
           />
-          <p className="text-xs text-gray-500 mt-1">
-            {certificateData.course_template_id
-              ? 'Puedes editar este contenido según sea necesario para esta capacitación específica'
-              : 'Este es el contenido predeterminado del curso. Puedes editarlo según sea necesario.'
-            }
-          </p>
+          <div className="flex justify-between items-center mt-1">
+            <p className="text-xs text-gray-500">
+              {certificateData.course_template_id
+                ? 'Puedes editar este contenido según sea necesario para esta capacitación específica'
+                : 'Este es el contenido predeterminado del curso. Puedes editarlo según sea necesario.'
+              }
+            </p>
+            <p className={`text-xs font-medium ${(certificateData.course_content?.length || 0) > 2000 ? 'text-red-600' : (certificateData.course_content?.length || 0) > 1800 ? 'text-yellow-600' : 'text-gray-500'}`}>
+              {certificateData.course_content?.length || 0} / 2000 caracteres
+            </p>
+          </div>
         </div>
       )}
 
