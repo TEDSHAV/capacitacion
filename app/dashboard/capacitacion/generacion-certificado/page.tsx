@@ -116,6 +116,7 @@ export default function GeneracionCertificadoPage() {
         setCertificateData((prev) => ({
           ...prev,
           course_topic_id: matchingCourse.id,
+          course_topic_data: matchingCourse, // Add the course topic data
           course_content: matchingCourse.contenido_curso || '',
           passing_grade: passingGrade,
         }));
@@ -214,6 +215,7 @@ export default function GeneracionCertificadoPage() {
         setCertificateData((prev) => ({
           ...prev,
           [field]: value,
+          course_topic_data: selectedTopic, // Add the course topic data
           course_content: selectedTopic.contenido_curso || '',
           passing_grade: passingGrade, // Use course's passing grade
         }));

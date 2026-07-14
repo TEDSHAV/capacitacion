@@ -119,6 +119,7 @@ export interface CourseTopic {
   cliente_asociado?: number; // Client ID associated with this course (number from DB)
   created_at?: string;
   nota_aprobatoria?: number; // Passing grade from cursos table
+  horas_estimadas?: number; // Estimated hours from cursos table
 }
 
 export interface CertificateParticipant {

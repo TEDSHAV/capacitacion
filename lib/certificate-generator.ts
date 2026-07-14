@@ -224,7 +224,7 @@ export class CertificateGenerator {
     });
   }
 
-  private async addCertificateContent(
+    private async addCertificateContent(
     participant: CertificateParticipant,
     certificateData: CertificateGeneration,
   ): Promise<void> {
@@ -399,7 +399,7 @@ export class CertificateGenerator {
       this.doc.setFontSize(subtitleFontSize);
 
       // Position subtitle below the main elements with a gap
-      const subtitleY = currentY ;
+      const subtitleY = currentY;
 
       subtitleLines.forEach((line: string, index: number) => {
         const lineY = subtitleY + index * lineHeight + lineHeight;
@@ -411,37 +411,25 @@ export class CertificateGenerator {
     if (date) {
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(12);
-      // Fix timezone issue by adding time to avoid UTC offset
-      const localDate = new Date(date + 'T12:00:00');
+      this.doc.setTextColor(0, 0, 0); // Set to black
+
+      const localDate = new Date(date + "T12:00:00");
       const formattedDate = localDate.toLocaleDateString("es-ES", {
         year: "numeric",
         month: "long",
         day: "numeric",
       });
-      this.doc.text(`Puerto la Cruz, ${formattedDate}`, this.pageWidth / 2, 140, {
-        align: "center",
-      });
+      this.doc.text(
+        `Puerto la Cruz, ${formattedDate}`,
+        this.pageWidth / 2,
+        160,
+        {
+          align: "center",
+        },
+      );
     }
 
-    // Add status badge if participant has a score
-    if (participant.score !== undefined && participant.score !== null) {
-      const status =
-        participant.score >= (certificateData.passing_grade || 0)
-          ? "APROBADO"
-          : "ASISTENCIA";
-      const statusColor: [number, number, number] =
-        participant.score >= (certificateData.passing_grade || 0)
-          ? [0, 128, 0]
-          : [255, 165, 0]; // Green or Orange
-
-      this.doc.setFont("helvetica", "bold");
-      this.doc.setFontSize(16);
-      this.doc.setTextColor(...statusColor);
-      this.doc.text(status, this.pageWidth / 2, 175, { align: "center" });
-
-      // Reset text color to black
-      this.doc.setTextColor(0, 0, 0);
-    }
+    // Add duration hours by fetching course data
   }
 
   private calculateFontSize(text: string, maxFontSize: number): number {
