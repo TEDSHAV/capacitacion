@@ -60,7 +60,18 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Check if user belongs to 'capacitacion' department (id: 3)
+    // Rule 1: Always allow Global Admins and Superadmins
+    const userRole = user.app_metadata?.role || user.user_metadata?.role;
+    if (userRole === "superadmin" || userRole === "admin") {
+      return supabaseResponse;
+    }
+
+    // Rule 2: Always allow specific authorized email (Lider de Negocios)
+    if (user.email === "lidernegocios@shadevenezuela.com.ve") {
+      return supabaseResponse;
+    }
+
+    // Fetch user data from 'usuarios' table for department-based checks
     const { data: userData, error: userError } = await supabase
       .from("usuarios")
       .select("id, departamento")
@@ -71,31 +82,13 @@ export async function middleware(request: NextRequest) {
       return redirectToUnauthorized(request);
     }
 
-    // Rule 1: Allow access if in 'capacitacion' department (id: 3)
+    // Rule 3: Allow access if user belongs to 'capacitacion' department (id: 3)
     if (userData.departamento === 3) {
       return supabaseResponse;
     }
 
-    // Rule 2: Allow access if user is admin (6) or superadmin (5)
-    const userRole = user.app_metadata?.role || user.user_metadata?.role;
-    if (userRole === "superadmin" || userRole === "admin") {
-      return supabaseResponse;
-    }
-
-    // Rule 3: Check roles in authprisma via a Security Definer function
-    try {
-      const { data: isAdmin } = await supabase.rpc("is_app_admin", {
-        target_user_id: userData.id,
-        target_app_id: 2,
-      });
-
-      if (isAdmin) {
-        return supabaseResponse;
-      }
-    } catch (e) {
-      // Gracefully handle RPC errors
-    }
-
+    // Default: Redirect to unauthorized for everyone else
+    // This includes staff from 'negocios' (dept 2) who are not global admins
     return redirectToUnauthorized(request);
   }
 
