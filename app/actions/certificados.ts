@@ -1527,27 +1527,111 @@ export async function getCertificatesForManagement(
   try {
     const supabase = await createClient();
 
-    const rpcParams = {
-      p_search_term: filters.searchTerm?.trim() || null,
-      p_company_id: filters.companyId || null,
-      p_course_id: filters.courseId || null,
-      p_facilitator_id: filters.facilitatorId || null,
-      p_state_id: filters.stateId || null,
-      p_is_active: filters.isActive !== undefined ? filters.isActive : null,
-      p_date_from: filters.dateFrom || null,
-      p_date_to: filters.dateTo || null,
-      p_page: page,
-      p_limit: limit,
-    };
+    // Calculate range for pagination
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
-    // Use RPC function for efficient server-side search
-    const { data: rpcData, error: rpcError } = await supabase.rpc(
-      "search_certificates",
-      rpcParams,
+    // Use direct query instead of RPC to ensure we use catalogo_servicios and get accurate data
+    let query = supabase.from("certificados").select(
+      `
+        *,
+        participantes_certificados!inner (
+          id,
+          nombre,
+          cedula,
+          nacionalidad
+        ),
+        catalogo_servicios!inner (
+          id,
+          nombre,
+          contenido_curso,
+          carga_horaria_std,
+          nota_aprobatoria,
+          emite_carnet
+        ),
+        empresas!inner (
+          id,
+          razon_social,
+          rif
+        ),
+        facilitadores (
+          id,
+          nombre_apellido
+        ),
+        cat_estados_venezuela (
+          id,
+          nombre_estado
+        )
+      `,
+      { count: "exact" },
     );
 
-    if (rpcError) {
-      console.error("Error fetching certificates via RPC:", rpcError);
+    // Apply filters
+    if (filters.companyId) {
+      const companyId = Number(filters.companyId);
+      if (!isNaN(companyId)) {
+        // Use joined table filter for better reliability with !inner joins
+        query = query.eq("empresas.id", companyId);
+        console.log(`[FILTER DEBUG] Applied companyId filter: ${companyId}`);
+      }
+    }
+    if (filters.courseId) {
+      const courseId = Number(filters.courseId);
+      if (!isNaN(courseId)) {
+        // Use joined table filter for better reliability with !inner joins
+        query = query.eq("catalogo_servicios.id", courseId);
+        console.log(`[FILTER DEBUG] Applied courseId filter: ${courseId}`);
+      }
+    }
+    if (filters.facilitatorId) {
+      query = query.eq("id_facilitador", filters.facilitatorId);
+      console.log(
+        `[FILTER DEBUG] Applied facilitatorId filter: ${filters.facilitatorId}`,
+      );
+    }
+    if (filters.stateId) {
+      query = query.eq("id_estado", filters.stateId);
+      console.log(`[FILTER DEBUG] Applied stateId filter: ${filters.stateId}`);
+    }
+    if (filters.isActive !== undefined) {
+      query = query.eq("is_active", filters.isActive);
+      console.log(
+        `[FILTER DEBUG] Applied isActive filter: ${filters.isActive}`,
+      );
+    }
+    if (filters.dateFrom) {
+      query = query.gte("fecha_emision", filters.dateFrom);
+      console.log(
+        `[FILTER DEBUG] Applied dateFrom filter: ${filters.dateFrom}`,
+      );
+    }
+    if (filters.dateTo) {
+      query = query.lte("fecha_emision", filters.dateTo);
+      console.log(`[FILTER DEBUG] Applied dateTo filter: ${filters.dateTo}`);
+    }
+
+    // Apply search term across joined tables if present
+    if (filters.searchTerm?.trim()) {
+      const term = `%${filters.searchTerm.trim()}%`;
+      // Use explicit table names for joins
+      query = query.or(
+        `participantes_certificados.nombre.ilike.${term},participantes_certificados.cedula.ilike.${term},catalogo_servicios.nombre.ilike.${term},empresas.razon_social.ilike.${term}`,
+      );
+      console.log(
+        `[FILTER DEBUG] Applied search term filter: ${filters.searchTerm}`,
+      );
+    }
+
+    console.log("[FILTER DEBUG] Final filters object:", filters);
+
+    // Execution of query with pagination and ordering
+    const { data, count, error } = await query
+      .order("fecha_emision", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      console.error("Error fetching certificates:", error);
       return {
         certificates: [],
         totalCount: 0,
@@ -1555,70 +1639,29 @@ export async function getCertificatesForManagement(
       };
     }
 
-    if (!rpcData || rpcData.length === 0) {
-      return {
-        certificates: [],
-        totalCount: 0,
-        metrics: getEmptyMetrics(),
-      };
+    // Map results to standard structure used by the component
+    const certificates = data || [];
+
+    const totalCount = count || 0;
+
+    // Debug: Log returned certificates
+    if (certificates.length > 0) {
+      console.log(
+        `[FILTER DEBUG] Returned ${certificates.length} certificates with filters:`,
+        filters,
+      );
+      console.log("[FILTER DEBUG] First 3 returned certificates:");
+      certificates.slice(0, 3).forEach((cert: any) => {
+        const course = Array.isArray(cert.catalogo_servicios)
+          ? cert.catalogo_servicios[0]
+          : cert.catalogo_servicios;
+        console.log(
+          `  - Cert ${cert.id}: id_curso=${cert.id_curso}, course name=${course?.nombre}`,
+        );
+      });
     }
 
-    // Map RPC results to certificate structure
-    const certificates = (rpcData || []).map((cert: any) => ({
-      id: cert.id,
-      nro_osi: cert.nro_osi,
-      fecha_emision: cert.fecha_emision,
-      fecha_vencimiento: cert.fecha_vencimiento,
-      calificacion: cert.calificacion,
-      is_active: cert.is_active,
-      created_at: cert.created_at,
-      id_participante: cert.participant_id,
-      participantes_certificados: [
-        {
-          id: cert.participant_id,
-          nombre: cert.participant_nombre,
-          cedula: cert.participant_cedula,
-          nacionalidad: cert.participant_nacionalidad,
-        },
-      ],
-      id_curso: cert.course_id,
-      cursos: [
-        {
-          id: cert.course_id,
-          nombre: cert.course_nombre,
-          contenido: cert.course_contenido,
-          horas_estimadas: cert.course_horas_estimadas,
-          nota_aprobatoria: cert.course_nota_aprobatoria,
-          emite_carnet: cert.course_emite_carnet,
-        },
-      ],
-      id_empresa: cert.company_id,
-      empresas: [
-        {
-          id: cert.company_id,
-          razon_social: cert.company_razon_social,
-          rif: cert.company_rif,
-        },
-      ],
-      id_facilitador: cert.facilitator_id,
-      facilitadores: [
-        {
-          id: cert.facilitator_id,
-          nombre_apellido: cert.facilitator_nombre_apellido,
-        },
-      ],
-      id_estado: cert.state_id,
-      cat_estados_venezuela: [
-        {
-          id: cert.state_id,
-          nombre_estado: cert.state_nombre_estado,
-        },
-      ],
-    }));
-
-    const totalCount = rpcData.length > 0 ? rpcData[0].total_count : 0;
-
-    // Calculate metrics (these are global statistics from analytics_metrics view)
+    // Calculate metrics
     const metrics = await calculateCertificateMetrics(filters);
 
     return {
@@ -1648,6 +1691,7 @@ async function calculateCertificateMetrics(
 
     // 1. ALWAYS perform a live query for accuracy.
     // We join the tables to allow filtering by search term and to get names for charts.
+    // We use !inner joins to ensure we only get certificates with valid references and to allow filtering
     let query = supabase.from("certificados").select(
       `
         id, 
@@ -1667,8 +1711,18 @@ async function calculateCertificateMetrics(
     );
 
     // Apply the same filters as search_certificates RPC
-    if (filters.companyId) query = query.eq("id_empresa", filters.companyId);
-    if (filters.courseId) query = query.eq("id_curso", filters.courseId);
+    if (filters.companyId) {
+      const companyId = Number(filters.companyId);
+      if (!isNaN(companyId)) {
+        query = query.eq("empresas.id", companyId);
+      }
+    }
+    if (filters.courseId) {
+      const courseId = Number(filters.courseId);
+      if (!isNaN(courseId)) {
+        query = query.eq("catalogo_servicios.id", courseId);
+      }
+    }
     if (filters.facilitatorId)
       query = query.eq("id_facilitador", filters.facilitatorId);
     if (filters.stateId) query = query.eq("id_estado", filters.stateId);
@@ -1685,23 +1739,37 @@ async function calculateCertificateMetrics(
     // Apply search term across joined tables if present
     if (filters.searchTerm?.trim()) {
       const term = `%${filters.searchTerm.trim()}%`;
+      // Use explicit table names for joins and cast nro_osi to text if it's numeric
       query = query.or(
-        `nro_osi.ilike.${term},participantes_certificados.nombre.ilike.${term},participantes_certificados.cedula.ilike.${term},catalogo_servicios.nombre.ilike.${term},empresas.razon_social.ilike.${term}`,
+        `participantes_certificados.nombre.ilike.${term},participantes_certificados.cedula.ilike.${term},catalogo_servicios.nombre.ilike.${term},empresas.razon_social.ilike.${term}`,
       );
     }
 
     // Fetch the live data for aggregation
     // We order by emission date descending to get the most recent ones for the metrics sample
-    // Safe limit for management dashboard
+    // Safe limit for management dashboard - increased to 5000 for better accuracy
     const {
       data: filteredData,
       count: totalCount,
       error: liveError,
-    } = await query.order("fecha_emision", { ascending: false }).limit(1000);
+    } = await query.order("fecha_emision", { ascending: false }).limit(5000);
 
     if (liveError) {
       console.error("Error fetching live metrics:", liveError);
       return getEmptyMetrics();
+    }
+
+    // Debug: Log first few certificates to inspect data structure
+    if (filteredData && filteredData.length > 0) {
+      console.log("[METRICS DEBUG] First 3 certificates structure:");
+      filteredData.slice(0, 3).forEach((cert: any, idx: number) => {
+        console.log(`Certificate ${idx}:`, {
+          id: cert.id,
+          id_curso: cert.id_curso,
+          catalogo_servicios: cert.catalogo_servicios,
+          isArray: Array.isArray(cert.catalogo_servicios),
+        });
+      });
     }
 
     // 2. Aggregate metrics from the actual data returned
@@ -1754,10 +1822,14 @@ async function calculateCertificateMetrics(
 
       if (cert.id_empresa) {
         uniqueCompanies.add(cert.id_empresa);
-        if (cert.empresas?.razon_social) {
+        // Handle both object and array response from Supabase join
+        const companyData = Array.isArray(cert.empresas)
+          ? cert.empresas[0]
+          : cert.empresas;
+        if (companyData?.razon_social) {
           if (!companyStats[cert.id_empresa]) {
             companyStats[cert.id_empresa] = {
-              name: cert.empresas.razon_social,
+              name: companyData.razon_social,
               count: 0,
             };
           }
@@ -1767,11 +1839,28 @@ async function calculateCertificateMetrics(
 
       if (cert.id_curso) {
         uniqueCourses.add(cert.id_curso);
-        if (cert.cursos?.nombre) {
+        // Handle both object and array response from Supabase join
+        const courseData = Array.isArray(cert.catalogo_servicios)
+          ? cert.catalogo_servicios[0]
+          : cert.catalogo_servicios;
+        if (courseData?.nombre) {
           if (!courseStats[cert.id_curso]) {
-            courseStats[cert.id_curso] = { name: cert.cursos.nombre, count: 0 };
+            courseStats[cert.id_curso] = {
+              name: courseData.nombre,
+              count: 0,
+            };
           }
           courseStats[cert.id_curso].count++;
+        } else {
+          // Debug: log when course data is missing
+          console.warn(
+            `[METRICS DEBUG] Certificate ${cert.id} has id_curso=${cert.id_curso} but courseData is missing:`,
+            {
+              courseData,
+              catalogo_servicios: cert.catalogo_servicios,
+              isArray: Array.isArray(cert.catalogo_servicios),
+            },
+          );
         }
       }
 
@@ -1798,6 +1887,13 @@ async function calculateCertificateMetrics(
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
+
+    // Debug: Log final course stats
+    console.log(
+      "[METRICS DEBUG] Final certificatesByCourse:",
+      certificatesByCourse,
+    );
+    console.log("[METRICS DEBUG] All courseStats:", courseStats);
 
     return {
       totalCertificates: totalCount || 0,
@@ -1863,21 +1959,32 @@ export async function getCompaniesForFilters(): Promise<
   try {
     const supabase = await createClient();
 
+    // Only return companies that have actual certificates
     const { data, error } = await supabase
-
-      .from("empresas")
-
-      .select("id, razon_social")
-
-      .eq("is_active", true)
-
-      .order("razon_social");
+      .from("certificados")
+      .select("empresas!inner(id, razon_social)", { count: "exact" })
+      .order("empresas(razon_social)");
 
     if (error) {
       return [];
     }
 
-    return data || [];
+    // Extract unique companies from certificates
+    const uniqueCompanies = new Map<number, string>();
+    data?.forEach((cert: any) => {
+      const company = Array.isArray(cert.empresas)
+        ? cert.empresas[0]
+        : cert.empresas;
+      if (company?.id && company?.razon_social) {
+        uniqueCompanies.set(company.id, company.razon_social);
+      }
+    });
+
+    // Convert to array and sort by name
+    return Array.from(uniqueCompanies, ([id, razon_social]) => ({
+      id,
+      razon_social,
+    })).sort((a, b) => a.razon_social.localeCompare(b.razon_social));
   } catch (error) {
     return [];
   }
@@ -1895,24 +2002,47 @@ export async function getCoursesForFilters(): Promise<
   try {
     const supabase = await createClient();
 
+    // Only return courses that have actual certificates
     const { data, error } = await supabase
-
-      .from("catalogo_servicios")
-
-      .select("id, nombre")
-
-      .eq("esta_activo", true)
-
-      .eq("id_departamento_ejecutante", 3)
-
-      .order("nombre");
+      .from("certificados")
+      .select("id_curso, catalogo_servicios!inner(id, nombre)", {
+        count: "exact",
+      })
+      .order("catalogo_servicios(nombre)");
 
     if (error) {
+      console.error("[COURSES FILTER DEBUG] Error fetching courses:", error);
       return [];
     }
 
-    return data || [];
+    // Extract unique courses from certificates
+    const uniqueCourses = new Map<number, string>();
+    data?.forEach((cert: any) => {
+      const course = Array.isArray(cert.catalogo_servicios)
+        ? cert.catalogo_servicios[0]
+        : cert.catalogo_servicios;
+      if (course?.id && course?.nombre) {
+        uniqueCourses.set(course.id, course.nombre);
+      }
+    });
+
+    const result = Array.from(uniqueCourses, ([id, nombre]) => ({
+      id,
+      nombre,
+    })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    console.log(
+      "[COURSES FILTER DEBUG] Unique courses from certificates:",
+      result,
+    );
+    console.log(
+      "[COURSES FILTER DEBUG] Raw data sample (first 5):",
+      data?.slice(0, 5),
+    );
+
+    return result;
   } catch (error) {
+    console.error("[COURSES FILTER DEBUG] Exception:", error);
     return [];
   }
 }

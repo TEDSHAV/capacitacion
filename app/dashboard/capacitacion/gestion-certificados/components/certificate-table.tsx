@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { toTitleCase } from "@/utils/string-utils";
 import { CertificateManagement } from "@/types";
 import { Button } from "@/components/ui/button";
 
@@ -46,7 +47,7 @@ function CertificateTableComponent({
   };
 
   const getCourse = (certificate: CertificateManagement) => {
-    const course = certificate.cursos;
+    const course = certificate.catalogo_servicios;
     return Array.isArray(course) ? course[0] : course;
   };
 
@@ -201,7 +202,9 @@ function CertificateTableComponent({
                     className="text-sm font-medium text-gray-900 truncate"
                     title={participant?.nombre || ""}
                   >
-                    {participant?.nombre || "-"}
+                    {participant?.nombre
+                      ? toTitleCase(participant.nombre)
+                      : "-"}
                   </div>
                   <div className="text-xs text-gray-500">
                     {participant &&
@@ -232,8 +235,8 @@ function CertificateTableComponent({
                     {course?.nombre || "-"}
                   </div>
                   <div className="text-xs text-gray-500">
-                    {course?.carga_horaria_std
-                      ? `${course.carga_horaria_std}h`
+                    {course?.horas_estimadas
+                      ? `${course.horas_estimadas}h`
                       : ""}
                   </div>
                 </td>
@@ -243,7 +246,9 @@ function CertificateTableComponent({
                     className="text-sm text-gray-900 truncate"
                     title={facilitator?.nombre_apellido || ""}
                   >
-                    {facilitator?.nombre_apellido || "-"}
+                    {facilitator?.nombre_apellido
+                      ? toTitleCase(facilitator.nombre_apellido)
+                      : "-"}
                   </div>
                 </td>
 

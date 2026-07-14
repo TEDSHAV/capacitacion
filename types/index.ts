@@ -1053,7 +1053,7 @@ export interface CertificateManagement {
     cedula: string;
     nacionalidad: string;
   };
-  cursos?: {
+  catalogo_servicios?: {
     id: number;
     nombre: string;
     contenido: string | null;

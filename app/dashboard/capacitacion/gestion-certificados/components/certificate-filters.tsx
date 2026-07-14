@@ -220,8 +220,9 @@ function CertificateFiltersComponent({
         {hasActiveFilters && (
           <button
             onClick={handleClearFilters}
-            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-2.5 py-1.5 rounded-md transition-all hover:bg-blue-200 hover:shadow-sm font-medium border border-blue-100"
           >
+            <X className="h-3.5 w-3.5" />
             Limpiar filtros
           </button>
         )}
@@ -244,7 +245,8 @@ function CertificateFiltersComponent({
             {searchTerm && (
               <button
                 onClick={() => handleSearchChange("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                title="Limpiar búsqueda"
               >
                 <X className="h-4 w-4" />
               </button>

@@ -24,3 +24,21 @@
 [2026-05-11T21:53:40.764Z] validacion_datos generated successfully
 [2026-05-11T21:53:40.764Z] Document generation complete (sequential) {"taskCount":3}
 [2026-05-11T21:53:40.765Z] Document generation complete {"documentsGenerated":3,"documentKeys":["certificacion_competencias","nota_entrega","validacion_datos"],"errors":[],"totalErrors":0}
+[2026-05-12T13:30:41.193Z] generateDocumentsServer called {"options":{"includeCertificacionCompetencias":true,"includeNotaEntrega":true,"includeValidacionDatos":true},"certificatesCount":7}
+[2026-05-12T13:30:41.195Z] Starting certificacion_competencias generation
+[2026-05-12T13:30:45.818Z] certificacion_competencias generated successfully
+[2026-05-12T13:30:45.819Z] Starting nota_entrega generation
+[2026-05-12T13:30:46.661Z] nota_entrega generated successfully
+[2026-05-12T13:30:46.662Z] Starting validacion_datos generation
+[2026-05-12T13:30:47.531Z] validacion_datos generated successfully
+[2026-05-12T13:30:47.532Z] Document generation complete (sequential) {"taskCount":3}
+[2026-05-12T13:30:47.533Z] Document generation complete {"documentsGenerated":3,"documentKeys":["certificacion_competencias","nota_entrega","validacion_datos"],"errors":[],"totalErrors":0}
+[2026-05-12T13:32:41.151Z] generateDocumentsServer called {"options":{"includeCertificacionCompetencias":true,"includeNotaEntrega":true,"includeValidacionDatos":true},"certificatesCount":8}
+[2026-05-12T13:32:41.152Z] Starting certificacion_competencias generation
+[2026-05-12T13:32:42.004Z] certificacion_competencias generated successfully
+[2026-05-12T13:32:42.005Z] Starting nota_entrega generation
+[2026-05-12T13:32:43.063Z] nota_entrega generated successfully
+[2026-05-12T13:32:43.064Z] Starting validacion_datos generation
+[2026-05-12T13:32:43.930Z] validacion_datos generated successfully
+[2026-05-12T13:32:43.931Z] Document generation complete (sequential) {"taskCount":3}
+[2026-05-12T13:32:43.932Z] Document generation complete {"documentsGenerated":3,"documentKeys":["certificacion_competencias","nota_entrega","validacion_datos"],"errors":[],"totalErrors":0}
