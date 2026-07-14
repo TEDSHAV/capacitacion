@@ -18,10 +18,13 @@ export default async function GestionCursosPage() {
     .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
     .order("razon_social")
 
-  // Fetch existing courses from catalogo_servicios where tipo_servicio = 1
+  // Fetch existing courses from catalogo_servicios where tipo_servicio = 1 with company info
   const { data: courses }: { data: Curso[] | null } = await supabase
     .from("catalogo_servicios")
-    .select("*")
+    .select(`
+      *,
+      empresas (razon_social)
+    `)
     .eq("tipo_servicio", 1)
     .order("created_at", { ascending: false });
 

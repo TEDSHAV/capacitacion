@@ -6,6 +6,7 @@ import { createCurso, updateCurso, deleteCurso, duplicateCurso } from "./actions
 import CourseActions from "./CourseActions";
 import CreateCourseButton from "./CreateCourseButton";
 import EmpresaSearch from "./EmpresaSearch";
+import Pagination from "./components/Pagination";
 import { Empresa, Curso, GestionCursosClientProps } from "./types";
 
 export default function GestionCursosClient({
@@ -23,6 +24,8 @@ export default function GestionCursosClient({
     contenido: ""
   });
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -78,6 +81,17 @@ export default function GestionCursosClient({
     curso.contenido_curso?.toLowerCase().includes(busqueda.toLowerCase()) ||
     (curso.empresas?.razon_social?.toLowerCase().includes(busqueda.toLowerCase()) || false)
   );
+
+  // Pagination logic
+  const totalPages = Math.ceil(cursosFiltrados.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const cursosPaginados = cursosFiltrados.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [busqueda]);
 
   const manejarCambioInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -275,19 +289,17 @@ export default function GestionCursosClient({
         )}
 
         {/* Courses List */}
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {/* Search Bar - Above header */}
           <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Cursos Existentes
-              </h2>
-              <div className="relative">
+            <div className="flex justify-end">
+              <div className="relative w-80">
                 <input
                   type="text"
                   placeholder="Buscar cursos..."
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
-                  className="w-full sm:w-80 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 />
                 <svg
                   className="absolute left-3 top-2.5 w-4 h-4 text-gray-400"
@@ -305,50 +317,92 @@ export default function GestionCursosClient({
               </div>
             </div>
           </div>
+
+          {/* List Header */}
+          <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+            <div className="grid grid-cols-12 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div className="col-span-4">Curso</div>
+              <div className="col-span-3">Cliente</div>
+              <div className="col-span-2">Creado</div>
+              <div className="col-span-3 text-right">Acciones</div>
+            </div>
+          </div>
           
-          {cursosFiltrados.length === 0 ? (
-            <div className="px-6 py-8 text-center">
-              <p className="text-gray-500">
-                {busqueda ? 'No se encontraron cursos que coincidan con tu búsqueda' : 'No hay cursos creados aún'}
-              </p>
-              <p className="text-sm text-gray-400 mt-1">
-                {busqueda ? 'Intenta con otros términos de búsqueda' : 'Crea tu primer curso haciendo clic en el botón "Nuevo Curso"'}
+          {cursosPaginados.length === 0 ? (
+            <div className="px-6 py-12 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {busqueda ? 'No se encontraron cursos' : 'No hay cursos creados'}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {busqueda ? 'Intenta con otros términos de búsqueda' : 'Crea tu primer curso para comenzar'}
               </p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {cursosFiltrados.map((curso) => (
-                <div key={curso.id} className="px-6 py-4 hover:bg-gray-50">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-medium text-gray-900">
+              {cursosPaginados.map((curso) => (
+                <div
+                  key={curso.id}
+                  className="px-6 py-4 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="grid grid-cols-12 gap-4 items-center">
+                    {/* Course Name */}
+                    <div className="col-span-4">
+                      <div className="text-sm font-medium text-gray-900 truncate">
                         {curso.nombre}
-                      </h3>
-                      {curso.empresas && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          Cliente: {curso.empresas.razon_social}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-400 mt-2">
-                        Creado: {new Date(curso.created_at).toLocaleDateString('en-US')}
-                      </p>
+                      </div>
                     </div>
-                    <CourseActions 
-                      curso={curso}
-                      onEdit={abrirModalEdicion}
-                      onDelete={manejarEliminacion}
-                      onDuplicate={manejarDuplicacion}
-                    />
+
+                    {/* Client */}
+                    <div className="col-span-3">
+                      <div className="text-sm text-gray-900 truncate">
+                        {curso.empresas?.razon_social || 'General'}
+                      </div>
+                    </div>
+
+                    {/* Created Date */}
+                    <div className="col-span-2">
+                      <div className="text-sm text-gray-900">
+                        {new Date(curso.created_at).toLocaleDateString('es-ES', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {new Date(curso.created_at).toLocaleDateString('es-ES', {
+                          weekday: 'short'
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="col-span-3 flex justify-end">
+                      <CourseActions 
+                        curso={curso}
+                        onEdit={abrirModalEdicion}
+                        onDelete={manejarEliminacion}
+                        onDuplicate={manejarDuplicacion}
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
           
-          {/* Bottom Create Button */}
-          <div className="flex justify-end px-6 py-4 border-t border-gray-200 bg-gray-50">
-            <CreateCourseButton onClick={() => setCreandoCurso(true)} className="w-full sm:w-auto" />
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            totalItems={cursosFiltrados.length}
+            onPageChange={setCurrentPage}
+          />
         </div>
       </div>
     </div>

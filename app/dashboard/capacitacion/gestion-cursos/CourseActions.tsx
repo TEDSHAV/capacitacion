@@ -9,7 +9,7 @@ interface CourseActionsProps {
 
 export default function CourseActions({ curso, onEdit, onDelete, onDuplicate }: CourseActionsProps) {
   return (
-    <div className="flex space-x-2 ml-4">
+    <div className="flex space-x-2">
       <button 
         onClick={() => onEdit(curso)}
         className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
