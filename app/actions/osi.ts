@@ -145,15 +145,10 @@ export async function getOSIs(filters?: {
     const supabase = await createClient();
     const { search, empresa, estado, page = 1, limit = 50 } = filters || {};
     
-    // Optimized query with executive name joining
+    // Optimized query without foreign key relationship (doesn't exist in schema)
     let query = supabase
       .from('osi')
-      .select(`
-        *,
-        usuarios!osi_ejecutivo_negocios_fkey (
-          nombre_apellido
-        )
-      `, { count: 'exact' });
+      .select('*', { count: 'exact' });
 
     // Apply filters
     if (search && search.trim()) {
@@ -184,14 +179,8 @@ export async function getOSIs(filters?: {
       };
     }
 
-    // Transform data to include executive name
-    const transformedData = (data || []).map(osi => ({
-      ...osi,
-      executive_name: osi.usuarios?.nombre_apellido || null
-    }));
-
     return { 
-      osis: transformedData, 
+      osis: data || [], 
       total: count || 0,
       page,
       limit
