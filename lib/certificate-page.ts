@@ -13,6 +13,15 @@ export class CertificatePage {
   private pageWidth: number;
   private pageHeight: number;
 
+  // QR Code configuration - shared between sample and real QR codes
+  private static readonly QR_CONFIG = {
+    GENERATION_SIZE: 70,    // Size for QR code generation
+    PDF_SIZE_MM: 20,        // Size in mm for PDF
+    MARGIN: 10,             // Margin from edges
+    X_OFFSET: 10,            // Additional X offset adjustment
+    Y_OFFSET: 12.4            // Additional Y offset adjustment
+  };
+
   constructor(doc: jsPDF, pageWidth: number, pageHeight: number) {
     this.doc = doc;
     this.pageWidth = pageWidth;
@@ -334,6 +343,25 @@ export class CertificatePage {
   }
 
   /**
+   * Add QR code to certificate (common method for both real and sample)
+   */
+  private async addQRCodeToPosition(qrDataUrl: string): Promise<void> {
+    try {
+      // Position QR code using shared configuration
+      const { PDF_SIZE_MM, MARGIN, X_OFFSET, Y_OFFSET } = CertificatePage.QR_CONFIG;
+      const x = this.pageWidth - PDF_SIZE_MM - MARGIN - X_OFFSET;
+      const y = MARGIN + Y_OFFSET;
+
+      // Add QR code image
+      this.doc.addImage(qrDataUrl, 'PNG', x, y, PDF_SIZE_MM, PDF_SIZE_MM);
+
+    } catch (error) {
+      console.warn('Failed to add QR code to certificate:', error);
+      // Continue without QR code if it fails
+    }
+  }
+
+  /**
    * Add QR code to certificate (upper right corner)
    */
   async addQRCode(certificateId: number, controlNumbers?: ControlNumbers): Promise<void> {
@@ -341,26 +369,54 @@ export class CertificatePage {
       // Generate QR code data
       const qrData = QRService.generateQRData(certificateId, controlNumbers);
       
-      // Generate QR code as data URL
+      // Generate QR code as data URL using shared configuration
       const qrDataUrl = await QRService.generateQRDataURL({
         data: qrData,
-        size: 80, // Smaller size for PDF
+        size: CertificatePage.QR_CONFIG.GENERATION_SIZE,
         level: 'M',
         includeMargin: true
       });
 
-      // Position QR code in upper right corner
-      const qrSize = 25; // Size in mm for PDF
-      const margin = 10;
-      const x = this.pageWidth - qrSize - margin - 9;
-      const y = margin + 12; // Position from top
-
-      // Add QR code image
-      this.doc.addImage(qrDataUrl, 'PNG', x, y, qrSize, qrSize);
-
+      // Add QR code using common positioning method
+      await this.addQRCodeToPosition(qrDataUrl);
 
     } catch (error) {
       console.warn('Failed to add QR code to certificate:', error);
+      // Continue without QR code if it fails
+    }
+  }
+
+  /**
+   * Add sample QR code for preview (same size as real QR code)
+   */
+  async addSampleQRCode(): Promise<void> {
+    try {
+      // Generate sample QR code data for preview
+      const sampleData = {
+        certificateId: 0, // Use 0 as sample certificate ID
+        verificationUrl: "https://example.com/verify/SAMPLE",
+        controlNumbers: {
+          nro_libro: 1,
+          nro_hoja: 1,
+          nro_linea: 1,
+          nro_control: 1
+        },
+        generatedAt: new Date().toISOString()
+      };
+      
+      // Generate QR code as data URL using shared configuration
+      const qrDataUrl = await QRService.generateQRDataURL({
+        data: sampleData,
+        size: CertificatePage.QR_CONFIG.GENERATION_SIZE,
+        level: 'M',
+        includeMargin: true
+      });
+
+      // Add QR code using common positioning method
+      await this.addQRCodeToPosition(qrDataUrl);
+
+    } catch (error) {
+      console.warn('Failed to add sample QR code to certificate preview:', error);
       // Continue without QR code if it fails
     }
   }

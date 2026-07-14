@@ -110,6 +110,7 @@ export const CertificatePreview = ({
         certificateData: certificateDataWithSHA,
         templateImage,
         sealImage,
+        isPreview: true
       });
 
       const url = URL.createObjectURL(blob);
