@@ -403,7 +403,7 @@ export class TemplateBasedPdfGenerator {
       );
 
       pdf.setFont("helvetica", "normal").setFontSize(11);
-      pdf.text(`Puerto La Cruz, ${data.fecha || ""}`, MR, y, {
+      pdf.text(`Puerto La Cruz, ${data.fecha_hoy || ""}`, MR, y, {
         align: "right",
       });
       y += 12;
@@ -543,7 +543,7 @@ export class TemplateBasedPdfGenerator {
       let y = this.addPageHeader(pdf, ["NOTA DE ENTREGA"], "SHA-RG-CAP-006");
 
       pdf.setFont("helvetica", "normal").setFontSize(11);
-      pdf.text(`Puerto La Cruz, ${data.fecha || ""}`, MR, y, {
+      pdf.text(`Puerto La Cruz, ${data.fecha_hoy || ""}`, MR, y, {
         align: "right",
       });
       y += 12;
@@ -681,7 +681,7 @@ export class TemplateBasedPdfGenerator {
       );
 
       pdf.setFont("helvetica", "normal").setFontSize(11);
-      pdf.text(`Puerto La Cruz, ${data.fecha || ""}`, MR, y, {
+      pdf.text(`Puerto La Cruz, ${data.fecha_hoy || ""}`, MR, y, {
         align: "right",
       });
       y += 12;
