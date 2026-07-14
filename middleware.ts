@@ -60,18 +60,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Rule 1: Always allow Global Admins and Superadmins
-    const userRole = user.app_metadata?.role || user.user_metadata?.role;
-    if (userRole === "superadmin" || userRole === "admin") {
-      return supabaseResponse;
-    }
-
-    // Rule 2: Always allow specific authorized email (Lider de Negocios)
-    if (user.email === "lidernegocios@shadevenezuela.com.ve") {
-      return supabaseResponse;
-    }
-
-    // Fetch user data from 'usuarios' table for department-based checks
+    // Fetch user data from 'usuarios' table to get user ID and department
     const { data: userData, error: userError } = await supabase
       .from("usuarios")
       .select("id, departamento")
@@ -82,13 +71,33 @@ export async function middleware(request: NextRequest) {
       return redirectToUnauthorized(request);
     }
 
-    // Rule 3: Allow access if user belongs to 'capacitacion' department (id: 3)
-    if (userData.departamento === 3) {
+    // Rule 1: Allow access if user belongs to 'capacitacion' department (id: 3) or 'TED' department (id: 6)
+    // Check department first to avoid RPC call for most users
+    if (userData.departamento === 3 || userData.departamento === 6) {
       return supabaseResponse;
     }
 
+    // Rule 2: Allow access if user is admin or superadmin for this app
+    // Only call RPC if department check failed (to minimize rate limit hits)
+    const { data: userRoles, error: rolesError } = await supabase.rpc(
+      "get_user_roles_by_app",
+      { p_usuario_id: userData.id },
+    );
+
+    if (!rolesError && userRoles) {
+      const roles = userRoles as Array<{ app_slug: string; role_slug: string }>;
+      // Check if user has admin or superadmin role for scapacitacion app
+      const hasAdminRole = roles.some(
+        (r) =>
+          r.app_slug === "scapacitacion" &&
+          (r.role_slug === "admin" || r.role_slug === "superadmin"),
+      );
+      if (hasAdminRole) {
+        return supabaseResponse;
+      }
+    }
+
     // Default: Redirect to unauthorized for everyone else
-    // This includes staff from 'negocios' (dept 2) who are not global admins
     return redirectToUnauthorized(request);
   }
 
