@@ -20,6 +20,7 @@ export interface ExtractedParticipant {
 
 export class OCRService {
   private static readonly MISTRAL_API_URL = "https://api.mistral.ai/v1/ocr";
+  private static readonly MISTRAL_CHAT_URL = "https://api.mistral.ai/v1/chat/completions";
 
   /**
    * Process an image file using Mistral OCR
@@ -72,8 +73,29 @@ export class OCRService {
         data.text ||
         "";
 
-      // Parse the OCR result to extract participants
-      const participants = this.parseParticipants(fullMarkdown);
+      // Parse the OCR result to extract participants using regex
+      const { participants: regexParticipants, potentialNamesFound } = this.parseParticipants(fullMarkdown);
+
+      console.log(`[OCR] Regex found ${regexParticipants.length} participants, buffered ${potentialNamesFound} potential names`);
+
+      // Fall back to AI extraction if:
+      // - Regex found 0 participants, OR
+      // - More names were buffered than participants found (column-by-column OCR, cursive)
+      let participants = regexParticipants;
+      const needsAI =
+        fullMarkdown.trim().length > 50 &&
+        (regexParticipants.length === 0 || potentialNamesFound > regexParticipants.length);
+
+      if (needsAI) {
+        console.log("[OCR] Falling back to AI extraction (buffered names exceed found participants)...");
+        const aiParticipants = await this.extractWithAI(fullMarkdown, apiKey);
+        if (aiParticipants.length > regexParticipants.length) {
+          console.log(`[OCR] AI extraction found ${aiParticipants.length} participants (regex had ${regexParticipants.length})`);
+          participants = aiParticipants;
+        } else {
+          console.log(`[OCR] AI extraction found ${aiParticipants.length}, keeping regex result (${regexParticipants.length})`);
+        }
+      }
 
       return {
         text: fullMarkdown,
@@ -87,6 +109,86 @@ export class OCRService {
         error:
           error instanceof Error ? error.message : "Unknown error occurred",
       };
+    }
+  }
+
+  /**
+   * AI-powered participant extraction using Mistral chat completions.
+   * More reliable for cursive handwriting where regex parsing fails.
+   */
+  private static async extractWithAI(
+    ocrMarkdown: string,
+    apiKey: string
+  ): Promise<ExtractedParticipant[]> {
+    try {
+      const systemPrompt = `You are a data extraction assistant for Venezuelan training certificates (SHA de Venezuela).
+You will receive OCR text from a handwritten participant list called "CALIFICACIÓN DE LOS PARTICIPANTES".
+The document has columns: N° (row number), NOMBRE Y APELLIDO (full name), CÉDULA (ID number), PUNTUACIÓN (score 0-20), CONDICIÓN (Aprobado/Reprobado).
+Due to cursive handwriting, the OCR text may have noise, merged words, or misread characters.
+Your task: extract each participant row and return ONLY a valid JSON array. No explanation, no markdown code blocks, just the raw JSON array.
+Each object must have: { "name": string, "cedula": string, "score": number | null, "nationality": "V" | "E" }
+- "cedula" must be digits only (remove dots, spaces, dashes). Must be 6-10 digits.
+- "nationality" is "V" (venezolano) by default unless the ID is prefixed with E or E-
+- "score" is a number between 0-20, or null if not found
+- "name" should be Title Case
+- Skip header rows, company info, facilitator names, and any row without a valid cedula
+- The company RIF (J-31315131-9) is NOT a participant, skip it`;
+
+      const userMessage = `Extract participants from this OCR text of a handwritten Venezuelan training document:\n\n${ocrMarkdown}`;
+
+      const response = await fetch(this.MISTRAL_CHAT_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "mistral-small-latest",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          temperature: 0.1,
+          max_tokens: 2048,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("[OCR AI] Chat API error:", response.statusText);
+        return [];
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content ?? "";
+      console.log("[OCR AI] Raw response:", content.substring(0, 300));
+
+      // Extract JSON array from the response (handle any extra text)
+      const jsonMatch = content.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (!jsonMatch) {
+        console.warn("[OCR AI] No JSON array found in response");
+        return [];
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]) as Array<{
+        name: string;
+        cedula: string;
+        score: number | null;
+        nationality: string;
+      }>;
+
+      return parsed
+        .filter((p) => p.name && p.cedula && p.cedula.replace(/\D/g, "").length >= 6)
+        .map((p) => ({
+          name: this.cleanName(p.name),
+          idNumber: p.cedula.replace(/\D/g, ""),
+          nationality:
+            p.nationality?.toUpperCase() === "E" ? "extranjero" : "venezolano",
+          score: p.score ?? undefined,
+          confidence: 0.95,
+        }));
+    } catch (err) {
+      console.error("[OCR AI] Extraction failed:", err);
+      return [];
     }
   }
 
@@ -107,29 +209,41 @@ export class OCRService {
    * - Table structures (including Markdown tables)
    * - Dot notation in IDs (e.g., 9.389.140)
    */
-  private static parseParticipants(text: string): ExtractedParticipant[] {
+  private static parseParticipants(text: string): { participants: ExtractedParticipant[]; potentialNamesFound: number } {
     const participants: ExtractedParticipant[] = [];
+    let potentialNamesFound = 0;
     const lines = text.split("\n").filter((line) => line.trim());
 
-    // Pattern for IDs: Optional V/E, followed by 6-9 digits with any separators
-    // Much more relaxed to handle OCR misreads like "18.992167" or "18 992 167"
-    const idPattern = /(?:([VE])[-\s]?)?(\d(?:[.\s\d]{5,12})\d)\b/i;
+    // Pattern for IDs: Optional V/E, followed by Venezuelan ID format (dots) or raw digits
+    const idPattern = /(?:([VE])[-\s]?)?(\d{1,2}(?:\.\d{3}){1,2}|\d{6,9})\b/i;
+    // Relaxed fallback pattern for OCR misreads like "18.992167" or "18 992 167"
+    const idPatternRelaxed = /(?:([VE])[-\s]?)?(\d(?:[.\s\d]{4,12})\d)\b/i;
 
     // Pattern for names (fallback for non-table lines)
-    // More flexible: allows single names, names with accents, and multiple words
-    const namePattern =
-      /([A-ZÁÉÍÓÚÑ][a-záéíóúñ'\-]*(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ'\-]*)+)/;
+    // More flexible: allows single names, names with accents, and multiple words, case insensitive
+    const namePattern = /([a-zA-ZÁÉÍÓÚÑáéíóúñ']{2,}(?:\s+[a-zA-ZÁÉÍÓÚÑáéíóúñ']{2,})+)/i;
 
     // Check if Mistral found a formatted table in this document
     const hasTable = lines.some((line) => line.includes("|"));
 
-    for (const line of lines) {
+    console.log("[OCR Parser] Total lines:", lines.length, "hasTable:", hasTable);
+    if (lines.length > 0) {
+      console.log("[OCR Parser] First 5 lines:", lines.slice(0, 5));
+    }
+
+    let lastPotentialName = "";
+    let lastPotentialNameLineIndex = -1;
+
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      const line = lines[lineIndex];
       // Skip markdown table headers/separators
+      // Only skip "nro"/"cédula" in table header rows (with |), not in plain data lines
       if (
         line.includes("---") ||
         line.toLowerCase().includes("nombre y apellido") ||
-        line.toLowerCase().includes("nro") ||
-        line.toLowerCase().includes("cédula")
+        (line.includes("|") &&
+          (line.toLowerCase().includes("nro") ||
+            line.toLowerCase().includes("cédula")))
       )
         continue;
 
@@ -140,21 +254,20 @@ export class OCRService {
 
       // APPROACH 1: Markdown Table Parsing
       if (line.includes("|")) {
-        const cells = line.split("|").map((c) => c.trim());
+        const cells = line.split("|").map((c) => c.trim()).filter((c) => c);
 
-        // Find ID cell index - look for cells that contain ID patterns
-        // Prioritize cells with clear ID matches
+        // Find ID cell index - try strict pattern first, then relaxed
         let idCellIndex = -1;
         let bestIdMatch = null;
         for (let i = 0; i < cells.length; i++) {
           const cell = cells[i].trim();
           if (!cell) continue;
 
-          const match = cell.match(idPattern);
+          let match = cell.match(idPattern);
+          if (!match) match = cell.match(idPatternRelaxed);
           if (match && match[2]) {
-            // Check if it's likely an ID (mostly digits)
             const digitsOnly = match[2].replace(/[.\s]/g, "");
-            if (digitsOnly.length >= 6 && digitsOnly.length <= 9) {
+            if (digitsOnly.length >= 6) {
               if (
                 !bestIdMatch ||
                 digitsOnly.length > bestIdMatch[2].replace(/[.\s]/g, "").length
@@ -224,10 +337,15 @@ export class OCRService {
           }
         }
       }
-      // APPROACH 2: Plain Text Fallback (Only runs if no table exists anywhere in the document)
+      // APPROACH 2: Plain Text Fallback (Supports multi-line)
       else {
-        const idMatch = line.match(idPattern);
-        if (idMatch) {
+        let idMatch = line.match(idPattern);
+        if (!idMatch) idMatch = line.match(idPatternRelaxed);
+        
+        // Skip company RIFs (usually in header)
+        const isRIF = line.toUpperCase().includes("J-") || line.toUpperCase().includes("G-") || line.toUpperCase().includes("V-") && line.replace(/[^0-9]/g, "").startsWith("31");
+
+        if (idMatch && !isRIF) {
           if (idMatch[1]) prefix = idMatch[1].toUpperCase();
           // Remove all dots and spaces from ID
           idNumberValue = idMatch[2].replace(/[.\s]/g, "");
@@ -236,7 +354,19 @@ export class OCRService {
           const textBeforeId = line.substring(0, idIndex).trim();
 
           const nameMatch = textBeforeId.match(namePattern);
-          name = nameMatch ? nameMatch[0] : this.cleanName(textBeforeId);
+          if (nameMatch) {
+            name = nameMatch[0];
+          } else if (textBeforeId.length > 5 && !/^\d+$/.test(textBeforeId.replace(/[.\s]/g, ""))) {
+            name = this.cleanName(textBeforeId);
+          } else if (lastPotentialName && (lineIndex - lastPotentialNameLineIndex) <= 3) {
+            // Use the name found on a previous line if it was very recent
+            name = lastPotentialName;
+            console.log(`[OCR Parser] Pairing ID ${idNumberValue} with previous line name: ${name}`);
+            
+            // IMPORTANT: Clear the buffer so we don't reuse this name for the next ID
+            lastPotentialName = ""; 
+            lastPotentialNameLineIndex = -1;
+          }
 
           // Try to find a score after the ID in plain text
           const textAfterId = line
@@ -251,6 +381,27 @@ export class OCRService {
               score = Math.round(scoreNum);
             }
           }
+        } else {
+          // No ID match on this line, check if it's a potential name for the NEXT line
+          const potentialNameMatch = line.match(namePattern);
+          // Filter out common header noise
+          const isHeaderNoise = 
+            line.toUpperCase().includes("SHA") || 
+            line.toUpperCase().includes("VENEZUELA") ||
+            line.toUpperCase().includes("CURSO") ||
+            line.toUpperCase().includes("FACILITADOR") ||
+            line.toUpperCase().includes("PAGINA") ||
+            line.toUpperCase().includes("FECHA");
+
+          if (potentialNameMatch && !isHeaderNoise) {
+            const cleanedPotential = this.cleanName(potentialNameMatch[0]);
+            if (cleanedPotential.length > 5) {
+              lastPotentialName = cleanedPotential;
+              lastPotentialNameLineIndex = lineIndex;
+              potentialNamesFound++;
+              console.log(`[OCR Parser] Buffered potential name: ${lastPotentialName}`);
+            }
+          }
         }
       }
       // Validate extracted data
@@ -259,8 +410,7 @@ export class OCRService {
         name.length > 2 &&
         !name.match(/^[0-9\s.,-]+$/) && // Reject if only numbers/symbols
         idNumberValue &&
-        idNumberValue.length >= 6 &&
-        idNumberValue.length <= 9
+        idNumberValue.length >= 6
       ) {
         participants.push({
           name: name,
@@ -305,17 +455,21 @@ export class OCRService {
         index === self.findIndex((p) => p.idNumber === participant.idNumber),
     );
 
-    return uniqueParticipants;
+    return { participants: uniqueParticipants, potentialNamesFound };
   }
 
   /**
    * Clean up and format extracted name to Title Case
    */
   private static cleanName(name: string): string {
-    const trimmed = name.replace(/\s+/g, " ").trim();
-    if (!trimmed) return "";
+    const cleaned = name
+      .replace(/^\d+[\.\)]?\s*/, "") // Remove leading numbers (row numbers)
+      .replace(/[|•\-]\s*$/, "") // Remove trailing separators
+      .replace(/\s+/g, " ") // Normalize whitespace
+      .trim();
+    if (!cleaned) return "";
 
-    return trimmed
+    return cleaned
       .toLowerCase()
       .split(" ")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
