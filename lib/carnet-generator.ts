@@ -316,12 +316,8 @@ export class CarnetGenerator {
 
     // Add participant name (centered below course title)
     const nameY = 42; // Below course info
-    const titleCaseName = participant.name
-      .toLowerCase()
-      .split(" ")
-      .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-    pdf.text(`Nombre: ${titleCaseName}`, 3, nameY - 10, {
+    const upperCaseName = participant.name.toUpperCase();
+    pdf.text(`Nombre: ${upperCaseName}`, 3, nameY - 10, {
       maxWidth: 45,
     });
 

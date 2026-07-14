@@ -399,7 +399,7 @@ export class ContentPage {
       tableY + cellHeight * 3 + cellHeight / 2 - 1,
     );
     this.doc.text(
-      `Nombre: ${participant.name}`,
+      `Nombre: ${participant.name.toUpperCase()}`,
       tableX + tableWidth / 2,
       tableY + cellHeight * 3 + cellHeight / 2 + 2,
       { align: "center" },

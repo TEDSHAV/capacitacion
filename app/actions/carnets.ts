@@ -47,9 +47,14 @@ export async function saveCarnetsToDatabase(
           includeMargin: true,
         });
 
+        // Ensure name is uppercase for both DB and snapshot
+        const nombre_participante_upper =
+          carnet.nombre_participante.toUpperCase();
+
         // Create snapshot content for carnet
         const snapshotContent = JSON.stringify({
           ...carnet,
+          nombre_participante: nombre_participante_upper,
           qr_code: qrDataURL,
           generated_at: new Date().toISOString(),
           id_plantilla_carnet: carnet.id_plantilla_carnet || null,
@@ -64,7 +69,7 @@ export async function saveCarnetsToDatabase(
           titulo_curso: carnet.titulo_curso,
           fecha_emision: carnet.fecha_emision,
           fecha_vencimiento: carnet.fecha_vencimiento,
-          nombre_participante: carnet.nombre_participante,
+          nombre_participante: nombre_participante_upper,
           cedula_participante: carnet.cedula_participante,
           empresa_participante: carnet.empresa_participante,
           qr_code: qrDataURL,
@@ -641,9 +646,14 @@ export async function updateCarnetAction(
       includeMargin: true,
     });
 
+    // Ensure name is uppercase
+    const nombre_participante_upper =
+      carnetData.nombre_participante.toUpperCase();
+
     // 3. Prepare snapshot
     const snapshotContent = JSON.stringify({
       ...carnetData,
+      nombre_participante: nombre_participante_upper,
       qr_code: qrDataURL,
       updated_at: new Date().toISOString(),
       id_plantilla_carnet: carnetData.id_plantilla_carnet || null,
@@ -657,7 +667,7 @@ export async function updateCarnetAction(
       titulo_curso: carnetData.titulo_curso,
       fecha_emision: carnetData.fecha_emision,
       fecha_vencimiento: carnetData.fecha_vencimiento,
-      nombre_participante: carnetData.nombre_participante,
+      nombre_participante: nombre_participante_upper,
       cedula_participante: carnetData.cedula_participante,
       empresa_participante: carnetData.empresa_participante,
       qr_code: qrDataURL,

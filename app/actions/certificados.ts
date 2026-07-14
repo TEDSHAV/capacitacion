@@ -646,7 +646,7 @@ async function createOrUpdateParticipant(
       return null;
     }
 
-    const normalizedName = participant.name.trim().toLowerCase();
+    const normalizedName = participant.name.trim().toUpperCase();
     const cleanIdNumber = participant.idNumber.trim();
 
     // First, try to find existing participant by cedula (primary match) - name can vary slightly
@@ -942,7 +942,7 @@ function generateContentSnapshot(
     participante: {
       id: participantId, // Include database participant ID
 
-      name: participant.name,
+      name: participant.name.toUpperCase(),
 
       cedula: participant.idNumber, // Store cédula properly
 
@@ -1096,7 +1096,7 @@ function generateContentSnapshotWithControlNumbers(
     participante: {
       id: participantId, // Include database participant ID
 
-      name: participant.name,
+      name: participant.name.toUpperCase(),
 
       cedula: participant.idNumber, // Store cédula properly
 
@@ -1587,7 +1587,7 @@ export async function updateCertificateAction(
     const { error: participantUpdateError } = await supabase
       .from("participantes_certificados")
       .update({
-        nombre: participant.name.trim().toLowerCase(),
+        nombre: participant.name.trim().toUpperCase(),
         cedula: participant.idNumber.trim(),
         nacionalidad: participant.nationality || "venezolano",
       })
@@ -1648,6 +1648,37 @@ export async function updateCertificateAction(
       .eq("id", certificateId);
 
     if (updateError) throw updateError;
+
+    // 5b. Update carnet if course emits it
+    if (certificateData.course_topic_data?.emite_carnet) {
+      try {
+        const { updateCarnetAction } = await import("./carnets");
+        await updateCarnetAction(certificateId, {
+          id_certificado: certificateId,
+          id_participante: existingCert.id_participante,
+          id_empresa: certificateData.osi_data?.empresa_id || null,
+          id_curso: certificateData.course_topic_data?.id
+            ? parseInt(certificateData.course_topic_data.id)
+            : null,
+          id_osi: certificateData.osi_data?.id
+            ? parseInt(certificateData.osi_data.id)
+            : null,
+          titulo_curso: certificateData.certificate_title || "",
+          fecha_emision: certificateData.date || "",
+          fecha_vencimiento: certificateData.fecha_vencimiento || null,
+          nombre_participante: participant.name.toUpperCase(),
+          cedula_participante: participant.idNumber,
+          empresa_participante: participant.company || null,
+          nro_control: existingCert.nro_control,
+          id_plantilla_carnet: certificateData.id_plantilla_carnet,
+        });
+      } catch (carnetErr) {
+        console.warn(
+          "Non-fatal: Failed to update carnet during certificate edit",
+          carnetErr,
+        );
+      }
+    }
 
     // 6. Regenerate QR code if needed
     try {
