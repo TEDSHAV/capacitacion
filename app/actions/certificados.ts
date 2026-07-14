@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from '@/utils/supabase/server';
-import { CertificateGeneration, CertificateParticipant } from '@/types';
+import { CertificateGeneration, CertificateParticipant, CertificateFilters, CertificateSearchResult, CertificateMetrics } from '@/types';
 import { QRService } from '@/lib/qr-service';
 
 export interface CertificateRecord {
@@ -702,6 +702,368 @@ export async function getVenezuelanStates(): Promise<{ id: number; nombre_estado
       .from("cat_estados_venezuela")
       .select("id, nombre_estado")
       .order("nombre_estado");
+
+    if (error) {
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    return [];
+  }
+}
+
+/**
+ * Get certificates with comprehensive data for management interface
+ */
+export async function getCertificatesForManagement(
+  filters: CertificateFilters = {},
+  page: number = 1,
+  limit: number = 50
+): Promise<CertificateSearchResult> {
+  try {
+    const supabase = await createClient();
+    
+    let query = supabase
+      .from("certificados")
+      .select(`
+        *,
+        participantes_certificados (
+          id,
+          nombre,
+          cedula,
+          nacionalidad
+        ),
+        cursos (
+          id,
+          nombre,
+          contenido,
+          horas_estimadas,
+          nota_aprobatoria,
+          emite_carnet
+        ),
+        empresas (
+          id,
+          razon_social,
+          rif
+        ),
+        facilitadores (
+          id,
+          nombre_apellido
+        ),
+        cat_estados_venezuela (
+          id,
+          nombre_estado
+        )
+      `, { count: 'exact' });
+
+    // Apply filters
+    if (filters.searchTerm) {
+      query = query.or(`
+        participantes_certificados.nombre.ilike.%${filters.searchTerm}%',
+        participantes_certificados.cedula.ilike.%${filters.searchTerm}%',
+        cursos.nombre.ilike.%${filters.searchTerm}%',
+        empresas.razon_social.ilike.%${filters.searchTerm}%',
+        facilitadores.nombre_apellido.ilike.%${filters.searchTerm}%',
+        nro_osi.ilike.%${filters.searchTerm}%'
+      `);
+    }
+
+    if (filters.companyId) {
+      query = query.eq('id_empresa', filters.companyId);
+    }
+
+    if (filters.courseId) {
+      query = query.eq('id_curso', filters.courseId);
+    }
+
+    if (filters.facilitatorId) {
+      query = query.eq('id_facilitador', filters.facilitatorId);
+    }
+
+    if (filters.stateId) {
+      query = query.eq('id_estado', filters.stateId);
+    }
+
+    if (filters.isActive !== undefined) {
+      query = query.eq('is_active', filters.isActive);
+    }
+
+    if (filters.hasExpirationDate !== undefined) {
+      if (filters.hasExpirationDate) {
+        query = query.not('fecha_vencimiento', 'is', null);
+      } else {
+        query = query.is('fecha_vencimiento', null);
+      }
+    }
+
+    if (filters.dateFrom) {
+      query = query.gte('fecha_emision', filters.dateFrom);
+    }
+
+    if (filters.dateTo) {
+      query = query.lte('fecha_emision', filters.dateTo);
+    }
+
+    // Apply pagination
+    const offset = (page - 1) * limit;
+    query = query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error('Error fetching certificates:', error);
+      return {
+        certificates: [],
+        totalCount: 0,
+        metrics: getEmptyMetrics()
+      };
+    }
+
+    const certificates = data || [];
+    const totalCount = count || 0;
+
+    // Calculate metrics
+    const metrics = await calculateCertificateMetrics(filters);
+
+    return {
+      certificates,
+      totalCount,
+      metrics
+    };
+
+  } catch (error) {
+    console.error('Error in getCertificatesForManagement:', error);
+    return {
+      certificates: [],
+      totalCount: 0,
+      metrics: getEmptyMetrics()
+    };
+  }
+}
+
+/**
+ * Calculate comprehensive certificate metrics
+ */
+async function calculateCertificateMetrics(filters: CertificateFilters = {}): Promise<CertificateMetrics> {
+  try {
+    const supabase = await createClient();
+    
+    // Base query for metrics
+    let query = supabase
+      .from("certificados")
+      .select(`
+        id,
+        is_active,
+        fecha_vencimiento,
+        calificacion,
+        id_empresa,
+        id_curso,
+        id_participante,
+        fecha_emision,
+        empresas!inner (
+          razon_social
+        ),
+        cursos!inner (
+          nombre
+        )
+      `);
+
+    // Apply same filters as main query
+    if (filters.searchTerm) {
+      query = query.or(`
+        empresas.razon_social.ilike.%${filters.searchTerm}%',
+        cursos.nombre.ilike.%${filters.searchTerm}%'
+      `);
+    }
+
+    if (filters.companyId) {
+      query = query.eq('id_empresa', filters.companyId);
+    }
+
+    if (filters.courseId) {
+      query = query.eq('id_curso', filters.courseId);
+    }
+
+    if (filters.isActive !== undefined) {
+      query = query.eq('is_active', filters.isActive);
+    }
+
+    if (filters.dateFrom) {
+      query = query.gte('fecha_emision', filters.dateFrom);
+    }
+
+    if (filters.dateTo) {
+      query = query.lte('fecha_emision', filters.dateTo);
+    }
+
+    const { data: certificates, error } = await query;
+
+    if (error || !certificates) {
+      return getEmptyMetrics();
+    }
+
+    const now = new Date();
+    const totalCertificates = certificates.length;
+    const activeCertificates = certificates.filter(c => c.is_active).length;
+    const expiredCertificates = certificates.filter(c => 
+      c.is_active && c.fecha_vencimiento && new Date(c.fecha_vencimiento) < now
+    ).length;
+
+    const uniqueCompanies = new Set(certificates.map(c => c.id_empresa).filter(Boolean));
+    const uniqueCourses = new Set(certificates.map(c => c.id_curso).filter(Boolean));
+    const uniqueParticipants = new Set(certificates.map(c => c.id_participante).filter(Boolean));
+
+    const averageScore = certificates.length > 0
+      ? certificates.reduce((sum, c) => sum + (c.calificacion || 0), 0) / certificates.length
+      : 0;
+
+    // Group by company
+    const companyMap = new Map<number, { name: string; count: number }>();
+    certificates.forEach(c => {
+      if (c.id_empresa) {
+        const current = companyMap.get(c.id_empresa) || { name: '', count: 0 };
+        companyMap.set(c.id_empresa, {
+          name: (c as any).empresas?.razon_social || 'Unknown',
+          count: current.count + 1
+        });
+      }
+    });
+
+    const certificatesByCompany = Array.from(companyMap.entries()).map(([companyId, data]) => ({
+      companyId,
+      companyName: data.name,
+      count: data.count
+    })).sort((a, b) => b.count - a.count);
+
+    // Group by course
+    const courseMap = new Map<number, { name: string; count: number }>();
+    certificates.forEach(c => {
+      if (c.id_curso) {
+        const current = courseMap.get(c.id_curso) || { name: '', count: 0 };
+        courseMap.set(c.id_curso, {
+          name: (c as any).cursos?.nombre || 'Unknown',
+          count: current.count + 1
+        });
+      }
+    });
+
+    const certificatesByCourse = Array.from(courseMap.entries()).map(([courseId, data]) => ({
+      courseId,
+      courseName: data.name,
+      count: data.count
+    })).sort((a, b) => b.count - a.count);
+
+    // Group by month
+    const monthMap = new Map<string, number>();
+    certificates.forEach(c => {
+      if (c.fecha_emision) {
+        const month = new Date(c.fecha_emision).toISOString().slice(0, 7); // YYYY-MM
+        monthMap.set(month, (monthMap.get(month) || 0) + 1);
+      }
+    });
+
+    const certificatesByMonth = Array.from(monthMap.entries())
+      .map(([month, count]) => ({ month, count }))
+      .sort((a, b) => b.month.localeCompare(a.month));
+
+    return {
+      totalCertificates,
+      activeCertificates,
+      expiredCertificates,
+      totalCompanies: uniqueCompanies.size,
+      totalCourses: uniqueCourses.size,
+      totalParticipants: uniqueParticipants.size,
+      averageScore: Math.round(averageScore * 100) / 100,
+      certificatesByCompany,
+      certificatesByCourse,
+      certificatesByMonth
+    };
+
+  } catch (error) {
+    console.error('Error calculating metrics:', error);
+    return getEmptyMetrics();
+  }
+}
+
+/**
+ * Get empty metrics structure
+ */
+function getEmptyMetrics(): CertificateMetrics {
+  return {
+    totalCertificates: 0,
+    activeCertificates: 0,
+    expiredCertificates: 0,
+    totalCompanies: 0,
+    totalCourses: 0,
+    totalParticipants: 0,
+    averageScore: 0,
+    certificatesByCompany: [],
+    certificatesByCourse: [],
+    certificatesByMonth: []
+  };
+}
+
+/**
+ * Get companies for filter dropdown
+ */
+export async function getCompaniesForFilters(): Promise<{ id: number; razon_social: string }[]> {
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from("empresas")
+      .select("id, razon_social")
+      .eq("is_active", true)
+      .order("razon_social");
+
+    if (error) {
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    return [];
+  }
+}
+
+/**
+ * Get courses for filter dropdown
+ */
+export async function getCoursesForFilters(): Promise<{ id: number; nombre: string }[]> {
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from("cursos")
+      .select("id, nombre")
+      .eq("is_active", true)
+      .order("nombre");
+
+    if (error) {
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    return [];
+  }
+}
+
+/**
+ * Get facilitators for filter dropdown
+ */
+export async function getFacilitatorsForFilters(): Promise<{ id: number; nombre_apellido: string }[]> {
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from("facilitadores")
+      .select("id, nombre_apellido")
+      .eq("is_active", true)
+      .order("nombre_apellido");
 
     if (error) {
       return [];

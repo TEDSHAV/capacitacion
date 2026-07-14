@@ -785,3 +785,96 @@ export interface ParticipantLookupResponse {
   certificates: ParticipantCertificate[];
   statistics: ParticipantStatistics;
 }
+
+// Certificate Management Interfaces
+export interface CertificateManagement {
+  id: number;
+  calificacion: number;
+  created_at: string | null;
+  fecha_emision: string | null;
+  fecha_vencimiento: string | null;
+  id_curso: number | null;
+  id_empresa: number | null;
+  id_estado: number | null;
+  id_facilitador: number | null;
+  id_participante: number | null;
+  id_plantilla_certificado: number | null;
+  is_active: boolean;
+  nro_control: number;
+  nro_hoja: number | null;
+  nro_libro: number | null;
+  nro_linea: number | null;
+  nro_osi: number | null;
+  qr_code: string | null;
+  snapshot_contenido: string | null;
+  // Joined fields
+  participantes_certificados?: {
+    id: number;
+    nombre: string;
+    cedula: string;
+    nacionalidad: string;
+  };
+  cursos?: {
+    id: number;
+    nombre: string;
+    contenido: string | null;
+    horas_estimadas: number | null;
+    nota_aprobatoria: number | null;
+    emite_carnet: boolean | null;
+  };
+  empresas?: {
+    id: number;
+    razon_social: string;
+    rif: string;
+  };
+  facilitadores?: {
+    id: number;
+    nombre_apellido: string;
+  };
+  cat_estados_venezuela?: {
+    id: number;
+    nombre_estado: string;
+  };
+}
+
+export interface CertificateMetrics {
+  totalCertificates: number;
+  activeCertificates: number;
+  expiredCertificates: number;
+  totalCompanies: number;
+  totalCourses: number;
+  totalParticipants: number;
+  averageScore: number;
+  certificatesByCompany: Array<{
+    companyId: number;
+    companyName: string;
+    count: number;
+  }>;
+  certificatesByCourse: Array<{
+    courseId: number;
+    courseName: string;
+    count: number;
+  }>;
+  certificatesByMonth: Array<{
+    month: string;
+    count: number;
+  }>;
+}
+
+export interface CertificateFilters {
+  searchTerm?: string;
+  companyId?: number;
+  courseId?: number;
+  facilitatorId?: number;
+  stateId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  isActive?: boolean;
+  hasExpirationDate?: boolean;
+}
+
+export interface CertificateSearchResult {
+  certificates: CertificateManagement[];
+  totalCount: number;
+  metrics: CertificateMetrics;
+}

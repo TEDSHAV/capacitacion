@@ -59,14 +59,18 @@ export default function ParticipantLookup() {
   };
 
   const formatDate = (dateString: string) => {
-    // Parse the YYYY-MM-DD format and create a date at noon local time to avoid timezone shifts
+    if (!dateString) return 'N/A';
+    
+    // Parse the YYYY-MM-DD format and format it directly without timezone issues
     const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day, 12, 0, 0); // Month is 0-indexed, use noon to avoid timezone issues
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    
+    // Create date parts manually to avoid any timezone complications
+    const monthNames = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ];
+    
+    return `${day} de ${monthNames[month - 1]} de ${year}`;
   };
 
   const downloadCertificate = async (certificateId: number) => {
