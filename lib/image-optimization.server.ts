@@ -1,6 +1,4 @@
 import sharp from "sharp";
-import { join } from "path";
-import { writeFile, mkdir } from "fs/promises";
 
 interface OptimizeOptions {
   maxWidth?: number;
