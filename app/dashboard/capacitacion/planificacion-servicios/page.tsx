@@ -28,7 +28,7 @@ export default function PlanificacionServiciosPage() {
           </div>
         </a>
 
-        <Link href="/dashboard/capacitacion/planificacion-servicios/lista">
+        <a href="/requisiciones" target="_parent">
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer h-full">
             <div className="flex items-center gap-3 mb-3">
               <List className="h-8 w-8 text-green-600" />
@@ -40,7 +40,7 @@ export default function PlanificacionServiciosPage() {
               Ver todos los registros de control de servicios
             </p>
           </div>
-        </Link>
+        </a>
 
         <Link href="/dashboard/capacitacion/planificacion-servicios/busqueda-facilitadores">
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer h-full">

@@ -33,11 +33,11 @@ export default async function ViewRequisicionPage({
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
       <div className="mb-8 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/capacitacion/planificacion-servicios/lista">
+          <a href="/requisiciones" target="_parent">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-          </Link>
+          </a>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
               Detalle de Requisición
@@ -47,12 +47,12 @@ export default async function ViewRequisicionPage({
             </p>
           </div>
         </div>
-        <Link href={`/dashboard/capacitacion/planificacion-servicios/solicitud-requisiciones?edit=${id}`}>
+        <a href={`/requisiciones/edit/${id}`} target="_parent">
           <Button className="flex gap-2">
             <Edit className="h-4 w-4" />
             Editar Registro
           </Button>
-        </Link>
+        </a>
       </div>
 
       <RequisicionView record={record} osiData={osiData} />
