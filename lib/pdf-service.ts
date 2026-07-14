@@ -1,7 +1,6 @@
 import puppeteer, { Browser, Page } from "puppeteer";
 
 let browserInstance: Browser | null = null;
-let isExitListenerAdded = false;
 
 /**
  * Get or create a singleton browser instance.
@@ -35,15 +34,12 @@ export async function getBrowser(): Promise<Browser> {
       ],
     });
 
-    // Graceful shutdown on process exit - only add listener once
-    if (!isExitListenerAdded) {
-      process.on("exit", async () => {
-        if (browserInstance) {
-          await browserInstance.close();
-        }
-      });
-      isExitListenerAdded = true;
-    }
+    // Graceful shutdown on process exit
+    process.on("exit", async () => {
+      if (browserInstance) {
+        await browserInstance.close();
+      }
+    });
 
     return browserInstance;
   } catch (error) {
@@ -67,17 +63,8 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
     // Set viewport for consistent rendering
     await page.setViewport({ width: 1200, height: 1600 });
 
-    // Set content and wait for load (faster than networkidle0, safe for base64 assets)
-    // Add timeout to prevent hanging on third document
-    await Promise.race([
-      page.setContent(html, { waitUntil: "load" }),
-      new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("PDF generation timeout after 30s")),
-          30000,
-        ),
-      ),
-    ]);
+    // Set content and wait for network idle
+    await page.setContent(html, { waitUntil: "networkidle0" });
 
     // Generate PDF with letter format and margins
     const pdfBuffer = await page.pdf({
