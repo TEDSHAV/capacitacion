@@ -13,14 +13,15 @@ export default async function GestionCursosPage() {
     redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`)
   }
 
-  // Fetch companies for dropdown
-  const { data: companies }: { data: Empresa[] | null } = await supabase
-    .from("empresas")
-    .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
-    .order("razon_social")
-
-  // Fetch existing courses using the getCursos function with company information
-  const coursesResult = await getCursos();
+  // Fetch companies and courses in parallel
+  const [companiesResult, coursesResult] = await Promise.all([
+    supabase
+      .from("empresas")
+      .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
+      .order("razon_social"),
+    getCursos(),
+  ]);
+  const companies = companiesResult.data as Empresa[] | null;
   
   if (coursesResult.error) {
     return (

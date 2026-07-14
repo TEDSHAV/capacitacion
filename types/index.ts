@@ -414,9 +414,17 @@ export interface ParticipantsSectionProps {
 }
 
 // Capacitación module interfaces
+export interface DashboardStats {
+  cursosActivos: number;
+  participantes: number;
+  certificados: number;
+  facilitadores: number;
+}
+
 export interface CapacitacionClientProps {
   user: any;
   companies: Company[];
+  stats?: DashboardStats;
 }
 
 export interface GestionCursosClientProps {

@@ -1,29 +1,42 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { cache } from 'react'
 import CapacitacionClient from './CapacitacionClient'
 
-// Cache the companies fetch to avoid repeated database calls
-const getCompanies = cache(async () => {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from("empresas")
-    .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
-    .order("razon_social")
-  return data || []
-})
-
 export default async function CapacitacionPage() {
-  // Check authentication
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) {
     redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`)
   }
 
-  // Fetch cached companies data
-  const companies = await getCompanies()
+  const [
+    { data: companies },
+    { count: cursosCount },
+    { count: participantesCount },
+    { count: certificadosCount },
+    { count: facilitadoresCount },
+  ] = await Promise.all([
+    supabase
+      .from('empresas')
+      .select('id, razon_social, rif, direccion_fiscal, codigo_cliente')
+      .order('razon_social'),
+    supabase.from('cursos').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('participantes_certificados').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('certificados').select('*', { count: 'exact', head: true }),
+    supabase.from('facilitadores').select('*', { count: 'exact', head: true }),
+  ])
 
-  return <CapacitacionClient user={user} companies={companies} />
+  return (
+    <CapacitacionClient
+      user={user}
+      companies={companies || []}
+      stats={{
+        cursosActivos: cursosCount ?? 0,
+        participantes: participantesCount ?? 0,
+        certificados: certificadosCount ?? 0,
+        facilitadores: facilitadoresCount ?? 0,
+      }}
+    />
+  )
 }

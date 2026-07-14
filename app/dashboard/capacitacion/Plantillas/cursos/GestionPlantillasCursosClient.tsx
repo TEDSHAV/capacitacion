@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PlantillaCurso } from "./types";
 import { PlantillaCursoList } from "./PlantillaCursoList";
@@ -8,19 +8,35 @@ import { CreatePlantillaCursoButton } from "./CreatePlantillaCursoButton";
 import { PlantillaCursoForm } from "./PlantillaCursoForm";
 import { getPlantillaCursosAction, createPlantillaCursoAction, updatePlantillaCursoAction, deletePlantillaCursoAction, getCoursesAction, getEmpresasAction, getCourseWithContentAction } from "./actions";
 
-export default function GestionPlantillasCursosClient() {
+interface GestionPlantillasCursosClientProps {
+  initialPlantillas?: PlantillaCurso[];
+  initialTotal?: number;
+  initialCourses?: any[];
+  initialEmpresas?: any[];
+}
+
+export default function GestionPlantillasCursosClient({
+  initialPlantillas,
+  initialTotal,
+  initialCourses,
+  initialEmpresas,
+}: GestionPlantillasCursosClientProps = {}) {
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
-  const [plantillas, setPlantillas] = useState<PlantillaCurso[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
-  const [empresas, setEmpresas] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const itemsPerPage = 10;
+  const hasInitialData = initialPlantillas !== undefined;
+  const skipFirstLoad = useRef(hasInitialData);
+
+  const [plantillas, setPlantillas] = useState<PlantillaCurso[]>(initialPlantillas ?? []);
+  const [courses, setCourses] = useState<any[]>(initialCourses ?? []);
+  const [empresas, setEmpresas] = useState<any[]>(initialEmpresas ?? []);
+  const [isLoading, setIsLoading] = useState(!hasInitialData);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPlantilla, setEditingPlantilla] = useState<PlantillaCurso | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, setTotalPages] = useState(
+    initialTotal !== undefined ? Math.ceil(initialTotal / itemsPerPage) : 1
+  );
   const [searchTerm, setSearchTerm] = useState("");
-
-  const itemsPerPage = 10;
 
   const loadPlantillas = async (page = 1, search = "") => {
     setIsLoading(true);
@@ -65,12 +81,17 @@ export default function GestionPlantillasCursosClient() {
   };
 
   useEffect(() => {
+    if (skipFirstLoad.current) {
+      skipFirstLoad.current = false;
+      return;
+    }
     loadPlantillas(currentPage, searchTerm);
   }, [currentPage, searchTerm]);
 
   useEffect(() => {
-    // Load dropdown data immediately when component mounts
-    loadCoursesAndEmpresas();
+    if (!initialCourses) {
+      loadCoursesAndEmpresas();
+    }
   }, []);
 
   const handleCreatePlantilla = () => {

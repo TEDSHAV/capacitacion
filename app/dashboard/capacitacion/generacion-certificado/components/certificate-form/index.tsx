@@ -441,24 +441,49 @@ export const CertificateForm = ({
       {selectedCourseTopic?.emite_carnet && (
         <div className="mb-4">
           <label
-            htmlFor="fecha_vencimiento"
+            htmlFor="fecha_vencimiento_years"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            Fecha de Vencimiento (Requerido para carnet)
+            Vigencia del Carnet (Requerido para carnet)
           </label>
-          <input
-            type="date"
-            id="fecha_vencimiento"
-            value={certificateData.fecha_vencimiento || ""}
-            onChange={(e) =>
-              onDataChange("fecha_vencimiento", e.target.value || undefined)
-            }
-            className="w-48 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+          <select
+            id="fecha_vencimiento_years"
+            value={(() => {
+              if (!certificateData.fecha_vencimiento) return "";
+              const base = certificateData.date ? new Date(certificateData.date + "T00:00:00") : new Date();
+              for (let y = 1; y <= 5; y++) {
+                const exp = new Date(base);
+                exp.setFullYear(exp.getFullYear() + y);
+                if (exp.toISOString().slice(0, 10) === certificateData.fecha_vencimiento) return String(y);
+              }
+              return "";
+            })()}
+            onChange={(e) => {
+              const years = Number(e.target.value);
+              if (!years) {
+                onDataChange("fecha_vencimiento", undefined);
+                return;
+              }
+              const base = certificateData.date ? new Date(certificateData.date + "T00:00:00") : new Date();
+              const exp = new Date(base);
+              exp.setFullYear(exp.getFullYear() + years);
+              onDataChange("fecha_vencimiento", exp.toISOString().slice(0, 10));
+            }}
+            className="w-48 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             required
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Selecciona la fecha haciendo clic en el campo
-          </p>
+          >
+            <option value="">Seleccionar vigencia</option>
+            {[1, 2, 3, 4, 5].map((y) => (
+              <option key={y} value={y}>
+                {y} {y === 1 ? "año" : "años"}
+              </option>
+            ))}
+          </select>
+          {certificateData.fecha_vencimiento && (
+            <p className="text-xs text-gray-500 mt-1">
+              Vence el: {new Date(certificateData.fecha_vencimiento + "T00:00:00").toLocaleDateString("es-VE", { day: "numeric", month: "long", year: "numeric" })}
+            </p>
+          )}
         </div>
       )}
 

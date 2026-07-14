@@ -162,6 +162,11 @@ export default function OSISearch({ osis, selectedOSI, onSelect, matchedCourse, 
               <div className="text-sm text-blue-700">
                 Curso: {matchedCourse?.nombre || selectedOSI.curso_nombre || selectedOSI.detalle_capacitacion || 'N/A - Sin curso especificado'}
               </div>
+              {selectedOSI.ejecutivo_negocios && (
+                <div className="text-sm text-blue-700">
+                  Ejecutivo: {selectedOSI.ejecutivo_negocios}
+                </div>
+              )}
             </div>
             <button
               onClick={handleClear}
