@@ -103,6 +103,9 @@ export class CertificateGenerator {
     // Right column: Table with seal
     currentY = 50;
 
+    // Add horas_estimadas if available - positioned after Fecha de Ejecución
+    // We'll add this later in the table after the fecha line
+
     // Draw table border
     this.doc.setDrawColor(100, 100, 100);
     this.doc.rect(rightColumnX - 5, currentY - 10, columnWidth + 10, 120);
@@ -427,6 +430,24 @@ export class CertificateGenerator {
           align: "center",
         },
       );
+      
+      // Add horas_estimadas if available - below the date
+      console.log('Checking horas_estimadas in PDF generator:', certificateData.horas_estimadas);
+      if (certificateData.horas_estimadas) {
+        console.log('Adding horas_estimadas to PDF:', certificateData.horas_estimadas);
+        this.doc.setFont("helvetica", "bold");
+        this.doc.setFontSize(12);
+        this.doc.text(
+          `${certificateData.horas_estimadas} horas`,
+          this.pageWidth / 2 + 10,
+          150.9,
+          {
+            align: "center",
+          },
+        );
+      } else {
+        console.log('No horas_estimadas found in certificate data');
+      }
     }
 
     // Add duration hours by fetching course data

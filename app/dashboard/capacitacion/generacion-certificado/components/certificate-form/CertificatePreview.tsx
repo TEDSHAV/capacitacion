@@ -112,6 +112,11 @@ export const CertificatePreview = ({
             <div className="space-y-4">
               <div className="text-sm text-gray-600">
                 <p>Vista previa para: <strong>{certificateData.participants[0]?.name}</strong></p>
+                {certificateData.horas_estimadas && (
+                  <p className="text-blue-600">
+                    Duración del curso: {certificateData.horas_estimadas} horas
+                  </p>
+                )}
                 {certificateData.participants.length > 1 && (
                   <p className="text-blue-600">
                     Nota: Esta es una vista previa del primer participante. Se generarán {certificateData.participants.length} certificados en total.

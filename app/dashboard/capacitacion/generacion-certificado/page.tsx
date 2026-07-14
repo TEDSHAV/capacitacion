@@ -33,6 +33,7 @@ export default function GeneracionCertificadoPage() {
       participants: [],
       location: "",
       date: new Date().toISOString().split("T")[0],
+      horas_estimadas: undefined,
     },
   );
 
@@ -119,6 +120,7 @@ export default function GeneracionCertificadoPage() {
           course_topic_data: matchingCourse, // Add the course topic data
           course_content: matchingCourse.contenido_curso || '',
           passing_grade: passingGrade,
+          horas_estimadas: matchingCourse.horas_estimadas, // Add horas_estimadas from matching course
         }));
         setSelectedCourseTopic(matchingCourse);
       }
@@ -218,6 +220,7 @@ export default function GeneracionCertificadoPage() {
           course_topic_data: selectedTopic, // Add the course topic data
           course_content: selectedTopic.contenido_curso || '',
           passing_grade: passingGrade, // Use course's passing grade
+          horas_estimadas: selectedTopic.horas_estimadas, // Add horas_estimadas from course topic
         }));
         setSelectedCourseTopic(selectedTopic);
       } else {

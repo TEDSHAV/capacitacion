@@ -163,7 +163,7 @@ export const CertificateForm = ({
             const topicId = e.target.value;
             onDataChange("course_topic_id", topicId);
             const selectedTopic = courseTopics.find(topic => topic.id === topicId);
-            onDataChange("horas_estimadas", selectedTopic?.horas_estimadas || null);
+            onDataChange("horas_estimadas", selectedTopic?.horas_estimadas || undefined);
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
@@ -176,6 +176,31 @@ export const CertificateForm = ({
         </select>
         <p className="text-xs text-gray-500 mt-1">
           Selecciona una plantilla de curso existente
+        </p>
+      </div>
+
+      {/* Course Duration */}
+      <div className="mb-4">
+        <label
+          htmlFor="horas_estimadas"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Duración del Curso (horas)
+        </label>
+        <input
+          type="number"
+          id="horas_estimadas"
+          value={certificateData.horas_estimadas || ""}
+          onChange={(e) =>
+            onDataChange("horas_estimadas", e.target.value ? parseFloat(e.target.value) : undefined)
+          }
+          min="0"
+          step="1"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Ej: 8"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Duración total del curso en horas (se puede editar si es necesario)
         </p>
       </div>
 
@@ -201,26 +226,6 @@ export const CertificateForm = ({
       </div>
 
 
-
-      {/* Horas Estimadas */}
-      <div className="mb-4">
-        <label
-          htmlFor="horas_estimadas"
-          className="block text-sm font-medium text-gray-700 mb-2"
-        >
-          Horas Estimadas
-        </label>
-        <input
-          type="number"
-          id="horas_estimadas"
-          value={selectedCourseTopic?.horas_estimadas || ""}
-          readOnly
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-100"
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          Este campo se prellena automáticamente al seleccionar una plantilla de curso
-        </p>
-      </div>
 
       {/* Date */}
       <div className="mb-6">
