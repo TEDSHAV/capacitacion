@@ -483,10 +483,10 @@ export class CertificateGenerator {
   }
 
   private async addSignatures(certificateData: CertificateGeneration): Promise<void> {
-    const signatureY = 185; // Y position for signatures
+    const signatureY = 115; // Y position for signatures
     const signatureWidth = 40; // Width of signature images
     const signatureHeight = 20; // Height of signature images
-    const leftSignatureX = 50; // X position for facilitator signature
+    const leftSignatureX = 58; // X position for facilitator signature
     const rightSignatureX = this.pageWidth - 90; // X position for SHA signature
 
     // Add facilitator signature if available
@@ -510,11 +510,6 @@ export class CertificateGenerator {
             console.log('Facilitator has no firma_id');
           }
           
-          // Add facilitator name and title
-          this.doc.setFont("helvetica", "normal");
-          this.doc.setFontSize(10);
-          this.doc.text(facilitator.nombre_apellido || "Facilitador", leftSignatureX, signatureY + signatureHeight + 5, { align: "center" });
-          this.doc.text("Facilitador", leftSignatureX, signatureY + signatureHeight + 10, { align: "center" });
         } catch (error) {
           console.error('Error adding facilitator signature:', error);
         }
