@@ -166,6 +166,7 @@ export default function OSIDetailPage() {
         .from("usuarios")
         .select("id, nombre_apellido")
         .eq("departamento", 2)  // negocios department ID is 2
+        .in("rol", [10, 2])  // rol ID is 10 or 2
         .order("nombre_apellido")
       
       if (error) throw error
@@ -542,7 +543,7 @@ export default function OSIDetailPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Ejecutivo Negocios</label>
                   <select
                     value={formData.ejecutivo_negocios || ''}
-                    onChange={(e) => updateFormData('ejecutivo_negocios', parseInt(e.target.value) || 0)}
+                    onChange={(e) => updateFormData('ejecutivo_negocios', e.target.value ? parseInt(e.target.value) : 0)}
                     disabled={!isEditing && !isNew}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
