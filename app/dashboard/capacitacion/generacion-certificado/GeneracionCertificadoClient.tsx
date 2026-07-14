@@ -1057,7 +1057,7 @@ export default function GeneracionCertificadoClient({
             carnetsGenerated = carnetBlobs.length;
           } else {
             alert(
-              `Error guardando carnets en base de datos: ${carnetDbResult.message}`,
+              "Error: Carnets no se generaron correctamente. Por favor revise los logs del servidor.",
             );
           }
         } catch (error) {

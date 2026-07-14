@@ -561,7 +561,9 @@ export async function saveCertificatesToDatabase(
           id_curso: updatedCertificateData.course_topic_data?.id
             ? parseInt(updatedCertificateData.course_topic_data.id)
             : null,
-          id_osi: updatedCertificateData.osi_data?.id || null,
+          id_osi: updatedCertificateData.osi_data?.id
+            ? parseInt(updatedCertificateData.osi_data.id)
+            : null,
           titulo_curso: updatedCertificateData.course_topic_data?.nombre || "",
           fecha_emision: today,
           fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
@@ -581,7 +583,7 @@ export async function saveCertificatesToDatabase(
             `✅ Successfully created ${carnetResult.carnetIds?.length || 0} carnets`,
           );
         } else {
-          console.warn("⚠️ Failed to create carnets:", carnetResult.error);
+          console.warn("⚠️ Failed to create carnets:", carnetResult.message);
         }
       } catch (carnetError) {
         console.warn("⚠️ Error creating carnets:", carnetError);

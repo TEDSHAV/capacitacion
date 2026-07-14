@@ -331,7 +331,7 @@ export class CarnetGenerator {
 
     // Determine ID label and prefix based on nationality
     const idPrefix = participant.nationality === "extranjero" ? "e-" : "V-";
-    pdf.text(`Cédula: ${idPrefix}${participant.idNumber}`, 3, nameY - 2);
+    pdf.text(`Cédula: ${idPrefix}${participant.idNumber}`, 3, nameY - 5);
   }
 
   private async addCourseInfo(
@@ -362,8 +362,8 @@ export class CarnetGenerator {
     const emissionDate = new Date(
       carnetData.fecha_emision + "T12:00:00",
     ).toLocaleDateString("es-VE");
-    pdf.text("Emisión: ", 50, 32);
-    pdf.text(emissionDate, 70, 32);
+    pdf.text("Emisión: ", 3, 42);
+    pdf.text(emissionDate, 15, 42);
 
     // Add expiration date if available (left side, below emission date)
     if (carnetData.fecha_vencimiento) {
@@ -381,9 +381,9 @@ export class CarnetGenerator {
       pdf.setFontSize(6);
       pdf.setFont("helvetica", "bold");
       pdf.setTextColor(255, 0, 0); // Set text color to red
-      pdf.text("N°: ", 61.3, 7);
+      pdf.text("N°: ", 64.5, 14);
       pdf.setTextColor(0, 0, 0); // Reset text color to black
-      pdf.text(`${carnetData.nro_control}`, 65, 7);
+      pdf.text(`${carnetData.nro_control}`, 68, 14);
     }
   }
 
@@ -395,8 +395,8 @@ export class CarnetGenerator {
 
       // Add QR code to middle right square area of carnet
       const qrSize = 17.5; // 15mm for carnet
-      const qrX = 61.5; // Position in the right square area
-      const qrY = 8; // Center vertically in the right area
+      const qrX = 64.5; // Position in the right square area
+      const qrY = 15; // Center vertically in the right area
 
       // Add QR code image to PDF
       pdf.addImage(qrDataURL, "PNG", qrX, qrY, qrSize, qrSize);
