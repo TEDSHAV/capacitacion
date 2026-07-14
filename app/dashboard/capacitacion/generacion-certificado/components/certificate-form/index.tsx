@@ -15,6 +15,7 @@ export const CertificateForm = ({
   selectedOSI,
   selectedCourseTopic,
   courseTopics,
+  isGenerating = false,
   onDataChange,
   onParticipantsChange,
   onGenerate,
@@ -210,6 +211,7 @@ export const CertificateForm = ({
         type="button"
         onClick={handleGenerateCertificate}
         disabled={
+          isGenerating ||
           !certificateData.certificate_title ||
           !certificateData.osi_id ||
           !certificateData.course_topic_id ||
@@ -217,9 +219,16 @@ export const CertificateForm = ({
           !certificateData.location ||
           !certificateData.date
         }
-        className="w-full py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+        className="w-full py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
       >
-        Generar Certificado(s)
+        {isGenerating ? (
+          <>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            Generando Certificados...
+          </>
+        ) : (
+          'Generar Certificado(s)'
+        )}
       </button>
 
       {/* Validation Message */}
