@@ -82,9 +82,13 @@ export default function OSIDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [empresas, setEmpresas] = useState<any[]>([])
 
   useEffect(() => {
     const nro_osi = params.nro_osi as string
+    
+    // Load empresas regardless of OSI state
+    loadEmpresas()
     
     if (nro_osi === 'new') {
       setIsNew(true)
@@ -109,6 +113,20 @@ export default function OSIDetailPage() {
       if (osi) {
         setFormData(osi)
       }
+    }
+  }
+
+  const loadEmpresas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("empresas")
+        .select("id, razon_social")
+        .order("razon_social")
+      
+      if (error) throw error
+      setEmpresas(data || [])
+    } catch (err) {
+      console.error('Error loading empresas:', err)
     }
   }
 
@@ -388,14 +406,19 @@ export default function OSIDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Empresa</label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.cliente_nombre_empresa || ''}
                     onChange={(e) => updateFormData('cliente_nombre_empresa', e.target.value)}
                     disabled={!isEditing && !isNew}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    placeholder="Nombre de la empresa"
-                  />
+                  >
+                    <option value="">Seleccione una empresa</option>
+                    {empresas.map((empresa) => (
+                      <option key={empresa.id} value={empresa.razon_social}>
+                        {empresa.razon_social}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -520,17 +543,6 @@ export default function OSIDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Información Cliente</h2>
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Empresa Cliente</label>
-                <input
-                  type="text"
-                  value={formData.cliente_nombre_empresa || ''}
-                  onChange={(e) => updateFormData('cliente_nombre_empresa', e.target.value)}
-                  disabled={!isEditing && !isNew}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  placeholder="Nombre de empresa del cliente"
-                />
-              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Persona Contacto ID</label>
                 <input
