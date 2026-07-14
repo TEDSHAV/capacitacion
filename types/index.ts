@@ -1496,31 +1496,40 @@ export interface ControlServiciosEjecutados {
   id?: number;
   id_osi?: number | null;
 
+  // Requisition specific fields
+  corresponde_a?: string | null;
+  fecha_solicitud?: string | null;
+  tipo_solicitud?: "Interno" | "Externo" | null;
+  nro_correlativo?: string | null;
+  tipo_servicio?: "Servicio Técnico" | "Capacitación" | null;
+  gerencia_solicitante?: string | null;
+  solicitante?: string | null;
+  prioridad?: "Alta" | "Media" | "Baja" | null;
+
   // Auto-populated from OSI
-  mes_recepcion?: string | null;
   numero_osi?: string | null;
-  participante_x_osis?: number | null;
-  fecha_osi?: string | null;
-  cod_cliente?: number | null;
   nombre_curso?: string | null;
-  fecha_ejecucion?: string | null;
+  fecha_osi?: string | null;
   monto_x_traslado_mt?: number | null;
   horas_honorarios_h?: number | null;
   costo_por_hora?: number | null;
   gasto_impresion_i?: number | null;
 
-  // Manual inputs
-  ejecutada_mes_curso?: "ejecutada" | "no ejecutada" | "";
-  pendiente_mes_anterior?: string | null; // month name
-  participantes_asistidos?: number | null;
-  certificados_reales?: number | null;
-  pvc_reales?: number | null;
-  responsable?: string | null;
-  dias_traslado_t?: number | null;
+  // Details Table Data
+  dias_traslado?: number | null;
+  impresion_total?: number | null;
+  honorarios_total?: number | null;
+  informe_final_total?: number | null;
+
+  // Facilitator details
   cod_facilitador?: number | null;
   facilitador?: string | null;
+  cedula_facilitador?: string | null;
+  rif_facilitador?: string | null;
+  banco_facilitador?: string | null;
+  nro_cuenta_facilitador?: string | null;
+
   observaciones?: string | null;
-  indicador_facilitador?: number | null;
 
   // Metadata
   created_at?: string;
@@ -1535,22 +1544,39 @@ export interface ControlServiciosEjecutados {
   facilitadores?: {
     nombre_apellido: string;
     cedula: string | null;
+    rif: string | null;
   };
 }
 
 export interface ControlServiciosFormData {
   selectedOSI?: OSIFullData | null;
-  ejecutada_mes_curso: "ejecutada" | "no ejecutada" | "";
-  pendiente_mes_anterior: string;
-  participantes_asistidos: number | null;
-  certificados_reales: number | null;
-  pvc_reales: number | null;
-  responsable: string;
-  dias_traslado_t: number | null;
+  corresponde_a: string;
+  fecha_solicitud: string;
+  tipo_solicitud: "Interno" | "Externo" | "";
+  nro_correlativo: string;
+  tipo_servicio: "Servicio Técnico" | "Capacitación" | "";
+  gerencia_solicitante: string;
+  solicitante: string;
+  prioridad: "Alta" | "Media" | "Baja" | "";
+
+  // Details
+  dias_traslado: number | null;
+  costo_traslado: number | null;
+  impresion_total: number | null;
+  honorarios_horas: number | null;
+  honorarios_costo_hora: number | null;
+  honorarios_total: number | null;
+  informe_final_total: number | null;
+
+  // Facilitator
   cod_facilitador: string;
   facilitador: string;
+  cedula_facilitador: string;
+  rif_facilitador: string;
+  banco: string;
+  nro_cuenta: string;
+
   observaciones: string;
-  indicador_facilitador: number | null;
 }
 
 // Full OSI data from v_osi_formato_completo view for control servicios

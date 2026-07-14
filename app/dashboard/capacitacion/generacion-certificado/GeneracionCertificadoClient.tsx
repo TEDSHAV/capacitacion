@@ -318,6 +318,13 @@ export default function GeneracionCertificadoClient({
         course_topic_data: undefined,
         course_content: "",
         date: formattedDate,
+        location: (() => {
+          if (osi.id_ciudad) {
+            const city = cities.find((c) => c.id === osi.id_ciudad);
+            if (city) return city.nombre_ciudad;
+          }
+          return osi.ciudad || prev.location || "Puerto La Cruz";
+        })(),
       }));
       setSelectedCourseTopic(null);
 
@@ -487,10 +494,25 @@ export default function GeneracionCertificadoClient({
     field: keyof ManualOSIInput,
     value: any,
   ) => {
-    setManualOSIData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setManualOSIData((prev) => {
+      const newData = {
+        ...prev,
+        [field]: value,
+      };
+
+      // If city_id changed, also update certificateData.location
+      if (field === "city_id") {
+        const city = cities.find((c) => c.id === value);
+        if (city) {
+          setCertificateData((cPrev) => ({
+            ...cPrev,
+            location: city.nombre_ciudad,
+          }));
+        }
+      }
+
+      return newData;
+    });
   };
 
   // Synchronize manualOSIData with selectedOSI in manual mode reactively
@@ -616,6 +638,7 @@ export default function GeneracionCertificadoClient({
       course_topic_id: "",
       course_topic_data: undefined,
       course_content: "",
+      location: "",
       manual_mode: mode === "manual",
       manual_osi_data: mode === "manual" ? {} : undefined,
       date: new Date().toISOString().split("T")[0],
@@ -1107,6 +1130,7 @@ export default function GeneracionCertificadoClient({
                 certificates: allParticipants,
                 osiData: {
                   ...(selectedOSI || {}),
+                  ciudad: certificateData.location,
                 },
                 firmanteData: {
                   nombre: "DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.",

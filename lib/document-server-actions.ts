@@ -177,9 +177,9 @@ export async function generateDocumentsServer(
       cursoNombre = osiData.curso_nombre;
     }
 
-    // Fetch city name if id_ciudad is available
+    // Fetch city name if needed
     let cityResolved = osiData.ciudad || "Puerto La Cruz";
-    if (osiData.id_ciudad) {
+    if (!osiData.ciudad && osiData.id_ciudad) {
       cityResolved = await resolveCityName(osiData.id_ciudad, cityResolved);
     }
 
@@ -371,7 +371,7 @@ export async function previewDocumentsServer(
     }
 
     let cityResolved = osiData.ciudad || "Puerto La Cruz";
-    if (osiData.id_ciudad) {
+    if (!osiData.ciudad && osiData.id_ciudad) {
       cityResolved = await resolveCityName(osiData.id_ciudad, cityResolved);
     }
 

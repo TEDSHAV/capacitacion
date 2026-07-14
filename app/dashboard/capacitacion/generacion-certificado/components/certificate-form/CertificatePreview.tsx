@@ -180,6 +180,7 @@ export const CertificatePreview = ({
         certificates: allParticipants,
         osiData: {
           ...(selectedOSI || {}),
+          ciudad: certificateData.location,
         },
         firmanteData: {
           nombre: "DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.",

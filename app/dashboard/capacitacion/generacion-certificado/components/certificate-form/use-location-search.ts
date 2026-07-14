@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { CourseTopic } from '@/types'
 
 const venezuelanLocations = [
@@ -29,10 +29,17 @@ const venezuelanLocations = [
 
 const allLocations = venezuelanLocations.flatMap(loc => loc.cities);
 
-export const useLocationSearch = (onLocationChange: (location: string) => void) => {
-  const [locationInput, setLocationInput] = useState('')
+export const useLocationSearch = (onLocationChange: (location: string) => void, initialValue: string = '') => {
+  const [locationInput, setLocationInput] = useState(initialValue)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
+
+  // Sync internal state with initialValue when it changes (e.g. from OSI selection)
+  useEffect(() => {
+    if (initialValue !== locationInput) {
+      setLocationInput(initialValue)
+    }
+  }, [initialValue])
 
   const filteredLocations = allLocations.filter(location =>
     location.toLowerCase().includes(locationInput.toLowerCase())

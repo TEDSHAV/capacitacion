@@ -6,6 +6,7 @@ import { CertificateFormProps } from "@/types";
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
 import { CourseTemplateSection } from "./CourseTemplateSection";
+import { LocationSearch } from "./LocationSearch";
 import { SignatureSection } from "./SignatureSection";
 import { FormActionButtons } from "./FormActionButtons";
 import { useCertificateForm } from "./use-certificate-form";
@@ -40,6 +41,7 @@ export const CertificateForm = ({
     (certificateData.manual_mode || !!certificateData.osi_id) &&
     !!certificateData.course_topic_id &&
     certificateData.participants.length > 0 &&
+    !!certificateData.location &&
     !!certificateData.date &&
     !!certificateData.horas_estimadas &&
     !!certificateData.facilitator_id;
@@ -54,6 +56,15 @@ export const CertificateForm = ({
       if (element) {
         element.scrollIntoView({ behavior: "smooth", block: "center" });
         const input = document.getElementById("certificate_title");
+        if (input) input.focus();
+        return true;
+      }
+    }
+    if (!certificateData.location) {
+      const element = document.getElementById("field-location");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        const input = document.getElementById("location");
         if (input) input.focus();
         return true;
       }
@@ -172,6 +183,10 @@ export const CertificateForm = ({
     // Check form fields (OSI validation is handled by parent)
     if (!certificateData.certificate_title) {
       alert("Por favor completa el título del certificado");
+      return;
+    }
+    if (!certificateData.location) {
+      alert("Por favor completa la ubicación (ciudad)");
       return;
     }
     if (certificateData.participants.length === 0) {
@@ -373,6 +388,32 @@ export const CertificateForm = ({
         selectedOSI={selectedOSI}
         onDataChange={onDataChange}
       />
+
+      {/* Location */}
+      <div id="field-location">
+        <LocationSearch
+          value={certificateData.location || ""}
+          onChange={(val) => onDataChange("location", val)}
+        />
+        {hasAttemptedSubmission && !certificateData.location && (
+          <p className="text-xs text-amber-700 font-medium -mt-3 mb-4 flex items-center gap-1">
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            La ubicación es requerida.
+          </p>
+        )}
+      </div>
 
       {/* Course Duration */}
       <div id="field-horas_estimadas" className="mb-4">

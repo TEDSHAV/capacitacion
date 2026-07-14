@@ -12,7 +12,7 @@ export const LocationSearch = ({ value, onChange }: LocationSearchProps) => {
     handleKeyDown,
     handleClear,
     setIsDropdownOpen
-  } = useLocationSearch(onChange)
+  } = useLocationSearch(onChange, value)
 
   return (
     <div className="mb-4">
