@@ -47,7 +47,7 @@ export function useCertificateForm({
           setCourseTemplates(courseTemplatesResult.data);
         }
 
-        // Set generate_documents to true by default
+        // Always set generate_documents to true
         onDataChange("generate_documents", true);
       } catch (error) {
         // Error loading form data

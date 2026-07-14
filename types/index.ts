@@ -359,6 +359,7 @@ export interface CertificateGeneration {
   id_plantilla_carnet?: number; // Carne template ID
   plantilla_certificado_archivo?: string; // Certificate template file name for generation
   generate_documents?: boolean; // Whether to generate additional documents
+  include_previous_participants?: boolean; // Whether to include historical participants in additional documents
   paperSize?: PaperSize; // Preferred paper size for printing
   manual_mode?: boolean; // Whether using manual OSI input mode
   manual_osi_data?: ManualOSIInput; // Manual OSI input data when in manual mode

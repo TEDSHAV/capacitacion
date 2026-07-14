@@ -120,9 +120,13 @@ export const CertificatePreview = ({
         }),
       );
 
-      // Fetch previous participants if OSI already has certificates
+      // Fetch previous participants if OSI already has certificates and user opted in
       let allParticipants = [...certificateRecords];
-      if (selectedOSI?.nro_osi && selectedCourse?.id) {
+      if (
+        certificateData.include_previous_participants !== false &&
+        selectedOSI?.nro_osi &&
+        selectedCourse?.id
+      ) {
         try {
           const nroOsiNum = parseInt(selectedOSI.nro_osi.replace(/[^\d]/g, ""));
           const courseIdNum = parseInt(selectedCourse.id);

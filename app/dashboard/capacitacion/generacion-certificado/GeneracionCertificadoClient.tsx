@@ -97,7 +97,8 @@ export default function GeneracionCertificadoClient({
       })(),
       id_estado: undefined,
       id_plantilla_certificado: undefined,
-      generate_documents: true, // Default to true for convenience
+      generate_documents: true, // Always true
+      include_previous_participants: true, // Default to true as per user preference
       paperSize: "half-letter-custom", // New default format
     },
   );
@@ -990,10 +991,14 @@ export default function GeneracionCertificadoClient({
       const additionalDocsPromise = certificateData.generate_documents
         ? (async () => {
             try {
-              // 🔍 FETCH PREVIOUS PARTICIPANTS FOR THIS OSI AND COURSE
+              // 🔍 FETCH PREVIOUS PARTICIPANTS FOR THIS OSI AND COURSE IF ENABLED
               let allParticipants = [...certificateRecords];
 
-              if (selectedOSI?.nro_osi && selectedCourseTopic?.id) {
+              if (
+                certificateData.include_previous_participants !== false &&
+                selectedOSI?.nro_osi &&
+                selectedCourseTopic?.id
+              ) {
                 const nroOsiNum = parseInt(
                   selectedOSI.nro_osi.replace(/[^\d]/g, ""),
                 );
@@ -1498,7 +1503,8 @@ export default function GeneracionCertificadoClient({
         id_estado: undefined,
         id_plantilla_certificado: undefined,
         plantilla_certificado_archivo: undefined,
-        generate_documents: true, // Reset to default
+        generate_documents: true, // Reset to true
+        include_previous_participants: true, // Reset to default
       });
       setSelectedOSI(null);
       setSelectedCourseTopic(null);

@@ -533,6 +533,54 @@ export const CertificateForm = ({
         />
       </div>
 
+      {/* Documentation Options */}
+      <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <h3 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider flex items-center gap-2">
+          <svg
+            className="w-4 h-4 text-blue-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          Opciones de Documentación
+        </h3>
+        <div className="space-y-3">
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <div className="relative flex items-center">
+              <input
+                type="checkbox"
+                checked={certificateData.include_previous_participants !== false}
+                onChange={(e) => onDataChange("include_previous_participants", e.target.checked)}
+                className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-300 bg-white checked:border-blue-600 checked:bg-blue-600 transition-all focus:ring-2 focus:ring-blue-500/20"
+              />
+              <svg
+                className="absolute h-3.5 w-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={3}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
+              Incluir participantes de lotes anteriores en documentos adicionales
+            </span>
+          </label>
+        </div>
+      </div>
+
       <FormActionButtons
         isGenerating={isGenerating}
         isEditMode={isEditMode}
