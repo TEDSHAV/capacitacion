@@ -225,14 +225,16 @@ export default function GeneracionCertificadoPage() {
       const { CertificateGenerator } = await import('@/lib/certificate-generator');
       const generator = new CertificateGenerator();
 
-      // Get template image
+      // Get template and seal images
       const templateImageUrl = '/templates/certificado.png';
+      const sealImageUrl = '/templates/sello.png';
       
       // Generate certificates for all participants
       const certificates = await generator.generateMultipleCertificates(
         certificateData.participants,
         certificateData,
-        templateImageUrl
+        templateImageUrl,
+        sealImageUrl
       );
 
       // Download each certificate

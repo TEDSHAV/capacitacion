@@ -5,6 +5,7 @@ interface CertificateData {
   participant: CertificateParticipant
   certificateData: CertificateGeneration
   templateImage: string
+  sealImage?: string
 }
 
 export class CertificateGenerator {
@@ -23,7 +24,7 @@ export class CertificateGenerator {
   }
 
   async generateCertificate(data: CertificateData): Promise<Blob> {
-    const { participant, certificateData, templateImage } = data
+    const { participant, certificateData, templateImage, sealImage } = data
 
     // Clear any existing content
     this.doc = new jsPDF({
@@ -32,14 +33,143 @@ export class CertificateGenerator {
       format: 'a4'
     })
 
+    // Page 1: Certificate
+    await this.addCertificatePage(templateImage, participant, certificateData)
+
+    // Add new page for content
+    this.doc.addPage()
+
+    // Page 2: Content table with seal
+    await this.addContentPage(participant, certificateData, sealImage)
+
+    // Return as blob
+    return this.doc.output('blob')
+  }
+
+  private async addCertificatePage(
+    templateImage: string,
+    participant: CertificateParticipant,
+    certificateData: CertificateGeneration
+  ): Promise<void> {
     // Add template background
     await this.addTemplate(templateImage)
 
     // Add certificate content
     await this.addCertificateContent(participant, certificateData)
+  }
 
-    // Return as blob
-    return this.doc.output('blob')
+  private async addContentPage(
+    participant: CertificateParticipant,
+    certificateData: CertificateGeneration,
+    sealImage?: string
+  ): Promise<void> {
+    // Add "CONTENIDO" title at center
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setFontSize(20)
+    this.doc.text('CONTENIDO', this.pageWidth / 2, 30, { align: 'center' })
+
+    // Define column positions
+    const leftColumnX = 20
+    const rightColumnX = this.pageWidth / 2 + 20
+    const columnWidth = (this.pageWidth / 2) - 40
+    const lineHeight = 6
+    let currentY = 50
+
+    // Draw column separator line
+    this.doc.setDrawColor(200, 200, 200)
+    this.doc.line(this.pageWidth / 2, 40, this.pageWidth / 2, this.pageHeight - 20)
+
+    // Left column: Course content
+    this.doc.setFont('helvetica', 'normal')
+    this.doc.setFontSize(11)
+    
+    if (certificateData.course_content) {
+      const contentLines = this.doc.splitTextToSize(
+        certificateData.course_content,
+        columnWidth
+      )
+      
+      contentLines.forEach((line: string) => {
+        this.doc.text(line, leftColumnX, currentY)
+        currentY += lineHeight
+      })
+    }
+
+    // Right column: Table with seal
+    currentY = 50
+
+    // Draw table border
+    this.doc.setDrawColor(100, 100, 100)
+    this.doc.rect(rightColumnX - 5, currentY - 10, columnWidth + 10, 120)
+
+    // Table header
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setFontSize(12)
+    this.doc.text('REGISTRO', rightColumnX, currentY)
+    currentY += lineHeight
+
+    // Draw horizontal line after header
+    this.doc.setDrawColor(150, 150, 150)
+    this.doc.line(rightColumnX - 5, currentY + 2, rightColumnX + columnWidth + 5, currentY + 2)
+    currentY += lineHeight * 2
+
+    // First row: Libro Nro
+    this.doc.setFont('helvetica', 'normal')
+    this.doc.setFontSize(11)
+    this.doc.text('Libro Nro: 100', rightColumnX, currentY)
+    currentY += lineHeight
+
+    // First row: Nro. Control
+    this.doc.text('Nro. Control: 321213', rightColumnX, currentY)
+    currentY += lineHeight
+
+    // Second row: Fecha de Ejecución
+    const executionDate = certificateData.date ? 
+      new Date(certificateData.date).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric'
+      }) : 
+      new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric'
+      })
+    this.doc.text(`Fecha de Ejecución: ${executionDate}`, rightColumnX, currentY)
+    currentY += lineHeight
+
+    // Second row: Hoja Nro
+    this.doc.text('Hoja Nro: 1', rightColumnX, currentY)
+    currentY += lineHeight
+
+    // Second row: Month
+    const month = certificateData.date ? 
+      new Date(certificateData.date).toLocaleDateString('es-ES', { month: 'long' }) : 
+      new Date().toLocaleDateString('es-ES', { month: 'long' })
+    this.doc.text(`Mes: ${month}`, rightColumnX, currentY)
+    currentY += lineHeight * 2 // Extra space before seal
+
+    // Third row: CI and Nombre
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.text(`CI: ${participant.id_type || 'V-'}${participant.id_number}`, rightColumnX, currentY)
+    currentY += lineHeight
+    this.doc.text(`Nombre: ${participant.name}`, rightColumnX, currentY)
+    currentY += lineHeight * 2 // Space for seal
+
+    // Add seal image if provided
+    if (sealImage) {
+      try {
+        await this.addSealImage(sealImage, rightColumnX + 10, currentY)
+      } catch (error) {
+        console.error('Error adding seal image:', error)
+        // Fallback: draw a placeholder rectangle
+        this.doc.setDrawColor(200, 200, 200)
+        this.doc.rect(rightColumnX + 10, currentY, 40, 40)
+        this.doc.setFont('helvetica', 'italic')
+        this.doc.setFontSize(8)
+        this.doc.text('Sello', rightColumnX + 30, currentY + 20, { align: 'center' })
+      }
+    }
   }
 
   private async addTemplate(imageUrl: string): Promise<void> {
@@ -48,6 +178,19 @@ export class CertificateGenerator {
       img.onload = () => {
         // Add image to cover entire page
         this.doc.addImage(img, 'PNG', 0, 0, this.pageWidth, this.pageHeight)
+        resolve()
+      }
+      img.onerror = reject
+      img.src = imageUrl
+    })
+  }
+
+  private async addSealImage(imageUrl: string, x: number, y: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        // Add seal image with reasonable size (40x40mm)
+        this.doc.addImage(img, 'PNG', x, y, 40, 40)
         resolve()
       }
       img.onerror = reject
@@ -132,7 +275,8 @@ export class CertificateGenerator {
   async generateMultipleCertificates(
     participants: CertificateParticipant[],
     certificateData: CertificateGeneration,
-    templateImage: string
+    templateImage: string,
+    sealImage?: string
   ): Promise<{ participant: CertificateParticipant; blob: Blob }[]> {
     const certificates: { participant: CertificateParticipant; blob: Blob }[] = []
 
@@ -141,7 +285,8 @@ export class CertificateGenerator {
         const blob = await this.generateCertificate({
           participant,
           certificateData,
-          templateImage
+          templateImage,
+          sealImage
         })
         certificates.push({ participant, blob })
       } catch (error) {
