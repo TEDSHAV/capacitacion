@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import { CertificateParticipant, CertificateGeneration } from "@/types";
+import { CertificateParticipant, CertificateGeneration, Signature, Facilitator } from "@/types";
 
 interface CertificateData {
   participant: CertificateParticipant;
@@ -21,6 +21,30 @@ export class CertificateGenerator {
     });
     this.pageWidth = this.doc.internal.pageSize.getWidth();
     this.pageHeight = this.doc.internal.pageSize.getHeight();
+  }
+
+  private async getSignatureData(signatureId: string): Promise<Signature | null> {
+    try {
+      const response = await fetch(`/api/signatures/${signatureId}`);
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (error) {
+      console.error('Error fetching signature:', error);
+    }
+    return null;
+  }
+
+  private async getFacilitatorData(facilitatorId: string): Promise<Facilitator | null> {
+    try {
+      const response = await fetch(`/api/facilitators/${facilitatorId}`);
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (error) {
+      console.error('Error fetching facilitator:', error);
+    }
+    return null;
   }
 
   async generateCertificate(data: CertificateData): Promise<Blob> {
@@ -448,9 +472,75 @@ export class CertificateGenerator {
       } else {
         console.log('No horas_estimadas found in certificate data');
       }
+
+      // Add signatures if available
+      await this.addSignatures(certificateData);
     }
 
     // Add duration hours by fetching course data
+  }
+
+  private async addSignatures(certificateData: CertificateGeneration): Promise<void> {
+    const signatureY = 185; // Y position for signatures
+    const signatureWidth = 40; // Width of signature images
+    const signatureHeight = 20; // Height of signature images
+    const leftSignatureX = 50; // X position for facilitator signature
+    const rightSignatureX = this.pageWidth - 90; // X position for SHA signature
+
+    // Add facilitator signature if available
+    if (certificateData.facilitator_id) {
+      const facilitator = await this.getFacilitatorData(certificateData.facilitator_id);
+      if (facilitator) {
+        try {
+          // If facilitator has a signature, use it; otherwise just show name
+          if (facilitator.signature_id) {
+            const signature = await this.getSignatureData(facilitator.signature_id);
+            if (signature) {
+              await this.addSignatureImage(signature.image_url, leftSignatureX, signatureY, signatureWidth, signatureHeight);
+            }
+          }
+          
+          // Add facilitator name and title
+          this.doc.setFont("helvetica", "normal");
+          this.doc.setFontSize(10);
+          this.doc.text(facilitator.name, leftSignatureX, signatureY + signatureHeight + 5, { align: "center" });
+          this.doc.text("Facilitador", leftSignatureX, signatureY + signatureHeight + 10, { align: "center" });
+        } catch (error) {
+          console.error('Error adding facilitator signature:', error);
+        }
+      }
+    }
+
+    // Add SHA signature if available
+    if (certificateData.sha_signature_id) {
+      const shaSignature = await this.getSignatureData(certificateData.sha_signature_id);
+      if (shaSignature) {
+        try {
+          // Add signature image
+          await this.addSignatureImage(shaSignature.image_url, rightSignatureX, signatureY, signatureWidth, signatureHeight);
+          
+          // Add signature label
+          this.doc.setFont("helvetica", "normal");
+          this.doc.setFontSize(10);
+          this.doc.text(shaSignature.name, rightSignatureX, signatureY + signatureHeight + 5, { align: "center" });
+          this.doc.text("Representante SHA", rightSignatureX, signatureY + signatureHeight + 10, { align: "center" });
+        } catch (error) {
+          console.error('Error adding SHA signature:', error);
+        }
+      }
+    }
+  }
+
+  private async addSignatureImage(imageUrl: string, x: number, y: number, width: number, height: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        this.doc.addImage(img, "PNG", x, y, width, height);
+        resolve();
+      };
+      img.onerror = reject;
+      img.src = imageUrl;
+    });
   }
 
   private calculateFontSize(text: string, maxFontSize: number): number {

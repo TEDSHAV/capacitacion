@@ -34,6 +34,8 @@ export default function GeneracionCertificadoPage() {
       location: "",
       date: new Date().toISOString().split("T")[0],
       horas_estimadas: undefined,
+      facilitator_id: undefined,
+      sha_signature_id: undefined,
     },
   );
 

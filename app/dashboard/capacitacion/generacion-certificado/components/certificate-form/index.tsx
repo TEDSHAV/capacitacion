@@ -11,6 +11,8 @@ import {
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
 import { useState } from "react";
+import { FacilitatorSelection } from "../../../gestion-de-facilitadores/components/facilitator-selection";
+import { SignatureSelection } from "../../../gestion-de-firmas/components/signature-selection";
 
 export const CertificateForm = ({
   certificateData,
@@ -242,6 +244,45 @@ export const CertificateForm = ({
           onChange={(e) => onDataChange("date", e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
+      </div>
+
+      {/* Signature Selection */}
+      <div className="mb-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">
+          Firmas del Certificado
+        </h3>
+        
+        {/* Facilitator Selection */}
+        <div className="mb-4">
+          <FacilitatorSelection
+            selectedFacilitatorId={certificateData.facilitator_id}
+            onFacilitatorChange={(id: string) => onDataChange("facilitator_id", id)}
+          />
+        </div>
+        
+        {/* SHA Representative Signature */}
+        <div>
+          <label
+            htmlFor="sha-signature"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Firma del Representante SHA
+          </label>
+          <select
+            id="sha-signature"
+            value={certificateData.sha_signature_id || ""}
+            onChange={(e) => onDataChange("sha_signature_id", e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">Seleccionar firma SHA...</option>
+          </select>
+          <p className="text-xs text-gray-500 mt-1">
+            Las firmas SHA se gestionan en el módulo de Gestión de Firmas. 
+            <a href="/dashboard/capacitacion/gestion-de-firmas" className="text-blue-600 hover:underline ml-1">
+              Gestionar firmas SHA
+            </a>
+          </p>
+        </div>
       </div>
 
       {/* Participants */}

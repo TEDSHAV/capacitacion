@@ -110,6 +110,8 @@ export interface CertificateGeneration {
   created_at?: string;
   updated_at?: string;
   horas_estimadas?: number;
+  facilitator_id?: string; // ID of selected facilitator (includes signature)
+  sha_signature_id?: string; // ID of SHA representative signature (separate from facilitator)
 }
 
 export interface CourseTopic {
@@ -129,6 +131,65 @@ export interface CertificateParticipant {
   id_type?: string; // V- for Venezuelan ID, E- for foreign ID
   id_number: string;
   score?: number;
+}
+
+export interface Signature {
+  id: string;
+  name: string;
+  type: SignatureType;
+  image_url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export enum SignatureType {
+  FACILITADOR = "facilitador",
+  REPRESENTANTE_SHA = "representante_sha"
+}
+
+export interface Facilitador {
+  id: number;
+  fuente: string | null;
+  ano_ingreso: number | null;
+  nombre_apellido: string;
+  cedula: string | null;
+  rif: string | null;
+  email: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  nivel_tecnico: string | null;
+  formacion_docente_certificada: boolean | null;
+  tipo_impacto: string | null;
+  notas_observaciones: string | null;
+  id_estado_base: number | null;
+  id_ciudad_base: number | null;
+  id_estado_geografico: number | null;
+  id_estatus: number | null;
+  temas_cursos: string[];
+  ficha_tecnica: string | null;
+  calificacion: number | null;
+  url_curriculum: string | null;
+  firma_id: number | null;
+  fecha_creacion: string | null;
+  fecha_actualizacion: string | null;
+}
+
+// Keep the old interface for backward compatibility
+export interface Facilitator {
+  id: string;
+  name: string;
+  id_number: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  course_topics: string[]; // Array of course topics they can teach
+  technical_knowledge: string; // Text area for technical knowledge
+  resume_url?: string; // URL to uploaded resume file
+  rating?: number; // Rating for future implementation
+  signature_id?: string; // Link to signature if available
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CertificateFormProps {
