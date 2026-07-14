@@ -23,6 +23,7 @@ export const CertificateForm = ({
   selectedCourseTopic,
   courseTopics,
   isGenerating = false,
+  isEditMode = false,
   generationProgress,
   onDataChange,
   onParticipantsChange,
@@ -31,6 +32,7 @@ export const CertificateForm = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [shaSignatures, setShaSignatures] = useState<Signature[]>([]);
   const [courseTemplates, setCourseTemplates] = useState<any[]>([]);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     const loadFormData = async () => {
@@ -43,11 +45,10 @@ export const CertificateForm = ({
           );
           setShaSignatures(shaOnly as Signature[]);
 
-          // Auto-select the active SHA signature
+          // Auto-select the active SHA signature only if not already set (important for Edit Mode)
           const activeShaSignature = shaOnly.find((sig: any) => sig.is_active);
 
-          if (activeShaSignature) {
-            // Always set the SHA signature ID, even if one is already selected
+          if (activeShaSignature && !certificateData.sha_signature_id) {
             onDataChange("sha_signature_id", activeShaSignature.id.toString());
           }
         }
@@ -147,9 +148,15 @@ export const CertificateForm = ({
             }
           }
 
-          // Update the form data
-          onDataChange("course_template_id", templateToSelect);
-          onDataChange("course_content", contentToUse);
+          // In Edit Mode, if it's the initial load, we don't want to overwrite the loaded state
+          if (isEditMode && isInitialLoad.current) {
+            isInitialLoad.current = false;
+            // Just update the templates list, don't change selection or content
+          } else {
+            // Normal behavior or user-triggered course change
+            onDataChange("course_template_id", templateToSelect);
+            onDataChange("course_content", contentToUse);
+          }
         }
       } catch (error) {
         // Continue without templates
@@ -242,10 +249,32 @@ export const CertificateForm = ({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-6">
-        Detalles del Certificado
-      </h2>
+    <div
+      className={`bg-white border rounded-lg p-6 ${isEditMode ? "border-orange-300 shadow-sm" : "border-gray-200"}`}
+    >
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-lg font-semibold text-gray-900">
+          Detalles del Certificado
+        </h2>
+        {isEditMode && (
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 border border-orange-200">
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+            Modo Edición
+          </span>
+        )}
+      </div>
 
       {/* Certificate Title */}
       <div className="mb-4">
@@ -367,7 +396,10 @@ export const CertificateForm = ({
             }
 
             return (
-              <option key={template.id} value={template.id}>
+              <option
+                key={template.id.toString()}
+                value={template.id.toString()}
+              >
                 {label}
               </option>
             );
@@ -620,6 +652,7 @@ export const CertificateForm = ({
         participants={certificateData.participants}
         onChange={onParticipantsChange}
         passing_grade={certificateData.passing_grade}
+        isEditMode={isEditMode}
       />
 
       {/* Action Buttons */}
@@ -653,7 +686,7 @@ export const CertificateForm = ({
             certificateData.participants.length === 0 ||
             !certificateData.date
           }
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className={`px-4 py-2 text-white rounded-md transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed ${isEditMode ? "bg-orange-600 hover:bg-orange-700" : "bg-blue-600 hover:bg-blue-700"}`}
         >
           {isGenerating ? (
             <div className="flex items-center">
@@ -670,8 +703,10 @@ export const CertificateForm = ({
                   d="M4 4v16m1.414 0l3.586-3.586a2 2 0 013.414 3.414L20 8.586a2 2 0 01-3.414-3.414L12 15.414a2 2 0 01-3.414-3.414L4 8.586a2 2 0 013.414 3.414z"
                 />
               </svg>
-              <span>Generando...</span>
+              <span>{isEditMode ? "Editando..." : "Generando..."}</span>
             </div>
+          ) : isEditMode ? (
+            "Editar Certificado"
           ) : (
             "Generar Certificados"
           )}

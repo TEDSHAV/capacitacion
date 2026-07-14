@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import JSZip from "jszip";
 import {
   CourseTopic,
@@ -12,7 +13,10 @@ import {
 import OSISearch from "./components/osi-search";
 import { CertificateForm } from "./components/certificate-form";
 import { CarnetDebug } from "@/components/carnets/carnet-debug";
-import { saveCertificatesToDatabase } from "@/app/actions/certificados";
+import {
+  saveCertificatesToDatabase,
+  updateCertificateAction,
+} from "@/app/actions/certificados";
 import { getCarnetTemplatesAction } from "@/app/actions/dropdown-data";
 import { QRService } from "@/lib/qr-service";
 import { generateDocumentsServer } from "@/lib/document-server-actions";
@@ -24,12 +28,15 @@ import {
 interface GeneracionCertificadoClientProps {
   user: any;
   initialData: any;
+  editData?: any;
 }
 
 export default function GeneracionCertificadoClient({
   user,
   initialData,
+  editData,
 }: GeneracionCertificadoClientProps) {
+  const router = useRouter();
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({
     currentPhase: "",
@@ -120,6 +127,89 @@ export default function GeneracionCertificadoClient({
 
     loadCarnetTemplates();
   }, []);
+
+  // Pre-fill form if in edit mode
+  useEffect(() => {
+    if (editData && editData.certificate) {
+      const { certificate, snapshot } = editData;
+
+      // Find OSI in initialData
+      const osi = osis.find(
+        (o: any) =>
+          o.id === certificate.nro_osi?.toString() ||
+          o.nro_osi === certificate.nro_osi,
+      );
+      if (osi) {
+        setSelectedOSI(osi);
+      } else if (snapshot?.osi) {
+        // Fallback to snapshot data if OSI not in current list
+        setSelectedOSI(snapshot.osi);
+      }
+
+      // Find Course Topic
+      const course = courses.find(
+        (c: any) =>
+          c.id === certificate.id_curso?.toString() ||
+          c.cursos_id === certificate.id_curso,
+      );
+      if (course) {
+        setSelectedCourseTopic(course);
+      } else if (snapshot?.curso) {
+        setSelectedCourseTopic(snapshot.curso);
+      }
+
+      // Populate certificate data
+      setCertificateData({
+        osi_id: certificate.nro_osi?.toString() || "",
+        osi_data: snapshot?.osi || osi,
+        certificate_title:
+          snapshot?.certificado_detalles?.title ||
+          certificate.cursos?.nombre ||
+          "",
+        certificate_subtitle: snapshot?.certificado_detalles?.subtitle || "",
+        passing_grade: snapshot?.certificado_detalles?.passing_grade || 14,
+        course_topic_id: certificate.id_curso?.toString() || "",
+        course_topic_data: snapshot?.curso || course,
+        course_template_id:
+          snapshot?.plantilla?.id_plantilla_curso?.toString() ||
+          "original-course",
+        course_content:
+          snapshot?.certificado_detalles?.course_content ||
+          certificate.cursos?.contenido ||
+          "",
+        participants: [
+          {
+            id: certificate.participantes_certificados?.id,
+            name: certificate.participantes_certificados?.nombre || "",
+            id_number: certificate.participantes_certificados?.cedula || "",
+            id_type: certificate.participantes_certificados?.cedula?.startsWith(
+              "E",
+            )
+              ? "extranjero"
+              : "venezolano",
+            nationality:
+              certificate.participantes_certificados?.nacionalidad ||
+              "venezolano",
+            score: certificate.calificacion || 0,
+            company: certificate.empresas?.razon_social || "",
+          },
+        ],
+        location: snapshot?.certificado_detalles?.location || "Puerto La Cruz",
+        date:
+          certificate.fecha_emision || new Date().toISOString().split("T")[0],
+        horas_estimadas:
+          snapshot?.certificado_detalles?.horas_estimadas ||
+          certificate.cursos?.horas_estimadas,
+        facilitator_id: certificate.id_facilitador?.toString(),
+        facilitator_data: snapshot?.firmas?.facilitator_data,
+        sha_signature_id: snapshot?.firmas?.sha_signature_id,
+        fecha_vencimiento: certificate.fecha_vencimiento || undefined,
+        id_estado: certificate.id_estado,
+        id_plantilla_certificado: certificate.id_plantilla_certificado,
+        generate_documents: false, // Default to false for single edit
+      });
+    }
+  }, [editData, osis, courses]);
 
   // Effect to set default course content when course topic changes (but no template selected)
   useEffect(() => {
@@ -279,16 +369,49 @@ export default function GeneracionCertificadoClient({
     try {
       setIsGenerating(true);
       setGenerationProgress({
-        currentPhase: "Guardando certificados en base de datos...",
+        currentPhase: editData
+          ? "Actualizando certificado..."
+          : "Guardando certificados en base de datos...",
         percentage: 5,
         currentCertificate: 0,
         totalCertificates: certificateData.participants.length,
       });
 
-      const dbResult = await saveCertificatesToDatabase(
-        certificateData,
-        certificateData.participants,
-      );
+      let dbResult;
+      if (editData && editData.certificate) {
+        // Update single certificate
+        const updateResult = await updateCertificateAction(
+          editData.certificate.id,
+          certificateData,
+          certificateData.participants[0],
+        );
+
+        if (!updateResult.success) {
+          alert(`Error actualizando certificado: ${updateResult.message}`);
+          return;
+        }
+
+        dbResult = {
+          success: true,
+          certificateIds: [editData.certificate.id],
+          certificateNumbers: [
+            {
+              id: editData.certificate.id,
+              nro_libro: editData.certificate.nro_libro,
+              nro_hoja: editData.certificate.nro_hoja,
+              nro_linea: editData.certificate.nro_linea,
+              nro_control: editData.certificate.nro_control,
+            },
+          ],
+          participantIds: [editData.certificate.id_participante],
+        };
+      } else {
+        // Create new certificates
+        dbResult = await saveCertificatesToDatabase(
+          certificateData,
+          certificateData.participants,
+        );
+      }
 
       if (!dbResult.success) {
         alert(
@@ -558,9 +681,27 @@ export default function GeneracionCertificadoClient({
               };
             });
 
-          const carnetDbResult = await (
-            await import("@/app/actions/carnets")
-          ).saveCarnetsToDatabase(carnetData, dbResult.certificateIds!);
+          const carnetActions = await import("@/app/actions/carnets");
+          let carnetDbResult;
+
+          if (editData) {
+            // Update existing carnet
+            const updateResult = await carnetActions.updateCarnetAction(
+              dbResult.certificateIds![0],
+              carnetData[0],
+            );
+            carnetDbResult = {
+              success: updateResult.success,
+              message: (updateResult as any).message || "",
+              carnetIds: updateResult.carnetId ? [updateResult.carnetId] : [],
+            };
+          } else {
+            // Create new carnets
+            carnetDbResult = await carnetActions.saveCarnetsToDatabase(
+              carnetData,
+              dbResult.certificateIds!,
+            );
+          }
 
           if (carnetDbResult.success && carnetDbResult.carnetIds) {
             // Generate carnet PDFs concurrently in batches
@@ -787,8 +928,16 @@ export default function GeneracionCertificadoClient({
         documentsGenerated > 0
           ? ` y ${documentsGenerated} documentos adicionales`
           : "";
-      const successMessage = `Se generaron y guardaron ${certificates.length} certificados${carnetsGenerated > 0 ? ` y ${carnetsGenerated} carnets` : ""}${documentText} exitosamente!`;
+
+      const successMessage = editData
+        ? `¡Certificado ${carnetsGenerated > 0 ? "y carnet " : ""}actualizado exitosamente!`
+        : `Se generaron y guardaron ${certificates.length} certificados${carnetsGenerated > 0 ? ` y ${carnetsGenerated} carnets` : ""}${documentText} exitosamente!`;
       alert(successMessage);
+
+      if (editData) {
+        router.push("/dashboard/capacitacion/gestion-certificados");
+        return;
+      }
 
       // Reset form
       setCertificateData({
@@ -856,11 +1005,14 @@ export default function GeneracionCertificadoClient({
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">
-          Generación de Certificados
+          {editData
+            ? "Edición/Reedición de Certificado"
+            : "Generación de Certificados"}
         </h1>
         <p className="mt-2 text-gray-600">
-          Crea certificados personalizados para los participantes de
-          capacitaciones
+          {editData
+            ? "Modifica los datos del certificado existente. Los números de control se mantendrán."
+            : "Crea certificados personalizados para los participantes de capacitaciones"}
         </p>
       </div>
 
@@ -876,6 +1028,7 @@ export default function GeneracionCertificadoClient({
           onSelect={handleOSISelect}
           matchedCourse={selectedCourseTopic}
           allCourses={courses}
+          disabled={!!editData}
         />
 
         <CertificateForm
@@ -884,6 +1037,7 @@ export default function GeneracionCertificadoClient({
           selectedCourseTopic={selectedCourseTopic}
           courseTopics={courses}
           isGenerating={isGenerating}
+          isEditMode={!!editData}
           generationProgress={generationProgress}
           onDataChange={handleCertificateDataChange}
           onParticipantsChange={handleParticipantsChange}

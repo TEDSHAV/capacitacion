@@ -10,6 +10,7 @@ interface CertificateTableProps {
   onViewCertificate?: (certificate: CertificateManagement) => void;
   onDownloadCertificate?: (certificate: CertificateManagement) => void;
   onVerifyCertificate?: (certificate: CertificateManagement) => void;
+  onEditCertificate?: (certificate: CertificateManagement) => void;
 }
 
 function CertificateTableComponent({
@@ -18,6 +19,7 @@ function CertificateTableComponent({
   onViewCertificate,
   onDownloadCertificate,
   onVerifyCertificate,
+  onEditCertificate,
 }: CertificateTableProps) {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
@@ -288,6 +290,15 @@ function CertificateTableComponent({
                         title="Descargar certificado"
                       >
                         Descargar
+                      </button>
+                    )}
+                    {onEditCertificate && (
+                      <button
+                        onClick={() => onEditCertificate(certificate)}
+                        className="w-full text-xs text-center py-1 px-2 rounded border border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300 transition-colors"
+                        title="Editar o reeditar certificado"
+                      >
+                        Editar
                       </button>
                     )}
                   </div>

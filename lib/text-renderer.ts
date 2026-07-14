@@ -140,6 +140,6 @@ export class TextRenderer {
   renderDurationText(hours: number, x: number, y: number): void {
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(9);
-    this.doc.text(`${hours} horas`, 114, 96.15, { align: "center" });
+    this.doc.text(`${hours} horas`, x, y, { align: "center" });
   }
 }

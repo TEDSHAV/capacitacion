@@ -911,6 +911,8 @@ function generateContentSnapshot(
 
     plantilla: {
       id_plantilla_certificado: updatedCertificateData.id_plantilla_certificado,
+
+      id_plantilla_curso: updatedCertificateData.course_template_id,
     },
 
     firmas: {
@@ -1327,18 +1329,193 @@ export async function getVenezuelanStates(): Promise<
 }
 
 /**
-
- * Get certificates with comprehensive data for management interface
-
+ * Update content snapshot for certificate with actual control numbers
  */
+function updateContentSnapshotWithControlNumbers(
+  existingSnapshot: string,
+  controlNumbers: CertificateWithNumbers,
+): string {
+  try {
+    const snapshot = JSON.parse(existingSnapshot);
 
+    // Update certificate record fields
+    if (snapshot.certificado) {
+      snapshot.certificado.nro_libro = controlNumbers.nro_libro;
+      snapshot.certificado.nro_hoja = controlNumbers.nro_hoja;
+      snapshot.certificado.nro_linea = controlNumbers.nro_linea;
+      snapshot.certificado.nro_control = controlNumbers.nro_control;
+    }
+
+    return JSON.stringify(snapshot);
+  } catch (error) {
+    console.error("Error updating snapshot with control numbers:", error);
+    return existingSnapshot;
+  }
+}
+
+/**
+ * Get certificate by ID for editing
+ */
+export async function getCertificateForEdit(certificateId: number) {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("certificados")
+      .select(
+        `
+        *,
+        participantes_certificados!inner(*),
+        cursos!inner(*),
+        empresas!inner(*)
+      `,
+      )
+      .eq("id", certificateId)
+      .single();
+
+    if (error) throw error;
+
+    // Parse snapshot to get original generation data if available
+    let snapshotData = null;
+    if (data.snapshot_contenido) {
+      try {
+        snapshotData = JSON.parse(data.snapshot_contenido);
+      } catch (e) {
+        console.warn("Failed to parse snapshot for edit:", certificateId);
+      }
+    }
+
+    return {
+      certificate: data,
+      snapshot: snapshotData,
+    };
+  } catch (error) {
+    console.error("Error fetching certificate for edit:", error);
+    return null;
+  }
+}
+
+/**
+ * Update an existing certificate record
+ */
+export async function updateCertificateAction(
+  certificateId: number,
+  certificateData: CertificateGeneration,
+  participant: CertificateParticipant,
+) {
+  try {
+    const supabase = await createClient();
+
+    // 1. Get existing certificate to keep control numbers
+    const { data: existingCert, error: getError } = await supabase
+      .from("certificados")
+      .select("nro_libro, nro_hoja, nro_linea, nro_control, id_participante")
+      .eq("id", certificateId)
+      .single();
+
+    if (getError || !existingCert) {
+      throw new Error("Certificate not found");
+    }
+
+    // 2. Update participant details if they changed
+    const { error: participantUpdateError } = await supabase
+      .from("participantes_certificados")
+      .update({
+        nombre: participant.name,
+        cedula: participant.id_number,
+        nacionalidad: participant.nationality || "venezolano",
+      })
+      .eq("id", existingCert.id_participante);
+
+    if (participantUpdateError) {
+      console.warn(
+        "Non-fatal: Failed to update participant details:",
+        participantUpdateError,
+      );
+    }
+
+    // 3. Generate updated snapshot
+    // We use the existing participant ID
+    const updatedSnapshot = generateContentSnapshot(
+      certificateData,
+      participant,
+      existingCert.id_participante,
+    );
+
+    // 4. Update the snapshot with the actual control numbers (which we want to preserve)
+    const finalSnapshot = updateContentSnapshotWithControlNumbers(
+      updatedSnapshot,
+      {
+        id: certificateId,
+        nro_libro: existingCert.nro_libro,
+        nro_hoja: existingCert.nro_hoja,
+        nro_linea: existingCert.nro_linea,
+        nro_control: existingCert.nro_control,
+      },
+    );
+
+    // 5. Update the record
+    const { error: updateError } = await supabase
+      .from("certificados")
+      .update({
+        id_empresa: certificateData.osi_data?.empresa_id || null,
+        id_curso: certificateData.course_topic_data?.cursos_id || null,
+        fecha_emision: certificateData.date,
+        fecha_vencimiento: certificateData.fecha_vencimiento || null,
+        nro_osi: certificateData.osi_data?.nro_osi
+          ? typeof certificateData.osi_data.nro_osi === "string"
+            ? parseInt(
+                certificateData.osi_data.nro_osi.replace(/[^\d]/g, ""),
+              ) || null
+            : certificateData.osi_data.nro_osi
+          : null,
+        id_facilitador: certificateData.facilitator_id
+          ? parseInt(certificateData.facilitator_id)
+          : null,
+        id_plantilla_certificado:
+          certificateData.id_plantilla_certificado || null,
+        calificacion: participant.score || 0,
+        snapshot_contenido: finalSnapshot,
+      })
+      .eq("id", certificateId);
+
+    if (updateError) throw updateError;
+
+    // 6. Regenerate QR code if needed
+    try {
+      const qrResult = await QRService.generateCertificateQR(certificateId, {
+        nro_libro: existingCert.nro_libro,
+        nro_hoja: existingCert.nro_hoja,
+        nro_linea: existingCert.nro_linea,
+        nro_control: existingCert.nro_control,
+      });
+
+      await supabase
+        .from("certificados")
+        .update({ qr_code: qrResult.dataUrl || null })
+        .eq("id", certificateId);
+    } catch (qrErr) {
+      console.warn("Non-fatal: Failed to regenerate QR during update", qrErr);
+    }
+
+    return { success: true, message: "Certificate updated successfully" };
+  } catch (error) {
+    console.error("Error updating certificate:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Get certificates with comprehensive data for management interface
+ */
 export async function getCertificatesForManagement(
   filters: CertificateFilters = {},
-
   page: number = 1,
-
   limit: number = 50,
-): Promise<CertificateSearchResult> {
+) {
   try {
     const supabase = await createClient();
 
@@ -1461,46 +1638,172 @@ async function calculateCertificateMetrics(
   try {
     const supabase = await createClient();
 
-    // Use the analytics_metrics view instead of RPC
-    const { data: metricsData, error: viewError } = await supabase
-      .from("analytics_metrics")
-      .select("*")
-      .single();
+    // 1. ALWAYS perform a live query for accuracy.
+    // We join the tables to allow filtering by search term and to get names for charts.
+    let query = supabase.from("certificados").select(
+      `
+        id, 
+        is_active, 
+        fecha_emision,
+        fecha_vencimiento, 
+        calificacion, 
+        id_empresa, 
+        id_curso, 
+        id_participante,
+        id_plantilla_carnet,
+        participantes_certificados!inner(nombre, cedula),
+        cursos!inner(nombre),
+        empresas!inner(razon_social)
+      `,
+      { count: "exact" },
+    );
 
-    if (viewError || !metricsData) {
-      console.error("Error fetching analytics_metrics:", viewError);
+    // Apply the same filters as search_certificates RPC
+    if (filters.companyId) query = query.eq("id_empresa", filters.companyId);
+    if (filters.courseId) query = query.eq("id_curso", filters.courseId);
+    if (filters.facilitatorId)
+      query = query.eq("id_facilitador", filters.facilitatorId);
+    if (filters.stateId) query = query.eq("id_estado", filters.stateId);
+
+    // Default to only active certificates if not specified,
+    // or respect the filter if provided
+    if (filters.isActive !== undefined) {
+      query = query.eq("is_active", filters.isActive);
+    }
+
+    if (filters.dateFrom) query = query.gte("fecha_emision", filters.dateFrom);
+    if (filters.dateTo) query = query.lte("fecha_emision", filters.dateTo);
+
+    // Apply search term across joined tables if present
+    if (filters.searchTerm?.trim()) {
+      const term = `%${filters.searchTerm.trim()}%`;
+      query = query.or(
+        `nro_osi.ilike.${term},participantes_certificados.nombre.ilike.${term},participantes_certificados.cedula.ilike.${term},cursos.nombre.ilike.${term},empresas.razon_social.ilike.${term}`,
+      );
+    }
+
+    // Fetch the live data for aggregation
+    // We order by emission date descending to get the most recent ones for the metrics sample
+    // Safe limit for management dashboard
+    const {
+      data: filteredData,
+      count: totalCount,
+      error: liveError,
+    } = await query.order("fecha_emision", { ascending: false }).limit(1000);
+
+    if (liveError) {
+      console.error("Error fetching live metrics:", liveError);
       return getEmptyMetrics();
     }
 
-    // Map analytics_metrics fields to CertificateMetrics interface
-    const metrics = metricsData as any;
+    // 2. Aggregate metrics from the actual data returned
+    const now = new Date();
+
+    // Get current month and year for robust comparison
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    let activeCount = 0;
+    let expiredCount = 0;
+    let totalScore = 0;
+    let certificatesThisMonth = 0;
+    let certificatesThisYear = 0;
+    const uniqueCompanies = new Set();
+    const uniqueCourses = new Set();
+    const uniqueParticipants = new Set();
+
+    // Aggregation maps for charts
+    const companyStats: Record<number, { name: string; count: number }> = {};
+    const courseStats: Record<number, { name: string; count: number }> = {};
+
+    filteredData?.forEach((cert: any) => {
+      // Certificate state - if Carnet is available, state refers to the Carnet validity
+      if (cert.is_active) activeCount++;
+
+      // Expirados: only when available Carnets (id_plantilla_carnet is present)
+      if (cert.id_plantilla_carnet && cert.fecha_vencimiento) {
+        const expiryDate = new Date(cert.fecha_vencimiento + "T12:00:00");
+        if (expiryDate < now) expiredCount++;
+      }
+
+      // Este mes: count certificates emitted in the current month
+      if (cert.fecha_emision) {
+        // Robust month/year check to avoid timezone shift issues with YYYY-MM-DD strings
+        const emissionDate = new Date(cert.fecha_emision + "T12:00:00");
+        if (
+          emissionDate.getMonth() === currentMonth &&
+          emissionDate.getFullYear() === currentYear
+        ) {
+          certificatesThisMonth++;
+        }
+
+        if (emissionDate.getFullYear() === currentYear) {
+          certificatesThisYear++;
+        }
+      }
+
+      totalScore += cert.calificacion || 0;
+
+      if (cert.id_empresa) {
+        uniqueCompanies.add(cert.id_empresa);
+        if (cert.empresas?.razon_social) {
+          if (!companyStats[cert.id_empresa]) {
+            companyStats[cert.id_empresa] = {
+              name: cert.empresas.razon_social,
+              count: 0,
+            };
+          }
+          companyStats[cert.id_empresa].count++;
+        }
+      }
+
+      if (cert.id_curso) {
+        uniqueCourses.add(cert.id_curso);
+        if (cert.cursos?.nombre) {
+          if (!courseStats[cert.id_curso]) {
+            courseStats[cert.id_curso] = { name: cert.cursos.nombre, count: 0 };
+          }
+          courseStats[cert.id_curso].count++;
+        }
+      }
+
+      if (cert.id_participante) uniqueParticipants.add(cert.id_participante);
+    });
+
+    const averageScore = totalCount ? totalScore / totalCount : 0;
+
+    // Convert stats maps to arrays for the charts
+    const certificatesByCompany = Object.entries(companyStats)
+      .map(([id, stats]) => ({
+        companyId: parseInt(id),
+        companyName: stats.name,
+        count: stats.count,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const certificatesByCourse = Object.entries(courseStats)
+      .map(([id, stats]) => ({
+        courseId: parseInt(id),
+        courseName: stats.name,
+        count: stats.count,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
 
     return {
-      totalCertificates: metrics.total_certificates || 0,
-      activeCertificates: metrics.active_certificates || 0,
-      expiredCertificates: metrics.expired_certificates || 0,
-      totalCompanies: metrics.unique_companies_with_certificates || 0,
-      totalCourses: metrics.unique_courses_with_certificates || 0,
-      totalParticipants: metrics.unique_participants_with_certificates || 0,
-      averageScore: Math.round((metrics.average_score || 0) * 100) / 100,
-      certificatesByCompany: (metrics.top_companies || []).map(
-        (company: any) => ({
-          companyId: company.company_id,
-          companyName: company.company_name,
-          count: company.certificate_count,
-        }),
-      ),
-      certificatesByCourse: (metrics.top_courses || []).map((course: any) => ({
-        courseId: course.course_id,
-        courseName: course.course_name,
-        count: course.certificate_count,
-      })),
-      certificatesByMonth: (metrics.monthly_emissions || []).map(
-        (month: any) => ({
-          month: month.month,
-          count: month.count,
-        }),
-      ),
+      totalCertificates: totalCount || 0,
+      activeCertificates: activeCount,
+      expiredCertificates: expiredCount,
+      certificatesThisMonth,
+      certificatesThisYear,
+      totalCompanies: uniqueCompanies.size,
+      totalCourses: uniqueCourses.size,
+      totalParticipants: uniqueParticipants.size,
+      averageScore: Math.round(averageScore * 100) / 100,
+      certificatesByCompany,
+      certificatesByCourse,
+      certificatesByMonth: [], // Monthly trend is usually global only
     };
   } catch (error) {
     console.error("Error calculating metrics:", error);
@@ -1519,6 +1822,10 @@ function getEmptyMetrics(): CertificateMetrics {
     activeCertificates: 0,
 
     expiredCertificates: 0,
+
+    certificatesThisMonth: 0,
+
+    certificatesThisYear: 0,
 
     totalCompanies: 0,
 

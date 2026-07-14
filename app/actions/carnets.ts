@@ -1,28 +1,34 @@
 "use server";
 
-import { createClient } from '@/utils/supabase/server';
-import { Carnet, CarnetGeneration, CarnetFilters, CarnetSearchResult, CarnetRelationships } from '@/types';
-import { QRService } from '@/lib/qr-service';
+import { createClient } from "@/utils/supabase/server";
+import {
+  Carnet,
+  CarnetGeneration,
+  CarnetFilters,
+  CarnetSearchResult,
+  CarnetRelationships,
+} from "@/types";
+import { QRService } from "@/lib/qr-service";
 
 export async function saveCarnetsToDatabase(
   carnetData: CarnetGeneration[],
-  certificateIds: number[]
+  certificateIds: number[],
 ): Promise<{ success: boolean; message: string; carnetIds?: number[] }> {
   try {
-    console.log('💾 saveCarnetsToDatabase called with:', {
+    console.log("💾 saveCarnetsToDatabase called with:", {
       carnetCount: carnetData.length,
       certificateCount: certificateIds.length,
       firstCarnet: carnetData[0],
-      firstCertificateId: certificateIds[0]
+      firstCertificateId: certificateIds[0],
     });
 
     const supabase = await createClient();
-    
+
     if (carnetData.length !== certificateIds.length) {
-      console.error('❌ Mismatch between carnets and certificates');
+      console.error("❌ Mismatch between carnets and certificates");
       return {
         success: false,
-        message: "Number of carnets must match number of certificates"
+        message: "Number of carnets must match number of certificates",
       };
     }
 
@@ -37,15 +43,15 @@ export async function saveCarnetsToDatabase(
         const qrDataURL = await QRService.generateQRDataURL({
           data: qrData,
           size: 150,
-          level: 'M',
-          includeMargin: true
+          level: "M",
+          includeMargin: true,
         });
 
         // Create snapshot content for carnet
         const snapshotContent = JSON.stringify({
           ...carnet,
           qr_code: qrDataURL,
-          generated_at: new Date().toISOString()
+          generated_at: new Date().toISOString(),
         });
 
         return {
@@ -62,66 +68,66 @@ export async function saveCarnetsToDatabase(
           empresa_participante: carnet.empresa_participante,
           qr_code: qrDataURL,
           snapshot_contenido: snapshotContent,
-          is_active: true
+          is_active: true,
         };
       } catch (err) {
-        console.error(`💥 Error preparing carnet data for participant ${carnet.nombre_participante}:`, err);
+        console.error(
+          `💥 Error preparing carnet data for participant ${carnet.nombre_participante}:`,
+          err,
+        );
         throw err;
       }
     });
 
     const preparedCarnets = await Promise.all(carnetPromises);
 
-    console.log('💾 Inserting carnets in bulk into database...');
+    console.log("💾 Inserting carnets in bulk into database...");
     const { data, error } = await supabase
-      .from('carnets')
+      .from("carnets")
       .insert(preparedCarnets)
-      .select('id');
+      .select("id");
 
     if (error) {
-      console.error('❌ Database error bulk inserting carnets:', error);
+      console.error("❌ Database error bulk inserting carnets:", error);
       return {
         success: false,
-        message: `Error saving carnets: ${error.message}`
+        message: `Error saving carnets: ${error.message}`,
       };
     }
 
     if (data) {
       // Map returned data to IDs correctly
-      const ids = data.map(row => row.id);
+      const ids = data.map((row) => row.id);
       console.log(`✅ ${ids.length} carnets saved with IDs:`, ids);
-      
+
       return {
         success: true,
         message: `Successfully saved ${ids.length} carnets`,
-        carnetIds: ids
+        carnetIds: ids,
       };
     }
 
     return {
       success: true,
       message: `Successfully saved ${preparedCarnets.length} carnets`,
-      carnetIds: []
+      carnetIds: [],
     };
-
   } catch (error) {
-    console.error('💥 Critical error in saveCarnetsToDatabase:', error);
+    console.error("💥 Critical error in saveCarnetsToDatabase:", error);
     return {
       success: false,
-      message: 'Unexpected error saving carnets to database'
+      message: "Unexpected error saving carnets to database",
     };
   }
 }
 
 export async function getCarnetsByFilters(
-  filters: CarnetFilters = {}
+  filters: CarnetFilters = {},
 ): Promise<{ success: boolean; data?: CarnetSearchResult; error?: string }> {
   try {
     const supabase = await createClient();
-    
-    let query = supabase
-      .from('carnets')
-      .select(`
+
+    let query = supabase.from("carnets").select(`
         *,
         certificado:certificados(
           id,
@@ -178,58 +184,60 @@ export async function getCarnetsByFilters(
     }
 
     if (filters.companyId) {
-      query = query.eq('id_empresa', filters.companyId);
+      query = query.eq("id_empresa", filters.companyId);
     }
 
     if (filters.courseId) {
-      query = query.eq('id_curso', filters.courseId);
+      query = query.eq("id_curso", filters.courseId);
     }
 
     if (filters.osiId) {
-      query = query.eq('id_osi', filters.osiId);
+      query = query.eq("id_osi", filters.osiId);
     }
 
     if (filters.participantId) {
-      query = query.eq('id_participante', filters.participantId);
+      query = query.eq("id_participante", filters.participantId);
     }
 
     if (filters.dateFrom) {
-      query = query.gte('fecha_emision', filters.dateFrom);
+      query = query.gte("fecha_emision", filters.dateFrom);
     }
 
     if (filters.dateTo) {
-      query = query.lte('fecha_emision', filters.dateTo);
+      query = query.lte("fecha_emision", filters.dateTo);
     }
 
     if (filters.isActive !== undefined) {
-      query = query.eq('is_active', filters.isActive);
+      query = query.eq("is_active", filters.isActive);
     }
 
     if (filters.hasExpirationDate) {
-      query = query.not('fecha_vencimiento', 'is', null);
+      query = query.not("fecha_vencimiento", "is", null);
     }
 
     // Get total count
     const { count: totalCount, error: countError } = await supabase
-      .from('carnets')
-      .select('*', { count: 'exact', head: true });
+      .from("carnets")
+      .select("*", { count: "exact", head: true });
 
     if (countError) {
-      console.error('Error getting carnets count:', countError);
+      console.error("Error getting carnets count:", countError);
       return {
         success: false,
-        error: 'Error getting carnets count'
+        error: "Error getting carnets count",
       };
     }
 
     // Execute main query
-    const { data: carnets, error } = await query.order('created_at', { ascending: false });
+    const { data: carnets, error } = await query.order("created_at", {
+      ascending: false,
+    });
 
     if (error) {
-      console.error('Error fetching carnets:', error);
+      console.error("Error fetching carnets:", error);
       return {
         success: false,
-        error: 'Error fetching carnets'
+        error: "Error fetching carnets",
       };
     }
 
@@ -237,28 +245,28 @@ export async function getCarnetsByFilters(
       success: true,
       data: {
         carnets: carnets as Carnet[],
-        totalCount: totalCount || 0
-      }
+        totalCount: totalCount || 0,
+      },
     };
-
   } catch (error) {
-    console.error('Error in getCarnetsByFilters:', error);
+    console.error("Error in getCarnetsByFilters:", error);
     return {
       success: false,
-      error: 'Unexpected error fetching carnets'
+      error: "Unexpected error fetching carnets",
     };
   }
 }
 
 export async function getCarnetById(
-  id: number
+  id: number,
 ): Promise<{ success: boolean; data?: Carnet; error?: string }> {
   try {
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
-      .from('carnets')
-      .select(`
+      .from("carnets")
+      .select(
+        `
         *,
         certificado:certificados(
           id,
@@ -302,41 +310,42 @@ export async function getCarnetById(
           estado,
           fecha_ejecucion1
         )
-      `)
-      .eq('id', id)
+      `,
+      )
+      .eq("id", id)
       .single();
 
     if (error) {
-      console.error('Error fetching carnet:', error);
+      console.error("Error fetching carnet:", error);
       return {
         success: false,
-        error: 'Error fetching carnet'
+        error: "Error fetching carnet",
       };
     }
 
     return {
       success: true,
-      data: data as Carnet
+      data: data as Carnet,
     };
-
   } catch (error) {
-    console.error('Error in getCarnetById:', error);
+    console.error("Error in getCarnetById:", error);
     return {
       success: false,
-      error: 'Unexpected error fetching carnet'
+      error: "Unexpected error fetching carnet",
     };
   }
 }
 
 export async function getCarnetsByCertificateId(
-  certificateId: number
+  certificateId: number,
 ): Promise<{ success: boolean; data?: Carnet[]; error?: string }> {
   try {
     const supabase = await createClient();
-    
+
     const { data, error } = await supabase
-      .from('carnets')
-      .select(`
+      .from("carnets")
+      .select(
+        `
         *,
         certificado:certificados(
           id,
@@ -380,44 +389,52 @@ export async function getCarnetsByCertificateId(
           estado,
           fecha_ejecucion1
         )
-      `)
-      .eq('id_certificado', certificateId)
-      .order('created_at', { ascending: false });
+      `,
+      )
+      .eq("id_certificado", certificateId)
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error('Error fetching carnets by certificate ID:', error);
+      console.error("Error fetching carnets by certificate ID:", error);
       return {
         success: false,
-        error: 'Error fetching carnets by certificate ID'
+        error: "Error fetching carnets by certificate ID",
       };
     }
 
     return {
       success: true,
-      data: data as Carnet[]
+      data: data as Carnet[],
     };
-
   } catch (error) {
-    console.error('Error in getCarnetsByCertificateId:', error);
+    console.error("Error in getCarnetsByCertificateId:", error);
     return {
       success: false,
-      error: 'Unexpected error fetching carnets by certificate ID'
+      error: "Unexpected error fetching carnets by certificate ID",
     };
   }
 }
 
 export async function getCarnetsRelationships(
-  osiId: number
+  osiId: number,
 ): Promise<{ success: boolean; data?: CarnetRelationships; error?: string }> {
   try {
     const supabase = await createClient();
-    
+
     // Get all related data for the OSI
-    const [certificatesResult, carnetsResult, osiResult, participantsResult, companiesResult, coursesResult] = await Promise.all([
+    const [
+      certificatesResult,
+      carnetsResult,
+      osiResult,
+      participantsResult,
+      companiesResult,
+      coursesResult,
+    ] = await Promise.all([
       // Get certificates for this OSI
       supabase
-        .from('certificados')
-        .select(`
+        .from("certificados")
+        .select(
+          `
           *,
           participante:participantes_certificados(
             id,
@@ -439,14 +456,16 @@ export async function getCarnetsRelationships(
             horas_estimadas,
             emite_carnet
           )
-        `)
-        .eq('nro_osi', osiId)
-        .order('created_at', { ascending: false }),
-      
+        `,
+        )
+        .eq("nro_osi", osiId)
+        .order("created_at", { ascending: false }),
+
       // Get carnets for this OSI
       supabase
-        .from('carnets')
-        .select(`
+        .from("carnets")
+        .select(
+          `
           *,
           participante:participantes_certificados(
             id,
@@ -468,14 +487,16 @@ export async function getCarnetsRelationships(
             horas_estimadas,
             emite_carnet
           )
-        `)
-        .eq('id_osi', osiId)
-        .order('created_at', { ascending: false }),
-      
+        `,
+        )
+        .eq("id_osi", osiId)
+        .order("created_at", { ascending: false }),
+
       // Get OSI details
       supabase
-        .from('osi')
-        .select(`
+        .from("osi")
+        .select(
+          `
           *,
           empresa:empresas(
             id,
@@ -490,34 +511,32 @@ export async function getCarnetsRelationships(
             horas_estimadas,
             emite_carnet
           )
-        `)
-        .eq('id', osiId)
+        `,
+        )
+        .eq("id", osiId)
         .single(),
-      
+
       // Get all participants for this OSI
-      supabase
-        .from('participantes_certificados')
-        .select('*')
-        .order('nombre'),
-      
+      supabase.from("participantes_certificados").select("*").order("nombre"),
+
       // Get all companies
-      supabase
-        .from('empresas')
-        .select('*')
-        .order('razon_social'),
-      
+      supabase.from("empresas").select("*").order("razon_social"),
+
       // Get all courses
-      supabase
-        .from('cursos')
-        .select('*')
-        .order('nombre')
+      supabase.from("cursos").select("*").order("nombre"),
     ]);
 
-    if (certificatesResult.error || carnetsResult.error || osiResult.error || 
-        participantsResult.error || companiesResult.error || coursesResult.error) {
+    if (
+      certificatesResult.error ||
+      carnetsResult.error ||
+      osiResult.error ||
+      participantsResult.error ||
+      companiesResult.error ||
+      coursesResult.error
+    ) {
       return {
         success: false,
-        error: 'Error fetching relationship data'
+        error: "Error fetching relationship data",
       };
     }
 
@@ -527,86 +546,165 @@ export async function getCarnetsRelationships(
       osi: osiResult.data,
       participants: participantsResult.data || [],
       companies: companiesResult.data || [],
-      courses: coursesResult.data || []
+      courses: coursesResult.data || [],
     };
 
     return {
       success: true,
-      data: relationships
+      data: relationships,
     };
-
   } catch (error) {
-    console.error('Error in getCarnetsRelationships:', error);
+    console.error("Error in getCarnetsRelationships:", error);
     return {
       success: false,
-      error: 'Unexpected error fetching relationship data'
+      error: "Unexpected error fetching relationship data",
     };
   }
 }
 
 export async function updateCarnetStatus(
   id: number,
-  isActive: boolean
+  isActive: boolean,
 ): Promise<{ success: boolean; message: string }> {
   try {
     const supabase = await createClient();
-    
+
     const { error } = await supabase
-      .from('carnets')
+      .from("carnets")
       .update({ is_active: isActive })
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) {
-      console.error('Error updating carnet status:', error);
+      console.error("Error updating carnet status:", error);
       return {
         success: false,
-        message: `Error updating carnet status: ${error.message}`
+        message: `Error updating carnet status: ${error.message}`,
       };
     }
 
     return {
       success: true,
-      message: `Carnet ${isActive ? 'activated' : 'deactivated'} successfully`
+      message: `Carnet ${isActive ? "activated" : "deactivated"} successfully`,
     };
-
   } catch (error) {
-    console.error('Error in updateCarnetStatus:', error);
+    console.error("Error in updateCarnetStatus:", error);
     return {
       success: false,
-      message: 'Unexpected error updating carnet status'
+      message: "Unexpected error updating carnet status",
     };
   }
 }
 
 export async function deleteCarnet(
-  id: number
+  id: number,
 ): Promise<{ success: boolean; message: string }> {
   try {
     const supabase = await createClient();
-    
-    const { error } = await supabase
-      .from('carnets')
-      .delete()
-      .eq('id', id);
+
+    const { error } = await supabase.from("carnets").delete().eq("id", id);
 
     if (error) {
-      console.error('Error deleting carnet:', error);
+      console.error("Error deleting carnet:", error);
       return {
         success: false,
-        message: `Error deleting carnet: ${error.message}`
+        message: `Error deleting carnet: ${error.message}`,
       };
     }
 
     return {
       success: true,
-      message: 'Carnet deleted successfully'
+      message: "Carnet deleted successfully",
     };
-
   } catch (error) {
-    console.error('Error in deleteCarnet:', error);
+    console.error("Error in deleteCarnet:", error);
     return {
       success: false,
-      message: 'Unexpected error deleting carnet'
+      message: "Unexpected error deleting carnet",
+    };
+  }
+}
+
+/**
+ * Update an existing carnet record
+ */
+export async function updateCarnetAction(
+  certificateId: number,
+  carnetData: CarnetGeneration,
+) {
+  try {
+    const supabase = await createClient();
+
+    // 1. Find existing carnet for this certificate
+    const { data: existingCarnet, error: findError } = await supabase
+      .from("carnets")
+      .select("id")
+      .eq("id_certificado", certificateId)
+      .maybeSingle();
+
+    if (findError) throw findError;
+
+    // 2. Prepare QR code
+    const qrData = QRService.generateQRData(certificateId);
+    const qrDataURL = await QRService.generateQRDataURL({
+      data: qrData,
+      size: 150,
+      level: "M",
+      includeMargin: true,
+    });
+
+    // 3. Prepare snapshot
+    const snapshotContent = JSON.stringify({
+      ...carnetData,
+      qr_code: qrDataURL,
+      updated_at: new Date().toISOString(),
+    });
+
+    const updateData = {
+      id_participante: carnetData.id_participante,
+      id_empresa: carnetData.id_empresa,
+      id_curso: carnetData.id_curso,
+      id_osi: carnetData.id_osi,
+      titulo_curso: carnetData.titulo_curso,
+      fecha_emision: carnetData.fecha_emision,
+      fecha_vencimiento: carnetData.fecha_vencimiento,
+      nombre_participante: carnetData.nombre_participante,
+      cedula_participante: carnetData.cedula_participante,
+      empresa_participante: carnetData.empresa_participante,
+      qr_code: qrDataURL,
+      snapshot_contenido: snapshotContent,
+    };
+
+    if (existingCarnet) {
+      // Update existing record
+      const { error: updateError } = await supabase
+        .from("carnets")
+        .update(updateData)
+        .eq("id", existingCarnet.id);
+
+      if (updateError) throw updateError;
+
+      return { success: true, carnetId: existingCarnet.id };
+    } else {
+      // Create new record if somehow missing
+      const { data: newData, error: insertError } = await supabase
+        .from("carnets")
+        .insert({
+          ...updateData,
+          id_certificado: certificateId,
+          is_active: true,
+        })
+        .select("id")
+        .single();
+
+      if (insertError) throw insertError;
+
+      return { success: true, carnetId: newData.id };
+    }
+  } catch (error) {
+    console.error("Error in updateCarnetAction:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
