@@ -320,12 +320,16 @@ export default function OSIDetailPage() {
       }
       
       // Prepare data for Supabase - ensure all fields are properly typed and not undefined
-      // Only include fields that exist in the database schema
+      // Only include fields that exist in database schema
       const dataToSave = {
         nro_osi: formData.nro_osi?.trim() || '',
         nro_orden_compra: formData.nro_orden_compra?.trim() || null,
         tipo_servicio: formData.tipo_servicio?.trim() || '',
         nro_presupuesto: formData.nro_presupuesto?.trim() || null,
+        empresa_id: (() => {
+          const selectedEmpresa = empresas.find(e => e.razon_social === formData.cliente_nombre_empresa)
+          return selectedEmpresa ? selectedEmpresa.id : null
+        })(),
         ejecutivo_negocios: Number(formData.ejecutivo_negocios) || null,
         cliente_nombre_empresa: formData.cliente_nombre_empresa?.trim() || '',
         tema: formData.tema?.trim() || null,
@@ -340,53 +344,19 @@ export default function OSIDetailPage() {
         fecha_ejecucion4: formData.fecha_ejecucion4 || null,
         fecha_ejecucion5: formData.fecha_ejecucion5 || null,
         participantes_max: Number(formData.participantes_max) || null,
-        detalle_sesion: formData.detalle_sesion?.trim() || null,
-        certificado_impreso: Boolean(formData.certificado_impreso),
-        carnet_impreso: Boolean(formData.carnet_impreso),
-        observaciones_adicionales: formData.observaciones_adicionales?.trim() || null,
-        detalle_capacitacion: formData.detalle_capacitacion?.trim() || null,
-        costo_honorarios: Number(formData.costo_honorarios) || 0,
-        nro_horas: Number(formData.nro_horas) || 0,
-        costo_total: (
-          ((formData.nro_horas || 0) * (formData.costo_honorarios || 0)) +
-          (formData.costo_impresion_material || 0) +
-          (formData.costo_traslado || 0) +
-          (formData.costo_logistica_comida || 0) +
-          (formData.costo_otros || 0)
-        ),
-        costo_impresion_material: Number(formData.costo_impresion_material) || 0,
-        costo_traslado: Number(formData.costo_traslado) || null,
-        costo_logistica_comida: Number(formData.costo_logistica_comida) || null,
-        costo_otros: Number(formData.costo_otros) || null,
-        estado: formData.estado || 'pendiente',
-        codigo_cliente: formData.codigo_cliente?.trim() || '',
-        rif: formData.rif?.trim() || '',
-        direccion_fiscal: formData.direccion_fiscal?.trim() || '',
-        direccion_envio: formData.direccion_envio?.trim() || '',
-        persona_contacto_id: Number(formData.persona_contacto_id) || null,
-        contacto_nombre: formData.contacto_nombre?.trim() || null,
-        contacto_apellido: formData.contacto_apellido?.trim() || null,
-        contacto_telefono: formData.contacto_telefono?.trim() || null,
-        contacto_email: formData.contacto_email?.trim() || null,
-        contacto_email2: formData.contacto_email2?.trim() || null,
         direccion_ejecucion: formData.direccion_ejecucion?.trim() || ''
       }
       
       if (isNew) {
         const { error } = await supabase.from("osi").insert([dataToSave])
-        if (error) {
-          throw error
-        }
+        if (error) throw error
       } else if (osi) {
         const { error } = await supabase.from("osi").update(dataToSave).eq("id", osi.id)
-        if (error) {  
-          throw error
-        } 
+        if (error) throw error
       }
       
       router.push('/dashboard/negocios')
     } catch (error) {
-      console.error('Error saving OSI:', error)
       setError(error instanceof Error ? error.message : 'Error al guardar la OSI')
     } finally {
       setIsLoading(false)
@@ -1076,11 +1046,11 @@ export default function OSIDetailPage() {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.nro_horas || 0)
-                      updateFormData('nro_horas', (currentValue + 1).toString())
+                      updateFormData('nro_horas', String(currentValue + 1))
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.nro_horas || 0)
-                      updateFormData('nro_horas', Math.max(0, currentValue - 1).toString())
+                      updateFormData('nro_horas', String(Math.max(0, currentValue - 1)))
                     }
                   }}
                   disabled={!isEditing && !isNew}
@@ -1100,11 +1070,11 @@ export default function OSIDetailPage() {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.costo_honorarios || 0)
-                      updateFormData('costo_honorarios', (currentValue + 1).toString())
+                      updateFormData('costo_honorarios', String(currentValue + 1))
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.costo_honorarios || 0)
-                      updateFormData('costo_honorarios', Math.max(0, currentValue - 1).toString())
+                      updateFormData('costo_honorarios', String(Math.max(0, currentValue - 1)))
                     }
                   }}
                   disabled={!isEditing && !isNew}
@@ -1130,11 +1100,11 @@ export default function OSIDetailPage() {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.costo_impresion_material || 0)
-                      updateFormData('costo_impresion_material', (currentValue + 1).toString())
+                      updateFormData('costo_impresion_material', String(currentValue + 1))
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.costo_impresion_material || 0)
-                      updateFormData('costo_impresion_material', Math.max(0, currentValue - 1).toString())
+                      updateFormData('costo_impresion_material', String(Math.max(0, currentValue - 1)))
                     }
                   }}
                   disabled={!isEditing && !isNew}
@@ -1154,11 +1124,11 @@ export default function OSIDetailPage() {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.costo_traslado || 0)
-                      updateFormData('costo_traslado', (currentValue + 1).toString())
+                      updateFormData('costo_traslado', String(currentValue + 1))
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.costo_traslado || 0)
-                      updateFormData('costo_traslado', Math.max(0, currentValue - 1).toString())
+                      updateFormData('costo_traslado', String(Math.max(0, currentValue - 1)))
                     }
                   }}
                   disabled={!isEditing && !isNew}
@@ -1178,11 +1148,11 @@ export default function OSIDetailPage() {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.costo_logistica_comida || 0)
-                      updateFormData('costo_logistica_comida', (currentValue + 1).toString())
+                      updateFormData('costo_logistica_comida', String(currentValue + 1))
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.costo_logistica_comida || 0)
-                      updateFormData('costo_logistica_comida', Math.max(0, currentValue - 1).toString())
+                      updateFormData('costo_logistica_comida', String(Math.max(0, currentValue - 1)))
                     }
                   }}
                   disabled={!isEditing && !isNew}
@@ -1202,11 +1172,11 @@ export default function OSIDetailPage() {
                     if (e.key === 'ArrowUp') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.costo_otros || 0)
-                      updateFormData('costo_otros', (currentValue + 1).toString())
+                      updateFormData('costo_otros', String(currentValue + 1))
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault()
                       const currentValue = parseFloat(formData.costo_otros || 0)
-                      updateFormData('costo_otros', Math.max(0, currentValue - 1).toString())
+                      updateFormData('costo_otros', String(Math.max(0, currentValue - 1)))
                     }
                   }}
                   disabled={!isEditing && !isNew}
