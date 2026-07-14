@@ -87,10 +87,10 @@ export class CertificateGenerator {
     await this.contentPage.addContentPageSinglePage(participant, certificateData, sealImage || '', controlNumbers, isPreview);
 
     // Return as blob
-    console.log('📄 Generating PDF blob...');
+    console.warn('📄 Generating PDF blob...');
     try {
       const blob = this.doc.output("blob");
-      console.log('✅ PDF blob generated successfully, size:', blob.size, 'bytes, type:', blob.type);
+      console.warn('✅ PDF blob generated successfully, size:', blob.size, 'bytes, type:', blob.type);
       return blob;
     } catch (blobError) {
       console.error('❌ Failed to generate PDF blob:', blobError);
@@ -143,10 +143,10 @@ export class CertificateGenerator {
     await this.contentPage.addContentPage(participant, certificateData, sealImage, controlNumbers, isPreview);
 
     // Return as blob
-    console.log('📄 Generating PDF blob (two-page)...');
+    console.warn('📄 Generating PDF blob (two-page)...');
     try {
       const blob = this.doc.output("blob");
-      console.log('✅ PDF blob generated successfully, size:', blob.size, 'bytes, type:', blob.type);
+      console.warn('✅ PDF blob generated successfully, size:', blob.size, 'bytes, type:', blob.type);
       return blob;
     } catch (blobError) {
       console.error('❌ Failed to generate PDF blob:', blobError);

@@ -127,11 +127,11 @@ export class ContentPage {
   ): void {
     if (!courseContent) return;
 
-    console.log('🔍 Original course content length:', courseContent.length);
-    console.log('🔍 Original course content (first 200 chars):', courseContent.substring(0, 200));
+    console.warn('🔍 Original course content length:', courseContent.length);
+    console.warn('🔍 Original course content (first 200 chars):', courseContent.substring(0, 200));
     const plainText = stripHtml(courseContent);
-    console.log('🔍 Stripped plain text length:', plainText.length);
-    console.log('🔍 Stripped plain text (first 200 chars):', plainText.substring(0, 200));
+    console.warn('🔍 Stripped plain text length:', plainText.length);
+    console.warn('🔍 Stripped plain text (first 200 chars):', plainText.substring(0, 200));
     const BASE_SIZE = 9;
     const MIN_SIZE = 5.5;
     const BASE_LINE_HEIGHT = 5; // mm at font size 9

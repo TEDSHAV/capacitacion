@@ -400,11 +400,23 @@ export const CertificatePreview = ({
               </div>
               
               <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <iframe
-                  src={showCarnet ? carnetPreviewUrl : previewUrl}
+                <object
+                  data={showCarnet ? carnetPreviewUrl : previewUrl}
+                  type="application/pdf"
                   className={`w-full ${showCarnet ? 'h-[300px]' : 'h-[400px]'}`}
-                  title={`${showCarnet ? 'Carnet' : 'Certificate'} Preview`}
-                />
+                  aria-label={`${showCarnet ? 'Carnet' : 'Certificate'} Preview`}
+                >
+                  <div className="p-4 text-sm text-gray-600 text-center">
+                    <p className="mb-2">No se puede mostrar la vista previa del PDF en este navegador.</p>
+                    <a
+                      href={showCarnet ? carnetPreviewUrl : previewUrl}
+                      download={`${showCarnet ? 'carnet' : 'certificado'}-preview.pdf`}
+                      className="text-blue-600 underline"
+                    >
+                      Descargar PDF para visualizar
+                    </a>
+                  </div>
+                </object>
               </div>
 
               <div className="flex justify-between items-center">
