@@ -21,7 +21,8 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
     addParticipant: addParticipantHook,
     removeParticipant,
     updateNewParticipant,
-    handleKeyPress: handleKeyPressHook
+    handleKeyPress: handleKeyPressHook,
+    error
   } = useParticipants(onChange, uniqueParticipants)
 
   const addParticipant = () => {
@@ -92,9 +93,9 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
         />
         <div className="flex items-center gap-1">
           <select
-            value={newParticipant.nacionalidad || 'venezolano'}
-            onChange={e => updateNewParticipant('nacionalidad', e.target.value)}
-            className="px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            value={newParticipant.nationality || 'venezolano'}
+            onChange={e => updateNewParticipant('nationality', e.target.value)}
+            className="w-16 px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="venezolano">V -</option>
             <option value="extranjero">E -</option>
@@ -105,7 +106,7 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
             onChange={e => updateNewParticipant('id_number', e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Cédula/Pasaporte"
-            className="w-40 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
         <input
@@ -113,19 +114,26 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
           value={newParticipant.score || ''}
           onChange={e => updateNewParticipant('score', parseInt(e.target.value) || 0)}
           onKeyPress={handleKeyPress}
-          placeholder="Calificación"
+          placeholder="Calif."
           min="0"
           max="20"
-          className="w-40 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
         <button
           type="button"
           onClick={addParticipant}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
         >
           Agregar
         </button>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
 
       {/* Participants List */}
       {uniqueParticipants.length > 0 && (
@@ -146,7 +154,7 @@ export const ParticipantsSection = ({ participants, onChange, passing_grade }: P
                       {participant.name}
                     </span>
                     <span className="text-gray-500 text-sm">
-                      ({participant.nacionalidad === 'venezolano' ? 'V-' : 'E-'}{participant.id_number})
+                      ({participant.nationality === 'venezolano' ? 'V-' : 'E-'}{participant.id_number})
                     </span>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${badgeStyles}`}>
                       {badgeText}
