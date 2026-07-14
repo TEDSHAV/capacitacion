@@ -301,7 +301,7 @@ export default function GeneracionCertificadoClient({
     setSelectedOSI(osi);
 
     if (osi) {
-      // Determine default date from OSI
+      // 1. Determine default date from OSI
       const osiDate =
         osi.fecha_emision ||
         osi.fecha_servicio ||
@@ -311,43 +311,18 @@ export default function GeneracionCertificadoClient({
           ? osiDate.split("T")[0]
           : new Date(osiDate).toISOString().split("T")[0];
 
-      // Fetch the assigned facilitator for this OSI
+      // 2. Fetch the assigned facilitator for this OSI
       const facilitatorResult = await getFacilitatorByOSI(parseInt(osi.id));
       console.log(`[GeneracionCertificado] Facilitator search result for OSI ${osi.id}:`, facilitatorResult);
 
-      setCertificateData((prev) => ({
-        ...prev,
-        osi_id: osi.id,
-        osi_data: osi,
-        course_topic_id: "",
-        course_topic_data: undefined,
-        course_content: "",
-        date: formattedDate,
-        location: (() => {
-          if (osi.id_ciudad) {
-            const city = cities.find((c) => c.id === osi.id_ciudad);
-            if (city) return city.nombre_ciudad;
-          }
-          return prev.location || "Puerto La Cruz";
-        })(),
-        // Pre-populate facilitator if found in database
-        facilitator_id: facilitatorResult?.data?.id?.toString() || prev.facilitator_id,
-        facilitator_data: facilitatorResult?.data || prev.facilitator_data,
-      }));
-      setSelectedCourseTopic(null);
-
-      // id_curso is id_servicio from v_osi_formato_completo — direct match against catalogo_servicios.id
+      // 3. Find matching course
       let selectedCourse: CourseTopic | null = null;
-
-      // 1. Try ID matching (direct from view)
       if (osi.id_curso) {
         selectedCourse =
           courses.find(
             (topic: CourseTopic) => topic.id === osi.id_curso!.toString(),
           ) || null;
       }
-
-      // 2. Try Name matching as fallback (Manejo defensivo, etc.)
       if (!selectedCourse && (osi.curso_nombre || osi.detalle_capacitacion)) {
         const targetName = (
           osi.curso_nombre ||
@@ -362,27 +337,40 @@ export default function GeneracionCertificadoClient({
           ) || null;
       }
 
-      // Auto-select the course if found
-      if (selectedCourse) {
-        const passingGrade = selectedCourse.nota_aprobatoria ?? 14;
+      // 4. Determine pre-population data with fallbacks
+      const title = selectedCourse?.name || osi.curso_nombre || osi.detalle_capacitacion || "";
+      const hours = selectedCourse?.horas_estimadas || osi.nro_horas || undefined;
+      const location = (() => {
+        if (osi.id_ciudad) {
+          const city = cities.find((c) => c.id === osi.id_ciudad);
+          if (city) return city.nombre_ciudad;
+        }
+        return osi.direccion_ejecucion || "Puerto La Cruz";
+      })();
 
-        setCertificateData((prev) => ({
-          ...prev,
-          course_topic_id: selectedCourse.id,
-          course_topic_data: selectedCourse,
-          // Don't set course_content or course_template_id here — the hook
-          // will set them after templates finish loading to avoid race conditions
-          course_content: "",
-          course_template_id: "",
-          passing_grade: passingGrade,
-          horas_estimadas: selectedCourse.horas_estimadas,
-          certificate_title: selectedCourse.name,
-          id_plantilla_certificado:
-            selectedCourse.id_plantilla_certificado ||
-            prev.id_plantilla_certificado,
-        }));
-        setSelectedCourseTopic(selectedCourse);
-      }
+      // 5. Perform SINGLE state update to avoid race conditions
+      setCertificateData((prev) => ({
+        ...prev,
+        osi_id: osi.id,
+        osi_data: osi,
+        course_topic_id: selectedCourse?.id || "",
+        course_topic_data: selectedCourse || undefined,
+        course_content: selectedCourse?.contenido_curso || "",
+        course_template_id: "",
+        date: formattedDate,
+        location: location,
+        passing_grade: selectedCourse?.nota_aprobatoria ?? 14,
+        horas_estimadas: hours,
+        certificate_title: title,
+        // Pre-populate facilitator if found in database
+        facilitator_id: facilitatorResult?.data?.id?.toString() || prev.facilitator_id,
+        facilitator_data: facilitatorResult?.data || prev.facilitator_data,
+        id_plantilla_certificado:
+          selectedCourse?.id_plantilla_certificado ||
+          prev.id_plantilla_certificado,
+      }));
+
+      setSelectedCourseTopic(selectedCourse);
     } else {
       setCertificateData((prev) => ({
         ...prev,
@@ -392,6 +380,11 @@ export default function GeneracionCertificadoClient({
         course_topic_data: undefined,
         course_content: "",
         passing_grade: 14,
+        certificate_title: "",
+        location: "Puerto La Cruz",
+        horas_estimadas: undefined,
+        facilitator_id: undefined,
+        facilitator_data: undefined,
       }));
       setSelectedCourseTopic(null);
     }
