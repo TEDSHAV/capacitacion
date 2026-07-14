@@ -535,7 +535,6 @@ export interface DashboardStats {
 
 export interface CapacitacionClientProps {
   user: User;
-  companies: Company[];
   stats?: DashboardStats;
 }
 

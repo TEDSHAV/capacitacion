@@ -14,7 +14,6 @@ export default async function CapacitacionPage() {
     {
       data: { user },
     },
-    { data: companies },
     { count: cursosCount },
     { count: participantesCount },
     { count: certificadosCount },
@@ -22,10 +21,6 @@ export default async function CapacitacionPage() {
     { count: certificadosMesCount },
   ] = await Promise.all([
     supabase.auth.getUser(),
-    supabase
-      .from("empresas")
-      .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
-      .order("razon_social"),
     supabase
       .from("catalogo_servicios")
       .select("*", { count: "exact", head: true })
@@ -50,7 +45,6 @@ export default async function CapacitacionPage() {
   return (
     <CapacitacionClient
       user={user}
-      companies={companies || []}
       stats={{
         cursosActivos: cursosCount ?? 0,
         participantes: participantesCount ?? 0,

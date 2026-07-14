@@ -21,8 +21,6 @@ import {
   TrendingUp,
   CalendarDays,
   Briefcase,
-  Building2,
-  KeyRound,
   Sparkles,
 } from "lucide-react";
 
@@ -131,15 +129,6 @@ export default function CapacitacionClient({
         { id: "reportes", title: "Estadísticas y Reportes", icon: BarChart3 },
       ],
     },
-    {
-      id: "clientes",
-      title: "Clientes",
-      gradient: "from-cyan-500 to-blue-600",
-      icon: Building2,
-      modules: [
-        { id: "credenciales-clientes", title: "Credenciales de Clientes", icon: KeyRound, isExternal: true },
-      ],
-    },
   ];
 
   return (
@@ -235,20 +224,6 @@ export default function CapacitacionClient({
                 <div className="space-y-3">
                   {cat.modules.map((mod) => {
                     const ModIcon = mod.icon;
-                    if ("isExternal" in mod && mod.isExternal) {
-                      return (
-                        <a
-                          key={mod.id}
-                          href="/credenciales-clientes"
-                          target="_top"
-                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors w-full text-left"
-                        >
-                          <ModIcon className="w-4 h-4" />
-                          {mod.title}
-                          <ChevronRight className="w-3 h-3 ml-auto opacity-50" />
-                        </a>
-                      );
-                    }
                     return (
                       <Link
                         key={mod.id}
