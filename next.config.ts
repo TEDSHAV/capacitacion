@@ -3,91 +3,93 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Turbopack configuration
   turbopack: {},
-  
+
   // Security headers and optimizations
   poweredByHeader: false,
-  
+
   // Image optimization with remotePatterns (new way)
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', '') || '',
-        port: '',
-        pathname: '/**',
+        protocol: "https",
+        hostname:
+          process.env.NEXT_PUBLIC_SUPABASE_URL?.replace("https://", "") || "",
+        port: "",
+        pathname: "/**",
       },
       {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        port: "",
+        pathname: "/**",
       },
       {
-        protocol: 'https',
-        hostname: 'avatars.githubusercontent.com',
-        port: '',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "avatars.githubusercontent.com",
+        port: "",
+        pathname: "/**",
       },
     ],
-    formats: ['image/webp', 'image/avif'],
+    formats: ["image/webp", "image/avif"],
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 
   // Performance optimizations
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production'
-      ? { exclude: ['error', 'warn'] }
-      : false,
+    removeConsole:
+      process.env.NODE_ENV === "production"
+        ? { exclude: ["error", "warn"] }
+        : false,
   },
 
   // Experimental features
   experimental: {
     optimizeCss: true,
-    optimizePackageImports: ['@supabase/supabase-js', 'lucide-react', 'jspdf'],
+    optimizePackageImports: ["@supabase/supabase-js", "lucide-react", "jspdf"],
   },
 
   // Redirects for SEO and security
   async redirects() {
     return [
       {
-        source: '/admin',
-        destination: '/dashboard',
+        source: "/admin",
+        destination: "/dashboard",
         permanent: true,
       },
-    ]
+    ];
   },
 
   // Headers for security
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: "/(.*)",
         headers: [
           {
-            key: 'X-DNS-Prefetch-Control',
-            value: 'on'
+            key: "X-DNS-Prefetch-Control",
+            value: "on",
           },
           {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block'
+            key: "X-XSS-Protection",
+            value: "1; mode=block",
           },
           {
-            key: 'Content-Security-Policy',
-            value: `frame-ancestors 'self' ${process.env.NEXT_PUBLIC_SHELL_URL || ''} http://localhost:3000`
+            key: "Content-Security-Policy",
+            value: `frame-ancestors 'self' ${process.env.NEXT_PUBLIC_SHELL_URL || ""} http://localhost:3000`,
           },
           {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff'
+            key: "X-Content-Type-Options",
+            value: "nosniff",
           },
           {
-            key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin'
-          }
-        ]
-      }
-    ]
-  }
+            key: "Referrer-Policy",
+            value: "origin-when-cross-origin",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

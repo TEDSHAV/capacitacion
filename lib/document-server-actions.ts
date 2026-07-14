@@ -1,7 +1,12 @@
 "use server";
 
 import { TemplateData } from "./document-templates-new";
-import { TemplateBasedPdfGenerator } from "./template-based-pdf-generator";
+import { generatePdfFromHtml } from "./pdf-service";
+import {
+  buildCertificacionCompetenciasHtml,
+  buildNotaEntregaHtml,
+  buildValidacionDatosHtml,
+} from "./document-html-templates";
 
 export interface DocumentGenerationRequest {
   certificates: any[];
@@ -153,7 +158,6 @@ export async function generateDocumentsServer(
       })),
     } as TemplateData;
 
-    const processor = new TemplateBasedPdfGenerator();
     const documents: { [key: string]: string } = {};
     const errors: string[] = [];
 
@@ -164,8 +168,8 @@ export async function generateDocumentsServer(
       tasks.push(
         (async () => {
           try {
-            const buffer =
-              await processor.generateCertificacionCompetencias(templateData);
+            const html = buildCertificacionCompetenciasHtml(templateData);
+            const buffer = await generatePdfFromHtml(html);
             documents.certificacion_competencias = buffer.toString("base64");
           } catch (error) {
             const errorMsg = `Failed to generate certificacion de competencias: ${error instanceof Error ? error.message : "Unknown error"}`;
@@ -179,7 +183,8 @@ export async function generateDocumentsServer(
       tasks.push(
         (async () => {
           try {
-            const buffer = await processor.generateNotaEntrega(templateData);
+            const html = buildNotaEntregaHtml(templateData);
+            const buffer = await generatePdfFromHtml(html);
             documents.nota_entrega = buffer.toString("base64");
           } catch (error) {
             const errorMsg = `Failed to generate nota de entrega: ${error instanceof Error ? error.message : "Unknown error"}`;
@@ -193,8 +198,8 @@ export async function generateDocumentsServer(
       tasks.push(
         (async () => {
           try {
-            const buffer =
-              await processor.generateValidacionDatos(templateData);
+            const html = buildValidacionDatosHtml(templateData);
+            const buffer = await generatePdfFromHtml(html);
             documents.validacion_datos = buffer.toString("base64");
           } catch (error) {
             const errorMsg = `Failed to generate validacion de datos: ${error instanceof Error ? error.message : "Unknown error"}`;

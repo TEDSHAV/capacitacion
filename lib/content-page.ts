@@ -35,13 +35,14 @@ export class ContentPage {
     isPreview?: boolean,
   ): Promise<void> {
     const { contentPage } = this.config;
+    const margin = contentPage.margin ?? 10; // Default to 10mm if not specified
 
     // Define content area - use upper half for back of certificate
     const contentArea = {
-      x: contentPage.margin,
-      y: contentPage.margin,
-      width: this.pageWidth - contentPage.margin * 2,
-      height: contentPage.upperHalfHeight - contentPage.margin * 2,
+      x: margin,
+      y: margin,
+      width: this.pageWidth - margin * 2,
+      height: (contentPage.upperHalfHeight ?? 0) - margin * 2,
     };
 
     // Define column layout
@@ -78,7 +79,7 @@ export class ContentPage {
   /**
    * Add content in the lower half of the same page (for single-page certificates)
    */
-  async addContentPageSinglePage(
+  async addBackPage(
     participant: CertificateParticipant,
     certificateData: CertificateGeneration,
     sealImage?: string,
@@ -86,14 +87,15 @@ export class ContentPage {
     isPreview?: boolean,
   ): Promise<void> {
     const { contentPage } = this.config;
+    const margin = contentPage.margin ?? 10;
+    const upperHalfHeight = contentPage.upperHalfHeight ?? 0;
 
     // Define content area in lower half of page
     const contentArea = {
-      x: contentPage.margin,
-      y: contentPage.upperHalfHeight + contentPage.margin,
-      width: this.pageWidth - contentPage.margin * 2,
-      height:
-        this.pageHeight - contentPage.upperHalfHeight - contentPage.margin * 2,
+      x: margin,
+      y: upperHalfHeight + margin,
+      width: this.pageWidth - margin * 2,
+      height: this.pageHeight - upperHalfHeight - margin * 2,
     };
 
     // Define column layout
@@ -257,7 +259,7 @@ export class ContentPage {
   ): Promise<void> {
     const { contentPage } = this.config;
     const tableY = currentY - 5;
-    const cellHeight = contentPage.tableCellHeight;
+    const cellHeight = contentPage.tableCellHeight ?? 8;
 
     // Reset state for table
     this.doc.setCharSpace(0);
@@ -429,11 +431,9 @@ export class ContentPage {
     // Priority 2: Use top-level seal config if it exists
     // Priority 3: Fallback to dynamic calculation relative to the table
     const sealY = contentPage.sealY ?? seal?.y ?? tableY + cellHeight * 4 + 8;
+    const sealSize = seal?.size ?? contentPage.sealSize ?? 30;
     const sealX =
-      contentPage.sealX ??
-      seal?.x ??
-      tableX + tableWidth / 2 - (seal?.size ?? contentPage.sealSize) / 2;
-    const sealSize = seal?.size ?? contentPage.sealSize;
+      contentPage.sealX ?? seal?.x ?? tableX + tableWidth / 2 - sealSize / 2;
 
     try {
       // Check if we're in a server environment

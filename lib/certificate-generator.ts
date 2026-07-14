@@ -131,7 +131,7 @@ export class CertificateGenerator {
     }
 
     // Add content in the lower half of the same page
-    await contentPage.addContentPageSinglePage(
+    await contentPage.addBackPage(
       participant,
       certificateData,
       sealImage,
