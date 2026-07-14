@@ -186,8 +186,11 @@ export default function NegociosPage() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   OSI - {osi.nro_osi}
                 </h3>
-                <p className="text-gray-600 text-sm mb-4">
+                <p className="text-gray-600 text-sm mb-2">
                   {osi.nombre_empresa}
+                </p>
+                <p className="text-gray-400 text-xs mb-4">
+                  {osi.cliente_nombre_empresa}
                 </p>
                 <div className="flex items-center justify-between">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(osi.estado)}`}>
