@@ -392,15 +392,15 @@ export default function FacilitadoresReport({
                               }
                             </span>
                             {f.courseNames.length > 2 && (
-                              <button
+                              <span
                                 onClick={() => toggleCourseExpansion(f.id)}
-                                className="text-xs text-sky-600 hover:text-sky-800 ml-1 underline cursor-pointer"
+                                className="text-xs text-blue-600 hover:text-blue-800 ml-1 font-medium transition-colors duration-200 cursor-pointer underline decoration-dotted decoration-blue-400 hover:decoration-solid"
                               >
                                 {expandedCourses.has(f.id) 
                                   ? 'mostrar menos'
                                   : `+${f.courseNames.length - 2} más`
                                 }
-                              </button>
+                              </span>
                             )}
                           </>
                         ) : (
