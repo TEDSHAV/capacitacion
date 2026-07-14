@@ -1327,6 +1327,7 @@ export interface MonthlyTrendPoint {
   key: string;
   label: string;
   count: number;
+  courseCount: number;
 }
 
 export interface OverviewMetrics {
@@ -1340,8 +1341,9 @@ export interface OverviewMetrics {
   uniqueFacilitators: number;
   uniqueCourses: number;
   uniqueCompanies: number;
-  topCourses: Array<{ name: string; count: number; avgScore: number }>;
-  topCompanies: Array<{ name: string; count: number }>;
+  totalCoursesTaught: number;
+  topCourses: Array<{ name: string; count: number; avgScore: number; courseCount: number }>;
+  topCompanies: Array<{ name: string; count: number; courseCount: number }>;
   monthlyTrend: MonthlyTrendPoint[];
   // Carnets metrics
   totalCarnets: number;
@@ -1358,8 +1360,9 @@ export interface CursoReportItem {
   avgScore: number;
   totalHours: number;
   facilitadoresCount: number;
-  facilitadores: Array<{ id: number; nombre: string; certs: number }>;
+  facilitadores: Array<{ id: number; nombre: string; certs: number; courseCount: number }>;
   lastActivity: string | null;
+  courseCount: number;
 }
 
 export interface FacilitadorReportItem {

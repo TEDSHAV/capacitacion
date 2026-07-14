@@ -92,7 +92,7 @@ function MonthlyTrendChart({
             >
               {/* Tooltip */}
               <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                {m.count} certs
+                {m.count} certs en {m.courseCount} cursos
               </div>
               <div className="w-full flex-1 flex items-end">
                 <div
@@ -123,7 +123,7 @@ function TopList({
   valueLabel,
 }: {
   title: string;
-  items: Array<{ name: string; count: number; avgScore?: number }>;
+  items: Array<{ name: string; count: number; avgScore?: number; courseCount?: number }>;
   valueLabel: string;
 }) {
   const maxVal = Math.max(...items.map((i) => i.count), 1);
@@ -150,6 +150,11 @@ function TopList({
                 </div>
                 <span className="text-xs font-semibold text-gray-800 ml-2 flex-shrink-0">
                   {item.count} {valueLabel}
+                  {item.courseCount !== undefined && (
+                    <span className="text-xs text-gray-500 ml-1">
+                      en {item.courseCount} cursos
+                    </span>
+                  )}
                 </span>
               </div>
               <div className="w-full bg-gray-100 rounded-full h-1.5 ml-7">
@@ -304,7 +309,7 @@ export default function OverviewReport({
       </div>
 
       {/* Secondary KPI row */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center gap-4">
           <BookOpen className="w-5 h-5 text-sky-400 flex-shrink-0" />
           <div>
@@ -330,6 +335,15 @@ export default function OverviewReport({
               {data.uniqueCompanies}
             </p>
             <p className="text-xs text-gray-500">Empresas con certificados</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center gap-4">
+          <BookOpen className="w-5 h-5 text-green-400 flex-shrink-0" />
+          <div>
+            <p className="text-xl font-bold text-gray-900">
+              {data.totalCoursesTaught}
+            </p>
+            <p className="text-xs text-gray-500">Cursos dictados</p>
           </div>
         </div>
       </div>

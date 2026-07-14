@@ -270,8 +270,13 @@ export default function CursosReport({
                   >
                     {c.nombre}
                   </span>
-                  <div className="w-24 flex-shrink-0">
-                    <HorizontalBar value={c.totalCertificates} max={maxCerts} />
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="w-20">
+                      <HorizontalBar value={c.totalCertificates} max={maxCerts} />
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {c.totalCertificates} cert. en {c.courseCount || 0} cursos
+                    </span>
                   </div>
                 </div>
               ))}
@@ -325,6 +330,9 @@ export default function CursosReport({
                     >
                       Certs.
                     </SortButton>
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    Cursos
                   </th>
                   <th className="px-4 py-3 text-right">
                     <SortButton
@@ -382,6 +390,11 @@ export default function CursosReport({
                       <td className="px-4 py-3.5 text-right">
                         <span className="text-sm font-semibold text-sky-700">
                           {course.totalCertificates}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <span className="text-xs text-gray-600">
+                          {course.courseCount || 0}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-right">
@@ -444,7 +457,7 @@ export default function CursosReport({
                                   {f.nombre}
                                 </span>
                                 <span className="text-[10px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full font-medium">
-                                  {f.certs} cert.
+                                  {f.certs} cert. en {f.courseCount || 0} cursos
                                 </span>
                               </div>
                             ))}

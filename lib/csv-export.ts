@@ -100,6 +100,7 @@ export function exportCursosReport(data: any[]): void {
   const headers = [
     'Curso',
     'Total Certificados',
+    'Cantidad Cursos',
     'Calificación Promedio',
     'Horas Totales',
     'Cantidad Facilitadores',
@@ -110,6 +111,7 @@ export function exportCursosReport(data: any[]): void {
   const excelData = data.map(item => ({
     'Curso': item.nombre,
     'Total Certificados': item.totalCertificates,
+    'Cantidad Cursos': item.courseCount || 0,
     'Calificación Promedio': item.avgScore > 0 ? parseFloat(item.avgScore.toFixed(1)) : 0,
     'Horas Totales': item.totalHours,
     'Cantidad Facilitadores': item.facilitadoresCount,

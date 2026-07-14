@@ -133,6 +133,7 @@ export async function getOverviewMetrics(
       uniqueFacilitators: 0,
       uniqueCourses: 0,
       uniqueCompanies: 0,
+      totalCoursesTaught: 0,
       topCourses: [],
       topCompanies: [],
       monthlyTrend: [],
@@ -160,10 +161,13 @@ export async function getOverviewMetrics(
 
     const courseMap = new Map<
       number,
-      { name: string; count: number; totalScore: number; scoreCount: number }
+      { name: string; count: number; totalScore: number; scoreCount: number; courseCount: number }
     >();
-    const companyMap = new Map<number, { name: string; count: number }>();
+    const companyMap = new Map<number, { name: string; count: number; courseCount: number }>();
     const monthMap = new Map<string, number>();
+    const courseTopicOSIs = new Map<number, Set<string>>(); // Track unique OSIs per course topic
+    const companyOSIs = new Map<number, Set<string>>(); // Track unique OSIs per company
+    const monthlyOSIs = new Map<string, Set<string>>(); // Track unique OSIs per month
 
     // Track processed OSIs to avoid double-counting hours
     const processedOSIs = new Set<string>();
@@ -192,6 +196,14 @@ export async function getOverviewMetrics(
         if (d.getFullYear() === currentYear) certsThisYear++;
         const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         monthMap.set(mk, (monthMap.get(mk) || 0) + 1);
+        
+        // Track unique OSIs per month to count actual courses
+        if (cert.nro_osi) {
+          if (!monthlyOSIs.has(mk)) {
+            monthlyOSIs.set(mk, new Set());
+          }
+          monthlyOSIs.get(mk)!.add(cert.nro_osi.toString());
+        }
       }
 
       if (cert.id_participante) uniqueParticipants.add(cert.id_participante);
@@ -206,10 +218,18 @@ export async function getOverviewMetrics(
             count: 0,
             totalScore: 0,
             scoreCount: 0,
+            courseCount: 0,
           });
         }
         const c = courseMap.get(cert.id_curso)!;
         c.count++;
+        // Track unique OSIs per course topic to count actual courses
+        if (cert.nro_osi) {
+          if (!courseTopicOSIs.has(cert.id_curso)) {
+            courseTopicOSIs.set(cert.id_curso, new Set());
+          }
+          courseTopicOSIs.get(cert.id_curso)!.add(cert.nro_osi.toString());
+        }
         if (cert.calificacion != null) {
           c.totalScore += cert.calificacion;
           c.scoreCount++;
@@ -222,9 +242,19 @@ export async function getOverviewMetrics(
           companyMap.set(cert.id_empresa, {
             name: cert.empresas?.razon_social || "Desconocido",
             count: 0,
+            courseCount: 0,
           });
         }
-        companyMap.get(cert.id_empresa)!.count++;
+        const company = companyMap.get(cert.id_empresa)!;
+        company.count++;
+        
+        // Track unique OSIs per company to count actual courses
+        if (cert.nro_osi) {
+          if (!companyOSIs.has(cert.id_empresa)) {
+            companyOSIs.set(cert.id_empresa, new Set());
+          }
+          companyOSIs.get(cert.id_empresa)!.add(cert.nro_osi.toString());
+        }
       }
     });
 
@@ -236,31 +266,43 @@ export async function getOverviewMetrics(
         month: "short",
         year: "2-digit",
       });
-      monthlyTrend.push({ key: mk, label: lbl, count: monthMap.get(mk) || 0 });
+      monthlyTrend.push({ 
+        key: mk, 
+        label: lbl, 
+        count: monthMap.get(mk) || 0,
+        courseCount: monthlyOSIs.get(mk)?.size || 0
+      });
     }
 
-    const topCourses = Array.from(courseMap.values())
-      .sort((a, b) => b.count - a.count)
+    const topCourses = Array.from(courseMap.entries())
+      .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 5)
-      .map((c) => ({
+      .map(([courseTopicId, c]) => ({
         name: c.name,
         count: c.count,
         avgScore:
           c.scoreCount > 0
             ? parseFloat((c.totalScore / c.scoreCount).toFixed(1))
             : 0,
+        courseCount: courseTopicOSIs.get(courseTopicId)?.size || 0,
       }));
 
-    const topCompanies = Array.from(companyMap.values())
-      .sort((a, b) => b.count - a.count)
+    const topCompanies = Array.from(companyMap.entries())
+      .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 5)
-      .map((c) => ({ name: c.name, count: c.count }));
+      .map(([companyId, c]) => ({
+        name: c.name,
+        count: c.count,
+        courseCount: companyOSIs.get(companyId)?.size || 0,
+      }));
+
+    // Calculate total courses taught (unique OSIs across all course topics)
+    const totalCoursesTaught = Array.from(courseTopicOSIs.values())
+      .reduce((total, osiSet) => total + osiSet.size, 0);
 
     // Calculate carnet metrics
-    console.log("🔍 Carnets data received:", carnets?.length || 0, "carnets");
     const totalCarnets = carnets?.length || 0;
     const activeCarnets = carnets?.filter(c => c.is_active).length || 0;
-    console.log("🔍 Carnet metrics calculated:", { totalCarnets, activeCarnets });
     
     // Calculate expiration metrics
     const currentDate = new Date();
@@ -296,6 +338,7 @@ export async function getOverviewMetrics(
         uniqueFacilitators: uniqueFacilitators.size,
         uniqueCourses: uniqueCourses.size,
         uniqueCompanies: uniqueCompanies.size,
+        totalCoursesTaught,
         topCourses,
         topCompanies,
         monthlyTrend,
@@ -364,6 +407,8 @@ export async function getCursosReport(
 
     // Use global OSI deduplication (consistent with Vista General)
     const processedOSIs = new Set<string>();
+    const courseTopicOSIs = new Map<number, Set<string>>(); // Track unique OSIs per course topic
+    const facilitadorOSIs = new Map<string, Set<string>>(); // Track unique OSIs per facilitador
 
     const courseMap = new Map<
       number,
@@ -377,7 +422,7 @@ export async function getCursosReport(
         totalHours: number;
         facilitadores: Map<
           number,
-          { id: number; nombre: string; certs: number }
+          { id: number; nombre: string; certs: number; courseCount: number }
         >;
         lastActivity: string | null;
       }
@@ -405,6 +450,14 @@ export async function getCursosReport(
       const course = courseMap.get(cid)!;
       course.totalCerts++;
       
+      // Track unique OSIs per course topic to count actual courses
+      if (cert.nro_osi) {
+        if (!courseTopicOSIs.has(cid)) {
+          courseTopicOSIs.set(cid, new Set());
+        }
+        courseTopicOSIs.get(cid)!.add(cert.nro_osi.toString());
+      }
+      
       // Use global OSI deduplication for hours calculation (consistent with Vista General)
       const osiId = cert.nro_osi?.toString();
       if (osiId && !processedOSIs.has(osiId)) {
@@ -430,14 +483,24 @@ export async function getCursosReport(
             id: cert.id_facilitador,
             nombre: cert.facilitadores.nombre_apellido || "Desconocido",
             certs: 0,
+            courseCount: 0,
           });
         }
         course.facilitadores.get(cert.id_facilitador)!.certs++;
+        
+        // Track unique OSIs per facilitador to count actual courses
+        if (cert.nro_osi) {
+          const facilitadorKey = `${cid}-${cert.id_facilitador}`;
+          if (!facilitadorOSIs.has(facilitadorKey)) {
+            facilitadorOSIs.set(facilitadorKey, new Set());
+          }
+          facilitadorOSIs.get(facilitadorKey)!.add(cert.nro_osi.toString());
+        }
       }
     });
 
-    const result = Array.from(courseMap.values())
-      .map((c) => ({
+    const result = Array.from(courseMap.entries())
+      .map(([courseTopicId, c]) => ({
         id: c.id,
         nombre: c.nombre,
         totalCertificates: c.totalCerts,
@@ -447,10 +510,14 @@ export async function getCursosReport(
             : 0,
         totalHours: c.totalHours,
         facilitadoresCount: c.facilitadores.size,
-        facilitadores: Array.from(c.facilitadores.values()).sort(
+        facilitadores: Array.from(c.facilitadores.entries()).map(([facilitadorId, f]) => ({
+          ...f,
+          courseCount: facilitadorOSIs.get(`${courseTopicId}-${facilitadorId}`)?.size || 0,
+        })).sort(
           (a, b) => b.certs - a.certs,
         ),
         lastActivity: c.lastActivity,
+        courseCount: courseTopicOSIs.get(courseTopicId)?.size || 0,
       }))
       .sort((a, b) => b.totalCertificates - a.totalCertificates);
 

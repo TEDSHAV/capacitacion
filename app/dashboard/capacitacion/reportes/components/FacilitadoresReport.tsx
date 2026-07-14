@@ -223,7 +223,7 @@ export default function FacilitadoresReport({
                             {f.estado_nombre}
                           </span>
                           <span className="text-xs font-semibold text-sky-700">
-                            {f.totalCerts} cert.
+                            {f.totalCerts} cert. en {f.uniqueCourses} cursos
                           </span>
                         </div>
                       </div>
@@ -339,6 +339,9 @@ export default function FacilitadoresReport({
                     Horas
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    Nombres
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
                     Cursos
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
@@ -407,6 +410,11 @@ export default function FacilitadoresReport({
                           <span className="text-xs text-gray-400">—</span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="text-xs text-gray-600">
+                        {f.uniqueCourses}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-right">
                       {f.avgScore > 0 ? (
