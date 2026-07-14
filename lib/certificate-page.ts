@@ -138,8 +138,8 @@ export class CertificatePage {
       // Check if we're in a server environment
       if (typeof window === "undefined") {
         // Server environment - use fs to read image file
-        const fs = require("fs");
-        const path = require("path");
+        const fs = await import("fs");
+        const path = await import("path");
 
         // Convert URL to file path
         let imagePath = imageUrl;
