@@ -28,28 +28,18 @@ export async function saveCarnetsToDatabase(
 
     const carnetIds: number[] = [];
 
-    for (let i = 0; i < carnetData.length; i++) {
-      const carnet = carnetData[i];
+    // Process all carnets in parallel for much faster preparation
+    const carnetPromises = carnetData.map(async (carnet, i) => {
       const certificateId = certificateIds[i];
-
-      console.log(`🔄 Processing carnet ${i + 1}/${carnetData.length}:`, {
-        certificateId,
-        participantName: carnet.nombre_participante,
-        courseTitle: carnet.titulo_curso
-      });
-
       try {
         // Generate QR code for carnet verification
         const qrData = QRService.generateQRData(certificateId);
-        console.log('📱 QR data generated:', qrData);
-
         const qrDataURL = await QRService.generateQRDataURL({
           data: qrData,
           size: 150,
           level: 'M',
           includeMargin: true
         });
-        console.log('📱 QR URL generated successfully');
 
         // Create snapshot content for carnet
         const snapshotContent = JSON.stringify({
@@ -58,53 +48,60 @@ export async function saveCarnetsToDatabase(
           generated_at: new Date().toISOString()
         });
 
-        console.log('💾 Inserting carnet into database...');
-        const { data, error } = await supabase
-          .from('carnets')
-          .insert({
-            id_certificado: certificateId,
-            id_participante: carnet.id_participante,
-            id_empresa: carnet.id_empresa,
-            id_curso: carnet.id_curso,
-            id_osi: carnet.id_osi,
-            titulo_curso: carnet.titulo_curso,
-            fecha_emision: carnet.fecha_emision,
-            fecha_vencimiento: carnet.fecha_vencimiento,
-            nombre_participante: carnet.nombre_participante,
-            cedula_participante: carnet.cedula_participante,
-            empresa_participante: carnet.empresa_participante,
-            qr_code: qrDataURL,
-            snapshot_contenido: snapshotContent,
-            is_active: true
-          })
-          .select('id')
-          .single();
-
-        if (error) {
-          console.error('❌ Database error inserting carnet:', error);
-          return {
-            success: false,
-            message: `Error saving carnet ${i + 1}: ${error.message}`
-          };
-        }
-
-        console.log(`✅ Carne ${i + 1} saved with ID:`, data.id);
-        carnetIds.push(data.id);
-
-      } catch (carnetError) {
-        console.error(`💥 Error processing carnet ${i + 1}:`, carnetError);
         return {
-          success: false,
-          message: `Error processing carnet ${i + 1}: ${carnetError instanceof Error ? carnetError.message : 'Unknown error'}`
+          id_certificado: certificateId,
+          id_participante: carnet.id_participante,
+          id_empresa: carnet.id_empresa,
+          id_curso: carnet.id_curso,
+          id_osi: carnet.id_osi,
+          titulo_curso: carnet.titulo_curso,
+          fecha_emision: carnet.fecha_emision,
+          fecha_vencimiento: carnet.fecha_vencimiento,
+          nombre_participante: carnet.nombre_participante,
+          cedula_participante: carnet.cedula_participante,
+          empresa_participante: carnet.empresa_participante,
+          qr_code: qrDataURL,
+          snapshot_contenido: snapshotContent,
+          is_active: true
         };
+      } catch (err) {
+        console.error(`💥 Error preparing carnet data for participant ${carnet.nombre_participante}:`, err);
+        throw err;
       }
+    });
+
+    const preparedCarnets = await Promise.all(carnetPromises);
+
+    console.log('💾 Inserting carnets in bulk into database...');
+    const { data, error } = await supabase
+      .from('carnets')
+      .insert(preparedCarnets)
+      .select('id');
+
+    if (error) {
+      console.error('❌ Database error bulk inserting carnets:', error);
+      return {
+        success: false,
+        message: `Error saving carnets: ${error.message}`
+      };
     }
 
-    console.log(`🎉 Successfully saved ${carnetIds.length} carnets to database`);
+    if (data) {
+      // Map returned data to IDs correctly
+      const ids = data.map(row => row.id);
+      console.log(`✅ ${ids.length} carnets saved with IDs:`, ids);
+      
+      return {
+        success: true,
+        message: `Successfully saved ${ids.length} carnets`,
+        carnetIds: ids
+      };
+    }
+
     return {
       success: true,
-      message: `Successfully saved ${carnetIds.length} carnets`,
-      carnetIds
+      message: `Successfully saved ${preparedCarnets.length} carnets`,
+      carnetIds: []
     };
 
   } catch (error) {

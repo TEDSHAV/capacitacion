@@ -40,7 +40,6 @@ export class QRService {
     try {
       return await QRCode.toDataURL(qrData, options);
     } catch (error) {
-      console.error('Error generating QR code:', error);
       throw new Error('Failed to generate QR code');
     }
   }
@@ -67,7 +66,6 @@ export class QRService {
     try {
       return await QRCode.toBuffer(qrData, options);
     } catch (error) {
-      console.error('Error generating QR code buffer:', error);
       throw new Error('Failed to generate QR code buffer');
     }
   }
@@ -94,7 +92,6 @@ export class QRService {
         generatedAt: new Date().toISOString()
       };
     } catch (error) {
-      console.error('Error parsing QR data:', error);
       return null;
     }
   }

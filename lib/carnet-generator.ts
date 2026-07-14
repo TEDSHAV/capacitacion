@@ -2,6 +2,11 @@ import jsPDF from "jspdf";
 import { CarnetGeneration, CarnetRequest } from "@/types";
 import { QRService } from "@/lib/qr-service";
 
+import { compressImageToJpeg, compressServerImageToJpeg } from "./image-compress";
+
+const _serverCarnetCache = new Map<string, string>();
+const _browserCarnetCache = new Map<string, string>();
+
 export class CarnetGenerator {
   private pdf: jsPDF;
   private pageWidth: number;
@@ -28,10 +33,6 @@ export class CarnetGenerator {
     } = request;
 
     try {
-      console.log("🎨 Generating carnet PDF for:", participant.name);
-      console.log("📄 Template:", templateImage);
-      console.log("🆔 Carnet ID:", carnetId);
-
       // Add background design
       await this.addPngBackground(templateImage);
 
@@ -53,10 +54,8 @@ export class CarnetGenerator {
       }
 
       const blob = this.pdf.output("blob");
-      console.log("✅ Carne PDF generated successfully");
       return blob;
     } catch (error) {
-      console.error("💥 Error generating carnet:", error);
       throw new Error(
         `Failed to generate carnet: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -64,8 +63,6 @@ export class CarnetGenerator {
   }
 
   private async addBackgroundDesign(): Promise<void> {
-    console.log("🎨 Adding professional background design");
-
     // Add gradient-like background
     this.pdf.setFillColor(250, 250, 250);
     this.pdf.rect(0, 0, this.pageWidth, this.pageHeight, "F");
@@ -110,17 +107,12 @@ export class CarnetGenerator {
     this.pdf.setFontSize(8);
     this.pdf.setFont("helvetica", "bold");
     this.pdf.text("CARNET", 43, 10, { align: "center" });
-
-    console.log("✅ Background design added successfully");
   }
 
   private async addPngBackground(templatePath: string): Promise<void> {
     try {
-      console.log("🎨 Loading PNG template:", templatePath);
-
       // Skip template if no image path provided
       if (!templatePath) {
-        console.log("No template image provided, skipping template");
         this.addBackgroundDesign();
         return;
       }
@@ -137,23 +129,26 @@ export class CarnetGenerator {
           imagePath = path.join(process.cwd(), "public", templatePath);
         }
 
-        console.log(
-          "Server environment, loading carnet template from file:",
-          imagePath,
-        );
-
         // Check if file exists
         if (fs.existsSync(imagePath)) {
           // Read file as base64 and compress to JPEG for smaller PDF
-          const imageBuffer = fs.readFileSync(imagePath);
-          const base64Png = imageBuffer.toString("base64");
-          const { compressServerImageToJpeg } = await import("./image-compress");
-          const compressed = await compressServerImageToJpeg(base64Png, 82, 1200);
-          const mime = compressed.format === "JPEG" ? "image/jpeg" : "image/png";
+          let cachedDataUrl: string;
+          if (_serverCarnetCache.has(imagePath)) {
+            cachedDataUrl = _serverCarnetCache.get(imagePath)!;
+          } else {
+            const imageBuffer = fs.readFileSync(imagePath);
+            const base64Png = imageBuffer.toString("base64");
+            const { compressServerImageToJpeg } = await import("./image-compress");
+            const compressed = await compressServerImageToJpeg(base64Png, 82, 1200);
+            const mime = compressed.format === "JPEG" ? "image/jpeg" : "image/png";
+            cachedDataUrl = `data:${mime};base64,${compressed.base64}`;
+            _serverCarnetCache.set(imagePath, cachedDataUrl);
+          }
 
+          const format = cachedDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
           this.pdf.addImage(
-            `data:${mime};base64,${compressed.base64}`,
-            compressed.format,
+            cachedDataUrl,
+            format,
             0,
             0,
             this.pageWidth,
@@ -161,22 +156,33 @@ export class CarnetGenerator {
             undefined,
             "FAST",
           );
-          console.log(
-            `Carnet template image loaded in server environment (${compressed.format})`,
-          );
         } else {
-          console.warn("Carnet template image file not found:", imagePath);
           this.addBackgroundDesign();
         }
         return;
       }
 
       // Browser environment - use Image constructor with JPEG compression
+      if (_browserCarnetCache.has(templatePath)) {
+        const jpegDataUrl = _browserCarnetCache.get(templatePath)!;
+        this.pdf.addImage(
+          jpegDataUrl,
+          "JPEG",
+          0,
+          0,
+          this.pageWidth,
+          this.pageHeight,
+          undefined,
+          "FAST",
+        );
+        return;
+      }
+
       const { compressImageToJpeg } = await import("./image-compress");
       return new Promise(async (resolve, reject) => {
         try {
           const jpegDataUrl = await compressImageToJpeg(templatePath, 0.82, 1200);
-          console.log("✅ Carnet template compressed and loaded:", templatePath);
+          _browserCarnetCache.set(templatePath, jpegDataUrl);
           this.pdf.addImage(
             jpegDataUrl,
             "JPEG",
@@ -190,28 +196,20 @@ export class CarnetGenerator {
           resolve();
           return;
         } catch (e) {
-          console.warn("⚠️ Carnet compress failed, falling back to raw image:", e);
+          // Fall back to raw image
         }
         const img = new Image();
         img.onload = () => {
-          console.log("✅ Carne template loaded successfully:", templatePath);
           this.pdf.addImage(img, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
           resolve();
         };
         img.onerror = (error) => {
-          console.error(
-            "Error loading carnet template image in browser:",
-            templatePath,
-            error,
-          );
-          console.warn("🔄 Falling back to background design for carnet");
           this.addBackgroundDesign();
           resolve();
         };
         img.src = templatePath;
       });
     } catch (error) {
-      console.error("💥 Error loading PNG background:", error);
       this.addBackgroundDesign();
     }
   }
@@ -289,7 +287,6 @@ export class CarnetGenerator {
   private async addQRCode(qrDataURL?: string): Promise<void> {
     try {
       if (!qrDataURL) {
-        console.warn("No QR code data provided for carnet, using placeholder");
         return;
       }
 
@@ -301,7 +298,7 @@ export class CarnetGenerator {
       // Add QR code image to PDF
       this.pdf.addImage(qrDataURL, "PNG", qrX, qrY, qrSize, qrSize);
     } catch (error) {
-      console.error("Error adding QR code to carnet:", error);
+      // Continue without QR code if it fails
     }
   }
 
@@ -324,23 +321,20 @@ export class CarnetGenerator {
   }
 
   async generateMultipleCarnets(requests: CarnetRequest[]): Promise<Blob[]> {
-    const blobs: Blob[] = [];
-
-    for (const request of requests) {
+    // Generate all carnets in parallel for better performance
+    const carnetPromises = requests.map(async (request) => {
       try {
         const blob = await this.generateCarnet(request);
-        blobs.push(blob);
+        return { blob, success: true };
       } catch (error) {
-        console.error(
-          "Error generating carnet for participant:",
-          request.participant.name,
-          error,
-        );
-        // Continue with other carnets even if one fails
+        return { blob: null, success: false };
       }
-    }
+    });
 
-    return blobs;
+    const results = await Promise.allSettled(carnetPromises);
+    return results
+      .filter((r): r is PromiseFulfilledResult<{blob: Blob, success: true}> => r.status === 'fulfilled' && r.value.success)
+      .map(r => r.value.blob);
   }
 
   async generateCombinedPDF(requests: CarnetRequest[]): Promise<Blob> {
@@ -423,6 +417,20 @@ export class CarnetGenerator {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Download multiple blobs with delay to prevent browser throttling
+   */
+  async downloadMultipleBlobs(items: { blob: Blob; filename: string }[], delayMs: number = 200): Promise<void> {
+    for (let i = 0; i < items.length; i++) {
+      const { blob, filename } = items[i];
+      this.downloadBlob(blob, filename);
+      // Add delay between downloads to prevent browser throttling (except for last one)
+      if (i < items.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
   }
 
   async previewCarnet(request: CarnetRequest): Promise<string> {

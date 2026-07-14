@@ -16,7 +16,6 @@ export default async function GeneracionCertificadoPage() {
   const certificateData = await getOptimizedCertificateData();
   
   if (certificateData.error) {
-    console.error('Error loading certificate data:', certificateData.error);
     // Still render the page, client will handle error state
   }
 

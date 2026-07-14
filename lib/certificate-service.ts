@@ -31,7 +31,6 @@ export class CertificateService {
         nro_control: data.nro_control
       };
     } catch (error) {
-      console.error("Error fetching control numbers:", error);
       return null;
     }
   }
@@ -66,7 +65,6 @@ export class CertificateService {
       
       return data;
     } catch (error) {
-      console.error("Error fetching signature:", error);
       return null;
     }
   }
@@ -122,7 +120,6 @@ export class CertificateService {
       
       return data;
     } catch (error) {
-      console.error("Error fetching facilitator:", error);
       return null;
     }
   }
@@ -141,7 +138,6 @@ export class CertificateService {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error("Error fetching certificate template:", error);
       return null;
     }
   }

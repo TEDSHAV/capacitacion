@@ -54,31 +54,16 @@ export async function compressImageToJpeg(
 }
 
 /**
- * Compress a server-side image buffer (base64 PNG string) to JPEG.
- * Uses sharp if available; falls back to original base64 if not.
+ * Server-side placeholder - returns original PNG.
+ * For actual JPEG compression on server, install sharp and use image-compress.server.ts
  */
 export async function compressServerImageToJpeg(
   base64Png: string,
-  quality: number = 82,
-  maxWidth?: number
+  _quality?: number,
+  _maxWidth?: number
 ): Promise<{ base64: string; format: "JPEG" | "PNG" }> {
-  try {
-    // Dynamic import so sharp stays optional
-    const sharp = (await import("sharp")).default;
-    const buffer = Buffer.from(base64Png, "base64");
-    let pipeline = sharp(buffer);
-    if (maxWidth) {
-      pipeline = pipeline.resize({ width: maxWidth, withoutEnlargement: true });
-    }
-    const out = await pipeline
-      .flatten({ background: { r: 255, g: 255, b: 255 } })
-      .jpeg({ quality, mozjpeg: true })
-      .toBuffer();
-    return { base64: out.toString("base64"), format: "JPEG" };
-  } catch {
-    // sharp not installed — return original PNG
-    return { base64: base64Png, format: "PNG" };
-  }
+  // sharp can't be imported in client components; return PNG and rely on zlib compression
+  return { base64: base64Png, format: "PNG" };
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {

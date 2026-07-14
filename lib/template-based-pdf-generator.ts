@@ -26,7 +26,6 @@ export class TemplateBasedPdfGenerator {
       _imageCache.set(filename, result);
       return result;
     } catch (error) {
-      console.error(`❌ Failed to load ${filename}:`, error);
       return '';
     }
   }
@@ -41,10 +40,10 @@ export class TemplateBasedPdfGenerator {
       const y = (PAGE_H - wmSize) / 2;
       pdf.saveGraphicsState();
       pdf.setGState(pdf.GState({ opacity: 0.12 }));
-      pdf.addImage(wmB64, 'PNG', x, y, wmSize, wmSize);
+      pdf.addImage(wmB64, 'PNG', x, y, wmSize, wmSize, undefined, 'FAST');
       pdf.restoreGraphicsState();
     } catch (error) {
-      console.warn('⚠️ Could not add watermark:', error);
+      // Continue without watermark
     }
   }
 
@@ -59,9 +58,9 @@ export class TemplateBasedPdfGenerator {
         const props = pdf.getImageProperties(logoB64);
         const logoH = 15;
         const logoW = logoH * (props.width / props.height);
-        pdf.addImage(logoB64, 'PNG', ML, 7, logoW, logoH);
+        pdf.addImage(logoB64, 'PNG', ML, 7, logoW, logoH, undefined, 'FAST');
       } catch {
-        pdf.addImage(logoB64, 'PNG', ML, 7, 35, 15);
+        pdf.addImage(logoB64, 'PNG', ML, 7, 35, 15, undefined, 'FAST');
       }
     }
 
@@ -120,9 +119,9 @@ export class TemplateBasedPdfGenerator {
       const props = pdf.getImageProperties(footerB64);
       const naturalH = PAGE_W * (props.height / props.width); // height that keeps aspect ratio
       const footerY = PAGE_H - naturalH;
-      pdf.addImage(footerB64, 'PNG', 0, footerY, PAGE_W, naturalH);
+      pdf.addImage(footerB64, 'PNG', 0, footerY, PAGE_W, naturalH, undefined, 'FAST');
     } catch {
-      pdf.addImage(footerB64, 'PNG', 0, FOOTER_Y, PAGE_W, FOOTER_H);
+      pdf.addImage(footerB64, 'PNG', 0, FOOTER_Y, PAGE_W, FOOTER_H, undefined, 'FAST');
     }
   }
 
@@ -212,9 +211,7 @@ export class TemplateBasedPdfGenerator {
 
   async generateCertificacionCompetencias(data: TemplateData): Promise<Buffer> {
     try {
-      console.log('🔍 Generating certificacion de competencias with template-based approach');
-
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter', compress: true });
       this.initializeFooterDimensions(pdf); // Set actualMaxY before any layout
       this.addWatermark(pdf);
       let y = this.addPageHeader(pdf, ['CERTIFICACIÓN DE', 'COMPETENCIAS'], 'SHA-RG-CAP-006');
@@ -255,19 +252,15 @@ export class TemplateBasedPdfGenerator {
       this.addPageFooter(pdf);
 
       const buffer = Buffer.from(pdf.output('arraybuffer'));
-      console.log('✅ Certificacion de competencias generated successfully, size:', buffer.length);
       return buffer;
     } catch (error) {
-      console.error('❌ Error generating certificacion de competencias:', error);
       throw new Error(`Failed to generate certificacion de competencias document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async generateNotaEntrega(data: TemplateData): Promise<Buffer> {
     try {
-      console.log('🔍 Generating nota de entrega with template-based approach');
-
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter', compress: true });
       this.initializeFooterDimensions(pdf); // Set actualMaxY before any layout
       this.addWatermark(pdf);
       let y = this.addPageHeader(pdf, ['NOTA DE ENTREGA'], 'SHA-RG-CAP-006');
@@ -338,19 +331,15 @@ export class TemplateBasedPdfGenerator {
       this.addPageFooter(pdf);
 
       const buffer = Buffer.from(pdf.output('arraybuffer'));
-      console.log('✅ Nota de entrega generated successfully, size:', buffer.length);
       return buffer;
     } catch (error) {
-      console.error('❌ Error generating nota de entrega:', error);
       throw new Error(`Failed to generate nota de entrega document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async generateValidacionDatos(data: TemplateData): Promise<Buffer> {
     try {
-      console.log('🔍 Generating validacion de datos with template-based approach');
-
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter', compress: true });
       this.initializeFooterDimensions(pdf); // Set actualMaxY before any layout
       this.addWatermark(pdf);
       let y = this.addPageHeader(pdf, ['VALIDACIÓN DE DATOS'], 'SHA-RG-CAP-004');
@@ -391,10 +380,8 @@ export class TemplateBasedPdfGenerator {
       this.addPageFooter(pdf);
 
       const buffer = Buffer.from(pdf.output('arraybuffer'));
-      console.log('✅ Validacion de datos generated successfully, size:', buffer.length);
       return buffer;
     } catch (error) {
-      console.error('❌ Error generating validacion de datos:', error);
       throw new Error(`Failed to generate validacion de datos document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

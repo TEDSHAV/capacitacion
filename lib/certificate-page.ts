@@ -8,6 +8,7 @@ import { QRService } from "./qr-service";
 import { compressImageToJpeg, compressServerImageToJpeg } from "./image-compress";
 
 const _serverTemplateCache = new Map<string, string>();
+const _browserTemplateCache = new Map<string, string>();
 
 export class CertificatePage {
   private doc: jsPDF;
@@ -41,7 +42,6 @@ export class CertificatePage {
   async addTemplate(imageUrl: string): Promise<void> {
     // Skip template if no image URL provided
     if (!imageUrl) {
-      console.log('No template image provided, skipping template');
       return;
     }
 
@@ -58,7 +58,6 @@ export class CertificatePage {
           imagePath = path.join(process.cwd(), 'public', imageUrl);
         }
         
-        console.log('Server environment, loading template from file:', imagePath);
         
         // Check if file exists
         if (fs.existsSync(imagePath)) {
@@ -88,18 +87,31 @@ export class CertificatePage {
           const format = cachedDataUrl.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
           // FAST compression keeps generation quick; stream is also zlib-compressed via compress:true
           this.doc.addImage(cachedDataUrl, format, templateArea.x, templateArea.y, templateArea.width, templateArea.height, undefined, 'FAST');
-          console.log(`Template image loaded successfully in server environment (${format})`);
-        } else {
-          console.warn('Template image file not found:', imagePath);
         }
         return;
       }
 
       // Browser environment - use Image constructor
+      if (_browserTemplateCache.has(imageUrl)) {
+        const jpegDataUrl = _browserTemplateCache.get(imageUrl)!;
+        const upperHalfHeight = this.pageHeight / 2;
+        const margin = 10;
+        const templateArea = {
+          x: margin,
+          y: margin,
+          width: this.pageWidth - (margin * 2),
+          height: upperHalfHeight - (margin * 2)
+        };
+        this.doc.addImage(jpegDataUrl, 'JPEG', templateArea.x, templateArea.y, templateArea.width, templateArea.height, undefined, 'FAST');
+        return;
+      }
+
       return new Promise(async (resolve) => {
         try {
           // Compress PNG → JPEG (max width 1600px at ~82% quality)
           const jpegDataUrl = await compressImageToJpeg(imageUrl, 0.82, 1600);
+          _browserTemplateCache.set(imageUrl, jpegDataUrl);
+          
           const upperHalfHeight = this.pageHeight / 2;
           const margin = 10;
           const templateArea = {
@@ -112,12 +124,10 @@ export class CertificatePage {
           this.doc.addImage(jpegDataUrl, 'JPEG', templateArea.x, templateArea.y, templateArea.width, templateArea.height, undefined, 'FAST');
           resolve();
         } catch (error) {
-          console.warn('Failed to load/compress template image:', imageUrl, error);
-          resolve(); // Continue without template instead of failing
+          resolve();
         }
       });
     } catch (error) {
-      console.warn('Error in addTemplate:', error);
       // Continue without template instead of failing
     }
   }
@@ -264,8 +274,6 @@ export class CertificatePage {
       if (!facilitator) {
         // Check if we're in a server environment
         if (typeof window === 'undefined') {
-          // Server environment - data should already be provided, don't try to fetch
-          console.warn('Facilitator data not provided in server environment');
         } else {
           // Browser environment - use API route
           try {
@@ -295,7 +303,7 @@ export class CertificatePage {
               }
             }
           } catch (error) {
-            console.error('Failed to fetch facilitator data from API:', error);
+            // Continue without facilitator
           }
         }
       }
@@ -313,8 +321,6 @@ export class CertificatePage {
       if (!shaSignature) {
         // Check if we're in a server environment
         if (typeof window === 'undefined') {
-          // Server environment - data should already be provided, don't try to fetch
-          console.warn('SHA signature data not provided in server environment');
         } else {
           // Browser environment - use certificate service
           try {
@@ -322,7 +328,7 @@ export class CertificatePage {
               certificateData.sha_signature_id.toString()
             );
           } catch (error) {
-            console.warn('Failed to fetch SHA signature data:', error);
+            // Continue without SHA signature
           }
         }
       }
@@ -371,13 +377,9 @@ export class CertificatePage {
           signatureConfig.width,
           signatureConfig.height
         );
-      } else {
-        console.warn('No signature image found for facilitator:', facilitator.name || facilitator.nombre_apellido);
       }
     } catch (error) {
-      console.error('Error adding facilitator signature:', error);
-      console.warn('Continuing without facilitator signature - certificate generation will proceed');
-      // Don't throw error, just continue without the signature
+      // Continue without facilitator signature
     }
   }
 
@@ -414,13 +416,9 @@ export class CertificatePage {
           signatureConfig.width,
           signatureConfig.height
         );
-      } else {
-        console.warn('No signature image found for SHA:', signatureData.nombre);
       }
     } catch (error) {
-      console.error('Error adding SHA signature:', error);
-      console.warn('Continuing without SHA signature - certificate generation will proceed');
-      // Don't throw error, just continue without the signature
+      // Continue without SHA signature
     }
   }
 
@@ -449,9 +447,7 @@ export class CertificatePage {
       //   { align: "center" }
       // );
       
-      console.log('QR code added successfully at position:', { x: qrX, y: qrY, isSinglePage });
     } catch (error) {
-      console.error('Failed to add QR code to position:', error);
       throw error;
     }
   }
@@ -473,7 +469,6 @@ export class CertificatePage {
       await this.addQRCodeToPosition(qrDataUrl, this.isSinglePage);
 
     } catch (error) {
-      console.error('Failed to add QR code to certificate:', error);
       // Continue without QR code if it fails
     }
   }
@@ -508,7 +503,6 @@ export class CertificatePage {
       await this.addQRCodeToPosition(qrDataUrl, this.isSinglePage);
 
     } catch (error) {
-      console.error('Failed to add sample QR code to certificate preview:', error);
       // Continue without QR code if it fails
     }
   }
@@ -551,8 +545,6 @@ export class CertificatePage {
           
           // Add base64 image to PDF
           this.doc.addImage(`data:image/png;base64,${base64Image}`, "PNG", x, y, width, height);
-        } else {
-          console.warn('Signature image file not found:', imagePath);
         }
         return;
       }
@@ -564,7 +556,6 @@ export class CertificatePage {
       if (imageUrl.startsWith('/')) {
         finalImageUrl = window.location.origin + imageUrl;
       } else if (imageUrl.startsWith('file://')) {
-        console.warn('Cannot load file:// URLs in browser environment:', imageUrl);
         return;
       }
       
@@ -590,21 +581,17 @@ export class CertificatePage {
             this.doc.addImage(base64DataUrl, "PNG", x, y, width, height);
             resolve();
           } catch (error) {
-            console.error('Error converting image to base64:', error);
             reject(error);
           }
         };
         
         img.onerror = (error) => {
-          console.error('Failed to load signature image in browser:', finalImageUrl, error);
           reject(new Error(`Signature image not found: ${finalImageUrl}`));
         };
         
         img.src = finalImageUrl;
       });
     } catch (error) {
-      console.error('Error in addSignatureImage:', error);
-      // Don't throw error, let the caller handle it gracefully
       throw error;
     }
   }

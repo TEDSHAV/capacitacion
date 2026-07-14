@@ -106,7 +106,6 @@ export const CertificatePreview = ({
       const previewParticipant: CertificateParticipant = certificateData.participants[selectedParticipantIndex];
       
       if (!previewParticipant) {
-        console.error('Participante no válido seleccionado para vista previa de carnet');
         return;
       }
 
@@ -139,9 +138,7 @@ export const CertificatePreview = ({
           level: 'M',
           includeMargin: true
         });
-        console.log('✅ QR code generated for carnet preview');
       } catch (qrError) {
-        console.warn('⚠️ Could not generate QR code for carnet preview:', qrError);
         // Continue without QR code - carnet generator will use placeholder
       }
 
@@ -155,7 +152,7 @@ export const CertificatePreview = ({
       
       setCarnetPreviewUrl(carnetPreviewUrl);
     } catch (err) {
-      console.error('Error generating carnet preview:', err);
+      // Error generating preview
     } finally {
       setIsGeneratingCarnet(false);
     }

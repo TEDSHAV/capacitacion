@@ -97,21 +97,9 @@ export class TextRenderer {
     x: number,
     y: number
   ): void {
-    // Debug logging to see what we're receiving
-    console.log('renderIDText received participant:', JSON.stringify(participant, null, 2));
-    
-    // Use nationality field to determine prefix and label
     const isVenezolano = participant.nationality === 'venezolano';
     const idLabel = isVenezolano ? "Cédula:" : "Pasaporte:";
     const idPrefix = isVenezolano ? "V-" : "E-";
-    
-    console.log('ID rendering logic:', {
-      nationality: participant.nationality,
-      isVenezolano,
-      idLabel,
-      idPrefix,
-      finalText: `${idLabel} ${idPrefix}${participant.id_number}`
-    });
     
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8);

@@ -44,8 +44,7 @@ export class CertificateGenerator {
         return await this.generateTwoPageCertificate(participant, certificateData, templateImage, sealImage, controlNumbers, isPreview || false, certificateId || 0);
       }
     } catch (error) {
-      console.error('Certificate generation error:', error);
-      throw error; // Re-throw the actual error instead of hiding it
+      throw error;
     }
   }
 
@@ -67,19 +66,16 @@ export class CertificateGenerator {
 
     // Add QR code - either real or sample for preview
     if (!isPreview && controlNumbers && certificateId) {
-      console.log('Adding real QR code for certificate ID:', certificateId);
       try {
         await this.certificatePage.addQRCode(certificateId, controlNumbers);
       } catch (qrError) {
-        console.error('Failed to add real QR code, trying sample:', qrError);
         await this.certificatePage.addSampleQRCode();
       }
     } else if (isPreview) {
-      console.log('Adding sample QR code for preview');
       try {
         await this.certificatePage.addSampleQRCode();
       } catch (qrError) {
-        console.error('Failed to add sample QR code:', qrError);
+        // Continue without QR code on error
       }
     }
 
@@ -87,13 +83,10 @@ export class CertificateGenerator {
     await this.contentPage.addContentPageSinglePage(participant, certificateData, sealImage || '', controlNumbers, isPreview);
 
     // Return as blob
-    console.warn('📄 Generating PDF blob...');
     try {
       const blob = this.doc.output("blob");
-      console.warn('✅ PDF blob generated successfully, size:', blob.size, 'bytes, type:', blob.type);
       return blob;
     } catch (blobError) {
-      console.error('❌ Failed to generate PDF blob:', blobError);
       throw new Error(`PDF blob generation failed: ${blobError}`);
     }
   }
@@ -116,24 +109,17 @@ export class CertificateGenerator {
 
     // Add QR code - either real or sample for preview
     if (!isPreview && controlNumbers && certificateId) {
-      // Real QR code for final certificate - use actual certificate ID
-      console.log('Adding real QR code for certificate ID:', certificateId);
       try {
         await this.certificatePage.addQRCode(certificateId, controlNumbers);
       } catch (qrError) {
-        console.error('Failed to add real QR code, trying sample:', qrError);
         await this.certificatePage.addSampleQRCode();
       }
     } else if (isPreview) {
-      // Sample QR code for preview
-      console.log('Adding sample QR code for preview');
       try {
         await this.certificatePage.addSampleQRCode();
       } catch (qrError) {
-        console.error('Failed to add sample QR code:', qrError);
+        // Continue without QR code on error
       }
-    } else {
-      console.log('No QR code will be added - missing parameters:', { isPreview, hasControlNumbers: !!controlNumbers, certificateId });
     }
 
     // Add new page for content
@@ -143,13 +129,10 @@ export class CertificateGenerator {
     await this.contentPage.addContentPage(participant, certificateData, sealImage, controlNumbers, isPreview);
 
     // Return as blob
-    console.warn('📄 Generating PDF blob (two-page)...');
     try {
       const blob = this.doc.output("blob");
-      console.warn('✅ PDF blob generated successfully, size:', blob.size, 'bytes, type:', blob.type);
       return blob;
     } catch (blobError) {
-      console.error('❌ Failed to generate PDF blob:', blobError);
       throw new Error(`PDF blob generation failed: ${blobError}`);
     }
   }
@@ -194,5 +177,19 @@ export class CertificateGenerator {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Download multiple blobs with delay to prevent browser throttling
+   */
+  async downloadMultipleBlobs(items: { blob: Blob; filename: string }[], delayMs: number = 200): Promise<void> {
+    for (let i = 0; i < items.length; i++) {
+      const { blob, filename } = items[i];
+      this.downloadBlob(blob, filename);
+      // Add delay between downloads to prevent browser throttling (except for last one)
+      if (i < items.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
   }
 }

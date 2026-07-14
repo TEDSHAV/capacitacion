@@ -91,7 +91,7 @@ export default function GeneracionCertificadoClient({
           setCarnetTemplates(result.data);
         }
       } catch (error) {
-        console.error('Error loading carnet templates:', error);
+        // Continue without templates
       }
     };
     
@@ -104,7 +104,6 @@ export default function GeneracionCertificadoClient({
       // Use course's default content if available
       if (selectedCourseTopic.contenido_curso) {
         handleCertificateDataChange("course_content", selectedCourseTopic.contenido_curso);
-        console.log('Setting default course content:', selectedCourseTopic.contenido_curso);
       }
     }
   }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, certificateData.course_template_id]);
@@ -256,11 +255,9 @@ export default function GeneracionCertificadoClient({
       const templateImageUrl = '/templates/certificado.png';
       const sealImageUrl = '/templates/sello.png';
       
-      const certificates = [];
-      for (let i = 0; i < certificateData.participants.length; i++) {
-        const participant = certificateData.participants[i];
+      // Generate all certificates in parallel for better performance
+      const certificatePromises = certificateData.participants.map(async (participant, i) => {
         const controlNumbers = dbResult.certificateNumbers![i];
-        
         try {
           const blob = await certificateGenerator.generateCertificate({
             participant,
@@ -271,34 +268,33 @@ export default function GeneracionCertificadoClient({
             isPreview: false,
             certificateId: dbResult.certificateIds![i]
           });
-          certificates.push({ participant, blob });
+          return { participant, blob, success: true };
         } catch (error) {
-          console.error('Error generating certificate for participant:', participant, error);
+          return { participant, blob: null, success: false };
         }
-      }
-
-      // Download certificates
-      certificates.forEach(({ participant, blob }) => {
-        const filename = `certificado_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
-        certificateGenerator.downloadBlob(blob, filename);
       });
+
+      const certificateResults = await Promise.allSettled(certificatePromises);
+      const certificates = certificateResults
+        .filter((r): r is PromiseFulfilledResult<{participant: any, blob: Blob, success: true}> => r.status === 'fulfilled' && r.value.success)
+        .map(r => r.value);
+
+      // Download certificates with staggered delay to prevent browser throttling
+      const certificateItems = certificates.map(({ participant, blob }) => ({
+        blob,
+        filename: `certificado_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`
+      }));
+      await certificateGenerator.downloadMultipleBlobs(certificateItems, 50);
 
       // Generate carnets if course requires them
       let carnetsGenerated = 0;
       if (selectedCourseTopic?.emite_carnet) {
-        console.log('🎯 Starting carnet generation for course:', selectedCourseTopic.name);
-        console.log('📋 Certificate IDs:', dbResult.certificateIds);
-        console.log('👥 Participant IDs:', dbResult.participantIds || 'Not available');
-        console.log('👥 Participants:', certificateData.participants);
-        
         try {
           const { CarnetGenerator } = await import('@/lib/carnet-generator');
           const carnetGenerator = new CarnetGenerator();
           
           // Prepare carnet data for all participants
           const carnetData: CarnetGeneration[] = certificateData.participants.map((participant, index) => {
-            console.log(`🔧 Preparing carnet ${index + 1} for participant:`, participant.name);
-            console.log(`📋 Using database participant ID: ${dbResult.participantIds?.[index]}`);
             return {
               id_certificado: dbResult.certificateIds![index],
               id_participante: dbResult.participantIds?.[index] || 0, // Use REAL database ID
@@ -315,19 +311,12 @@ export default function GeneracionCertificadoClient({
             };
           });
 
-          console.log('💾 Carnet data prepared:', carnetData);
-
-          // Save carnets to database
-          console.log('💾 Saving carnets to database...');
           const carnetDbResult = await (await import('@/app/actions/carnets')).saveCarnetsToDatabase(
             carnetData,
             dbResult.certificateIds!
           );
 
-          console.log('📊 Database result:', carnetDbResult);
-
           if (carnetDbResult.success && carnetDbResult.carnetIds) {
-            console.log('✅ Carnets saved to database with IDs:', carnetDbResult.carnetIds);
             
             // Generate carnet PDFs
             const carnetRequests = carnetData.map((carnet, index) => {
@@ -366,9 +355,7 @@ export default function GeneracionCertificadoClient({
                     level: 'M',
                     includeMargin: true
                   });
-                  console.log(`✅ QR code generated for carnet ${index + 1} (certificate ID: ${certificateId})`);
                 } catch (qrError) {
-                  console.warn(`⚠️ Could not generate QR code for carnet ${index + 1}:`, qrError);
                   // Continue without QR code - carnet generator will use placeholder
                 }
 
@@ -379,37 +366,28 @@ export default function GeneracionCertificadoClient({
               })
             );
 
-            console.log('🔄 Generating carnet PDFs...');
             const carnetBlobs = await carnetGenerator.generateMultipleCarnets(carnetRequestsWithQR);
-            console.log('📄 Generated carnet blobs:', carnetBlobs.length);
             
-            // Download carnets
-            carnetBlobs.forEach((blob, index) => {
-              const participant = certificateData.participants[index];
-              const filename = `carnet_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
-              console.log(`⬇️ Downloading carnet: ${filename}`);
-              carnetGenerator.downloadBlob(blob, filename);
-            });
+            // Download carnets with staggered delay to prevent browser throttling
+            const carnetItems = carnetBlobs.map((blob, index) => ({
+              blob,
+              filename: `carnet_${certificateData.participants[index].name.replace(/\s+/g, '_')}_${certificateData.participants[index].id_number}.pdf`
+            }));
+            await carnetGenerator.downloadMultipleBlobs(carnetItems, 50);
 
             carnetsGenerated = carnetBlobs.length;
-            console.log(`🎉 Successfully generated ${carnetsGenerated} carnets`);
           } else {
-            console.error('❌ Failed to save carnets to database:', carnetDbResult.message);
             alert(`Error guardando carnets en base de datos: ${carnetDbResult.message}`);
           }
         } catch (error) {
-          console.error('💥 Error generating carnets:', error);
           alert('Error generando carnets. Los certificados se generaron correctamente. Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
-      } else {
-        console.log('ℹ️ Course does not emit carnets, skipping carnet generation');
       }
 
       // Generate and download additional documents
       let documentsGenerated = 0;
       if (certificateData.generate_documents) {
         try {
-          console.log('📄 Generating additional documents...');
           
           // Prepare certificate data for document generation
           const certificateRecords = certificates.map(({ participant }, index) => ({
@@ -444,15 +422,17 @@ export default function GeneracionCertificadoClient({
           });
 
           if (result.success && result.documents) {
-            // Download all generated documents
-            for (const [docType, base64String] of Object.entries(result.documents)) {
+            // Download all generated documents with staggered delay
+            const documentEntries = Object.entries(result.documents);
+            for (let i = 0; i < documentEntries.length; i++) {
+              const [docType, base64String] = documentEntries[i];
               const filename = getDocumentFileName(docType, selectedOSI?.nro_osi);
               
               // Convert Base64 string back to Buffer
               const binaryString = atob(base64String);
               const bytes = new Uint8Array(binaryString.length);
-              for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
+              for (let j = 0; j < binaryString.length; j++) {
+                bytes[j] = binaryString.charCodeAt(j);
               }
               const buffer = Buffer.from(bytes);
               
@@ -469,22 +449,19 @@ export default function GeneracionCertificadoClient({
               document.body.removeChild(link);
               window.URL.revokeObjectURL(url);
               
-              console.log(`⬇️ Downloaded document: ${filename}`);
+              // Reduced delay to 50ms for faster feel
+              if (i < documentEntries.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+              }
             }
 
             documentsGenerated = Object.keys(result.documents).length;
-            console.log(`📄 Successfully generated ${documentsGenerated} additional documents`);
           } else {
-            console.error('❌ Server-side document generation failed:', result.error);
           }
           
         } catch (error) {
-          console.error('💥 Error generating additional documents:', error);
           // Don't show alert for document errors since certificates/carnets were generated successfully
-          console.log('ℹ️ Certificates and carnets were generated successfully, but additional documents failed');
         }
-      } else {
-        console.log('ℹ️ Document generation disabled by user');
       }
 
       const documentText = documentsGenerated > 0 ? ` y ${documentsGenerated} documentos adicionales` : '';
@@ -516,7 +493,6 @@ export default function GeneracionCertificadoClient({
       setSelectedCourseTopic(null);
 
     } catch (error) {
-      console.error('Error generating certificates:', error);
       alert('Error generando certificados. Por favor intente nuevamente.');
     } finally {
       setIsGenerating(false);

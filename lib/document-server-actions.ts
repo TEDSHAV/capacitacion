@@ -39,12 +39,6 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
       };
     }
 
-    console.log('🔍 SERVER: Starting document generation process...');
-    console.log('🔍 SERVER: OSI data:', osiData);
-    console.log('🔍 SERVER: OSI id_curso:', osiData.id_curso);
-    console.log('🔍 SERVER: First certificate course_title:', certificates[0]?.course_title);
-    console.log('🔍 SERVER: First certificate control_number:', certificates[0]?.control_number);
-
     // Function to format cédula with proper prefix based on participant data
     const formatCedula = (participant: any): string => {
       const idNumber = participant.participant_id_number || '';
@@ -65,14 +59,12 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
       // Check nationality as fallback - this should work now
       if (participant.participant_nationality) {
         const nationality = participant.participant_nationality.toLowerCase();
-        console.log(`🔍 Formatting cédula for nationality: ${nationality}`);
         if (nationality === 'extranjero') {
           return `E-${cleanCedula}`;
         }
       }
       
       // Default to Venezuelan if no specific info
-      console.log(`🔍 Defaulting to V- for participant: ${participant.participant_name || 'unknown'}`);
       return `V-${cleanCedula}`;
     };
 
@@ -91,12 +83,9 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
           
         if (!error && cursoData) {
           cursoNombre = cursoData.nombre;
-          console.log('✅ SERVER: Fetched course name:', cursoNombre);
-        } else {
-          console.warn('⚠️ SERVER: Could not fetch course name:', error);
         }
       } catch (error) {
-        console.error('❌ SERVER: Error fetching course name:', error);
+        // Continue with fallback course name
       }
     } else if (osiData.curso_nombre) {
       cursoNombre = osiData.curso_nombre;
@@ -154,86 +143,60 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
       })),
     } as TemplateData;
 
-    console.log('📋 Template data prepared:', {
-      certificatesCount: certificates.length,
-      hasOsiData: !!osiData,
-      hasFirmanteData: !!firmanteData,
-      templateDataKeys: Object.keys(templateData),
-      sampleParticipant: templateData.participantes?.[0] || null,
-      // Debug all template fields
-      allFields: {
-        fecha: templateData.fecha,
-        nombre_cliente: templateData.nombre_cliente,
-        titulo_curso: templateData.titulo_curso,
-        ciudad: templateData.ciudad,
-        nro_osi: templateData.nro_osi,
-        nombre_firmante: templateData.nombre_firmante,
-        cargo_firmante: templateData.cargo_firmante,
-        participantes: templateData.participantes,
-        dia: templateData.dia,
-        mes: templateData.mes,
-        anio: templateData.anio
-      }
-    });
-
     const processor = new TemplateBasedPdfGenerator();
     const documents: { [key: string]: string } = {};
     const errors: string[] = [];
 
-    // Generate documents based on options with individual error handling
+    // Define generation tasks
+    const tasks = [];
+
     if (options?.includeCertificacionCompetencias !== false) {
-      try {
-        console.log('🔄 Generating certificacion de competencias...');
-        const buffer = await processor.generateCertificacionCompetencias(templateData);
-        documents.certificacion_competencias = buffer.toString('base64');
-        console.log('✅ Certificacion de competencias generated successfully with template-based approach');
-      } catch (error) {
-        const errorMsg = `Failed to generate certificacion de competencias: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error('❌', errorMsg);
-        errors.push(errorMsg);
-      }
+      tasks.push((async () => {
+        try {
+          const buffer = await processor.generateCertificacionCompetencias(templateData);
+          documents.certificacion_competencias = buffer.toString('base64');
+        } catch (error) {
+          const errorMsg = `Failed to generate certificacion de competencias: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errors.push(errorMsg);
+        }
+      })());
     }
 
     if (options?.includeNotaEntrega !== false) {
-      try {
-        console.log('🔄 Generating nota de entrega...');
-        const buffer = await processor.generateNotaEntrega(templateData);
-        documents.nota_entrega = buffer.toString('base64');
-        console.log('✅ Nota de entrega generated successfully with template-based approach');
-      } catch (error) {
-        const errorMsg = `Failed to generate nota de entrega: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error('❌', errorMsg);
-        errors.push(errorMsg);
-      }
+      tasks.push((async () => {
+        try {
+          const buffer = await processor.generateNotaEntrega(templateData);
+          documents.nota_entrega = buffer.toString('base64');
+        } catch (error) {
+          const errorMsg = `Failed to generate nota de entrega: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errors.push(errorMsg);
+        }
+      })());
     }
 
     if (options?.includeValidacionDatos !== false) {
-      try {
-        console.log('🔄 Generating validacion de datos...');
-        const buffer = await processor.generateValidacionDatos(templateData);
-        documents.validacion_datos = buffer.toString('base64');
-        console.log('✅ Validacion de datos generated successfully with template-based approach');
-      } catch (error) {
-        const errorMsg = `Failed to generate validacion de datos: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error('❌', errorMsg);
-        errors.push(errorMsg);
-      }
+      tasks.push((async () => {
+        try {
+          const buffer = await processor.generateValidacionDatos(templateData);
+          documents.validacion_datos = buffer.toString('base64');
+        } catch (error) {
+          const errorMsg = `Failed to generate validacion de datos: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errors.push(errorMsg);
+        }
+      })());
     }
+
+    // Run all generation tasks in parallel
+    await Promise.all(tasks);
 
     // Return success if at least one document was generated, otherwise return error
     if (Object.keys(documents).length > 0) {
-      console.log(`📄 Successfully generated ${Object.keys(documents).length} documents`);
-      if (errors.length > 0) {
-        console.warn(`⚠️ ${errors.length} documents failed to generate:`, errors);
-      }
-      
       // Documents are already converted to base64 above
       return {
         success: true,
         documents
       };
     } else {
-      console.error('❌ No documents were generated successfully');
       return {
         success: false,
         error: `No documents were generated successfully. Errors: ${errors.join('; ')}`
@@ -241,7 +204,6 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
     }
 
   } catch (error) {
-    console.error('❌ Error generating documents on server:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'

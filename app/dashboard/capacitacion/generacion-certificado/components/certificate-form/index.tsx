@@ -31,25 +31,20 @@ export const CertificateForm = ({
       try {
         // Load SHA signatures
         const signaturesResult = await getSignaturesForDropdownAction();
-        console.log('Signatures Result:', signaturesResult); // Debug log
-        
         if (signaturesResult.data) {
           const shaOnly = signaturesResult.data.filter(
             (sig: any) => sig.tipo === "representante_sha",
           );
-          console.log('SHA Only signatures:', shaOnly); // Debug log
           setShaSignatures(shaOnly as Signature[]);
 
           // Auto-select the active SHA signature
           const activeShaSignature = shaOnly.find(
             (sig: any) => sig.is_active,
           );
-          console.log('Active SHA signature:', activeShaSignature); // Debug log
 
           if (activeShaSignature) {
             // Always set the SHA signature ID, even if one is already selected
             onDataChange("sha_signature_id", activeShaSignature.id.toString());
-            console.log('Auto-selected SHA signature ID:', activeShaSignature.id); // Debug log
           }
         }
 
@@ -62,10 +57,7 @@ export const CertificateForm = ({
 
         // Load Venezuelan states
         const statesResult = await getVenezuelanStatesAction();
-        console.log('States Result:', statesResult); // Debug log
-        
         if (statesResult.data) {
-          console.log('Setting Venezuelan states:', statesResult.data); // Debug log
           setVenezuelanStates(statesResult.data);
         }
       } catch (error) {
@@ -87,11 +79,9 @@ export const CertificateForm = ({
             const selectedSHASignature = shaSignatures.find((sig: any) => sig.id.toString() === certificateData.sha_signature_id);
             if (selectedSHASignature) {
               onDataChange("sha_signature_data", selectedSHASignature);
-              console.log('Fetched missing SHA signature data:', selectedSHASignature);
             }
           }
         } catch (error) {
-          console.error('Could not fetch SHA signature data:', error);
         }
       }
     };
@@ -122,27 +112,13 @@ export const CertificateForm = ({
             ...templates
           ] : templates;
 
-          console.log('🔧 Template options created:', {
-            courseName: selectedCourseTopic?.name || 'No course selected',
-            originalCourse: selectedCourseTopic ? {
-              id: 'original-course',
-              descripcion: selectedCourseTopic.name || 'Curso sin nombre',
-              contenido: selectedCourseTopic.contenido_curso || ''
-            } : null,
-            customTemplates: templates,
-            totalOptions: allOptions.length,
-            allOptions: allOptions
-          });
-
           setCourseTemplates(allOptions);
-          console.log('Course templates loaded:', allOptions);
           
           // If no templates exist for this course, use course's default content
           if (templates.length === 0 && selectedCourseTopic?.contenido_curso) {
             onDataChange("course_content", selectedCourseTopic.contenido_curso);
             // Auto-select the original course option
             onDataChange("course_template_id", 'original-course');
-            console.log('Using default course content since no templates available');
           } else if (selectedCourseTopic?.contenido_curso) {
             // Auto-select the original course option by default
             onDataChange("course_template_id", 'original-course');
@@ -150,7 +126,7 @@ export const CertificateForm = ({
           }
         }
       } catch (error) {
-        console.error('Error loading course templates:', error);
+        // Continue without templates
       }
     };
 
@@ -163,7 +139,6 @@ export const CertificateForm = ({
       // Use course's default content if available
       if (selectedCourseTopic.contenido_curso) {
         onDataChange("course_content", selectedCourseTopic.contenido_curso);
-        console.log('Setting default course content:', selectedCourseTopic.contenido_curso);
       }
     }
   }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, certificateData.course_template_id]);
@@ -301,19 +276,6 @@ export const CertificateForm = ({
           value={certificateData.course_template_id || ""}
           onChange={(e) => {
             const templateId = e.target.value;
-            console.log('🎯 Template selection changed:', {
-              templateId,
-              templateIdType: typeof templateId,
-              availableTemplates: courseTemplates,
-              availableTemplateDetails: courseTemplates.map(t => ({
-                id: t.id,
-                idType: typeof t.id,
-                descripcion: t.descripcion
-              })),
-              selectedTemplate: courseTemplates.find((template: any) => template.id === templateId),
-              comparisonCheck: courseTemplates.map(t => `${t.id}` === templateId)
-            });
-            
             onDataChange("course_template_id", templateId);
             
             if (templateId) {
@@ -322,20 +284,15 @@ export const CertificateForm = ({
                 (template: any) => template.id.toString() === templateId,
               );
               
-              console.log('🔍 Selected template details:', selectedTemplate);
-              
               if (selectedTemplate) {
                 onDataChange("course_content", selectedTemplate.contenido || '');
-                console.log('✅ Template selected, using content:', selectedTemplate.descripcion);
               } else {
                 // Fallback to course content if template not found
                 onDataChange("course_content", selectedCourseTopic?.contenido_curso || '');
-                console.log('⚠️ Template not found, using course default content');
               }
             } else {
               // No template selected, use course's default content
               onDataChange("course_content", selectedCourseTopic?.contenido_curso || '');
-              console.log('📋 Template deselected, using course default content');
             }
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -545,7 +502,7 @@ export const CertificateForm = ({
                   const facilitatorData = await getFacilitatorData(id);
                   onDataChange("facilitator_data", facilitatorData);
                 } catch (error) {
-                  console.error("Error fetching facilitator data:", error);
+                  // Continue without facilitator data
                 }
               } else {
                 onDataChange("facilitator_data", null);

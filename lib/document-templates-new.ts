@@ -45,8 +45,6 @@ export class DocumentTemplateProcessor {
 
   async generateCertificacionCompetencias(data: TemplateData): Promise<Buffer> {
     try {
-      console.log('🔍 Generating certificacion de competencias with data:', JSON.stringify(data, null, 2));
-      
       // Validate required fields
       if (!data.participantes || !Array.isArray(data.participantes)) {
         throw new Error('Invalid or missing participantes array');
@@ -60,124 +58,37 @@ export class DocumentTemplateProcessor {
         throw new Error('Missing nombre_cliente field');
       }
       
-      console.log('📁 Loading template file...');
       const templateContent = this.loadTemplate('certificacion_de_competencias.docx');
-      console.log('📄 Template loaded successfully, size:', templateContent.length);
       
       const zip = new PizZip(templateContent);
       
-      console.log('🔧 Creating Docxtemplater instance...');
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
         nullGetter: () => '', // Handle null values gracefully
       });
 
-      console.log('📝 Setting template data...');
       doc.setData(data);
       
-      console.log('🎨 Rendering document...');
       try {
         doc.render();
       } catch (renderError) {
-        console.error('❌ Docxtemplater render error:', renderError);
-        console.error('❌ Template data being rendered:', JSON.stringify(data, null, 2));
-        
-        // Try to get more specific error information
-        if (renderError instanceof Error) {
-          console.error('❌ Error name:', renderError.name);
-          console.error('❌ Error message:', renderError.message);
-          console.error('❌ Error stack:', renderError.stack);
-          
-          // Check if it's the specific "Multi error"
-          if (renderError.message.includes('Multi error')) {
-            console.error('❌ This is a docxtemplater Multi error - usually caused by template tag issues');
-            console.error('❌ Checking template data structure...');
-            console.error('❌ Participantes count:', data.participantes?.length || 0);
-            console.error('❌ Data keys:', Object.keys(data));
-            
-            if (data.participantes && data.participantes.length > 0) {
-              console.error('❌ First participant structure:', data.participantes[0]);
-            }
-            
-            // Extract and analyze template tags from document
-            try {
-              if (templateContent) {
-                const zip = new PizZip(templateContent);
-                const documentXml = zip.file('word/document.xml')?.asText() ?? '';
-                
-                // Find all template tags in document
-                const tagRegex = /\{[^}]+\}/g;
-                const tags = documentXml.match(tagRegex) || [];
-                
-                console.error('❌ Template tags found in document:', tags.length);
-                tags.forEach((tag, index) => {
-                  console.error(`  ${index + 1}. ${tag}`);
-                });
-                
-                // Check for malformed tags
-                const malformedTags = tags.filter(tag => {
-                  const openCount = (tag.match(/\{/g) || []).length;
-                  const closeCount = (tag.match(/\}/g) || []).length;
-                  return openCount !== closeCount;
-                });
-                
-                if (malformedTags.length > 0) {
-                  console.error('❌ Malformed tags found:', malformedTags);
-                }
-                
-                // Check for loop tags
-                const loopStartTags = tags.filter(tag => tag.startsWith('{#'));
-                const loopEndTags = tags.filter(tag => tag.startsWith('{/'));
-                
-                console.error('❌ Loop start tags:', loopStartTags);
-                console.error('❌ Loop end tags:', loopEndTags);
-                
-                // Check for missing data
-                const dataKeys = Object.keys(data);
-                const missingData = tags.filter(tag => {
-                  const cleanTag = tag.replace(/[{}#\/]/g, '');
-                  return !dataKeys.includes(cleanTag) && !cleanTag.startsWith('participantes');
-                });
-                
-                if (missingData.length > 0) {
-                  console.error('❌ Tags with missing data:', missingData);
-                }
-              }
-            } catch (analysisError) {
-              console.error('❌ Error analyzing template:', analysisError);
-            }
-          }
-        }
-        
         throw renderError;
       }
       
-      console.log('💾 Generating buffer...');
       const buffer = doc.getZip().generate({
         type: 'nodebuffer',
         compression: 'DEFLATE',
       });
       
-      console.log('✅ Certificacion de competencias generated successfully, size:', buffer.length);
       return buffer;
     } catch (error) {
-      console.error('❌ Error generating certificacion de competencias:', error);
-      console.error('❌ Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace',
-        dataKeys: Object.keys(data),
-        participantesCount: data.participantes?.length || 0,
-        firstParticipant: data.participantes?.[0] || 'No participants'
-      });
       throw new Error(`Failed to generate certificacion de competencias document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async generateNotaEntrega(data: TemplateData): Promise<Buffer> {
     try {
-      console.log('🔍 Generating nota de entrega with data:', JSON.stringify(data, null, 2));
-      
       // Validate required fields
       if (!data.participantes || !Array.isArray(data.participantes)) {
         throw new Error('Invalid or missing participantes array');
@@ -191,76 +102,37 @@ export class DocumentTemplateProcessor {
         throw new Error('Missing nombre_cliente field');
       }
       
-      console.log('📁 Loading template file...');
       const templateContent = this.loadTemplate('nota_de_entrega.docx');
-      console.log('📄 Template loaded successfully, size:', templateContent.length);
       
       const zip = new PizZip(templateContent);
       
-      console.log('🔧 Creating Docxtemplater instance...');
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
         nullGetter: () => '', // Handle null values gracefully
       });
 
-      console.log('📝 Setting template data...');
       doc.setData(data);
       
-      console.log('🎨 Rendering document...');
       try {
         doc.render();
       } catch (renderError) {
-        console.error('❌ Docxtemplater render error in generateNotaEntrega:', renderError);
-        console.error('❌ Template data being rendered:', JSON.stringify(data, null, 2));
-        
-        // Try to get more specific error information
-        if (renderError instanceof Error) {
-          console.error('❌ Error name:', renderError.name);
-          console.error('❌ Error message:', renderError.message);
-          console.error('❌ Error stack:', renderError.stack);
-          
-          // Check if it's the specific "Multi error"
-          if (renderError.message.includes('Multi error')) {
-            console.error('❌ This is a docxtemplater Multi error in generateNotaEntrega - usually caused by template tag issues');
-            console.error('❌ Checking template data structure...');
-            console.error('❌ Participantes count:', data.participantes?.length || 0);
-            console.error('❌ Data keys:', Object.keys(data));
-            
-            if (data.participantes && data.participantes.length > 0) {
-              console.error('❌ First participant structure:', data.participantes[0]);
-            }
-          }
-        }
-        
         throw renderError;
       }
       
-      console.log('💾 Generating buffer...');
       const buffer = doc.getZip().generate({
         type: 'nodebuffer',
         compression: 'DEFLATE',
       });
       
-      console.log('✅ Nota de entrega generated successfully, size:', buffer.length);
       return buffer;
     } catch (error) {
-      console.error('❌ Error generating nota de entrega:', error);
-      console.error('❌ Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace',
-        dataKeys: Object.keys(data),
-        participantesCount: data.participantes?.length || 0,
-        firstParticipant: data.participantes?.[0] || 'No participants'
-      });
       throw new Error(`Failed to generate nota de entrega document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async generateValidacionDatos(data: TemplateData): Promise<Buffer> {
     try {
-      console.log('🔍 Generating validacion de datos with data:', JSON.stringify(data, null, 2));
-      
       // Validate required fields
       if (!data.participantes || !Array.isArray(data.participantes)) {
         throw new Error('Invalid or missing participantes array');
@@ -274,68 +146,31 @@ export class DocumentTemplateProcessor {
         throw new Error('Missing nombre_cliente field');
       }
       
-      console.log('📁 Loading template file...');
       const templateContent = this.loadTemplate('validacion_de_datos.docx');
-      console.log('📄 Template loaded successfully, size:', templateContent.length);
       
       const zip = new PizZip(templateContent);
       
-      console.log('🔧 Creating Docxtemplater instance...');
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
         nullGetter: () => '', // Handle null values gracefully
       });
 
-      console.log('📝 Setting template data...');
       doc.setData(data);
       
-      console.log('🎨 Rendering document...');
       try {
         doc.render();
       } catch (renderError) {
-        console.error('❌ Docxtemplater render error in generateValidacionDatos:', renderError);
-        console.error('❌ Template data being rendered:', JSON.stringify(data, null, 2));
-        
-        // Try to get more specific error information
-        if (renderError instanceof Error) {
-          console.error('❌ Error name:', renderError.name);
-          console.error('❌ Error message:', renderError.message);
-          console.error('❌ Error stack:', renderError.stack);
-          
-          // Check if it's the specific "Multi error"
-          if (renderError.message.includes('Multi error')) {
-            console.error('❌ This is a docxtemplater Multi error in generateValidacionDatos - usually caused by template tag issues');
-            console.error('❌ Checking template data structure...');
-            console.error('❌ Participantes count:', data.participantes?.length || 0);
-            console.error('❌ Data keys:', Object.keys(data));
-            
-            if (data.participantes && data.participantes.length > 0) {
-              console.error('❌ First participant structure:', data.participantes[0]);
-            }
-          }
-        }
-        
         throw renderError;
       }
       
-      console.log('💾 Generating buffer...');
       const buffer = doc.getZip().generate({
         type: 'nodebuffer',
         compression: 'DEFLATE',
       });
       
-      console.log('✅ Validacion de datos generated successfully, size:', buffer.length);
       return buffer;
     } catch (error) {
-      console.error('❌ Error generating validacion de datos:', error);
-      console.error('❌ Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace',
-        dataKeys: Object.keys(data),
-        participantesCount: data.participantes?.length || 0,
-        firstParticipant: data.participantes?.[0] || 'No participants'
-      });
       throw new Error(`Failed to generate validacion de datos document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
