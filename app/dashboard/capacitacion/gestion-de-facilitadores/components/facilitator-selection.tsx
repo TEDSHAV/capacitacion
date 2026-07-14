@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getFacilitatorsAction } from "@/app/actions/facilitators-crud";
 import { Facilitador, FacilitatorOption } from "@/types";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { toTitleCase } from "@/utils/string-utils";
 
 interface FacilitatorSelectionProps {
   selectedFacilitatorId?: string;
