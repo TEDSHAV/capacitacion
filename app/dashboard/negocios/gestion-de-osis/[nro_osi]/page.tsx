@@ -8,10 +8,22 @@ import { useOSI } from '../components/use-osi'
 import OSIHeader from '../components/osi-header'
 import OSIContent from '../components/osi-content'
 import ErrorDialog from '@/components/ui/error-dialog'
+import { getTechnicalServicesAction } from '../../../../actions/dropdown-data'
 
-export default function OSIDetailPage() {
+export default function OSIDetailPage({ params }: { params: Promise<{ nro_osi: string }> }) {
   const router = useRouter()
+  const [resolvedParams, setResolvedParams] = useState<{ nro_osi: string } | null>(null)
   
+  useEffect(() => {
+    const resolveParams = async () => {
+      const paramsData = await params
+      setResolvedParams(paramsData)
+    }
+    resolveParams()
+  }, [params])
+  
+  const nro_osi = resolvedParams?.nro_osi || ''
+
   // Data provider for all the lookup data
   const {
     loading,
@@ -28,6 +40,9 @@ export default function OSIDetailPage() {
     loadInitialData,
     loadContactos
   } = useOSIData()
+
+  // Technical services state
+  const [technicalServices, setTechnicalServices] = useState<any[]>([])
 
   // OSI specific state and operations
   const {
@@ -46,6 +61,21 @@ export default function OSIDetailPage() {
   // Search terms
   const [empresaSearchTerm, setEmpresaSearchTerm] = useState('')
   const [cursoSearchTerm, setCursoSearchTerm] = useState('')
+
+  // Load technical services
+  useEffect(() => {
+    const loadTechnicalServices = async () => {
+      try {
+        const result = await getTechnicalServicesAction()
+        if (result.data) {
+          setTechnicalServices(result.data)
+        }
+      } catch (error) {
+        console.error('Error loading technical services:', error)
+      }
+    }
+    loadTechnicalServices()
+  }, [])
 
   // Load initial data on mount
   useEffect(() => {
@@ -149,6 +179,7 @@ export default function OSIDetailPage() {
             contactos={contactos}
             servicios={servicios}
             cursos={cursos}
+            technicalServices={technicalServices}
             filteredEmpresas={filteredEmpresas}
             filteredCursos={filteredCursos}
             empresaSearchTerm={empresaSearchTerm}

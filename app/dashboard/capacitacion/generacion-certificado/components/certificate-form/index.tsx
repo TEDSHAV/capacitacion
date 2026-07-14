@@ -5,7 +5,7 @@ import { CourseTopic, CertificateFormProps, Signature } from "@/types";
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
-import { getSignaturesForDropdownAction, getCertificateTemplatesAction, getVenezuelanStatesAction } from "../../../../../actions/dropdown-data";
+import { getSignaturesForDropdownAction, getCertificateTemplatesAction, getVenezuelanStatesAction, getCertificateTemplatesByCourseAction } from "../../../../../actions/dropdown-data";
 import { FacilitatorSelection } from "../../../gestion-de-facilitadores/components/facilitator-selection";
 
 export const CertificateForm = ({
@@ -55,14 +55,7 @@ export const CertificateForm = ({
         if (templatesResult.data) {
           const templates = templatesResult.data;
           setCertificateTemplates(templates);
-
-          // Auto-select default template (first active template)
-          if (
-            templates.length > 0 &&
-            !certificateData.id_plantilla_certificado
-          ) {
-            onDataChange("id_plantilla_certificado", templates[0].id);
-          }
+          // Note: Template selection will be handled by the course-based effect
         }
 
         // Load Venezuelan states
@@ -103,6 +96,56 @@ export const CertificateForm = ({
 
     ensureSHASignatureData();
   }, [certificateData.sha_signature_id, certificateData.sha_signature_data]);
+
+  // Effect to load filtered templates when course changes
+  useEffect(() => {
+    const loadFilteredTemplates = async () => {
+      if (selectedCourseTopic?.id) {
+        try {
+          // Load templates filtered by course
+          const templatesResult = await getCertificateTemplatesByCourseAction(selectedCourseTopic.id);
+          if (templatesResult.data) {
+            const templates = templatesResult.data;
+            setCertificateTemplates(templates);
+
+            // Auto-select template if course has a preferred one
+            if (selectedCourseTopic.id_plantilla_certificado) {
+              const courseTemplate = templates.find(
+                (template: any) => template.id === selectedCourseTopic.id_plantilla_certificado
+              );
+              if (courseTemplate) {
+                onDataChange("id_plantilla_certificado", courseTemplate.id);
+                console.log('Auto-selected course-specific template:', courseTemplate);
+              }
+            } else if (templates.length > 0 && !certificateData.id_plantilla_certificado) {
+              // Fallback to first template if no course preference and no template selected
+              onDataChange("id_plantilla_certificado", templates[0].id);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading filtered templates:', error);
+        }
+      } else {
+        // Load all templates when no course is selected
+        try {
+          const templatesResult = await getCertificateTemplatesAction();
+          if (templatesResult.data) {
+            const templates = templatesResult.data;
+            setCertificateTemplates(templates);
+
+            // Auto-select default template (first active template) if none selected
+            if (templates.length > 0 && !certificateData.id_plantilla_certificado) {
+              onDataChange("id_plantilla_certificado", templates[0].id);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading all templates:', error);
+        }
+      }
+    };
+
+    loadFilteredTemplates();
+  }, [selectedCourseTopic?.id, selectedCourseTopic?.id_plantilla_certificado]);
 
   const handleGenerateCertificate = () => {
     // Validation
@@ -362,6 +405,11 @@ export const CertificateForm = ({
           className="block text-sm font-medium text-gray-700 mb-2"
         >
           Plantilla de Certificado
+          {selectedCourseTopic && (
+            <span className="ml-2 text-xs text-blue-600">
+              (Filtradas por curso: {selectedCourseTopic.name})
+            </span>
+          )}
         </label>
         <select
           id="id_plantilla_certificado"
@@ -378,11 +426,17 @@ export const CertificateForm = ({
           {certificateTemplates.map((template: any) => (
             <option key={template.id} value={template.id}>
               {template.nombre}
+              {selectedCourseTopic?.id_plantilla_certificado === template.id && (
+                " (Recomendada para este curso)"
+              )}
             </option>
           ))}
         </select>
         <p className="text-xs text-gray-500 mt-1">
-          Selecciona la plantilla a utilizar para este certificado
+          {selectedCourseTopic 
+            ? `Plantillas disponibles para el curso seleccionado. ${selectedCourseTopic.id_plantilla_certificado ? 'Se recomienda usar la plantilla marcada.' : 'Puedes seleccionar cualquier plantilla disponible.'}`
+            : 'Selecciona la plantilla a utilizar para este certificado'
+          }
         </p>
       </div>
 

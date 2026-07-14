@@ -126,6 +126,7 @@ export default function GeneracionCertificadoPage() {
           passing_grade: passingGrade,
           horas_estimadas: selectedCourse.horas_estimadas, // Add horas_estimadas from matching course
           certificate_title: selectedCourse.name, // Autopopulate certificate title with course name
+          id_plantilla_certificado: selectedCourse.id_plantilla_certificado || prev.id_plantilla_certificado, // Use course template if available
         }));
         setSelectedCourseTopic(selectedCourse);
       }
@@ -165,6 +166,7 @@ export default function GeneracionCertificadoPage() {
           passing_grade: passingGrade, // Use course's passing grade
           horas_estimadas: selectedTopic.horas_estimadas, // Add horas_estimadas from course topic
           certificate_title: prev.certificate_title || selectedTopic.name, // Autopopulate if title is empty
+          id_plantilla_certificado: selectedTopic.id_plantilla_certificado || prev.id_plantilla_certificado, // Use course template if available
           // Clear expiration date if course doesn't emit card
           fecha_vencimiento: selectedTopic.emite_carnet ? prev.fecha_vencimiento : undefined,
         }));

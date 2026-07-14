@@ -17,6 +17,7 @@ interface OSIContentProps {
   contactos: Contacto[]
   servicios: any[]
   cursos: any[]
+  technicalServices: any[]
   filteredEmpresas: Empresa[]
   filteredCursos: any[]
   empresaSearchTerm: string
@@ -39,6 +40,7 @@ export default function OSIContent({
   contactos,
   servicios,
   cursos,
+  technicalServices,
   filteredEmpresas,
   filteredCursos,
   empresaSearchTerm,
@@ -65,8 +67,9 @@ export default function OSIContent({
         usuarios={usuarios}
         contactos={contactos}
         servicios={servicios}
-        filteredEmpresas={filteredEmpresas}
         cursos={cursos}
+        technicalServices={technicalServices}
+        filteredEmpresas={filteredEmpresas}
         filteredCursos={filteredCursos}
         empresaSearchTerm={empresaSearchTerm}
         cursoSearchTerm={cursoSearchTerm}

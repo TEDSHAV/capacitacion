@@ -119,6 +119,7 @@ export interface CourseTopic {
   nota_aprobatoria?: number; // Passing grade from cursos table
   horas_estimadas?: number; // Estimated hours from cursos table
   emite_carnet?: boolean; // Whether course emits card/certificate
+  id_plantilla_certificado?: number; // Preferred certificate template for this course
 }
 
 export interface PersonalInfoSectionProps {
