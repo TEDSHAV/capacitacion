@@ -475,6 +475,19 @@ export async function saveCertificatesToDatabase(
           nro_control: certificateInsert.nro_control,
         });
 
+        // Fix snapshot with actual DB-returned control numbers (trigger overwrites app-supplied values)
+        let correctedSnapshot = updatedSnapshot;
+        try {
+          const snapshotObj = JSON.parse(updatedSnapshot);
+          snapshotObj.certificado.nro_libro = certificateInsert.nro_libro;
+          snapshotObj.certificado.nro_hoja = certificateInsert.nro_hoja;
+          snapshotObj.certificado.nro_linea = certificateInsert.nro_linea;
+          snapshotObj.certificado.nro_control = certificateInsert.nro_control;
+          correctedSnapshot = JSON.stringify(snapshotObj, null, 2);
+        } catch (parseError) {
+          console.warn("Failed to correct snapshot control numbers:", parseError);
+        }
+
         // 4. Generate QR code with actual certificate ID and update
         console.log("Step 4: Generating QR code with actual certificate ID...");
         try {
@@ -491,9 +504,9 @@ export async function saveCertificatesToDatabase(
           console.log("QR code generated successfully");
 
           // Update snapshot with QR code for self-contained reproducibility
-          let updatedSnapshotWithQR = updatedSnapshot;
+          let updatedSnapshotWithQR = correctedSnapshot;
           try {
-            const snapshotObj = JSON.parse(updatedSnapshot);
+            const snapshotObj = JSON.parse(correctedSnapshot);
             snapshotObj.qr_code = qrCodeDataUrl;
             snapshotObj.qr_data = qrResult.data;
             updatedSnapshotWithQR = JSON.stringify(snapshotObj, null, 2);
@@ -526,6 +539,17 @@ export async function saveCertificatesToDatabase(
             certificateInsert.id,
             error,
           );
+
+          // QR failed — still update snapshot with corrected control numbers
+          if (correctedSnapshot !== updatedSnapshot) {
+            const { error: snapshotFixError } = await supabase
+              .from("certificados")
+              .update({ snapshot_contenido: correctedSnapshot })
+              .eq("id", certificateInsert.id);
+            if (snapshotFixError) {
+              console.warn("WARNING: Failed to update snapshot with corrected control numbers:", snapshotFixError);
+            }
+          }
         }
       }
     }
