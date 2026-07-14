@@ -270,8 +270,20 @@ export const FacilitatorForm = ({
     try {
       const formDataToSend = new FormData();
 
+      // Prepare dates
+      const fechaIngreso = formData.fecha_ingreso || null;
+      const anoIngreso = fechaIngreso
+        ? new Date(fechaIngreso).getFullYear()
+        : formData.ano_ingreso;
+
+      const preparedData = {
+        ...formData,
+        fecha_ingreso: fechaIngreso,
+        ano_ingreso: anoIngreso,
+      };
+
       // Add form fields
-      Object.entries(formData).forEach(([key, value]) => {
+      Object.entries(preparedData).forEach(([key, value]) => {
         if (Array.isArray(value)) {
           formDataToSend.append(key, JSON.stringify(value));
         } else if (value !== undefined && value !== null) {
@@ -287,15 +299,7 @@ export const FacilitatorForm = ({
       let result;
       if (editId) {
         // Update existing facilitator
-        const updateData = {
-          ...formData,
-          fecha_ingreso: formData.fecha_ingreso || null,
-          ano_ingreso: formData.fecha_ingreso
-            ? new Date(formData.fecha_ingreso).getFullYear()
-            : null,
-        };
-
-        result = await updateFacilitatorAction(editId, updateData);
+        result = await updateFacilitatorAction(editId, formDataToSend);
 
         if (!result.error) {
           alert("Facilitador actualizado exitosamente");

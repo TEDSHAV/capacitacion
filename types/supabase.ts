@@ -99,13 +99,6 @@ export type Database = {
             referencedColumns: ["id_empresa"];
           },
           {
-            foreignKeyName: "carnets_id_osi_fkey";
-            columns: ["id_osi"];
-            isOneToOne: false;
-            referencedRelation: "osi";
-            referencedColumns: ["id"];
-          },
-          {
             foreignKeyName: "carnets_id_participante_fkey";
             columns: ["id_participante"];
             isOneToOne: false;
@@ -1182,6 +1175,10 @@ export type Database = {
       };
       ecc_totales: {
         Row: {
+          admin_costo_hora_aplicado: number | null;
+          admin_factor_aplicado: number | null;
+          admin_horas_aplicadas: number | null;
+          admin_meta_global_aplicada: number | null;
           id: number;
           id_ecc: number;
           monto_gastos_admin: number | null;
@@ -1192,6 +1189,10 @@ export type Database = {
           total_general: number | null;
         };
         Insert: {
+          admin_costo_hora_aplicado?: number | null;
+          admin_factor_aplicado?: number | null;
+          admin_horas_aplicadas?: number | null;
+          admin_meta_global_aplicada?: number | null;
           id?: number;
           id_ecc: number;
           monto_gastos_admin?: number | null;
@@ -1202,6 +1203,10 @@ export type Database = {
           total_general?: number | null;
         };
         Update: {
+          admin_costo_hora_aplicado?: number | null;
+          admin_factor_aplicado?: number | null;
+          admin_horas_aplicadas?: number | null;
+          admin_meta_global_aplicada?: number | null;
           id?: number;
           id_ecc?: number;
           monto_gastos_admin?: number | null;
@@ -2294,134 +2299,6 @@ export type Database = {
         };
         Relationships: [];
       };
-      osi: {
-        Row: {
-          carnet_impreso: boolean;
-          certificado_impreso: boolean;
-          cliente_nombre_empresa: string;
-          codigo_cliente: number | null;
-          contacto_id: number | null;
-          costo_honorarios: number | null;
-          costo_impresion_material: number | null;
-          costo_logistica_comida: number | null;
-          costo_otros: number | null;
-          costo_total: number | null;
-          costo_traslado: number | null;
-          detalle_capacitacion: string | null;
-          direccion_ejecucion: string | null;
-          direccion_envio: string | null;
-          direccion_fiscal: string | null;
-          ejecutivo_negocios: number;
-          empresa_id: number;
-          estado: string;
-          fecha_ejecucion1: string;
-          fecha_ejecucion2: string | null;
-          fecha_ejecucion3: string | null;
-          fecha_ejecucion4: string | null;
-          fecha_ejecucion5: string | null;
-          fecha_emision: string | null;
-          id: number;
-          id_curso: number | null;
-          is_active: boolean;
-          nro_horas: number | null;
-          nro_orden_compra: string | null;
-          nro_osi: string;
-          nro_presupuesto: string | null;
-          nro_sesiones: number | null;
-          observaciones_adicionales: string | null;
-          participantes_max: number | null;
-          persona_contacto_id: number | null;
-          pretenciones_cliente: string | null;
-          tipo_servicio: string;
-        };
-        Insert: {
-          carnet_impreso?: boolean;
-          certificado_impreso?: boolean;
-          cliente_nombre_empresa: string;
-          codigo_cliente?: number | null;
-          contacto_id?: number | null;
-          costo_honorarios?: number | null;
-          costo_impresion_material?: number | null;
-          costo_logistica_comida?: number | null;
-          costo_otros?: number | null;
-          costo_total?: number | null;
-          costo_traslado?: number | null;
-          detalle_capacitacion?: string | null;
-          direccion_ejecucion?: string | null;
-          direccion_envio?: string | null;
-          direccion_fiscal?: string | null;
-          ejecutivo_negocios: number;
-          empresa_id: number;
-          estado?: string;
-          fecha_ejecucion1: string;
-          fecha_ejecucion2?: string | null;
-          fecha_ejecucion3?: string | null;
-          fecha_ejecucion4?: string | null;
-          fecha_ejecucion5?: string | null;
-          fecha_emision?: string | null;
-          id?: number;
-          id_curso?: number | null;
-          is_active?: boolean;
-          nro_horas?: number | null;
-          nro_orden_compra?: string | null;
-          nro_osi?: string;
-          nro_presupuesto?: string | null;
-          nro_sesiones?: number | null;
-          observaciones_adicionales?: string | null;
-          participantes_max?: number | null;
-          persona_contacto_id?: number | null;
-          pretenciones_cliente?: string | null;
-          tipo_servicio: string;
-        };
-        Update: {
-          carnet_impreso?: boolean;
-          certificado_impreso?: boolean;
-          cliente_nombre_empresa?: string;
-          codigo_cliente?: number | null;
-          contacto_id?: number | null;
-          costo_honorarios?: number | null;
-          costo_impresion_material?: number | null;
-          costo_logistica_comida?: number | null;
-          costo_otros?: number | null;
-          costo_total?: number | null;
-          costo_traslado?: number | null;
-          detalle_capacitacion?: string | null;
-          direccion_ejecucion?: string | null;
-          direccion_envio?: string | null;
-          direccion_fiscal?: string | null;
-          ejecutivo_negocios?: number;
-          empresa_id?: number;
-          estado?: string;
-          fecha_ejecucion1?: string;
-          fecha_ejecucion2?: string | null;
-          fecha_ejecucion3?: string | null;
-          fecha_ejecucion4?: string | null;
-          fecha_ejecucion5?: string | null;
-          fecha_emision?: string | null;
-          id?: number;
-          id_curso?: number | null;
-          is_active?: boolean;
-          nro_horas?: number | null;
-          nro_orden_compra?: string | null;
-          nro_osi?: string;
-          nro_presupuesto?: string | null;
-          nro_sesiones?: number | null;
-          observaciones_adicionales?: string | null;
-          participantes_max?: number | null;
-          persona_contacto_id?: number | null;
-          pretenciones_cliente?: string | null;
-          tipo_servicio?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "osi_id_curso_fkey";
-            columns: ["id_curso"];
-            isOneToOne: false;
-            referencedRelation: "cursos";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
       osi_recursos_estimados: {
         Row: {
           costo_bateria: number | null;
@@ -2441,6 +2318,7 @@ export type Database = {
           id: number;
           id_osi: number;
           pop_incluido: boolean | null;
+          public_cost_mask: Json;
           tarifa_hora_honorarios: number | null;
           traslado_externo: number | null;
         };
@@ -2462,6 +2340,7 @@ export type Database = {
           id?: number;
           id_osi: number;
           pop_incluido?: boolean | null;
+          public_cost_mask?: Json;
           tarifa_hora_honorarios?: number | null;
           traslado_externo?: number | null;
         };
@@ -2483,6 +2362,7 @@ export type Database = {
           id?: number;
           id_osi?: number;
           pop_incluido?: boolean | null;
+          public_cost_mask?: Json;
           tarifa_hora_honorarios?: number | null;
           traslado_externo?: number | null;
         };
@@ -2618,6 +2498,8 @@ export type Database = {
           id: number;
           is_active: boolean;
           nombre: string;
+          updated_at: string | null;
+          url_imagen: string | null;
         };
         Insert: {
           archivo?: string | null;
@@ -2625,6 +2507,8 @@ export type Database = {
           id?: number;
           is_active?: boolean;
           nombre: string;
+          updated_at?: string | null;
+          url_imagen?: string | null;
         };
         Update: {
           archivo?: string | null;
@@ -2632,6 +2516,8 @@ export type Database = {
           id?: number;
           is_active?: boolean;
           nombre?: string;
+          updated_at?: string | null;
+          url_imagen?: string | null;
         };
         Relationships: [];
       };
@@ -4146,6 +4032,7 @@ export type Database = {
         Args: { p_notification_id: string };
         Returns: boolean;
       };
+      next_ejecucion_osi_nro_secuencial: { Args: never; Returns: string };
       notify_osi_change_saved: {
         Args: {
           p_change_type: string;
@@ -4155,6 +4042,28 @@ export type Database = {
         };
         Returns: undefined;
       };
+      notify_solped_cancelled: {
+        Args: { p_dedupe_key?: string; p_id_ecc: number; p_source?: string };
+        Returns: undefined;
+      };
+      notify_solped_change_saved:
+        | {
+            Args: {
+              p_dedupe_key?: string;
+              p_id_ecc: number;
+              p_summary: string;
+            };
+            Returns: undefined;
+          }
+        | {
+            Args: {
+              p_changed_fields?: string[];
+              p_dedupe_key?: string;
+              p_id_ecc: number;
+              p_summary: string;
+            };
+            Returns: undefined;
+          };
       search_certificates: {
         Args: {
           p_company_id?: number;

@@ -495,7 +495,7 @@ export async function getCarnetsRelationships(
 
       // Get OSI details
       supabase
-        .from("osi")
+        .from("ejecucion_osi")
         .select(
           `
           *,
@@ -504,13 +504,6 @@ export async function getCarnetsRelationships(
             razon_social,
             rif,
             direccion_fiscal
-          ),
-          curso:cursos(
-            id,
-            nombre,
-            contenido,
-            horas_estimadas,
-            emite_carnet
           )
         `,
         )

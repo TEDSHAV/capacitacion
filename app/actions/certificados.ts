@@ -79,14 +79,6 @@ export async function saveCertificatesToDatabase(
 }> {
   try {
     const startTime = Date.now();
-    console.log("=== STARTING CERTIFICATE SAVE PROCESS ===");
-    console.log("⏱️  Start time:", new Date(startTime).toISOString());
-
-    console.log("Certificate data:", JSON.stringify(certificateData, null, 2));
-
-    console.log("Participants count:", participants.length);
-
-    console.log("Participants:", JSON.stringify(participants, null, 2));
 
     // Fetch facilitator and SHA signature in parallel — they are independent
 
@@ -103,11 +95,6 @@ export async function saveCertificatesToDatabase(
 
           if (facilitatorData) {
             updatedCertificateData.facilitator_data = facilitatorData;
-
-            console.log(
-              "Successfully fetched facilitator data:",
-              facilitatorData.name,
-            );
           }
         })().catch((e) => {
           console.warn("Failed to fetch facilitator data:", e);
@@ -127,11 +114,6 @@ export async function saveCertificatesToDatabase(
 
           if (shaSignatureData) {
             updatedCertificateData.sha_signature_data = shaSignatureData;
-
-            console.log(
-              "Successfully fetched SHA signature data:",
-              shaSignatureData.nombre,
-            );
           }
         })().catch((e) => {
           console.warn("Failed to fetch SHA signature data:", e);
@@ -142,9 +124,6 @@ export async function saveCertificatesToDatabase(
     if (fetchTasks.length > 0) await Promise.all(fetchTasks);
 
     const afterFetchTime = Date.now();
-    console.log(
-      `⏱️  Facilitator/Signature fetch time: ${afterFetchTime - startTime}ms`,
-    );
 
     const supabase = await createClient();
 
@@ -183,7 +162,6 @@ export async function saveCertificatesToDatabase(
 
       if (!rpcError && controlNumbersData) {
         nextControlNumbers = controlNumbersData as any;
-        console.log("Generated control numbers via RPC:", nextControlNumbers);
       } else {
         console.warn(
           "RPC error for control numbers, using fallback:",
@@ -197,25 +175,12 @@ export async function saveCertificatesToDatabase(
       );
     }
     const afterControlNumbersTime = Date.now();
-    console.log(
-      `⏱️  Control numbers RPC time: ${afterControlNumbersTime - beforeControlNumbersTime}ms`,
-    );
 
     const beforeParticipantsLoopTime = Date.now();
     for (let i = 0; i < participants.length; i++) {
       const participant = participants[i];
 
-      console.log(
-        `\n--- Processing participant ${i + 1}/${participants.length}: ${participant.name} ---`,
-      );
-
-      // 1. Create or find participant record
-
-      console.log("Step 1: Creating/updating participant...");
-
       const participantId = await createOrUpdateParticipant(participant);
-
-      console.log("Participant ID result:", participantId);
 
       if (!participantId) {
         console.error(
@@ -229,11 +194,6 @@ export async function saveCertificatesToDatabase(
 
         continue; // Skip this participant but continue with others
       }
-
-      console.log(
-        "SUCCESS: Participant created/updated with ID:",
-        participantId,
-      );
 
       // Verify participant was actually saved to database
 

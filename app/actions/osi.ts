@@ -155,18 +155,18 @@ export async function getOSIs(filters?: {
     const supabase = await createClient();
     const { search, empresa, estado, page = 1, limit = 50 } = filters || {};
 
-    // Optimized query without foreign key relationship (doesn't exist in schema)
-    let query = supabase.from("osi").select("*", { count: "exact" });
+    // Query ejecucion_osi table with proper filtering
+    let query = supabase.from("ejecucion_osi").select("*", { count: "exact" });
 
     // Apply filters
     if (search && search.trim()) {
       query = query.or(
-        `nro_osi.ilike.%${search}%,cliente_nombre_empresa.ilike.%${search}%,tema.ilike.%${search}%`,
+        `nro_osi.ilike.%${search}%,nombre_empresa.ilike.%${search}%,tema.ilike.%${search}%`,
       );
     }
 
     if (empresa && empresa.trim()) {
-      query = query.eq("empresa_id", empresa);
+      query = query.eq("id_empresa", empresa);
     }
 
     if (estado && estado.trim()) {

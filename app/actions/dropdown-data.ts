@@ -153,38 +153,6 @@ const getCertificateTemplatesByCourse = cache(async (courseId?: string) => {
   }
 });
 
-// Test function to check if plantillas_cursos has any data
-const getCourseTemplatesTest = cache(async () => {
-  const supabase = await createClient();
-
-  try {
-    console.log("🧪 Testing plantillas_cursos table...");
-
-    // Get all records without any filters
-    const { data: allData, error: allError } = await supabase
-      .from("plantillas_cursos")
-      .select("*");
-
-    console.log("📊 All plantillas_cursos data:", { allData, allError });
-
-    // Get only active records
-    const { data: activeData, error: activeError } = await supabase
-      .from("plantillas_cursos")
-      .select("*")
-      .eq("is_active", true);
-
-    console.log("📊 Active plantillas_cursos data:", {
-      activeData,
-      activeError,
-    });
-
-    return { allData, activeData, allError, activeError };
-  } catch (err) {
-    console.error("💥 Error in test function:", err);
-    return { error: err };
-  }
-});
-
 // Get course templates (plantillas_cursos) filtered by course and company
 const getCourseTemplatesByOSI = cache(
   async (courseId?: string, empresaId?: string) => {
@@ -273,10 +241,6 @@ export async function getActiveTemplateAction(
 
 export async function getCertificateTemplatesByCourseAction(courseId?: string) {
   return await getCertificateTemplatesByCourse(courseId);
-}
-
-export async function getCourseTemplatesTestAction() {
-  return await getCourseTemplatesTest();
 }
 
 export async function getCourseTemplatesByOSIAction(

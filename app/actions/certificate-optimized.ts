@@ -117,10 +117,6 @@ const getOptimizedCertificateData = cache(async () => {
       });
     }
 
-    console.log(
-      `Found ${osisWithCertificates.size} unique OSI references (raw + cleaned) with certificates in the last 5000 records`,
-    );
-
     // Handle courses errors
     if (coursesResult.error) {
       console.error("Courses fetch error:", coursesResult.error);
@@ -234,17 +230,6 @@ const getOptimizedCertificateData = cache(async () => {
         : course.contenido_curso
           ? "catalogo_servicios (fallback)"
           : "none";
-
-      if (course.nombre.toLowerCase().includes("permisos")) {
-        console.log(`🔍 Course "${course.nombre}":`, {
-          id: course.id,
-          catalogo_servicios_contenido:
-            course.contenido_curso?.substring(0, 50) + "...",
-          cursos_contenido: cursoMatch?.contenido?.substring(0, 50) + "...",
-          cursos_id: cursoMatch?.id,
-          content_source: contentSource,
-        });
-      }
 
       return {
         id: course.id.toString(), // catalogo_servicios.id — for OSI matching
