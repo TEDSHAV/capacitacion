@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
-import { Curso, Empresa } from "@/types";
-import EmpresaSearch from "./EmpresaSearch";
+import { Curso } from "@/types";
 
 const RichTextEditor = dynamic(
   () => import("@/components/ui/rich-text-editor"),
@@ -10,7 +9,6 @@ const RichTextEditor = dynamic(
 
 interface CourseFormProps {
   curso: Curso | null;
-  empresas: Empresa[];
   onSubmit: (formData: any) => void;
   onCancel: () => void;
   isEdit: boolean;
@@ -18,15 +16,12 @@ interface CourseFormProps {
 
 export default function CourseForm({
   curso,
-  empresas,
   onSubmit,
   onCancel,
   isEdit,
 }: CourseFormProps) {
   const [datosFormulario, setDatosFormulario] = useState({
     titulo: curso?.nombre || "",
-    empresa_id: "", // Removed cliente_asociado reference as column doesn't exist
-    empresa_nombre: curso?.empresas?.razon_social || "",
     contenido: curso?.contenido_curso || "",
     horas_estimadas: curso?.carga_horaria_std || 0,
     tipo_certificado:
@@ -94,14 +89,6 @@ export default function CourseForm({
       tipo_certificado: tipo,
       nota_aprobatoria:
         tipo === "participacion" ? 0 : prev.nota_aprobatoria || 14, // Set to 0 for participation, keep existing or default for graded
-    }));
-  };
-
-  const handleEmpresaSelect = (empresaId: string, empresaData: Empresa) => {
-    setDatosFormulario((prev) => ({
-      ...prev,
-      empresa_id: empresaId || "", // Keep as string for form state
-      empresa_nombre: empresaData?.razon_social || "", // Set company name for display
     }));
   };
 
@@ -188,19 +175,6 @@ export default function CourseForm({
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             placeholder="Ej: Introducción a la Seguridad Industrial"
-          />
-        </div>
-
-        {/* Client Search */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Vincular a Empresa (opcional)
-          </label>
-          <EmpresaSearch
-            empresas={empresas}
-            value={datosFormulario.empresa_id}
-            onChange={handleEmpresaSelect}
-            placeholder="Buscar empresa por nombre, RIF o código..."
           />
         </div>
 

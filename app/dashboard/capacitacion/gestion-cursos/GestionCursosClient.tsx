@@ -239,7 +239,6 @@ export default function GestionCursosClient({
                   ? cursosList.find((c) => c.id === editandoCurso) || null
                   : null
               }
-              empresas={empresas}
               onSubmit={creandoCurso ? handleCreateCourse : handleEditCourse}
               onCancel={cerrarModal}
               isEdit={!!editandoCurso}

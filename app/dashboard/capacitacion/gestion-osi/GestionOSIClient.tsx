@@ -128,7 +128,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
       <div className="mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestión de OSIs</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Consulta de OSIs</h1>
           <p className="mt-1 text-sm text-gray-600">
             Visualiza y monitorea las Órdenes de Servicio de Instrucción
           </p>
