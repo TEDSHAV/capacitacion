@@ -30,7 +30,7 @@ export default function CapacitacionClient({
       color: 'bg-blue-500'
     },
     {
-      id: 'generacion-certificados',
+      id: 'generacion-certificado',
       title: 'Generación de Certificados',
       description: 'Crear y generar certificados de capacitación',
       color: 'bg-yellow-500'

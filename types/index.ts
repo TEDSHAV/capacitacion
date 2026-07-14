@@ -71,3 +71,33 @@ export interface OSI {
   contacto_id: number | null
   detalle_capacitacion: string | null
 }
+
+export interface CertificateGeneration {
+  id?: string;
+  osi_id: string;
+  osi_data?: OSI;
+  certificate_title: string;
+  certificate_subtitle?: string;
+  passing_grade?: number; // Minimum score to pass (default 14, editable)
+  course_topic_id: string;
+  course_topic_data?: CourseTopic;
+  participants: CertificateParticipant[];
+  location: string;
+  date: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CertificateParticipant {
+  id?: string;
+  name: string;
+  id_number: string;
+  score?: number;
+}
+
+export interface CourseTopic {
+  id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+}
