@@ -326,7 +326,7 @@ export class CarnetGenerator {
 
     // Determine ID label and prefix based on nationality
     const idPrefix = participant.nationality === "extranjero" ? "e-" : "V-";
-    pdf.text(`${idPrefix}${participant.idNumber}`, 28, nameY - 6);
+    pdf.text(`Cédula: ${idPrefix}${participant.idNumber}`, 28, nameY - 6);
   }
 
   private async addCourseInfo(
