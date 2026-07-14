@@ -13,7 +13,7 @@ interface OSI {
   ejecutivo_negocios: number
   cliente_nombre_empresa: string
   tema: string
-  fecha_servicio: string
+  fecha_servicio: Date | null
   participantes_max: number
   detalle_sesion: string
   certificado_impreso: boolean
@@ -52,7 +52,7 @@ export default function OSIDetailPage() {
     ejecutivo_negocios: 0,
     cliente_nombre_empresa: '',
     tema: '',
-    fecha_servicio: '',
+    fecha_servicio: null,
     nro_sesiones: 1,
     fecha_ejecucion1: '',
     fecha_ejecucion2: '',
@@ -159,7 +159,7 @@ export default function OSIDetailPage() {
         ejecutivo_negocios: Number(formData.ejecutivo_negocios) || null,
         cliente_nombre_empresa: formData.cliente_nombre_empresa?.trim() || '',
         tema: formData.tema?.trim() || null,
-        fecha_servicio: formData.fecha_servicio || null,
+        fecha_servicio: formData.fecha_servicio ? new Date(formData.fecha_servicio) : null,
         nro_sesiones: Number(formData.nro_sesiones) || 1,
         fecha_ejecucion1: formData.fecha_ejecucion1 || null,
         fecha_ejecucion2: formData.fecha_ejecucion2 || null,
@@ -510,7 +510,7 @@ export default function OSIDetailPage() {
                 </label>
                 <input
                   type="date"
-                  value={formData[`fecha_ejecucion${index + 1}` as keyof OSI] || ''}
+                  value={String(formData[`fecha_ejecucion${index + 1}` as keyof OSI] ?? '')}
                   onChange={(e) => updateFormData(`fecha_ejecucion${index + 1}` as keyof OSI, e.target.value)}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -564,8 +564,8 @@ export default function OSIDetailPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Servicio</label>
                 <input
                   type="date"
-                  value={formData.fecha_servicio || ''}
-                  onChange={(e) => updateFormData('fecha_servicio', e.target.value)}
+                  value={formData.fecha_servicio ? formData.fecha_servicio.toISOString().split('T')[0] : ''}
+                  onChange={(e) => updateFormData('fecha_servicio', e.target.value ? new Date(e.target.value) : null)}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
