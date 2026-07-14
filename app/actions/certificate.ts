@@ -31,66 +31,169 @@ export interface CertificateOSI {
 
 export async function getCertificateData(options?: { osiLimit?: number; courseLimit?: number }) {
   try {
+    console.log('Starting getCertificateData...');
+    
+    // Check environment variables first
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    console.log('Environment check:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseKey,
+      urlPrefix: supabaseUrl?.substring(0, 20) + '...'
+    });
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase environment variables. Please check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    }
+    
     const supabase = await createClient();
+    console.log('Supabase client created successfully');
+    
     const { osiLimit = 50, courseLimit = 100 } = options || {};
 
-    // Fetch OSIs with course information (left join to show all OSIs)
+    // Test basic table access first
+    console.log('Testing osi table access...');
     const { data: osis, error: osiError } = await supabase
+      .from("osi")
+      .select("id, nro_osi")
+      .limit(1);
+
+    console.log('Table test result:', { osis, osiError });
+
+    if (osiError) {
+      console.error('Table access failed:', osiError);
+      console.error('Error details:', {
+        message: osiError.message,
+        code: osiError.code,
+        details: osiError.details,
+        hint: osiError.hint
+      });
+      
+      // Try to list available tables using a different approach
+      try {
+        console.log('Attempting to check database connection...');
+        const { data: connectionTest } = await supabase
+          .from('information_schema.tables')
+          .select('table_name')
+          .eq('table_schema', 'public')
+          .limit(5);
+        
+        console.log('Available tables (sample):', connectionTest);
+      } catch (schemaError) {
+        console.error('Could not check schema:', schemaError);
+      }
+      
+      throw new Error(`Cannot access osi table: ${osiError.message}. This might be due to missing table or insufficient permissions.`);
+    }
+
+    console.log('Table access successful, fetching full data...');
+
+    // Now try the full query using the osi table with all relevant fields
+    const { data: fullOsis, error: fullOsiError } = await supabase
       .from("osi")
       .select(`
         id, 
         nro_osi, 
-        cliente_nombre_empresa, 
-        detalle_capacitacion, 
-        id_curso, 
-        is_active, 
-        empresa_id,
+        nro_orden_compra,
         tipo_servicio,
+        nro_presupuesto,
         ejecutivo_negocios,
-        cursos (
-          nombre,
-          contenido
-        )
+        cliente_nombre_empresa,
+        id_curso,
+        fecha_ejecucion1,
+        empresa_id,
+        direccion_fiscal,
+        direccion_envio,
+        direccion_ejecucion,
+        nro_sesiones,
+        fecha_ejecucion2,
+        fecha_emision,
+        nro_horas,
+        costo_total,
+        detalle_capacitacion,
+        codigo_cliente,
+        is_active
       `)
       .eq("is_active", true)
       .order("nro_osi", { ascending: false })
       .limit(osiLimit);
 
-    console.log('OSI Query Result:', { osis, osiError }); // Debug log
+    console.log('Full OSI Query Result:', { fullOsis, fullOsiError });
 
-    if (osiError) {
-      throw osiError;
+    if (fullOsiError) {
+      throw fullOsiError;
     }
 
-    // Transform the data to match CertificateOSI interface
-    const transformedOSIs = (osis || []).map((osi: any) => ({
+    console.log('OSI data loaded successfully, count:', fullOsis?.length || 0);
+
+    // Create OSI data with actual table fields
+    const transformedOSIs = (fullOsis || []).map((osi: any) => ({
       id: osi.id.toString(),
       nro_osi: osi.nro_osi,
-      cliente_nombre_empresa: osi.cliente_nombre_empresa,
-      detalle_capacitacion: osi.detalle_capacitacion,
-      id_curso: osi.id_curso,
-      is_active: osi.is_active,
-      empresa_id: osi.empresa_id,
+      nro_orden_compra: osi.nro_orden_compra,
       tipo_servicio: osi.tipo_servicio,
+      nro_presupuesto: osi.nro_presupuesto,
       ejecutivo_negocios: osi.ejecutivo_negocios,
-      curso_nombre: osi.cursos?.nombre, // Course name from join
+      cliente_nombre_empresa: osi.cliente_nombre_empresa,
+      id_curso: osi.id_curso,
+      fecha_servicio: osi.fecha_ejecucion1,
+      empresa_id: osi.empresa_id,
+      direccion_fiscal: osi.direccion_fiscal || '',
+      direccion_envio: osi.direccion_envio || '',
+      direccion_ejecucion: osi.direccion_ejecucion || '',
+      nro_sesiones: osi.nro_sesiones,
+      fecha_ejecucion1: osi.fecha_ejecucion1,
+      fecha_ejecucion2: osi.fecha_ejecucion2,
+      fecha_emision: osi.fecha_emision,
+      nro_horas: osi.nro_horas,
+      costo_total: osi.costo_total,
+      detalle_capacitacion: osi.detalle_capacitacion,
+      detalle_sesion: undefined, // This field doesn't exist in osi table
+      codigo_cliente: osi.codigo_cliente,
+      is_active: osi.is_active,
+      curso_nombre: 'Curso', // Placeholder - would need to join with cursos table
     }));
 
-    // Fetch cursos with pagination and only necessary fields
+    // Test cursos table access
+    console.log('Testing cursos table access...');
     const { data: cursosData, error: cursosError } = await supabase
+      .from("cursos")
+      .select("id, nombre")
+      .limit(1);
+
+    console.log('Cursos table test:', { cursosData, cursosError });
+
+    if (cursosError) {
+      console.error('Cursos table access failed:', cursosError);
+      console.error('Error details:', {
+        message: cursosError.message,
+        code: cursosError.code,
+        details: cursosError.details,
+        hint: cursosError.hint
+      });
+      throw new Error(`Cannot access cursos table: ${cursosError.message}. This might be due to missing table or insufficient permissions.`);
+    }
+
+    // Fetch full cursos data
+    const { data: fullCursosData, error: fullCursosError } = await supabase
       .from("cursos")
       .select("id, nombre, contenido, cliente_asociado, nota_aprobatoria, horas_estimadas, emite_carnet")
       .eq("is_active", true)
       .order("nombre", { ascending: true })
       .limit(courseLimit);
 
-    if (cursosError) {
-      throw cursosError;
+    console.log('Full Cursos Query Result:', { fullCursosData, fullCursosError });
+
+    if (fullCursosError) {
+      throw fullCursosError;
     }
+
+    console.log('Cursos data loaded successfully, count:', fullCursosData?.length || 0);
 
     return {
       osis: transformedOSIs as CertificateOSI[],
-      courseTopics: (cursosData || []).map((curso) => ({
+      courseTopics: (fullCursosData || []).map((curso) => ({
         id: curso.id.toString(),
         nombre: curso.nombre,
         name: curso.nombre, // Add name field for compatibility
@@ -104,6 +207,10 @@ export async function getCertificateData(options?: { osiLimit?: number; courseLi
     };
 
   } catch (error) {
+    console.error('Detailed error in getCertificateData:', error);
+    console.error('Error type:', typeof error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
     return { error: error instanceof Error ? error.message : 'Error al cargar los datos' };
   }
 }

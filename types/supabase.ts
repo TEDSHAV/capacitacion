@@ -620,6 +620,7 @@ export type Database = {
           es_principal: boolean | null
           id: number
           id_empleado: number | null
+          id_empresa: number | null
           id_facilitador: number | null
           id_proveedor: number | null
           nro_cuenta: string
@@ -631,6 +632,7 @@ export type Database = {
           es_principal?: boolean | null
           id?: number
           id_empleado?: number | null
+          id_empresa?: number | null
           id_facilitador?: number | null
           id_proveedor?: number | null
           nro_cuenta: string
@@ -642,6 +644,7 @@ export type Database = {
           es_principal?: boolean | null
           id?: number
           id_empleado?: number | null
+          id_empresa?: number | null
           id_facilitador?: number | null
           id_proveedor?: number | null
           nro_cuenta?: string
@@ -653,6 +656,13 @@ export type Database = {
             columns: ["id_empleado"]
             isOneToOne: false
             referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "datos_bancarios_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
           {
@@ -919,6 +929,7 @@ export type Database = {
           id_modalidad: number | null
           id_servicio: number | null
           id_trato: number | null
+          motivo_rechazo: string | null
           observaciones_cliente: string | null
           participantes: number | null
           pretenciones_cliente: string | null
@@ -938,6 +949,7 @@ export type Database = {
           id_modalidad?: number | null
           id_servicio?: number | null
           id_trato?: number | null
+          motivo_rechazo?: string | null
           observaciones_cliente?: string | null
           participantes?: number | null
           pretenciones_cliente?: string | null
@@ -957,6 +969,7 @@ export type Database = {
           id_modalidad?: number | null
           id_servicio?: number | null
           id_trato?: number | null
+          motivo_rechazo?: string | null
           observaciones_cliente?: string | null
           participantes?: number | null
           pretenciones_cliente?: string | null
@@ -2098,7 +2111,6 @@ export type Database = {
           fecha_ejecucion4: string | null
           fecha_ejecucion5: string | null
           fecha_emision: string | null
-          fecha_servicio: string | null
           id: number
           id_curso: number | null
           is_active: boolean
@@ -2138,7 +2150,6 @@ export type Database = {
           fecha_ejecucion4?: string | null
           fecha_ejecucion5?: string | null
           fecha_emision?: string | null
-          fecha_servicio?: string | null
           id?: number
           id_curso?: number | null
           is_active?: boolean
@@ -2178,7 +2189,6 @@ export type Database = {
           fecha_ejecucion4?: string | null
           fecha_ejecucion5?: string | null
           fecha_emision?: string | null
-          fecha_servicio?: string | null
           id?: number
           id_curso?: number | null
           is_active?: boolean

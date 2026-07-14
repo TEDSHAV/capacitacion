@@ -158,7 +158,10 @@ export async function saveCertificatesToDatabase(
         id_curso: updatedCertificateData.course_topic_data?.id ? parseInt(updatedCertificateData.course_topic_data.id) : null,
         fecha_emision: today,
         fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
-        nro_osi: updatedCertificateData.osi_data?.nro_osi ? parseInt(updatedCertificateData.osi_data.nro_osi.toString()) : null, // REQUIRED for OSI certificates
+        nro_osi: updatedCertificateData.osi_data?.nro_osi ? 
+          (typeof updatedCertificateData.osi_data.nro_osi === 'string' ? 
+            parseInt(updatedCertificateData.osi_data.nro_osi.replace(/[^\d]/g, '')) || null : 
+            updatedCertificateData.osi_data.nro_osi) : null, // Handle string to number conversion
         id_estado: updatedCertificateData.id_estado || null,
         id_facilitador: updatedCertificateData.facilitator_id ? parseInt(updatedCertificateData.facilitator_id) : null,
         id_plantilla_certificado: updatedCertificateData.id_plantilla_certificado || null,

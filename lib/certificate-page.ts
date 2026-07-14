@@ -260,11 +260,11 @@ export class CertificatePage {
                 id: data.id,
                 name: data.nombre_apellido,
                 nombre_apellido: data.nombre_apellido,
-                facilitator: data.facilitator,
-                cargo: data.cargo,
-                firma: data.firma,
+                facilitator: data.nombre_apellido, // Same as name for consistency
+                cargo: 'Facilitador', // Default cargo since not returned by API
+                firma: data.firmas?.url_imagen,
                 firma_id: data.firma_id,
-                sha_signature_id: data.sha_signature_id,
+                sha_signature_id: data.firma_id?.toString(),
                 signature_data: data.firmas ? {
                   id: data.firmas.id,
                   representante_sha: data.firmas.nombre,
@@ -328,13 +328,13 @@ export class CertificatePage {
       // Add facilitator signature if available
       let signatureUrl = null;
       
-      // Check multiple possible signature fields in order of preference
-      if (facilitator.firma) {
-        signatureUrl = facilitator.firma;
+      // Check signature from firmas relationship (primary source)
+      if (facilitator.signature_data?.url_imagen) {
+        signatureUrl = facilitator.signature_data.url_imagen;
       } else if (facilitator.signature_data?.firma) {
         signatureUrl = facilitator.signature_data.firma;
-      } else if (facilitator.signature_data?.url_imagen) {
-        signatureUrl = facilitator.signature_data.url_imagen;
+      } else if (facilitator.firma) {
+        signatureUrl = facilitator.firma;
       }
       
       if (signatureUrl) {
@@ -348,6 +348,7 @@ export class CertificatePage {
         );
       } else {
         console.warn('No signature image found for facilitator:', facilitator.name);
+        console.log('Facilitator data structure:', JSON.stringify(facilitator, null, 2));
       }
     } catch (error) {
       console.error('Error adding facilitator signature:', error);
