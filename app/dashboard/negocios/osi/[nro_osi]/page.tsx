@@ -88,13 +88,15 @@ export default function OSIDetailPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredEmpresas, setFilteredEmpresas] = useState<any[]>([])
   const [servicios, setServicios] = useState<any[]>([])
+  const [usuarios, setUsuarios] = useState<any[]>([])
 
   useEffect(() => {
     const nro_osi = params.nro_osi as string
     
-    // Load empresas and servicios regardless of OSI state
+    // Load empresas, servicios, and usuarios regardless of OSI state
     loadEmpresas()
     loadServicios()
+    loadUsuarios()
     
     if (nro_osi === 'new') {
       setIsNew(true)
@@ -155,6 +157,21 @@ export default function OSIDetailPage() {
       setServicios(data || [])
     } catch (err) {
       console.error('Error loading servicios:', err)
+    }
+  }
+
+  const loadUsuarios = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("usuarios")
+        .select("id, nombre_apellido")
+        .eq("departamento", 2)  // negocios department ID is 2
+        .order("nombre_apellido")
+      
+      if (error) throw error
+      setUsuarios(data || [])
+    } catch (err) {
+      console.error('Error loading usuarios:', err)
     }
   }
 
@@ -522,15 +539,20 @@ export default function OSIDetailPage() {
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Ejecutivo Negocios ID</label>
-                  <input
-                    type="number"
-                    value={formData.ejecutivo_negocios || 0}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ejecutivo Negocios</label>
+                  <select
+                    value={formData.ejecutivo_negocios || ''}
                     onChange={(e) => updateFormData('ejecutivo_negocios', parseInt(e.target.value) || 0)}
                     disabled={!isEditing && !isNew}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    placeholder="ID del ejecutivo de negocios"
-                  />
+                  >
+                    <option value="">Seleccione un ejecutivo</option>
+                    {usuarios.map((usuario) => (
+                      <option key={usuario.id} value={usuario.id}>
+                        {usuario.nombre_apellido}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
