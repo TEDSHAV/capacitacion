@@ -84,10 +84,6 @@ export function DocumentDownloader({
         osiData: osiData,
         firmanteData: firmanteData,
         options: {
-          [documentType === 'certificacion_competencias' ? 'includeCertificacionCompetencias' : 
-           documentType === 'nota_entrega' ? 'includeNotaEntrega' : 
-           'includeValidacionDatos']: true,
-          // Disable other document types
           includeCertificacionCompetencias: documentType === 'certificacion_competencias',
           includeNotaEntrega: documentType === 'nota_entrega',
           includeValidacionDatos: documentType === 'validacion_datos',
@@ -107,12 +103,12 @@ export function DocumentDownloader({
 
       // Create blob and download
       const blob = new Blob([buffer as any], { 
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+        type: 'application/pdf' 
       });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${documentType}_${Date.now()}.docx`;
+      link.download = `${documentType}_${Date.now()}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

@@ -425,7 +425,7 @@ export default function GeneracionCertificadoClient({
               const buffer = Buffer.from(bytes);
               
               const blob = new Blob([buffer], { 
-                type: docType.includes('pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
               });
               
               const url = window.URL.createObjectURL(blob);

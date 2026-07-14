@@ -100,54 +100,50 @@ export class DocumentTemplateProcessor {
               console.error('❌ First participant structure:', data.participantes[0]);
             }
             
-            // Extract and analyze template tags from the document
+            // Extract and analyze template tags from document
             try {
               if (templateContent) {
                 const zip = new PizZip(templateContent);
                 const documentXml = zip.file('word/document.xml').asText();
-              
-                // Find all template tags in the document
+                
+                // Find all template tags in document
                 const tagRegex = /\{[^}]+\}/g;
                 const tags = documentXml.match(tagRegex) || [];
-              
+                
                 console.error('❌ Template tags found in document:', tags.length);
                 tags.forEach((tag, index) => {
                   console.error(`  ${index + 1}. ${tag}`);
                 });
-              console.error('❌ Template tags found in document:', tags.length);
-              tags.forEach((tag, index) => {
-                console.error(`  ${index + 1}. ${tag}`);
-              });
-              
-              // Check for malformed tags
-              const malformedTags = tags.filter(tag => {
-                const openCount = (tag.match(/\{/g) || []).length;
-                const closeCount = (tag.match(/\}/g) || []).length;
-                return openCount !== closeCount;
-              });
-              
-              if (malformedTags.length > 0) {
-                console.error('❌ Malformed tags found:', malformedTags);
+                
+                // Check for malformed tags
+                const malformedTags = tags.filter(tag => {
+                  const openCount = (tag.match(/\{/g) || []).length;
+                  const closeCount = (tag.match(/\}/g) || []).length;
+                  return openCount !== closeCount;
+                });
+                
+                if (malformedTags.length > 0) {
+                  console.error('❌ Malformed tags found:', malformedTags);
+                }
+                
+                // Check for loop tags
+                const loopStartTags = tags.filter(tag => tag.startsWith('{#'));
+                const loopEndTags = tags.filter(tag => tag.startsWith('{/'));
+                
+                console.error('❌ Loop start tags:', loopStartTags);
+                console.error('❌ Loop end tags:', loopEndTags);
+                
+                // Check for missing data
+                const dataKeys = Object.keys(data);
+                const missingData = tags.filter(tag => {
+                  const cleanTag = tag.replace(/[{}#\/]/g, '');
+                  return !dataKeys.includes(cleanTag) && !cleanTag.startsWith('participantes');
+                });
+                
+                if (missingData.length > 0) {
+                  console.error('❌ Tags with missing data:', missingData);
+                }
               }
-              
-              // Check for loop tags
-              const loopStartTags = tags.filter(tag => tag.startsWith('{#'));
-              const loopEndTags = tags.filter(tag => tag.startsWith('{/'));
-              
-              console.error('❌ Loop start tags:', loopStartTags);
-              console.error('❌ Loop end tags:', loopEndTags);
-              
-              // Check for missing data
-              const dataKeys = Object.keys(data);
-              const missingData = tags.filter(tag => {
-                const cleanTag = tag.replace(/[{}#\/]/g, '');
-                return !dataKeys.includes(cleanTag) && !cleanTag.startsWith('participantes');
-              });
-              
-              if (missingData.length > 0) {
-                console.error('❌ Tags with missing data:', missingData);
-              }
-              
             } catch (analysisError) {
               console.error('❌ Error analyzing template:', analysisError);
             }

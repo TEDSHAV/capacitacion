@@ -1,7 +1,7 @@
 'use server';
 
-import { SimpleDocumentGenerator } from './simple-document-generator';
-import { TemplateData } from './document-templates';
+import { TemplateData } from './document-templates-new';
+import { TemplateBasedPdfGenerator } from './template-based-pdf-generator';
 
 export interface DocumentGenerationRequest {
   certificates: any[];
@@ -37,32 +37,48 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
       };
     }
 
-    // Prepare template data
+    // Prepare template data to match DOCX template structure exactly
     const defaultFirmante = {
       nombre: 'DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.',
       cargo: 'Jefe de Capacitación'
     };
     
-    const templateData = {
-      fecha: new Date().toLocaleDateString('es-ES', { 
+    // Get current date components for template
+    const today = new Date();
+    const dateComponents = {
+      fecha: today.toLocaleDateString('es-ES', { 
         day: 'numeric', 
         month: 'long', 
         year: 'numeric' 
       }),
+      dia: today.getDate().toString(),
+      mes: today.toLocaleDateString('es-ES', { month: 'long' }),
+      anio: today.getFullYear().toString()
+    };
+    
+    // Create comprehensive template data with exact field names from templates
+    const templateData = {
+      // Basic date fields (for certificacion_de_competencias)
+      ...dateComponents,
+      
+      // OSI and course information
       nombre_cliente: osiData.cliente_nombre_empresa || '',
       titulo_curso: osiData.tema || '',
       ciudad: osiData.ciudad || 'Puerto La Cruz',
-      dia: new Date().getDate().toString(),
-      mes: new Date().toLocaleDateString('es-ES', { month: 'long' }),
-      anio: new Date().getFullYear().toString(),
       nro_osi: osiData.nro_osi || '',
+      
+      // Firmante information
       nombre_firmante: firmanteData?.nombre || defaultFirmante.nombre,
       cargo_firmante: firmanteData?.cargo || defaultFirmante.cargo,
+      
+      // Additional fields for other templates
       nombre_recibido: options?.recibidoData?.nombre || '',
       cargo_recibido: options?.recibidoData?.cargo || '',
       localidad: osiData.localidad || '',
       localidad_cliente: osiData.direccion_ejecucion || '',
       fecha_ejecucion: osiData.fecha_ejecucion || '',
+      
+      // Participants array with exact field names from templates
       participantes: certificates.map((cert, index) => ({
         index: index + 1,
         nombre_apellido: cert.participant_name || '',
@@ -77,18 +93,35 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
       certificatesCount: certificates.length,
       hasOsiData: !!osiData,
       hasFirmanteData: !!firmanteData,
-      templateDataKeys: Object.keys(templateData)
+      templateDataKeys: Object.keys(templateData),
+      sampleParticipant: templateData.participantes?.[0] || null,
+      // Debug all template fields
+      allFields: {
+        fecha: templateData.fecha,
+        nombre_cliente: templateData.nombre_cliente,
+        titulo_curso: templateData.titulo_curso,
+        ciudad: templateData.ciudad,
+        nro_osi: templateData.nro_osi,
+        nombre_firmante: templateData.nombre_firmante,
+        cargo_firmante: templateData.cargo_firmante,
+        participantes: templateData.participantes,
+        dia: templateData.dia,
+        mes: templateData.mes,
+        anio: templateData.anio
+      }
     });
 
-    const documents: { [key: string]: Buffer } = {};
+    const processor = new TemplateBasedPdfGenerator();
+    const documents: { [key: string]: string } = {};
     const errors: string[] = [];
 
     // Generate documents based on options with individual error handling
     if (options?.includeCertificacionCompetencias !== false) {
       try {
         console.log('🔄 Generating certificacion de competencias...');
-        documents.certificacion_competencias = await SimpleDocumentGenerator.generateCertificacionCompetencias(templateData);
-        console.log('✅ Certificacion de competencias generated successfully');
+        const buffer = await processor.generateCertificacionCompetencias(templateData);
+        documents.certificacion_competencias = buffer.toString('base64');
+        console.log('✅ Certificacion de competencias generated successfully with template-based approach');
       } catch (error) {
         const errorMsg = `Failed to generate certificacion de competencias: ${error instanceof Error ? error.message : 'Unknown error'}`;
         console.error('❌', errorMsg);
@@ -99,8 +132,9 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
     if (options?.includeNotaEntrega !== false) {
       try {
         console.log('🔄 Generating nota de entrega...');
-        documents.nota_entrega = await SimpleDocumentGenerator.generateNotaEntrega(templateData);
-        console.log('✅ Nota de entrega generated successfully');
+        const buffer = await processor.generateNotaEntrega(templateData);
+        documents.nota_entrega = buffer.toString('base64');
+        console.log('✅ Nota de entrega generated successfully with template-based approach');
       } catch (error) {
         const errorMsg = `Failed to generate nota de entrega: ${error instanceof Error ? error.message : 'Unknown error'}`;
         console.error('❌', errorMsg);
@@ -111,8 +145,9 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
     if (options?.includeValidacionDatos !== false) {
       try {
         console.log('🔄 Generating validacion de datos...');
-        documents.validacion_datos = await SimpleDocumentGenerator.generateValidacionDatos(templateData);
-        console.log('✅ Validacion de datos generated successfully');
+        const buffer = await processor.generateValidacionDatos(templateData);
+        documents.validacion_datos = buffer.toString('base64');
+        console.log('✅ Validacion de datos generated successfully with template-based approach');
       } catch (error) {
         const errorMsg = `Failed to generate validacion de datos: ${error instanceof Error ? error.message : 'Unknown error'}`;
         console.error('❌', errorMsg);
@@ -127,15 +162,10 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
         console.warn(`⚠️ ${errors.length} documents failed to generate:`, errors);
       }
       
-      // Convert Buffers to Base64 for Next.js serialization
-      const base64Documents: { [key: string]: string } = {};
-      for (const [key, buffer] of Object.entries(documents)) {
-        base64Documents[key] = buffer.toString('base64');
-      }
-      
+      // Documents are already converted to base64 above
       return {
         success: true,
-        documents: base64Documents
+        documents
       };
     } else {
       console.error('❌ No documents were generated successfully');

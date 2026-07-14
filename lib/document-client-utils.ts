@@ -4,7 +4,7 @@ export function getDocumentFileName(documentType: string, osiNumber?: string): s
   const timestamp = new Date().toISOString().slice(0, 10);
   const osiPrefix = osiNumber ? `_${osiNumber}` : '';
   
-  // Use .pdf extension for our new PDF-based documents
+  // Use .pdf extension for PDF documents
   const extension = '.pdf';
   
   // Map document types to user-friendly names

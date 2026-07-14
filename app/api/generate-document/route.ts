@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { TemplateBasedPdfGenerator } from '@/lib/template-based-pdf-generator';
 import { DocumentTemplateProcessor } from '@/lib/document-templates';
 
 export async function POST(request: NextRequest) {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
       recibidoData
     );
 
-    const processor = new DocumentTemplateProcessor();
+    const processor = new TemplateBasedPdfGenerator();
     let documentBuffer: Buffer;
 
     switch (documentType) {
@@ -39,10 +40,10 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    // Set appropriate headers for .docx file download
+    // Set appropriate headers for PDF file download
     const headers = new Headers();
-    headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    headers.set('Content-Disposition', `attachment; filename="${documentType}_${Date.now()}.docx"`);
+    headers.set('Content-Type', 'application/pdf');
+    headers.set('Content-Disposition', `attachment; filename="${documentType}_${Date.now()}.pdf"`);
 
     return new NextResponse(documentBuffer as any, {
       status: 200,
