@@ -437,11 +437,7 @@ export default function OSIDetailPage() {
           return
         } else {
           console.log('Insert successful! Data:', data)
-          errorDialog.showInfo(
-            'OSI creada exitosamente',
-            `La OSI ${formData.nro_osi} ha sido creada correctamente.`,
-            'Operación Exitosa'
-          )
+          errorDialog.showInfo('OSI creada exitosamente')
         }
       } else if (osi) {
         console.log('Attempting to update OSI:', osi.id)
@@ -481,11 +477,7 @@ export default function OSIDetailPage() {
           return
         } else {
           console.log('Update successful! Data:', data)
-          errorDialog.showInfo(
-            'OSI actualizada exitosamente',
-            `La OSI ${formData.nro_osi} ha sido actualizada correctamente.`,
-            'Operación Exitosa'
-          )
+          errorDialog.showInfo('OSI actualizada exitosamente')
         }
       }
       

@@ -13,7 +13,7 @@ const OSIActionButtons = ({
 }: OSIActionButtonsProps) => {
   if (isEditing || isNew) {
     return (
-      <>
+      <div className="flex gap-4">
         <button
           onClick={onSave}
           disabled={isLoading}
@@ -40,12 +40,12 @@ const OSIActionButtons = ({
             Eliminar
           </button>
         )}
-      </>
+      </div>
     )
   }
 
   return (
-    <>
+    <div className="flex gap-4">
       <button
         onClick={onEdit}
         className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md"
@@ -60,7 +60,7 @@ const OSIActionButtons = ({
       >
         Eliminar
       </button>
-    </>
+    </div>
   )
 }
 
