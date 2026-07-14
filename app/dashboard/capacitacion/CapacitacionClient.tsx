@@ -49,7 +49,7 @@ export default function CapacitacionClient({
       modules: [
         {
           id: "gestion-osi",
-          title: "Gestión de OSI",
+          title: "Consulta de OSI",
           icon: Briefcase,
         },
       ],
