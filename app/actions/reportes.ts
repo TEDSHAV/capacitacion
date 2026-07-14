@@ -820,6 +820,79 @@ export async function getEmpresasReport(
   }
 }
 
+// ─── Company Course Details ───────────────────────────────────────────────────
+
+export async function getCompanyCourseDetails(
+  companyId: number,
+  dateFrom?: string,
+  dateTo?: string,
+  stateId?: string,
+): Promise<{ data: Array<{ id: number; nombre: string; count: number; lastActivity: string | null }>; error: string | null }> {
+  const supabase = await createClient();
+  try {
+    let query = supabase
+      .from("certificados")
+      .select(`
+        id_curso,
+        fecha_emision,
+        catalogo_servicios(id, nombre)
+      `)
+      .eq("id_empresa", companyId)
+      .not("id_curso", "is", null)
+      .limit(5000);
+
+    if (dateFrom) query = query.gte("fecha_emision", dateFrom);
+    if (dateTo) query = query.lte("fecha_emision", dateTo);
+    if (stateId) query = query.eq("id_estado", stateId);
+
+    const { data: certs, error } = await query;
+    if (error) return { error: error.message, data: [] };
+
+    // Check for truncation
+    const truncationWarning = checkTruncation(certs, 5000);
+
+    const courseMap = new Map<number, {
+      id: number;
+      nombre: string;
+      count: number;
+      lastActivity: string | null;
+    }>();
+
+    certs?.forEach((cert: any) => {
+      const courseId = cert.id_curso;
+      if (!courseId || !cert.catalogo_servicios) return;
+
+      if (!courseMap.has(courseId)) {
+        courseMap.set(courseId, {
+          id: courseId,
+          nombre: cert.catalogo_servicios.nombre || "Desconocido",
+          count: 0,
+          lastActivity: null,
+        });
+      }
+
+      const course = courseMap.get(courseId)!;
+      course.count++;
+      
+      if (cert.fecha_emision) {
+        if (!course.lastActivity || cert.fecha_emision > course.lastActivity) {
+          course.lastActivity = cert.fecha_emision;
+        }
+      }
+    });
+
+    const result = Array.from(courseMap.values())
+      .sort((a, b) => b.count - a.count);
+
+    return { data: result, error: truncationWarning.isTruncated ? (truncationWarning.message || null) : null };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Error desconocido",
+      data: [],
+    };
+  }
+}
+
 // ─── Tendencias ───────────────────────────────────────────────────────────────
 
 export async function getTendenciasReport(stateId?: string): Promise<{

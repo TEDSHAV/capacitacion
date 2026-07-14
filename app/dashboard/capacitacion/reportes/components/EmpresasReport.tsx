@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import {
   Building2,
   Users,
@@ -13,7 +13,7 @@ import {
   Calendar,
   Download,
 } from "lucide-react";
-import { getEmpresasReport } from "@/app/actions/reportes";
+import { getEmpresasReport, getCompanyCourseDetails } from "@/app/actions/reportes";
 import { EmpresaReportItem } from "@/types";
 import { exportEmpresasReport } from "@/lib/csv-export";
 import Link from "next/link";
@@ -121,6 +121,9 @@ export default function EmpresasReport({
   const [sortField, setSortField] = useState<SortField>("totalCerts");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [search, setSearch] = useState("");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [courseDetails, setCourseDetails] = useState<{ [key: number]: Array<{ id: number; nombre: string; count: number; lastActivity: string | null }> }>({});
+  const [loadingDetails, setLoadingDetails] = useState<{ [key: number]: boolean }>({});
 
   useEffect(() => {
     setLoading(true);
@@ -139,6 +142,33 @@ export default function EmpresasReport({
     else {
       setSortField(field);
       setSortDir("desc");
+    }
+  };
+
+  const handleExpandCompany = async (companyId: number) => {
+    if (expandedId === companyId) {
+      setExpandedId(null);
+      return;
+    }
+
+    setExpandedId(companyId);
+    
+    // Load course details if not already loaded
+    if (!courseDetails[companyId] && !loadingDetails[companyId]) {
+      setLoadingDetails(prev => ({ ...prev, [companyId]: true }));
+      
+      try {
+        const result = await getCompanyCourseDetails(companyId, dateFrom, dateTo, selectedState || undefined);
+        if (result.error) {
+          console.error("Error loading course details:", result.error);
+        } else {
+          setCourseDetails(prev => ({ ...prev, [companyId]: result.data }));
+        }
+      } catch (err) {
+        console.error("Error loading course details:", err);
+      } finally {
+        setLoadingDetails(prev => ({ ...prev, [companyId]: false }));
+      }
     }
   };
 
@@ -362,50 +392,111 @@ export default function EmpresasReport({
                       Última act.
                     </SortButton>
                   </th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {sorted.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">
-                            {c.razon_social}
-                          </p>
-                          <p className="text-[11px] text-gray-400">{c.rif}</p>
+                  <Fragment key={c.id}>
+                    <tr className="hover:bg-gray-50 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">
+                              {c.razon_social}
+                            </p>
+                            <p className="text-[11px] text-gray-400">{c.rif}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <span className="text-sm font-semibold text-sky-700">
-                        {c.totalCerts}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <span className="inline-flex items-center gap-1 text-xs text-gray-600">
-                        <Users className="w-3 h-3 text-gray-400" />
-                        {c.uniqueParticipants}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <span className="inline-flex items-center gap-1 text-xs text-gray-600">
-                        <BookOpen className="w-3 h-3 text-gray-400" />
-                        {c.uniqueCourses}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <div>
-                        <p className="text-xs text-gray-600">
-                          {formatDate(c.lastActivity)}
-                        </p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">
-                          {daysAgo(c.lastActivity)}
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <span className="text-sm font-semibold text-sky-700">
+                          {c.totalCerts}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-600">
+                          <Users className="w-3 h-3 text-gray-400" />
+                          {c.uniqueParticipants}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-600">
+                          <BookOpen className="w-3 h-3 text-gray-400" />
+                          {c.uniqueCourses}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <div>
+                          <p className="text-xs text-gray-600">
+                            {formatDate(c.lastActivity)}
+                          </p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            {daysAgo(c.lastActivity)}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        {c.uniqueCourses > 0 && (
+                          <button
+                            onClick={() => handleExpandCompany(c.id)}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg transition-all bg-sky-50 text-sky-700 hover:bg-sky-100"
+                          >
+                            {expandedId === c.id ? "Ocultar" : "Detalles"}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {expandedId === c.id && (
+                      <tr className="bg-gray-50/40">
+                        <td colSpan={6} className="px-5 py-3">
+                          {loadingDetails[c.id] ? (
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <div className="w-4 h-4 border-2 border-sky-300 border-t-sky-600 rounded-full animate-spin"></div>
+                              Cargando detalles de cursos...
+                            </div>
+                          ) : courseDetails[c.id] ? (
+                            <div>
+                              <p className="text-xs font-semibold text-gray-600 mb-2">
+                                Cursos en los que ha participado esta empresa:
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {courseDetails[c.id].map((course) => (
+                                  <div
+                                    key={course.id}
+                                    className="flex flex-col items-center gap-1.5 bg-white border border-sky-100 rounded-lg px-3 py-1.5"
+                                  >
+                                    <BookOpen className="w-3 h-3 text-sky-500" />
+                                    <span className="text-xs text-gray-700 font-medium">
+                                      {course.nombre}
+                                    </span>
+                                    <span className="text-[10px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full font-medium">
+                                      {course.count} certificado{course.count !== 1 ? 's' : ''}
+                                    </span>
+                                    {course.lastActivity && (
+                                      <span className="text-[9px] text-gray-400">
+                                        Último: {formatDate(course.lastActivity)}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                              {courseDetails[c.id].length === 0 && (
+                                <p className="text-xs text-gray-400 italic">
+                                  No se encontraron cursos para esta empresa en el período seleccionado.
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400 italic">
+                              No se pudieron cargar los detalles de los cursos.
+                            </p>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
