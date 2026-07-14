@@ -52,6 +52,7 @@ export async function saveCarnetsToDatabase(
           ...carnet,
           qr_code: qrDataURL,
           generated_at: new Date().toISOString(),
+          id_plantilla_carnet: carnet.id_plantilla_carnet || null,
         });
 
         return {
@@ -657,6 +658,7 @@ export async function updateCarnetAction(
       ...carnetData,
       qr_code: qrDataURL,
       updated_at: new Date().toISOString(),
+      id_plantilla_carnet: carnetData.id_plantilla_carnet || null,
     });
 
     const updateData = {

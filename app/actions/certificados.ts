@@ -455,10 +455,24 @@ export async function saveCertificatesToDatabase(
           const qrCodeDataUrl = qrResult.dataUrl;
           console.log("QR code generated successfully");
 
-          // Update certificate with QR code only (snapshot already there)
+          // Update snapshot with QR code for self-contained reproducibility
+          let updatedSnapshotWithQR = updatedSnapshot;
+          try {
+            const snapshotObj = JSON.parse(updatedSnapshot);
+            snapshotObj.qr_code = qrCodeDataUrl;
+            snapshotObj.qr_data = qrResult.data;
+            updatedSnapshotWithQR = JSON.stringify(snapshotObj, null, 2);
+          } catch (parseError) {
+            console.warn("Failed to update snapshot with QR code:", parseError);
+          }
+
+          // Update certificate with QR code and updated snapshot
           const { error: updateError } = await supabase
             .from("certificados")
-            .update({ qr_code: qrCodeDataUrl || null })
+            .update({
+              qr_code: qrCodeDataUrl || null,
+              snapshot_contenido: updatedSnapshotWithQR,
+            })
             .eq("id", certificateInsert.id);
 
           if (updateError) {
@@ -467,7 +481,9 @@ export async function saveCertificatesToDatabase(
               updateError,
             );
           } else {
-            console.log("SUCCESS: Certificate updated with QR code");
+            console.log(
+              "SUCCESS: Certificate updated with QR code and snapshot",
+            );
           }
         } catch (error) {
           console.warn(
@@ -1499,9 +1515,26 @@ export async function updateCertificateAction(
         nro_control: existingCert.nro_control,
       });
 
+      // Update snapshot with QR code for self-contained reproducibility
+      let snapshotWithQR = finalSnapshot;
+      try {
+        const snapshotObj = JSON.parse(finalSnapshot);
+        snapshotObj.qr_code = qrResult.dataUrl;
+        snapshotObj.qr_data = qrResult.data;
+        snapshotWithQR = JSON.stringify(snapshotObj, null, 2);
+      } catch (parseError) {
+        console.warn(
+          "Failed to update snapshot with QR code during edit:",
+          parseError,
+        );
+      }
+
       await supabase
         .from("certificados")
-        .update({ qr_code: qrResult.dataUrl || null })
+        .update({
+          qr_code: qrResult.dataUrl || null,
+          snapshot_contenido: snapshotWithQR,
+        })
         .eq("id", certificateId);
     } catch (qrErr) {
       console.warn("Non-fatal: Failed to regenerate QR during update", qrErr);
