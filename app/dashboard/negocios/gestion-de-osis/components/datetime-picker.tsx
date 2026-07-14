@@ -47,7 +47,6 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
       
       // Store in format compatible with Supabase
       updateFormData(`fecha_ejecucion${sessionNum}`, newDateTime)
-      updateFormData(`hora_ejecucion${sessionNum}`, `${hours24.toString().padStart(2, "0")}:${minute}`)
     }
   }
   
