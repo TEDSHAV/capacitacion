@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useMemo, useCallback, memo } from "react";
 
 interface Department {
   id: string;
@@ -19,8 +20,8 @@ const DashboardClient = ({
 }: DashboardClientProps) => {
   const router = useRouter();
 
-  // Color mapping for different departments
-  const departmentColors: { [key: string]: string } = {
+  // Memoize static color mappings to prevent recreation on every render
+  const departmentColors = useMemo(() => ({
     'negocios': 'from-blue-500 to-blue-600',
     'capacitacion': 'from-purple-500 to-purple-600',
     'recursos': 'from-orange-500 to-orange-600',
@@ -28,10 +29,10 @@ const DashboardClient = ({
     'finanzas': 'from-indigo-500 to-indigo-600',
     'operaciones': 'from-red-500 to-red-600',
     'calidad': 'from-cyan-500 to-cyan-600'
-  };
+  } as Record<string, string>), []);
 
-  // Light color gradients for minimalist theme
-  const lightGradients = [
+  // Memoize light gradients array
+  const lightGradients = useMemo(() => [
     'from-blue-400 to-blue-500',
     'from-green-400 to-green-500', 
     'from-purple-400 to-purple-500',
@@ -42,20 +43,20 @@ const DashboardClient = ({
     'from-amber-400 to-amber-500',
     'from-rose-400 to-rose-500',
     'from-teal-400 to-teal-500'
-  ];
+  ], []);
 
   // Function to get gradient for department (random if not specified)
-  const getDepartmentGradient = (departmentName: string, index: number) => {
+  const getDepartmentGradient = useCallback((departmentName: string, index: number) => {
     const normalizedName = departmentName.toLowerCase();
     if (departmentColors[normalizedName]) {
       return departmentColors[normalizedName];
     }
     // Use index-based random assignment for consistency
     return lightGradients[index % lightGradients.length];
-  };
+  }, [departmentColors, lightGradients]);
 
-  // Function to render minimalist uniform cards
-  const renderCardDesign = (department: any, index: number) => {
+  // Memoize the card rendering function
+  const renderCardDesign = useCallback((department: any, index: number) => {
     const gradient = getDepartmentGradient(department.nombre, index);
     
     return (
@@ -79,11 +80,12 @@ const DashboardClient = ({
         </div>
       </div>
     );
-  };
+  }, [getDepartmentGradient]);
 
-  const handleDepartmentClick = (nombreDepartamento: string) => {
+  // Memoize department click handler
+  const handleDepartmentClick = useCallback((nombreDepartamento: string) => {
     router.push(`/dashboard/${nombreDepartamento}`);
-  };
+  }, [router]);
 
   if (!user) {
     return (
@@ -99,13 +101,13 @@ const DashboardClient = ({
     );
   }
 
-  // Simple uniform grid layout
-  const gridLayout = {
+  // Simple uniform grid layout - memoized to prevent recreation
+  const gridLayout = useMemo(() => ({
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
     gap: '1.5rem',
     minHeight: '400px'
-  };
+  }), []);
 
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -133,4 +135,4 @@ const DashboardClient = ({
   );
 }
 
-export default DashboardClient;
+export default memo(DashboardClient);

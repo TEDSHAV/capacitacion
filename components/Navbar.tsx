@@ -1,13 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, memo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import Image from 'next/image'
 
 const Navbar = () => {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<{ user_metadata?: { name?: string }; email?: string } | null>(null)
   const supabase = createClient() // Create client once
 
   useEffect(() => {
@@ -20,7 +20,7 @@ const Navbar = () => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event: any, session: any) => {
+      (_event, session) => {
         setUser(session?.user || null)
       }
     )
@@ -28,10 +28,26 @@ const Navbar = () => {
     return () => subscription.unsubscribe()
   }, [])
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     const { handleLogout: logout } = await import('@/app/actions/auth');
     await logout();
-  } 
+  }, [])
+
+  const handleBackClick = useCallback(() => {
+    router.back()
+  }, [router])
+
+  const handleLogoClick = useCallback(() => {
+    router.push('/dashboard')
+  }, [router])
+
+  const handleLoginClick = useCallback(() => {
+    router.push('/login')
+  }, [router])
+
+  const handleSignupClick = useCallback(() => {
+    router.push('/signup')
+  }, [router]) 
 
   return (
     <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
@@ -41,11 +57,11 @@ const Navbar = () => {
           <div className="flex items-center space-x-4">
             {/* Back button - can be conditionally shown */}
             <button
-              onClick={() => router.back()}
+              onClick={handleBackClick}
               className="p-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
               title="Volver"
             >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
@@ -58,9 +74,9 @@ const Navbar = () => {
               alt="Logo de la Empresa" 
               width={120} 
               height={120}
-              loading='eager'
+              loading='lazy'
               className="cursor-pointer hover:opacity-80 transition-opacity duration-200 h-12 w-auto object-contain"
-              onClick={() => router.push('/dashboard')}
+              onClick={handleLogoClick}
             />
           </div>
           
@@ -82,13 +98,13 @@ const Navbar = () => {
             ) : (
               <>
                 <button
-                  onClick={() => router.push('/login')}
+                  onClick={handleLoginClick}
                   className="text-sm text-blue-600 hover:text-blue-700 px-3 py-2 rounded-md hover:bg-blue-50 transition-colors duration-200"
                 >
                   Iniciar sesión
                 </button>
                 <button
-                  onClick={() => router.push('/signup')}
+                  onClick={handleSignupClick}
                   className="text-sm bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-md transition-colors duration-200 shadow-md"
                   style={{ backgroundColor: 'var(--primary-blue)' }}
                 >
@@ -103,4 +119,4 @@ const Navbar = () => {
   )
 }
 
-export default Navbar
+export default memo(Navbar)

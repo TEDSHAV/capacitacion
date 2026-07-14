@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback, memo } from 'react'
 import { Empresa, Servicio, Usuario, CatalogoServicio, Contacto, OSI, OSIFormProps } from '@/types'
 
 const OSIForm = ({ 
@@ -31,7 +31,7 @@ const OSIForm = ({
   const [isOsiFieldLocked, setIsOsiFieldLocked] = useState(true)
 
   // Handle keyboard navigation for empresa search
-  const handleEmpresaKeyDown = (e: React.KeyboardEvent) => {
+  const handleEmpresaKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!filteredEmpresas || filteredEmpresas.length === 0) return
     
     switch (e.key) {
@@ -65,10 +65,10 @@ const OSIForm = ({
         setSelectedEmpresaIndex(-1)
         break
     }
-  }
+  }, [filteredEmpresas, selectedEmpresaIndex, updateFormData, setEmpresaSearchTerm])
 
   // Handle keyboard navigation for tema search
-  const handleTemaKeyDown = (e: React.KeyboardEvent) => {
+  const handleTemaKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!filteredCatalogoServicios || filteredCatalogoServicios.length === 0) return
     
     switch (e.key) {
@@ -97,7 +97,24 @@ const OSIForm = ({
         setSelectedTemaIndex(-1)
         break
     }
-  }
+  }, [filteredCatalogoServicios, selectedTemaIndex, updateFormData, setTemaSearchTerm])
+
+  // Handle OSI field lock toggle
+  const handleOsiFieldToggle = useCallback(() => {
+    setIsOsiFieldLocked(prev => !prev)
+  }, [])
+
+  // Handle empresa search input change
+  const handleEmpresaSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmpresaSearchTerm?.(e.target.value)
+    setSelectedEmpresaIndex(-1)
+  }, [setEmpresaSearchTerm])
+
+  // Handle empresa input focus
+  const handleEmpresaFocus = useCallback(() => {
+    setEmpresaSearchTerm?.('')
+    setSelectedEmpresaIndex(-1)
+  }, [setEmpresaSearchTerm])
 
   return (
     <div className="space-y-3">
@@ -142,7 +159,7 @@ const OSIForm = ({
             {(isEditing || isNew) && (
               <button
                 type="button"
-                onClick={() => setIsOsiFieldLocked(!isOsiFieldLocked)}
+                onClick={handleOsiFieldToggle}
                 className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
                   isOsiFieldLocked
                     ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
@@ -182,11 +199,8 @@ const OSIForm = ({
               ref={empresaInputRef}
               type="text"
               value={empresaSearchTerm || initialData?.cliente_nombre_empresa || ''}
-              onChange={(e) => {
-                setEmpresaSearchTerm?.(e.target.value)
-                setSelectedEmpresaIndex(-1)
-              }}
-              onFocus={() => setEmpresaSearchTerm?.('')}
+              onChange={handleEmpresaSearchChange}
+              onFocus={handleEmpresaFocus}
               onKeyDown={handleEmpresaKeyDown}
               disabled={!isEditing && !isNew}
               tabIndex={!isEditing && !isNew ? -1 : 0}
@@ -438,4 +452,4 @@ const OSIForm = ({
   )
 }
 
-export default OSIForm
+export default memo(OSIForm)

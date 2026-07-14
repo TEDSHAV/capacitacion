@@ -6,8 +6,8 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: {
-        persistSession: false,  // Don't persist session - require login after expiration
-        autoRefreshToken: false,  // Don't auto-refresh - let user log in again
+        persistSession: true,  // Persist session to avoid frequent re-logins
+        autoRefreshToken: true,  // Auto-refresh tokens for seamless experience
         detectSessionInUrl: true
       }
     }
