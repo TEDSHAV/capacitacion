@@ -32,6 +32,7 @@ export async function POST(request: Request) {
         contenido_curso: contenido,
         esta_activo: true,
         id_departamento_ejecutante: 3, // Capacitacion
+        tipo_servicio: 1,
       })
       .select()
       .single();

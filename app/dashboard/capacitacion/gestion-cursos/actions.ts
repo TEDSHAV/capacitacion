@@ -52,6 +52,7 @@ export async function createCurso(formData: FormData) {
         nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
         emite_carnet: emite_carnet === "true", // Convert string to boolean
         id_departamento_ejecutante: 3, // Capacitacion department
+        tipo_servicio: 1,
       })
       .select("*")
       .single();
@@ -164,6 +165,7 @@ export async function duplicateCurso(id: string) {
         nota_aprobatoria: originalCourse.nota_aprobatoria || 14,
         emite_carnet: originalCourse.emite_carnet || false,
         id_departamento_ejecutante: 3, // Capacitacion department
+        tipo_servicio: 1,
       })
       .select("*")
       .single();
@@ -221,6 +223,7 @@ export async function getCursos() {
       .select("*")
       .eq("esta_activo", true)
       .eq("id_departamento_ejecutante", 3)
+      .eq("tipo_servicio", 1)
       .order("id", { ascending: false });
 
     if (error) {
