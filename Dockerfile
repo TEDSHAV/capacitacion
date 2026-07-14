@@ -11,9 +11,22 @@ FROM node:22-bookworm-slim AS builder
 ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
+# Add build arguments for Next.js environment variables (needed during build time)
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+# Restore system dependencies needed for build-time optimizations (sharp, critters, etc)
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    libvips-dev \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production NODE_OPTIONS="--max-old-space-size=4096" TURBOPACK_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production NODE_OPTIONS="--max-old-space-size=6144" TURBOPACK_DISABLED=1
 RUN npm run build
 
 # Stage 3: Runner
