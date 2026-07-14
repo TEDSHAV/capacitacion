@@ -183,7 +183,8 @@ export async function GET(
         sealImage,
         controlNumbers: controlNumbersForGenerator,
         isPreview: false,
-        certificateId: certificateId // Pass actual certificate ID for QR code
+        certificateId: certificateId, // Pass actual certificate ID for QR code
+        singlePage: true // Use single-page mode for verification certificates
       });
 
       // Return PDF as response

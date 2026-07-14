@@ -209,6 +209,7 @@ export interface CertificateRequest {
   controlNumbers?: ControlNumbers;
   isPreview?: boolean;
   certificateId?: number; // Actual certificate database ID for QR code generation
+  singlePage?: boolean; // Whether to generate single-page certificate
 }
 
 export interface ControlNumbers {

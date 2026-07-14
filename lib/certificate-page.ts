@@ -12,6 +12,7 @@ export class CertificatePage {
   private config: ReturnType<typeof getDynamicConfig>;
   private pageWidth: number;
   private pageHeight: number;
+  private isSinglePage: boolean;
 
   // QR Code configuration - shared between sample and real QR codes
   private static readonly QR_CONFIG = {
@@ -22,10 +23,11 @@ export class CertificatePage {
     Y_OFFSET: 12.4            // Additional Y offset adjustment
   };
 
-  constructor(doc: jsPDF, pageWidth: number, pageHeight: number) {
+  constructor(doc: jsPDF, pageWidth: number, pageHeight: number, isSinglePage: boolean = false) {
     this.doc = doc;
     this.pageWidth = pageWidth;
     this.pageHeight = pageHeight;
+    this.isSinglePage = isSinglePage;
     this.config = getDynamicConfig(pageWidth, pageHeight);
     this.textRenderer = new TextRenderer(doc);
   }
@@ -407,6 +409,44 @@ export class CertificatePage {
     }
   }
 
+  /**
+   * Add QR code to specific position on the certificate
+   */
+  private async addQRCodeToPosition(qrDataUrl: string, isSinglePage: boolean = false): Promise<void> {
+    try {
+      // Calculate QR code position
+      const qrX = this.pageWidth - CertificatePage.QR_CONFIG.PDF_SIZE_MM - CertificatePage.QR_CONFIG.MARGIN - CertificatePage.QR_CONFIG.X_OFFSET;
+      
+      let qrY;
+      if (isSinglePage) {
+        // For single-page mode, position QR code in the top right corner of the certificate area (upper half)
+        // Place it about 30mm from the top of the page, within the certificate area
+        qrY = 22.5;
+      } else {
+        // For two-page mode, use the original positioning (bottom of certificate page)
+        qrY = this.pageHeight - CertificatePage.QR_CONFIG.PDF_SIZE_MM - CertificatePage.QR_CONFIG.MARGIN - CertificatePage.QR_CONFIG.Y_OFFSET;
+      }
+      
+      // Add QR code to PDF
+      this.doc.addImage(qrDataUrl, 'PNG', qrX, qrY, CertificatePage.QR_CONFIG.PDF_SIZE_MM, CertificatePage.QR_CONFIG.PDF_SIZE_MM);
+      
+      // // Add "Scan to Verify" text below QR code
+      // this.doc.setFont("helvetica", "normal");
+      // this.doc.setFontSize(6);
+      // this.doc.text(
+      //   "Scan to Verify",
+      //   qrX + CertificatePage.QR_CONFIG.PDF_SIZE_MM / 2,
+      //   qrY + CertificatePage.QR_CONFIG.PDF_SIZE_MM + 3,
+      //   { align: "center" }
+      // );
+      
+      console.log('QR code added successfully at position:', { x: qrX, y: qrY, isSinglePage });
+    } catch (error) {
+      console.error('Failed to add QR code to position:', error);
+      throw error;
+    }
+  }
+
   async addQRCode(certificateId: number, controlNumbers?: ControlNumbers): Promise<void> {
     try {
       // Generate QR code data
@@ -421,7 +461,7 @@ export class CertificatePage {
       });
 
       // Add QR code using common positioning method
-      await this.addQRCodeToPosition(qrDataUrl);
+      await this.addQRCodeToPosition(qrDataUrl, this.isSinglePage);
 
     } catch (error) {
       console.error('Failed to add QR code to certificate:', error);
@@ -456,7 +496,7 @@ export class CertificatePage {
       });
 
       // Add QR code using common positioning method
-      await this.addQRCodeToPosition(qrDataUrl);
+      await this.addQRCodeToPosition(qrDataUrl, this.isSinglePage);
 
     } catch (error) {
       console.error('Failed to add sample QR code to certificate preview:', error);

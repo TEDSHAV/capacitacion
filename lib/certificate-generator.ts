@@ -15,7 +15,7 @@ export class CertificateGenerator {
     this.doc = new jsPDF(CERTIFICATE_CONFIG.page);
     this.pageWidth = this.doc.internal.pageSize.getWidth();
     this.pageHeight = this.doc.internal.pageSize.getHeight();
-    this.certificatePage = new CertificatePage(this.doc, this.pageWidth, this.pageHeight);
+    this.certificatePage = new CertificatePage(this.doc, this.pageWidth, this.pageHeight, false);
     this.contentPage = new ContentPage(this.doc, this.pageWidth, this.pageHeight);
   }
 
@@ -23,7 +23,7 @@ export class CertificateGenerator {
    * Generate a complete certificate with both pages
    */
   async generateCertificate(data: CertificateRequest): Promise<Blob> {
-    const { participant, certificateData, templateImage, sealImage, controlNumbers, isPreview, certificateId } = data;
+    const { participant, certificateData, templateImage, sealImage, controlNumbers, isPreview, certificateId, singlePage = false } = data;
 
     // Clear any existing content
     this.doc = new jsPDF(CERTIFICATE_CONFIG.page);
@@ -31,48 +31,110 @@ export class CertificateGenerator {
     this.pageHeight = this.doc.internal.pageSize.getHeight();
     
     // Reinitialize page components with new document
-    this.certificatePage = new CertificatePage(this.doc, this.pageWidth, this.pageHeight);
+    this.certificatePage = new CertificatePage(this.doc, this.pageWidth, this.pageHeight, singlePage);
     this.contentPage = new ContentPage(this.doc, this.pageWidth, this.pageHeight);
 
     try {
-      // Page 1: Certificate
-      await this.certificatePage.addTemplate(templateImage);
-      await this.certificatePage.addCertificateContent(participant, certificateData);
-
-      // Add QR code - either real or sample for preview
-      if (!isPreview && controlNumbers && certificateId) {
-        // Real QR code for final certificate - use actual certificate ID
-        console.log('Adding real QR code for certificate ID:', certificateId);
-        try {
-          await this.certificatePage.addQRCode(certificateId, controlNumbers);
-        } catch (qrError) {
-          console.error('Failed to add real QR code, trying sample:', qrError);
-          await this.certificatePage.addSampleQRCode();
-        }
-      } else if (isPreview) {
-        // Sample QR code for preview
-        console.log('Adding sample QR code for preview');
-        try {
-          await this.certificatePage.addSampleQRCode();
-        } catch (qrError) {
-          console.error('Failed to add sample QR code:', qrError);
-        }
+      if (singlePage) {
+        // Generate single-page certificate
+        return await this.generateSinglePageCertificate(participant, certificateData, templateImage, sealImage, controlNumbers, isPreview || false, certificateId || 0);
       } else {
-        console.log('No QR code will be added - missing parameters:', { isPreview, hasControlNumbers: !!controlNumbers, certificateId });
+        // Generate two-page certificate (original behavior)
+        return await this.generateTwoPageCertificate(participant, certificateData, templateImage, sealImage, controlNumbers, isPreview || false, certificateId || 0);
       }
-
-      // Add new page for content
-      this.doc.addPage();
-
-      // Page 2: Content table with seal
-      await this.contentPage.addContentPage(participant, certificateData, sealImage, controlNumbers, isPreview);
-
-      // Return as blob
-      return this.doc.output("blob");
     } catch (error) {
       console.error('Certificate generation error:', error);
       throw error; // Re-throw the actual error instead of hiding it
     }
+  }
+
+  /**
+   * Generate a single-page certificate with certificate at top and content at bottom
+   */
+  private async generateSinglePageCertificate(
+    participant: CertificateParticipant,
+    certificateData: CertificateGeneration,
+    templateImage: string,
+    sealImage: string | undefined,
+    controlNumbers: any,
+    isPreview: boolean,
+    certificateId: number
+  ): Promise<Blob> {
+    // Page 1: Certificate (upper half)
+    await this.certificatePage.addTemplate(templateImage);
+    await this.certificatePage.addCertificateContent(participant, certificateData);
+
+    // Add QR code - either real or sample for preview
+    if (!isPreview && controlNumbers && certificateId) {
+      console.log('Adding real QR code for certificate ID:', certificateId);
+      try {
+        await this.certificatePage.addQRCode(certificateId, controlNumbers);
+      } catch (qrError) {
+        console.error('Failed to add real QR code, trying sample:', qrError);
+        await this.certificatePage.addSampleQRCode();
+      }
+    } else if (isPreview) {
+      console.log('Adding sample QR code for preview');
+      try {
+        await this.certificatePage.addSampleQRCode();
+      } catch (qrError) {
+        console.error('Failed to add sample QR code:', qrError);
+      }
+    }
+
+    // Add content in the lower half of the same page
+    await this.contentPage.addContentPageSinglePage(participant, certificateData, sealImage || '', controlNumbers, isPreview);
+
+    // Return as blob
+    return this.doc.output("blob");
+  }
+
+  /**
+   * Generate a two-page certificate (original behavior)
+   */
+  private async generateTwoPageCertificate(
+    participant: CertificateParticipant,
+    certificateData: CertificateGeneration,
+    templateImage: string,
+    sealImage: string | undefined,
+    controlNumbers: any,
+    isPreview: boolean,
+    certificateId: number
+  ): Promise<Blob> {
+    // Page 1: Certificate
+    await this.certificatePage.addTemplate(templateImage);
+    await this.certificatePage.addCertificateContent(participant, certificateData);
+
+    // Add QR code - either real or sample for preview
+    if (!isPreview && controlNumbers && certificateId) {
+      // Real QR code for final certificate - use actual certificate ID
+      console.log('Adding real QR code for certificate ID:', certificateId);
+      try {
+        await this.certificatePage.addQRCode(certificateId, controlNumbers);
+      } catch (qrError) {
+        console.error('Failed to add real QR code, trying sample:', qrError);
+        await this.certificatePage.addSampleQRCode();
+      }
+    } else if (isPreview) {
+      // Sample QR code for preview
+      console.log('Adding sample QR code for preview');
+      try {
+        await this.certificatePage.addSampleQRCode();
+      } catch (qrError) {
+        console.error('Failed to add sample QR code:', qrError);
+      }
+    } else {
+      console.log('No QR code will be added - missing parameters:', { isPreview, hasControlNumbers: !!controlNumbers, certificateId });
+    }
+
+    // Add new page for content
+    this.doc.addPage();
+
+    // Page 2: Content table with seal
+    await this.contentPage.addContentPage(participant, certificateData, sealImage, controlNumbers, isPreview);
+
+    // Return as blob
+    return this.doc.output("blob");
   }
 
   /**

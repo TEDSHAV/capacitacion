@@ -52,6 +52,39 @@ export class ContentPage {
   }
 
   /**
+   * Add content in the lower half of the same page (for single-page certificates)
+   */
+  async addContentPageSinglePage(
+    participant: CertificateParticipant,
+    certificateData: CertificateGeneration,
+    sealImage?: string,
+    controlNumbers?: any,
+    isPreview?: boolean
+  ): Promise<void> {
+    const { contentPage } = this.config;
+    
+    // Define content area in lower half of page
+    const contentArea = {
+      x: contentPage.margin,
+      y: contentPage.upperHalfHeight + contentPage.margin, // Start in lower half
+      width: this.pageWidth - (contentPage.margin * 2),
+      height: (this.pageHeight - contentPage.upperHalfHeight) - (contentPage.margin * 2) // Calculate lower half height
+    };
+
+    // Add "CONTENIDO" title
+    this.renderContentTitle(contentArea);
+
+    // Define column layout for lower half
+    const { leftColumnX, rightColumnX, columnWidth, currentY } = this.defineColumnLayout(contentArea);
+
+    // Render course content in left column
+    this.renderCourseContent(certificateData.course_content, leftColumnX, currentY, columnWidth);
+
+    // Render table with seal in right column
+    await this.renderContentTable(participant, certificateData, rightColumnX, currentY, columnWidth, sealImage, controlNumbers, isPreview);
+  }
+
+  /**
    * Render "CONTENIDO" title
    */
   private renderContentTitle(contentArea: { x: number; y: number }): void {
