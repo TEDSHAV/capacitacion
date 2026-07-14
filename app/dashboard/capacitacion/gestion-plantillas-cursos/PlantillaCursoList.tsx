@@ -28,7 +28,7 @@ export function PlantillaCursoList({
   searchTerm,
   currentPage,
   totalPages,
-  onPageChange
+  onPageChange,
 }: PlantillaCursoListProps) {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onSearch(e.target.value);
@@ -51,25 +51,25 @@ export function PlantillaCursoList({
 
       {/* Table */}
       <div className="overflow-x-auto w-full">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-200 table-fixed">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[30%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Descripción
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[20%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Curso
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[15%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Empresa
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[10%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Estado
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[10%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Creado
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[15%] px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Acciones
               </th>
             </tr>
@@ -77,49 +77,52 @@ export function PlantillaCursoList({
           <tbody className="bg-white divide-y divide-gray-200">
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-4 text-center text-gray-500">
                   Cargando...
                 </td>
               </tr>
             ) : plantillas.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-4 text-center text-gray-500">
                   No se encontraron plantillas
                 </td>
               </tr>
             ) : (
               plantillas.map((plantilla) => (
                 <tr key={plantilla.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
+                  <td className="px-4 py-4 truncate">
+                    <div className="text-sm font-medium text-gray-900 truncate">
                       {plantilla.descripcion.toUpperCase()}
                     </div>
-                    <div className="text-sm text-gray-500 truncate max-w-xs">
-                      {stripHtml(plantilla.contenido || '').substring(0, 100)}...
+                    <div className="text-sm text-gray-500 truncate">
+                      {stripHtml(plantilla.contenido || "").substring(0, 50)}...
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {plantilla.curso_nombre?.toUpperCase() || 'GENERAL'}
+                  <td className="px-4 py-4 text-sm text-gray-900 truncate">
+                    {plantilla.curso_nombre?.toUpperCase() || "GENERAL"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {plantilla.empresa_nombre || 'General'}
+                  <td className="px-4 py-4 text-sm text-gray-900 truncate">
+                    {plantilla.empresa_nombre || "General"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      plantilla.is_active 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {plantilla.is_active ? 'Activa' : 'Inactiva'}
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        plantilla.is_active
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {plantilla.is_active ? "Activa" : "Inactiva"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {plantilla.created_at 
-                      ? new Date(plantilla.created_at).toLocaleDateString('es-ES')
-                      : 'N/A'
-                    }
+                  <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
+                    {plantilla.created_at
+                      ? new Date(plantilla.created_at).toLocaleDateString(
+                          "es-ES",
+                        )
+                      : "N/A"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="outline"
