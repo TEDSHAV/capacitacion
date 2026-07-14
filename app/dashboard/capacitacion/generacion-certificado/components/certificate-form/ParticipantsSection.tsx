@@ -229,7 +229,7 @@ export const ParticipantsSection = ({
                               <div className="flex items-center text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
                                 <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
                                 <span
-                                  className="truncate max-w-[150px]"
+                                  className="truncate max-w-[250px]"
                                   title={
                                     participant.seniatVerification.seniatName
                                   }

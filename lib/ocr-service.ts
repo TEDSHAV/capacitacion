@@ -28,10 +28,8 @@ export class OCRService {
     try {
       // Convert file to base64
       const base64 = await this.fileToBase64(file);
-      console.log("File converted to base64, length:", base64.length);
 
       // Call Mistral OCR API
-      console.log("Calling Mistral OCR API...");
       const isPdf = file.type === "application/pdf";
       const response = await fetch(this.MISTRAL_API_URL, {
         method: "POST",
@@ -53,8 +51,6 @@ export class OCRService {
         }),
       });
 
-      console.log("Mistral API response status:", response.status);
-
       if (!response.ok) {
         const error = await response
           .json()
@@ -68,7 +64,6 @@ export class OCRService {
       }
 
       const data = await response.json();
-      console.log("Mistral API response data keys:", Object.keys(data));
 
       // Mistral OCR returns a pages array with markdown
       const fullMarkdown =
@@ -76,12 +71,9 @@ export class OCRService {
         data.markdown ||
         data.text ||
         "";
-      console.log("Full markdown received from Mistral:", fullMarkdown);
-      console.log("Full markdown length:", fullMarkdown.length);
 
       // Parse the OCR result to extract participants
       const participants = this.parseParticipants(fullMarkdown);
-      console.log("Parsed participants:", participants.length);
 
       return {
         text: fullMarkdown,
@@ -270,9 +262,6 @@ export class OCRService {
         idNumberValue.length >= 6 &&
         idNumberValue.length <= 9
       ) {
-        console.log(
-          `Successfully parsed participant: ${name}, ID: ${idNumberValue}, Score: ${score}`,
-        );
         participants.push({
           name: name,
           idNumber: idNumberValue,
@@ -295,9 +284,6 @@ export class OCRService {
             ) {
               const cleaned = this.cleanName(cell);
               if (cleaned.length > 5) {
-                console.log(
-                  `Fallback parsed participant: ${cleaned}, ID: ${idNumberValue}`,
-                );
                 participants.push({
                   name: cleaned,
                   idNumber: idNumberValue,

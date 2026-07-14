@@ -107,15 +107,12 @@ export const ParticipantScannerModal = ({
           apiKey || process.env.NEXT_PUBLIC_MISTRAL_API_KEY || "",
         );
 
-        console.log("Starting OCR processing...");
         const response = await fetch("/api/ocr/process", {
           method: "POST",
           body: formData,
         });
 
-        console.log("OCR response status:", response.status);
         const result = await response.json();
-        console.log("OCR result:", result);
 
         if (!response.ok) {
           throw new Error(result.error || "Error procesando la imagen");
@@ -124,14 +121,19 @@ export const ParticipantScannerModal = ({
         setHasProcessed(true);
 
         if (result.success && result.participants) {
-          console.log("Setting extracted participants:", result.participants);
           setExtractedParticipants(result.participants);
+
+          // Pre-warm SENIAT session once OCR is successful to speed up verification
+          if (result.participants.length > 0) {
+            startSeniatSession().catch((err) =>
+              console.error("Error pre-warming SENIAT:", err),
+            );
+          }
+
           if (result.participants.length === 0) {
             // If OCR returned nothing, we still want to show the empty table for manual entry
-            console.log("OCR returned 0 participants, but showing empty table");
           }
         } else {
-          console.log("No participants field in result");
           setError("No se pudieron extraer participantes de la imagen");
         }
       } catch (err) {
@@ -147,7 +149,6 @@ export const ParticipantScannerModal = ({
   // Trigger processing only when file is first selected
   useEffect(() => {
     if (file && (apiKey || hasEnvApiKey)) {
-      console.log("useEffect triggered: file selected, starting processing");
       handleProcess(file);
     }
   }, [file, handleProcess, apiKey, hasEnvApiKey]);
@@ -259,16 +260,8 @@ export const ParticipantScannerModal = ({
     }
   };
 
-  const handleVerifyClick = async (index: number) => {
+  const handleVerifyClick = (index: number) => {
     setActiveVerificationIndex(index);
-    if (!seniatSessionId) {
-      try {
-        await startSeniatSession();
-      } catch (err) {
-        setError("No se pudo conectar con SENIAT. Intenta de nuevo.");
-        setActiveVerificationIndex(null);
-      }
-    }
   };
 
   const handleVerificationComplete = (
@@ -707,7 +700,7 @@ export const ParticipantScannerModal = ({
                             <td className="px-4 py-2">
                               {verificationResults.has(participant.idNumber) ? (
                                 <div
-                                  className={`text-xs px-2 py-1 rounded border truncate max-w-[150px] font-medium ${
+                                  className={`text-xs px-2 py-1 rounded border truncate max-w-[300px] font-medium ${
                                     verificationResults.get(
                                       participant.idNumber,
                                     )?.status === "verified"

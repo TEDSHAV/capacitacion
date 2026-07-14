@@ -20,15 +20,23 @@ export interface SeniatVerificationResult {
   error?: string;
 }
 
+// Ensure the sessions Map is truly global to persist across API routes in Next.js
+const getSeniatSessions = (): Map<string, { page: Page; context: BrowserContext }> => {
+  const globalAny = global as any;
+  if (!globalAny._seniatSessions) {
+    globalAny._seniatSessions = new Map();
+  }
+  return globalAny._seniatSessions;
+};
+
 export class SeniatService {
   private static browser: Browser | null = null;
   private static readonly SENIAT_URL =
     "http://contribuyente.seniat.gob.ve/BuscaRif/BuscaRif.jsp";
-  // Store active sessions for captcha verification
-  private static sessions: Map<
-    string,
-    { page: Page; context: BrowserContext }
-  > = new Map();
+  
+  private static get sessions() {
+    return getSeniatSessions();
+  }
 
   /**
    * Get or create browser instance (singleton pattern)
@@ -428,13 +436,11 @@ export class SeniatService {
       try {
         // Look for <font> tags which contain the result
         const fontElements = await page.$$("font");
-        console.log("Found", fontElements.length, "font elements");
         for (const fontElement of fontElements) {
           const text = await fontElement.textContent();
           if (!text) continue;
 
           const cleaned = text.trim();
-          console.log("Font element text:", cleaned);
 
           // Only process if it matches the RIF pattern (starts with V/E + digits)
           // Handle both regular space and &nbsp; (non-breaking space)
@@ -443,7 +449,6 @@ export class SeniatService {
 
           if (match && match[1]) {
             seniatName = match[1].trim();
-            console.log("Matched name:", seniatName);
             break;
           }
         }

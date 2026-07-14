@@ -12,16 +12,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Verifying RIF: ${rif} with session: ${sessionId}`);
-
     // Call SeniatService to verify RIF
     const result = await SeniatService.verifyRIFWithSession(
       sessionId,
       rif,
       captcha,
     );
-
-    console.log("SENIAT Verification result:", result);
 
     if (result.status === "error" && result.error === "Captcha incorrecto") {
       return NextResponse.json(
