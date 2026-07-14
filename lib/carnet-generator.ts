@@ -311,22 +311,22 @@ export class CarnetGenerator {
     carnetData: CarnetGeneration,
   ): Promise<void> {
     // Set font styles
-    pdf.setFontSize(6);
+    pdf.setFontSize(8);
     pdf.setFont("helvetica", "bold");
 
     // Add participant name (centered below course title)
     const nameY = 42; // Below course info
-    pdf.text(`Nombre: ${participant.name}`, 28, nameY - 10, {
+    pdf.text(`Nombre: ${participant.name}`, 3, nameY - 10, {
       maxWidth: 70,
     });
 
     // Add ID number (centered below name)
-    pdf.setFontSize(6);
+    pdf.setFontSize(8);
     pdf.setFont("helvetica", "bold");
 
     // Determine ID label and prefix based on nationality
     const idPrefix = participant.nationality === "extranjero" ? "e-" : "V-";
-    pdf.text(`Cédula: ${idPrefix}${participant.idNumber}`, 28, nameY - 6);
+    pdf.text(`Cédula: ${idPrefix}${participant.idNumber}`, 3, nameY - 2);
   }
 
   private async addCourseInfo(
@@ -334,12 +334,12 @@ export class CarnetGenerator {
     carnetData: CarnetGeneration,
   ): Promise<void> {
     // Set font styles
-    pdf.setFontSize(7);
+    pdf.setFontSize(8);
     pdf.setFont("helvetica", "bold");
 
     // Add course title (centered within border area)
     const courseY = 18;
-    pdf.text(`${carnetData.titulo_curso.toUpperCase()}`, 54, courseY, {
+    pdf.text(`${carnetData.titulo_curso.toUpperCase()}`, 40, courseY, {
       align: "center",
       maxWidth: 50,
     });
@@ -350,15 +350,15 @@ export class CarnetGenerator {
     carnetData: CarnetGeneration,
   ): Promise<void> {
     // Set font styles
-    pdf.setFontSize(5);
+    pdf.setFontSize(8);
     pdf.setFont("helvetica", "bold");
 
     // Add emission date (left side, below QR code)
     const emissionDate = new Date(
       carnetData.fecha_emision + "T12:00:00",
     ).toLocaleDateString("es-VE");
-    pdf.text("Emisión: ", 3, 40);
-    pdf.text(emissionDate, 15, 40);
+    pdf.text("Emisión: ", 50, 32);
+    pdf.text(emissionDate, 72, 32);
 
     // Add expiration date if available (left side, below emission date)
     if (carnetData.fecha_vencimiento) {
@@ -366,19 +366,19 @@ export class CarnetGenerator {
         carnetData.fecha_vencimiento + "T12:00:00",
       ).toLocaleDateString("es-VE");
       pdf.setTextColor(255, 0, 0); // Set text color to red
-      pdf.text("Vencimiento: ", 3, 43);
+      pdf.text("Vencimiento: ", 50, 40);
       pdf.setTextColor(0, 0, 0); // Reset text color to black
-      pdf.text(expirationDate, 15, 43); // Position date after "Vencimiento: "
+      pdf.text(expirationDate, 72, 40); // Position date after "Vencimiento: "
     }
 
     // Add control number at bottom right
     if (carnetData.nro_control) {
-      pdf.setFontSize(7);
+      pdf.setFontSize(6);
       pdf.setFont("helvetica", "bold");
       pdf.setTextColor(255, 0, 0); // Set text color to red
-      pdf.text("N°: ", 66, 44);
+      pdf.text("N°: ", 61.3, 7);
       pdf.setTextColor(0, 0, 0); // Reset text color to black
-      pdf.text(`${carnetData.nro_control}`, 70, 44);
+      pdf.text(`${carnetData.nro_control}`, 65, 7);
     }
   }
 
@@ -388,10 +388,10 @@ export class CarnetGenerator {
         return;
       }
 
-      // Add QR code to middle left square area of carnet
-      const qrSize = 20; // 15mm for carnet
-      const qrX = 3; // Position in the left square area
-      const qrY = 16; // Center vertically in the left area
+      // Add QR code to middle right square area of carnet
+      const qrSize = 17.5; // 15mm for carnet
+      const qrX = 61.5; // Position in the right square area
+      const qrY = 8; // Center vertically in the right area
 
       // Add QR code image to PDF
       pdf.addImage(qrDataURL, "PNG", qrX, qrY, qrSize, qrSize);

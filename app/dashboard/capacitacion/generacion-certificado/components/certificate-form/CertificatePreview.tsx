@@ -161,7 +161,7 @@ export const CertificatePreview = ({
         nombre_participante: previewParticipant.name,
         cedula_participante: previewParticipant.idNumber,
         empresa_participante: previewParticipant.company || "",
-        nro_control: 12345, // Placeholder control number for preview
+        nro_control: 123451234544, // Placeholder control number for preview
         qr_code: undefined, // Preview doesn't need QR code
       };
 
