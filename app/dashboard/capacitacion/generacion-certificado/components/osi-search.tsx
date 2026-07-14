@@ -7,6 +7,7 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
   const [searchTerm, setSearchTerm] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const [visibleCount, setVisibleCount] = useState(10)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -14,12 +15,18 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
     osi.is_active !== false && (
       (osi.nro_osi && osi.nro_osi.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (osi.cliente_nombre_empresa && osi.cliente_nombre_empresa.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (osi.tema && osi.tema.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (osi.curso_nombre && osi.curso_nombre.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (osi.detalle_capacitacion && osi.detalle_capacitacion.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (osi.tipo_servicio && osi.tipo_servicio.toLowerCase().includes(searchTerm.toLowerCase()))
     )
   )
 
-  const handleSelect = (osi: OSI) => {
+  // Show last 10 OSIs by default, or search results
+  const displayOSIs = searchTerm 
+    ? filteredOSIs.slice(0, visibleCount)
+    : osis.slice(0, visibleCount)
+
+  const handleSelect = (osi: CertificateOSI) => {
     onSelect(osi)
     setIsOpen(false)
     setSearchTerm('')
@@ -94,9 +101,10 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Reset highlighted index when search term changes
+  // Reset highlighted index and visible count when search term changes
   useEffect(() => {
     setHighlightedIndex(-1)
+    setVisibleCount(10)
   }, [searchTerm])
 
   return (
@@ -119,7 +127,7 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
           onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={() => setIsOpen(true)}
           onBlur={handleInputBlur}
-          placeholder="Buscar por número de OSI, cliente, tema o servicio..."
+          placeholder="Buscar por número de OSI, cliente, curso o servicio..."
           className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
         {searchTerm && (
@@ -146,7 +154,7 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
                 Cliente: {selectedOSI.cliente_nombre_empresa || 'N/A'}
               </div>
               <div className="text-sm text-blue-700">
-                Tema: {selectedOSI.tema || 'N/A - Sin tema especificado'}
+                Curso: {selectedOSI.curso_nombre || selectedOSI.detalle_capacitacion || 'N/A - Sin curso especificado'}
               </div>
             </div>
             <button
@@ -165,33 +173,50 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
       {isOpen && !selectedOSI && (
         <div 
           ref={dropdownRef}
-          className="absolute mt-2 w-full border border-gray-300 rounded-md shadow-lg bg-white max-h-60 overflow-y-auto z-50"
+          className="absolute mt-2 w-full border border-gray-300 rounded-md shadow-lg bg-white max-h-80 overflow-y-auto z-50"
           onMouseDown={handleDropdownMouseDown}
         >
-          {filteredOSIs.length === 0 ? (
+          {displayOSIs.length === 0 ? (
             <div className="p-3 text-gray-500 text-center">
-              No se encontraron OSIs que coincidan con la búsqueda
+              {searchTerm ? 'No se encontraron OSIs que coincidan con la búsqueda' : 'No hay OSIs disponibles'}
             </div>
           ) : (
-            filteredOSIs.slice(0, 10).map((osi, index) => (
-              <div
-                key={osi.id}
-                onClick={() => handleSelect(osi)}
-                className={`p-3 cursor-pointer border-b border-gray-100 last:border-b-0 ${
-                  highlightedIndex === index ? 'bg-blue-50' : 'hover:bg-gray-50'
-                }`}
-              >
-                <div className="font-medium text-gray-900">
-                  {osi.nro_osi}
+            <>
+              {displayOSIs.map((osi, index) => (
+                <div
+                  key={osi.id}
+                  onClick={() => handleSelect(osi)}
+                  className={`p-3 cursor-pointer border-b border-gray-100 last:border-b-0 ${
+                    highlightedIndex === index ? 'bg-blue-50' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="font-medium text-gray-900">
+                    {osi.nro_osi}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {osi.cliente_nombre_empresa}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Curso: {osi.curso_nombre || 'Sin curso especificado'}
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600">
-                  {osi.cliente_nombre_empresa}
+              ))}
+              
+              {/* Load More Button */}
+              {((searchTerm ? filteredOSIs.length : osis.length) > visibleCount) && (
+                <div 
+                  className="p-2 text-center border-t border-gray-100"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <button
+                    onClick={() => setVisibleCount(prev => prev + 10)}
+                    className="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                  >
+                    Cargar más ({((searchTerm ? filteredOSIs.length : osis.length) - visibleCount)} restantes)
+                  </button>
                 </div>
-                <div className="text-sm text-gray-500">
-                  Tema: {osi.tema || 'Sin tema especificado'}
-                </div>
-              </div>
-            ))
+              )}
+            </>
           )}
         </div>
       )}

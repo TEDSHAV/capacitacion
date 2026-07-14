@@ -132,211 +132,8 @@ const OSIForm = ({
   }, [setEmpresaSearchTerm])
 
   return (
-    <div className="space-y-3">
-      <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Información del Cliente</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Número de OSI
-            {isNew && (
-              <span className="ml-2 text-xs text-gray-500">
-                (Generado automáticamente)
-              </span>
-            )}
-          </label>
-          <div className="flex space-x-2">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={initialData?.nro_osi || ''}
-                onChange={(e) => {
-                  if (!isOsiFieldLocked) {
-                    updateFormData?.('nro_osi', e.target.value.replace(/^0+/, ''))
-                  }
-                }}
-                disabled={isOsiFieldLocked || (!isEditing && !isNew)}
-                tabIndex={!isOsiFieldLocked && (isEditing || isNew) ? 0 : -1}
-                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  isOsiFieldLocked || (!isEditing && !isNew)
-                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed text-gray-500'
-                    : 'border-gray-300 text-gray-900'
-                }`}
-                placeholder={isOsiFieldLocked ? 'Campo bloqueado' : 'Ingrese número de OSI...'}
-              />
-              {isOsiFieldLocked && (
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </div>
-              )}
-            </div>
-            {(isEditing || isNew) && (
-              <button
-                type="button"
-                onClick={handleOsiFieldToggle}
-                className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                  isOsiFieldLocked
-                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-                    : 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
-                }`}
-                title={isOsiFieldLocked ? 'Desbloquear para editar manualmente' : 'Bloquear para usar generación automática'}
-              >
-                {isOsiFieldLocked ? (
-                  <div className="flex items-center space-x-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                    </svg>
-                    <span>Desbloquear</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    <span>Bloquear</span>
-                  </div>
-                )}
-              </button>
-            )}
-          </div>
-          {isOsiFieldLocked && (isEditing || isNew) && (
-            <p className="mt-1 text-xs text-gray-500">
-              El número de OSI será generado automáticamente por el sistema. Haz clic en "Desbloquear" para ingresar un valor manualmente.
-            </p>
-          )}
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Empresa</label>
-          <div className="relative">
-            <input
-              type="text"
-              value={empresaSearchTerm || initialData?.cliente_nombre_empresa || ''}
-              onChange={handleEmpresaSearchChange}
-              onFocus={handleEmpresaFocus}
-              onKeyDown={handleEmpresaKeyDown}
-              disabled={!isEditing && !isNew}
-              tabIndex={!isEditing && !isNew ? -1 : 0}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder="Buscar empresa..."
-            />
-            {empresaSearchTerm && filteredEmpresas && filteredEmpresas.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-                {filteredEmpresas.map((empresa, index) => (
-                  <div
-                    key={empresa.id}
-                    className={`px-3 py-2 cursor-pointer border-b border-gray-200 last:border-b-0 ${
-                      index === selectedEmpresaIndex ? 'bg-gray-100' : 'hover:bg-gray-100'
-                    }`}
-                    onClick={() => {
-                      updateFormData?.('cliente_nombre_empresa', empresa.razon_social)
-                      updateFormData?.('codigo_cliente', empresa.codigo_cliente)
-                      updateFormData?.('rif', empresa.rif)
-                      updateFormData?.('direccion_fiscal', empresa.direccion_fiscal)
-                      updateFormData?.('direccion_envio', empresa.direccion_fiscal)
-                      updateFormData?.('direccion_ejecucion', empresa.direccion_fiscal)
-                      setEmpresaSearchTerm?.('')
-                      setSelectedEmpresaIndex(-1)
-                    }}
-                  >
-                    <div className="font-medium">{empresa.razon_social}</div>
-                    <div className="text-sm text-gray-500">{empresa.rif}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">RIF</label>
-          <input
-            type="text"
-            value={initialData?.rif || ''}
-            disabled
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-            readOnly
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Código Cliente</label>
-          <input
-            type="text"
-            value={initialData?.codigo_cliente || ''}
-            disabled
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-            readOnly
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Servicio</label>
-          <select
-            value={initialData?.tipo_servicio || ''}
-            onChange={(e) => updateFormData?.('tipo_servicio', e.target.value)}
-            disabled={!isEditing && !isNew}
-            tabIndex={!isEditing && !isNew ? -1 : 0}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-          >
-            <option value="">Seleccione un tipo de servicio</option>
-            {servicios?.map((servicio) => (
-              <option key={servicio.id} value={servicio.nombre}>
-                {servicio.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Curso</label>
-          <div className="relative">
-            <input
-              type="text"
-              value={cursoSearchTerm || initialData?.detalle_capacitacion || ''}
-              onChange={(e) => {
-                setCursoSearchTerm?.(e.target.value)
-                setSelectedTemaIndex(-1)
-                // Also update form data directly when typing
-                updateFormData?.('detalle_capacitacion', e.target.value)
-              }}
-              onKeyDown={handleTemaKeyDown}
-              disabled={!isEditing && !isNew}
-              tabIndex={!isEditing && !isNew ? -1 : 0}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder="Buscar curso..."
-            />
-            {cursoSearchTerm && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-                {filteredCursos && filteredCursos.length > 0 ? (
-                  filteredCursos.map((curso: any, index: number) => (
-                    <div
-                      key={curso.id}
-                      className={`px-3 py-2 cursor-pointer border-b border-gray-200 last:border-b-0 ${
-                        index === selectedTemaIndex ? 'bg-gray-100' : 'hover:bg-gray-100'
-                      }`}
-                      onClick={() => {
-                        updateFormData?.('detalle_capacitacion', curso.contenido)
-                        updateFormData?.('id_curso', curso.id) // Store the course ID
-                        setCursoSearchTerm?.('')
-                        setSelectedTemaIndex(-1)
-                      }}
-                    >
-                      <div className="font-medium">{curso.nombre}</div>
-                      <div className="text-sm text-gray-500">{curso.contenido?.substring(0, 100)}...</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="px-3 py-2 text-gray-500 text-center">
-                    No se encontraron cursos que coincidan con "{cursoSearchTerm}"
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-        
+    <>
+      <div className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Dirección Fiscal</label>
           <textarea
@@ -344,10 +141,9 @@ const OSIForm = ({
             disabled
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
             rows={2}
-            readOnly
           />
         </div>
-        
+          
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Dirección de Envío</label>
           <textarea
@@ -374,7 +170,7 @@ const OSIForm = ({
           />
         </div>
       </div>
-      
+        
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Ejecutivo Negocios</label>
@@ -460,7 +256,7 @@ const OSIForm = ({
           })()}
         </div>
       </div>
-    </div>
+    </>
   )
 }
 

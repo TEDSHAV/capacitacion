@@ -11,7 +11,6 @@ export interface CertificateOSI {
   nro_presupuesto?: string;
   ejecutivo_negocios: number;
   cliente_nombre_empresa: string;
-  tema?: string;
   id_curso: number | null;
   fecha_servicio?: string;
   empresa_id: number;
@@ -27,6 +26,7 @@ export interface CertificateOSI {
   detalle_capacitacion?: string;
   codigo_cliente?: number;
   is_active: boolean;
+  curso_nombre?: string; // Added course name from join
 }
 
 export async function getCertificateData(options?: { osiLimit?: number; courseLimit?: number }) {
@@ -34,10 +34,24 @@ export async function getCertificateData(options?: { osiLimit?: number; courseLi
     const supabase = await createClient();
     const { osiLimit = 50, courseLimit = 100 } = options || {};
 
-    // Fetch OSIs with pagination - include empresa_id and id_curso
+    // Fetch OSIs with course information (left join to show all OSIs)
     const { data: osis, error: osiError } = await supabase
       .from("osi")
-      .select("id, nro_osi, cliente_nombre_empresa, tema, id_curso, is_active, empresa_id")
+      .select(`
+        id, 
+        nro_osi, 
+        cliente_nombre_empresa, 
+        detalle_capacitacion, 
+        id_curso, 
+        is_active, 
+        empresa_id,
+        tipo_servicio,
+        ejecutivo_negocios,
+        cursos (
+          nombre,
+          contenido
+        )
+      `)
       .eq("is_active", true)
       .order("nro_osi", { ascending: false })
       .limit(osiLimit);
@@ -47,6 +61,20 @@ export async function getCertificateData(options?: { osiLimit?: number; courseLi
     if (osiError) {
       throw osiError;
     }
+
+    // Transform the data to match CertificateOSI interface
+    const transformedOSIs = (osis || []).map((osi: any) => ({
+      id: osi.id.toString(),
+      nro_osi: osi.nro_osi,
+      cliente_nombre_empresa: osi.cliente_nombre_empresa,
+      detalle_capacitacion: osi.detalle_capacitacion,
+      id_curso: osi.id_curso,
+      is_active: osi.is_active,
+      empresa_id: osi.empresa_id,
+      tipo_servicio: osi.tipo_servicio,
+      ejecutivo_negocios: osi.ejecutivo_negocios,
+      curso_nombre: osi.cursos?.nombre, // Course name from join
+    }));
 
     // Fetch cursos with pagination and only necessary fields
     const { data: cursosData, error: cursosError } = await supabase
@@ -61,7 +89,7 @@ export async function getCertificateData(options?: { osiLimit?: number; courseLi
     }
 
     return {
-      osis: (osis || []) as CertificateOSI[],
+      osis: transformedOSIs as CertificateOSI[],
       courseTopics: (cursosData || []).map((curso) => ({
         id: curso.id.toString(),
         nombre: curso.nombre,

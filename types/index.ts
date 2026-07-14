@@ -508,7 +508,6 @@ export interface CertificateOSI {
   nro_presupuesto?: string;
   ejecutivo_negocios: number;
   cliente_nombre_empresa: string;
-  tema?: string;
   id_curso: number | null;
   fecha_servicio?: string;
   empresa_id: number;
@@ -525,6 +524,7 @@ export interface CertificateOSI {
   detalle_sesion?: string;
   codigo_cliente?: number;
   is_active: boolean;
+  curso_nombre?: string; // Added course name from join
 }
 
 export interface CertificateTemplateProps {

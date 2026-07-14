@@ -143,35 +143,7 @@ export const CertificateForm = ({
         Detalles del Certificado
       </h2>
 
-      {/* OSI Information Display */}
-      {selectedOSI && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">
-            Información de la OSI
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium">Cliente:</span>
-              <input
-                type="text"
-                value={selectedOSI.cliente_nombre_empresa || ""}
-                readOnly
-                className="ml-2 px-2 py-1 bg-white border border-gray-300 rounded text-gray-600 w-full sm:w-auto"
-              />
-            </div>
-            <div>
-              <span className="font-medium">Tema:</span>
-              <input
-                type="text"
-                value={selectedOSI.tema || ""}
-                readOnly
-                className="ml-2 px-2 py-1 bg-white border border-gray-300 rounded text-gray-600 w-full sm:w-auto"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
+      
       {/* Certificate Title */}
       <div className="mb-4">
         <label
