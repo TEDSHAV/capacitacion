@@ -8,6 +8,7 @@ import { CertificatePreview } from "./CertificatePreview";
 import { CourseTemplateSection } from "./CourseTemplateSection";
 import { SignatureSection } from "./SignatureSection";
 import { FormActionButtons } from "./FormActionButtons";
+import { DocumentTestSection } from "./DocumentTestSection";
 import { useCertificateForm } from "./use-certificate-form";
 
 export const CertificateForm = ({
@@ -16,6 +17,14 @@ export const CertificateForm = ({
   selectedCourseTopic,
   courseTopics,
   isGenerating = false,
+  isTestingDocs = false,
+  testDocSelections = {
+    includeCertificacionCompetencias: true,
+    includeNotaEntrega: true,
+    includeValidacionDatos: true,
+  },
+  onTestDocSelectionsChange,
+  onTestDocuments,
   isEditMode = false,
   generationProgress,
   onDataChange,
@@ -504,6 +513,17 @@ export const CertificateForm = ({
           isEditMode={isEditMode}
         />
       </div>
+
+      {/* Document Testing Section */}
+      {onTestDocuments && onTestDocSelectionsChange && (
+        <DocumentTestSection
+          isTestingDocs={isTestingDocs}
+          selections={testDocSelections}
+          onSelectionsChange={onTestDocSelectionsChange}
+          onTest={onTestDocuments}
+          disabled={isGenerating}
+        />
+      )}
 
       <FormActionButtons
         isGenerating={isGenerating}

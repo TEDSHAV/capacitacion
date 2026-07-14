@@ -412,6 +412,14 @@ export interface CertificateFormProps {
   selectedCourseTopic: CourseTopic | null;
   courseTopics: CourseTopic[];
   isGenerating?: boolean;
+  isTestingDocs?: boolean;
+  testDocSelections?: {
+    includeCertificacionCompetencias: boolean;
+    includeNotaEntrega: boolean;
+    includeValidacionDatos: boolean;
+  };
+  onTestDocSelectionsChange?: (selections: any) => void;
+  onTestDocuments?: () => void;
   isEditMode?: boolean;
   generationProgress?: {
     currentPhase: string;

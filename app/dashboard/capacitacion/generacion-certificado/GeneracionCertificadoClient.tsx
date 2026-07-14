@@ -23,6 +23,7 @@ import {
 } from "@/app/actions/dropdown-data";
 import { QRService } from "@/lib/qr-service";
 import { generateDocumentsServer } from "@/lib/document-server-actions";
+import { testGenerateDocumentsAction } from "@/lib/document-test-actions";
 import {
   getDocumentFileName,
   getDefaultFirmante,
@@ -41,6 +42,12 @@ export default function GeneracionCertificadoClient({
 }: GeneracionCertificadoClientProps) {
   const router = useRouter();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isTestingDocs, setIsTestingDocs] = useState(false);
+  const [testDocSelections, setTestDocSelections] = useState({
+    includeCertificacionCompetencias: true,
+    includeNotaEntrega: true,
+    includeValidacionDatos: true,
+  });
   const [generationProgress, setGenerationProgress] = useState({
     currentPhase: "",
     percentage: 0,
@@ -394,6 +401,131 @@ export default function GeneracionCertificadoClient({
       ...prev,
       participants,
     }));
+  };
+
+  const handleTestDocuments = async () => {
+    if (
+      !certificateData.osi_id ||
+      !certificateData.certificate_title ||
+      !certificateData.course_topic_id ||
+      certificateData.participants.length === 0
+    ) {
+      alert(
+        "Por favor completa los campos obligatorios para probar los documentos",
+      );
+      return;
+    }
+
+    if (
+      !testDocSelections.includeCertificacionCompetencias &&
+      !testDocSelections.includeNotaEntrega &&
+      !testDocSelections.includeValidacionDatos
+    ) {
+      alert("Por favor selecciona al menos un documento para probar");
+      return;
+    }
+
+    try {
+      setIsTestingDocs(true);
+
+      // Prepare template data similar to how generateDocumentsServer does it
+      const formatCedula = (participant: any): string => {
+        const idNumber = participant.idNumber || "";
+        if (!idNumber) return "";
+        const cleanCedula = idNumber.replace(/[^\d]/g, "");
+        if (cleanCedula.length === 0) return idNumber;
+
+        if (
+          participant.idType === "extranjero" ||
+          participant.nationality === "extranjero"
+        ) {
+          return `E-${cleanCedula}`;
+        }
+        return `V-${cleanCedula}`;
+      };
+
+      const today = new Date();
+      const dateComponents = {
+        fecha: today.toLocaleDateString("es-ES", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+        dia: today.getDate().toString(),
+        mes: today.toLocaleDateString("es-ES", { month: "long" }),
+        anio: today.getFullYear().toString(),
+      };
+
+      const templateData = {
+        ...dateComponents,
+        nombre_cliente: selectedOSI?.cliente_nombre_empresa || "",
+        titulo_curso:
+          certificateData.certificate_title ||
+          selectedCourseTopic?.nombre ||
+          "",
+        ciudad: certificateData.location || "Puerto La Cruz",
+        nro_osi: selectedOSI?.nro_osi || "",
+        nombre_firmante: "DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.",
+        cargo_firmante: "Jefe de Capacitación",
+        nombre_recibido: "",
+        cargo_recibido: "",
+        localidad: selectedOSI?.localidad || "",
+        localidad_cliente: selectedOSI?.direccion_ejecucion || "",
+        fecha_ejecucion: selectedOSI?.fecha_ejecucion1 || certificateData.date,
+        participantes: certificateData.participants.map((p, index) => ({
+          index: index + 1,
+          nombre_apellido: p.name || "",
+          cedula: formatCedula(p),
+          puntuacion: p.score?.toString() || "",
+          condicion:
+            p.score && p.score >= (certificateData.passing_grade || 14)
+              ? "APROBADO"
+              : "REPROBADO",
+          numero_control: "TEST-0000", // Sample control number for testing
+        })),
+      } as any;
+
+      const result = await testGenerateDocumentsAction({
+        templateData,
+        options: testDocSelections,
+      });
+
+      if (result.success && result.documents) {
+        // Trigger individual downloads
+        Object.entries(result.documents).forEach(([docType, base64]) => {
+          const filename = `TEST_${getDocumentFileName(docType, selectedOSI?.nro_osi || "S-N")}`;
+          const byteCharacters = atob(base64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: "application/pdf" });
+
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        });
+
+        if (result.errors && result.errors.length > 0) {
+          alert(
+            `Documentos generados con algunos errores: \n${result.errors.join("\n")}`,
+          );
+        }
+      } else {
+        alert(`Error al generar documentos de prueba: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Test document generation error:", error);
+      alert("Error inesperado al generar documentos de prueba.");
+    } finally {
+      setIsTestingDocs(false);
+    }
   };
 
   const handleGenerateCertificate = async () => {
@@ -1332,6 +1464,10 @@ export default function GeneracionCertificadoClient({
           selectedCourseTopic={selectedCourseTopic}
           courseTopics={courses}
           isGenerating={isGenerating}
+          isTestingDocs={isTestingDocs}
+          testDocSelections={testDocSelections}
+          onTestDocSelectionsChange={setTestDocSelections}
+          onTestDocuments={handleTestDocuments}
           isEditMode={!!editData}
           generationProgress={generationProgress}
           onDataChange={handleCertificateDataChange}

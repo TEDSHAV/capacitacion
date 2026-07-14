@@ -38,9 +38,9 @@ function escapeHtml(text: string): string {
  * @returns Object with pagination info
  */
 function getPaginationStrategy(participantCount: number) {
-  // Thresholds based on typical page capacity
-  const SHORT_TABLE_THRESHOLD = 15;
-  const MEDIUM_TABLE_THRESHOLD = 22;
+  // Thresholds based on typical page capacity with intro text and margins
+  const SHORT_TABLE_THRESHOLD = 10; // Single page with middle signature
+  const MEDIUM_TABLE_THRESHOLD = 14; // Single page with bottom signature (up to 14 participants)
 
   if (participantCount <= SHORT_TABLE_THRESHOLD) {
     return {
@@ -55,8 +55,8 @@ function getPaginationStrategy(participantCount: number) {
       splitIndex: participantCount,
     };
   } else {
-    // Split table at approximately 60% for first page
-    const splitIndex = Math.ceil(participantCount * 0.6);
+    // Split table: first page gets ~55% of rows for better balance
+    const splitIndex = Math.ceil(participantCount * 0.55);
     return {
       pages: 2,
       signaturePosition: "bottom", // Always at bottom of last page
@@ -158,7 +158,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
         ${logoUri ? `<img src="${logoUri}" alt="Logo" class="logo">` : ""}
       </div>
       <div class="title">
-        CERTIFICACIÓN DE<br>COMPETENCIAS
+        CERTIFICACIÓN DE COMPETENCIAS
       </div>
       <div class="code-box">
         <div><span class="code-label">CÓDIGO:</span> <span>SHA-RG-CAP-006</span></div>
@@ -183,8 +183,6 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
           : ""
       }
     </div>
-
-    ${footerUri ? `<div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>` : ""}
   </div>
 `;
 
@@ -306,16 +304,24 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       font-size: 14px;
       line-height: 1.4;
       color: #000;
-      background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
-      background-attachment: fixed;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 500px;
+      height: 500px;
+      z-index: -1;
+      opacity: 0.15;
+      pointer-events: none;
     }
 
     .page {
       position: relative;
       page-break-after: always;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+      width: 100%;
     }
 
     .page:last-child {
@@ -325,22 +331,26 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     .header {
       display: grid;
       grid-template-columns: 1fr 2fr 1fr;
-      align-items: start;
+      align-items: center;
       gap: 20px;
       margin-bottom: 20px;
       padding-bottom: 10px;
+      page-break-inside: avoid;
     }
 
     .logo {
-      max-width: 110px;
+      max-width: 140px;
       height: auto;
     }
 
     .title {
       text-align: center;
       font-weight: bold;
-      font-size: 16px;
-      line-height: 1.3;
+      font-size: 13px;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .code-box {
@@ -360,9 +370,8 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     }
 
     .content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
+      width: 100%;
+      padding-bottom: 0.8in; /* Space for fixed footer */
     }
 
     .date-right {
@@ -477,20 +486,26 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     }
 
     .footer {
-      page-break-inside: avoid;
-      padding-top: 30px;
-      margin-top: auto;
-      flex-shrink: 0;
+      position: fixed;
+      bottom: -5px;
+      left: 0;
+      right: 0;
+      height: 0.7in;
+      z-index: 1000;
+      overflow: hidden;
     }
 
     .footer-image {
       width: 100%;
-      height: auto;
+      height: 100%;
+      object-fit: contain;
       display: block;
     }
   </style>
 </head>
 <body>
+  <div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>
+  <img src="${watermarkUri}" class="watermark" alt="Watermark">
   ${pagesHtml}
 </body>
 </html>
@@ -606,8 +621,6 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       ${content}
       ${includeSignature ? signatureContent : ""}
     </div>
-
-    ${footerUri ? `<div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>` : ""}
   </div>
 `;
 
@@ -703,16 +716,24 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       font-size: 14px;
       line-height: 1.4;
       color: #000;
-      background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
-      background-attachment: fixed;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 500px;
+      height: 500px;
+      z-index: -1;
+      opacity: 0.15;
+      pointer-events: none;
     }
 
     .page {
       position: relative;
       page-break-after: always;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+      width: 100%;
     }
 
     .page:last-child {
@@ -722,22 +743,26 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     .header {
       display: grid;
       grid-template-columns: 1fr 2fr 1fr;
-      align-items: start;
+      align-items: center;
       gap: 20px;
       margin-bottom: 20px;
       padding-bottom: 10px;
+      page-break-inside: avoid;
     }
 
     .logo {
-      max-width: 110px;
+      max-width: 140px;
       height: auto;
     }
 
     .title {
       text-align: center;
       font-weight: bold;
-      font-size: 16px;
-      line-height: 1.3;
+      font-size: 13px;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .code-box {
@@ -757,9 +782,8 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     }
 
     .content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
+      width: 100%;
+      padding-bottom: 60px; /* Space for the absolute positioned footer */
     }
 
     .date-right {
@@ -894,20 +918,26 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     }
 
     .footer {
-      page-break-inside: avoid;
-      padding-top: 30px;
-      margin-top: auto;
-      flex-shrink: 0;
+      position: fixed;
+      bottom: -5px;
+      left: 0;
+      right: 0;
+      height: 0.7in;
+      z-index: 1000;
+      overflow: hidden;
     }
 
     .footer-image {
       width: 100%;
-      height: auto;
+      height: 100%;
+      object-fit: contain;
       display: block;
     }
   </style>
 </head>
 <body>
+  <div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>
+  <img src="${watermarkUri}" class="watermark" alt="Watermark">
   ${pagesHtml}
 </body>
 </html>
@@ -1012,8 +1042,6 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
           : ""
       }
     </div>
-
-    ${footerUri ? `<div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>` : ""}
   </div>
 `;
 
@@ -1116,16 +1144,24 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       font-size: 14px;
       line-height: 1.4;
       color: #000;
-      background: url('${watermarkUri}') center / 500px 500px no-repeat fixed;
-      background-attachment: fixed;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 500px;
+      height: 500px;
+      z-index: -1;
+      opacity: 0.15;
+      pointer-events: none;
     }
 
     .page {
       position: relative;
       page-break-after: always;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+      width: 100%;
     }
 
     .page:last-child {
@@ -1135,22 +1171,26 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     .header {
       display: grid;
       grid-template-columns: 1fr 2fr 1fr;
-      align-items: start;
+      align-items: center;
       gap: 20px;
       margin-bottom: 20px;
       padding-bottom: 10px;
+      page-break-inside: avoid;
     }
 
     .logo {
-      max-width: 110px;
+      max-width: 140px;
       height: auto;
     }
 
     .title {
       text-align: center;
       font-weight: bold;
-      font-size: 16px;
-      line-height: 1.3;
+      font-size: 13px;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .code-box {
@@ -1170,9 +1210,8 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     }
 
     .content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
+      width: 100%;
+      padding-bottom: 0.8in; /* Space for fixed footer */
     }
 
     .date-right {
@@ -1265,20 +1304,26 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     }
 
     .footer {
-      page-break-inside: avoid;
-      padding-top: 30px;
-      margin-top: auto;
-      flex-shrink: 0;
+      position: fixed;
+      bottom: -5px;
+      left: 0;
+      right: 0;
+      height: 0.7in;
+      z-index: 1000;
+      overflow: hidden;
     }
 
     .footer-image {
       width: 100%;
-      height: auto;
+      height: 100%;
+      object-fit: contain;
       display: block;
     }
   </style>
 </head>
 <body>
+  <div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>
+  <img src="${watermarkUri}" class="watermark" alt="Watermark">
   ${pagesHtml}
 </body>
 </html>
