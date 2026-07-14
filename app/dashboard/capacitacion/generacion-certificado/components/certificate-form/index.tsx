@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { CourseTopic, CertificateFormProps, Signature } from "@/types";
+
+const RichTextEditor = dynamic(() => import("@/components/ui/rich-text-editor"), { ssr: false });
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
@@ -372,13 +375,11 @@ export const CertificateForm = ({
               </span>
             )}
           </label>
-          <textarea
-            id="course_content"
+          <RichTextEditor
             value={certificateData.course_content || ""}
-            onChange={(e) => onDataChange("course_content", e.target.value)}
+            onChange={(html) => onDataChange("course_content", html)}
+            placeholder="Escribe o pega aquí el contenido temático del curso... (puedes pegar desde Word)"
             rows={8}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Escribe o pega aquí el contenido temático del curso..."
           />
           <p className="text-xs text-gray-500 mt-1">
             {certificateData.course_template_id

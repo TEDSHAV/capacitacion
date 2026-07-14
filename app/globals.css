@@ -238,3 +238,26 @@ button[class*="text-blue-600"][class*="hover:text-blue-900"] {
   opacity: 0.8;
   filter: blur(8px);
 }
+
+/* ── TipTap / ProseMirror editor styles ── */
+.ProseMirror {
+  outline: none;
+}
+.ProseMirror p { margin: 0 0 0.5em; }
+.ProseMirror p:last-child { margin-bottom: 0; }
+.ProseMirror ul, .ProseMirror ol { padding-left: 1.4em; margin: 0.25em 0 0.5em; }
+.ProseMirror ul { list-style-type: disc; }
+.ProseMirror ol { list-style-type: decimal; }
+.ProseMirror li { margin: 0.15em 0; }
+.ProseMirror strong { font-weight: 600; }
+.ProseMirror em { font-style: italic; }
+.ProseMirror h1 { font-size: 1.25em; font-weight: 700; margin: 0.5em 0 0.25em; }
+.ProseMirror h2 { font-size: 1.1em; font-weight: 700; margin: 0.5em 0 0.25em; }
+.ProseMirror h3 { font-size: 1em; font-weight: 700; margin: 0.4em 0 0.2em; }
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}

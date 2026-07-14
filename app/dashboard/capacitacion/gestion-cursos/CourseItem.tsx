@@ -1,5 +1,6 @@
 import { Curso } from '@/types';
 import CourseActions from './CourseActions';
+import { stripHtml } from '@/lib/strip-html';
 
 interface CourseItemProps {
   curso: Curso;
@@ -50,7 +51,7 @@ export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: Cou
               {curso.nombre}
             </div>
             <div className="text-xs text-gray-500 line-clamp-2">
-              {curso.contenido?.substring(0, 80)}{(curso.contenido && curso.contenido.length > 80) ? '...' : ''}
+              {(() => { const plain = stripHtml(curso.contenido || ''); return plain.substring(0, 80) + (plain.length > 80 ? '...' : ''); })()}
             </div>
           </div>
         </div>

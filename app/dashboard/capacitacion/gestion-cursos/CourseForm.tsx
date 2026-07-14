@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { Curso, Empresa } from '@/types';
 import EmpresaSearch from './EmpresaSearch';
+
+const RichTextEditor = dynamic(() => import('@/components/ui/rich-text-editor'), { ssr: false });
 
 interface CourseFormProps {
   curso: Curso | null;
@@ -218,19 +220,16 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
 
         {/* Content */}
         <div>
-          <label htmlFor="contenido" className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Contenido del Curso *
           </label>
-          <textarea
-            id="contenido"
-            name="contenido"
+          <RichTextEditor
             value={datosFormulario.contenido}
-            onChange={manejarCambioInput}
-            required
+            onChange={(html) => setDatosFormulario(prev => ({ ...prev, contenido: html }))}
+            placeholder="Agrega el contenido detallado del curso aquí... (puedes pegar desde Word)"
             rows={8}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            placeholder="Agrega el contenido detallado del curso aquí..."
           />
+          <p className="text-xs text-gray-500 mt-1">Soporta formato: negrita, cursiva, listas. Puedes pegar directamente desde Word.</p>
         </div>
 
         {/* Emitir Carnet Checkbox */}

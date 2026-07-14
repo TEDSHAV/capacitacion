@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import { CertificateParticipant, CertificateGeneration } from "@/types";
 import { getDynamicConfig } from "./certificate-config";
 import { TextRenderer } from "./text-renderer";
+import { stripHtml } from "./strip-html";
 
 export class ContentPage {
   private doc: jsPDF;
@@ -44,8 +45,10 @@ export class ContentPage {
     // Define column layout
     const { leftColumnX, rightColumnX, columnWidth, currentY } = this.defineColumnLayout(contentArea);
 
-    // Render course content in left column
-    this.renderCourseContent(certificateData.course_content, leftColumnX, currentY, columnWidth);
+    // Render course content in left column, clipped to certificate image bounds with 5mm safety buffer
+    const PRINT_BUFFER = 5; // mm gap from certificate image edge to avoid print bleed
+    const maxY = contentArea.y + contentArea.height - PRINT_BUFFER;
+    this.renderCourseContent(certificateData.course_content, leftColumnX, currentY, columnWidth, maxY);
 
     // Render table with seal in right column
     await this.renderContentTable(participant, certificateData, rightColumnX, currentY, columnWidth, sealImage, controlNumbers, isPreview);
@@ -77,8 +80,10 @@ export class ContentPage {
     // Define column layout for lower half
     const { leftColumnX, rightColumnX, columnWidth, currentY } = this.defineColumnLayout(contentArea);
 
-    // Render course content in left column
-    this.renderCourseContent(certificateData.course_content, leftColumnX, currentY, columnWidth);
+    // Render course content in left column, clipped to lower half boundary with 5mm safety buffer
+    const PRINT_BUFFER = 5; // mm gap from content area edge to avoid print bleed
+    const maxY = contentArea.y + contentArea.height - PRINT_BUFFER;
+    this.renderCourseContent(certificateData.course_content, leftColumnX, currentY, columnWidth, maxY);
 
     // Render table with seal in right column
     await this.renderContentTable(participant, certificateData, rightColumnX, currentY, columnWidth, sealImage, controlNumbers, isPreview);
@@ -117,20 +122,58 @@ export class ContentPage {
     courseContent: string | undefined,
     leftColumnX: number,
     currentY: number,
-    columnWidth: number
+    columnWidth: number,
+    maxY?: number
   ): void {
     if (!courseContent) return;
 
-    this.doc.setFont("helvetica", "normal");
-    this.doc.setFontSize(9);
+    const plainText = stripHtml(courseContent);
+    const BASE_SIZE = 9;
+    const MIN_SIZE = 5.5;
+    const BASE_LINE_HEIGHT = 5; // mm at font size 9
 
-    const contentLines = this.doc.splitTextToSize(courseContent, columnWidth);
-    const lineHeight = 5;
+    let fontSize = BASE_SIZE;
+    let lineHeight = BASE_LINE_HEIGHT;
+    let contentLines: string[] = [];
 
-    contentLines.forEach((line: string, index: number) => {
-      const lineY = currentY + (index * lineHeight);
-      this.doc.text(line, leftColumnX, lineY);
-    });
+    if (maxY !== undefined) {
+      const availableHeight = maxY - currentY;
+
+      // Reduce font size in 0.5pt steps until content fits or we hit the minimum
+      while (fontSize >= MIN_SIZE) {
+        lineHeight = BASE_LINE_HEIGHT * (fontSize / BASE_SIZE);
+        this.doc.setFont("helvetica", "normal");
+        this.doc.setFontSize(fontSize);
+
+        // Manually split by newlines, then wrap each paragraph
+        const paragraphs = plainText.split('\n').filter(p => p.trim());
+        contentLines = [];
+        for (const para of paragraphs) {
+          const wrapped = this.doc.splitTextToSize(para, columnWidth);
+          contentLines.push(...wrapped);
+        }
+
+        if (contentLines.length * lineHeight <= availableHeight) break;
+        fontSize -= 0.5;
+      }
+    } else {
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(fontSize);
+
+      const paragraphs = plainText.split('\n').filter(p => p.trim());
+      contentLines = [];
+      for (const para of paragraphs) {
+        const wrapped = this.doc.splitTextToSize(para, columnWidth);
+        contentLines.push(...wrapped);
+      }
+    }
+
+    let y = currentY;
+    for (const line of contentLines) {
+      if (maxY !== undefined && y > maxY) break;
+      this.doc.text(line, leftColumnX, y);
+      y += lineHeight;
+    }
   }
 
   /**

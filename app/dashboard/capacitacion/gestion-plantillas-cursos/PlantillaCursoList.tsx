@@ -1,6 +1,7 @@
 import { PlantillaCurso } from "./types";
 import { Pagination } from "./Pagination";
 import { Button } from "@/components/ui/button";
+import { stripHtml } from "@/lib/strip-html";
 
 interface PlantillaCursoListProps {
   plantillas: PlantillaCurso[];
@@ -94,7 +95,7 @@ export function PlantillaCursoList({
                       {plantilla.descripcion}
                     </div>
                     <div className="text-sm text-gray-500 truncate max-w-xs">
-                      {plantilla.contenido?.substring(0, 100)}...
+                      {stripHtml(plantilla.contenido || '').substring(0, 100)}...
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
