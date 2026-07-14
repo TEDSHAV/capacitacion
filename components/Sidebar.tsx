@@ -28,8 +28,6 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
   const pathname = usePathname();
   const [expandedDepartment, setExpandedDepartment] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isUserHovering, setIsUserHovering] = useState(false);
-  const autoHideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Memoize department click handler
   const handleDepartmentClick = useCallback((nombreDepartamento: string) => {
@@ -53,7 +51,6 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
 
   // Memoized event handlers to prevent re-renders
   const handleMouseEnter = useCallback(() => {
-    setIsUserHovering(true);
     if (isCollapsed) {
       // Add a small delay before expanding to prevent accidental triggers
       setTimeout(() => {
@@ -65,7 +62,7 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
   }, [isCollapsed]);
 
   const handleMouseLeave = useCallback(() => {
-    setIsUserHovering(false);
+    // Mouse leave functionality removed - no auto-hide
   }, []);
 
   const handleLogoClick = useCallback(() => {
@@ -80,49 +77,6 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
     setIsCollapsed(!isCollapsed);
   }, [isCollapsed]);
 
-  // Auto-hide timer functionality
-  const startAutoHideTimer = useCallback(() => {
-    // Clear any existing timer
-    if (autoHideTimerRef.current) {
-      clearTimeout(autoHideTimerRef.current);
-    }
-    
-    // Only start timer if user is not hovering and sidebar is expanded
-    if (!isUserHovering && !isCollapsed) {
-      const timer = setTimeout(() => {
-        setIsCollapsed(true);
-        autoHideTimerRef.current = null;
-      }, 100); // Reduced from 300ms to 100ms for faster collapse
-      autoHideTimerRef.current = timer;
-    }
-  }, [isUserHovering, isCollapsed]);
-
-  const stopAutoHideTimer = useCallback(() => {
-    if (autoHideTimerRef.current) {
-      clearTimeout(autoHideTimerRef.current);
-      autoHideTimerRef.current = null;
-    }
-  }, []);
-
-  // Clear timer when component unmounts
-  useEffect(() => {
-    return () => {
-      if (autoHideTimerRef.current) {
-        clearTimeout(autoHideTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Timer management based on hover state
-  useEffect(() => {
-    if (!isCollapsed && !isUserHovering) {
-      // Sidebar is expanded and user is not hovering - start timer
-      startAutoHideTimer();
-    } else {
-      // Either collapsed or user is hovering - stop timer
-      stopAutoHideTimer();
-    }
-  }, [isCollapsed, isUserHovering, startAutoHideTimer, stopAutoHideTimer]);
 
   return (
     <div 
