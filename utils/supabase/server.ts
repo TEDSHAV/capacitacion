@@ -8,11 +8,13 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookieOptions: {
-        domain: ".shadevenezuela.com.ve",
-        sameSite: "lax",
-        secure: true,
-      },
+      ...(process.env.NODE_ENV === "production" && {
+        cookieOptions: {
+          domain: ".shadevenezuela.com.ve",
+          sameSite: "lax" as const,
+          secure: true,
+        },
+      }),
       cookies: {
         getAll() {
           return cookieStore.getAll();

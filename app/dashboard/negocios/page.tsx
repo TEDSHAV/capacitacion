@@ -25,7 +25,10 @@ export default function NegociosPage() {
         } = await supabase.auth.getUser();
 
         if (!user) {
-          router.push("/login");
+          const shellLoginUrl = process.env.NEXT_PUBLIC_SHELL_URL
+            ? `${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`
+            : "/login";
+          router.push(shellLoginUrl);
           return;
         }
 
@@ -54,7 +57,10 @@ export default function NegociosPage() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       if (!session?.user) {
-        router.push("/login");
+        const shellLoginUrl = process.env.NEXT_PUBLIC_SHELL_URL
+          ? `${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`
+          : "/login";
+        router.push(shellLoginUrl);
       }
     });
 
