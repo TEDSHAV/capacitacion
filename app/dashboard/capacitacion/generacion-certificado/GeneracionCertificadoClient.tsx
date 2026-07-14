@@ -277,7 +277,8 @@ export default function GeneracionCertificadoClient({
               fecha_vencimiento: certificateData.fecha_vencimiento || null,
               nombre_participante: participant.name,
               cedula_participante: participant.id_number,
-              empresa_participante: participant.company || null
+              empresa_participante: participant.company || null,
+              nro_control: dbResult.certificateNumbers![index].nro_control
             };
           });
 

@@ -980,6 +980,7 @@ export interface CarnetGeneration {
   nombre_participante: string;
   cedula_participante: string;
   empresa_participante: string | null;
+  nro_control: number;
   qr_code?: string;
   snapshot_contenido?: string;
   id_plantilla_carnet?: number; // Carne template ID used
