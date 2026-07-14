@@ -400,6 +400,7 @@ export type Database = {
           id_departamento_ejecutante: number | null
           nombre: string
           nota_aprobatoria: number | null
+          subtitulo: string | null
           tipo_servicio: number | null
         }
         Insert: {
@@ -413,6 +414,7 @@ export type Database = {
           id_departamento_ejecutante?: number | null
           nombre: string
           nota_aprobatoria?: number | null
+          subtitulo?: string | null
           tipo_servicio?: number | null
         }
         Update: {
@@ -426,6 +428,7 @@ export type Database = {
           id_departamento_ejecutante?: number | null
           nombre?: string
           nota_aprobatoria?: number | null
+          subtitulo?: string | null
           tipo_servicio?: number | null
         }
         Relationships: [
@@ -452,6 +455,7 @@ export type Database = {
           fecha_emision: string | null
           fecha_vencimiento: string | null
           id: number
+          id_ciudad: number | null
           id_curso: number | null
           id_empresa: number | null
           id_estado: number | null
@@ -474,6 +478,7 @@ export type Database = {
           fecha_emision?: string | null
           fecha_vencimiento?: string | null
           id?: number
+          id_ciudad?: number | null
           id_curso?: number | null
           id_empresa?: number | null
           id_estado?: number | null
@@ -496,6 +501,7 @@ export type Database = {
           fecha_emision?: string | null
           fecha_vencimiento?: string | null
           id?: number
+          id_ciudad?: number | null
           id_curso?: number | null
           id_empresa?: number | null
           id_estado?: number | null
@@ -513,6 +519,13 @@ export type Database = {
           snapshot_contenido?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "certificados_id_ciudad_fkey"
+            columns: ["id_ciudad"]
+            isOneToOne: false
+            referencedRelation: "cat_ciudades"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "certificados_id_curso_fkey"
             columns: ["id_curso"]
@@ -574,6 +587,64 @@ export type Database = {
             columns: ["id_plantilla_certificado"]
             isOneToOne: false
             referencedRelation: "plantillas_certificados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cliente_credenciales: {
+        Row: {
+          created_at: string | null
+          display_name: string | null
+          empresa_id: number
+          id: number
+          id_ciudad: number | null
+          is_active: boolean | null
+          password_hash: string
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_name?: string | null
+          empresa_id: number
+          id?: number
+          id_ciudad?: number | null
+          is_active?: boolean | null
+          password_hash: string
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          display_name?: string | null
+          empresa_id?: number
+          id?: number
+          id_ciudad?: number | null
+          is_active?: boolean | null
+          password_hash?: string
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cliente_credenciales_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cliente_credenciales_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "cliente_credenciales_id_ciudad_fkey"
+            columns: ["id_ciudad"]
+            isOneToOne: false
+            referencedRelation: "cat_ciudades"
             referencedColumns: ["id"]
           },
         ]
@@ -1033,6 +1104,13 @@ export type Database = {
             referencedRelation: "empresa_sedes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contactos_id_sede_fkey"
+            columns: ["id_sede"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_sede"]
+          },
         ]
       }
       contactos_sedes: {
@@ -1068,6 +1146,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "empresa_sedes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contactos_sedes_id_sede_fkey"
+            columns: ["id_sede"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_sede"]
           },
         ]
       }
@@ -1393,6 +1478,295 @@ export type Database = {
         }
         Relationships: []
       }
+      dashboard_cierre_config: {
+        Row: {
+          activo: boolean
+          created_at: string
+          factor_meta_presupuesto: number
+          factor_meta_venta: number
+          hora_cierre_semanal: string
+          id: number
+          porcentaje_aprobacion_meta: number
+          updated_at: string
+          zona_horaria: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          factor_meta_presupuesto?: number
+          factor_meta_venta?: number
+          hora_cierre_semanal?: string
+          id?: number
+          porcentaje_aprobacion_meta?: number
+          updated_at?: string
+          zona_horaria?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          factor_meta_presupuesto?: number
+          factor_meta_venta?: number
+          hora_cierre_semanal?: string
+          id?: number
+          porcentaje_aprobacion_meta?: number
+          updated_at?: string
+          zona_horaria?: string
+        }
+        Relationships: []
+      }
+      dashboard_metas_auditoria: {
+        Row: {
+          anio_mes: string
+          changed_at: string
+          changed_by: number | null
+          id: number
+          payload_after: Json
+          payload_before: Json | null
+        }
+        Insert: {
+          anio_mes: string
+          changed_at?: string
+          changed_by?: number | null
+          id?: number
+          payload_after: Json
+          payload_before?: Json | null
+        }
+        Update: {
+          anio_mes?: string
+          changed_at?: string
+          changed_by?: number | null
+          id?: number
+          payload_after?: Json
+          payload_before?: Json | null
+        }
+        Relationships: []
+      }
+      dashboard_metas_ejecutivo_mensual: {
+        Row: {
+          anio_mes: string
+          ejecutivo_id: number
+          porcentaje_meta: number
+          updated_at: string
+          updated_by: number | null
+        }
+        Insert: {
+          anio_mes: string
+          ejecutivo_id: number
+          porcentaje_meta: number
+          updated_at?: string
+          updated_by?: number | null
+        }
+        Update: {
+          anio_mes?: string
+          ejecutivo_id?: number
+          porcentaje_meta?: number
+          updated_at?: string
+          updated_by?: number | null
+        }
+        Relationships: []
+      }
+      dashboard_metas_mensual: {
+        Row: {
+          anio_mes: string
+          dias_habiles_mes: number
+          factor_meta_presupuesto: number
+          factor_meta_venta: number
+          meta_presupuesto_mensual: number
+          meta_presupuesto_override: boolean
+          meta_venta_mensual: number
+          meta_venta_override: boolean
+          porcentaje_aprobacion_meta: number
+          presupuesto_empresa_mensual: number
+          updated_at: string
+          updated_by: number | null
+        }
+        Insert: {
+          anio_mes: string
+          dias_habiles_mes?: number
+          factor_meta_presupuesto?: number
+          factor_meta_venta?: number
+          meta_presupuesto_mensual?: number
+          meta_presupuesto_override?: boolean
+          meta_venta_mensual?: number
+          meta_venta_override?: boolean
+          porcentaje_aprobacion_meta?: number
+          presupuesto_empresa_mensual?: number
+          updated_at?: string
+          updated_by?: number | null
+        }
+        Update: {
+          anio_mes?: string
+          dias_habiles_mes?: number
+          factor_meta_presupuesto?: number
+          factor_meta_venta?: number
+          meta_presupuesto_mensual?: number
+          meta_presupuesto_override?: boolean
+          meta_venta_mensual?: number
+          meta_venta_override?: boolean
+          porcentaje_aprobacion_meta?: number
+          presupuesto_empresa_mensual?: number
+          updated_at?: string
+          updated_by?: number | null
+        }
+        Relationships: []
+      }
+      dashboard_periodos: {
+        Row: {
+          cerrado_at: string | null
+          cerrado_por: number | null
+          created_at: string
+          estado: string
+          etiqueta: string
+          fecha_fin: string
+          fecha_fin_programada: string
+          fecha_inicio: string
+          id: number
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          cerrado_at?: string | null
+          cerrado_por?: number | null
+          created_at?: string
+          estado?: string
+          etiqueta: string
+          fecha_fin: string
+          fecha_fin_programada: string
+          fecha_inicio: string
+          id?: number
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          cerrado_at?: string | null
+          cerrado_por?: number | null
+          created_at?: string
+          estado?: string
+          etiqueta?: string
+          fecha_fin?: string
+          fecha_fin_programada?: string
+          fecha_inicio?: string
+          id?: number
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dashboard_snapshot_ejecutivo: {
+        Row: {
+          aprobacion_pct: number
+          aprobado: number
+          cantidad_aprobado: number
+          cantidad_presupuestado: number
+          cumplimiento_pct: number
+          ejecutivo_id: number
+          ejecutivo_nombre: string
+          meta_presupuesto: number
+          payload_json: Json
+          periodo_id: number
+          porcentaje_meta: number
+          ranking_cumplimiento: number | null
+          real_presupuestado: number
+        }
+        Insert: {
+          aprobacion_pct?: number
+          aprobado?: number
+          cantidad_aprobado?: number
+          cantidad_presupuestado?: number
+          cumplimiento_pct?: number
+          ejecutivo_id: number
+          ejecutivo_nombre: string
+          meta_presupuesto?: number
+          payload_json?: Json
+          periodo_id: number
+          porcentaje_meta?: number
+          ranking_cumplimiento?: number | null
+          real_presupuestado?: number
+        }
+        Update: {
+          aprobacion_pct?: number
+          aprobado?: number
+          cantidad_aprobado?: number
+          cantidad_presupuestado?: number
+          cumplimiento_pct?: number
+          ejecutivo_id?: number
+          ejecutivo_nombre?: string
+          meta_presupuesto?: number
+          payload_json?: Json
+          periodo_id?: number
+          porcentaje_meta?: number
+          ranking_cumplimiento?: number | null
+          real_presupuestado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_snapshot_ejecutivo_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_periodos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dashboard_snapshot_global: {
+        Row: {
+          aprobacion_pct: number
+          aprobado: number
+          brecha: number
+          cantidad_aprobado: number
+          cantidad_meta: number
+          cantidad_presupuestado: number
+          cerrado_at: string
+          cerrado_por: number | null
+          cumplimiento_pct: number
+          meta_presupuesto: number
+          meta_presupuesto_diaria: number
+          payload_json: Json
+          periodo_id: number
+          real_presupuestado: number
+        }
+        Insert: {
+          aprobacion_pct?: number
+          aprobado?: number
+          brecha?: number
+          cantidad_aprobado?: number
+          cantidad_meta?: number
+          cantidad_presupuestado?: number
+          cerrado_at?: string
+          cerrado_por?: number | null
+          cumplimiento_pct?: number
+          meta_presupuesto?: number
+          meta_presupuesto_diaria?: number
+          payload_json?: Json
+          periodo_id: number
+          real_presupuestado?: number
+        }
+        Update: {
+          aprobacion_pct?: number
+          aprobado?: number
+          brecha?: number
+          cantidad_aprobado?: number
+          cantidad_meta?: number
+          cantidad_presupuestado?: number
+          cerrado_at?: string
+          cerrado_por?: number | null
+          cumplimiento_pct?: number
+          meta_presupuesto?: number
+          meta_presupuesto_diaria?: number
+          payload_json?: Json
+          periodo_id?: number
+          real_presupuestado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_snapshot_global_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: true
+            referencedRelation: "dashboard_periodos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       datos_bancarios: {
         Row: {
           banco: string
@@ -1547,6 +1921,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "empresa_sedes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direcciones_cliente_id_sede_fkey"
+            columns: ["id_sede"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_sede"]
           },
           {
             foreignKeyName: "fk_direcciones_empresa"
@@ -2011,6 +2392,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ecc_encabezado_id_presupuesto_aprobado_fkey"
+            columns: ["id_presupuesto_aprobado"]
+            isOneToOne: false
+            referencedRelation: "vw_kpi_presupuestos_base"
+            referencedColumns: ["id_presupuesto"]
+          },
+          {
             foreignKeyName: "ecc_encabezado_id_servicio_fkey"
             columns: ["id_servicio"]
             isOneToOne: false
@@ -2299,6 +2687,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "presupuestos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_id_presupuesto_fkey"
+            columns: ["id_presupuesto"]
+            isOneToOne: false
+            referencedRelation: "vw_kpi_presupuestos_base"
+            referencedColumns: ["id_presupuesto"]
           },
           {
             foreignKeyName: "ejecucion_osi_id_responsable_recepcion_fkey"
@@ -2713,6 +3108,61 @@ export type Database = {
           },
         ]
       }
+      facilitador_osi_assignments: {
+        Row: {
+          assigned_by: string | null
+          created_at: string | null
+          facilitador_id: number
+          id: number
+          is_active: boolean | null
+          osi_id: number
+          source: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string | null
+          facilitador_id: number
+          id?: never
+          is_active?: boolean | null
+          osi_id: number
+          source?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string | null
+          facilitador_id?: number
+          id?: never
+          is_active?: boolean | null
+          osi_id?: number
+          source?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_facilitador"
+            columns: ["facilitador_id"]
+            isOneToOne: false
+            referencedRelation: "facilitadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_osi"
+            columns: ["osi_id"]
+            isOneToOne: false
+            referencedRelation: "ejecucion_osi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_osi"
+            columns: ["osi_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_osi"]
+          },
+        ]
+      }
       facilitadores: {
         Row: {
           alcance: string | null
@@ -2959,6 +3409,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "presupuestos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_ingresos_clientes_id_presupuesto_fkey"
+            columns: ["id_presupuesto"]
+            isOneToOne: false
+            referencedRelation: "vw_kpi_presupuestos_base"
+            referencedColumns: ["id_presupuesto"]
           },
         ]
       }
@@ -3826,6 +4283,13 @@ export type Database = {
             referencedRelation: "presupuestos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_pres_maestro"
+            columns: ["id_presupuesto"]
+            isOneToOne: false
+            referencedRelation: "vw_kpi_presupuestos_base"
+            referencedColumns: ["id_presupuesto"]
+          },
         ]
       }
       presupuesto_terminos: {
@@ -3857,6 +4321,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "presupuestos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_terminos_id_presupuesto_fkey"
+            columns: ["id_presupuesto"]
+            isOneToOne: false
+            referencedRelation: "vw_kpi_presupuestos_base"
+            referencedColumns: ["id_presupuesto"]
           },
         ]
       }
@@ -4696,6 +5167,13 @@ export type Database = {
             referencedRelation: "empresa_sedes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tratos_id_sede_fkey"
+            columns: ["id_sede"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_sede"]
+          },
         ]
       }
       unidades_servidor: {
@@ -5290,6 +5768,7 @@ export type Database = {
           id_estado_direccion_ejecucion_efectiva: number | null
           id_estatus: number | null
           id_osi: number | null
+          id_sede: number | null
           id_servicio: number | null
           id_trato: number | null
           impacto_ecc_delta: number | null
@@ -5311,6 +5790,7 @@ export type Database = {
           pretensiones_totales: string | null
           requiere_audiovisuales: boolean | null
           responsable_recepcion: string | null
+          sede: string | null
           servicio: string | null
           sesiones_ejecucion: number | null
           sesiones_programadas: Json | null
@@ -5409,6 +5889,90 @@ export type Database = {
             columns: ["id_estatus"]
             isOneToOne: false
             referencedRelation: "conf_estatus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_kpi_presupuestos_base: {
+        Row: {
+          aprobado_flag: boolean | null
+          aprobado_por_estatus: boolean | null
+          aprobado_por_osi: boolean | null
+          descartado_flag: boolean | null
+          ejecutivo_id: number | null
+          ejecutivo_nombre: string | null
+          evento_at: string | null
+          evento_fecha: string | null
+          id_ecc: number | null
+          id_estatus: number | null
+          id_presupuesto: number | null
+          id_trato: number | null
+          monto_presupuesto: number | null
+          tipo_contabilizacion: string | null
+          unidad_indicador: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_pres_ecc"
+            columns: ["id_ecc"]
+            isOneToOne: false
+            referencedRelation: "ecc_encabezado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pres_ecc"
+            columns: ["id_ecc"]
+            isOneToOne: false
+            referencedRelation: "v_ecc_preview_context"
+            referencedColumns: ["ecc_id"]
+          },
+          {
+            foreignKeyName: "fk_pres_ecc"
+            columns: ["id_ecc"]
+            isOneToOne: false
+            referencedRelation: "v_ecc_resumen"
+            referencedColumns: ["id_ecc"]
+          },
+          {
+            foreignKeyName: "fk_pres_ecc"
+            columns: ["id_ecc"]
+            isOneToOne: false
+            referencedRelation: "v_funnel_comercial_detallado"
+            referencedColumns: ["ecc_id"]
+          },
+          {
+            foreignKeyName: "presupuestos_id_estatus_fkey"
+            columns: ["id_estatus"]
+            isOneToOne: false
+            referencedRelation: "conf_estatus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuestos_id_negocio_fkey"
+            columns: ["id_trato"]
+            isOneToOne: false
+            referencedRelation: "tratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuestos_id_negocio_fkey"
+            columns: ["id_trato"]
+            isOneToOne: false
+            referencedRelation: "v_ecc_preview_context"
+            referencedColumns: ["trato_table_id"]
+          },
+          {
+            foreignKeyName: "presupuestos_id_negocio_fkey"
+            columns: ["id_trato"]
+            isOneToOne: false
+            referencedRelation: "v_funnel_comercial_detallado"
+            referencedColumns: ["trato_id"]
+          },
+          {
+            foreignKeyName: "tratos_id_empleado_atiende_fkey"
+            columns: ["ejecutivo_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
         ]
@@ -5520,6 +6084,49 @@ export type Database = {
         }
         Returns: boolean
       }
+      fn_agregar_kpis_presupuesto: {
+        Args: { p_ejecutivo_id?: number; p_fin: string; p_inicio: string }
+        Returns: {
+          cantidad_aprobados: number
+          cantidad_descartados: number
+          cantidad_presupuestos_validos: number
+          monto_aprobado: number
+          monto_descartado: number
+          monto_presupuestado: number
+        }[]
+      }
+      fn_calcular_cadena_metas: {
+        Args: {
+          p_factor_meta_presupuesto: number
+          p_factor_meta_venta: number
+          p_meta_presupuesto_override?: number
+          p_meta_venta_override?: number
+          p_presupuesto_empresa_mensual: number
+        }
+        Returns: {
+          meta_presupuesto_mensual: number
+          meta_venta_mensual: number
+        }[]
+      }
+      fn_dias_habiles_mes: { Args: { p_mes: string }; Returns: number }
+      fn_dias_habiles_rango: {
+        Args: { p_fin: string; p_inicio: string }
+        Returns: number
+      }
+      fn_dias_habiles_semana: { Args: { p_ref: string }; Returns: number }
+      fn_dias_habiles_transcurridos: {
+        Args: { p_corte: string; p_inicio: string }
+        Returns: number
+      }
+      fn_ensure_dashboard_periodo: {
+        Args: {
+          p_fecha_fin?: string
+          p_fecha_inicio?: string
+          p_fecha_referencia?: string
+          p_periodo_tipo: string
+        }
+        Returns: number
+      }
       fn_generar_presupuesto_desde_ecc:
         | {
             Args: {
@@ -5594,6 +6201,46 @@ export type Database = {
               tipo_registro: string
             }[]
           }
+      fn_resolver_meta_periodo: {
+        Args: {
+          p_ejecutivo_id?: number
+          p_fecha_fin?: string
+          p_fecha_inicio?: string
+          p_fecha_referencia?: string
+          p_periodo_tipo: string
+        }
+        Returns: {
+          anio_mes: string
+          dias_habiles_mes: number
+          dias_habiles_periodo: number
+          fecha_corte_efectiva: string
+          fecha_fin: string
+          fecha_inicio: string
+          meta_presupuesto_diaria: number
+          meta_presupuesto_mensual: number
+          meta_presupuesto_periodo: number
+          meta_venta_diaria: number
+          meta_venta_mensual: number
+          meta_venta_periodo: number
+          porcentaje_aprobacion_meta: number
+          porcentaje_meta_ejecutivo: number
+        }[]
+      }
+      fn_resolver_periodo_bounds: {
+        Args: {
+          p_fecha_fin?: string
+          p_fecha_inicio?: string
+          p_fecha_referencia?: string
+          p_periodo_tipo: string
+        }
+        Returns: {
+          etiqueta: string
+          fecha_corte_efectiva: string
+          fecha_fin: string
+          fecha_fin_programada: string
+          fecha_inicio: string
+        }[]
+      }
       fn_sync_osi_dates_from_sessions: {
         Args: { p_id_osi: number }
         Returns: undefined
@@ -5826,6 +6473,89 @@ export type Database = {
           state_id: number
           state_nombre_estado: string
           total_count: number
+        }[]
+      }
+      sp_cerrar_periodo: {
+        Args: {
+          p_forzar?: boolean
+          p_periodo_id: number
+          p_usuario_id?: number
+        }
+        Returns: undefined
+      }
+      sp_dashboard_presupuesto_ejecutivos: {
+        Args: {
+          p_fecha_fin?: string
+          p_fecha_inicio?: string
+          p_fecha_referencia?: string
+          p_modo_consulta?: string
+          p_periodo_id?: number
+          p_periodo_tipo?: string
+        }
+        Returns: {
+          aprobacion_pct: number
+          cantidad_aprobados: number
+          cantidad_presupuestos_validos: number
+          cumplimiento_pct: number
+          ejecutivo_id: number
+          ejecutivo_nombre: string
+          meta_presupuesto: number
+          monto_aprobado: number
+          periodo_id: number
+          porcentaje_meta: number
+          real_presupuestado: number
+        }[]
+      }
+      sp_dashboard_presupuesto_global: {
+        Args: {
+          p_fecha_fin?: string
+          p_fecha_inicio?: string
+          p_fecha_referencia?: string
+          p_modo_consulta?: string
+          p_periodo_id?: number
+          p_periodo_tipo?: string
+        }
+        Returns: {
+          aprobacion_pct: number
+          brecha: number
+          cantidad_aprobados: number
+          cantidad_presupuestos_validos: number
+          cumplimiento_pct: number
+          es_parcial: boolean
+          estado_periodo: string
+          fecha_corte_efectiva: string
+          fecha_fin: string
+          fecha_inicio: string
+          meta_presupuesto: number
+          monto_aprobado: number
+          periodo_id: number
+          periodo_tipo: string
+          porcentaje_aprobacion_meta: number
+          real_presupuestado: number
+        }[]
+      }
+      sp_register_dashboard_close_jobs: { Args: never; Returns: undefined }
+      sp_sync_meta_mensual_ecc: {
+        Args: { p_anio_mes: string; p_usuario_id?: number }
+        Returns: undefined
+      }
+      sp_upsert_meta_mensual: {
+        Args: {
+          p_anio_mes: string
+          p_ejecutivos?: Json
+          p_factor_meta_presupuesto?: number
+          p_factor_meta_venta?: number
+          p_meta_presupuesto_override?: number
+          p_meta_venta_override?: number
+          p_porcentaje_aprobacion_meta?: number
+          p_presupuesto_empresa_mensual: number
+          p_usuario_id?: number
+        }
+        Returns: {
+          anio_mes: string
+          meta_presupuesto_mensual: number
+          meta_venta_mensual: number
+          porcentaje_aprobacion_meta: number
         }[]
       }
       sync_comentario_menciones: {
