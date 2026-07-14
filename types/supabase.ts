@@ -265,6 +265,30 @@ export type Database = {
           },
         ]
       }
+      cat_bancos: {
+        Row: {
+          codigo: string | null
+          created_at: string | null
+          id: number
+          is_active: boolean | null
+          nombre: string
+        }
+        Insert: {
+          codigo?: string | null
+          created_at?: string | null
+          id?: number
+          is_active?: boolean | null
+          nombre: string
+        }
+        Update: {
+          codigo?: string | null
+          created_at?: string | null
+          id?: number
+          is_active?: boolean | null
+          nombre?: string
+        }
+        Relationships: []
+      }
       cat_ciudades: {
         Row: {
           id: number
@@ -620,6 +644,47 @@ export type Database = {
         }
         Relationships: []
       }
+      comentario_entidad_vinculos: {
+        Row: {
+          comentario_id: number
+          created_at: string
+          entity_id: number
+          entity_type: string
+          id: number
+          service_id: number | null
+          service_name: string | null
+          subtitle: string | null
+        }
+        Insert: {
+          comentario_id: number
+          created_at?: string
+          entity_id: number
+          entity_type: string
+          id?: number
+          service_id?: number | null
+          service_name?: string | null
+          subtitle?: string | null
+        }
+        Update: {
+          comentario_id?: number
+          created_at?: string
+          entity_id?: number
+          entity_type?: string
+          id?: number
+          service_id?: number | null
+          service_name?: string | null
+          subtitle?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comentario_entidad_vinculos_comentario_id_fkey"
+            columns: ["comentario_id"]
+            isOneToOne: false
+            referencedRelation: "comentarios_contexto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comentario_menciones: {
         Row: {
           comentario_id: number
@@ -659,42 +724,54 @@ export type Database = {
       comentarios_contexto: {
         Row: {
           author_user_id: number
+          comment_kind: string
           contenido: string
           context_id: number
           context_type: string
           created_at: string
+          edited_at: string | null
           id: number
           is_system: boolean
+          related_entities: Json
           related_entity_id: number | null
           related_entity_type: string | null
           related_service_id: number | null
           updated_at: string
+          visibility_scope: string
         }
         Insert: {
           author_user_id: number
+          comment_kind?: string
           contenido: string
           context_id: number
           context_type: string
           created_at?: string
+          edited_at?: string | null
           id?: number
           is_system?: boolean
+          related_entities?: Json
           related_entity_id?: number | null
           related_entity_type?: string | null
           related_service_id?: number | null
           updated_at?: string
+          visibility_scope?: string
         }
         Update: {
           author_user_id?: number
+          comment_kind?: string
           contenido?: string
           context_id?: number
           context_type?: string
           created_at?: string
+          edited_at?: string | null
           id?: number
           is_system?: boolean
+          related_entities?: Json
           related_entity_id?: number | null
           related_entity_type?: string | null
           related_service_id?: number | null
           updated_at?: string
+          visibility_scope?: string
         }
         Relationships: [
           {
@@ -849,6 +926,7 @@ export type Database = {
           apellido: string | null
           cargo: string | null
           cedula_rif_personal: string | null
+          created_at: string
           direccion_personal: string | null
           email: string | null
           email2: string | null
@@ -863,13 +941,16 @@ export type Database = {
           id_estatus: number | null
           id_sede: number | null
           nombre: string
+          status_changed_at: string | null
           telefono: string | null
           tipo_cliente: string | null
+          updated_at: string
         }
         Insert: {
           apellido?: string | null
           cargo?: string | null
           cedula_rif_personal?: string | null
+          created_at?: string
           direccion_personal?: string | null
           email?: string | null
           email2?: string | null
@@ -884,13 +965,16 @@ export type Database = {
           id_estatus?: number | null
           id_sede?: number | null
           nombre: string
+          status_changed_at?: string | null
           telefono?: string | null
           tipo_cliente?: string | null
+          updated_at?: string
         }
         Update: {
           apellido?: string | null
           cargo?: string | null
           cedula_rif_personal?: string | null
+          created_at?: string
           direccion_personal?: string | null
           email?: string | null
           email2?: string | null
@@ -905,8 +989,10 @@ export type Database = {
           id_estatus?: number | null
           id_sede?: number | null
           nombre?: string
+          status_changed_at?: string | null
           telefono?: string | null
           tipo_cliente?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1150,6 +1236,72 @@ export type Database = {
           },
         ]
       }
+      course_satisfaction_surveys: {
+        Row: {
+          attendance_reasons: Json
+          created_at: string | null
+          id: string
+          id_osi: number
+          q1: number
+          q10: number
+          q2: number
+          q3: number
+          q4: number
+          q5: number
+          q6: number
+          q7: number
+          q8: number
+          q9: number
+        }
+        Insert: {
+          attendance_reasons?: Json
+          created_at?: string | null
+          id?: string
+          id_osi: number
+          q1: number
+          q10: number
+          q2: number
+          q3: number
+          q4: number
+          q5: number
+          q6: number
+          q7: number
+          q8: number
+          q9: number
+        }
+        Update: {
+          attendance_reasons?: Json
+          created_at?: string | null
+          id?: string
+          id_osi?: number
+          q1?: number
+          q10?: number
+          q2?: number
+          q3?: number
+          q4?: number
+          q5?: number
+          q6?: number
+          q7?: number
+          q8?: number
+          q9?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_satisfaction_surveys_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "ejecucion_osi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_satisfaction_surveys_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_osi"]
+          },
+        ]
+      }
       crm_eventos_importantes: {
         Row: {
           actor_user_id: number | null
@@ -1251,6 +1403,7 @@ export type Database = {
           nombre_titular: string | null
           nro_cuenta: string
           telefono_pago_movil: string | null
+          tipo_cuenta: string | null
         }
         Insert: {
           banco: string
@@ -1264,6 +1417,7 @@ export type Database = {
           nombre_titular?: string | null
           nro_cuenta: string
           telefono_pago_movil?: string | null
+          tipo_cuenta?: string | null
         }
         Update: {
           banco?: string
@@ -1277,6 +1431,7 @@ export type Database = {
           nombre_titular?: string | null
           nro_cuenta?: string
           telefono_pago_movil?: string | null
+          tipo_cuenta?: string | null
         }
         Relationships: [
           {
@@ -1681,6 +1836,7 @@ export type Database = {
           cantidad_dias_total: number | null
           cantidad_dias_total_proyecto: number | null
           clase_ecc: string
+          created_at: string
           espacio: boolean
           fecha_aprobacion: string | null
           fecha_ejecucion_servicio: string | null
@@ -1695,6 +1851,7 @@ export type Database = {
           id_presupuesto_aprobado: number | null
           id_servicio: number | null
           id_trato: number | null
+          id_usuario_revision_financiera: number | null
           motivo_rechazo: string | null
           nro_ecc: number | null
           nro_solped: number | null
@@ -1705,6 +1862,8 @@ export type Database = {
           participantes: number | null
           pretenciones_cliente: string | null
           sesiones: number | null
+          status_changed_at: string | null
+          updated_at: string
         }
         Insert: {
           audiovisuales?: boolean | null
@@ -1716,6 +1875,7 @@ export type Database = {
           cantidad_dias_total?: number | null
           cantidad_dias_total_proyecto?: number | null
           clase_ecc?: string
+          created_at?: string
           espacio?: boolean
           fecha_aprobacion?: string | null
           fecha_ejecucion_servicio?: string | null
@@ -1730,6 +1890,7 @@ export type Database = {
           id_presupuesto_aprobado?: number | null
           id_servicio?: number | null
           id_trato?: number | null
+          id_usuario_revision_financiera?: number | null
           motivo_rechazo?: string | null
           nro_ecc?: number | null
           nro_solped?: number | null
@@ -1740,6 +1901,8 @@ export type Database = {
           participantes?: number | null
           pretenciones_cliente?: string | null
           sesiones?: number | null
+          status_changed_at?: string | null
+          updated_at?: string
         }
         Update: {
           audiovisuales?: boolean | null
@@ -1751,6 +1914,7 @@ export type Database = {
           cantidad_dias_total?: number | null
           cantidad_dias_total_proyecto?: number | null
           clase_ecc?: string
+          created_at?: string
           espacio?: boolean
           fecha_aprobacion?: string | null
           fecha_ejecucion_servicio?: string | null
@@ -1765,6 +1929,7 @@ export type Database = {
           id_presupuesto_aprobado?: number | null
           id_servicio?: number | null
           id_trato?: number | null
+          id_usuario_revision_financiera?: number | null
           motivo_rechazo?: string | null
           nro_ecc?: number | null
           nro_solped?: number | null
@@ -1775,6 +1940,8 @@ export type Database = {
           participantes?: number | null
           pretenciones_cliente?: string | null
           sesiones?: number | null
+          status_changed_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1875,6 +2042,13 @@ export type Database = {
             referencedRelation: "v_funnel_comercial_detallado"
             referencedColumns: ["trato_id"]
           },
+          {
+            foreignKeyName: "ecc_encabezado_id_usuario_revision_financiera_fkey"
+            columns: ["id_usuario_revision_financiera"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ecc_totales: {
@@ -1962,7 +2136,7 @@ export type Database = {
           audiovisuales: boolean
           carnet_impreso: boolean
           certificado_impreso: boolean
-          created_at: string | null
+          created_at: string
           fecha_emision: string | null
           fecha_fin_real: string | null
           fecha_firma_administracion: string | null
@@ -1991,13 +2165,14 @@ export type Database = {
           pretenciones_adicionales_osi: string | null
           sesiones_ejecucion: number | null
           sesiones_programadas: Json
-          updated_at: string | null
+          status_changed_at: string | null
+          updated_at: string
         }
         Insert: {
           audiovisuales?: boolean
           carnet_impreso?: boolean
           certificado_impreso?: boolean
-          created_at?: string | null
+          created_at?: string
           fecha_emision?: string | null
           fecha_fin_real?: string | null
           fecha_firma_administracion?: string | null
@@ -2026,13 +2201,14 @@ export type Database = {
           pretenciones_adicionales_osi?: string | null
           sesiones_ejecucion?: number | null
           sesiones_programadas?: Json
-          updated_at?: string | null
+          status_changed_at?: string | null
+          updated_at?: string
         }
         Update: {
           audiovisuales?: boolean
           carnet_impreso?: boolean
           certificado_impreso?: boolean
-          created_at?: string | null
+          created_at?: string
           fecha_emision?: string | null
           fecha_fin_real?: string | null
           fecha_firma_administracion?: string | null
@@ -2061,7 +2237,8 @@ export type Database = {
           pretenciones_adicionales_osi?: string | null
           sesiones_ejecucion?: number | null
           sesiones_programadas?: Json
-          updated_at?: string | null
+          status_changed_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2186,6 +2363,7 @@ export type Database = {
           esta_activo: boolean | null
           fecha_creacion: string | null
           id: number
+          id_ciudad_ubicacion: number | null
           id_ejecutivo_owner: number | null
           id_estado_ubicacion: number | null
           observaciones: string | null
@@ -2201,6 +2379,7 @@ export type Database = {
           esta_activo?: boolean | null
           fecha_creacion?: string | null
           id?: number
+          id_ciudad_ubicacion?: number | null
           id_ejecutivo_owner?: number | null
           id_estado_ubicacion?: number | null
           observaciones?: string | null
@@ -2216,6 +2395,7 @@ export type Database = {
           esta_activo?: boolean | null
           fecha_creacion?: string | null
           id?: number
+          id_ciudad_ubicacion?: number | null
           id_ejecutivo_owner?: number | null
           id_estado_ubicacion?: number | null
           observaciones?: string | null
@@ -2225,6 +2405,13 @@ export type Database = {
           sector_industrial?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "empresas_id_ciudad_ubicacion_fkey"
+            columns: ["id_ciudad_ubicacion"]
+            isOneToOne: false
+            referencedRelation: "cat_ciudades"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "empresas_id_ejecutivo_owner_fkey"
             columns: ["id_ejecutivo_owner"]
@@ -2831,12 +3018,15 @@ export type Database = {
       }
       marketing_leads: {
         Row: {
+          created_at: string
           fecha_ingreso: string | null
           id: number
+          id_ciudad_ubicacion: number | null
           id_contacto: number | null
           id_departamento_recibe: number | null
           id_ejecutivo_owner: number | null
           id_ejecutivo_recibe: number | null
+          id_estado_ubicacion: number | null
           id_estatus: number | null
           id_origen: number | null
           id_servicio_interes: number | null
@@ -2846,15 +3036,21 @@ export type Database = {
           raw_empresa: string | null
           raw_nombre_apellido: string | null
           raw_telefono: string | null
+          status_changed_at: string | null
           telefono_ejecutivo: string | null
+          tipo_cliente: string | null
+          updated_at: string
         }
         Insert: {
+          created_at?: string
           fecha_ingreso?: string | null
           id?: number
+          id_ciudad_ubicacion?: number | null
           id_contacto?: number | null
           id_departamento_recibe?: number | null
           id_ejecutivo_owner?: number | null
           id_ejecutivo_recibe?: number | null
+          id_estado_ubicacion?: number | null
           id_estatus?: number | null
           id_origen?: number | null
           id_servicio_interes?: number | null
@@ -2864,15 +3060,21 @@ export type Database = {
           raw_empresa?: string | null
           raw_nombre_apellido?: string | null
           raw_telefono?: string | null
+          status_changed_at?: string | null
           telefono_ejecutivo?: string | null
+          tipo_cliente?: string | null
+          updated_at?: string
         }
         Update: {
+          created_at?: string
           fecha_ingreso?: string | null
           id?: number
+          id_ciudad_ubicacion?: number | null
           id_contacto?: number | null
           id_departamento_recibe?: number | null
           id_ejecutivo_owner?: number | null
           id_ejecutivo_recibe?: number | null
+          id_estado_ubicacion?: number | null
           id_estatus?: number | null
           id_origen?: number | null
           id_servicio_interes?: number | null
@@ -2882,9 +3084,19 @@ export type Database = {
           raw_empresa?: string | null
           raw_nombre_apellido?: string | null
           raw_telefono?: string | null
+          status_changed_at?: string | null
           telefono_ejecutivo?: string | null
+          tipo_cliente?: string | null
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "marketing_leads_id_ciudad_ubicacion_fkey"
+            columns: ["id_ciudad_ubicacion"]
+            isOneToOne: false
+            referencedRelation: "cat_ciudades"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "marketing_leads_id_contacto_fkey1"
             columns: ["id_contacto"]
@@ -2911,6 +3123,13 @@ export type Database = {
             columns: ["id_ejecutivo_recibe"]
             isOneToOne: false
             referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_estado_ubicacion_fkey"
+            columns: ["id_estado_ubicacion"]
+            isOneToOne: false
+            referencedRelation: "cat_estados_venezuela"
             referencedColumns: ["id"]
           },
           {
@@ -3486,6 +3705,7 @@ export type Database = {
       }
       presupuestos: {
         Row: {
+          created_at: string
           cuerpo_presupuesto_html: string | null
           fecha_emision: string | null
           id: number
@@ -3495,10 +3715,13 @@ export type Database = {
           metodo_pago_divisa: string
           nro_presupuesto: number | null
           otros_gastos_cliente: number | null
+          status_changed_at: string | null
           tiempo_vigencia: string | null
+          updated_at: string
           valido_hasta: string | null
         }
         Insert: {
+          created_at?: string
           cuerpo_presupuesto_html?: string | null
           fecha_emision?: string | null
           id?: number
@@ -3508,10 +3731,13 @@ export type Database = {
           metodo_pago_divisa?: string
           nro_presupuesto?: number | null
           otros_gastos_cliente?: number | null
+          status_changed_at?: string | null
           tiempo_vigencia?: string | null
+          updated_at?: string
           valido_hasta?: string | null
         }
         Update: {
+          created_at?: string
           cuerpo_presupuesto_html?: string | null
           fecha_emision?: string | null
           id?: number
@@ -3521,7 +3747,9 @@ export type Database = {
           metodo_pago_divisa?: string
           nro_presupuesto?: number | null
           otros_gastos_cliente?: number | null
+          status_changed_at?: string | null
           tiempo_vigencia?: string | null
+          updated_at?: string
           valido_hasta?: string | null
         }
         Relationships: [
@@ -4053,6 +4281,7 @@ export type Database = {
       tratos: {
         Row: {
           condicion_pago: string | null
+          created_at: string
           fecha_creacion: string | null
           id: number
           id_contacto: number
@@ -4062,10 +4291,13 @@ export type Database = {
           id_sede: number | null
           monto_estimado: number | null
           resultado_atencion: string | null
+          status_changed_at: string | null
           tipo_participante: string | null
+          updated_at: string
         }
         Insert: {
           condicion_pago?: string | null
+          created_at?: string
           fecha_creacion?: string | null
           id?: number
           id_contacto: number
@@ -4075,10 +4307,13 @@ export type Database = {
           id_sede?: number | null
           monto_estimado?: number | null
           resultado_atencion?: string | null
+          status_changed_at?: string | null
           tipo_participante?: string | null
+          updated_at?: string
         }
         Update: {
           condicion_pago?: string | null
+          created_at?: string
           fecha_creacion?: string | null
           id?: number
           id_contacto?: number
@@ -4088,7 +4323,9 @@ export type Database = {
           id_sede?: number | null
           monto_estimado?: number | null
           resultado_atencion?: string | null
+          status_changed_at?: string | null
           tipo_participante?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -4889,8 +5126,26 @@ export type Database = {
         }
         Returns: undefined
       }
+      append_activity_event_solped: {
+        Args: {
+          p_actor_user_id: number
+          p_ecc_id: number
+          p_empresa_id: number
+          p_payload?: Json
+          p_servicio_catalogo_id: number
+          p_source_id?: string
+          p_source_table?: string
+          p_tipo_evento: string
+          p_trato_id: number
+        }
+        Returns: undefined
+      }
       backfill_actividad_maestra_all: {
         Args: { p_batch_id?: string }
+        Returns: Json
+      }
+      build_comentario_vinculos_json: {
+        Args: { p_comentario_id: number }
         Returns: Json
       }
       can_mutate_contacto: { Args: { p_contacto_id: number }; Returns: boolean }
@@ -4913,6 +5168,14 @@ export type Database = {
         }
         Returns: string
       }
+      delete_contacto_permanently: {
+        Args: {
+          p_actor_usuario_id?: number
+          p_contacto_id: number
+          p_reassign_to_id?: number
+        }
+        Returns: Json
+      }
       derive_contacto_historic_ts: {
         Args: { p_contacto_id: number }
         Returns: string
@@ -4920,6 +5183,13 @@ export type Database = {
       dispatch_due_scheduled_notifications: {
         Args: { p_limit?: number }
         Returns: number
+      }
+      ecc_update_is_status_only: {
+        Args: {
+          new_row: Database["public"]["Tables"]["ecc_encabezado"]["Row"]
+          old_row: Database["public"]["Tables"]["ecc_encabezado"]["Row"]
+        }
+        Returns: boolean
       }
       fn_generar_presupuesto_desde_ecc:
         | {
@@ -5010,6 +5280,37 @@ export type Database = {
         }
         Returns: Json
       }
+      get_comentarios_for_empresa_hub: {
+        Args: { p_empresa_id: number; p_limit?: number }
+        Returns: {
+          author_nombre: string
+          author_user_id: number
+          comentario_id: number
+          comment_kind: string
+          contenido: string
+          context_id: number
+          context_type: string
+          created_at: string
+          edited_at: string
+          vinculos: Json
+        }[]
+      }
+      get_comentarios_vinculados_entidad: {
+        Args: { p_entity_id: number; p_entity_type: string; p_limit?: number }
+        Returns: {
+          author_nombre: string
+          author_user_id: number
+          comentario_id: number
+          comment_kind: string
+          contenido: string
+          context_id: number
+          context_type: string
+          created_at: string
+          edited_at: string
+          vinculos: Json
+        }[]
+      }
+      get_contacto_vinculos: { Args: { p_contacto_id: number }; Returns: Json }
       get_my_app_context: { Args: { target_app_slug: string }; Returns: Json }
       get_my_notifications_cursor: {
         Args: {
@@ -5042,6 +5343,20 @@ export type Database = {
           link_path: string
           recipient_id_auth: string
           title: string
+        }[]
+      }
+      get_pinned_comments_for_hub: {
+        Args: { p_context_id: number; p_context_type: string }
+        Returns: {
+          author_user_id: number
+          comentario_id: number
+          comment_kind: string
+          contenido: string
+          created_at: string
+          edited_at: string
+          entity_id: number
+          entity_subtitle: string
+          entity_type: string
         }[]
       }
       get_user_permissions_by_app: {
@@ -5104,6 +5419,14 @@ export type Database = {
             }
             Returns: undefined
           }
+      reassign_contacto_vinculos: {
+        Args: {
+          p_actor_usuario_id?: number
+          p_from_contacto_id: number
+          p_to_contacto_id: number
+        }
+        Returns: Json
+      }
       reassign_empresa_ejecutivo: {
         Args: {
           p_actor_usuario_id?: number
@@ -5111,6 +5434,26 @@ export type Database = {
           p_new_owner_id: number
         }
         Returns: Json
+      }
+      recover_contacto: {
+        Args: {
+          p_actor_usuario_id?: number
+          p_contacto_id: number
+          p_reassign_to_id?: number
+        }
+        Returns: Json
+      }
+      refresh_comentario_activity_payload: {
+        Args: { p_comentario_id: number }
+        Returns: undefined
+      }
+      replace_comentario_entidad_vinculos: {
+        Args: { p_comentario_id: number; p_links?: Json }
+        Returns: Json
+      }
+      row_jsonb_is_status_only_change: {
+        Args: { exclude_keys?: string[]; new_row: Json; old_row: Json }
+        Returns: boolean
       }
       search_certificates: {
         Args: {
@@ -5153,7 +5496,31 @@ export type Database = {
           total_count: number
         }[]
       }
+      sync_comentario_menciones: {
+        Args: { p_comentario_id: number; p_mentioned_user_ids: number[] }
+        Returns: undefined
+      }
       sync_normalize_name: { Args: { raw: string }; Returns: string }
+      update_comentario_contexto: {
+        Args: {
+          p_comentario_id: number
+          p_contenido: string
+          p_links?: Json
+          p_mentioned_user_ids?: number[]
+        }
+        Returns: Json
+      }
+      upsert_pinned_entity_comment: {
+        Args: {
+          p_author_user_id: number
+          p_comment_kind: string
+          p_contenido: string
+          p_entity_id: number
+          p_entity_type: string
+        }
+        Returns: number
+      }
+      user_can_read_finance_review_content: { Args: never; Returns: boolean }
     }
     Enums: {
       firma_tipo: "facilitador" | "representante_sha"

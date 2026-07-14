@@ -83,7 +83,7 @@ export async function submitSurvey(survey: CourseSatisfactionSurvey) {
   try {
     const supabase = await createClient();
     
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("course_satisfaction_surveys")
       .insert({
         id_osi: survey.id_osi,
@@ -98,9 +98,7 @@ export async function submitSurvey(survey: CourseSatisfactionSurvey) {
         q9: survey.q9,
         q10: survey.q10,
         attendance_reasons: survey.attendance_reasons
-      })
-      .select()
-      .single();
+      });
 
     if (error) {
       console.error("Error submitting survey:", error);
@@ -108,7 +106,7 @@ export async function submitSurvey(survey: CourseSatisfactionSurvey) {
     }
 
     revalidatePath(`/dashboard/capacitacion/gestion-osi/${survey.id_osi}/survey-view`);
-    return { success: true, data };
+    return { success: true };
   } catch (error) {
     console.error("Exception submitting survey:", error);
     return { success: false, error: "An unexpected error occurred" };
