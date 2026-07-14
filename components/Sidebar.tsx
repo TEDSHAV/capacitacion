@@ -11,7 +11,6 @@ import { User } from '@/types/dashboard';
 const submodules = {
   capacitacion: [
     { name: 'Gestión de Cursos', path: '/dashboard/capacitacion/gestion-cursos' },
-    { name: 'Plantillas de Certificados', path: '/dashboard/capacitacion/plantillas-certificados' },
     { name: 'Gestión de Participantes', path: '/dashboard/capacitacion/participantes' },
     { name: 'Consulta de Participantes', path: '/dashboard/capacitacion/consulta-participantes' },
     { name: 'Gestión de Facilitadores', path: '/dashboard/capacitacion/gestion-de-facilitadores' },

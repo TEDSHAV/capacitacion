@@ -228,7 +228,8 @@ export interface CertificateGeneration {
   passing_grade?: number; // Minimum score to pass (default 14, editable)
   course_topic_id: string;
   course_topic_data?: CourseTopic;
-  course_content?: string; // Prepopulated course content from OSI
+  course_template_id?: string; // Course content template ID from plantillas_cursos
+  course_content?: string; // Prepopulated course content from OSI or template
   participants: CertificateParticipant[];
   location: string;
   date: string;

@@ -5,7 +5,7 @@ import { CourseTopic, CertificateFormProps, Signature } from "@/types";
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
-import { getSignaturesForDropdownAction, getCertificateTemplatesAction, getVenezuelanStatesAction, getCertificateTemplatesByCourseAction, getCarnetTemplatesAction, getActiveTemplateAction } from "@/app/actions/dropdown-data";
+import { getSignaturesForDropdownAction, getCertificateTemplatesAction, getVenezuelanStatesAction, getCertificateTemplatesByCourseAction, getCarnetTemplatesAction, getActiveTemplateAction, getCourseTemplatesByOSIAction, getCourseTemplatesTestAction } from "@/app/actions/dropdown-data";
 import { FacilitatorSelection } from "@/app/dashboard/capacitacion/participantes/gestion-de-facilitadores/components/facilitator-selection";
 
 export const CertificateForm = ({
@@ -21,6 +21,7 @@ export const CertificateForm = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [shaSignatures, setShaSignatures] = useState<Signature[]>([]);
   const [certificateTemplates, setCertificateTemplates] = useState<any[]>([]);
+  const [courseTemplates, setCourseTemplates] = useState<any[]>([]);
   const [carnetTemplates, setCarnetTemplates] = useState<any[]>([]);
   const [activeCarnetTemplate, setActiveCarnetTemplate] = useState<any>(null);
   const [venezuelanStates, setVenezuelanStates] = useState<any[]>([]);
@@ -58,6 +59,13 @@ export const CertificateForm = ({
           const templates = templatesResult.data;
           setCertificateTemplates(templates);
           // Note: Template selection will be handled by course-based effect
+        }
+
+        // Load course templates (all active templates initially)
+        const courseTemplatesResult = await getCourseTemplatesByOSIAction();
+        if (courseTemplatesResult.data) {
+          const courseTemplates = courseTemplatesResult.data;
+          setCourseTemplates(courseTemplates);
         }
 
         // Load carnet templates
@@ -162,6 +170,44 @@ export const CertificateForm = ({
 
     loadFilteredTemplates();
   }, [selectedCourseTopic?.id, selectedCourseTopic?.id_plantilla_certificado]);
+
+  // Effect to load course templates when OSI or course changes
+  useEffect(() => {
+    const loadCourseTemplates = async () => {
+      try {
+        const courseId = selectedCourseTopic?.id;
+        const osiCompanyId = selectedOSI?.empresa_id;
+        
+        const templatesResult = await getCourseTemplatesByOSIAction(courseId, osiCompanyId);
+        if (templatesResult.data) {
+          const templates = templatesResult.data;
+          setCourseTemplates(templates);
+          console.log('Course templates loaded:', templates);
+          
+          // If no templates exist for this course, use the course's default content
+          if (templates.length === 0 && selectedCourseTopic?.contenido_curso) {
+            onDataChange("course_content", selectedCourseTopic.contenido_curso);
+            console.log('Using default course content since no templates available');
+          }
+        }
+      } catch (error) {
+        console.error('Error loading course templates:', error);
+      }
+    };
+
+    loadCourseTemplates();
+  }, [selectedOSI?.empresa_id, selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso]);
+
+  // Effect to set default course content when course topic changes (but no template selected)
+  useEffect(() => {
+    if (selectedCourseTopic && !certificateData.course_template_id) {
+      // Use course's default content if available
+      if (selectedCourseTopic.contenido_curso) {
+        onDataChange("course_content", selectedCourseTopic.contenido_curso);
+        console.log('Setting default course content:', selectedCourseTopic.contenido_curso);
+      }
+    }
+  }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, certificateData.course_template_id]);
 
   const handleGenerateCertificate = () => {
     // Validation
@@ -293,31 +339,81 @@ export const CertificateForm = ({
           Seleccionar Plantilla
         </label>
         <select
-          value={certificateData.course_topic_id || ""}
+          value={certificateData.course_template_id || ""}
           onChange={(e) => {
-            const topicId = e.target.value;
-            onDataChange("course_topic_id", topicId);
-            const selectedTopic = courseTopics.find(
-              (topic) => topic.id === topicId,
-            );
-            onDataChange(
-              "horas_estimadas",
-              selectedTopic?.horas_estimadas || undefined,
-            );
+            const templateId = e.target.value;
+            onDataChange("course_template_id", templateId);
+            
+            if (templateId) {
+              // Find the selected template and load its content
+              const selectedTemplate = courseTemplates.find(
+                (template: any) => template.id === templateId,
+              );
+              
+              if (selectedTemplate) {
+                onDataChange("course_content", selectedTemplate.contenido || '');
+                console.log('Course template selected, using template content:', selectedTemplate.descripcion);
+              } else {
+                // Fallback to course content if template not found
+                onDataChange("course_content", selectedCourseTopic?.contenido_curso || '');
+                console.log('Template not found, using course default content');
+              }
+            } else {
+              // No template selected, use course's default content
+              onDataChange("course_content", selectedCourseTopic?.contenido_curso || '');
+              console.log('Template deselected, using course default content');
+            }
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          disabled={!selectedOSI}
         >
           <option value="">Selecciona una plantilla...</option>
-          {courseTopics.map((topic: CourseTopic) => (
-            <option key={topic.id} value={topic.id}>
-              {topic.name}
+          {courseTemplates.map((template: any) => (
+            <option key={template.id} value={template.id}>
+              {template.descripcion || `Plantilla ${template.id}`}
             </option>
           ))}
         </select>
         <p className="text-xs text-gray-500 mt-1">
-          Selecciona una plantilla de curso existente
+          {!selectedOSI 
+            ? 'Selecciona una OSI primero para ver las plantillas disponibles'
+            : courseTemplates.length === 0
+              ? 'No hay plantillas disponibles para este curso/cliente'
+              : `Plantillas disponibles para el curso seleccionado`
+          }
         </p>
       </div>
+
+      {/* Course Content (Editable) */}
+      {certificateData.course_content && (
+        <div className="mb-4">
+          <label
+            htmlFor="course_content"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Contenido del Curso
+            {certificateData.course_template_id && (
+              <span className="ml-2 text-xs text-blue-600">
+                (Desde plantilla: {courseTemplates.find((t: any) => t.id === certificateData.course_template_id)?.descripcion})
+              </span>
+            )}
+          </label>
+          <textarea
+            id="course_content"
+            value={certificateData.course_content || ""}
+            onChange={(e) => onDataChange("course_content", e.target.value)}
+            rows={8}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="El contenido del curso se cargará desde la plantilla seleccionada..."
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            {certificateData.course_template_id 
+              ? 'Puedes editar este contenido según sea necesario para esta capacitación específica'
+              : 'Este es el contenido predeterminado del curso. Puedes editarlo según sea necesario.'
+            }
+          </p>
+        </div>
+      )}
 
       {/* Course Duration */}
       <div className="mb-4">
