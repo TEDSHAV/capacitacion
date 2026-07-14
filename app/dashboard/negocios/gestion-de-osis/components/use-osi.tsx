@@ -24,7 +24,7 @@ export function useOSI(empresas: any[] = []) {
     ejecutivo_negocios: null,
     cliente_nombre_empresa: null,
     rif: null,
-    tema: null,
+    id_curso: null,
     fecha_emision: null,
     fecha_servicio: null,
     nro_sesiones: 1,
@@ -211,7 +211,7 @@ export function useOSI(empresas: any[] = []) {
         nro_presupuesto: formData.nro_presupuesto?.trim() || null,
         ejecutivo_negocios: Number(formData.ejecutivo_negocios) || null,
         cliente_nombre_empresa: formData.cliente_nombre_empresa?.trim() || "",
-        tema: formData.tema?.trim() || null,
+        id_curso: formData.id_curso || null,
         fecha_emision: formData.fecha_emision
           ? (formData.fecha_emision instanceof Date
               ? formData.fecha_emision
@@ -229,11 +229,31 @@ export function useOSI(empresas: any[] = []) {
               .split("T")[0]
           : null,
         nro_sesiones: Number(formData.nro_sesiones) || 1,
-        fecha_ejecucion1: formData.fecha_ejecucion1 || null,
-        fecha_ejecucion2: formData.fecha_ejecucion2 || null,
-        fecha_ejecucion3: formData.fecha_ejecucion3 || null,
-        fecha_ejecucion4: formData.fecha_ejecucion4 || null,
-        fecha_ejecucion5: formData.fecha_ejecucion5 || null,
+        fecha_ejecucion1: formData.fecha_ejecucion1
+          ? (formData.fecha_ejecucion1 instanceof Date
+              ? formData.fecha_ejecucion1.toISOString().split("T")[0]
+              : new Date(formData.fecha_ejecucion1).toISOString().split("T")[0])
+          : null,
+        fecha_ejecucion2: formData.fecha_ejecucion2
+          ? (formData.fecha_ejecucion2 instanceof Date
+              ? formData.fecha_ejecucion2.toISOString().split("T")[0]
+              : new Date(formData.fecha_ejecucion2).toISOString().split("T")[0])
+          : null,
+        fecha_ejecucion3: formData.fecha_ejecucion3
+          ? (formData.fecha_ejecucion3 instanceof Date
+              ? formData.fecha_ejecucion3.toISOString().split("T")[0]
+              : new Date(formData.fecha_ejecucion3).toISOString().split("T")[0])
+          : null,
+        fecha_ejecucion4: formData.fecha_ejecucion4
+          ? (formData.fecha_ejecucion4 instanceof Date
+              ? formData.fecha_ejecucion4.toISOString().split("T")[0]
+              : new Date(formData.fecha_ejecucion4).toISOString().split("T")[0])
+          : null,
+        fecha_ejecucion5: formData.fecha_ejecucion5
+          ? (formData.fecha_ejecucion5 instanceof Date
+              ? formData.fecha_ejecucion5.toISOString().split("T")[0]
+              : new Date(formData.fecha_ejecucion5).toISOString().split("T")[0])
+          : null,
         participantes_max: Number(formData.participantes_max) || null,
         certificado_impreso: Boolean(formData.certificado_impreso),
         carnet_impreso: Boolean(formData.carnet_impreso),
@@ -264,21 +284,42 @@ export function useOSI(empresas: any[] = []) {
         is_active: true,
       };
 
+      // Validate required fields
+      if (!dataToSave.cliente_nombre_empresa) {
+        throw new Error('El nombre de la empresa es requerido');
+      }
+      if (!dataToSave.tipo_servicio) {
+        throw new Error('El tipo de servicio es requerido');
+      }
+      if (!dataToSave.ejecutivo_negocios) {
+        throw new Error('El ejecutivo de negocios es requerido');
+      }
+      if (!dataToSave.empresa_id) {
+        throw new Error('La empresa es requerida');
+      }
+      if (!dataToSave.fecha_ejecucion1) {
+        throw new Error('La fecha de ejecución es requerida');
+      }
+
       if (isNew) {
         const result = await createOSIAction(dataToSave);
         if (result.error) {
           throw new Error(result.error);
         }
+        // Success feedback for new OSI
+        alert('¡OSI creada exitosamente!');
+        router.push("/dashboard/negocios/gestion-de-osis");
         return result.data;
       } else if (osi) {
         const result = await updateOSIAction(osi.id, dataToSave);
         if (result.error) {
           throw new Error(result.error);
         }
+        // Success feedback for updated OSI
+        alert('¡OSI actualizada exitosamente!');
+        router.push("/dashboard/negocios/gestion-de-osis");
         return result.data;
       }
-
-      router.push("/dashboard/negocios/gestion-de-osis");
     } catch (error) {
       console.error("Save error:", error);
       errorDialog.showError(

@@ -20,14 +20,14 @@ interface OSIContentProps {
   filteredEmpresas: Empresa[]
   filteredCursos: any[]
   empresaSearchTerm: string
-  temaSearchTerm: string
+  cursoSearchTerm: string
   updateFormData: (field: string, value: any) => void
   onEdit: () => void
   onCancel: () => void
   onSave: () => void
   onDelete: () => void
   setEmpresaSearchTerm: (term: string) => void
-  setTemaSearchTerm: (term: string) => void
+  setCursoSearchTerm: (term: string) => void
 }
 
 export default function OSIContent({
@@ -42,14 +42,14 @@ export default function OSIContent({
   filteredEmpresas,
   filteredCursos,
   empresaSearchTerm,
-  temaSearchTerm,
+  cursoSearchTerm,
   updateFormData,
   onEdit,
   onCancel,
   onSave,
   onDelete,
   setEmpresaSearchTerm,
-  setTemaSearchTerm
+  setCursoSearchTerm
 }: OSIContentProps) {
   return (
     <div className="p-6 space-y-6">
@@ -69,9 +69,9 @@ export default function OSIContent({
         cursos={cursos}
         filteredCursos={filteredCursos}
         empresaSearchTerm={empresaSearchTerm}
-        temaSearchTerm={temaSearchTerm}
+        cursoSearchTerm={cursoSearchTerm}
         setEmpresaSearchTerm={setEmpresaSearchTerm}
-        setTemaSearchTerm={setTemaSearchTerm}
+        setCursoSearchTerm={setCursoSearchTerm}
         updateFormData={updateFormData}
       />
       

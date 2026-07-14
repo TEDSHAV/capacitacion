@@ -907,6 +907,7 @@ export type Database = {
       ecc_encabezado: {
         Row: {
           audiovisuales: boolean | null
+          espacio: boolean
           fecha_aprobacion: string | null
           fecha_ejecucion_servicio: string | null
           fecha_solicitud: string | null
@@ -925,6 +926,7 @@ export type Database = {
         }
         Insert: {
           audiovisuales?: boolean | null
+          espacio?: boolean
           fecha_aprobacion?: string | null
           fecha_ejecucion_servicio?: string | null
           fecha_solicitud?: string | null
@@ -943,6 +945,7 @@ export type Database = {
         }
         Update: {
           audiovisuales?: boolean | null
+          espacio?: boolean
           fecha_aprobacion?: string | null
           fecha_ejecucion_servicio?: string | null
           fecha_solicitud?: string | null
@@ -2097,6 +2100,7 @@ export type Database = {
           fecha_emision: string | null
           fecha_servicio: string | null
           id: number
+          id_curso: number | null
           is_active: boolean
           nro_horas: number | null
           nro_orden_compra: string | null
@@ -2107,7 +2111,6 @@ export type Database = {
           participantes_max: number | null
           persona_contacto_id: number | null
           pretenciones_cliente: string | null
-          tema: string | null
           tipo_servicio: string
         }
         Insert: {
@@ -2137,6 +2140,7 @@ export type Database = {
           fecha_emision?: string | null
           fecha_servicio?: string | null
           id?: number
+          id_curso?: number | null
           is_active?: boolean
           nro_horas?: number | null
           nro_orden_compra?: string | null
@@ -2147,7 +2151,6 @@ export type Database = {
           participantes_max?: number | null
           persona_contacto_id?: number | null
           pretenciones_cliente?: string | null
-          tema?: string | null
           tipo_servicio: string
         }
         Update: {
@@ -2177,6 +2180,7 @@ export type Database = {
           fecha_emision?: string | null
           fecha_servicio?: string | null
           id?: number
+          id_curso?: number | null
           is_active?: boolean
           nro_horas?: number | null
           nro_orden_compra?: string | null
@@ -2187,10 +2191,17 @@ export type Database = {
           participantes_max?: number | null
           persona_contacto_id?: number | null
           pretenciones_cliente?: string | null
-          tema?: string | null
           tipo_servicio?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "osi_id_curso_fkey"
+            columns: ["id_curso"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       participantes_certificados: {
         Row: {

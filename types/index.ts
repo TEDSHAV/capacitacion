@@ -168,7 +168,7 @@ export interface OSI {
   executive_name?: string
   cliente_nombre_empresa: string | null
   rif: string | null
-  tema: string | null
+  id_curso: number | null
   fecha_emision: Date | null
   fecha_servicio: Date | null
   nro_sesiones: number | null
@@ -509,6 +509,7 @@ export interface CertificateOSI {
   ejecutivo_negocios: number;
   cliente_nombre_empresa: string;
   tema?: string;
+  id_curso: number | null;
   fecha_servicio?: string;
   empresa_id: number;
   direccion_fiscal?: string;
@@ -521,6 +522,7 @@ export interface CertificateOSI {
   nro_horas?: number;
   costo_total?: number;
   detalle_capacitacion?: string;
+  detalle_sesion?: string;
   codigo_cliente?: number;
   is_active: boolean;
 }

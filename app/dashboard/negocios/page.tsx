@@ -33,7 +33,7 @@ export default function NegociosPage() {
         const result = await getDashboardStats();
         
         setStats({
-          totalOSIs: result.stats?.osisActivas || 0,
+          totalOSIs: result.stats?.totalOSIs || 0,
           osisActivas: result.stats?.osisActivas || 0,
         });
       } catch (error) {

@@ -45,11 +45,11 @@ export default function OSIDetailPage() {
 
   // Search terms
   const [empresaSearchTerm, setEmpresaSearchTerm] = useState('')
-  const [temaSearchTerm, setTemaSearchTerm] = useState('')
+  const [cursoSearchTerm, setCursoSearchTerm] = useState('')
 
   // Load initial data on mount
   useEffect(() => {
-    loadInitialData()
+    loadInitialData({ includeCursos: true })
   }, [])
 
   // Filter empresas based on search term
@@ -60,13 +60,13 @@ export default function OSIDetailPage() {
     setFilteredEmpresas(filtered)
   }, [empresaSearchTerm, empresas])
 
-  // Filter cursos based on tema search term
+  // Filter cursos based on curso search term
   useEffect(() => {
     const filtered = cursos.filter((curso: any) =>
-      curso.nombre.toLowerCase().includes(temaSearchTerm.toLowerCase())
+      curso.nombre.toLowerCase().includes(cursoSearchTerm.toLowerCase())
     )
     setFilteredCursos(filtered)
-  }, [temaSearchTerm, cursos])
+  }, [cursoSearchTerm, cursos])
 
   // Load contactos when empresa changes
   useEffect(() => {
@@ -152,14 +152,14 @@ export default function OSIDetailPage() {
             filteredEmpresas={filteredEmpresas}
             filteredCursos={filteredCursos}
             empresaSearchTerm={empresaSearchTerm}
-            temaSearchTerm={temaSearchTerm}
-            updateFormData={updateFormData as (field: string, value: any) => void}
+            cursoSearchTerm={cursoSearchTerm}
+            updateFormData={updateFormData}
             onEdit={startEditing}
             onCancel={cancelEditing}
             onSave={handleSave}
             onDelete={handleDelete}
             setEmpresaSearchTerm={setEmpresaSearchTerm}
-            setTemaSearchTerm={setTemaSearchTerm}
+            setCursoSearchTerm={setCursoSearchTerm}
           />
         </div>
       </div>

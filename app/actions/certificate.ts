@@ -12,6 +12,7 @@ export interface CertificateOSI {
   ejecutivo_negocios: number;
   cliente_nombre_empresa: string;
   tema?: string;
+  id_curso: number | null;
   fecha_servicio?: string;
   empresa_id: number;
   direccion_fiscal?: string;
@@ -33,10 +34,10 @@ export async function getCertificateData(options?: { osiLimit?: number; courseLi
     const supabase = await createClient();
     const { osiLimit = 50, courseLimit = 100 } = options || {};
 
-    // Fetch OSIs with pagination - include empresa_id
+    // Fetch OSIs with pagination - include empresa_id and id_curso
     const { data: osis, error: osiError } = await supabase
       .from("osi")
-      .select("id, nro_osi, cliente_nombre_empresa, tema, is_active, empresa_id")
+      .select("id, nro_osi, cliente_nombre_empresa, tema, id_curso, is_active, empresa_id")
       .eq("is_active", true)
       .order("nro_osi", { ascending: false })
       .limit(osiLimit);

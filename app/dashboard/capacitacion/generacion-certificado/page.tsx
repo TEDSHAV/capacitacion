@@ -87,7 +87,17 @@ export default function GeneracionCertificadoPage() {
       }));
       setSelectedCourseTopic(null);
 
-      // Filter course topics by client from OSI AND by course content matching
+      // Find exact course by id_curso if available
+      let selectedCourse: CourseTopic | null = null;
+      
+      if (osi.id_curso) {
+        // Use the exact course ID from OSI
+        selectedCourse = allCourseTopics.find(
+          (topic: CourseTopic) => topic.id === osi.id_curso!.toString()
+        ) || null;
+      }
+
+      // If no exact course found via id_curso, filter courses by client and show relevant options
       const clientCourses = allCourseTopics.filter((topic: CourseTopic) => {
         // OSI has empresa_id (number) and CourseTopic has cliente_asociado (number from DB)
         const osiClientId = osi.empresa_id;
@@ -99,40 +109,25 @@ export default function GeneracionCertificadoPage() {
         // Include courses that don't have any company association (cliente_asociado is null/undefined)
         const hasNoCompanyAssociation = !courseClientId;
         
-        // Include if client matches OR has no company association
-        // Also ensure content relevance for better UX
-        const isContentRelevant = !osi.tema || (
-          (osi.tema && topic.name.toLowerCase().includes(osi.tema!.toLowerCase())) ||
-          (osi.detalle_capacitacion && (
-            topic.name.toLowerCase().includes(osi.detalle_capacitacion!.toLowerCase()) ||
-            (topic.description && topic.description.toLowerCase().includes(osi.detalle_capacitacion!.toLowerCase()))
-          )) ||
-          (osi.detalle_sesion && (
-            topic.name.toLowerCase().includes(osi.detalle_sesion!.toLowerCase()) ||
-            (topic.description && topic.description.toLowerCase().includes(osi.detalle_sesion!.toLowerCase()))
-          ))
-        );
-        
-        // Show if either: (client matches AND content is relevant) OR (has no company association AND content is relevant)
-        return (isClientMatch || hasNoCompanyAssociation) && isContentRelevant;
+        return isClientMatch || hasNoCompanyAssociation;
       });
       
       setFilteredCourseTopics(clientCourses);
       
-      // Auto-selects the best matching course topic
-      const matchingCourse = findMatchingCourseTopic(osi);
-      if (matchingCourse) {
-        const passingGrade = matchingCourse.nota_aprobatoria ?? 14;
+      // Auto-select the course if found
+      if (selectedCourse) {
+        const passingGrade = selectedCourse.nota_aprobatoria ?? 14;
         
         setCertificateData((prev) => ({
           ...prev,
-          course_topic_id: matchingCourse.id,
-          course_topic_data: matchingCourse, // Add the course topic data
-          course_content: matchingCourse.contenido_curso || '',
+          course_topic_id: selectedCourse.id,
+          course_topic_data: selectedCourse, // Add the course topic data
+          course_content: selectedCourse.contenido_curso || '',
           passing_grade: passingGrade,
-          horas_estimadas: matchingCourse.horas_estimadas, // Add horas_estimadas from matching course
+          horas_estimadas: selectedCourse.horas_estimadas, // Add horas_estimadas from matching course
+          certificate_title: selectedCourse.name, // Autopopulate certificate title with course name
         }));
-        setSelectedCourseTopic(matchingCourse);
+        setSelectedCourseTopic(selectedCourse);
       }
     } else {
       // Clear all related data when OSI is cleared
@@ -149,60 +144,6 @@ export default function GeneracionCertificadoPage() {
       // Show all courses when no OSI is selected
       setFilteredCourseTopics(allCourseTopics);
     }
-  };
-
-  const findMatchingCourseTopic = (osi: CertificateOSI): CourseTopic | null => {
-    if (!osi.tema && !osi.detalle_capacitacion && !osi.detalle_sesion) {
-      return null;
-    }
-
-    // Try to find exact match with tema
-    let match = allCourseTopics.find(
-      (topic: CourseTopic) =>
-        osi.tema && topic.name.toLowerCase().includes(osi.tema!.toLowerCase()),
-    );
-
-    if (match) {
-      // Found match by tema
-    }
-
-    // If no exact match, try with detalle_capacitacion
-    if (!match && osi.detalle_capacitacion) {
-      match = allCourseTopics.find(
-        (topic: CourseTopic) =>
-          topic.name
-            .toLowerCase()
-            .includes(osi.detalle_capacitacion!.toLowerCase()) ||
-          (topic.description &&
-            topic.description
-              .toLowerCase()
-              .includes(osi.detalle_capacitacion!.toLowerCase())),
-      );
-      
-      if (match) {
-        // Found match by detalle_capacitacion
-      }
-    }
-
-    // If still no match, try with detalle_sesion
-    if (!match && osi.detalle_sesion) {
-      match = allCourseTopics.find(
-        (topic: CourseTopic) =>
-          topic.name
-            .toLowerCase()
-            .includes(osi.detalle_sesion!.toLowerCase()) ||
-          (topic.description &&
-            topic.description
-              .toLowerCase()
-              .includes(osi.detalle_sesion!.toLowerCase())),
-      );
-      
-      if (match) {
-        // Found match by detalle_sesion
-      }
-
-    }
-    return match || null;
   };
 
   const handleCertificateDataChange = (
@@ -223,6 +164,7 @@ export default function GeneracionCertificadoPage() {
           course_content: selectedTopic.contenido_curso || '',
           passing_grade: passingGrade, // Use course's passing grade
           horas_estimadas: selectedTopic.horas_estimadas, // Add horas_estimadas from course topic
+          certificate_title: prev.certificate_title || selectedTopic.name, // Autopopulate if title is empty
           // Clear expiration date if course doesn't emit card
           fecha_vencimiento: selectedTopic.emite_carnet ? prev.fecha_vencimiento : undefined,
         }));

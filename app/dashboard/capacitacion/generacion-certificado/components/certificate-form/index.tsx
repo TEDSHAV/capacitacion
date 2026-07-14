@@ -186,7 +186,7 @@ export const CertificateForm = ({
           value={certificateData.certificate_title}
           onChange={(e) => onDataChange("certificate_title", e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Ej: Manejo de Montacargas"
+          placeholder="Ej: Manejo de Montacargas (se autocompletará con el nombre del curso seleccionado)"
         />
       </div>
 

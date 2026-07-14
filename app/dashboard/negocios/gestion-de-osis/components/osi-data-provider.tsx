@@ -96,6 +96,7 @@ export function useOSIData() {
         )
         return
       }
+      
       setCursos(data || [])
       setFilteredCursos(data || [])
     } catch (err) {

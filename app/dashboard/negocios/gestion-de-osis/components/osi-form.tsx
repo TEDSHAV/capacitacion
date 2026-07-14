@@ -1,7 +1,29 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Empresa, Usuario, Contacto, OSI, OSIFormProps } from '@/types'
+import { Empresa, Usuario, Contacto, OSI } from '@/types'
+
+interface OSIFormProps {
+  initialData?: OSI
+  isNew: boolean
+  isEditing: boolean
+  onEdit: () => void
+  onCancel: () => void
+  onSave: () => void
+  onDelete: () => void
+  empresas?: Empresa[]
+  usuarios?: Usuario[]
+  contactos?: Contacto[]
+  servicios?: any[]
+  filteredEmpresas?: Empresa[]
+  cursos?: any[]
+  filteredCursos?: any[]
+  empresaSearchTerm?: string
+  cursoSearchTerm?: string
+  setEmpresaSearchTerm?: (term: string) => void
+  setCursoSearchTerm?: (term: string) => void
+  updateFormData?: (field: string, value: any) => void
+}
 
 const OSIForm = ({ 
   initialData, 
@@ -15,9 +37,9 @@ const OSIForm = ({
   cursos,
   filteredCursos,
   empresaSearchTerm,
-  temaSearchTerm,
+  cursoSearchTerm,
   setEmpresaSearchTerm,
-  setTemaSearchTerm,
+  setCursoSearchTerm,
   updateFormData
 }: OSIFormProps) => {
   const [selectedEmpresaIndex, setSelectedEmpresaIndex] = useState(-1)
@@ -80,9 +102,9 @@ const OSIForm = ({
         e.preventDefault()
         if (selectedTemaIndex >= 0 && filteredCursos[selectedTemaIndex]) {
           const curso = filteredCursos[selectedTemaIndex]
-          updateFormData?.('tema', curso.nombre)
           updateFormData?.('detalle_capacitacion', curso.contenido)
-          setTemaSearchTerm?.('')
+          updateFormData?.('id_curso', curso.id) // Store the course ID
+          setCursoSearchTerm?.('')
           setSelectedTemaIndex(-1)
         }
         break
@@ -90,7 +112,7 @@ const OSIForm = ({
         setSelectedTemaIndex(-1)
         break
     }
-  }, [filteredCursos, selectedTemaIndex, updateFormData, setTemaSearchTerm])
+  }, [filteredCursos, selectedTemaIndex, updateFormData, setCursoSearchTerm])
 
   // Handle OSI field lock toggle
   const handleOsiFieldToggle = useCallback(() => {
@@ -268,42 +290,48 @@ const OSIForm = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Tema</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Curso</label>
           <div className="relative">
             <input
               type="text"
-              value={temaSearchTerm || initialData?.tema || ''}
+              value={cursoSearchTerm || initialData?.detalle_capacitacion || ''}
               onChange={(e) => {
-                setTemaSearchTerm?.(e.target.value)
+                setCursoSearchTerm?.(e.target.value)
                 setSelectedTemaIndex(-1)
                 // Also update form data directly when typing
-                updateFormData?.('tema', e.target.value)
+                updateFormData?.('detalle_capacitacion', e.target.value)
               }}
               onKeyDown={handleTemaKeyDown}
               disabled={!isEditing && !isNew}
               tabIndex={!isEditing && !isNew ? -1 : 0}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder="Buscar tema..."
+              placeholder="Buscar curso..."
             />
-            {temaSearchTerm && filteredCursos && filteredCursos.length > 0 && (
+            {cursoSearchTerm && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-                {filteredCursos.map((curso: any, index: number) => (
-                  <div
-                    key={curso.id}
-                    className={`px-3 py-2 cursor-pointer border-b border-gray-200 last:border-b-0 ${
-                      index === selectedTemaIndex ? 'bg-gray-100' : 'hover:bg-gray-100'
-                    }`}
-                    onClick={() => {
-                      updateFormData?.('tema', curso.nombre)
-                      updateFormData?.('detalle_capacitacion', curso.contenido)
-                      setTemaSearchTerm?.('')
-                      setSelectedTemaIndex(-1)
-                    }}
-                  >
-                    <div className="font-medium">{curso.nombre}</div>
-                    <div className="text-sm text-gray-500">{curso.contenido?.substring(0, 100)}...</div>
+                {filteredCursos && filteredCursos.length > 0 ? (
+                  filteredCursos.map((curso: any, index: number) => (
+                    <div
+                      key={curso.id}
+                      className={`px-3 py-2 cursor-pointer border-b border-gray-200 last:border-b-0 ${
+                        index === selectedTemaIndex ? 'bg-gray-100' : 'hover:bg-gray-100'
+                      }`}
+                      onClick={() => {
+                        updateFormData?.('detalle_capacitacion', curso.contenido)
+                        updateFormData?.('id_curso', curso.id) // Store the course ID
+                        setCursoSearchTerm?.('')
+                        setSelectedTemaIndex(-1)
+                      }}
+                    >
+                      <div className="font-medium">{curso.nombre}</div>
+                      <div className="text-sm text-gray-500">{curso.contenido?.substring(0, 100)}...</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-gray-500 text-center">
+                    No se encontraron cursos que coincidan con "{cursoSearchTerm}"
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>

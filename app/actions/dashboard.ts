@@ -11,20 +11,26 @@ const getCachedDashboardStats = cache(async () => {
     // Get counts in parallel
     const [
       clientesResult,
-      osisResult,
+      osisTotalResult,
+      osisActiveResult,
       cursosResult,
       tareasResult
     ] = await Promise.all([
       // Get total clients
       supabase.from('empresas').select('id', { count: 'exact', head: true }),
       
-      // Get active OSIs
+      // Get total OSIs
       supabase.from('osi').select('id', { count: 'exact', head: true })
-        .in('id_estatus', [1, 2]), // Active statuses
+        .eq('is_active', true),
+      
+      // Get active OSIs (pendiente or active status)
+      supabase.from('osi').select('id', { count: 'exact', head: true })
+        .eq('is_active', true)
+        .in('estado', ['pendiente', 'active', 'activo']),
       
       // Get completed courses
       supabase.from('cursos').select('id', { count: 'exact', head: true })
-        .eq('estatus', 'completado'),
+        .eq('is_active', true),
       
       // Get pending tasks (assuming there's a tasks table)
       supabase.from('tareas').select('id', { count: 'exact', head: true })
@@ -33,14 +39,15 @@ const getCachedDashboardStats = cache(async () => {
 
     const stats = {
       totalClientes: clientesResult.count || 0,
-      osisActivas: osisResult.count || 0,
+      totalOSIs: osisTotalResult.count || 0,
+      osisActivas: osisActiveResult.count || 0,
       cursosCompletados: cursosResult.count || 0,
       tareasPendientes: tareasResult.count || 0
     };
 
     return { stats };
   } catch (err) {
-    return { stats: { totalClientes: 0, osisActivas: 0, cursosCompletados: 0, tareasPendientes: 0 } };
+    return { stats: { totalClientes: 0, totalOSIs: 0, osisActivas: 0, cursosCompletados: 0, tareasPendientes: 0 } };
   }
 });
 
