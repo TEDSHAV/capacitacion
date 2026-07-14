@@ -33,7 +33,6 @@ export class CertificatePreviewHelper {
 
       return await this.generator.generateCertificate(request);
     } catch (error) {
-      console.error('Error generating certificate preview:', error);
       throw error;
     }
   }
@@ -60,7 +59,6 @@ export class CertificatePreviewHelper {
 
       return await this.generator.generateCertificate(request);
     } catch (error) {
-      console.error('Error generating final certificate:', error);
       throw error;
     }
   }

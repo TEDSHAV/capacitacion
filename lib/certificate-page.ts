@@ -234,7 +234,7 @@ export class CertificatePage {
         { align: "center" }
       );
     } catch (error) {
-      console.error("Error adding facilitator signature:", error);
+      throw error;
     }
   }
 
@@ -256,7 +256,7 @@ export class CertificatePage {
 
      
     } catch (error) {
-      console.error("Error adding SHA signature:", error);
+      throw error;
     }
   }
 

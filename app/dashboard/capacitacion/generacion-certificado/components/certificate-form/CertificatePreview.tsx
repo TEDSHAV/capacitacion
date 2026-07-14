@@ -58,7 +58,7 @@ export const CertificatePreview = ({
             }
           }
         } catch (error) {
-          console.warn("Could not fetch SHA signature for preview:", error);
+          // Could not fetch SHA signature for preview
         }
       }
 
@@ -72,7 +72,6 @@ export const CertificatePreview = ({
       const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
     } catch (err) {
-      console.error("Error generating preview:", err);
       setError("Error al generar la vista previa. Por favor intenta nuevamente.");
     } finally {
       setIsGenerating(false);

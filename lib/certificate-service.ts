@@ -20,7 +20,6 @@ export class CertificateService {
       const response = await fetch('/api/control-numbers');
       
       if (!response.ok) {
-        console.warn(`Control numbers API returned ${response.status}`);
         return null;
       }
       
@@ -46,12 +45,13 @@ export class CertificateService {
       const response = await fetch(`/api/signatures/${signatureId}`);
       
       if (!response.ok) {
-        console.warn(`Signature API returned ${response.status} for ID: ${signatureId}`);
         return null;
       }
       
       const data = await response.json();
-      return data as Signature;
+      return this.validateApiResponse(data, (item): item is Signature => {
+        return 'id' in item && 'name' in item && 'signature' in item;
+      });
     } catch (error) {
       console.error("Error fetching signature:", error);
       return null;
@@ -67,12 +67,13 @@ export class CertificateService {
       const response = await fetch(`/api/facilitators/${facilitatorId}`);
       
       if (!response.ok) {
-        console.warn(`Facilitator API returned ${response.status} for ID: ${facilitatorId}`);
         return null;
       }
       
       const data = await response.json();
-      return data as Facilitador;
+      return this.validateApiResponse(data, (item): item is Facilitador => {
+        return 'id' in item && 'name' in item && 'facilitator' in item;
+      });
     } catch (error) {
       console.error("Error fetching facilitator:", error);
       return null;
@@ -96,8 +97,8 @@ export class CertificateService {
   /**
    * Validate API response structure
    */
-  private validateApiResponse<T>(data: unknown, validator: (item: unknown) => item is T): T | null {
-    return validator(data) ? data : null;
+  private validateApiResponse<T>(data: unknown, validator: (item: any) => item is T): T | null {
+    return validator(data) && typeof data === 'object' && data !== null ? data as T : null;
   }
 }
 

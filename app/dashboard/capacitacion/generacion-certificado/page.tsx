@@ -49,7 +49,6 @@ export default function GeneracionCertificadoPage() {
         const result = await getCertificateData();
 
         if (result.error) {
-          console.error("Error loading data:", result.error);
           // Don't redirect, just show error
           return;
         }
@@ -58,7 +57,7 @@ export default function GeneracionCertificadoPage() {
         setAllCourseTopics(result.courseTopics || []);
         setFilteredCourseTopics(result.courseTopics || []);
       } catch (error) {
-        console.error("Error loading data:", error);
+        // Error loading data
       } finally {
         setLoading(false);
       }
@@ -275,13 +274,11 @@ export default function GeneracionCertificadoPage() {
       );
 
       if (!dbResult.success) {
-        console.error("Database save error:", dbResult.message);
         alert(`Error guardando certificados en base de datos: ${dbResult.message}`);
         return;
       }
 
       if (!dbResult.certificateNumbers || dbResult.certificateNumbers.length === 0) {
-        console.error("No control numbers returned from database");
         alert("Error: No se pudieron obtener los números de control de la base de datos");
         return;
       }
@@ -311,7 +308,6 @@ export default function GeneracionCertificadoPage() {
           });
           certificates.push({ participant, blob });
         } catch (error) {
-          console.error(`Error generating certificate for ${participant.name}:`, error);
           // Continue with other participants
         }
       }
@@ -346,7 +342,6 @@ export default function GeneracionCertificadoPage() {
         id_plantilla_certificado: undefined,
       });
     } catch (error) {
-      console.error("Error generating certificates:", error);
       alert("Error al generar los certificados. Por favor intenta nuevamente.");
     } finally {
       setIsGenerating(false);

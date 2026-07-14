@@ -66,7 +66,7 @@ export const CertificateForm = ({
           setVenezuelanStates(states);
         }
       } catch (error) {
-        console.error("Error loading form data:", error);
+        // Error loading form data
       }
     };
 

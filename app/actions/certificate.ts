@@ -14,7 +14,6 @@ export async function getCertificateData() {
       .limit(100);
 
     if (osiError) {
-      console.error('OSI fetch error:', osiError);
       throw osiError;
     }
 
@@ -26,7 +25,6 @@ export async function getCertificateData() {
       .order("created_at", { ascending: false });
 
     if (cursosError) {
-      console.error('Cursos fetch error:', cursosError);
       throw cursosError;
     }
 
@@ -49,7 +47,6 @@ export async function getCertificateData() {
     };
 
   } catch (error) {
-    console.error('Server action error:', error);
     return { error: error instanceof Error ? error.message : 'Error al cargar los datos' };
   }
 }

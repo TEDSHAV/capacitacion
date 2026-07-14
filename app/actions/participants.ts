@@ -12,14 +12,12 @@ export async function getParticipants(): Promise<{ participants: ParticipanteCer
       .select("*");
 
     if (error) {
-      console.error('Participants fetch error:', error);
       throw error;
     }
 
     return { participants: participants || [] };
 
   } catch (error) {
-    console.error('Server action error:', error);
     return { 
       participants: null, 
       error: error instanceof Error ? error.message : 'Error al cargar los participantes' 
@@ -42,14 +40,12 @@ export async function createParticipant(formData: ParticipantFormData): Promise<
       .single();
 
     if (error) {
-      console.error('Create participant error:', error);
       throw error;
     }
 
     return { success: true, data };
 
   } catch (error) {
-    console.error('Server action error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Error al crear el participante' 
@@ -73,14 +69,12 @@ export async function updateParticipant(id: number, formData: ParticipantFormDat
       .single();
 
     if (error) {
-      console.error('Update participant error:', error);
       throw error;
     }
 
     return { success: true, data };
 
   } catch (error) {
-    console.error('Server action error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Error al actualizar el participante' 
@@ -98,14 +92,12 @@ export async function deleteParticipant(id: number): Promise<{ success: boolean;
       .eq("id", id);
 
     if (error) {
-      console.error('Delete participant error:', error);
       throw error;
     }
 
     return { success: true };
 
   } catch (error) {
-    console.error('Server action error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Error al eliminar el participante' 
@@ -124,17 +116,15 @@ export async function getParticipantById(id: number): Promise<{ participant: Par
       .single();
 
     if (error) {
-      console.error('Participant fetch error:', error);
       throw error;
     }
 
     return { participant };
 
   } catch (error) {
-    console.error('Server action error:', error);
     return { 
       participant: null, 
-      error: error instanceof Error ? error.message : 'Error al cargar el participante' 
+      error: error instanceof Error ? error.message : 'Error al cargar el participante'  
     };
   }
 }

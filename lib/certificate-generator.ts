@@ -48,7 +48,6 @@ export class CertificateGenerator {
       // Return as blob
       return this.doc.output("blob");
     } catch (error) {
-      console.error("Error generating certificate:", error);
       throw new Error("Failed to generate certificate");
     }
   }
@@ -74,10 +73,6 @@ export class CertificateGenerator {
         });
         certificates.push({ participant, blob });
       } catch (error) {
-        console.error(
-          `Error generating certificate for ${participant.name}:`,
-          error,
-        );
         // Continue with other participants even if one fails
       }
     }
