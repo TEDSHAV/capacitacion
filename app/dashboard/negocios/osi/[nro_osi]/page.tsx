@@ -568,15 +568,29 @@ export default function OSIDetailPage() {
                         updateFormData('cliente_nombre_empresa', e.target.value)
                         setSearchTerm(e.target.value)
                       }}
+                      onFocus={() => setSearchTerm(formData.cliente_nombre_empresa || '')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setSearchTerm('')
+                          ;(e.target as HTMLInputElement).blur()
+                        } else if (e.key === 'ArrowDown') {
+                          e.preventDefault()
+                          // Focus first option if available
+                          const firstOption = document.querySelector('[data-empresa-option="0"]') as HTMLElement
+                          if (firstOption) firstOption.focus()
+                        }
+                      }}
                       disabled={!isEditing && !isNew}
+                      tabIndex={!isEditing && !isNew ? -1 : 0}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       placeholder="Buscar empresa..."
                     />
                     {searchTerm && filteredEmpresas.length > 0 && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-                        {filteredEmpresas.map((empresa) => (
+                        {filteredEmpresas.map((empresa, index) => (
                           <div
                             key={empresa.id}
+                            data-empresa-option={index}
                             className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                             onClick={() => {
                               const normalizedAddress = (empresa.direccion_fiscal || '').normalize('NFD')
@@ -595,6 +609,47 @@ export default function OSIDetailPage() {
                               updateFormData('contacto_email2', '')
                               setSearchTerm('')
                             }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                const normalizedAddress = (empresa.direccion_fiscal || '').normalize('NFD')
+                                updateFormData('cliente_nombre_empresa', empresa.razon_social)
+                                updateFormData('rif', empresa.rif || '')
+                                updateFormData('codigo_cliente', empresa.codigo_cliente || '')
+                                updateFormData('direccion_fiscal', normalizedAddress)
+                                updateFormData('direccion_ejecucion', normalizedAddress)
+                                updateFormData('direccion_envio', normalizedAddress)
+                                // Clear contacto fields when empresa changes
+                                updateFormData('persona_contacto_id', 0)
+                                updateFormData('contacto_nombre', '')
+                                updateFormData('contacto_apellido', '')
+                                updateFormData('contacto_telefono', '')
+                                updateFormData('contacto_email', '')
+                                updateFormData('contacto_email2', '')
+                                setSearchTerm('')
+                              } else if (e.key === 'ArrowDown') {
+                                e.preventDefault()
+                                const nextOption = document.querySelector(`[data-empresa-option="${index + 1}"]`) as HTMLElement
+                                if (nextOption) {
+                                  nextOption.focus()
+                                } else {
+                                  // Wrap to first option
+                                  const firstOption = document.querySelector('[data-empresa-option="0"]') as HTMLElement
+                                  if (firstOption) firstOption.focus()
+                                }
+                              } else if (e.key === 'ArrowUp') {
+                                e.preventDefault()
+                                const prevOption = document.querySelector(`[data-empresa-option="${index - 1}"]`) as HTMLElement
+                                if (prevOption) {
+                                  prevOption.focus()
+                                } else {
+                                  // Wrap to last option
+                                  const lastOption = document.querySelector(`[data-empresa-option="${filteredEmpresas.length - 1}"]`) as HTMLElement
+                                  if (lastOption) lastOption.focus()
+                                }
+                              }
+                            }}
+                            tabIndex={0}
                           >
                             <div className="font-medium">{empresa.razon_social}</div>
                           </div>
@@ -666,6 +721,7 @@ export default function OSIDetailPage() {
                     value={formData.tipo_servicio || ''}
                     onChange={(e) => updateFormData('tipo_servicio', e.target.value)}
                     disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">Seleccione un servicio</option>
@@ -689,7 +745,19 @@ export default function OSIDetailPage() {
                         }
                       }}
                       onFocus={() => setTemaSearchTerm(formData.tema || '')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setTemaSearchTerm('')
+                          ;(e.target as HTMLInputElement).blur()
+                        } else if (e.key === 'ArrowDown') {
+                          e.preventDefault()
+                          // Focus first option if available
+                          const firstOption = document.querySelector('[data-tema-option="0"]') as HTMLElement
+                          if (firstOption) firstOption.focus()
+                        }
+                      }}
                       disabled={!isEditing && !isNew || !formData.tipo_servicio}
+                      tabIndex={!isEditing && !isNew || !formData.tipo_servicio ? -1 : 0}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       placeholder={
                         !formData.tipo_servicio 
@@ -699,14 +767,43 @@ export default function OSIDetailPage() {
                     />
                     {temaSearchTerm && filteredCatalogoServicios.length > 0 && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-                        {filteredCatalogoServicios.map((servicio) => (
+                        {filteredCatalogoServicios.map((servicio, index) => (
                           <div
                             key={servicio.id}
+                            data-tema-option={index}
                             className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                             onClick={() => {
                               updateFormData('tema', servicio.nombre)
                               setTemaSearchTerm('')
                             }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                updateFormData('tema', servicio.nombre)
+                                setTemaSearchTerm('')
+                              } else if (e.key === 'ArrowDown') {
+                                e.preventDefault()
+                                const nextOption = document.querySelector(`[data-tema-option="${index + 1}"]`) as HTMLElement
+                                if (nextOption) {
+                                  nextOption.focus()
+                                } else {
+                                  // Wrap to first option
+                                  const firstOption = document.querySelector('[data-tema-option="0"]') as HTMLElement
+                                  if (firstOption) firstOption.focus()
+                                }
+                              } else if (e.key === 'ArrowUp') {
+                                e.preventDefault()
+                                const prevOption = document.querySelector(`[data-tema-option="${index - 1}"]`) as HTMLElement
+                                if (prevOption) {
+                                  prevOption.focus()
+                                } else {
+                                  // Wrap to last option
+                                  const lastOption = document.querySelector(`[data-tema-option="${filteredCatalogoServicios.length - 1}"]`) as HTMLElement
+                                  if (lastOption) lastOption.focus()
+                                }
+                              }
+                            }}
+                            tabIndex={0}
                           >
                             <div className="font-medium">{servicio.nombre}</div>
                           </div>
@@ -723,6 +820,7 @@ export default function OSIDetailPage() {
                     value={formData.ejecutivo_negocios || ''}
                     onChange={(e) => updateFormData('ejecutivo_negocios', e.target.value ? parseInt(e.target.value) : 0)}
                     disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">Seleccione un ejecutivo</option>
@@ -739,6 +837,7 @@ export default function OSIDetailPage() {
                     value={formData.estado || 'pendiente'}
                     onChange={(e) => updateFormData('estado', e.target.value)}
                     disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="pendiente">Pendiente</option>
@@ -799,6 +898,7 @@ export default function OSIDetailPage() {
                 value={formData.nro_sesiones || 1}
                 onChange={(e) => updateFormData('nro_sesiones', parseInt(e.target.value))}
                 disabled={!isEditing && !isNew}
+                tabIndex={!isEditing && !isNew ? -1 : 0}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 <option value={1}>1 sesión</option>
@@ -856,6 +956,7 @@ export default function OSIDetailPage() {
                     }
                   }}
                   disabled={!isEditing && !isNew || !formData.cliente_nombre_empresa}
+                  tabIndex={(!isEditing && !isNew || !formData.cliente_nombre_empresa) ? -1 : 0}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="">Seleccione un contacto</option>
