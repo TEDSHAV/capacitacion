@@ -163,36 +163,13 @@ export default function GestionCertificadosPage() {
 
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Gestión de Certificados
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Administra los certificados emitidos y su historial
-          </p>
-        </div>
-        <div className="flex shrink-0">
-          <Button
-            onClick={() => setIsBatchEditOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded-xl shadow-lg shadow-blue-100 flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
-            Edición por Lote
-          </Button>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">
+          Gestión de Certificados
+        </h1>
+        <p className="mt-2 text-gray-600">
+          Administra los certificados emitidos y su historial
+        </p>
       </div>
 
       {/* Metrics Dashboard */}
@@ -220,6 +197,14 @@ export default function GestionCertificadosPage() {
         onDownloadCertificate={handleDownloadCertificate}
         onVerifyCertificate={handleVerifyCertificate}
         onEditCertificate={handleEditCertificate}
+        headerActions={
+          <Button
+            onClick={() => setIsBatchEditOpen(true)}
+            className="!bg-transparent border !border-blue-200 !text-blue-600 hover:!bg-blue-50 hover:!border-blue-300 font-bold w-32 py-1 rounded-md shadow-none flex items-center justify-center transition-all hover:scale-[1.02] active:scale-[0.98] text-xs"
+          >
+            Edición por Lote
+          </Button>
+        }
       />
 
       {/* Pagination */}

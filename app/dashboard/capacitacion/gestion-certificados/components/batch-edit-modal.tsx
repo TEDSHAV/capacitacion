@@ -22,6 +22,7 @@ interface BatchEditModalProps {
 
 interface OSILookup {
   nro_osi: number;
+  id_curso: number;
   company_name: string;
   course_name: string;
 }
@@ -71,6 +72,7 @@ export function BatchEditModal({
           
           // If initial OSI is provided, find and select it
           if (initialOsi) {
+            setOsiSearchTerm(initialOsi); // Set search term to show all courses for this OSI
             const numericInitial = parseInt(initialOsi.replace(/[^\d]/g, ""));
             const found = data.find(o => o.nro_osi === numericInitial);
             if (found) {
@@ -106,7 +108,7 @@ export function BatchEditModal({
     
     try {
       setLoadingDetails(true);
-      const result = await getBatchCertificateDetailsAction(osi.nro_osi);
+      const result = await getBatchCertificateDetailsAction(osi.nro_osi, osi.id_curso);
       if (result.success && result.data) {
         const facilitatorId = result.data.id_facilitador || "";
         const foundFacilitator = facilitatorId
@@ -131,13 +133,13 @@ export function BatchEditModal({
   };
 
   const filteredOsis = useMemo(() => {
-    if (!osiSearchTerm.trim()) return osis.slice(0, 50);
+    if (!osiSearchTerm.trim()) return osis.slice(0, 100);
     const term = osiSearchTerm.toLowerCase();
     return osis.filter(o => 
       o.nro_osi.toString().includes(term) || 
       o.company_name.toLowerCase().includes(term) || 
       o.course_name.toLowerCase().includes(term)
-    ).slice(0, 50);
+    ).slice(0, 100);
   }, [osis, osiSearchTerm]);
 
   const filteredFacilitators = useMemo(() => {
@@ -184,7 +186,7 @@ export function BatchEditModal({
     e.preventDefault();
     
     const numericOsi = parseInt(osiNumber.replace(/[^\d]/g, ""));
-    if (isNaN(numericOsi)) {
+    if (isNaN(numericOsi) || !selectedOsiData) {
       alert("Por favor seleccione un número de OSI válido");
       return;
     }
@@ -193,7 +195,7 @@ export function BatchEditModal({
     // The user can edit whatever they want.
     try {
       setLoading(true);
-      const result = await batchUpdateCertificatesAction(numericOsi, updates);
+      const result = await batchUpdateCertificatesAction(numericOsi, updates, selectedOsiData.id_curso);
       
       if (result.success) {
         alert(result.message);
@@ -297,20 +299,20 @@ export function BatchEditModal({
                     {filteredOsis.length > 0 ? (
                       filteredOsis.map((osi) => (
                         <div
-                          key={osi.nro_osi}
+                          key={`${osi.nro_osi}-${osi.id_curso}`}
                           onClick={() => handleOsiSelect(osi)}
                           className={`px-4 py-3 cursor-pointer flex items-center justify-between hover:bg-blue-50 transition-colors ${
-                            osiNumber === osi.nro_osi.toString() ? "bg-blue-50" : ""
+                            selectedOsiData?.nro_osi === osi.nro_osi && selectedOsiData?.id_curso === osi.id_curso ? "bg-blue-50" : ""
                           }`}
                         >
                           <div className="flex flex-col min-w-0">
-                            <span className={`text-sm font-bold ${osiNumber === osi.nro_osi.toString() ? "text-blue-700" : "text-gray-900"}`}>
+                            <span className={`text-sm font-bold ${selectedOsiData?.nro_osi === osi.nro_osi && selectedOsiData?.id_curso === osi.id_curso ? "text-blue-700" : "text-gray-900"}`}>
                               OSI: {osi.nro_osi}
                             </span>
-                            <span className="text-[11px] text-gray-600 truncate font-medium">{osi.company_name}</span>
-                            <span className="text-[10px] text-gray-400 truncate">{osi.course_name}</span>
+                            <span className="text-[11px] text-gray-600 truncate font-medium">{osi.course_name}</span>
+                            <span className="text-[10px] text-gray-500 truncate">{osi.company_name}</span>
                           </div>
-                          {osiNumber === osi.nro_osi.toString() && (
+                          {selectedOsiData?.nro_osi === osi.nro_osi && selectedOsiData?.id_curso === osi.id_curso && (
                             <Check className="h-4 w-4 text-blue-600 shrink-0" />
                           )}
                         </div>
@@ -326,7 +328,7 @@ export function BatchEditModal({
 
               <p className="text-[11px] text-amber-600 flex items-center gap-1 font-medium">
                 <AlertCircle className="h-3 w-3" />
-                Se actualizarán todos los certificados bajo la OSI seleccionada.
+                Se actualizarán solo los certificados del curso seleccionado bajo esta OSI.
               </p>
             </div>
             

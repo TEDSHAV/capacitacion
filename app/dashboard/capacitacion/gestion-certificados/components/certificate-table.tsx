@@ -12,6 +12,7 @@ interface CertificateTableProps {
   onDownloadCertificate?: (certificate: CertificateManagement) => void;
   onVerifyCertificate?: (certificate: CertificateManagement) => void;
   onEditCertificate?: (certificate: CertificateManagement) => void;
+  headerActions?: React.ReactNode;
 }
 
 function CertificateTableComponent({
@@ -21,6 +22,7 @@ function CertificateTableComponent({
   onDownloadCertificate,
   onVerifyCertificate,
   onEditCertificate,
+  headerActions,
 }: CertificateTableProps) {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
@@ -153,10 +155,11 @@ function CertificateTableComponent({
 
   return (
     <div className="bg-white rounded-lg shadow">
-      <div className="px-4 py-3 border-b border-gray-200">
+      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
         <h3 className="text-lg font-medium text-gray-900">
           Certificados ({certificates.length})
         </h3>
+        {headerActions && <div>{headerActions}</div>}
       </div>
 
       <table className="w-full table-fixed divide-y divide-gray-200">

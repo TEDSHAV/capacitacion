@@ -2565,23 +2565,30 @@ export async function getOSIsWithCertificatesAction(): Promise<{
       .from("certificados")
       .select(`
         nro_osi,
-        empresas!inner(razon_social),
-        catalogo_servicios!inner(nombre)
+        id_curso,
+        empresas(razon_social),
+        catalogo_servicios(nombre)
       `)
-      .eq("is_active", true)
-      .not("nro_osi", "is", null);
+      .not("nro_osi", "is", null)
+      .order('id', { ascending: false })
+      .limit(10000); // Further increase limit and order by ID to get recent ones first
 
     if (error) throw error;
 
-    // Use a Map to keep only unique OSIs
-    const osiMap = new Map<number, { nro_osi: number; company_name: string; course_name: string }>();
+    // Use a Map to keep unique OSI-Course pairs
+    const osiMap = new Map<string, { nro_osi: number; id_curso: number; company_name: string; course_name: string }>();
     
     data?.forEach((item: any) => {
-      if (!osiMap.has(item.nro_osi)) {
-        osiMap.set(item.nro_osi, {
+      const key = `${item.nro_osi}-${item.id_curso}`;
+      if (!osiMap.has(key)) {
+        const company = Array.isArray(item.empresas) ? item.empresas[0] : item.empresas;
+        const course = Array.isArray(item.catalogo_servicios) ? item.catalogo_servicios[0] : item.catalogo_servicios;
+
+        osiMap.set(key, {
           nro_osi: item.nro_osi,
-          company_name: item.empresas?.razon_social || "S/N",
-          course_name: item.catalogo_servicios?.nombre || "S/N"
+          id_curso: item.id_curso,
+          company_name: company?.razon_social || "S/N",
+          course_name: course?.nombre || "S/N"
         });
       }
     });
@@ -2596,12 +2603,12 @@ export async function getOSIsWithCertificatesAction(): Promise<{
 /**
  * Get details for a single certificate from a batch to pre-populate edit form
  */
-export async function getBatchCertificateDetailsAction(osiNumber: number) {
+export async function getBatchCertificateDetailsAction(osiNumber: number, courseId?: number) {
   try {
     const supabase = await createClient();
 
     // Fetch with joins as fallbacks for the snapshot
-    const { data, error } = await supabase
+    let query = supabase
       .from("certificados")
       .select(`
         snapshot_contenido, 
@@ -2611,7 +2618,13 @@ export async function getBatchCertificateDetailsAction(osiNumber: number) {
         catalogo_servicios(nombre)
       `)
       .eq("nro_osi", osiNumber)
-      .eq("is_active", true)
+      .eq("is_active", true);
+
+    if (courseId) {
+      query = query.eq("id_curso", courseId);
+    }
+
+    const { data, error } = await query
       .limit(1)
       .maybeSingle();
 
@@ -2692,21 +2705,28 @@ export async function getBatchCertificateDetailsAction(osiNumber: number) {
 }
 
 /**
- * Batch update certificates and carnets for a specific OSI number
+ * Batch update certificates and carnets for a specific OSI number (and optionally a course)
  */
 export async function batchUpdateCertificatesAction(
   osiNumber: number,
-  updates: BatchUpdateData
+  updates: BatchUpdateData,
+  courseId?: number
 ): Promise<BatchUpdateResult> {
   try {
     const supabase = await createClient();
 
-    // 1. Fetch all certificates for this OSI
-    const { data: certificates, error: fetchError } = await supabase
+    // 1. Fetch all certificates for this OSI (and course if provided)
+    let query = supabase
       .from("certificados")
       .select("*")
       .eq("nro_osi", osiNumber)
       .eq("is_active", true);
+
+    if (courseId) {
+      query = query.eq("id_curso", courseId);
+    }
+
+    const { data: certificates, error: fetchError } = await query;
 
     if (fetchError) throw fetchError;
     if (!certificates || certificates.length === 0) {
@@ -2834,7 +2854,7 @@ export async function batchUpdateCertificatesAction(
 
     return {
       success: true,
-      message: `Se actualizaron ${updatedCount} certificados y sus respectivos carnets para la OSI ${osiNumber}`,
+      message: `Se actualizaron ${updatedCount} certificados y sus respectivos carnets para la OSI ${osiNumber}${courseId ? " y el curso seleccionado" : ""}`,
       updatedCount,
     };
   } catch (error) {
