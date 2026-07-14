@@ -32,8 +32,8 @@ export default function GestionDeFacilitadoresPage() {
   }, []);
 
   const handleFacilitadorSaved = () => {
-    // Just hide the form, no navigation needed
-    setShowForm(false);
+    // Clear URL parameters to reset the state
+    router.push("/dashboard/capacitacion/gestion-de-facilitadores");
   };
 
   const handleCancel = () => {
