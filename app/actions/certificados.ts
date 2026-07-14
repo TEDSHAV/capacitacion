@@ -37,7 +37,7 @@ export interface CertificateWithNumbers {
 export async function saveCertificatesToDatabase(
   certificateData: CertificateGeneration,
   participants: CertificateParticipant[]
-): Promise<{ success: boolean; message: string; certificateIds?: number[]; certificateNumbers?: CertificateWithNumbers[] }> {
+): Promise<{ success: boolean; message: string; certificateIds?: number[]; participantIds?: number[]; certificateNumbers?: CertificateWithNumbers[] }> {
   try {
     console.log('=== STARTING CERTIFICATE SAVE PROCESS ===');
     console.log('Certificate data:', JSON.stringify(certificateData, null, 2));
@@ -83,6 +83,7 @@ export async function saveCertificatesToDatabase(
 
     const today = new Date().toLocaleDateString('en-CA'); // en-CA format gives YYYY-MM-DD in local timezone
     const certificateIds: number[] = [];
+    const participantIds: number[] = [];
     const certificateNumbers: CertificateWithNumbers[] = [];
 
     // Generate proper control numbers instead of using placeholders
@@ -141,6 +142,9 @@ export async function saveCertificatesToDatabase(
         console.error('FAILED: Could not create/update participant:', participant.name);
         continue;
       }
+
+      // Store the real database participant ID
+      participantIds.push(participantId);
 
       // Generate unique control numbers for this participant
       const currentControlNumbers = {
@@ -276,6 +280,7 @@ export async function saveCertificatesToDatabase(
       success: true, 
       message: `Successfully saved ${certificateIds.length} certificates to database`,
       certificateIds,
+      participantIds,
       certificateNumbers
     };
 

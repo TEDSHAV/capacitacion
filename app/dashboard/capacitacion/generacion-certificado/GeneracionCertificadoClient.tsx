@@ -6,9 +6,11 @@ import {
   CertificateGeneration,
   CertificateParticipant,
   CertificateOSI,
+  CarnetGeneration,
 } from "@/types";
 import OSISearch from "./components/osi-search";
 import { CertificateForm } from './components/certificate-form';
+import { CarnetDebug } from '@/components/carnets/carnet-debug';
 import { saveCertificatesToDatabase } from '@/app/actions/certificados';
 
 interface GeneracionCertificadoClientProps {
@@ -184,7 +186,7 @@ export default function GeneracionCertificadoClient({
 
       // Use existing certificate generation
       const { CertificateGenerator } = await import('@/lib/certificate-generator');
-      const generator = new CertificateGenerator();
+      const certificateGenerator = new CertificateGenerator();
 
       const templateImageUrl = '/templates/certificado.png';
       const sealImageUrl = '/templates/sello.png';
@@ -195,7 +197,7 @@ export default function GeneracionCertificadoClient({
         const controlNumbers = dbResult.certificateNumbers![i];
         
         try {
-          const blob = await generator.generateCertificate({
+          const blob = await certificateGenerator.generateCertificate({
             participant,
             certificateData,
             templateImage: templateImageUrl,
@@ -210,12 +212,93 @@ export default function GeneracionCertificadoClient({
         }
       }
 
+      // Download certificates
       certificates.forEach(({ participant, blob }) => {
         const filename = `certificado_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
-        generator.downloadBlob(blob, filename);
+        certificateGenerator.downloadBlob(blob, filename);
       });
 
-      const successMessage = `Se generaron y guardaron ${certificates.length} certificados exitosamente!`;
+      // Generate carnets if course requires them
+      let carnetsGenerated = 0;
+      if (selectedCourseTopic?.emite_carnet) {
+        console.log('🎯 Starting carnet generation for course:', selectedCourseTopic.name);
+        console.log('📋 Certificate IDs:', dbResult.certificateIds);
+        console.log('👥 Participant IDs:', dbResult.participantIds || 'Not available');
+        console.log('👥 Participants:', certificateData.participants);
+        
+        try {
+          const { CarnetGenerator } = await import('@/lib/carnet-generator');
+          const carnetGenerator = new CarnetGenerator();
+          
+          // Prepare carnet data for all participants
+          const carnetData: CarnetGeneration[] = certificateData.participants.map((participant, index) => {
+            console.log(`🔧 Preparing carnet ${index + 1} for participant:`, participant.name);
+            console.log(`📋 Using database participant ID: ${dbResult.participantIds?.[index]}`);
+            return {
+              id_certificado: dbResult.certificateIds![index],
+              id_participante: dbResult.participantIds?.[index] || 0, // Use REAL database ID
+              id_empresa: selectedOSI?.empresa_id || null,
+              id_curso: parseInt(certificateData.course_topic_id),
+              id_osi: parseInt(certificateData.osi_id),
+              titulo_curso: certificateData.certificate_title,
+              fecha_emision: certificateData.date,
+              fecha_vencimiento: certificateData.fecha_vencimiento || null,
+              nombre_participante: participant.name,
+              cedula_participante: participant.id_number,
+              empresa_participante: participant.company || null
+            };
+          });
+
+          console.log('💾 Carnet data prepared:', carnetData);
+
+          // Save carnets to database
+          console.log('💾 Saving carnets to database...');
+          const carnetDbResult = await (await import('@/app/actions/carnets')).saveCarnetsToDatabase(
+            carnetData,
+            dbResult.certificateIds!
+          );
+
+          console.log('📊 Database result:', carnetDbResult);
+
+          if (carnetDbResult.success && carnetDbResult.carnetIds) {
+            console.log('✅ Carnets saved to database with IDs:', carnetDbResult.carnetIds);
+            
+            // Generate carnet PDFs
+            const carnetRequests = carnetData.map((carnet, index) => ({
+              participant: certificateData.participants[index],
+              carnetData: carnet,
+              templateImage: '/templates/carnet.png',
+              isPreview: false,
+              carnetId: carnetDbResult.carnetIds![index]
+            }));
+
+            console.log('🔄 Generating carnet PDFs...');
+            const carnetBlobs = await carnetGenerator.generateMultipleCarnets(carnetRequests);
+            console.log('📄 Generated carnet blobs:', carnetBlobs.length);
+            
+            // Download carnets
+            carnetBlobs.forEach((blob, index) => {
+              const participant = certificateData.participants[index];
+              const filename = `carnet_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
+              console.log(`⬇️ Downloading carnet: ${filename}`);
+              carnetGenerator.downloadBlob(blob, filename);
+            });
+
+            carnetsGenerated = carnetBlobs.length;
+            console.log(`🎉 Successfully generated ${carnetsGenerated} carnets`);
+          } else {
+            console.error('❌ Failed to save carnets to database:', carnetDbResult.message);
+            alert(`Error guardando carnets en base de datos: ${carnetDbResult.message}`);
+          }
+        } catch (error) {
+          console.error('💥 Error generating carnets:', error);
+          alert('Error generando carnets. Los certificados se generaron correctamente. Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        }
+      } else {
+        console.log('ℹ️ Course does not emit carnets, skipping carnet generation');
+      }
+
+      const successMessage = `Se generaron y guardaron ${certificates.length} certificados${carnetsGenerated > 0 ? ` y ${carnetsGenerated} carnets` : ''} exitosamente!`;
       alert(successMessage);
 
       // Reset form
@@ -284,6 +367,11 @@ export default function GeneracionCertificadoClient({
       </div>
 
       <div className="space-y-6">
+        {/* <CarnetDebug 
+          selectedCourseTopic={selectedCourseTopic} 
+          certificateData={certificateData} 
+        /> */}
+        
         <OSISearch
           osis={osis}
           selectedOSI={selectedOSI}
