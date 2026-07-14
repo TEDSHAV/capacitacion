@@ -198,12 +198,11 @@ export interface OSIFormProps {
   onSave: () => void
   onDelete: () => void
   empresas?: Empresa[]
-  servicios?: Servicio[]
   usuarios?: Usuario[]
   contactos?: Contacto[]
   filteredEmpresas?: Empresa[]
-  catalogoServicios?: CatalogoServicio[]
-  filteredCatalogoServicios?: CatalogoServicio[]
+  cursos?: any[]
+  filteredCursos?: any[]
   empresaSearchTerm?: string
   temaSearchTerm?: string
   setEmpresaSearchTerm?: (term: string) => void

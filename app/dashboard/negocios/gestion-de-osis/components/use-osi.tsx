@@ -18,7 +18,7 @@ export function useOSI(empresas: any[] = []) {
     id: 0,
     nro_osi: "",
     nro_orden_compra: null,
-    tipo_servicio: null,
+    tipo_servicio: "Capacitación",
     nro_presupuesto: null,
     ejecutivo_negocios: null,
     cliente_nombre_empresa: null,

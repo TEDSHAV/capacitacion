@@ -1,19 +1,18 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Empresa, Servicio, Usuario, CatalogoServicio, Contacto, OSI, OSIFormProps } from '@/types'
+import { Empresa, Usuario, Contacto, OSI, OSIFormProps } from '@/types'
 
 const OSIForm = ({ 
   initialData, 
   isNew, 
   isEditing,
   empresas,
-  servicios,
   usuarios,
   contactos,
   filteredEmpresas,
-  catalogoServicios,
-  filteredCatalogoServicios,
+  cursos,
+  filteredCursos,
   empresaSearchTerm,
   temaSearchTerm,
   setEmpresaSearchTerm,
@@ -63,13 +62,13 @@ const OSIForm = ({
 
   // Handle keyboard navigation for tema search
   const handleTemaKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!filteredCatalogoServicios || filteredCatalogoServicios.length === 0) return
+    if (!filteredCursos || filteredCursos.length === 0) return
     
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault()
         setSelectedTemaIndex(prev => 
-          prev < filteredCatalogoServicios.length - 1 ? prev + 1 : prev
+          prev < filteredCursos.length - 1 ? prev + 1 : prev
         )
         break
       case 'ArrowUp':
@@ -78,20 +77,19 @@ const OSIForm = ({
         break
       case 'Enter':
         e.preventDefault()
-        if (selectedTemaIndex >= 0 && filteredCatalogoServicios[selectedTemaIndex]) {
-          const servicio = filteredCatalogoServicios[selectedTemaIndex]
-          updateFormData?.('tema', servicio.nombre)
+        if (selectedTemaIndex >= 0 && filteredCursos[selectedTemaIndex]) {
+          const curso = filteredCursos[selectedTemaIndex]
+          updateFormData?.('tema', curso.nombre)
+          updateFormData?.('detalle_capacitacion', curso.contenido)
           setTemaSearchTerm?.('')
           setSelectedTemaIndex(-1)
         }
         break
       case 'Escape':
-        e.preventDefault()
-        setTemaSearchTerm?.('')
         setSelectedTemaIndex(-1)
         break
     }
-  }, [filteredCatalogoServicios, selectedTemaIndex, updateFormData, setTemaSearchTerm])
+  }, [filteredCursos, selectedTemaIndex, updateFormData, setTemaSearchTerm])
 
   // Handle OSI field lock toggle
   const handleOsiFieldToggle = useCallback(() => {
@@ -252,20 +250,14 @@ const OSIForm = ({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Servicio</label>
-          <select
-            value={initialData?.tipo_servicio || ''}
-            onChange={(e) => updateFormData?.('tipo_servicio', e.target.value)}
-            disabled={!isEditing && !isNew}
-            tabIndex={!isEditing && !isNew ? -1 : 0}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-          >
-            <option value="">Seleccione un tipo</option>
-            {servicios?.map((servicio) => (
-              <option key={servicio.id} value={servicio.nombre}>
-                {servicio.nombre}
-              </option>
-            ))}
-          </select>
+          <input
+            type="text"
+            value="Capacitación"
+            disabled
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+            readOnly
+          />
+          <p className="mt-1 text-xs text-gray-500">Solo se ofrece capacitación</p>
         </div>
 
         <div>
@@ -286,21 +278,23 @@ const OSIForm = ({
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="Buscar tema..."
             />
-            {temaSearchTerm && filteredCatalogoServicios && filteredCatalogoServicios.length > 0 && (
+            {temaSearchTerm && filteredCursos && filteredCursos.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-                {filteredCatalogoServicios.map((servicio, index) => (
+                {filteredCursos.map((curso: any, index: number) => (
                   <div
-                    key={servicio.id}
+                    key={curso.id}
                     className={`px-3 py-2 cursor-pointer border-b border-gray-200 last:border-b-0 ${
                       index === selectedTemaIndex ? 'bg-gray-100' : 'hover:bg-gray-100'
                     }`}
                     onClick={() => {
-                      updateFormData?.('tema', servicio.nombre)
+                      updateFormData?.('tema', curso.nombre)
+                      updateFormData?.('detalle_capacitacion', curso.contenido)
                       setTemaSearchTerm?.('')
                       setSelectedTemaIndex(-1)
                     }}
                   >
-                    <div className="font-medium">{servicio.nombre}</div>
+                    <div className="font-medium">{curso.nombre}</div>
+                    <div className="text-sm text-gray-500">{curso.contenido?.substring(0, 100)}...</div>
                   </div>
                 ))}
               </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { OSI, Empresa, Servicio, Usuario, CatalogoServicio, Contacto } from '@/types'
+import { OSI, Empresa, Usuario, Contacto } from '@/types'
 import OSIForm from './osi-form'
 import ServiceDetails from './service-details'
 import ExecutionDates from './execution-dates'
@@ -13,12 +13,11 @@ interface OSIContentProps {
   isNew: boolean
   isEditing: boolean
   empresas: Empresa[]
-  servicios: Servicio[]
   usuarios: Usuario[]
   contactos: Contacto[]
-  catalogoServicios: CatalogoServicio[]
+  cursos: any[]
   filteredEmpresas: Empresa[]
-  filteredCatalogoServicios: CatalogoServicio[]
+  filteredCursos: any[]
   empresaSearchTerm: string
   temaSearchTerm: string
   updateFormData: (field: string, value: any) => void
@@ -35,12 +34,11 @@ export default function OSIContent({
   isNew,
   isEditing,
   empresas,
-  servicios,
   usuarios,
   contactos,
-  catalogoServicios,
+  cursos,
   filteredEmpresas,
-  filteredCatalogoServicios,
+  filteredCursos,
   empresaSearchTerm,
   temaSearchTerm,
   updateFormData,
@@ -62,12 +60,11 @@ export default function OSIContent({
         onSave={onSave}
         onDelete={onDelete}
         empresas={empresas}
-        servicios={servicios}
         usuarios={usuarios}
         contactos={contactos}
         filteredEmpresas={filteredEmpresas}
-        catalogoServicios={catalogoServicios}
-        filteredCatalogoServicios={filteredCatalogoServicios}
+        cursos={cursos}
+        filteredCursos={filteredCursos}
         empresaSearchTerm={empresaSearchTerm}
         temaSearchTerm={temaSearchTerm}
         setEmpresaSearchTerm={setEmpresaSearchTerm}

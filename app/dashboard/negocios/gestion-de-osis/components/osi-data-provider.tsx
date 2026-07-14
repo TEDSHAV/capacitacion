@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { Empresa, Servicio, Usuario, CatalogoServicio, Contacto, OSI } from '@/types'
+import { Empresa, Usuario, Contacto, OSI } from '@/types'
 import ErrorDialog, { useErrorDialog } from '@/components/ui/error-dialog'
 
 const supabase = createClient()
@@ -13,41 +13,11 @@ export function useOSIData() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [empresas, setEmpresas] = useState<Empresa[]>([])
-  const [servicios, setServicios] = useState<Servicio[]>([])
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [catalogoServicios, setCatalogoServicios] = useState<CatalogoServicio[]>([])
+  const [cursos, setCursos] = useState<any[]>([])
   const [contactos, setContactos] = useState<Contacto[]>([])
   const [filteredEmpresas, setFilteredEmpresas] = useState<Empresa[]>([])
-  const [filteredCatalogoServicios, setFilteredCatalogoServicios] = useState<CatalogoServicio[]>([])
-
-  // Load servicios
-  const loadServicios = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("tipo_servicio")
-        .select("id, nombre")
-        .order("nombre")
-      
-      if (error) {
-        console.error('Error loading servicios:', error)
-        errorDialog.showError(
-          'Error al cargar los tipos de servicio',
-          JSON.stringify(error, null, 2),
-          'Error de Carga'
-        )
-        return
-      }
-      console.log('Servicios loaded:', data?.length || 0)
-      setServicios(data || [])
-    } catch (err) {
-      console.error('Error in loadServicios:', err)
-      errorDialog.showError(
-        'Error inesperado al cargar servicios',
-        err instanceof Error ? err.message : 'Error desconocido',
-        'Error de Carga'
-      )
-    }
-  }
+  const [filteredCursos, setFilteredCursos] = useState<any[]>([])
 
   // Load usuarios
   const loadUsuarios = async () => {
@@ -71,6 +41,7 @@ export function useOSIData() {
       console.log('Usuarios loaded:', data?.length || 0)
       setUsuarios(data || [])
     } catch (err) {
+      console.error('Error in loadUsuarios:', err)
       errorDialog.showError(
         'Error inesperado al cargar usuarios',
         err instanceof Error ? err.message : 'Error desconocido',
@@ -108,39 +79,31 @@ export function useOSIData() {
     }
   }
 
-  // Load catalogo servicios
-  const loadCatalogoServicios = async (tipoServicio: string) => {
+  // Load cursos (for capacitacion)
+  const loadCursos = async () => {
     try {
-      const selectedServicio = servicios.find(s => s.nombre === tipoServicio)
-      
-      if (!selectedServicio) {
-        setCatalogoServicios([])
-        setFilteredCatalogoServicios([])
-        return
-      }
-
       const { data, error } = await supabase
-        .from("catalogo_servicios")
-        .select("id, nombre")
-        .eq("tipo_servicio", selectedServicio.id)
+        .from("cursos")
+        .select("id, nombre, contenido, cliente_asociado, created_at, nota_aprobatoria")
+        .eq("is_active", true)
         .order("nombre")
       
       if (error) {
-        console.error('Error loading catalogo servicios:', error)
+        console.error('Error loading cursos:', error)
         errorDialog.showError(
-          'Error al cargar el catálogo de servicios',
+          'Error al cargar los cursos',
           JSON.stringify(error, null, 2),
           'Error de Carga'
         )
         return
       }
-      console.log('Catalogo servicios loaded:', data?.length || 0)
-      setCatalogoServicios(data || [])
-      setFilteredCatalogoServicios(data || [])
+      console.log('Cursos loaded:', data?.length || 0)
+      setCursos(data || [])
+      setFilteredCursos(data || [])
     } catch (err) {
-      console.error('Error in loadCatalogoServicios:', err)
+      console.error('Error in loadCursos:', err)
       errorDialog.showError(
-        'Error inesperado al cargar catálogo de servicios',
+        'Error inesperado al cargar cursos',
         err instanceof Error ? err.message : 'Error desconocido',
         'Error de Carga'
       )
@@ -184,9 +147,9 @@ export function useOSIData() {
     
     try {
       await Promise.all([
-        loadServicios(),
         loadUsuarios(),
-        loadEmpresas()
+        loadEmpresas(),
+        loadCursos()
       ])
     } catch (err) {
       setError('Error al cargar los datos iniciales')
@@ -199,16 +162,14 @@ export function useOSIData() {
     loading,
     error,
     empresas,
-    servicios,
     usuarios,
-    catalogoServicios,
+    cursos,
     contactos,
     filteredEmpresas,
-    filteredCatalogoServicios,
+    filteredCursos,
     setFilteredEmpresas,
-    setFilteredCatalogoServicios,
+    setFilteredCursos,
     loadInitialData,
-    loadCatalogoServicios,
     loadContactos
   }
 }

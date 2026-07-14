@@ -17,16 +17,14 @@ export default function OSIDetailPage() {
     loading,
     error,
     empresas,
-    servicios,
     usuarios,
-    catalogoServicios,
+    cursos,
     contactos,
     filteredEmpresas,
-    filteredCatalogoServicios,
+    filteredCursos,
     setFilteredEmpresas,
-    setFilteredCatalogoServicios,
+    setFilteredCursos,
     loadInitialData,
-    loadCatalogoServicios,
     loadContactos
   } = useOSIData()
 
@@ -61,14 +59,13 @@ export default function OSIDetailPage() {
     setFilteredEmpresas(filtered)
   }, [empresaSearchTerm, empresas])
 
-  // Load catalogo_servicios when tipo_servicio changes
+  // Filter cursos based on tema search term
   useEffect(() => {
-    if (formData.tipo_servicio) {
-      loadCatalogoServicios(formData.tipo_servicio)
-    } else {
-      setFilteredCatalogoServicios([])
-    }
-  }, [formData.tipo_servicio, servicios])
+    const filtered = cursos.filter((curso: any) =>
+      curso.nombre.toLowerCase().includes(temaSearchTerm.toLowerCase())
+    )
+    setFilteredCursos(filtered)
+  }, [temaSearchTerm, cursos])
 
   // Load contactos when empresa changes
   useEffect(() => {
@@ -79,14 +76,6 @@ export default function OSIDetailPage() {
       }
     }
   }, [formData.cliente_nombre_empresa, empresas])
-
-  // Filter catalogo_servicios based on tema search term
-  useEffect(() => {
-    const filtered = catalogoServicios.filter((servicio: any) =>
-      servicio.nombre.toLowerCase().includes(temaSearchTerm.toLowerCase())
-    )
-    setFilteredCatalogoServicios(filtered)
-  }, [temaSearchTerm, catalogoServicios])
 
   // Handle Escape key to cancel editing
   useEffect(() => {
@@ -155,12 +144,11 @@ export default function OSIDetailPage() {
             isNew={isNew}
             isEditing={isEditing}
             empresas={empresas}
-            servicios={servicios}
             usuarios={usuarios}
             contactos={contactos}
-            catalogoServicios={catalogoServicios}
+            cursos={cursos}
             filteredEmpresas={filteredEmpresas}
-            filteredCatalogoServicios={filteredCatalogoServicios}
+            filteredCursos={filteredCursos}
             empresaSearchTerm={empresaSearchTerm}
             temaSearchTerm={temaSearchTerm}
             updateFormData={updateFormData as (field: string, value: any) => void}
