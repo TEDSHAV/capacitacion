@@ -78,7 +78,9 @@ export async function saveCertificatesToDatabase(
   certificateNumbers?: CertificateWithNumbers[];
 }> {
   try {
+    const startTime = Date.now();
     console.log("=== STARTING CERTIFICATE SAVE PROCESS ===");
+    console.log("⏱️  Start time:", new Date(startTime).toISOString());
 
     console.log("Certificate data:", JSON.stringify(certificateData, null, 2));
 
@@ -139,6 +141,9 @@ export async function saveCertificatesToDatabase(
 
     if (fetchTasks.length > 0) await Promise.all(fetchTasks);
 
+    const afterFetchTime = Date.now();
+    console.log(`⏱️  Facilitator/Signature fetch time: ${afterFetchTime - startTime}ms`);
+
     const supabase = await createClient();
 
     if (!certificateData.osi_data || !certificateData.course_topic_data) {
@@ -156,6 +161,7 @@ export async function saveCertificatesToDatabase(
 
     const certificateNumbers: CertificateWithNumbers[] = [];
 
+    const beforeControlNumbersTime = Date.now();
     // 🚀 USE POSTGRESQL RPC TO GET CONTROL NUMBERS ATOMICALLY - NO MORE RACE CONDITIONS
     let nextControlNumbers = { nro_libro: 1, nro_hoja: 1, nro_linea: 1, nro_control: 1 };
 
@@ -173,7 +179,10 @@ export async function saveCertificatesToDatabase(
     } catch (error) {
       console.warn('Failed to get control numbers via RPC, using defaults:', error);
     }
+    const afterControlNumbersTime = Date.now();
+    console.log(`⏱️  Control numbers RPC time: ${afterControlNumbersTime - beforeControlNumbersTime}ms`);
 
+    const beforeParticipantsLoopTime = Date.now();
     for (let i = 0; i < participants.length; i++) {
       const participant = participants[i];
 
@@ -422,6 +431,13 @@ export async function saveCertificatesToDatabase(
         }
       }
     }
+
+    const afterParticipantsLoopTime = Date.now();
+    console.log(`⏱️  All participants processing time: ${afterParticipantsLoopTime - beforeParticipantsLoopTime}ms`);
+
+    const endTime = Date.now();
+    console.log(`⏱️  TOTAL CERTIFICATE GENERATION TIME: ${endTime - startTime}ms`);
+    console.log(`⏱️  End time:`, new Date(endTime).toISOString());
 
     console.log("Certificate IDs:", certificateIds);
 

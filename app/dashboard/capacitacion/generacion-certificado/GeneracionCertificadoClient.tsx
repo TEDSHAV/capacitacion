@@ -28,6 +28,12 @@ export default function GeneracionCertificadoClient({
   initialData
 }: GeneracionCertificadoClientProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState({
+    currentPhase: '',
+    percentage: 0,
+    currentCertificate: 0,
+    totalCertificates: 0
+  });
   const [selectedOSI, setSelectedOSI] = useState<CertificateOSI | null>(null);
   const [selectedCourseTopic, setSelectedCourseTopic] = useState<CourseTopic | null>(null);
   const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
@@ -233,6 +239,12 @@ export default function GeneracionCertificadoClient({
 
     try {
       setIsGenerating(true);
+      setGenerationProgress({
+        currentPhase: 'Guardando certificados en base de datos...',
+        percentage: 5,
+        currentCertificate: 0,
+        totalCertificates: certificateData.participants.length
+      });
 
       const dbResult = await saveCertificatesToDatabase(
         certificateData,
@@ -252,6 +264,13 @@ export default function GeneracionCertificadoClient({
       // Use existing certificate generation
       const { CertificateGenerator } = await import('@/lib/certificate-generator');
       const certificateGenerator = new CertificateGenerator();
+
+      setGenerationProgress({
+        currentPhase: 'Cargando assets...',
+        percentage: 10,
+        currentCertificate: 0,
+        totalCertificates: certificateData.participants.length
+      });
 
       const templateImageUrl = '/templates/certificado.png';
       const sealImageUrl = '/templates/sello.png';
@@ -274,10 +293,12 @@ export default function GeneracionCertificadoClient({
       // Fetch facilitator data once
       let facilitatorData: any = null;
       let facilitatorSignatureBase64 = '';
-      if (selectedOSI?.id_facilitador) {
-        const facilitatorResponse = await fetch(`/api/facilitators/${selectedOSI.id_facilitador}`);
+      console.log('Pre-loading facilitator data for certificate facilitator:', certificateData.facilitator_id);
+      if (certificateData.facilitator_id) {
+        const facilitatorResponse = await fetch(`/api/facilitators/${certificateData.facilitator_id}`);
         facilitatorData = await facilitatorResponse.json();
-        
+        console.log('Facilitator data fetched:', facilitatorData);
+
         // Preload facilitator signature if available
         if (facilitatorData?.firmas?.url_imagen) {
           try {
@@ -286,6 +307,8 @@ export default function GeneracionCertificadoClient({
             console.error("Failed to preload facilitator signature:", error);
           }
         }
+      } else {
+        console.log('No facilitator ID in certificate data, skipping facilitator preload');
       }
 
       // Preload seal image
@@ -315,7 +338,14 @@ export default function GeneracionCertificadoClient({
       }
 
       console.log("Assets loaded. Starting batch generation...");
-      
+
+      setGenerationProgress({
+        currentPhase: 'Generando certificados...',
+        percentage: 15,
+        currentCertificate: 0,
+        totalCertificates: certificateData.participants.length
+      });
+
       // Prepare data for additional documents (available before generation starts)
       const certificateRecords = certificateData.participants.map((participant, index) => ({
         participant_name: participant.name,
@@ -364,11 +394,11 @@ export default function GeneracionCertificadoClient({
 
       for (let i = 0; i < certificateData.participants.length; i += BATCH_SIZE) {
         const batch = certificateData.participants.slice(i, i + BATCH_SIZE);
-        
+
         const batchPromises = batch.map(async (participant, index) => {
           const actualIndex = i + index;
           const controlNumbers = dbResult.certificateNumbers![actualIndex];
-          
+
           try {
             const blob = await certificateGenerator.generateCertificate({
               participant,
@@ -392,13 +422,23 @@ export default function GeneracionCertificadoClient({
         });
 
         const results = await Promise.all(batchPromises);
-        
+
         results.forEach(result => {
           if (result.success) {
             certificates.push({ participant: result.participant, blob: result.blob! });
           } else {
             failedCertificates.push({ participant: result.participant, error: result.error });
           }
+        });
+
+        // Update progress after each batch
+        const completedCount = Math.min(i + BATCH_SIZE, certificateData.participants.length);
+        const progressPercentage = 15 + (completedCount / certificateData.participants.length) * 50;
+        setGenerationProgress({
+          currentPhase: `Generando certificados... (${completedCount}/${certificateData.participants.length})`,
+          percentage: progressPercentage,
+          currentCertificate: completedCount,
+          totalCertificates: certificateData.participants.length
         });
       }
 
@@ -412,6 +452,13 @@ export default function GeneracionCertificadoClient({
       let carnetsGenerated = 0;
       const carnetBlobs: { participant: any; blob: Blob }[] = [];
       if (selectedCourseTopic?.emite_carnet) {
+        setGenerationProgress({
+          currentPhase: 'Generando carnets...',
+          percentage: 65,
+          currentCertificate: certificateData.participants.length,
+          totalCertificates: certificateData.participants.length
+        });
+
         try {
           const { CarnetGenerator } = await import('@/lib/carnet-generator');
           const carnetGenerator = new CarnetGenerator();
@@ -468,10 +515,10 @@ export default function GeneracionCertificadoClient({
             const CARNET_BATCH_SIZE = 5;
             for (let i = 0; i < carnetRequests.length; i += CARNET_BATCH_SIZE) {
               const batch = carnetRequests.slice(i, i + CARNET_BATCH_SIZE);
-              
+
               const batchPromises = batch.map(async (carnetReq, index) => {
                 const actualIndex = i + index;
-                
+
                 // Generate QR code for carnet using the certificate ID
                 let qrDataURL: string | undefined;
                 try {
@@ -502,11 +549,21 @@ export default function GeneracionCertificadoClient({
               });
 
               const results = await Promise.all(batchPromises);
-              
+
               results.forEach(result => {
                 if (result.success) {
                   carnetBlobs.push({ participant: result.participant, blob: result.blob! });
                 }
+              });
+
+              // Update progress after each carnet batch
+              const completedCount = Math.min(i + CARNET_BATCH_SIZE, carnetRequests.length);
+              const progressPercentage = 65 + (completedCount / carnetRequests.length) * 10;
+              setGenerationProgress({
+                currentPhase: `Generando carnets... (${completedCount}/${carnetRequests.length})`,
+                percentage: progressPercentage,
+                currentCertificate: certificateData.participants.length,
+                totalCertificates: certificateData.participants.length
               });
             }
 
@@ -522,9 +579,17 @@ export default function GeneracionCertificadoClient({
       // Generate and download additional documents (already running in parallel)
       let documentsGenerated = 0;
       let additionalDocsData: { [key: string]: string } | null = null;
+
+      setGenerationProgress({
+        currentPhase: 'Generando documentos adicionales...',
+        percentage: 75,
+        currentCertificate: certificateData.participants.length,
+        totalCertificates: certificateData.participants.length
+      });
+
       try {
         const additionalDocsResult = await additionalDocsPromise;
-        
+
         if (additionalDocsResult && 'success' in additionalDocsResult && additionalDocsResult.success && 'documents' in additionalDocsResult && additionalDocsResult.documents) {
           additionalDocsData = additionalDocsResult.documents;
           documentsGenerated = Object.keys(additionalDocsResult.documents).length;
@@ -532,6 +597,13 @@ export default function GeneracionCertificadoClient({
       } catch (error) {
         // Don't show alert for document errors since certificates/carnets were generated successfully
       }
+
+      setGenerationProgress({
+        currentPhase: 'Creando archivo ZIP...',
+        percentage: 85,
+        currentCertificate: certificateData.participants.length,
+        totalCertificates: certificateData.participants.length
+      });
 
       // Initialize JSZip and create folders
       const zip = new JSZip();
@@ -562,7 +634,14 @@ export default function GeneracionCertificadoClient({
 
       // Generate and download the ZIP file
       try {
-        const zipBlob = await zip.generateAsync({ 
+        setGenerationProgress({
+          currentPhase: 'Descargando archivo...',
+          percentage: 95,
+          currentCertificate: certificateData.participants.length,
+          totalCertificates: certificateData.participants.length
+        });
+
+        const zipBlob = await zip.generateAsync({
           type: "blob",
           compression: "STORE" // Skip compression for PDFs (already compressed)
         });
@@ -577,6 +656,13 @@ export default function GeneracionCertificadoClient({
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
+
+        setGenerationProgress({
+          currentPhase: '¡Completado!',
+          percentage: 100,
+          currentCertificate: certificateData.participants.length,
+          totalCertificates: certificateData.participants.length
+        });
       } catch (error) {
         console.error("Error bundling files into ZIP:", error);
         alert('Error creando archivo ZIP. Por favor intente nuevamente.');
@@ -672,6 +758,7 @@ export default function GeneracionCertificadoClient({
           selectedCourseTopic={selectedCourseTopic}
           courseTopics={courses}
           isGenerating={isGenerating}
+          generationProgress={generationProgress}
           onDataChange={handleCertificateDataChange}
           onParticipantsChange={handleParticipantsChange}
           onGenerate={handleGenerateCertificate}

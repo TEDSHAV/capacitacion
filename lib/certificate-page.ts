@@ -271,32 +271,52 @@ export class CertificatePage {
     // Add facilitator signature if available
     if (certificateData.facilitator_id) {
       let facilitator: CertificateFacilitator | null = certificateData.facilitator_data as CertificateFacilitator | null;
-      
-      // Use preloaded facilitator data if available
+
+      // Use preloaded facilitator data if available (from batch generation)
       if (!facilitator && this.preloadedAssets?.facilitator) {
-        facilitator = this.preloadedAssets.facilitator;
+        console.log('Using preloaded facilitator data:', this.preloadedAssets.facilitator);
+        // Transform preloaded API response to match expected interface
+        const preloadedData = this.preloadedAssets.facilitator;
+        facilitator = {
+          id: preloadedData.id,
+          name: preloadedData.nombre_apellido,
+          nombre_apellido: preloadedData.nombre_apellido,
+          facilitator: preloadedData.nombre_apellido,
+          cargo: 'Facilitator',
+          firma: preloadedData.firmas?.url_imagen,
+          firma_id: preloadedData.firma_id,
+          sha_signature_id: preloadedData.firma_id?.toString(),
+          signature_data: preloadedData.firmas ? {
+            id: preloadedData.firmas.id,
+            representante_sha: preloadedData.firmas.nombre,
+            firma: preloadedData.firmas.url_imagen,
+            url_imagen: preloadedData.firmas.url_imagen,
+          } : undefined,
+        };
+        console.log('Transformed facilitator data:', facilitator);
       }
-      
-      // If facilitator_data is not available, try to fetch it
+
+      // If facilitator_data is not available, try to fetch it (only for single certificate generation)
       if (!facilitator) {
+        console.log('No facilitator data found, fetching from API for:', certificateData.facilitator_id);
         // Check if we're in a server environment
         if (typeof window === 'undefined') {
         } else {
           // Browser environment - use API route
           try {
             const response = await fetch(`/api/facilitators/${certificateData.facilitator_id}`);
-            
+
             if (response.ok) {
               const data = await response.json();
-              
+
               if (data) {
                 // Transform API response to match expected interface
                 facilitator = {
                   id: data.id,
                   name: data.nombre_apellido,
                   nombre_apellido: data.nombre_apellido,
-                  facilitator: data.nombre_apellido, // Same as name for consistency
-                  cargo: 'Facilitador', // Default cargo since not returned by API
+                  facilitator: data.nombre_apellido,
+                  cargo: 'Facilitator',
                   firma: data.firmas?.url_imagen,
                   firma_id: data.firma_id,
                   sha_signature_id: data.firma_id?.toString(),
@@ -310,6 +330,7 @@ export class CertificatePage {
               }
             }
           } catch (error) {
+            console.error('Failed to fetch facilitator data:', error);
             // Continue without facilitator
           }
         }

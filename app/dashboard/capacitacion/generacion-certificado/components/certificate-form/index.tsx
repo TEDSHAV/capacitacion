@@ -17,6 +17,7 @@ export const CertificateForm = ({
   selectedCourseTopic,
   courseTopics,
   isGenerating = false,
+  generationProgress,
   onDataChange,
   onParticipantsChange,
   onGenerate,
@@ -561,6 +562,7 @@ export const CertificateForm = ({
           type="button"
           onClick={handlePreview}
           disabled={
+            isGenerating ||
             !certificateData.certificate_title ||
             !certificateData.osi_id ||
             !certificateData.course_topic_id ||
@@ -608,6 +610,31 @@ export const CertificateForm = ({
           )}
         </button>
       </div>
+
+      {/* Progress Indicator */}
+      {isGenerating && generationProgress && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-blue-900">
+              {generationProgress.currentPhase}
+            </span>
+            <span className="text-sm text-blue-700">
+              {generationProgress.percentage}%
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-2">
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${generationProgress.percentage}%` }}
+            />
+          </div>
+          {generationProgress.totalCertificates > 0 && (
+            <div className="mt-2 text-xs text-blue-700">
+              Procesados: {generationProgress.currentCertificate} / {generationProgress.totalCertificates} certificados
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Certificate Preview Modal */}
       <CertificatePreview

@@ -383,6 +383,12 @@ export interface CertificateFormProps {
   selectedCourseTopic: CourseTopic | null;
   courseTopics: CourseTopic[];
   isGenerating?: boolean;
+  generationProgress?: {
+    currentPhase: string;
+    percentage: number;
+    currentCertificate: number;
+    totalCertificates: number;
+  };
   onDataChange: (field: keyof CertificateGeneration, value: any) => void;
   onParticipantsChange: (participants: CertificateParticipant[]) => void;
   onGenerate: () => void;
