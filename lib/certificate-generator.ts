@@ -87,7 +87,15 @@ export class CertificateGenerator {
     await this.contentPage.addContentPageSinglePage(participant, certificateData, sealImage || '', controlNumbers, isPreview);
 
     // Return as blob
-    return this.doc.output("blob");
+    console.log('📄 Generating PDF blob...');
+    try {
+      const blob = this.doc.output("blob");
+      console.log('✅ PDF blob generated successfully, size:', blob.size, 'bytes, type:', blob.type);
+      return blob;
+    } catch (blobError) {
+      console.error('❌ Failed to generate PDF blob:', blobError);
+      throw new Error(`PDF blob generation failed: ${blobError}`);
+    }
   }
 
   /**
@@ -135,7 +143,15 @@ export class CertificateGenerator {
     await this.contentPage.addContentPage(participant, certificateData, sealImage, controlNumbers, isPreview);
 
     // Return as blob
-    return this.doc.output("blob");
+    console.log('📄 Generating PDF blob (two-page)...');
+    try {
+      const blob = this.doc.output("blob");
+      console.log('✅ PDF blob generated successfully, size:', blob.size, 'bytes, type:', blob.type);
+      return blob;
+    } catch (blobError) {
+      console.error('❌ Failed to generate PDF blob:', blobError);
+      throw new Error(`PDF blob generation failed: ${blobError}`);
+    }
   }
 
   /**
