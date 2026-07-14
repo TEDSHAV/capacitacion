@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   getAllControlServiciosRecords,
-  deleteControlServiciosRecord,
 } from "@/app/actions/control-servicios";
+import RequisicionRow from "./components/requisicion-row";
 
 export default async function ListaControlServiciosPage() {
   const records = await getAllControlServiciosRecords();
@@ -54,54 +54,7 @@ export default async function ListaControlServiciosPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {records && records.length > 0 ? (
               records.map((record: any) => (
-                <tr key={record.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-blue-700">
-                    {record.nro_correlativo || "-"}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {record.numero_osi ||
-                      record.ejecucion_osi?.nro_osi_secuencial ||
-                      "-"}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {record.solicitante || "-"}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {record.gerencia_solicitante || "-"}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                      record.tipo_solicitud === 'Interno' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                    }`}>
-                      {record.tipo_solicitud || "-"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {record.fecha_solicitud
-                      ? new Date(record.fecha_solicitud).toLocaleDateString()
-                      : "-"}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex gap-2">
-                      <Link
-                        href={`/dashboard/capacitacion/planificacion-servicios/solicitud-requisiciones?edit=${record.id}`}
-                        className="text-blue-600 hover:text-blue-800 font-medium"
-                      >
-                        Editar
-                      </Link>
-                      <form
-                        action={async () => {
-                          "use server";
-                          await deleteControlServiciosRecord(record.id);
-                        }}
-                      >
-                        <button className="text-red-600 hover:text-red-800 font-medium">
-                          Eliminar
-                        </button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
+                <RequisicionRow key={record.id} record={record} />
               ))
             ) : (
               <tr>

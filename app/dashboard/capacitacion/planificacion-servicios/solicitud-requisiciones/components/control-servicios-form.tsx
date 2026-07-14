@@ -26,130 +26,91 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-export default function ControlServiciosForm() {
+export default function ControlServiciosForm({ 
+  osis = [], 
+  facilitators = [], 
+  userData = null,
+  editRecord = null
+}: { 
+  osis?: OSIFullData[], 
+  facilitators?: any[], 
+  userData?: any,
+  editRecord?: any
+}) {
   return (
     <Suspense fallback={<div>Cargando formulario...</div>}>
-      <ControlServiciosFormContent />
+      <ControlServiciosFormContent 
+        initialOsis={osis} 
+        initialFacilitators={facilitators} 
+        initialUserData={userData}
+        editRecord={editRecord}
+      />
     </Suspense>
   );
 }
 
-function ControlServiciosFormContent() {
+function ControlServiciosFormContent({ 
+  initialOsis, 
+  initialFacilitators, 
+  initialUserData,
+  editRecord 
+}: { 
+  initialOsis: OSIFullData[], 
+  initialFacilitators: any[], 
+  initialUserData: any,
+  editRecord: any
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [osis, setOsis] = useState<OSIFullData[]>([]);
-  const [facilitators, setFacilitators] = useState<any[]>([]);
+  const [osis] = useState<OSIFullData[]>(initialOsis);
+  const [facilitators] = useState<any[]>(initialFacilitators);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const [formData, setFormData] = useState<ControlServiciosFormData>({
-    selectedOSI: null,
-    corresponde_a: "Servicios",
-    fecha_solicitud: new Date().toISOString().split("T")[0],
-    tipo_solicitud: "Interno",
-    nro_correlativo: "GS-DC-",
-    tipo_servicio: "Capacitación",
-    gerencia_solicitante: "SERVICIOS",
-    solicitante: "",
-    prioridad: "Alta",
+    selectedOSI: editRecord ? (initialOsis.find((o: any) => o.id_osi === editRecord.id_osi) || null) : null,
+    corresponde_a: editRecord?.corresponde_a || "Servicios",
+    fecha_solicitud: editRecord?.fecha_solicitud || new Date().toISOString().split("T")[0],
+    tipo_solicitud: editRecord?.tipo_solicitud || "Interno",
+    nro_correlativo: editRecord?.nro_correlativo || "GS-DC-",
+    tipo_servicio: editRecord?.tipo_servicio || "Capacitación",
+    gerencia_solicitante: editRecord?.gerencia_solicitante || initialUserData?.departamentos?.nombre || "SERVICIOS",
+    solicitante: editRecord?.solicitante || initialUserData?.nombre_apellido || "",
+    prioridad: editRecord?.prioridad || "Alta",
 
     // Details - Fixed Items Quantities
-    cant_traslado: 1,
-    cant_impresion: 1,
-    cant_honorarios: 1,
-    cant_informe_final: 1,
+    cant_traslado: editRecord?.cant_traslado ?? 1,
+    cant_impresion: editRecord?.cant_impresion ?? 1,
+    cant_honorarios: editRecord?.cant_honorarios ?? 1,
+    cant_informe_final: editRecord?.cant_informe_final ?? 1,
 
     // Details
-    dias_traslado: 1,
-    costo_traslado: 0,
-    impresion_total: 0,
-    honorarios_horas: 0,
-    honorarios_costo_hora: 0,
-    honorarios_total: 0,
-    informe_final_total: 0,
+    dias_traslado: editRecord?.dias_traslado ?? 1,
+    costo_traslado: editRecord?.costo_traslado ?? 0,
+    impresion_total: editRecord?.impresion_total ?? 0,
+    honorarios_horas: editRecord?.honorarios_horas ?? 0,
+    honorarios_costo_hora: editRecord?.honorarios_costo_hora ?? 0,
+    honorarios_total: editRecord?.honorarios_total ?? 0,
+    informe_final_total: editRecord?.informe_final_total ?? 0,
 
     // Additional dynamic items
-    additional_items: [],
+    additional_items: editRecord?.additional_items || [],
 
     // Facilitator
-    cod_facilitador: "",
-    facilitador: "",
-    cedula_facilitador: "",
-    rif_facilitador: "",
-    banco: "",
-    nro_cuenta: "",
+    cod_facilitador: editRecord?.cod_facilitador?.toString() || "",
+    facilitador: editRecord?.facilitador || "",
+    cedula_facilitador: editRecord?.cedula_facilitador || "",
+    rif_facilitador: editRecord?.rif_facilitador || "",
+    banco: editRecord?.banco || "",
+    nro_cuenta: editRecord?.nro_cuenta || "",
 
-    observaciones: "",
+    observaciones: editRecord?.observaciones_compras || "",
   });
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [osisData, facilitatorsData, userData] = await Promise.all([
-          fetch("/api/osi-list").then((res) => res.json()),
-          getFacilitatorsForDropdown(),
-          getCurrentUser(),
-        ]);
-
-        if (osisData) setOsis(osisData);
-        if (facilitatorsData) setFacilitators(facilitatorsData);
-        
-        // Handle Edit Mode
-        if (editId) {
-          const record = await getControlServiciosRecord(parseInt(editId));
-          if (record) {
-            setFormData({
-              selectedOSI: osisData.find((o: any) => o.id_osi === record.id_osi) || null,
-              corresponde_a: record.corresponde_a || "Servicios",
-              fecha_solicitud: record.fecha_solicitud || new Date().toISOString().split("T")[0],
-              tipo_solicitud: record.tipo_solicitud || "Interno",
-              nro_correlativo: record.nro_correlativo || "GS-DC-",
-              tipo_servicio: record.tipo_servicio || "Capacitación",
-              gerencia_solicitante: record.gerencia_solicitante || "",
-              solicitante: record.solicitante || "",
-              prioridad: record.prioridad || "Alta",
-              cant_traslado: record.cant_traslado ?? 1,
-              cant_impresion: record.cant_impresion ?? 1,
-              cant_honorarios: record.cant_honorarios ?? 1,
-              cant_informe_final: record.cant_informe_final ?? 1,
-              dias_traslado: record.dias_traslado ?? 1,
-              costo_traslado: record.costo_traslado ?? 0,
-              impresion_total: record.impresion_total ?? 0,
-              honorarios_horas: record.honorarios_horas ?? 0,
-              honorarios_costo_hora: record.honorarios_costo_hora ?? 0,
-              honorarios_total: record.honorarios_total ?? 0,
-              informe_final_total: record.informe_final_total ?? 0,
-              additional_items: record.additional_items || [],
-              cod_facilitador: record.cod_facilitador?.toString() || "",
-              facilitador: record.facilitador || "",
-              cedula_facilitador: record.cedula_facilitador || "",
-              rif_facilitador: record.rif_facilitador || "",
-              banco: record.banco || "",
-              nro_cuenta: record.nro_cuenta || "",
-              observaciones: record.observaciones_compras || "",
-            });
-            return;
-          }
-        }
-
-        // Default logic for new records
-        if (userData) {
-          setFormData((prev) => ({
-            ...prev,
-            solicitante: userData.nombre_apellido || "",
-            gerencia_solicitante: userData.departamentos?.nombre || "SERVICIOS",
-          }));
-        }
-      } catch (error) {
-        console.error("Error loading data:", error);
-      }
-    }
-
-    loadData();
-  }, [editId]);
+  // No need for useEffect data fetching anymore as it's passed from server
 
   const filteredOSIs = osis.filter(
     (osi) =>
@@ -324,11 +285,18 @@ function ControlServiciosFormContent() {
               Nro de Correlativo:
             </div>
             <div className="col-span-5 p-3 flex items-center">
-              <span className="text-sm font-medium mr-2">{formData.nro_correlativo}</span>
               <Input 
-                className="h-8 border-none focus-visible:ring-0 px-0 flex-1"
+                value={formData.nro_correlativo}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  let val = e.target.value;
+                  // Ensure GS-DC- prefix
+                  if (!val.startsWith("GS-DC-")) {
+                    val = "GS-DC-" + val.replace(/^GS-DC-/, "");
+                  }
+                  setFormData(p => ({...p, nro_correlativo: val}));
+                }}
+                className="h-8 border-none focus-visible:ring-0 px-0 flex-1 font-bold"
                 placeholder="Continuación del correlativo..."
-                // Logic for correlativo suffix could be added here if needed
               />
             </div>
           </div>

@@ -8,6 +8,21 @@ import {
   OSIFullData,
 } from "@/types";
 
+// Get all OSIs for the dropdown
+export async function getAllOSIsForControlServicios() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_osi_formato_completo")
+    .select("id_osi, nro_osi, servicio, costo_traslado, horas_honorarios_instructor, tarifa_hora_honorarios, costo_impresion_material")
+    .order("id_osi", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching OSIs:", error);
+    return [];
+  }
+  return data;
+}
+
 // Get current logged in user details
 export async function getCurrentUser() {
   const supabase = await createClient();
@@ -85,7 +100,7 @@ ${formattedAdditionalItems}
 ${formData.observaciones}
 `.trim();
 
-  const record = {
+    const record = {
     id_osi: formData.selectedOSI?.id_osi || null,
     solicitante: formData.solicitante,
     gerencia_solicitante: formData.gerencia_solicitante,
@@ -120,6 +135,12 @@ ${formData.observaciones}
 
     observaciones_compras: formData.observaciones,
     created_by: userResponse.data.user?.id || null,
+    updated_by: userResponse.data.user?.id || null,
+    
+    // Schema fields
+    item_solicitado: formData.selectedOSI?.servicio || null,
+    cantidad: 1,
+    id_estatus: 1, // Default status if needed
   };
 
   const { data, error } = await supabase
@@ -228,6 +249,7 @@ ${formData.observaciones}
 `.trim();
 
     const record = {
+      id_osi: formData.selectedOSI?.id_osi || null,
       solicitante: formData.solicitante,
       gerencia_solicitante: formData.gerencia_solicitante,
       fecha_solicitud: formData.fecha_solicitud,
@@ -257,7 +279,9 @@ ${formData.observaciones}
       additional_items: formData.additional_items,
       observaciones_compras: formData.observaciones,
       updated_by: userResponse.data.user?.id || null,
-      updated_at: new Date().toISOString(),
+
+      // Schema fields
+      item_solicitado: formData.selectedOSI?.servicio || null,
     };
 
   const { data, error } = await supabase
