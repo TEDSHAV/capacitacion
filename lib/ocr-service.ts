@@ -82,19 +82,28 @@ export class OCRService {
       // Fall back to AI extraction if:
       // - Regex found 0 participants, OR
       // - More names were buffered than participants found (column-by-column OCR, cursive)
+      // - Regex participants have very low confidence or seem to contain noise
       let participants = regexParticipants;
+      
+      const hasLowQualityRegex = regexParticipants.length > 0 && 
+        regexParticipants.every(p => p.name.length < 5 || p.idNumber.length < 7);
+
       const needsAI =
         fullMarkdown.trim().length > 50 &&
-        (regexParticipants.length === 0 || potentialNamesFound > regexParticipants.length);
+        (regexParticipants.length === 0 || 
+         potentialNamesFound > regexParticipants.length || 
+         hasLowQualityRegex);
 
       if (needsAI) {
-        console.log("[OCR] Falling back to AI extraction (buffered names exceed found participants)...");
+        console.log("[OCR] Falling back to AI extraction...");
         const aiParticipants = await this.extractWithAI(fullMarkdown, apiKey, mode);
-        if (aiParticipants.length > regexParticipants.length) {
+        
+        // Use AI results if they found anything, as the prompt is now much stricter
+        if (aiParticipants.length > 0) {
           console.log(`[OCR] AI extraction found ${aiParticipants.length} participants (regex had ${regexParticipants.length})`);
           participants = aiParticipants;
         } else {
-          console.log(`[OCR] AI extraction found ${aiParticipants.length}, keeping regex result (${regexParticipants.length})`);
+          console.log(`[OCR] AI extraction found 0, keeping regex result (${regexParticipants.length})`);
         }
       }
 
@@ -129,27 +138,35 @@ You will receive OCR text from a handwritten attendance list.
 The document table has columns: NOMBRE Y APELLIDO (full name), CÉDULA DE IDENTIDAD (ID number), CARGO (job title), FIRMA (signature AM/PM).
 There is NO score column in this document. Do not attempt to extract scores.
 Due to cursive handwriting, the OCR text may have noise, merged words, or misread characters.
-Your task: extract each participant row and return ONLY a valid JSON array. No explanation, no markdown code blocks, just the raw JSON array.
-Each object must have: { "name": string, "cedula": string, "score": null, "nationality": "V" | "E" }
-- "cedula" must be digits only (remove dots, spaces, dashes). Must be 6-10 digits.
-- "nationality" is "V" (venezolano) by default unless the ID is prefixed with E or E-
-- "score" must always be null (this document has no scores)
-- "name" should be Title Case
-- Skip header rows, company info, facilitator names, and any row without a valid cedula
-- The company RIF (J-31315131-9) is NOT a participant, skip it
-- Ignore the CARGO and FIRMA columns, only extract name and cédula`
+
+IMPORTANT STRICT RULES:
+1. The participant table usually starts after headers like "LISTA DE ASISTENCIA" or "NOMBRE Y APELLIDO". Skip EVERYTHING above the actual table rows.
+2. extract each participant row and return ONLY a valid JSON array. No explanation, no markdown code blocks, just the raw JSON array.
+3. Each object must have: { "name": string, "cedula": string, "score": null, "nationality": "V" | "E" }
+4. "cedula" must be digits only (remove dots, spaces, dashes). Must be 6-10 digits.
+5. "nationality" is "V" (venezolano) by default unless the ID is prefixed with E or E-
+6. "score" must always be null (this document has no scores)
+7. "name" should be Title Case.
+8. Skip header rows, company info, facilitator names, and any row without a valid cedula.
+9. The company RIF (J-31315131-9) is NOT a participant, skip it.
+10. VERY IMPORTANT: Ignore the CARGO column. Words like "Analista", "Supervisor", "Gerente", "Operador", "Mecánico", "Conductor", "Pasante" are job titles, NOT names. If a row's name looks like a job title, skip it or find the real name in the same row.
+11. If you are unsure if a row is a participant, skip it.`
         : `You are a data extraction assistant for Venezuelan training certificates (SHA de Venezuela).
 You will receive OCR text from a handwritten participant list called "CALIFICACIÓN DE LOS PARTICIPANTES".
 The document has columns: N° (row number), NOMBRE Y APELLIDO (full name), CÉDULA (ID number), PUNTUACIÓN (score 0-20), CONDICIÓN (Aprobado/Reprobado).
 Due to cursive handwriting, the OCR text may have noise, merged words, or misread characters.
-Your task: extract each participant row and return ONLY a valid JSON array. No explanation, no markdown code blocks, just the raw JSON array.
-Each object must have: { "name": string, "cedula": string, "score": number | null, "nationality": "V" | "E" }
-- "cedula" must be digits only (remove dots, spaces, dashes). Must be 6-10 digits.
-- "nationality" is "V" (venezolano) by default unless the ID is prefixed with E or E-
-- "score" is a number between 0-20, or null if not found
-- "name" should be Title Case
-- Skip header rows, company info, facilitator names, and any row without a valid cedula
-- The company RIF (J-31315131-9) is NOT a participant, skip it`;
+
+IMPORTANT STRICT RULES:
+1. The table starts after the header "CALIFICACIÓN DE LOS PARTICIPANTES". Skip everything above it.
+2. extract each participant row and return ONLY a valid JSON array. No explanation, no markdown code blocks, just the raw JSON array.
+3. Each object must have: { "name": string, "cedula": string, "score": number | null, "nationality": "V" | "E" }
+4. "cedula" must be digits only (remove dots, spaces, dashes). Must be 6-10 digits.
+5. "nationality" is "V" (venezolano) by default unless the ID is prefixed with E or E-
+6. "score" is a number between 0-20, or null if not found.
+7. "name" should be Title Case.
+8. Skip header rows, company info, facilitator names, and any row without a valid cedula.
+9. The company RIF (J-31315131-9) is NOT a participant, skip it.
+10. If you are unsure if a row is a participant, skip it.`;
 
       const userMessage = `Extract participants from this OCR text of a handwritten Venezuelan training document:\n\n${ocrMarkdown}`;
 
@@ -231,6 +248,15 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
     let potentialNamesFound = 0;
     const lines = text.split("\n").filter((line) => line.trim());
 
+    // Blacklist of words that are likely job titles (cargo) or noise
+    const forbiddenNames = [
+      "Analista", "Supervisor", "Gerente", "Operador", "Mecanico", "Mecánico", 
+      "Conductor", "Pasante", "Chofer", "Obrero", "Coordinador", "Jefe", "Presidente",
+      "Razón Social", "Ente Didáctico", "Centro De Formación", "Centro Formacion",
+      "Sha De Venezuela", "Capacitación", "Curso", "Facilitador", "Fecha", "Página",
+      "Nombre Y Apellido", "Cédula", "Identidad", "Firma", "Cargo", "Asistencia"
+    ].map(n => n.toLowerCase());
+
     // Pattern for IDs: Optional V/E, followed by Venezuelan ID format (dots) or raw digits
     const idPattern = /(?:([VE])[-\s]?)?(\d{1,2}(?:\.\d{3}){1,2}|\d{6,9})\b/i;
     // Relaxed fallback pattern for OCR misreads like "18.992167" or "18 992 167"
@@ -244,15 +270,31 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
     const hasTable = lines.some((line) => line.includes("|"));
 
     console.log("[OCR Parser] Total lines:", lines.length, "hasTable:", hasTable);
-    if (lines.length > 0) {
-      console.log("[OCR Parser] First 5 lines:", lines.slice(0, 5));
-    }
 
     let lastPotentialName = "";
     let lastPotentialNameLineIndex = -1;
+    let foundHeader = false;
 
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       const line = lines[lineIndex];
+
+      // HEURISTIC: Skip lines until we find a header-like row (more strict parsing)
+      if (!foundHeader) {
+        const lowerLine = line.toLowerCase();
+        if (
+          lowerLine.includes("nombre y apellido") || 
+          lowerLine.includes("cédula") || 
+          lowerLine.includes("lista de asistencia") ||
+          lowerLine.includes("calificación")
+        ) {
+          foundHeader = true;
+          console.log(`[OCR Parser] Found header at line ${lineIndex}: ${line.trim()}`);
+          continue;
+        }
+        // If no header found yet, skip noisy header lines
+        if (lineIndex < 15) continue;
+      }
+
       // Skip markdown table headers/separators
       // Only skip "nro"/"cédula" in table header rows (with |), not in plain data lines
       if (
@@ -260,7 +302,8 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
         line.toLowerCase().includes("nombre y apellido") ||
         (line.includes("|") &&
           (line.toLowerCase().includes("nro") ||
-            line.toLowerCase().includes("cédula")))
+            line.toLowerCase().includes("cédula") ||
+            line.toLowerCase().includes("razón social")))
       )
         continue;
 
@@ -284,6 +327,13 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
           if (!match) match = cell.match(idPatternRelaxed);
           if (match && match[2]) {
             const digitsOnly = match[2].replace(/[.\s]/g, "");
+            
+            // EXPLICIT CHECK: RIF of SHA (31315131) is NOT a participant ID
+            if (digitsOnly === "31315131") {
+              console.log("[OCR Parser] Skipping SHA RIF numeric part as ID");
+              continue;
+            }
+
             if (digitsOnly.length >= 6) {
               if (
                 !bestIdMatch ||
@@ -304,11 +354,12 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
             idNumberValue = idMatch[2].replace(/[.\s]/g, "");
 
             // IMPROVED NAME DETECTION: Look for the most likely name column
-            // Usually it's the longest non-numeric cell that isn't the ID itself
+            // Usually it's in columns 0, 1, or 2. Job titles (cargo) are usually later.
             let bestNameCandidate = "";
             for (let i = 0; i < cells.length; i++) {
               if (i === idCellIndex) continue;
               const cell = cells[i].trim();
+              
               // Skip headers, empty cells, and numeric-only cells
               if (
                 !cell ||
@@ -316,13 +367,28 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
                 /^\d+$/.test(cell.replace(/[.,\s]/g, ""))
               )
                 continue;
+              
+              const lowerCell = cell.toLowerCase();
               if (
-                cell.toLowerCase().includes("nro") ||
-                cell.toLowerCase().includes("cédula")
+                lowerCell.includes("nro") ||
+                lowerCell.includes("cédula") ||
+                lowerCell.includes("razón social")
               )
                 continue;
 
-              if (cell.length > bestNameCandidate.length) {
+              // Skip known job titles
+              if (forbiddenNames.some(f => lowerCell === f || lowerCell.startsWith(f + " "))) {
+                console.log(`[OCR Parser] Skipping blacklisted name/cargo: ${cell}`);
+                continue;
+              }
+
+              // HEURISTIC: Favor columns 0, 1, 2 for names
+              const isLikelyNameColumn = i <= 2;
+              
+              if (isLikelyNameColumn && !bestNameCandidate) {
+                bestNameCandidate = cell;
+              } else if (cell.length > bestNameCandidate.length && !bestNameCandidate) {
+                // Only use length as tie-breaker if we don't have a likely column candidate
                 bestNameCandidate = cell;
               }
             }
@@ -331,7 +397,10 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
               name = this.cleanName(bestNameCandidate);
             } else if (idCellIndex > 0) {
               // Fallback to previous column
-              name = this.cleanName(cells[idCellIndex - 1]);
+              const prevCell = cells[idCellIndex - 1];
+              if (!forbiddenNames.some(f => prevCell.toLowerCase().includes(f))) {
+                name = this.cleanName(prevCell);
+              }
             }
 
             // Extract score - Look in ALL columns after the ID
@@ -360,12 +429,17 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
         if (!idMatch) idMatch = line.match(idPatternRelaxed);
         
         // Skip company RIFs (usually in header)
-        const isRIF = line.toUpperCase().includes("J-") || line.toUpperCase().includes("G-") || line.toUpperCase().includes("V-") && line.replace(/[^0-9]/g, "").startsWith("31");
+        const digitsOnly = idMatch ? idMatch[2].replace(/[.\s]/g, "") : "";
+        const isRIF = 
+          line.toUpperCase().includes("J-") || 
+          line.toUpperCase().includes("G-") || 
+          (line.toUpperCase().includes("V-") && digitsOnly.startsWith("31")) ||
+          digitsOnly === "31315131";
 
         if (idMatch && !isRIF) {
           if (idMatch[1]) prefix = idMatch[1].toUpperCase();
           // Remove all dots and spaces from ID
-          idNumberValue = idMatch[2].replace(/[.\s]/g, "");
+          idNumberValue = digitsOnly;
 
           const idIndex = line.indexOf(idMatch[0]);
           const textBeforeId = line.substring(0, idIndex).trim();
@@ -408,11 +482,18 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
             line.toUpperCase().includes("CURSO") ||
             line.toUpperCase().includes("FACILITADOR") ||
             line.toUpperCase().includes("PAGINA") ||
-            line.toUpperCase().includes("FECHA");
+            line.toUpperCase().includes("FECHA") ||
+            line.toUpperCase().includes("RAZÓN SOCIAL") ||
+            line.toUpperCase().includes("ENTE DIDÁCTICO");
 
           if (potentialNameMatch && !isHeaderNoise) {
             const cleanedPotential = this.cleanName(potentialNameMatch[0]);
-            if (cleanedPotential.length > 5) {
+            
+            // Skip job titles in potential names too
+            const lowerPotential = cleanedPotential.toLowerCase();
+            const isForbidden = forbiddenNames.some(f => lowerPotential === f || lowerPotential.startsWith(f + " "));
+
+            if (cleanedPotential.length > 5 && !isForbidden) {
               lastPotentialName = cleanedPotential;
               lastPotentialNameLineIndex = lineIndex;
               potentialNamesFound++;
@@ -421,13 +502,15 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
           }
         }
       }
+      
       // Validate extracted data
       if (
         name &&
         name.length > 2 &&
         !name.match(/^[0-9\s.,-]+$/) && // Reject if only numbers/symbols
         idNumberValue &&
-        idNumberValue.length >= 6
+        idNumberValue.length >= 6 &&
+        !forbiddenNames.some(f => name.toLowerCase() === f || name.toLowerCase().startsWith(f + " "))
       ) {
         participants.push({
           name: name,
@@ -443,11 +526,15 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
           // Maybe the name is in any other cell?
           const cells = line.split("|").map((c) => c.trim());
           for (const cell of cells) {
+            const lowerCell = cell.toLowerCase();
+            const isForbidden = forbiddenNames.some(f => lowerCell === f || lowerCell.startsWith(f + " "));
+
             if (
               cell &&
               cell.length > 5 &&
               !cell.match(idPattern) &&
-              !/^\d+$/.test(cell.replace(/[.\s]/g, ""))
+              !/^\d+$/.test(cell.replace(/[.\s]/g, "")) &&
+              !isForbidden
             ) {
               const cleaned = this.cleanName(cell);
               if (cleaned.length > 5) {
@@ -497,8 +584,17 @@ Each object must have: { "name": string, "cedula": string, "score": number | nul
    * Validate participant data
    */
   static validateParticipant(participant: ExtractedParticipant): boolean {
+    const forbiddenNames = [
+      "Analista", "Supervisor", "Gerente", "Operador", "Mecanico", "Mecánico", 
+      "Conductor", "Pasante", "Chofer", "Obrero", "Coordinador", "Jefe", "Presidente"
+    ].map(n => n.toLowerCase());
+
+    const lowerName = participant.name.toLowerCase();
+    const isForbidden = forbiddenNames.some(f => lowerName === f || lowerName.startsWith(f + " "));
+
     return (
       participant.name.length > 2 &&
+      !isForbidden &&
       participant.idNumber.length >= 6 &&
       participant.idNumber.length <= 9
     );
