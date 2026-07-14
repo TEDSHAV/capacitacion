@@ -25,8 +25,8 @@ export default function OSIActionButtons({
         <button
           onClick={onSave}
           disabled={isLoading}
-          className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-md"
-          style={{ backgroundColor: '#4f46e5', color: 'white' }}
+          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 shadow-md"
+          style={{ backgroundColor: 'var(--primary-blue)' }}
         >
           {isLoading ? 'Guardando...' : (isNew ? 'Crear' : 'Actualizar')}
         </button>
@@ -34,7 +34,7 @@ export default function OSIActionButtons({
           <button
             onClick={onCancel}
             className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition-colors shadow-md"
-            style={{ backgroundColor: '#4b5563', color: 'white' }}
+            style={{ backgroundColor: 'var(--primary-gray)' }}
           >
             Cancelar
           </button>
@@ -56,8 +56,8 @@ export default function OSIActionButtons({
     <>
       <button
         onClick={onEdit}
-        className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors shadow-md"
-        style={{ backgroundColor: '#4f46e5', color: 'white' }}
+        className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md"
+        style={{ backgroundColor: 'var(--primary-blue)' }}
       >
         Editar
       </button>

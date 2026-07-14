@@ -55,20 +55,21 @@ export default function DashboardClient({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {departamentos.map((department) => {
             return (
-            <div
-              key={department.id}
-              onClick={() => handleDepartmentClick(department.nombre)}
-              className="cursor-pointer transform transition-all duration-200 hover:scale-105"
-            >
-              <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg min-h-[120px] flex justify-center items-center">
-                <div className="p-6">
+              <div
+                key={department.id}
+                onClick={() => handleDepartmentClick(department.nombre)}
+                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg cursor-pointer transform transition-all duration-200 hover:scale-105 h-64 flex flex-col w-full"
+              >
+                <div className="bg-blue-600 h-2 flex-shrink-0" style={{ backgroundColor: 'var(--primary-blue)' }}></div>
+                <div className="p-6 flex-1 flex flex-col justify-center items-center text-center">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center capitalize">
-                    {department.nombre}
+                    {department.nombre.toUpperCase()}
                   </h3>
+                 
                 </div>
               </div>
-            </div>
-          )})}
+            );
+          })}
         </div>
       </div>
     </div>

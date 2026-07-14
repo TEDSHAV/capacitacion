@@ -119,8 +119,8 @@ export default function NegociosPage() {
           </div>
           <button
             onClick={() => router.push('/dashboard/negocios/osi/new')}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors shadow-md"
-            style={{ backgroundColor: '#4f46e5', color: 'white' }}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md"
+            style={{ backgroundColor: 'var(--primary-blue)' }}
           >
             + Nueva OSI
           </button>
@@ -140,7 +140,7 @@ export default function NegociosPage() {
             <p className="text-gray-500 mb-4">Comienza creando tu primera Orden de Servicio de Ingeniería</p>
             <button
               onClick={() => router.push('/dashboard/negocios/osi/new')}
-              className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 transition-colors"
+              className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors"
             >
               + Crear Primera OSI
             </button>
@@ -192,7 +192,7 @@ export default function NegociosPage() {
                       e.stopPropagation()
                       router.push(`/dashboard/negocios/osi/${osi.nro_osi}`)
                     }}
-                    className="text-indigo-600 hover:text-indigo-900 text-sm font-medium flex items-center flex-shrink-0"
+                    className="text-blue-600 hover:text-blue-900 text-sm font-medium flex items-center flex-shrink-0"
                   >
                     Ver detalles
                     <svg className="w-4 h-4 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

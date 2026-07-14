@@ -24,42 +24,42 @@ export default function CapacitacionClient({
       id: 'participantes',
       title: 'Participantes',
       description: 'Gestión de participantes en capacitaciones',
-      icon: '👥',
+      icon: '○',
       color: 'bg-blue-500'
     },
     {
       id: 'gestion-cursos',
       title: 'Gestión de Cursos',
       description: 'Crear y administrar contenidos de cursos',
-      icon: '📚',
+      icon: '□',
       color: 'bg-green-500'
     },
     {
       id: 'facilitadores',
       title: 'Facilitadores',
-      description: 'Administración de facilitadores y instructores',
-      icon: '👨‍🏫',
-      color: 'bg-purple-500'
+      description: 'Administración de facilitadores e instructores',
+      icon: '△',
+      color: 'bg-blue-500'
     },
     {
       id: 'generacion-certificados',
       title: 'Generación de Certificados',
       description: 'Crear y generar certificados de capacitación',
-      icon: '🏆',
+      icon: '◇',
       color: 'bg-yellow-500'
     },
     {
       id: 'gestion-certificados',
       title: 'Gestión de Certificados',
       description: 'Administrar certificados emitidos',
-      icon: '📋',
-      color: 'bg-indigo-500'
+      icon: '◈',
+      color: 'bg-blue-500'
     },
     {
       id: 'control-secuencia',
       title: 'Control de Números de Secuencia',
       description: 'Control de numeración de certificados',
-      icon: '🔢',
+      icon: '◐',
       color: 'bg-red-500'
     }
   ];

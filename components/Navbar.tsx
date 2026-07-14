@@ -45,7 +45,7 @@ export default function Navbar() {
               className="p-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
               title="Volver"
             >
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
@@ -82,13 +82,14 @@ export default function Navbar() {
               <>
                 <button
                   onClick={() => router.push('/login')}
-                  className="text-sm text-white hover:text-gray-200 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                  className="text-sm text-blue-600 hover:text-blue-700 px-3 py-2 rounded-md hover:bg-blue-50 transition-colors duration-200"
                 >
                   Iniciar sesión
                 </button>
                 <button
                   onClick={() => router.push('/signup')}
-                  className="text-sm text-white hover:text-gray-200 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                  className="text-sm bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-md transition-colors duration-200 shadow-md"
+                  style={{ backgroundColor: 'var(--primary-blue)' }}
                 >
                   Registrarse
                 </button>

@@ -127,8 +127,8 @@ export default function GestionCursosClient({
           </div>
           <button
             onClick={() => setCreandoCurso(true)}
-            className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors shadow-md"
-            style={{ backgroundColor: '#4f46e5', color: 'white' }}
+            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md"
+            style={{ backgroundColor: 'var(--primary-blue)' }}
           >
             + Nuevo Curso
           </button>
@@ -146,9 +146,7 @@ export default function GestionCursosClient({
                   onClick={() => setCreandoCurso(false)}
                   className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <span className="text-lg font-light">×</span>
                 </button>
               </div>
 
@@ -223,14 +221,14 @@ export default function GestionCursosClient({
                     type="button"
                     onClick={() => setCreandoCurso(false)}
                     className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition-colors shadow-md"
-                    style={{ backgroundColor: '#4b5563', color: 'white' }}
+                    style={{ backgroundColor: 'var(--primary-gray)' }}
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors shadow-md"
-                    style={{ backgroundColor: '#4f46e5', color: 'white' }}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md"
+                    style={{ backgroundColor: 'var(--primary-blue)' }}
                   >
                     Crear Curso
                   </button>
@@ -269,7 +267,7 @@ export default function GestionCursosClient({
                       </p>
                     </div>
                     <div className="flex space-x-2 ml-4">
-                      <button className="text-indigo-600 hover:text-indigo-900 text-sm font-medium">
+                      <button className="text-blue-600 hover:text-blue-900 text-sm font-medium">
                         Editar
                       </button>
                       <button className="text-red-600 hover:text-red-900 text-sm font-medium">

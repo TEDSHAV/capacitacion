@@ -1312,7 +1312,7 @@ export default function OSIDetailPage() {
                   checked={formData.certificado_impreso || true}
                   onChange={(e) => updateFormData('certificado_impreso', e.target.checked)}
                   disabled={!isEditing && !isNew}
-                  className="mr-3 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mr-3 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <span className="text-sm text-gray-700">Certificado Impreso</span>
               </label>
@@ -1322,7 +1322,7 @@ export default function OSIDetailPage() {
                   checked={formData.carnet_impreso || false}
                   onChange={(e) => updateFormData('carnet_impreso', e.target.checked)}
                   disabled={!isEditing && !isNew}
-                  className="mr-3 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mr-3 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <span className="text-sm text-gray-700">Carnet Impreso</span>
               </label>

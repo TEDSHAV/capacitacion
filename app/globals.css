@@ -3,6 +3,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --primary-blue: #0c3f69;
+  --primary-blue-hover: #0a344f;
+  --primary-red: #dc2626;
+  --primary-gray: #4b5563;
 }
 
 @theme inline {
@@ -19,31 +23,47 @@ html, body {
 }
 
 /* Ensure buttons have proper styling */
-button:not([class*="text-indigo-600"]) {
-  background-color: var(--tw-bg-opacity, rgb(79 70 229)) !important;
+button:not([class*="text-blue-600"]) {
+  background-color: var(--primary-blue) !important;
+  color: white !important;
 }
 
-button.bg-indigo-600 {
-  background-color: rgb(79 70 229) !important;
+button.bg-blue-600 {
+  background-color: var(--primary-blue) !important;
+  color: white !important;
 }
 
 button.bg-red-600 {
-  background-color: rgb(220 38 38) !important;
+  background-color: var(--primary-red) !important;
+  color: white !important;
 }
 
 button.bg-gray-600 {
-  background-color: rgb(75 85 99) !important;
+  background-color: var(--primary-gray) !important;
+  color: white !important;
+}
+
+/* Override any hardcoded colors */
+button[style*="#4f46e5"], button[style*="#3B82F6"], button[style*="#0c3f69"] {
+  background-color: var(--primary-blue) !important;
+  color: white !important;
+}
+
+/* Ensure all buttons with primary blue background have white text */
+button[style*="var(--primary-blue)"] {
+  color: white !important;
 }
 
 /* Link-style buttons should have transparent background */
-button[class*="text-indigo-600"],
-button.text-indigo-600 {
+button[class*="text-blue-600"],
+button.text-blue-600 {
   background-color: transparent !important;
   background: none !important;
+  color: var(--primary-blue) !important;
 }
 
 /* Most specific rule for the volver button */
-button[class*="text-indigo-600"][class*="hover:text-indigo-900"] {
+button[class*="text-blue-600"][class*="hover:text-blue-900"] {
   background-color: transparent !important;
   background: none !important;
 }
