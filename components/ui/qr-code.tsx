@@ -94,7 +94,7 @@ export function CertificateQRCode({
   level = 'M',
   includeMargin = true,
   showLabel = true,
-  label = 'Scan to Verify',
+  label = '',
   className = '',
   onError
 }: CertificateQRCodePropsExtended) {

@@ -430,11 +430,11 @@ export class CertificatePage {
       // Add QR code image
       this.doc.addImage(qrDataUrl, 'PNG', x, y, PDF_SIZE_MM, PDF_SIZE_MM);
       
-      // Add "Scan to Verify" label below QR code
+      // Add text below QR code (removed "Scan to Verify" label)
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(6);
       this.doc.text(
-        "Scan to Verify",
+        "",
         x + PDF_SIZE_MM / 2,
         y + PDF_SIZE_MM + 3,
         { align: "center" }

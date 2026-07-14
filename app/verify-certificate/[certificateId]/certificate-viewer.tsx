@@ -171,14 +171,14 @@ export default function CertificateVerificationPage() {
 
               <div>
                 <h4 className="text-md font-semibold text-gray-900 mb-3">QR Code</h4>
-                <div className="flex justify-center">
+                {/* <div className="flex justify-center">
                   <CertificateQRCode
                     data={qrData}
                     size={150}
                     showLabel={true}
-                    label="Scan to verify"
+                    label=""
                   />
-                </div>
+                </div> */}
               </div>
 
               {pdfUrl && (
