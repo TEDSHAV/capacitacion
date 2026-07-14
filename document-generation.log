@@ -165,3 +165,11 @@
 [2026-05-15T14:09:53.084Z] certificacion_competencias generated successfully
 [2026-05-15T14:09:53.786Z] nota_entrega generated successfully
 [2026-05-15T14:09:53.787Z] Document generation complete {"documentsGenerated":3,"errors":[]}
+[2026-05-15T16:12:27.305Z] generateDocumentsServer called {"options":{"includeCertificacionCompetencias":true,"includeNotaEntrega":true,"includeValidacionDatos":true},"certificatesCount":1}
+[2026-05-15T16:12:27.308Z] Starting certificacion_competencias generation
+[2026-05-15T16:12:27.316Z] Starting nota_entrega generation
+[2026-05-15T16:12:27.320Z] Starting validacion_datos generation
+[2026-05-15T16:12:32.883Z] validacion_datos generated successfully
+[2026-05-15T16:12:33.417Z] certificacion_competencias generated successfully
+[2026-05-15T16:12:34.430Z] nota_entrega generated successfully
+[2026-05-15T16:12:34.430Z] Document generation complete {"documentsGenerated":3,"errors":[]}
