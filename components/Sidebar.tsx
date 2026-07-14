@@ -14,7 +14,6 @@ const submodules = {
     { name: 'Gestión de Participantes', path: '/dashboard/capacitacion/participantes' }
   ],
   negocios: [
-    { name: 'Gestión de Clientes', path: '/dashboard/negocios/gestion-de-clientes' },
     { name: 'Gestión de OSIs', path: '/dashboard/negocios/gestion-de-osis' }
   ]
 };
