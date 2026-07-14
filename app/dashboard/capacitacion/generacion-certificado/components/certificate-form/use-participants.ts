@@ -14,6 +14,16 @@ export const useParticipants = (onParticipantsChange: (participants: Certificate
 
   const addParticipant = useCallback(() => {
     if (newParticipant.name.trim() && newParticipant.id_number.trim()) {
+      // Check if participant with same ID number already exists
+      const existingParticipant = currentParticipants.find(
+        p => p.id_number === newParticipant.id_number.trim()
+      )
+      
+      if (existingParticipant) {
+        alert('Ya existe un participante con este número de cédula/pasaporte')
+        return
+      }
+      
       const participant: CertificateParticipant = {
         id: Date.now().toString(),
         name: newParticipant.name.trim(),

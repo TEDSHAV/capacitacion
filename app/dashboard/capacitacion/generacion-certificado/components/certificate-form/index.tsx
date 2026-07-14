@@ -202,6 +202,7 @@ export const CertificateForm = ({
       <ParticipantsSection
         participants={certificateData.participants}
         onChange={onParticipantsChange}
+        passing_grade={certificateData.passing_grade}
       />
 
       {/* Generate Button */}

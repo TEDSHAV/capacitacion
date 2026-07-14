@@ -1,9 +1,18 @@
+'use client'
+
+import { useState, useMemo } from 'react'
 import { CertificateParticipant, ParticipantsSectionProps } from '@/types'
 import { useParticipants } from './use-participants'
 
-export const ParticipantsSection = ({ participants, onChange }: ParticipantsSectionProps) => {
+export const ParticipantsSection = ({ participants, onChange, passing_grade }: ParticipantsSectionProps) => {
   // Ensure participants is always an array
   const safeParticipants = Array.isArray(participants) ? participants : []
+  
+  // Remove duplicates by ID number (memoized to prevent infinite loop)
+  const uniqueParticipants = useMemo(() => 
+    safeParticipants.filter((participant, index, self) => 
+      index === self.findIndex((p) => p.id_number === participant.id_number)
+    ), [safeParticipants])
   
   const {
     newParticipant,
@@ -11,7 +20,39 @@ export const ParticipantsSection = ({ participants, onChange }: ParticipantsSect
     removeParticipant,
     updateNewParticipant,
     handleKeyPress
-  } = useParticipants(onChange, safeParticipants)
+  } = useParticipants(onChange, uniqueParticipants)
+
+  // Helper function to determine participant status
+  const getParticipantStatus = (participant: CertificateParticipant) => {
+    if (participant.score === undefined || participant.score === null) {
+      return 'unknown'
+    }
+    return participant.score >= (passing_grade || 0) ? 'approved' : 'attendance'
+  }
+
+  // Helper function to get badge styles
+  const getBadgeStyles = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'bg-green-100 text-green-800 border-green-200'
+      case 'attendance':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      default:
+        return 'bg-gray-100 text-gray-600 border-gray-200'
+    }
+  }
+
+  // Helper function to get badge text
+  const getBadgeText = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'Aprobado'
+      case 'attendance':
+        return 'Asistencia'
+      default:
+        return 'Sin calificación'
+    }
+  }
 
   return (
     <div className="mb-6">
@@ -67,49 +108,62 @@ export const ParticipantsSection = ({ participants, onChange }: ParticipantsSect
       </div>
 
       {/* Participants List */}
-      {safeParticipants.length > 0 && (
+      {uniqueParticipants.length > 0 && (
         <div className="border border-gray-200 rounded-md max-h-40 overflow-y-auto">
-          {safeParticipants.map(participant => (
-            <div
-              key={participant.id}
-              className="flex justify-between items-center p-2 border-b border-gray-100 last:border-b-0"
-            >
-              <div>
-                <span className="font-medium text-gray-900">
-                  {participant.name}
-                </span>
-                <span className="text-gray-500 ml-2">
-                  ({participant.id_type || 'V-'}{participant.id_number})
-                </span>
-                <span className="text-sm text-gray-400 ml-2">
-                  {participant.score !== undefined && `${participant.score} pts`}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => removeParticipant(participant.id!)}
-                className="text-red-600 hover:text-red-800"
+          {uniqueParticipants.map(participant => {
+            const status = getParticipantStatus(participant)
+            const badgeStyles = getBadgeStyles(status)
+            const badgeText = getBadgeText(status)
+            
+            return (
+              <div
+                key={participant.id}
+                className="flex justify-between items-center p-2 border-b border-gray-100 last:border-b-0"
               >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900">
+                      {participant.name}
+                    </span>
+                    <span className="text-gray-500 text-sm">
+                      ({participant.id_type || 'V-'}{participant.id_number})
+                    </span>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${badgeStyles}`}>
+                      {badgeText}
+                    </span>
+                    {participant.score !== undefined && (
+                      <span className="text-sm text-gray-400 ml-2">
+                        {participant.score} pts
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeParticipant(participant.id!)}
+                  className="text-red-600 hover:text-red-800"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          ))}
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
 
-      {safeParticipants.length === 0 && (
+      {uniqueParticipants.length === 0 && (
         <p className="text-sm text-gray-500">
           Agrega al menos un participante para generar el certificado
         </p>

@@ -148,6 +148,7 @@ export interface LocationSearchProps {
 export interface ParticipantsSectionProps {
   participants: CertificateParticipant[];
   onChange: (participants: CertificateParticipant[]) => void;
+  passing_grade?: number;
 }
 
 // Capacitación module interfaces
