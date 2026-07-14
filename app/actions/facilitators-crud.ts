@@ -150,8 +150,15 @@ const createFacilitator = cache(async (formData: FormData) => {
       ? parseInt(formData.get("ano_ingreso") as string)
       : null;
 
-    // Convert empty strings to null for date fields
+    // Convert empty strings to null for all optional fields to avoid unique constraint issues
     const fecha_ingreso_to_save = fecha_ingreso || null;
+    const cedula_to_save = cedula || null;
+    const email_to_save = email || null;
+    const telefono_to_save = telefono || null;
+    const direccion_to_save = direccion || null;
+    const nivel_educacion_to_save = nivel_educacion || null;
+    const alcance_to_save = alcance || null;
+    const notas_observaciones_to_save = notas_observaciones || null;
 
     const { data, error } = await supabase
       .from("facilitadores")
@@ -160,15 +167,15 @@ const createFacilitator = cache(async (formData: FormData) => {
           fuente,
           fecha_ingreso: fecha_ingreso_to_save,
           nombre_apellido: toLowerCase(nombre_apellido),
-          cedula,
+          cedula: cedula_to_save,
           rif: rif || null,
-          email,
-          telefono,
-          direccion,
-          nivel_educacion,
+          email: email_to_save,
+          telefono: telefono_to_save,
+          direccion: direccion_to_save,
+          nivel_educacion: nivel_educacion_to_save,
           formacion_docente_certificada,
-          alcance,
-          notas_observaciones,
+          alcance: alcance_to_save,
+          notas_observaciones: notas_observaciones_to_save,
           id_estado_geografico,
           id_ciudad,
           temas_cursos,
@@ -244,19 +251,29 @@ const updateFacilitator = cache(async (id: string, formData: FormData) => {
       ? parseInt(formData.get("ano_ingreso") as string)
       : null;
 
+    // Convert empty strings to null for all optional fields to avoid unique constraint issues
+    const fecha_ingreso_to_save = fecha_ingreso || null;
+    const cedula_to_save = cedula || null;
+    const email_to_save = email || null;
+    const telefono_to_save = telefono || null;
+    const direccion_to_save = direccion || null;
+    const nivel_educacion_to_save = nivel_educacion || null;
+    const alcance_to_save = alcance || null;
+    const notas_observaciones_to_save = notas_observaciones || null;
+
     const dataToUpdate = {
       fuente,
-      fecha_ingreso: fecha_ingreso || null,
+      fecha_ingreso: fecha_ingreso_to_save,
       nombre_apellido: toLowerCase(nombre_apellido),
-      cedula,
+      cedula: cedula_to_save,
       rif: rif || null,
-      email,
-      telefono,
-      direccion,
-      nivel_educacion,
+      email: email_to_save,
+      telefono: telefono_to_save,
+      direccion: direccion_to_save,
+      nivel_educacion: nivel_educacion_to_save,
       formacion_docente_certificada,
-      alcance,
-      notas_observaciones,
+      alcance: alcance_to_save,
+      notas_observaciones: notas_observaciones_to_save,
       id_estado_geografico,
       id_ciudad,
       temas_cursos,
