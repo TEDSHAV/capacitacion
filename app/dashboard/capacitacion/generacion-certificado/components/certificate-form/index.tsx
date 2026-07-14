@@ -37,7 +37,8 @@ export const CertificateForm = ({
     !!certificateData.course_topic_id &&
     certificateData.participants.length > 0 &&
     !!certificateData.date &&
-    !!certificateData.horas_estimadas;
+    !!certificateData.horas_estimadas &&
+    !!certificateData.facilitator_id;
 
   const isCarnetValid =
     !selectedCourseTopic?.emite_carnet || !!certificateData.fecha_vencimiento;
