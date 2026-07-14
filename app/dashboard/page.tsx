@@ -16,7 +16,7 @@ export default async function Dashboard() {
 
   // Sort departments alphabetically by nombre_departamento
   const sortedDepartamentos = (departamentos || []).sort((a, b) => 
-    a.nombre_departamento.localeCompare(b.nombre_departamento)
+    a.nombre.localeCompare(b.nombre)
   )
 
   return <DashboardClient user={user} departamentos={sortedDepartamentos} />

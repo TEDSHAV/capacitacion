@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 interface Department {
   id: string;
-  nombre_departamento: string;
+  nombre: string;
   color: string;
 }
 
@@ -22,8 +22,8 @@ export default function DashboardClient({
 
     
 
-  const handleDepartmentClick = (departmentId: string) => {
-    router.push(`/dashboard/${departmentId}`);
+  const handleDepartmentClick = (nombreDepartamento: string) => {
+    router.push(`/dashboard/${nombreDepartamento}`);
   };
 
   if (!user) {
@@ -57,13 +57,13 @@ export default function DashboardClient({
             return (
             <div
               key={department.id}
-              onClick={() => handleDepartmentClick(department.id)}
+              onClick={() => handleDepartmentClick(department.nombre)}
               className="cursor-pointer transform transition-all duration-200 hover:scale-105"
             >
-              <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg min-h-[120px]">
+              <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg min-h-[120px] flex justify-center items-center">
                 <div className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center">
-                    {department.nombre_departamento.toUpperCase()}
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center capitalize">
+                    {department.nombre}
                   </h3>
                 </div>
               </div>

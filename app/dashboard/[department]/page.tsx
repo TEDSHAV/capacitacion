@@ -13,7 +13,7 @@ interface Module {
 
 const departmentModules: Record<string, Module[]> = {
   negocios: [
-    { id: '1', name: 'Client Acquisition', description: 'Manage new client acquisition strategies', status: 'active' },
+    { id: '1', name: 'OSI', description: 'Administración de OSI', status: 'active' },
     { id: '2', name: 'Partnership Management', description: 'Handle business partnerships', status: 'active' },
     { id: '3', name: 'Sales Analytics', description: 'Track and analyze sales performance', status: 'pending' }
   ],
@@ -23,8 +23,8 @@ const departmentModules: Record<string, Module[]> = {
     { id: '3', name: 'Compliance Tracking', description: 'Monitor regulatory compliance', status: 'active' }
   ],
   capacitacion: [
-    { id: '1', name: 'Training Programs', description: 'Manage employee training programs', status: 'active' },
-    { id: '2', name: 'Skill Assessment', description: 'Assess employee skills and competencies', status: 'inactive' },
+    { id: '1', name: 'Generar certificados', description: 'Generación de carnets y certificados', status: 'active' },
+    { id: '2', name: 'Administrar plantillas', description: 'Administrar plantillas de cursos según clientes', status: 'inactive' },
     { id: '3', name: 'Certification Tracking', description: 'Track professional certifications', status: 'pending' }
   ],
   marketing: [
@@ -39,13 +39,6 @@ const departmentModules: Record<string, Module[]> = {
   ]
 }
 
-const departmentNames: Record<string, string> = {
-  negocios: 'Negocios',
-  administracion: 'Administración',
-  capacitacion: 'Capacitación',
-  marketing: 'Marketing',
-  'servicios-tecnicos': 'Servicios Técnicos'
-}
 
 export default function DepartmentPage() {
   const router = useRouter()
@@ -116,10 +109,10 @@ export default function DepartmentPage() {
             ← Volver al Panel
           </button>
           <h1 className="text-3xl font-bold text-gray-900">
-            {departmentNames[department] || department} Department
+            Departamento de {department} 
           </h1>
           <p className="mt-2 text-gray-600">
-            Administrar módulos y recursos para el departamento {departmentNames[department] || department}
+            Administrar módulos y recursos para el departamento {department}
           </p>
         </div>
 
