@@ -315,8 +315,7 @@ export class CertificatePage {
       );
 
       if (certificateData.horas_estimadas) {
-        const isCustom = this.templateKey?.startsWith("custom_");
-        const prefix = isCustom ? "Duración: " : "";
+        const prefix = this.isCustom ? "Duración: " : "";
         this.textRenderer.renderDurationText(
           certificateData.horas_estimadas,
           this.pageWidth / 2 + this.config.durationOffsetX,

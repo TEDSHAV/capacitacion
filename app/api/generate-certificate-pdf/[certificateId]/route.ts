@@ -8,6 +8,7 @@ import {
 } from "@/app/actions/certificate-data";
 import { CertificateGeneration } from "@/types";
 import { requireApiAuth } from "@/utils/api-auth";
+import { registerCustomCoordinates } from "@/lib/custom-certificate-generator";
 
 export async function GET(
   request: NextRequest,
@@ -131,6 +132,12 @@ export async function GET(
     (certificateData as any).is_custom =
       snapshotData.metadatos?.generated_by === "custom_certificate_generation";
 
+    // If custom coordinates were saved in the snapshot, register them so the generator uses them
+    if ((certificateData as any).is_custom && snapshotData.coordenadas) {
+      const customKey = registerCustomCoordinates(snapshotData.coordenadas);
+      (certificateData as any).plantilla_certificado_archivo = customKey;
+    }
+
     // Fetch sha signature, facilitator and template in parallel — they are independent
     const [shaSignatureData, facilitatorRaw, templateData] = await Promise.all([
       certificateData.sha_signature_id &&
@@ -221,7 +228,10 @@ export async function GET(
         ? templateData.archivo
         : `/templates/${archivoLower}`;
       // Set the template filename in the data so the generator can use it for coordinate overrides
-      (certificateData as any).plantilla_certificado_archivo = archivoLower;
+      // Don't overwrite if already set to a custom key from registerCustomCoordinates
+      if (!(certificateData as any).plantilla_certificado_archivo?.startsWith("custom_")) {
+        (certificateData as any).plantilla_certificado_archivo = archivoLower;
+      }
     }
 
     // Get seal image

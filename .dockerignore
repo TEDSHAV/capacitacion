@@ -10,6 +10,7 @@ yarn-error.log*
 .pnpm-debug.log*
 .env
 .env.local
+.env*.local
 .vercel
 *.tsbuildinfo
 next-env.d.ts
@@ -18,6 +19,15 @@ next-env.d.ts
 .vscode
 .windsurf
 README.md
+*.md
 plans
 supabase
 tsc-output.txt
+test
+tests
+__tests__
+coverage
+.nyc_output
+docker-compose*.yml
+Dockerfile*
+.dockerignore

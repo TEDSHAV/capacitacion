@@ -15,18 +15,16 @@ WORKDIR /app
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-# Restore system dependencies needed for build-time optimizations (sharp, critters, etc)
-RUN apt-get update && apt-get install -y \
-    python3 \
-    make \
-    g++ \
-    libvips-dev \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
-
+# Copy pre-built node_modules from deps stage (no need to reinstall build tools)
 COPY --from=deps /app/node_modules ./node_modules
+
+# Copy package files first for better layer caching
+COPY package.json package-lock.json* ./
+
+# Copy source code (respects .dockerignore)
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production NODE_OPTIONS="--max-old-space-size=6144" TURBOPACK_DISABLED=1
+
+ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production NODE_OPTIONS="--max-old-space-size=4096" TURBOPACK_DISABLED=1
 RUN npm run build
 
 # Stage 3: Runner
@@ -35,6 +33,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
 # 1. Install system libraries needed for Puppeteer/jsPDF canvas operations and sharp
+# Use runtime libvips (not -dev) to reduce image size
 RUN apt-get update && apt-get install -y \
     fonts-liberation \
     libnss3 \
@@ -46,7 +45,7 @@ RUN apt-get update && apt-get install -y \
     libpangocairo-1.0-0 \
     libxss1 \
     libgtk-3-0 \
-    libvips-dev \
+    libvips \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 

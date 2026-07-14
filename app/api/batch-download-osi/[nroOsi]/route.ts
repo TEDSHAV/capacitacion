@@ -5,6 +5,7 @@ import { CertificateGenerator } from "@/lib/certificate-generator";
 import { QRService } from "@/lib/qr-service";
 import { createClient } from "@/utils/supabase/server";
 import { requireApiAuth } from "@/utils/api-auth";
+import { registerCustomCoordinates } from "@/lib/custom-certificate-generator";
 import {
   getFacilitatorDataServer,
   getSignatureDataServer,
@@ -159,6 +160,14 @@ export async function GET(
           fecha_vencimiento: snapshot.certificado?.fecha_vencimiento || cert.fecha_vencimiento,
           complemento_empresa: snapshot.osi?.complemento_empresa,
         };
+
+        // Check if this is a custom-generated certificate and register coordinates if available
+        const isCustomCert = snapshot.metadatos?.generated_by === "custom_certificate_generation";
+        (certData as any).is_custom = isCustomCert;
+        if (isCustomCert && snapshot.coordenadas) {
+          const customKey = registerCustomCoordinates(snapshot.coordenadas);
+          (certData as any).plantilla_certificado_archivo = customKey;
+        }
 
         // Enrich missing facilitator data from database (same as generate-certificate-pdf route)
         if (certData.facilitator_id && !certData.facilitator_data) {

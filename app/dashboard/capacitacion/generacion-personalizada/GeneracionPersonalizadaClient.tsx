@@ -338,7 +338,7 @@ export function GeneracionPersonalizadaClient({
         manual_osi_data: manualOSIData,
       };
 
-      const dbResult = await saveCustomCertificatesToDatabase(certData, participants);
+      const dbResult = await saveCustomCertificatesToDatabase(certData, participants, certCoords);
 
       if (!dbResult.success) {
         setGenerationResult({ success: false, message: dbResult.message });

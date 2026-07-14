@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { CertificateGeneration } from "@/types";
 import { CustomParticipant } from "@/lib/custom-participant-types";
+import { CertCoordinateConfig } from "@/lib/custom-coordinate-types";
 import { getFacilitatorData } from "./facilitators";
 import { certificateService } from "@/lib/certificate-service";
 
@@ -133,6 +134,7 @@ function generateCustomSnapshot(
   nro_linea: number,
   nro_control: number,
   batchEmissionDate: string,
+  certCoords?: CertCoordinateConfig,
 ): string {
   const snapshot = {
     certificado: {
@@ -200,6 +202,7 @@ function generateCustomSnapshot(
       sha_signature_id: certificateData.sha_signature_id,
       sha_signature_data: (certificateData as any).sha_signature_data ?? null,
     },
+    coordenadas: certCoords || undefined,
     metadatos: {
       generated_at: new Date().toISOString(),
       generated_by: "custom_certificate_generation",
@@ -212,6 +215,7 @@ function generateCustomSnapshot(
 export async function saveCustomCertificatesToDatabase(
   certificateData: CertificateGeneration,
   participants: CustomParticipant[],
+  certCoords?: CertCoordinateConfig,
 ): Promise<{
   success: boolean;
   message: string;
@@ -324,6 +328,7 @@ export async function saveCustomCertificatesToDatabase(
         currentControlNumbers.nro_linea,
         currentControlNumbers.nro_control,
         batchEmissionDate,
+        certCoords,
       );
 
       const { data: certificateInsert, error: certificateError } = await supabase

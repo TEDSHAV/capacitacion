@@ -1160,6 +1160,7 @@ export interface CertificateManagement {
   id_facilitador: number | null;
   id_participante: number | null;
   id_plantilla_certificado: number | null;
+  id_plantilla_carnet: number | null;
   is_active: boolean;
   nro_control: number;
   nro_hoja: number | null;
