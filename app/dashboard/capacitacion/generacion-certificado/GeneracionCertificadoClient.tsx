@@ -255,8 +255,10 @@ export default function GeneracionCertificadoClient({
       const templateImageUrl = '/templates/certificado.png';
       const sealImageUrl = '/templates/sello.png';
       
-      // Generate all certificates in parallel for better performance
-      const certificatePromises = certificateData.participants.map(async (participant, i) => {
+      // Generate certificates sequentially to prevent race conditions
+      const certificates = [];
+      for (let i = 0; i < certificateData.participants.length; i++) {
+        const participant = certificateData.participants[i];
         const controlNumbers = dbResult.certificateNumbers![i];
         try {
           const blob = await certificateGenerator.generateCertificate({
@@ -268,23 +270,17 @@ export default function GeneracionCertificadoClient({
             isPreview: false,
             certificateId: dbResult.certificateIds![i]
           });
-          return { participant, blob, success: true };
+          certificates.push({ participant, blob });
         } catch (error) {
-          return { participant, blob: null, success: false };
+          // Continue with next participant if one fails
         }
-      });
+      }
 
-      const certificateResults = await Promise.allSettled(certificatePromises);
-      const certificates = certificateResults
-        .filter((r): r is PromiseFulfilledResult<{participant: any, blob: Blob, success: true}> => r.status === 'fulfilled' && r.value.success)
-        .map(r => r.value);
-
-      // Download certificates with staggered delay to prevent browser throttling
-      const certificateItems = certificates.map(({ participant, blob }) => ({
-        blob,
-        filename: `certificado_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`
-      }));
-      await certificateGenerator.downloadMultipleBlobs(certificateItems, 50);
+      // Download certificates sequentially
+      for (const { participant, blob } of certificates) {
+        const filename = `certificado_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
+        certificateGenerator.downloadBlob(blob, filename);
+      }
 
       // Generate carnets if course requires them
       let carnetsGenerated = 0;
@@ -341,39 +337,45 @@ export default function GeneracionCertificadoClient({
               };
             });
 
-            // Generate carnet PDFs
-            const carnetRequestsWithQR = await Promise.all(
-              carnetRequests.map(async (carnetReq, index) => {
-                // Generate QR code for carnet using the certificate ID
-                let qrDataURL: string | undefined;
-                try {
-                  const certificateId = dbResult.certificateIds![index];
-                  const qrData = QRService.generateQRData(certificateId);
-                  qrDataURL = await QRService.generateQRDataURL({
-                    data: qrData,
-                    size: 60,
-                    level: 'M',
-                    includeMargin: true
-                  });
-                } catch (qrError) {
-                  // Continue without QR code - carnet generator will use placeholder
-                }
+            // Generate carnet PDFs sequentially
+            const carnetBlobs = [];
+            for (let i = 0; i < carnetRequests.length; i++) {
+              const carnetReq = carnetRequests[i];
+              
+              // Generate QR code for carnet using the certificate ID
+              let qrDataURL: string | undefined;
+              try {
+                const certificateId = dbResult.certificateIds![i];
+                const qrData = QRService.generateQRData(certificateId);
+                qrDataURL = await QRService.generateQRDataURL({
+                  data: qrData,
+                  size: 60,
+                  level: 'M',
+                  includeMargin: true
+                });
+              } catch (qrError) {
+                // Continue without QR code - carnet generator will use placeholder
+              }
 
-                return {
-                  ...carnetReq,
-                  qrDataURL
-                };
-              })
-            );
+              const carnetReqWithQR = {
+                ...carnetReq,
+                qrDataURL
+              };
 
-            const carnetBlobs = await carnetGenerator.generateMultipleCarnets(carnetRequestsWithQR);
+              try {
+                const blob = await carnetGenerator.generateCarnet(carnetReqWithQR);
+                carnetBlobs.push(blob);
+              } catch (error) {
+                // Continue with next carnet if one fails
+              }
+            }
             
-            // Download carnets with staggered delay to prevent browser throttling
-            const carnetItems = carnetBlobs.map((blob, index) => ({
-              blob,
-              filename: `carnet_${certificateData.participants[index].name.replace(/\s+/g, '_')}_${certificateData.participants[index].id_number}.pdf`
-            }));
-            await carnetGenerator.downloadMultipleBlobs(carnetItems, 50);
+            // Download carnets sequentially
+            for (let i = 0; i < carnetBlobs.length; i++) {
+              const blob = carnetBlobs[i];
+              const filename = `carnet_${certificateData.participants[i].name.replace(/\s+/g, '_')}_${certificateData.participants[i].id_number}.pdf`;
+              carnetGenerator.downloadBlob(blob, filename);
+            }
 
             carnetsGenerated = carnetBlobs.length;
           } else {
