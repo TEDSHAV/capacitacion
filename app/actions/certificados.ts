@@ -204,24 +204,46 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
   try {
     const supabase = await createClient();
     
-    // First, try to find existing participant by cedula and name
+    console.log('Creating/updating participant:', JSON.stringify(participant, null, 2));
+    
+    // Validate required fields
+    if (!participant.name || !participant.id_number) {
+      console.error('FAILED: Missing required participant fields:', {
+        name: participant.name,
+        id_number: participant.id_number,
+        nacionalidad: participant.nacionalidad
+      });
+      return null;
+    }
+    
+    // First, try to find existing participant by cedula (primary match) - name can vary slightly
     const { data: existingParticipant, error: findError } = await supabase
       .from("participantes_certificados")
-      .select("id")
+      .select("id, nombre, cedula, nacionalidad")
       .eq("cedula", participant.id_number)
-      .eq("nombre", participant.name)
       .maybeSingle();
 
     if (findError && findError.code !== 'PGRST116') { // Not found error is ok
+      console.error('FAILED: Error finding existing participant:', findError);
       return null;
     }
 
     if (existingParticipant) {
+      console.log('Found existing participant by cedula:', {
+        id: existingParticipant.id,
+        nombre: existingParticipant.nombre,
+        cedula: existingParticipant.cedula,
+        nacionalidad: existingParticipant.nacionalidad
+      });
       return existingParticipant.id;
     }
 
     // Create new participant
-    const nationality = participant.nacionalidad === 'V' ? 'venezolano' : 'extranjero';
+    const nationality = participant.nacionalidad === 'V' ? 'venezolano' : 
+                       participant.nacionalidad === 'E' ? 'extranjero' : 'venezolano'; // Default to venezolano
+    
+    console.log('Creating new participant with nationality:', nationality);
+    
     const { data: newParticipant, error: insertError } = await supabase
       .from("participantes_certificados")
       .insert({
@@ -233,12 +255,17 @@ async function createOrUpdateParticipant(participant: CertificateParticipant): P
       .single();
 
     if (insertError) {
+      console.error('FAILED: Error creating new participant:', insertError);
+      console.error('Insert error details:', JSON.stringify(insertError, null, 2));
       return null;
     }
 
+    console.log('SUCCESS: Created new participant:', newParticipant?.id);
     return newParticipant?.id || null;
 
   } catch (error) {
+    console.error('FAILED: Exception in createOrUpdateParticipant:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return null;
   }
 }

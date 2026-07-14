@@ -358,10 +358,6 @@ export class CertificatePage {
       // Add QR code image
       this.doc.addImage(qrDataUrl, 'PNG', x, y, qrSize, qrSize);
 
-      // Add "Scan to Verify" text below QR code
-      this.doc.setFont("helvetica", "normal");
-      this.doc.setFontSize(5);
-      this.doc.text("Scan to Verify", x + qrSize/2, y + qrSize + 3, { align: "center" });
 
     } catch (error) {
       console.warn('Failed to add QR code to certificate:', error);
