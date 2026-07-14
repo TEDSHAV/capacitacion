@@ -313,7 +313,8 @@ export default function OSIDetailPage() {
                     type="text"
                     value={formData.nombre_empresa || ''}
                     onChange={(e) => updateFormData('nombre_empresa', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Nombre de la empresa"
                   />
                 </div>
@@ -325,7 +326,8 @@ export default function OSIDetailPage() {
                     type="text"
                     value={formData.empresa_rif || ''}
                     onChange={(e) => updateFormData('empresa_rif', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="RIF de la empresa"
                   />
                 </div>
@@ -335,7 +337,8 @@ export default function OSIDetailPage() {
                     type="text"
                     value={formData.tipo_servicio || ''}
                     onChange={(e) => updateFormData('tipo_servicio', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Tipo de servicio"
                   />
                 </div>
@@ -346,7 +349,8 @@ export default function OSIDetailPage() {
                   <select
                     value={formData.estado || 'pendiente'}
                     onChange={(e) => updateFormData('estado', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="pendiente">Pendiente</option>
                     <option value="active">Activo</option>
@@ -364,7 +368,8 @@ export default function OSIDetailPage() {
                     type="text"
                     value={formData.nro_orden_compra || ''}
                     onChange={(e) => updateFormData('nro_orden_compra', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Número de orden de compra"
                   />
                 </div>
@@ -374,7 +379,8 @@ export default function OSIDetailPage() {
                     type="text"
                     value={formData.nro_presupuesto || ''}
                     onChange={(e) => updateFormData('nro_presupuesto', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Número de presupuesto"
                   />
                 </div>
@@ -385,7 +391,8 @@ export default function OSIDetailPage() {
                   type="text"
                   value={formData.ejecutivo_negocios || ''}
                   onChange={(e) => updateFormData('ejecutivo_negocios', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="Ejecutivo de negocios"
                 />
               </div>
@@ -403,7 +410,8 @@ export default function OSIDetailPage() {
                 type="date"
                 value={formData.fecha_emision || ''}
                 onChange={(e) => updateFormData('fecha_emision', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={!isEditing && !isNew}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             </div>
             <div>
@@ -412,7 +420,8 @@ export default function OSIDetailPage() {
                 type="date"
                 value={formData.fecha_servicio || ''}
                 onChange={(e) => updateFormData('fecha_servicio', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={!isEditing && !isNew}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             </div>
           </div>
@@ -429,7 +438,8 @@ export default function OSIDetailPage() {
                   type="text"
                   value={formData.cliente_nombre_empresa || ''}
                   onChange={(e) => updateFormData('cliente_nombre_empresa', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="Nombre de empresa del cliente"
                 />
               </div>
@@ -439,7 +449,8 @@ export default function OSIDetailPage() {
                   type="text"
                   value={formData.cliente_codigo || ''}
                   onChange={(e) => updateFormData('cliente_codigo', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="Código del cliente"
                 />
               </div>
@@ -451,7 +462,8 @@ export default function OSIDetailPage() {
                   type="text"
                   value={formData.persona_contacto || ''}
                   onChange={(e) => updateFormData('persona_contacto', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="Persona de contacto"
                 />
               </div>
@@ -461,7 +473,8 @@ export default function OSIDetailPage() {
                   type="text"
                   value={formData.telefono_contacto || ''}
                   onChange={(e) => updateFormData('telefono_contacto', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="Teléfono de contacto"
                 />
               </div>
@@ -473,7 +486,8 @@ export default function OSIDetailPage() {
                   type="email"
                   value={formData.email_contacto || ''}
                   onChange={(e) => updateFormData('email_contacto', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="Email de contacto"
                 />
               </div>
@@ -482,7 +496,8 @@ export default function OSIDetailPage() {
                 <textarea
                   value={formData.direccion_fiscal_cliente || ''}
                   onChange={(e) => updateFormData('direccion_fiscal_cliente', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   rows={2}
                   placeholder="Dirección fiscal del cliente"
                 />
@@ -500,7 +515,8 @@ export default function OSIDetailPage() {
               <textarea
                 value={formData.tema || ''}
                 onChange={(e) => updateFormData('tema', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={!isEditing && !isNew}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 rows={3}
                 placeholder="Tema del servicio"
               />
@@ -510,7 +526,8 @@ export default function OSIDetailPage() {
               <textarea
                 value={formData.pedido || ''}
                 onChange={(e) => updateFormData('pedido', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={!isEditing && !isNew}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 rows={3}
                 placeholder="Descripción del pedido"
               />
@@ -520,7 +537,8 @@ export default function OSIDetailPage() {
               <textarea
                 value={formData.detalle_sesion || ''}
                 onChange={(e) => updateFormData('detalle_sesion', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={!isEditing && !isNew}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 rows={3}
                 placeholder="Detalle de la sesión"
               />
@@ -530,7 +548,8 @@ export default function OSIDetailPage() {
               <textarea
                 value={formData.observaciones_adicionales || ''}
                 onChange={(e) => updateFormData('observaciones_adicionales', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={!isEditing && !isNew}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 rows={3}
                 placeholder="Observaciones adicionales"
               />
@@ -541,7 +560,8 @@ export default function OSIDetailPage() {
                 type="number"
                 value={formData.participantes_max || 0}
                 onChange={(e) => updateFormData('participantes_max', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={!isEditing && !isNew}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 placeholder="Número máximo de participantes"
               />
             </div>
@@ -560,7 +580,8 @@ export default function OSIDetailPage() {
                   step="0.01"
                   value={formData.costo_honorarios_hora || 0}
                   onChange={(e) => updateFormData('costo_honorarios_hora', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
                 />
               </div>
@@ -571,7 +592,8 @@ export default function OSIDetailPage() {
                   step="0.01"
                   value={formData.costo_impresion_material || 0}
                   onChange={(e) => updateFormData('costo_impresion_material', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
                 />
               </div>
@@ -582,7 +604,8 @@ export default function OSIDetailPage() {
                   step="0.01"
                   value={formData.costo_traslado || 0}
                   onChange={(e) => updateFormData('costo_traslado', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
                 />
               </div>
@@ -593,7 +616,8 @@ export default function OSIDetailPage() {
                   step="0.01"
                   value={formData.costo_logistica_comida || 0}
                   onChange={(e) => updateFormData('costo_logistica_comida', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
                 />
               </div>
@@ -604,7 +628,8 @@ export default function OSIDetailPage() {
                   step="0.01"
                   value={formData.costo_otros || 0}
                   onChange={(e) => updateFormData('costo_otros', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
                 />
               </div>
@@ -617,7 +642,8 @@ export default function OSIDetailPage() {
                 <textarea
                   value={formData.direccion_ejecucion || ''}
                   onChange={(e) => updateFormData('direccion_ejecucion', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   rows={2}
                   placeholder="Dirección de ejecución"
                 />
@@ -627,7 +653,8 @@ export default function OSIDetailPage() {
                 <textarea
                   value={formData.direccion_envio || ''}
                   onChange={(e) => updateFormData('direccion_envio', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   rows={2}
                   placeholder="Dirección de envío"
                 />
@@ -641,7 +668,8 @@ export default function OSIDetailPage() {
                   type="checkbox"
                   checked={formData.certificado_impreso || false}
                   onChange={(e) => updateFormData('certificado_impreso', e.target.checked)}
-                  className="mr-3 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  disabled={!isEditing && !isNew}
+                  className="mr-3 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <span className="text-sm text-gray-700">Certificado Impreso</span>
               </label>
@@ -650,7 +678,8 @@ export default function OSIDetailPage() {
                   type="checkbox"
                   checked={formData.carnet_impreso || false}
                   onChange={(e) => updateFormData('carnet_impreso', e.target.checked)}
-                  className="mr-3 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  disabled={!isEditing && !isNew}
+                  className="mr-3 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <span className="text-sm text-gray-700">Carnet Impreso</span>
               </label>
