@@ -46,7 +46,6 @@ export default function CapacitacionClient({
       gradient: "from-blue-500 to-indigo-600",
       icon: Users,
       modules: [
-        { id: "participantes", title: "Gestión de Participantes", icon: Users },
         {
           id: "consulta-participantes",
           title: "Consulta de Participantes",
