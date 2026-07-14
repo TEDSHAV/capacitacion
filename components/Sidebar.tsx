@@ -66,7 +66,7 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
 
   // Check if a department is currently active
   const isActiveDepartment = useCallback((departmentName: string) => {
-    return pathname.includes(`/dashboard/${departmentName}`) || pathname === '/dashboard';
+    return pathname.includes(`/dashboard/${departmentName}`);
   }, [pathname]);
 
   // Check if a submodule is active
