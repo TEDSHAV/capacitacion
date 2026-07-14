@@ -2,10 +2,12 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { CarnetGeneration } from "@/types";
+import { CarnetCoordinateConfig } from "@/lib/custom-coordinate-types";
 
 export async function saveCustomCarnetsToDatabase(
   carnetData: CarnetGeneration[],
   certificateIds: number[],
+  carnetCoords?: CarnetCoordinateConfig,
 ): Promise<{ success: boolean; message: string; carnetIds?: number[] }> {
   try {
     const supabase = await createClient();
@@ -28,6 +30,7 @@ export async function saveCustomCarnetsToDatabase(
         nombre_participante: nombre_participante_upper,
         generated_at: new Date().toISOString(),
         id_plantilla_carnet: carnet.id_plantilla_carnet || null,
+        coordenadas_carnet: carnetCoords || undefined,
       });
 
       return {

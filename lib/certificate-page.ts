@@ -229,7 +229,7 @@ export class CertificatePage {
     const { certificate_title, date } = certificateData;
 
     // Store is_custom flag for conditional seal/SHA label rendering
-    this.isCustom = !!(certificateData as any).is_custom;
+    this.isCustom = !!certificateData.is_custom;
 
     // Support both naming conventions for subtitle
     const certificate_subtitle =

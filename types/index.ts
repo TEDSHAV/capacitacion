@@ -366,6 +366,7 @@ export interface CertificateGeneration {
   paperSize?: PaperSize; // Preferred paper size for printing
   manual_mode?: boolean; // Whether using manual OSI input mode
   manual_osi_data?: ManualOSIInput; // Manual OSI input data when in manual mode
+  is_custom?: boolean; // Whether this is a custom-generated certificate (affects seal, SHA label, duration prefix)
 }
 
 export interface CertificateParticipant {

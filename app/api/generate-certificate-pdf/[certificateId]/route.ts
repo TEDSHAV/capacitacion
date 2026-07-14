@@ -258,6 +258,7 @@ export async function GET(
         isPreview: false,
         certificateId: certificateId, // Pass actual certificate ID for QR code
         singlePage: false, // Use two-page mode (front and back)
+        skipQR: !!(certificateData as any).is_custom,
       });
 
       // Return PDF as response

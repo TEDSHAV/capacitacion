@@ -62,9 +62,14 @@ export default function CertificateVerificationPage() {
           const carnetsData = await carnetsResponse.json();
           console.log("📋 Carnets data received:", carnetsData);
           if (carnetsData.success && carnetsData.data) {
-            setCarnets(carnetsData.data);
+            const passingCarnets = carnetsData.data.filter((c: Carnet) => {
+              const score = c.certificado?.calificacion ?? 0;
+              const passingGrade = c.curso?.nota_aprobatoria ?? 0;
+              return passingGrade === 0 || score >= passingGrade;
+            });
+            setCarnets(passingCarnets);
             const ready: { [key: number]: boolean } = {};
-            carnetsData.data.forEach((c: Carnet) => {
+            passingCarnets.forEach((c: Carnet) => {
               ready[c.id] = true;
             });
             setCarnetPdfReady(ready);

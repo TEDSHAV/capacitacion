@@ -368,6 +368,7 @@ export async function getCarnetsByCertificateId(
           nombre,
           contenido_curso,
           carga_horaria_std,
+          nota_aprobatoria,
           emite_carnet
         )
       `,

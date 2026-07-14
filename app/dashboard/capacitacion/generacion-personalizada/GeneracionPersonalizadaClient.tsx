@@ -260,6 +260,7 @@ export function GeneracionPersonalizadaClient({
       paperSize: certificateDetails.paperSize,
       manual_mode: true,
       manual_osi_data: manualOSIData,
+      is_custom: true,
     };
   };
 
@@ -336,6 +337,7 @@ export function GeneracionPersonalizadaClient({
         paperSize: certificateDetails.paperSize,
         manual_mode: true,
         manual_osi_data: manualOSIData,
+        is_custom: true,
       };
 
       const dbResult = await saveCustomCertificatesToDatabase(certData, participants, certCoords);
@@ -446,6 +448,7 @@ export function GeneracionPersonalizadaClient({
         const carnetResult = await saveCustomCarnetsToDatabase(
           carnetDataList,
           dbResult.certificateIds!,
+          carnetCoords,
         );
 
         if (carnetResult.success) {

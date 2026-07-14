@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCarnetById } from "@/app/actions/carnets";
 import { CarnetGenerator } from "@/lib/carnet-generator";
+import { CustomCarnetGenerator } from "@/lib/custom-carnet-generator";
 import { QRService } from "@/lib/qr-service";
 import { createClient } from "@/utils/supabase/server";
 import { getCarnetTemplateServer } from "@/app/actions/certificate-data";
@@ -102,7 +103,10 @@ export async function GET(
 
     // Generate carnet PDF
     console.log("🎨 Initializing carnet generator...");
-    const generator = new CarnetGenerator();
+    const customCoords = snapshotData?.coordenadas_carnet;
+    const generator = customCoords
+      ? new CustomCarnetGenerator(customCoords)
+      : new CarnetGenerator();
 
     const carnetRequest = {
       participant: {
