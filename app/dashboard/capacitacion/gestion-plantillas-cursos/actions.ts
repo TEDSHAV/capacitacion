@@ -56,7 +56,7 @@ const createPlantillaCurso = cache(async (plantillaData: any) => {
     const { data, error } = await supabase
       .from('plantillas_cursos')
       .insert({
-        descripcion: plantillaData.descripcion,
+        descripcion: plantillaData.descripcion.toUpperCase(),
         contenido: plantillaData.contenido,
         id_curso: plantillaData.id_curso || null,
         id_empresa: plantillaData.id_empresa || null,
@@ -85,7 +85,7 @@ const updatePlantillaCurso = cache(async (id: number, plantillaData: any) => {
     const { data, error } = await supabase
       .from('plantillas_cursos')
       .update({
-        descripcion: plantillaData.descripcion,
+        descripcion: plantillaData.descripcion.toUpperCase(),
         contenido: plantillaData.contenido,
         id_curso: plantillaData.id_curso || null,
         id_empresa: plantillaData.id_empresa || null,

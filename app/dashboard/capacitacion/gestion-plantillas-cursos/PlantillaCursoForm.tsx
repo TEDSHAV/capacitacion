@@ -38,6 +38,7 @@ export function PlantillaCursoForm({
 
     const plantillaData = {
       ...formData,
+      descripcion: formData.descripcion.toUpperCase(),
       id_curso: formData.id_curso ? parseInt(formData.id_curso.toString()) : null,
       id_empresa: formData.id_empresa ? parseInt(formData.id_empresa.toString()) : null
     };
@@ -50,7 +51,7 @@ export function PlantillaCursoForm({
     
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : (name === 'descripcion' ? value.toUpperCase() : value)
     }));
   };
 

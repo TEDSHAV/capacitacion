@@ -35,7 +35,7 @@ export async function createCurso(formData: FormData) {
     const { data, error } = await supabase
       .from('cursos')
       .insert({
-        nombre: titulo.trim(),
+        nombre: titulo.trim().toUpperCase(),
         contenido: contenido.trim(),
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
         created_at: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
@@ -76,7 +76,7 @@ export async function updateCurso(id: string, formData: FormData) {
     const { data, error } = await supabase
       .from('cursos')
       .update({
-        nombre: titulo,
+        nombre: titulo.toUpperCase(),
         contenido: contenido,
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
         nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
@@ -119,7 +119,7 @@ export async function duplicateCurso(id: string) {
     const { data, error } = await supabase
       .from('cursos')
       .insert({
-        nombre: `${originalCourse.nombre} (Copia)`,
+        nombre: `${originalCourse.nombre} (COPIA)`.toUpperCase(),
         contenido: originalCourse.contenido,
         horas_estimadas: originalCourse.horas_estimadas,
         created_at: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD

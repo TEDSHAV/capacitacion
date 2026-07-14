@@ -48,7 +48,7 @@ export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: Cou
         <div className="col-span-4">
           <div className="space-y-1">
             <div className="text-sm font-medium text-gray-900 truncate">
-              {curso.nombre}
+              {curso.nombre.toUpperCase()}
             </div>
             <div className="text-xs text-gray-500 line-clamp-2">
               {(() => { const plain = stripHtml(curso.contenido || ''); return plain.substring(0, 80) + (plain.length > 80 ? '...' : ''); })()}

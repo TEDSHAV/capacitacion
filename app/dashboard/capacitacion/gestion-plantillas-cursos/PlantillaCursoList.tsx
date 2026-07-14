@@ -92,14 +92,14 @@ export function PlantillaCursoList({
                 <tr key={plantilla.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
-                      {plantilla.descripcion}
+                      {plantilla.descripcion.toUpperCase()}
                     </div>
                     <div className="text-sm text-gray-500 truncate max-w-xs">
                       {stripHtml(plantilla.contenido || '').substring(0, 100)}...
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {plantilla.curso_nombre || 'General'}
+                    {plantilla.curso_nombre?.toUpperCase() || 'GENERAL'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {plantilla.empresa_nombre || 'General'}

@@ -61,7 +61,8 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
     setDatosFormulario(prev => ({
       ...prev,
       [name]: (name === 'horas_estimadas' || name === 'nota_aprobatoria') ? 
-        (value === "" ? 0 : Number(value.replace(/^0+/, ''))) : value
+        (value === "" ? 0 : Number(value.replace(/^0+/, ''))) : 
+        (name === 'titulo' ? value.toUpperCase() : value)
     }));
   };
 
@@ -92,7 +93,7 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
 
     // Create FormData properly
     const formData = new FormData();
-    formData.append('titulo', datosFormulario.titulo);
+    formData.append('titulo', datosFormulario.titulo.toUpperCase());
     formData.append('contenido', datosFormulario.contenido);
     formData.append('horas_estimadas', datosFormulario.horas_estimadas.toString());
     formData.append('nota_aprobatoria', datosFormulario.nota_aprobatoria.toString());
@@ -232,11 +233,9 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
           <RichTextEditor
             value={datosFormulario.contenido}
             onChange={(html) => setDatosFormulario(prev => ({ ...prev, contenido: html }))}
-            placeholder="Agrega el contenido detallado del curso aquí... (puedes pegar desde Word)"
             rows={8}
           />
           <div className="flex justify-between items-center mt-1">
-            <p className="text-xs text-gray-500">Soporta formato: negrita, cursiva, listas. Puedes pegar directamente desde Word.</p>
             <p className={`text-xs font-medium ${(datosFormulario.contenido?.length || 0) > 2000 ? 'text-red-600' : (datosFormulario.contenido?.length || 0) > 1800 ? 'text-yellow-600' : 'text-gray-500'}`}>
               {datosFormulario.contenido?.length || 0} / 2000 caracteres
             </p>
