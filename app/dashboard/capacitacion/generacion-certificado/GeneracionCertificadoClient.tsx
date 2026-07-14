@@ -716,6 +716,7 @@ export default function GeneracionCertificadoClient({
           execution_address: selectedOSI?.direccion_ejecucion || "",
           execution_date: certificateData.date,
           control_number: dbResult.certificateNumbers![index]?.nro_control,
+          score: participant.score,
         }),
       );
 
