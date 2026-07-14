@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { CertificateFilters } from '@/types';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { CertificateFilters } from "@/types";
+import { X } from "lucide-react";
 
 interface CertificateFiltersProps {
   filters: CertificateFilters;
@@ -20,13 +21,40 @@ export default function CertificateFiltersComponent({
   courses,
   facilitators,
   states,
-  loading
+  loading,
 }: CertificateFiltersProps) {
   const [localFilters, setLocalFilters] = useState<CertificateFilters>(filters);
+  const [searchTerm, setSearchTerm] = useState(filters.searchTerm || "");
+  const localFiltersRef = useRef(localFilters);
+  const onFiltersChangeRef = useRef(onFiltersChange);
 
   useEffect(() => {
     setLocalFilters(filters);
+    setSearchTerm(filters.searchTerm || "");
   }, [filters]);
+
+  useEffect(() => {
+    localFiltersRef.current = localFilters;
+  }, [localFilters]);
+
+  useEffect(() => {
+    onFiltersChangeRef.current = onFiltersChange;
+  }, [onFiltersChange]);
+
+  // Debounced search handler
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const newFilters = { ...localFiltersRef.current, searchTerm };
+      setLocalFilters(newFilters);
+      onFiltersChangeRef.current(newFilters);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const handleFilterChange = (key: keyof CertificateFilters, value: any) => {
     const newFilters = { ...localFilters, [key]: value };
@@ -37,11 +65,12 @@ export default function CertificateFiltersComponent({
   const handleClearFilters = () => {
     const emptyFilters: CertificateFilters = {};
     setLocalFilters(emptyFilters);
+    setSearchTerm("");
     onFiltersChange(emptyFilters);
   };
 
-  const hasActiveFilters = Object.values(localFilters).some(value => 
-    value !== undefined && value !== '' && value !== null
+  const hasActiveFilters = Object.values(localFilters).some(
+    (value) => value !== undefined && value !== "" && value !== null,
   );
 
   if (loading) {
@@ -77,13 +106,23 @@ export default function CertificateFiltersComponent({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Búsqueda
           </label>
-          <input
-            type="text"
-            placeholder="Nombre, cédula, empresa..."
-            value={localFilters.searchTerm || ''}
-            onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Nombre, cédula, empresa..."
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => handleSearchChange("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Company */}
@@ -92,8 +131,13 @@ export default function CertificateFiltersComponent({
             Empresa
           </label>
           <select
-            value={localFilters.companyId || ''}
-            onChange={(e) => handleFilterChange('companyId', e.target.value ? parseInt(e.target.value) : undefined)}
+            value={localFilters.companyId || ""}
+            onChange={(e) =>
+              handleFilterChange(
+                "companyId",
+                e.target.value ? parseInt(e.target.value) : undefined,
+              )
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Todas las empresas</option>
@@ -111,8 +155,13 @@ export default function CertificateFiltersComponent({
             Curso
           </label>
           <select
-            value={localFilters.courseId || ''}
-            onChange={(e) => handleFilterChange('courseId', e.target.value ? parseInt(e.target.value) : undefined)}
+            value={localFilters.courseId || ""}
+            onChange={(e) =>
+              handleFilterChange(
+                "courseId",
+                e.target.value ? parseInt(e.target.value) : undefined,
+              )
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Todos los cursos</option>
@@ -130,8 +179,13 @@ export default function CertificateFiltersComponent({
             Facilitador
           </label>
           <select
-            value={localFilters.facilitatorId || ''}
-            onChange={(e) => handleFilterChange('facilitatorId', e.target.value ? parseInt(e.target.value) : undefined)}
+            value={localFilters.facilitatorId || ""}
+            onChange={(e) =>
+              handleFilterChange(
+                "facilitatorId",
+                e.target.value ? parseInt(e.target.value) : undefined,
+              )
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Todos los facilitadores</option>
@@ -149,8 +203,13 @@ export default function CertificateFiltersComponent({
             Estado
           </label>
           <select
-            value={localFilters.stateId || ''}
-            onChange={(e) => handleFilterChange('stateId', e.target.value ? parseInt(e.target.value) : undefined)}
+            value={localFilters.stateId || ""}
+            onChange={(e) =>
+              handleFilterChange(
+                "stateId",
+                e.target.value ? parseInt(e.target.value) : undefined,
+              )
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Todos los estados</option>
@@ -168,8 +227,17 @@ export default function CertificateFiltersComponent({
             Estado del Certificado
           </label>
           <select
-            value={localFilters.isActive !== undefined ? localFilters.isActive.toString() : ''}
-            onChange={(e) => handleFilterChange('isActive', e.target.value === '' ? undefined : e.target.value === 'true')}
+            value={
+              localFilters.isActive !== undefined
+                ? localFilters.isActive.toString()
+                : ""
+            }
+            onChange={(e) =>
+              handleFilterChange(
+                "isActive",
+                e.target.value === "" ? undefined : e.target.value === "true",
+              )
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Todos</option>
@@ -185,8 +253,10 @@ export default function CertificateFiltersComponent({
           </label>
           <input
             type="date"
-            value={localFilters.dateFrom || ''}
-            onChange={(e) => handleFilterChange('dateFrom', e.target.value || undefined)}
+            value={localFilters.dateFrom || ""}
+            onChange={(e) =>
+              handleFilterChange("dateFrom", e.target.value || undefined)
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
@@ -198,8 +268,10 @@ export default function CertificateFiltersComponent({
           </label>
           <input
             type="date"
-            value={localFilters.dateTo || ''}
-            onChange={(e) => handleFilterChange('dateTo', e.target.value || undefined)}
+            value={localFilters.dateTo || ""}
+            onChange={(e) =>
+              handleFilterChange("dateTo", e.target.value || undefined)
+            }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>

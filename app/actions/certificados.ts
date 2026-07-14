@@ -142,7 +142,9 @@ export async function saveCertificatesToDatabase(
     if (fetchTasks.length > 0) await Promise.all(fetchTasks);
 
     const afterFetchTime = Date.now();
-    console.log(`⏱️  Facilitator/Signature fetch time: ${afterFetchTime - startTime}ms`);
+    console.log(
+      `⏱️  Facilitator/Signature fetch time: ${afterFetchTime - startTime}ms`,
+    );
 
     const supabase = await createClient();
 
@@ -163,24 +165,40 @@ export async function saveCertificatesToDatabase(
 
     const beforeControlNumbersTime = Date.now();
     // 🚀 USE POSTGRESQL RPC TO GET CONTROL NUMBERS ATOMICALLY - NO MORE RACE CONDITIONS
-    let nextControlNumbers = { nro_libro: 1, nro_hoja: 1, nro_linea: 1, nro_control: 1 };
+    let nextControlNumbers = {
+      nro_libro: 1,
+      nro_hoja: 1,
+      nro_linea: 1,
+      nro_control: 1,
+    };
 
     try {
-      const { data: controlNumbersData, error: rpcError } = await supabase.rpc('get_next_control_numbers', {
-        batch_size: participants.length
-      });
+      const { data: controlNumbersData, error: rpcError } = await supabase.rpc(
+        "get_next_control_numbers",
+        {
+          batch_size: participants.length,
+        },
+      );
 
       if (!rpcError && controlNumbersData) {
         nextControlNumbers = controlNumbersData as any;
-        console.log('Generated control numbers via RPC:', nextControlNumbers);
+        console.log("Generated control numbers via RPC:", nextControlNumbers);
       } else {
-        console.warn('RPC error for control numbers, using fallback:', rpcError);
+        console.warn(
+          "RPC error for control numbers, using fallback:",
+          rpcError,
+        );
       }
     } catch (error) {
-      console.warn('Failed to get control numbers via RPC, using defaults:', error);
+      console.warn(
+        "Failed to get control numbers via RPC, using defaults:",
+        error,
+      );
     }
     const afterControlNumbersTime = Date.now();
-    console.log(`⏱️  Control numbers RPC time: ${afterControlNumbersTime - beforeControlNumbersTime}ms`);
+    console.log(
+      `⏱️  Control numbers RPC time: ${afterControlNumbersTime - beforeControlNumbersTime}ms`,
+    );
 
     const beforeParticipantsLoopTime = Date.now();
     for (let i = 0; i < participants.length; i++) {
@@ -357,7 +375,9 @@ export async function saveCertificatesToDatabase(
       );
 
       // 3. Insert certificate record with snapshot already generated
-      console.log("Step 3: Inserting certificate record with pre-generated snapshot...");
+      console.log(
+        "Step 3: Inserting certificate record with pre-generated snapshot...",
+      );
 
       const certificateRecordWithSnapshot = {
         ...certificateRecord,
@@ -422,21 +442,32 @@ export async function saveCertificatesToDatabase(
             .eq("id", certificateInsert.id);
 
           if (updateError) {
-            console.warn("WARNING: Failed to update certificate with QR code:", updateError);
+            console.warn(
+              "WARNING: Failed to update certificate with QR code:",
+              updateError,
+            );
           } else {
             console.log("SUCCESS: Certificate updated with QR code");
           }
         } catch (error) {
-          console.warn("WARNING: Failed to generate QR code for certificate:", certificateInsert.id, error);
+          console.warn(
+            "WARNING: Failed to generate QR code for certificate:",
+            certificateInsert.id,
+            error,
+          );
         }
       }
     }
 
     const afterParticipantsLoopTime = Date.now();
-    console.log(`⏱️  All participants processing time: ${afterParticipantsLoopTime - beforeParticipantsLoopTime}ms`);
+    console.log(
+      `⏱️  All participants processing time: ${afterParticipantsLoopTime - beforeParticipantsLoopTime}ms`,
+    );
 
     const endTime = Date.now();
-    console.log(`⏱️  TOTAL CERTIFICATE GENERATION TIME: ${endTime - startTime}ms`);
+    console.log(
+      `⏱️  TOTAL CERTIFICATE GENERATION TIME: ${endTime - startTime}ms`,
+    );
     console.log(`⏱️  End time:`, new Date(endTime).toISOString());
 
     console.log("Certificate IDs:", certificateIds);
@@ -1283,176 +1314,110 @@ export async function getCertificatesForManagement(
   try {
     const supabase = await createClient();
 
-    let query = supabase
+    // Use RPC function for efficient server-side search
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      "search_certificates",
+      {
+        p_search_term: filters.searchTerm || null,
+        p_company_id: filters.companyId || null,
+        p_course_id: filters.courseId || null,
+        p_facilitator_id: filters.facilitatorId || null,
+        p_state_id: filters.stateId || null,
+        p_is_active: filters.isActive !== undefined ? filters.isActive : null,
+        p_date_from: filters.dateFrom || null,
+        p_date_to: filters.dateTo || null,
+        p_page: page,
+        p_limit: limit,
+      },
+    );
 
-      .from("certificados")
-
-      .select(
-        `
-
-        *,
-
-        participantes_certificados (
-
-          id,
-
-          nombre,
-
-          cedula,
-
-          nacionalidad
-
-        ),
-
-        cursos (
-
-          id,
-
-          nombre,
-
-          contenido,
-
-          horas_estimadas,
-
-          nota_aprobatoria,
-
-          emite_carnet
-
-        ),
-
-        empresas (
-
-          id,
-
-          razon_social,
-
-          rif
-
-        ),
-
-        facilitadores (
-
-          id,
-
-          nombre_apellido
-
-        ),
-
-        cat_estados_venezuela (
-
-          id,
-
-          nombre_estado
-
-        )
-
-      `,
-        { count: "exact" },
-      );
-
-    // Apply filters
-
-    if (filters.searchTerm) {
-      query = query.or(`
-
-        participantes_certificados.nombre.ilike.%${filters.searchTerm}%',
-
-        participantes_certificados.cedula.ilike.%${filters.searchTerm}%',
-
-        cursos.nombre.ilike.%${filters.searchTerm}%',
-
-        empresas.razon_social.ilike.%${filters.searchTerm}%',
-
-        facilitadores.nombre_apellido.ilike.%${filters.searchTerm}%',
-
-        nro_osi.ilike.%${filters.searchTerm}%'
-
-      `);
-    }
-
-    if (filters.companyId) {
-      query = query.eq("id_empresa", filters.companyId);
-    }
-
-    if (filters.courseId) {
-      query = query.eq("id_curso", filters.courseId);
-    }
-
-    if (filters.facilitatorId) {
-      query = query.eq("id_facilitador", filters.facilitatorId);
-    }
-
-    if (filters.stateId) {
-      query = query.eq("id_estado", filters.stateId);
-    }
-
-    if (filters.isActive !== undefined) {
-      query = query.eq("is_active", filters.isActive);
-    }
-
-    if (filters.hasExpirationDate !== undefined) {
-      if (filters.hasExpirationDate) {
-        query = query.not("fecha_vencimiento", "is", null);
-      } else {
-        query = query.is("fecha_vencimiento", null);
-      }
-    }
-
-    if (filters.dateFrom) {
-      query = query.gte("fecha_emision", filters.dateFrom);
-    }
-
-    if (filters.dateTo) {
-      query = query.lte("fecha_emision", filters.dateTo);
-    }
-
-    // Apply pagination
-
-    const offset = (page - 1) * limit;
-
-    query = query
-
-      .order("created_at", { ascending: false })
-
-      .range(offset, offset + limit - 1);
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      console.error("Error fetching certificates:", error);
-
+    if (rpcError) {
+      console.error("Error fetching certificates via RPC:", rpcError);
+      console.error("RPC Error details:", JSON.stringify(rpcError, null, 2));
       return {
         certificates: [],
-
         totalCount: 0,
-
         metrics: getEmptyMetrics(),
       };
     }
 
-    const certificates = data || [];
+    if (!rpcData || rpcData.length === 0) {
+      console.log("No certificates found via RPC");
+      return {
+        certificates: [],
+        totalCount: 0,
+        metrics: getEmptyMetrics(),
+      };
+    }
 
-    const totalCount = count || 0;
+    // Map RPC results to certificate structure
+    const certificates = (rpcData || []).map((cert: any) => ({
+      id: cert.id,
+      nro_osi: cert.nro_osi,
+      fecha_emision: cert.fecha_emision,
+      fecha_vencimiento: cert.fecha_vencimiento,
+      calificacion: cert.calificacion,
+      is_active: cert.is_active,
+      created_at: cert.created_at,
+      id_participante: cert.participant_id,
+      participantes_certificados: [
+        {
+          id: cert.participant_id,
+          nombre: cert.participant_nombre,
+          cedula: cert.participant_cedula,
+          nacionalidad: cert.participant_nacionalidad,
+        },
+      ],
+      id_curso: cert.course_id,
+      cursos: [
+        {
+          id: cert.course_id,
+          nombre: cert.course_nombre,
+          contenido: cert.course_contenido,
+          horas_estimadas: cert.course_horas_estimadas,
+          nota_aprobatoria: cert.course_nota_aprobatoria,
+          emite_carnet: cert.course_emite_carnet,
+        },
+      ],
+      id_empresa: cert.company_id,
+      empresas: [
+        {
+          id: cert.company_id,
+          razon_social: cert.company_razon_social,
+          rif: cert.company_rif,
+        },
+      ],
+      id_facilitador: cert.facilitator_id,
+      facilitadores: [
+        {
+          id: cert.facilitator_id,
+          nombre_apellido: cert.facilitador_nombre_apellido,
+        },
+      ],
+      id_estado: cert.state_id,
+      cat_estados_venezuela: [
+        {
+          id: cert.state_id,
+          nombre_estado: cert.state_nombre_estado,
+        },
+      ],
+    }));
 
-    // Calculate metrics
+    const totalCount = rpcData.length > 0 ? rpcData[0].total_count : 0;
 
+    // Calculate metrics (these are global statistics from analytics_metrics view)
     const metrics = await calculateCertificateMetrics(filters);
 
     return {
       certificates,
-
       totalCount,
-
       metrics,
     };
   } catch (error) {
     console.error("Error in getCertificatesForManagement:", error);
-
     return {
       certificates: [],
-
       totalCount: 0,
-
       metrics: getEmptyMetrics(),
     };
   }
@@ -1462,42 +1427,55 @@ export async function getCertificatesForManagement(
  * Calculate comprehensive certificate metrics
  */
 
-async function calculateCertificateMetrics(filters: CertificateFilters = {}): Promise<CertificateMetrics> {
+async function calculateCertificateMetrics(
+  filters: CertificateFilters = {},
+): Promise<CertificateMetrics> {
   try {
     const supabase = await createClient();
 
-    // USE SQL RPC TO CALCULATE METRICS IN POSTGRESQL - NO MORE MEMORY CRASHES
-    const { data: metricsData, error: rpcError } = await supabase.rpc('get_certificate_metrics', {
-      p_search_term: filters.searchTerm || null,
-      p_company_id: filters.companyId || null,
-      p_course_id: filters.courseId || null,
-      p_is_active: filters.isActive !== undefined ? filters.isActive : null,
-      p_date_from: filters.dateFrom || null,
-      p_date_to: filters.dateTo || null
-    });
+    // Use the analytics_metrics view instead of RPC
+    const { data: metricsData, error: viewError } = await supabase
+      .from("analytics_metrics")
+      .select("*")
+      .single();
 
-    if (rpcError || !metricsData) {
-      console.error('RPC error for metrics:', rpcError);
+    if (viewError || !metricsData) {
+      console.error("Error fetching analytics_metrics:", viewError);
       return getEmptyMetrics();
     }
 
-    // Parse the JSON result from RPC
+    // Map analytics_metrics fields to CertificateMetrics interface
     const metrics = metricsData as any;
 
     return {
       totalCertificates: metrics.total_certificates || 0,
       activeCertificates: metrics.active_certificates || 0,
       expiredCertificates: metrics.expired_certificates || 0,
-      totalCompanies: metrics.unique_companies || 0,
-      totalCourses: metrics.unique_courses || 0,
-      totalParticipants: metrics.unique_participants || 0,
+      totalCompanies: metrics.unique_companies_with_certificates || 0,
+      totalCourses: metrics.unique_courses_with_certificates || 0,
+      totalParticipants: metrics.unique_participants_with_certificates || 0,
       averageScore: Math.round((metrics.average_score || 0) * 100) / 100,
-      certificatesByCompany: metrics.certificates_by_company || [],
-      certificatesByCourse: metrics.certificates_by_course || [],
-      certificatesByMonth: metrics.certificates_by_month || []
+      certificatesByCompany: (metrics.top_companies || []).map(
+        (company: any) => ({
+          companyId: company.company_id,
+          companyName: company.company_name,
+          count: company.certificate_count,
+        }),
+      ),
+      certificatesByCourse: (metrics.top_courses || []).map((course: any) => ({
+        courseId: course.course_id,
+        courseName: course.course_name,
+        count: course.certificate_count,
+      })),
+      certificatesByMonth: (metrics.monthly_emissions || []).map(
+        (month: any) => ({
+          month: month.month,
+          count: month.count,
+        }),
+      ),
     };
   } catch (error) {
-    console.error('Error calculating metrics:', error);
+    console.error("Error calculating metrics:", error);
     return getEmptyMetrics();
   }
 }

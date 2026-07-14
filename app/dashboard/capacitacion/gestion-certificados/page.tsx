@@ -27,7 +27,7 @@ export default function GestionCertificadosPage() {
   const [analyticsMetrics, setAnalyticsMetrics] = useState<any>(null);
   const [filters, setFilters] = useState<CertificateFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Filter options
   const [companies, setCompanies] = useState<
@@ -91,7 +91,10 @@ export default function GestionCertificadosPage() {
 
         setCertificates(result.certificates);
         setTotalCount(result.totalCount);
-        setMetrics(result.metrics);
+        // Only update metrics when not searching (metrics are global statistics)
+        if (!filters.searchTerm) {
+          setMetrics(result.metrics);
+        }
       } catch (error) {
         console.error("Error loading certificates:", error);
       } finally {
