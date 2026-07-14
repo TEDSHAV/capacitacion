@@ -220,6 +220,7 @@ export interface Signature {
   url_imagen: string;
   fecha_creacion: string;
   fecha_actualizacion: string;
+  is_active: boolean;
 }
 
 export enum SignatureType {

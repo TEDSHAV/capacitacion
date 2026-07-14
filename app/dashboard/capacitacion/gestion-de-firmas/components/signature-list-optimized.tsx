@@ -1,52 +1,48 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Signature, SignatureType, Facilitador } from "@/types";
 
 interface SignatureListProps {
   signatures: Signature[];
+  facilitadores: Facilitador[];
   onSignatureDeleted: () => void;
   refreshKey: number;
 }
 
-export const SignatureList = ({ 
+export const SignatureListOptimized = ({ 
   signatures, 
+  facilitadores,
   onSignatureDeleted, 
   refreshKey 
 }: SignatureListProps) => {
-  const [signatureList, setSignatureList] = useState<Signature[]>([]);
-  const [facilitadores, setFacilitadores] = useState<Facilitador[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [refreshKey]);
+  // Memoized computations to avoid re-renders
+  const { facilitadoresWithSignatures, otherSignatures, facilitadoresWithoutSignatures } = useMemo(() => {
+    // Get facilitators that already have signatures
+    const facilitatorsWithSigs = signatures
+      .filter(sig => sig.tipo === 'facilitador')
+      .map(sig => {
+        const facilitador = facilitadores.find(f => f.firma_id === sig.id);
+        return facilitador ? { ...facilitador, signature: sig } : null;
+      })
+      .filter(Boolean);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      
-      // Load signatures and facilitadores in parallel
-      const [signaturesResponse, facilitadoresResponse] = await Promise.all([
-        fetch("/api/signatures"),
-        fetch("/api/facilitators/")
-      ]);
+    // Get facilitators without signatures
+    const facilitatorsWithoutSigs = facilitadores.filter(
+      f => !f.firma_id && facilitadoresWithSigs.length > 0
+    );
 
-      if (signaturesResponse.ok) {
-        const signaturesData = await signaturesResponse.json();
-        setSignatureList(signaturesData);
-      }
+    // Get other signature types (representante_sha) - show all regardless of active status
+    const otherSigs = signatures.filter(sig => sig.tipo !== 'facilitador');
 
-      if (facilitadoresResponse.ok) {
-        const facilitadoresData = await facilitadoresResponse.json();
-        setFacilitadores(facilitadoresData);
-      }
-    } catch (error) {
-      console.error("Error loading data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    return {
+      facilitadoresWithSignatures: facilitadoresWithSigs,
+      otherSignatures: otherSigs,
+      facilitatorsWithoutSignatures: facilitadoresWithoutSigs
+    };
+  }, [signatures, facilitadores]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("¿Estás seguro de que quieres desactivar esta firma? Podrás reactivarla más tarde.")) {
@@ -54,6 +50,7 @@ export const SignatureList = ({
     }
 
     try {
+      setLoading(true);
       const response = await fetch(`/api/signatures/${id}`, {
         method: "DELETE",
       });
@@ -67,6 +64,8 @@ export const SignatureList = ({
     } catch (error) {
       alert("Error al desactivar la firma. Por favor intenta nuevamente.");
       console.error("Delete error:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,23 +73,6 @@ export const SignatureList = ({
     "facilitador": "Facilitador",
     "representante_sha": "Representante SHA",
   };
-
-  // Get facilitators that already have signatures
-  const facilitadoresWithSignatures = signatureList
-    .filter(sig => sig.tipo === 'facilitador')
-    .map(sig => {
-      const facilitador = facilitadores.find(f => f.firma_id === sig.id);
-      return facilitador ? { ...facilitador, signature: sig } : null;
-    })
-    .filter(Boolean);
-
-  // Get facilitators without signatures
-  const facilitadoresWithoutSignatures = facilitadores.filter(
-    f => !f.firma_id && facilitadoresWithSignatures.length > 0
-  );
-
-  // Get other signature types (representante_sha) - show all regardless of active status
-  const otherSignatures = signatureList.filter(sig => sig.tipo !== 'facilitador');
 
   if (loading) {
     return (
@@ -137,9 +119,10 @@ export const SignatureList = ({
                   </p>
                   <button
                     onClick={() => handleDelete(item.signature.id.toString())}
-                    className="w-full px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition-colors"
+                    disabled={loading}
+                    className="w-full px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Desactivar
+                    {loading ? 'Desactivando...' : 'Desactivar'}
                   </button>
                 </div>
               </div>
@@ -187,9 +170,10 @@ export const SignatureList = ({
                   </p>
                   <button
                     onClick={() => handleDelete(signature.id.toString())}
-                    className="w-full px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition-colors"
+                    disabled={loading}
+                    className="w-full px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Desactivar
+                    {loading ? 'Desactivando...' : 'Desactivar'}
                   </button>
                 </div>
               </div>
@@ -221,7 +205,7 @@ export const SignatureList = ({
       )}
 
       {/* Empty state */}
-      {signatureList.length === 0 && facilitadores.length === 0 && (
+      {signatures.length === 0 && facilitadores.length === 0 && (
         <div className="text-center py-12">
           <svg
             className="mx-auto h-12 w-12 text-gray-400"

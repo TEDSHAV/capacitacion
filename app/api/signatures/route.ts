@@ -8,7 +8,6 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('firmas')
       .select('*')
-      .eq('is_active', true)
       .order('fecha_creacion', { ascending: false });
 
     if (error) {

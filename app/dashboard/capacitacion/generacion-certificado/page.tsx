@@ -113,10 +113,9 @@ export default function GeneracionCertificadoPage() {
       
       setFilteredCourseTopics(clientCourses);
       
-      // Auto-select the best matching course topic
+      // Auto-selects the best matching course topic
       const matchingCourse = findMatchingCourseTopic(osi);
       if (matchingCourse) {
-        console.log('Auto-selecting matching course:', matchingCourse);
         const passingGrade = matchingCourse.nota_aprobatoria ?? 14;
         
         setCertificateData((prev) => ({
@@ -147,11 +146,7 @@ export default function GeneracionCertificadoPage() {
   };
 
   const findMatchingCourseTopic = (osi: OSI): CourseTopic | null => {
-    console.log('Finding matching course for OSI:', osi.tema, osi.detalle_capacitacion, osi.detalle_sesion);
-    console.log('Available courses:', allCourseTopics.map(c => ({ id: c.id, name: c.name, nota_aprobatoria: c.nota_aprobatoria })));
-    
     if (!osi.tema && !osi.detalle_capacitacion && !osi.detalle_sesion) {
-      console.log('No course content found in OSI');
       return null;
     }
 
@@ -162,7 +157,7 @@ export default function GeneracionCertificadoPage() {
     );
 
     if (match) {
-      console.log('Found match by tema:', match);
+      // Found match by tema
     }
 
     // If no exact match, try with detalle_capacitacion
@@ -179,7 +174,7 @@ export default function GeneracionCertificadoPage() {
       );
       
       if (match) {
-        console.log('Found match by detalle_capacitacion:', match);
+        // Found match by detalle_capacitacion
       }
     }
 
@@ -197,11 +192,10 @@ export default function GeneracionCertificadoPage() {
       );
       
       if (match) {
-        console.log('Found match by detalle_sesion:', match);
+        // Found match by detalle_sesion
       }
-    }
 
-    console.log('Final match result:', match);
+    }
     return match || null;
   };
 
@@ -212,12 +206,9 @@ export default function GeneracionCertificadoPage() {
     if (field === 'course_topic_id') {
       // Find the selected course topic and populate course content and passing grade
       const selectedTopic = allCourseTopics.find(topic => topic.id === value);
-      console.log('Selected course topic:', selectedTopic);
-      console.log('Available course topics:', allCourseTopics);
       
       if (selectedTopic) {
         const passingGrade = selectedTopic.nota_aprobatoria ?? 14;
-        console.log(`Using passing grade: ${passingGrade} for course: ${selectedTopic.name}`);
         
         setCertificateData((prev) => ({
           ...prev,
@@ -231,7 +222,7 @@ export default function GeneracionCertificadoPage() {
         }));
         setSelectedCourseTopic(selectedTopic);
       } else {
-        console.log('No course topic found, using default passing grade of 14');
+        // No course topic found, using default passing grade of 14
         setCertificateData((prev) => ({
           ...prev,
           [field]: value,
