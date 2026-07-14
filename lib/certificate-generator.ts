@@ -105,20 +105,12 @@ export class CertificateGenerator {
 
     // Define column positions
     const leftColumnX = 20;
-    const rightColumnX = this.pageWidth / 2 + 20;
+    const rightColumnX = this.pageWidth / 2;
     const columnWidth = this.pageWidth / 2 - 40;
     const lineHeight = 6;
     let currentY = 50;
 
-    // Draw column separator line
-    this.doc.setDrawColor(200, 200, 200);
-    this.doc.line(
-      this.pageWidth / 2,
-      40,
-      this.pageWidth / 2,
-      this.pageHeight - 20,
-    );
-
+    
     // Left column: Course content
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(11);
@@ -141,37 +133,46 @@ export class CertificateGenerator {
     // Add horas_estimadas if available - positioned after Fecha de Ejecución
     // We'll add this later in the table after the fecha line
 
-    // Draw table border
+    // Define table position and dimensions
+    const tableX = rightColumnX - 5;
+    const tableY = currentY - 10;
+    const tableWidth = columnWidth + 10;
+    const cellHeight = 8;
+    const borderWidth = 0.5;
+    
+    // Draw outer table border
     this.doc.setDrawColor(100, 100, 100);
-    this.doc.rect(rightColumnX - 5, currentY - 10, columnWidth + 10, 120);
-
-    // Table header
-    this.doc.setFont("helvetica", "bold");
-    this.doc.setFontSize(12);
-    this.doc.text("REGISTRO", rightColumnX, currentY);
-    currentY += lineHeight;
-
-    // Draw horizontal line after header
-    this.doc.setDrawColor(150, 150, 150);
-    this.doc.line(
-      rightColumnX - 5,
-      currentY + 2,
-      rightColumnX + columnWidth + 5,
-      currentY + 2,
-    );
-    currentY += lineHeight * 2;
-
-    // First row: Libro Nro
+    this.doc.rect(tableX, tableY, tableWidth, cellHeight * 4);
+    
+    // Draw horizontal lines for rows
+    this.doc.line(tableX, tableY + cellHeight, tableX + tableWidth, tableY + cellHeight);
+    this.doc.line(tableX, tableY + cellHeight * 2, tableX + tableWidth, tableY + cellHeight * 2);
+    this.doc.line(tableX, tableY + cellHeight * 3, tableX + tableWidth, tableY + cellHeight * 3);
+    
+    // Draw vertical lines for columns
+    // Row 1: Full width (no vertical lines)
+    
+    // Row 2: Two columns (50% each)
+    this.doc.line(tableX + tableWidth / 2, tableY + cellHeight, tableX + tableWidth / 2, tableY + cellHeight * 2);
+    
+    // Row 3: Three columns (1/3 each)
+    this.doc.line(tableX + tableWidth / 3, tableY + cellHeight * 2, tableX + tableWidth / 3, tableY + cellHeight * 3);
+    this.doc.line(tableX + (tableWidth * 2) / 3, tableY + cellHeight * 2, tableX + (tableWidth * 2) / 3, tableY + cellHeight * 3);
+    
+    // Row 4: Single column (CI and Nombre stacked)
+    
+    // Add content to cells
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(11);
-    this.doc.text("Libro Nro: 100", rightColumnX, currentY);
-    currentY += lineHeight;
-
-    // First row: Nro. Control
-    this.doc.text("Nro. Control: 321213", rightColumnX, currentY);
-    currentY += lineHeight;
-
-    // Second row: Fecha de Ejecución
+    
+    // Row 1: REGISTRO title (centered, full width)
+    this.doc.text("REGISTRO", tableX + tableWidth / 2, tableY + cellHeight / 2 + 2, { align: "center" });
+    
+    // Row 2: Libro Nro and Nro Control (50% each)
+    this.doc.text("Libro Nro: 100", tableX + tableWidth / 4, tableY + cellHeight + cellHeight / 2 + 2, { align: "center" });
+    this.doc.text("Nro. Control: 321213", tableX + tableWidth * 3 / 4, tableY + cellHeight + cellHeight / 2 + 2, { align: "center" });
+    
+    // Row 3: Fecha Ejecucion, Hoja Nro and Mes (1/3 each)
     const executionDate = certificateData.date
       ? new Date(certificateData.date).toLocaleDateString("es-ES", {
           year: "numeric",
@@ -183,49 +184,44 @@ export class CertificateGenerator {
           month: "numeric",
           day: "numeric",
         });
-    this.doc.text(
-      `Fecha de Ejecución: ${executionDate}`,
-      rightColumnX,
-      currentY,
-    );
-    currentY += lineHeight;
-
-    // Second row: Hoja Nro
-    this.doc.text("Hoja Nro: 1", rightColumnX, currentY);
-    currentY += lineHeight;
-
-    // Second row: Month
+    this.doc.text(`Fecha: ${executionDate}`, tableX + tableWidth / 6, tableY + cellHeight * 2 + cellHeight / 2 + 2, { align: "center" });
+    this.doc.text("Hoja Nro: 1", tableX + tableWidth / 2, tableY + cellHeight * 2 + cellHeight / 2 + 2, { align: "center" });
+    
     const month = certificateData.date
       ? new Date(certificateData.date).toLocaleDateString("es-ES", {
           month: "long",
         })
       : new Date().toLocaleDateString("es-ES", { month: "long" });
-    this.doc.text(`Mes: ${month}`, rightColumnX, currentY);
-    currentY += lineHeight * 2; // Extra space before seal
-
-    // Third row: CI and Nombre
+    this.doc.text(`Mes: ${month}`, tableX + tableWidth * 5 / 6, tableY + cellHeight * 2 + cellHeight / 2 + 2, { align: "center" });
+    
+    // Row 4: CI and Nombre (stacked in same row)
     this.doc.setFont("helvetica", "bold");
     this.doc.text(
       `CI: ${participant.id_type || "V-"}${participant.id_number}`,
-      rightColumnX,
-      currentY,
+      tableX + tableWidth / 2,
+      tableY + cellHeight * 3 + cellHeight / 2 - 1,
+      { align: "center" }
     );
-    currentY += lineHeight;
-    this.doc.text(`Nombre: ${participant.name}`, rightColumnX, currentY);
-    currentY += lineHeight * 2; // Space for seal
-
-    // Add seal image if provided
+    this.doc.text(
+      `Nombre: ${participant.name}`,
+      tableX + tableWidth / 2,
+      tableY + cellHeight * 3 + cellHeight / 2 + 3,
+      { align: "center" }
+    );
+    
+    // Add seal image below the table
+    const sealY = tableY + cellHeight * 4 + 10; // 10mm below the table
     if (sealImage) {
       try {
-        await this.addSealImage(sealImage, rightColumnX + 10, currentY);
+        await this.addSealImage(sealImage, tableX + tableWidth / 2 - 20, sealY);
       } catch (error) {
         console.error("Error adding seal image:", error);
         // Fallback: draw a placeholder rectangle
         this.doc.setDrawColor(200, 200, 200);
-        this.doc.rect(rightColumnX + 10, currentY, 40, 40);
+        this.doc.rect(tableX + tableWidth / 2 - 20, sealY, 40, 40);
         this.doc.setFont("helvetica", "italic");
         this.doc.setFontSize(8);
-        this.doc.text("Sello", rightColumnX + 30, currentY + 20, {
+        this.doc.text("Sello", tableX + tableWidth / 2, sealY + 20, {
           align: "center",
         });
       }
