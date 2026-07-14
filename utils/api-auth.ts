@@ -1,26 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import { verifySession } from "@/lib/session-signing";
+import { createClient } from "@/utils/supabase/server";
 
 /**
  * Check if a request has a valid Supabase auth session (dashboard user).
  * Returns the user object if authenticated, or null if not.
  */
-export async function getDashboardUser(request: NextRequest) {
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll() {},
-      },
-    },
-  );
-
+export async function getDashboardUser() {
   try {
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     return user;
   } catch {
@@ -64,7 +52,7 @@ export async function requireApiAuth(request: NextRequest): Promise<
   | { unauthorized: NextResponse }
 > {
   // Try dashboard auth first
-  const user = await getDashboardUser(request);
+  const user = await getDashboardUser();
   if (user) {
     return { type: "dashboard", session: null };
   }
@@ -92,9 +80,9 @@ export async function requireApiAuth(request: NextRequest): Promise<
  * Returns the user if authenticated, or a 401 NextResponse if not.
  */
 export async function requireDashboardAuth(
-  request: NextRequest,
+  _request: NextRequest,
 ): Promise<{ user: { id: string } } | { unauthorized: NextResponse }> {
-  const user = await getDashboardUser(request);
+  const user = await getDashboardUser();
   if (user) {
     return { user };
   }
