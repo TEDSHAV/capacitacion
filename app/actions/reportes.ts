@@ -261,7 +261,7 @@ export async function getOverviewMetrics(
         topCompanies,
         monthlyTrend,
       },
-      error: truncationWarning.isTruncated ? truncationWarning.message : null,
+      error: truncationWarning.isTruncated ? (truncationWarning.message || null) : null,
     };
   } catch (err) {
     return {
@@ -409,7 +409,7 @@ export async function getCursosReport(
       }))
       .sort((a, b) => b.totalCertificates - a.totalCertificates);
 
-    return { data: result, error: truncationWarning.isTruncated ? truncationWarning.message : null };
+    return { data: result, error: truncationWarning.isTruncated ? (truncationWarning.message || null) : null };
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Error desconocido",
@@ -606,7 +606,7 @@ export async function getFacilitadoresReport(
 
     return {
       data: { facilitadores: facilitadoresList, stateStats },
-      error: truncationWarning.isTruncated ? truncationWarning.message : null,
+      error: truncationWarning.isTruncated ? (truncationWarning.message || null) : null,
     };
   } catch (err) {
     return {
@@ -699,7 +699,7 @@ export async function getEmpresasReport(
       }))
       .sort((a, b) => b.totalCerts - a.totalCerts);
 
-    return { data: result, error: truncationWarning.isTruncated ? truncationWarning.message : null };
+    return { data: result, error: truncationWarning.isTruncated ? (truncationWarning.message || null) : null };
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Error desconocido",
@@ -781,7 +781,7 @@ export async function getTendenciasReport(stateId?: string): Promise<{
 
     return {
       data: { monthlyData, yearlyTotals, stateDistribution },
-      error: truncationWarning.isTruncated ? truncationWarning.message : null,
+      error: truncationWarning.isTruncated ? (truncationWarning.message || null) : null,
     };
   } catch (err) {
     return {
