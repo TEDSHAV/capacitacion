@@ -208,5 +208,20 @@ export function useCertificateForm({
     }
   }, [selectedOSI?.id]);
 
+  // Effect to default expiration date to 2 years when emission date changes
+  useEffect(() => {
+    if (selectedCourseTopic?.emite_carnet && certificateData.date) {
+      const base = new Date(certificateData.date + "T12:00:00Z");
+      const exp = new Date(base);
+      exp.setFullYear(exp.getFullYear() + 2);
+      const formattedExp = exp.toISOString().split("T")[0];
+
+      // Only update if it's different to avoid loops, or if it's not set
+      if (certificateData.fecha_vencimiento !== formattedExp) {
+        onDataChange("fecha_vencimiento", formattedExp);
+      }
+    }
+  }, [certificateData.date, selectedCourseTopic?.emite_carnet]);
+
   return { shaSignatures, courseTemplates };
 }

@@ -296,7 +296,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 
     @page {
       size: letter;
-      margin: 0.75in;
+      margin: 0;
     }
 
     body {
@@ -322,6 +322,9 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       position: relative;
       page-break-after: always;
       width: 100%;
+      min-height: 11in;
+      padding: 0.75in;
+      box-sizing: border-box;
     }
 
     .page:last-child {
@@ -346,7 +349,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     .title {
       text-align: center;
       font-weight: bold;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.2;
       white-space: nowrap;
       overflow: hidden;
@@ -371,7 +374,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 
     .content {
       width: 100%;
-      padding-bottom: 0.8in; /* Space for fixed footer */
+      padding-bottom: 1in; /* Space for fixed footer */
     }
 
     .date-right {
@@ -487,10 +490,10 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 
     .footer {
       position: fixed;
-      bottom: -5px;
+      bottom: 0;
       left: 0;
       right: 0;
-      height: 0.7in;
+      height: 0.8in;
       z-index: 1000;
       overflow: hidden;
     }
@@ -708,7 +711,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
 
     @page {
       size: letter;
-      margin: 0.75in;
+      margin: 0;
     }
 
     body {
@@ -734,6 +737,9 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       position: relative;
       page-break-after: always;
       width: 100%;
+      min-height: 11in;
+      padding: 0.75in;
+      box-sizing: border-box;
     }
 
     .page:last-child {
@@ -758,7 +764,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     .title {
       text-align: center;
       font-weight: bold;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.2;
       white-space: nowrap;
       overflow: hidden;
@@ -919,10 +925,10 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
 
     .footer {
       position: fixed;
-      bottom: -5px;
+      bottom: 0;
       left: 0;
       right: 0;
-      height: 0.7in;
+      height: 0.8in;
       z-index: 1000;
       overflow: hidden;
     }
@@ -1136,7 +1142,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
 
     @page {
       size: letter;
-      margin: 0.75in;
+      margin: 0;
     }
 
     body {
@@ -1162,6 +1168,9 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       position: relative;
       page-break-after: always;
       width: 100%;
+      min-height: 11in;
+      padding: 0.75in;
+      box-sizing: border-box;
     }
 
     .page:last-child {
@@ -1186,7 +1195,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     .title {
       text-align: center;
       font-weight: bold;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.2;
       white-space: nowrap;
       overflow: hidden;
@@ -1211,7 +1220,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
 
     .content {
       width: 100%;
-      padding-bottom: 0.8in; /* Space for fixed footer */
+      padding-bottom: 1in; /* Space for fixed footer */
     }
 
     .date-right {
@@ -1305,10 +1314,10 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
 
     .footer {
       position: fixed;
-      bottom: -5px;
+      bottom: 0;
       left: 0;
       right: 0;
-      height: 0.7in;
+      height: 0.8in;
       z-index: 1000;
       overflow: hidden;
     }

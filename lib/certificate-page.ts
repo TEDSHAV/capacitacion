@@ -482,7 +482,7 @@ export class CertificatePage {
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(8);
       this.doc.text(
-        toTitleCase(facilitator.name || facilitator.nombre_apellido || ""),
+        (facilitator.name || facilitator.nombre_apellido || "").toUpperCase(),
         this.config.facilitatorName.x,
         this.config.facilitatorName.y,
         { align: "center" },

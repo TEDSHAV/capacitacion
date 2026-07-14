@@ -272,6 +272,16 @@ export default function GeneracionCertificadoClient({
     setSelectedOSI(osi);
 
     if (osi) {
+      // Determine default date from OSI
+      const osiDate =
+        osi.fecha_emision ||
+        osi.fecha_servicio ||
+        new Date().toISOString().split("T")[0];
+      const formattedDate =
+        typeof osiDate === "string"
+          ? osiDate.split("T")[0]
+          : new Date(osiDate).toISOString().split("T")[0];
+
       setCertificateData((prev) => ({
         ...prev,
         osi_id: osi.id,
@@ -279,6 +289,7 @@ export default function GeneracionCertificadoClient({
         course_topic_id: "",
         course_topic_data: undefined,
         course_content: "",
+        date: formattedDate,
       }));
       setSelectedCourseTopic(null);
 
@@ -768,7 +779,7 @@ export default function GeneracionCertificadoClient({
           city: certificateData.location || "Puerto La Cruz",
           location: certificateData.location || "",
           execution_address: selectedOSI?.direccion_ejecucion || "",
-          execution_date: selectedOSI?.fecha_ejecucion1 || certificateData.date,
+          execution_date: certificateData.date,
           score: participant.score || 14,
           control_number:
             dbResult.certificateNumbers![index]?.nro_control?.toString() || "",

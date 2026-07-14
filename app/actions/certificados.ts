@@ -149,8 +149,9 @@ export async function saveCertificatesToDatabase(
       };
     }
 
-    const today = new Date().toLocaleDateString("en-CA"); // en-CA format gives YYYY-MM-DD in local timezone
-    const batchEmissionDate = today; // Constant for the whole batch
+    const emissionDate =
+      certificateData.date || new Date().toLocaleDateString("en-CA");
+    const batchEmissionDate = emissionDate; // Constant for the whole batch
 
     const certificateIds: number[] = [];
 
@@ -351,7 +352,7 @@ export async function saveCertificatesToDatabase(
           ? parseInt(updatedCertificateData.course_topic_data.id)
           : null, // FK → catalogo_servicios
 
-        fecha_emision: today,
+        fecha_emision: batchEmissionDate,
 
         fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
 
@@ -565,7 +566,7 @@ export async function saveCertificatesToDatabase(
             ? parseInt(updatedCertificateData.osi_data.id)
             : null,
           titulo_curso: updatedCertificateData.course_topic_data?.nombre || "",
-          fecha_emision: today,
+          fecha_emision: batchEmissionDate,
           fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
           nombre_participante: participant.name,
           cedula_participante: participant.idNumber,
@@ -909,7 +910,9 @@ function generateContentSnapshot(
         : null, // FK → catalogo_servicios
 
       fecha_emision:
-        batchEmissionDate || new Date().toLocaleDateString("en-CA"), // Use constant date if provided
+        batchEmissionDate ||
+        certificateData.date ||
+        new Date().toLocaleDateString("en-CA"), // Use provided date
 
       fecha_vencimiento: updatedCertificateData.fecha_vencimiento,
 
@@ -982,6 +985,8 @@ function generateContentSnapshot(
         updatedCertificateData.osi_data?.detalle_capacitacion,
 
       empresa_id: updatedCertificateData.osi_data?.empresa_id,
+
+      id_ciudad: updatedCertificateData.osi_data?.id_ciudad || null,
 
       direccion_ejecucion: updatedCertificateData.osi_data?.direccion_ejecucion,
     },
@@ -1059,7 +1064,9 @@ function generateContentSnapshotWithControlNumbers(
         : null, // FK → catalogo_servicios
 
       fecha_emision:
-        batchEmissionDate || new Date().toLocaleDateString("en-CA"), // Use constant date if provided
+        batchEmissionDate ||
+        certificateData.date ||
+        new Date().toLocaleDateString("en-CA"), // Use provided date
 
       fecha_vencimiento: certificateData.fecha_vencimiento,
 
@@ -1132,6 +1139,8 @@ function generateContentSnapshotWithControlNumbers(
       tipo_servicio: certificateData.osi_data?.tipo_servicio,
 
       ejecutivo_negocios: certificateData.osi_data?.ejecutivo_negocios,
+
+      id_ciudad: certificateData.osi_data?.id_ciudad || null,
 
       detalle_capacitacion: certificateData.osi_data?.detalle_capacitacion,
 

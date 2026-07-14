@@ -124,23 +124,47 @@ export async function generateDocumentsServer(
       cursoNombre = osiData.curso_nombre;
     }
 
+    // Fetch city name if id_ciudad is available
+    let cityResolved = osiData.ciudad || "Puerto La Cruz";
+    if (osiData.id_ciudad) {
+      try {
+        const { createClient } = await import("@/utils/supabase/server");
+        const supabase = await createClient();
+        const { data: cityData, error: cityError } = await supabase
+          .from("cat_ciudades")
+          .select("nombre_ciudad")
+          .eq("id", osiData.id_ciudad)
+          .single();
+        if (!cityError && cityData) {
+          cityResolved = cityData.nombre_ciudad;
+        }
+      } catch (e) {
+        // Fallback to default
+      }
+    }
+
     // Prepare template data to match DOCX template structure exactly
     const defaultFirmante = {
       nombre: "DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.",
       cargo: "Jefe de Capacitación",
     };
 
-    // Get current date components for template
-    const today = new Date();
+    // Use execution date from first certificate if available, fallback to today
+    const executionDateStr =
+      certificates[0]?.execution_date || new Date().toISOString().split("T")[0];
+    const executionDate = new Date(
+      executionDateStr + (executionDateStr.includes("T") ? "" : "T12:00:00Z"),
+    );
+
     const dateComponents = {
-      fecha: today.toLocaleDateString("es-ES", {
+      fecha: executionDate.toLocaleDateString("es-ES", {
         day: "numeric",
         month: "long",
         year: "numeric",
       }),
-      dia: today.getDate().toString(),
-      mes: today.toLocaleDateString("es-ES", { month: "long" }),
-      anio: today.getFullYear().toString(),
+      dia: executionDate.getDate().toString(),
+      mes: executionDate.toLocaleDateString("es-ES", { month: "long" }),
+      anio: executionDate.getFullYear().toString(),
     };
 
     // Create comprehensive template data with exact field names from templates
@@ -152,7 +176,7 @@ export async function generateDocumentsServer(
       nombre_cliente: osiData.cliente_nombre_empresa || "",
       titulo_curso:
         certificates[0]?.course_title || cursoNombre || osiData.tema || "", // Use course_title from certificate records first
-      ciudad: osiData.ciudad || "Puerto La Cruz",
+      ciudad: cityResolved,
       nro_osi: osiData.nro_osi || "",
 
       // Firmante information

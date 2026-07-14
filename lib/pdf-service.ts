@@ -66,14 +66,14 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
     // Set content and wait for network idle
     await page.setContent(html, { waitUntil: "domcontentloaded" });
 
-    // Generate PDF with letter format and margins
+    // Generate PDF with letter format and no margins (controlled via CSS @page)
     const pdfBuffer = await page.pdf({
       format: "letter",
       margin: {
-        top: "0.5in",
-        right: "0.5in",
-        bottom: "0.5in",
-        left: "0.5in",
+        top: "0",
+        right: "0",
+        bottom: "0",
+        left: "0",
       },
       printBackground: true,
       scale: 1,
