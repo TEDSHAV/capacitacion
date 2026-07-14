@@ -20,6 +20,7 @@ interface OSI {
   certificado_impreso: boolean
   carnet_impreso: boolean
   observaciones_adicionales: string
+  detalle_capacitacion: string
   costo_honorarios: number
   nro_horas: number
   costo_total: number
@@ -74,6 +75,7 @@ export default function OSIDetailPage() {
     certificado_impreso: false,
     carnet_impreso: false,
     observaciones_adicionales: '',
+    detalle_capacitacion: '',
     costo_honorarios: 12,
     nro_horas: 6,
     costo_total: 0,
@@ -342,6 +344,7 @@ export default function OSIDetailPage() {
         certificado_impreso: Boolean(formData.certificado_impreso),
         carnet_impreso: Boolean(formData.carnet_impreso),
         observaciones_adicionales: formData.observaciones_adicionales?.trim() || null,
+        detalle_capacitacion: formData.detalle_capacitacion?.trim() || null,
         costo_honorarios: Number(formData.costo_honorarios) || 0,
         nro_horas: Number(formData.nro_horas) || 0,
         costo_total: (
@@ -844,6 +847,17 @@ export default function OSIDetailPage() {
                   </select>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Detalle para Capacitación</label>
+                  <textarea
+                    value={formData.detalle_capacitacion || ''}
+                    onChange={(e) => updateFormData('detalle_capacitacion', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    rows={3}
+                    placeholder="Descripción detallada de la capacitación a realizar"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
                   <select
                     value={formData.estado || 'pendiente'}
@@ -926,7 +940,7 @@ export default function OSIDetailPage() {
                   {formData.nro_sesiones === 1 ? 'Fecha de Ejecución' : `Fecha de Ejecución ${index + 1}`}
                 </label>
                 <input
-                  type="date"
+                  type="datetime-local"
                   value={String(formData[`fecha_ejecucion${index + 1}` as keyof OSI] ?? '')}
                   onChange={(e) => updateFormData(`fecha_ejecucion${index + 1}` as keyof OSI, e.target.value)}
                   disabled={!isEditing && !isNew}
@@ -1002,7 +1016,7 @@ export default function OSIDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email Contacto 2</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email Contacto 2 (opcional)</label>
                 <input
                   type="email"
                   value={formData.contacto_email2 || ''}
@@ -1010,19 +1024,6 @@ export default function OSIDetailPage() {
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="Email secundario del contacto"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Servicio</label>
-                <input
-                  type="date"
-                  value={formData.fecha_servicio ? 
-                    (formData.fecha_servicio instanceof Date ? formData.fecha_servicio : new Date(formData.fecha_servicio)).toISOString().split('T')[0] : ''}
-                  onChange={(e) => updateFormData('fecha_servicio', e.target.value ? new Date(e.target.value) : null)}
-                  disabled={!isEditing && !isNew}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -1045,7 +1046,7 @@ export default function OSIDetailPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Participantes Máximos</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">No. de Participantes (max)</label>
               <input
                 type="number"
                 value={formData.participantes_max || 0}
@@ -1071,6 +1072,17 @@ export default function OSIDetailPage() {
                   min="0"
                   value={formData.nro_horas || 0}
                   onChange={(e) => updateFormData('nro_horas', parseFloat(e.target.value) || 0)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.nro_horas || 0)
+                      updateFormData('nro_horas', (currentValue + 1).toString())
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.nro_horas || 0)
+                      updateFormData('nro_horas', Math.max(0, currentValue - 1).toString())
+                    }
+                  }}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
@@ -1084,6 +1096,17 @@ export default function OSIDetailPage() {
                   min="0"
                   value={formData.costo_honorarios || 0}
                   onChange={(e) => updateFormData('costo_honorarios', parseFloat(e.target.value) || 0)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.costo_honorarios || 0)
+                      updateFormData('costo_honorarios', (currentValue + 1).toString())
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.costo_honorarios || 0)
+                      updateFormData('costo_honorarios', Math.max(0, currentValue - 1).toString())
+                    }
+                  }}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
@@ -1103,6 +1126,17 @@ export default function OSIDetailPage() {
                   min="0"
                   value={formData.costo_impresion_material || 0}
                   onChange={(e) => updateFormData('costo_impresion_material', parseFloat(e.target.value) || 0)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.costo_impresion_material || 0)
+                      updateFormData('costo_impresion_material', (currentValue + 1).toString())
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.costo_impresion_material || 0)
+                      updateFormData('costo_impresion_material', Math.max(0, currentValue - 1).toString())
+                    }
+                  }}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
@@ -1116,6 +1150,17 @@ export default function OSIDetailPage() {
                   min="0"
                   value={formData.costo_traslado || 0}
                   onChange={(e) => updateFormData('costo_traslado', parseFloat(e.target.value) || 0)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.costo_traslado || 0)
+                      updateFormData('costo_traslado', (currentValue + 1).toString())
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.costo_traslado || 0)
+                      updateFormData('costo_traslado', Math.max(0, currentValue - 1).toString())
+                    }
+                  }}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
@@ -1129,6 +1174,17 @@ export default function OSIDetailPage() {
                   min="0"
                   value={formData.costo_logistica_comida || 0}
                   onChange={(e) => updateFormData('costo_logistica_comida', parseFloat(e.target.value) || 0)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.costo_logistica_comida || 0)
+                      updateFormData('costo_logistica_comida', (currentValue + 1).toString())
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.costo_logistica_comida || 0)
+                      updateFormData('costo_logistica_comida', Math.max(0, currentValue - 1).toString())
+                    }
+                  }}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
@@ -1142,6 +1198,17 @@ export default function OSIDetailPage() {
                   min="0"
                   value={formData.costo_otros || 0}
                   onChange={(e) => updateFormData('costo_otros', parseFloat(e.target.value) || 0)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.costo_otros || 0)
+                      updateFormData('costo_otros', (currentValue + 1).toString())
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      const currentValue = parseFloat(formData.costo_otros || 0)
+                      updateFormData('costo_otros', Math.max(0, currentValue - 1).toString())
+                    }
+                  }}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="0.00"
@@ -1152,7 +1219,6 @@ export default function OSIDetailPage() {
             {/* Grand Total */}
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2"></div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Gran Total</label>
                   <div className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-900 font-semibold">
@@ -1165,6 +1231,7 @@ export default function OSIDetailPage() {
                     ).toFixed(2)}
                   </div>
                 </div>
+                <div className="lg:col-span-2"></div>
               </div>
             </div>
 
