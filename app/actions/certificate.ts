@@ -178,7 +178,7 @@ export async function getCertificateData(options?: { osiLimit?: number; courseLi
     // Fetch full cursos data
     const { data: fullCursosData, error: fullCursosError } = await supabase
       .from("cursos")
-      .select("id, nombre, contenido, cliente_asociado, nota_aprobatoria, horas_estimadas, emite_carnet")
+      .select("id, nombre, contenido, nota_aprobatoria, horas_estimadas, emite_carnet")
       .eq("is_active", true)
       .order("nombre", { ascending: true })
       .limit(courseLimit);
@@ -199,7 +199,7 @@ export async function getCertificateData(options?: { osiLimit?: number; courseLi
         name: curso.nombre, // Add name field for compatibility
         description: curso.nombre,
         contenido_curso: curso.contenido,
-        cliente_asociado: curso.cliente_asociado,
+        // cliente_asociado: curso.cliente_asociado, // Removed - column doesn't exist
         nota_aprobatoria: curso.nota_aprobatoria ?? 14, // Default to 14 if no nota_aprobatoria
         horas_estimadas: curso.horas_estimadas, // Add horas_estimadas from database
         emite_carnet: curso.emite_carnet, // Add emite_carnet field

@@ -15,7 +15,7 @@ export async function createCurso(formData: FormData) {
   try {
     // Get form data with proper type checking
     const titulo = formData.get('titulo') as string;
-    const cliente_asociado = formData.get('cliente_asociado') as string;
+    // const cliente_asociado = formData.get('cliente_asociado') as string; // Removed - column doesn't exist
     const contenido = formData.get('contenido') as string;
     const horas_estimadas = formData.get('horas_estimadas') as string;
     const nota_aprobatoria = formData.get('nota_aprobatoria') as string;
@@ -38,7 +38,7 @@ export async function createCurso(formData: FormData) {
         nombre: titulo.trim(),
         contenido: contenido.trim(),
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
-        cliente_asociado: cliente_asociado?.trim() ? parseInt(cliente_asociado) : null,
+        // cliente_asociado: cliente_asociado?.trim() ? parseInt(cliente_asociado) : null, // Removed - column doesn't exist
         created_at: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
         is_active: true,
         nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
@@ -72,7 +72,7 @@ export async function updateCurso(id: string, formData: FormData) {
     }
 
     const titulo = formData.get('titulo') as string;
-    const cliente_asociado = formData.get('cliente_asociado') as string;
+    // const cliente_asociado = formData.get('cliente_asociado') as string; // Removed - column doesn't exist
     const contenido = formData.get('contenido') as string;
     const horas_estimadas = formData.get('horas_estimadas') as string;
     const nota_aprobatoria = formData.get('nota_aprobatoria') as string;
@@ -90,7 +90,7 @@ export async function updateCurso(id: string, formData: FormData) {
         nombre: titulo,
         contenido: contenido,
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
-        cliente_asociado: cliente_asociado && cliente_asociado.trim() ? parseInt(cliente_asociado) : null,
+        // cliente_asociado: cliente_asociado && cliente_asociado.trim() ? parseInt(cliente_asociado) : null, // Removed - column doesn't exist
         nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
         emite_carnet: emite_carnet === 'true' // Convert string to boolean
       })
@@ -148,7 +148,7 @@ export async function duplicateCurso(id: string) {
         nombre: `${originalCourse.nombre} (Copia)`,
         contenido: originalCourse.contenido,
         horas_estimadas: originalCourse.horas_estimadas,
-        cliente_asociado: originalCourse.cliente_asociado,
+        // cliente_asociado: originalCourse.cliente_asociado, // Removed - column doesn't exist
         created_at: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
         is_active: true,
         nota_aprobatoria: originalCourse.nota_aprobatoria || 14,

@@ -53,7 +53,7 @@ const getCachedOSICursos = cache(async () => {
   try {
     const { data, error } = await supabase
       .from("catalogo_servicios")
-      .select("id, nombre, contenido_curso, cliente_asociado")
+      .select("id, nombre, contenido_curso")
       .eq("tipo_servicio", 1)
       .order("nombre");
       

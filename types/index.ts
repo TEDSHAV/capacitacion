@@ -56,7 +56,6 @@ export interface Curso {
   nombre: string;
   contenido: string | null;
   horas_estimadas: number | null;
-  cliente_asociado: number | null;
   created_at: string | null;
   is_active: boolean;
   nota_aprobatoria: number | null;
@@ -153,7 +152,6 @@ export interface CourseTopic {
   name: string; // Alias for nombre for compatibility
   description?: string;
   contenido_curso?: string; // Course content from catalogo_servicios
-  cliente_asociado?: number; // Client ID associated with this course (number from DB)
   created_at?: string;
   nota_aprobatoria?: number; // Passing grade from cursos table
   horas_estimadas?: number; // Estimated hours from cursos table

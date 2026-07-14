@@ -23,7 +23,7 @@ export default async function ReportesPage() {
   // Fetch courses for filter dropdown
   const { data: courses } = await supabase
     .from("cursos")
-    .select("id, nombre, contenido, horas_estimadas, cliente_asociado, created_at, is_active, nota_aprobatoria, emite_carnet")
+    .select("id, nombre, contenido, horas_estimadas, created_at, is_active, nota_aprobatoria, emite_carnet")
     .eq("is_active", true)
     .order("nombre");
 
@@ -41,7 +41,7 @@ export default async function ReportesPage() {
     name: course.nombre, // Alias for compatibility
     contenido: course.contenido,
     horas_estimadas: course.horas_estimadas,
-    cliente_asociado: course.cliente_asociado,
+    // cliente_asociado: course.cliente_asociado, // Removed - column doesn't exist
     created_at: course.created_at,
     is_active: course.is_active,
     nota_aprobatoria: course.nota_aprobatoria,

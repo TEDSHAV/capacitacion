@@ -34,7 +34,6 @@ const getOptimizedCertificateData = cache(async () => {
           id, 
           nombre, 
           contenido, 
-          cliente_asociado, 
           nota_aprobatoria, 
           horas_estimadas, 
           emite_carnet,
@@ -100,7 +99,7 @@ const getOptimizedCertificateData = cache(async () => {
       name: course.nombre, // For compatibility
       description: course.nombre,
       contenido_curso: course.contenido,
-      cliente_asociado: course.cliente_asociado,
+      // cliente_asociado: course.cliente_asociado, // Removed - column doesn't exist
       nota_aprobatoria: course.nota_aprobatoria ?? 14,
       horas_estimadas: course.horas_estimadas,
       emite_carnet: course.emite_carnet,

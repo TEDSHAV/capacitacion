@@ -234,8 +234,7 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
           nombre,
           contenido,
           horas_estimadas,
-          is_active,
-          cliente_asociado
+          is_active
         ),
         facilitadores!inner(
           nombre_apellido,

@@ -571,7 +571,6 @@ export type Database = {
       }
       cursos: {
         Row: {
-          cliente_asociado: number | null
           contenido: string | null
           created_at: string | null
           emite_carnet: boolean | null
@@ -582,7 +581,6 @@ export type Database = {
           nota_aprobatoria: number | null
         }
         Insert: {
-          cliente_asociado?: number | null
           contenido?: string | null
           created_at?: string | null
           emite_carnet?: boolean | null
@@ -593,7 +591,6 @@ export type Database = {
           nota_aprobatoria?: number | null
         }
         Update: {
-          cliente_asociado?: number | null
           contenido?: string | null
           created_at?: string | null
           emite_carnet?: boolean | null
@@ -603,15 +600,7 @@ export type Database = {
           nombre?: string
           nota_aprobatoria?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "cursos_cliente_asociado_fkey"
-            columns: ["cliente_asociado"]
-            isOneToOne: false
-            referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       datos_bancarios: {
         Row: {

@@ -83,7 +83,7 @@ export function useOSIData() {
     try {
       const { data, error } = await supabase
         .from("cursos")
-        .select("id, nombre, contenido, cliente_asociado, created_at, nota_aprobatoria")
+        .select("id, nombre, contenido, created_at, nota_aprobatoria")
         .eq("is_active", true)
         .order("nombre")
       

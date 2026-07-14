@@ -14,7 +14,7 @@ interface CourseFormProps {
 export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit }: CourseFormProps) {
   const [datosFormulario, setDatosFormulario] = useState({
     titulo: curso?.nombre || "",
-    empresa_id: curso?.cliente_asociado ? curso.cliente_asociado.toString() : "", // Convert number to string properly
+    empresa_id: "", // Removed cliente_asociado reference as column doesn't exist
     empresa_nombre: curso?.empresas?.razon_social || "",
     contenido: curso?.contenido || "",
     horas_estimadas: curso?.horas_estimadas || 0,
@@ -90,10 +90,10 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
     formData.append('nota_aprobatoria', datosFormulario.nota_aprobatoria.toString());
     formData.append('emite_carnet', datosFormulario.emite_carnet.toString());
     
-    // Handle empresa_id properly - convert number to string for FormData
-    if (datosFormulario.empresa_id) {
-      formData.append('cliente_asociado', datosFormulario.empresa_id.toString());
-    }
+    // Note: empresa_id is no longer stored in database as cliente_asociado column doesn't exist
+    // if (datosFormulario.empresa_id) {
+    //   formData.append('cliente_asociado', datosFormulario.empresa_id.toString());
+    // }
     
     onSubmit(formData);
   };
