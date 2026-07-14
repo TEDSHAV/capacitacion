@@ -21,7 +21,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   "consulta-participantes": "Consulta de Participantes",
   participantes: "Gestión de Participantes",
   reportes: "Reportes",
-  "gestion-de-osis": "Gestión de OSIs",
+  "gestion-de-osis": "Consulta de OSIs",
   Plantillas: "Plantillas",
   cursos: "Cursos",
 };

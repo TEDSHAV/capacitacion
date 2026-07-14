@@ -52,7 +52,7 @@ const submodules = {
     { name: "Reportes", path: "/dashboard/capacitacion/reportes" },
   ],
   negocios: [
-    { name: "Gestión de OSIs", path: "/dashboard/negocios/gestion-de-osis" },
+    { name: "Consulta de OSIs", path: "/dashboard/negocios/gestion-de-osis" },
   ],
 };
 
