@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { User } from "@supabase/supabase-js";
+import { useState } from "react";
 import { ReportesClientProps, State } from "@/types";
 import { Button } from "@/components/ui/button";
 import FacilitadorStateStats from "./components/FacilitadorStateStats";
@@ -42,7 +41,10 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
 
       {/* State Filter (for both tabs) */}
       <div className="mb-6">
-        <label htmlFor="state-filter" className="block text-sm font-medium text-gray-700 mb-2">
+        <label
+          htmlFor="state-filter"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
           Filtrar por Estado:
         </label>
         <select
