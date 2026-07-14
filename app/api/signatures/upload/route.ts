@@ -57,14 +57,14 @@ export async function POST(request: NextRequest) {
     const imageUrl = `/signatures/${filename}`;
 
     const { data, error } = await supabase
-      .from('signatures')
+      .from('firmas')
       .insert([
         {
-          name,
-          type,
-          image_url: imageUrl,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          nombre: name,
+          tipo: type,
+          url_imagen: imageUrl,
+          fecha_creacion: new Date().toISOString(),
+          fecha_actualizacion: new Date().toISOString(),
         },
       ])
       .select()

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { SignatureType } from "@/types";
 
 interface SignatureUploadProps {
   onSignatureUploaded: () => void;
@@ -10,7 +9,7 @@ interface SignatureUploadProps {
 export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const [signatureName, setSignatureName] = useState("");
-  const [signatureType, setSignatureType] = useState<SignatureType>(SignatureType.FACILITADOR);
+  const [signatureType, setSignatureType] = useState<string>("facilitador");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>("");
 
@@ -47,7 +46,7 @@ export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) =
       if (response.ok) {
         alert("Firma subida exitosamente");
         setSignatureName("");
-        setSignatureType(SignatureType.FACILITADOR);
+        setSignatureType("facilitador");
         setSelectedFile(null);
         setPreview("");
         onSignatureUploaded();
@@ -63,8 +62,8 @@ export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) =
   };
 
   const signatureTypeLabels = {
-    [SignatureType.FACILITADOR]: "Facilitador",
-    [SignatureType.REPRESENTANTE_SHA]: "Representante SHA",
+    "facilitador": "Facilitador",
+    "representante_sha": "Representante SHA",
   };
 
   return (
@@ -103,13 +102,13 @@ export const SignatureUpload = ({ onSignatureUploaded }: SignatureUploadProps) =
             <select
               id="signature-type"
               value={signatureType}
-              onChange={(e) => setSignatureType(e.target.value as SignatureType)}
+              onChange={(e) => setSignatureType(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value={SignatureType.FACILITADOR}>
+              <option value="facilitador">
                 Facilitador
               </option>
-              <option value={SignatureType.REPRESENTANTE_SHA}>
+              <option value="representante_sha">
                 Representante SHA
               </option>
             </select>

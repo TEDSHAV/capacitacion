@@ -72,6 +72,7 @@ export interface FacilitadorFormData {
   ficha_tecnica: string;
   calificacion: number | null;
   url_curriculum: string;
+  firma_id: number | null;
 }
 
 export interface State {

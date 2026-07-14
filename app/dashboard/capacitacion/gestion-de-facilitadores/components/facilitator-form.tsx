@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { FacilitadorFormData, State, CourseTopic } from "@/types";
 import { PersonalInfoSection } from "./facilitator-form/PersonalInfoSection";
 import { ProfessionalInfoSection } from "./facilitator-form/ProfessionalInfoSection";
@@ -9,6 +9,7 @@ import { LocationSection } from "./facilitator-form/LocationSection";
 import { CourseTopicsSection } from "./facilitator-form/CourseTopicsSection";
 import { FileUploadSection } from "./facilitator-form/FileUploadSection";
 import { AdditionalInfoSection } from "./facilitator-form/AdditionalInfoSection";
+import { FormActions } from "./facilitator-form/FormActions";
 
 interface FacilitatorFormProps {
   onFacilitatorSaved: () => void;
@@ -16,6 +17,7 @@ interface FacilitatorFormProps {
 }
 
 export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormProps) => {
+  const formRef = useRef<HTMLFormElement>(null);
   const [formData, setFormData] = useState<FacilitadorFormData>({
     fuente: "",
     ano_ingreso: "",
@@ -37,6 +39,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
     ficha_tecnica: "",
     calificacion: null,
     url_curriculum: "",
+    firma_id: null,
   });
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
@@ -80,6 +83,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
               ficha_tecnica: facilitator.ficha_tecnica || "",
               calificacion: facilitator.calificacion,
               url_curriculum: facilitator.url_curriculum || "",
+              firma_id: facilitator.firma_id,
             });
           }
         } catch (error) {
@@ -168,6 +172,24 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
     }
   };
 
+  const handleCancel = () => {
+    if (loading) return;
+    
+    // Check if there are unsaved changes
+    const hasChanges = formData.nombre_apellido !== "" || 
+                      formData.cedula !== "" || 
+                      formData.email !== "" || 
+                      formData.telefono !== "";
+    
+    if (hasChanges) {
+      if (confirm("¿Estás seguro de que deseas cancelar? Los cambios no guardados se perderán.")) {
+        onFacilitatorSaved();
+      }
+    } else {
+      onFacilitatorSaved();
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -204,29 +226,30 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
 
       let response;
       if (editId) {
-        // Update existing facilitator
+        // Update existing facilitator - send as JSON
+        const updateData = {
+          ...formData,
+          ano_ingreso: formData.ano_ingreso ? parseInt(formData.ano_ingreso) : null,
+        };
+        
         response = await fetch(`/api/facilitators/${editId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(updateData),
         });
         
         if (response.ok) {
           alert('Facilitador actualizado exitosamente');
-          const handleFacilitadorSaved = () => {
-            // Refresh or navigate as needed
-            if (editId) {
-              router.replace('/dashboard/capacitacion/gestion-de-facilitadores');
-            }
-          };
-          handleFacilitadorSaved();
+          onFacilitatorSaved();
         } else {
-          alert('Error al actualizar el facilitador');
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.error || 'Error al actualizar el facilitador';
+          alert(`Error: ${errorMessage}`);
         }
       } else {
-        // Create new facilitator
+        // Create new facilitator - send as FormData for file upload
         response = await fetch('/api/facilitators/', {
           method: 'POST',
           body: formDataToSend,
@@ -236,7 +259,9 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
           alert('Facilitador creado exitosamente');
           onFacilitatorSaved();
         } else {
-          alert('Error al crear el facilitador');
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.error || 'Error al crear el facilitador';
+          alert(`Error: ${errorMessage}`);
         }
       }
     } catch (error) {
@@ -253,7 +278,16 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
         {editId ? "Editar Facilitador" : "Registrar Nuevo Facilitador"}
       </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <FormActions
+        position="top"
+        onCancel={handleCancel}
+        onSave={() => formRef.current?.requestSubmit()}
+        loading={loading}
+        saveText={editId ? "Actualizar Facilitador" : "Guardar Facilitador"}
+        cancelText="Cancelar"
+      />
+
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
         <PersonalInfoSection
           formData={formData}
           handleInputChange={handleInputChange}
@@ -291,16 +325,14 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
           onFileSelect={handleFileSelect}
         />
 
-        {/* Submit Button */}
-        <div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {loading ? "Guardando..." : "Guardar Facilitador"}
-          </button>
-        </div>
+        {/* Bottom Actions */}
+        <FormActions
+          position="bottom"
+          onCancel={handleCancel}
+          loading={loading}
+          saveText={editId ? "Actualizar Facilitador" : "Guardar Facilitador"}
+          cancelText="Cancelar"
+        />
       </form>
     </div>
   );

@@ -248,8 +248,8 @@ export class CertificatePage {
     try {
       await this.addSignatureImage(
         shaSignature.url_imagen,
-        signatureConfig.rightX,
-        signatureConfig.y,
+        signatureConfig.rightX + 10,
+        signatureConfig.y - 45,
         signatureConfig.width,
         signatureConfig.height
       );

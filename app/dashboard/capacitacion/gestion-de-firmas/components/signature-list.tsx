@@ -58,18 +58,18 @@ export const SignatureList = ({
     }
   };
 
-  const signatureTypeLabels = {
-    [SignatureType.FACILITADOR]: "Facilitador",
-    [SignatureType.REPRESENTANTE_SHA]: "Representante SHA",
+  const signatureTypeLabels: Record<string, string> = {
+    "facilitador": "Facilitador",
+    "representante_sha": "Representante SHA",
   };
 
   const groupedSignatures = signatureList.reduce((acc, signature) => {
-    if (!acc[signature.type]) {
-      acc[signature.type] = [];
+    if (!acc[signature.tipo]) {
+      acc[signature.tipo] = [];
     }
-    acc[signature.type].push(signature);
+    acc[signature.tipo].push(signature);
     return acc;
-  }, {} as Record<SignatureType, Signature[]>);
+  }, {} as Record<string, any[]>);
 
   if (loading) {
     return (
@@ -109,7 +109,7 @@ export const SignatureList = ({
           {Object.entries(groupedSignatures).map(([type, signatures]) => (
             <div key={type}>
               <h3 className="text-md font-medium text-gray-900 mb-4">
-                {signatureTypeLabels[type as SignatureType]}
+                {signatureTypeLabels[type]}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {signatures.map((signature) => (
@@ -119,18 +119,18 @@ export const SignatureList = ({
                   >
                     <div className="aspect-w-4 aspect-h-3 mb-3">
                       <img
-                        src={signature.image_url}
-                        alt={`Firma de ${signature.name}`}
+                        src={signature.url_imagen}
+                        alt={`Firma de ${signature.nombre}`}
                         className="w-full h-32 object-contain border border-gray-200 rounded bg-white"
                       />
                     </div>
                     <div className="space-y-2">
-                      <p className="font-medium text-gray-900">{signature.name}</p>
+                      <p className="font-medium text-gray-900">{signature.nombre}</p>
                       <p className="text-sm text-gray-500">
-                        {new Date(signature.created_at).toLocaleDateString("es-ES")}
+                        {new Date(signature.fecha_creacion).toLocaleDateString("es-ES")}
                       </p>
                       <button
-                        onClick={() => handleDelete(signature.id)}
+                        onClick={() => handleDelete(signature.id.toString())}
                         className="w-full px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
                       >
                         Eliminar
