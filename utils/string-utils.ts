@@ -1,4 +1,12 @@
 /**
+ * Convert a string to lower case
+ */
+export function toLowerCase(str: string): string {
+  if (!str) return str;
+  return str.toLowerCase();
+}
+
+/**
  * Convert a string to title case (first letter of each word capitalized)
  * Example: "juan perez" -> "Juan Perez"
  */
