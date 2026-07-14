@@ -1,16 +1,14 @@
 'use client'
 
-import { useState, useRef, useCallback, memo } from 'react'
+import { useState, useCallback } from 'react'
 import { Empresa, Servicio, Usuario, CatalogoServicio, Contacto, OSI, OSIFormProps } from '@/types'
 
 const OSIForm = ({ 
   initialData, 
   isNew, 
   isEditing, 
-  onEdit, 
   onCancel, 
-  onSave, 
-  onDelete,
+  onSave,
   empresas,
   servicios,
   usuarios,
@@ -24,8 +22,6 @@ const OSIForm = ({
   setTemaSearchTerm,
   updateFormData
 }: OSIFormProps) => {
-  const empresaInputRef = useRef<HTMLInputElement>(null)
-  const temaInputRef = useRef<HTMLInputElement>(null)
   const [selectedEmpresaIndex, setSelectedEmpresaIndex] = useState(-1)
   const [selectedTemaIndex, setSelectedTemaIndex] = useState(-1)
   const [isOsiFieldLocked, setIsOsiFieldLocked] = useState(true)
@@ -196,7 +192,6 @@ const OSIForm = ({
           <label className="block text-sm font-medium text-gray-700 mb-2">Empresa</label>
           <div className="relative">
             <input
-              ref={empresaInputRef}
               type="text"
               value={empresaSearchTerm || initialData?.cliente_nombre_empresa || ''}
               onChange={handleEmpresaSearchChange}
@@ -279,7 +274,6 @@ const OSIForm = ({
           <label className="block text-sm font-medium text-gray-700 mb-2">Tema</label>
           <div className="relative">
             <input
-              ref={temaInputRef}
               type="text"
               value={temaSearchTerm || initialData?.tema || ''}
               onChange={(e) => {
@@ -299,7 +293,6 @@ const OSIForm = ({
                 {filteredCatalogoServicios.map((servicio, index) => (
                   <div
                     key={servicio.id}
-                    data-tema-option={index}
                     className={`px-3 py-2 cursor-pointer border-b border-gray-200 last:border-b-0 ${
                       index === selectedTemaIndex ? 'bg-gray-100' : 'hover:bg-gray-100'
                     }`}
@@ -452,4 +445,4 @@ const OSIForm = ({
   )
 }
 
-export default memo(OSIForm)
+export default OSIForm

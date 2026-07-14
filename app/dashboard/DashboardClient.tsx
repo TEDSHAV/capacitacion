@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { memo, useState, useEffect } from "react";
-import { DashboardClientProps, StatCard, ActivityItem } from "@/types/dashboard";
+import { DashboardClientProps, StatCard, ActivityItem } from "@/types";
 import { Users, CheckCircle, BookOpen, Clock, TrendingUp, TrendingDown, BarChart3, Settings, Megaphone, FileText } from "lucide-react";
 
 const DashboardClient = ({

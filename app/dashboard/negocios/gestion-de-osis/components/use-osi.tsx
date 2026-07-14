@@ -78,6 +78,7 @@ export function useOSI() {
   // Load OSI data
   const loadOSI = async (osiNumber: string) => {
     try {
+      // First, get the OSI data
       const { data: osiData, error: osiError } = await supabase
         .from("osi")
         .select("*")
@@ -93,13 +94,19 @@ export function useOSI() {
         return
       }
 
-      if (!osiData) {
-        errorDialog.showError(
-          'OSI no encontrada',
-          `La OSI ${osiNumber} no existe en el sistema`,
-          'Error de Búsqueda'
-        )
-        return
+      // If we have OSI data, get the executive name separately
+      if (osiData && osiData.ejecutivo_negocios) {
+        const { data: userData, error: userError } = await supabase
+          .from("usuarios")
+          .select("nombre_apellido")
+          .eq("id", osiData.ejecutivo_negocios)
+          .single()
+
+        if (!userError && userData) {
+          osiData.usuarios = {
+            nombre_apellido: userData.nombre_apellido
+          }
+        }
       }
 
       setOsi(osiData)

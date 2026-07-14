@@ -1,18 +1,7 @@
 'use client'
 
-import { OSIActionButtonsProps } from '@/types'
+import { OSIHeaderProps } from '@/types'
 import OSIActionButtons from './OSIActionButtons'
-
-interface OSIHeaderProps {
-  isNew: boolean
-  isEditing: boolean
-  isLoading: boolean
-  osiNumber: string
-  onSave: () => void
-  onCancel: () => void
-  onEdit: () => void
-  onDelete: () => void
-}
 
 export default function OSIHeader({
   isNew,

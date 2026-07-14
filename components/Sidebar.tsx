@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import { useCallback, memo, useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { SidebarProps } from "@/types/dashboard";
+import { SidebarProps } from "@/types";
 import { ChevronLeft, ChevronRight, Home, Users, FileText, Settings } from "lucide-react";
 
 const Sidebar = ({ departamentos }: SidebarProps) => {
