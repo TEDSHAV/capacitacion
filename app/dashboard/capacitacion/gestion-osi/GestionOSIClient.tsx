@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { OSIFilters, OSIManagement, OSIStatus } from "@/types";
-import { getOSIsForManagement, getOSIFilterOptions } from "@/app/actions/osi";
+import { getOSIsForManagement, getOSIFilterOptions, getManualOSIBatchesAction } from "@/app/actions/osi";
 import OSIFiltersV2 from "./components/osi-filters-v2";
 import OSITableV2 from "./components/osi-table-v2";
 import OSIPagination from "./components/osi-pagination";
@@ -26,6 +26,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
   const [filters, setFilters] = useState<OSIFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [activeTab, setActiveTab] = useState<"automatic" | "manual">("automatic");
 
   // Filter options
   const [companies, setCompanies] = useState<
@@ -81,11 +82,9 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     const loadData = async () => {
       try {
         setLoading(true);
-        const result = await getOSIsForManagement(
-          filters,
-          currentPage,
-          itemsPerPage,
-        );
+        const result = activeTab === "automatic" 
+          ? await getOSIsForManagement(filters, currentPage, itemsPerPage)
+          : await getManualOSIBatchesAction(filters, currentPage, itemsPerPage);
 
         setOsis(result.osis);
         setTotalCount(result.totalCount);
@@ -104,7 +103,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     };
 
     loadData();
-  }, [filters, currentPage, itemsPerPage]);
+  }, [filters, currentPage, itemsPerPage, activeTab]);
 
   const handleFiltersChange = useCallback((newFilters: OSIFilters) => {
     setFilters(newFilters);
@@ -152,8 +151,42 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Consulta de OSIs</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Visualiza y monitorea las Órdenes de Servicio de Instrucción
+            Visualiza y monitorea las Órdenes de Servicio Interna
           </p>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="mt-6 flex justify-start">
+          <div className="inline-flex p-1 bg-gray-100 rounded-xl">
+            <button
+              onClick={() => {
+                setActiveTab("automatic");
+                setCurrentPage(1);
+              }}
+              className={`
+                whitespace-nowrap py-2 px-6 rounded-lg font-medium text-sm transition-all duration-200
+                ${activeTab === "automatic"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}
+              `}
+            >
+              OSIs
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("manual");
+                setCurrentPage(1);
+              }}
+              className={`
+                whitespace-nowrap mx-2 py-2 px-6 rounded-lg font-medium text-sm transition-all duration-200
+                ${activeTab === "manual"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}
+              `}
+            >
+              OSIs Ingresadas Manualmente
+            </button>
+          </div>
         </div>
       </div>
 

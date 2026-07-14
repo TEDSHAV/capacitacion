@@ -76,9 +76,6 @@ export default function OSITableV2({
                 Servicio
               </th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Estado
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Fecha
               </th>
               <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider w-24">
@@ -87,9 +84,9 @@ export default function OSITableV2({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {osis.map((osi) => (
+            {osis.map((osi, index) => (
               <tr
-                key={osi.id_osi}
+                key={`${osi.id_osi}-${osi.nro_osi}-${osi.id_servicio}-${index}`}
                 className="hover:bg-blue-50 transition-colors cursor-pointer group"
                 onClick={() => onViewDetails(osi)}
               >
@@ -122,18 +119,6 @@ export default function OSITableV2({
                       {osi.tipo_servicio}
                     </span>
                   </div>
-                </td>
-                <td className="px-3 py-4 whitespace-nowrap">
-                  <span
-                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border"
-                    style={{
-                      backgroundColor: `${osi.status_color || "#6B7280"}15`,
-                      color: osi.status_color || "#6B7280",
-                      borderColor: `${osi.status_color || "#6B7280"}30`,
-                    }}
-                  >
-                    {osi.status_name || "Desconocido"}
-                  </span>
                 </td>
                 <td className="px-3 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-1.5 text-xs text-gray-700">

@@ -181,7 +181,7 @@ export default function OSIDetailsModalV2({
                 <div className="flex items-center gap-3 mb-2">
                   <FileText className="w-6 h-6 text-white" />
                   <h3 className="text-xl font-bold text-white" id="modal-title">
-                    Orden de Servicio de Instrucción
+                    Orden de Servicio Interna
                   </h3>
                 </div>
                 <div className="flex items-center gap-4 text-blue-100">
@@ -202,32 +202,38 @@ export default function OSIDetailsModalV2({
           </div>
 
           {/* Tabs-like Navigation */}
-          <div className="flex border-b border-gray-200 px-6 sm:px-8 bg-white">
-            <button
-              onClick={() => setExpandedSection("info")}
-              className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
-                expandedSection === "info"
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Información General
-            </button>
-            <button
-              onClick={() => setExpandedSection("documents")}
-              className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                expandedSection === "documents"
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Documentos Generados
-              {batches.length > 0 && (
-                <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
-                  {batches.length}
-                </span>
-              )}
-            </button>
+          <div className="flex border-b border-gray-200 px-6 sm:px-8 bg-white py-3">
+            <div className="flex p-1 bg-gray-100 rounded-xl">
+              <button
+                onClick={() => setExpandedSection("info")}
+                className={`py-2 px-6 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  expandedSection === "info"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
+                }`}
+              >
+                Información General
+              </button>
+              <button
+                onClick={() => setExpandedSection("documents")}
+                className={`py-2 px-6 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                  expandedSection === "documents"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
+                }`}
+              >
+                Documentos Generados
+                {batches.length > 0 && (
+                  <span className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
+                    expandedSection === "documents"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 text-gray-600"
+                  }`}>
+                    {batches.length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Content */}

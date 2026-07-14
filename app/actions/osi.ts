@@ -552,3 +552,134 @@ export async function getOSIFilterOptions() {
     };
   }
 }
+
+/**
+ * Get manual OSI batches (certificates not linked to a real OSI record)
+ */
+export async function getManualOSIBatchesAction(
+  filters: OSIFilters = {},
+  page = 1,
+  limit = 20,
+) {
+  try {
+    const supabase = await createClient();
+
+    // 1. Get all real OSI IDs to exclude them
+    const { data: realOSIs, error: osiError } = await supabase
+      .from("ejecucion_osi")
+      .select("id");
+
+    if (osiError) throw osiError;
+    const realOSIIds = (realOSIs || []).map((osi) => osi.id);
+
+    // 2. Query certificates that are NOT linked to real OSIs
+    // We group them by nro_osi, id_curso, id_empresa, and fecha_emision
+    let query = supabase
+      .from("certificados")
+      .select(
+        `
+        nro_osi,
+        id_curso,
+        id_empresa,
+        fecha_emision,
+        id_facilitador,
+        snapshot_contenido,
+        catalogo_servicios(nombre, tipo_servicio),
+        empresas(razon_social)
+      `,
+        { count: "exact" },
+      )
+      .eq("is_active", true);
+
+    // Exclude real OSIs
+    if (realOSIIds.length > 0) {
+      query = query.not("nro_osi", "in", `(${realOSIIds.join(",")})`);
+    }
+
+    // Apply filters if applicable
+    if (filters.nroOsi) {
+      // Manual OSIs might be stored as numbers in nro_osi but represented as strings in snapshots
+      // We'll search by the numeric part if possible
+      const numericOSI = parseInt(filters.nroOsi.replace(/[^\d]/g, ""));
+      if (!isNaN(numericOSI)) {
+        query = query.eq("nro_osi", numericOSI);
+      }
+    }
+
+    if (filters.companyName) {
+      query = query.ilike("empresas.razon_social", `%${filters.companyName}%`);
+    }
+
+    const { data: certs, error: certError } = await query.order("fecha_emision", {
+      ascending: false,
+    });
+
+    if (certError) throw certError;
+
+    // 3. Group certificates into batches manually since PostgREST doesn't support complex GROUP BY easily
+    const batchMap = new Map<string, OSIManagement>();
+
+    (certs || []).forEach((cert: any) => {
+      const nro_osi = cert.nro_osi;
+      const id_curso = cert.id_curso;
+      const id_empresa = cert.id_empresa;
+      const fecha = cert.fecha_emision;
+
+      const snapshot =
+        typeof cert.snapshot_contenido === "string"
+          ? JSON.parse(cert.snapshot_contenido)
+          : cert.snapshot_contenido;
+
+      // Use a composite key for grouping
+      const key = `${nro_osi}_${id_curso}_${id_empresa}_${fecha}`;
+
+      if (!batchMap.has(key)) {
+        // Map to OSIManagement type
+        batchMap.set(key, {
+          id_osi: nro_osi || 0,
+          nro_osi: snapshot?.osi?.nro_osi || nro_osi?.toString() || "MANUAL",
+          nombre_empresa:
+            cert.empresas?.razon_social || snapshot?.empresa?.name || "Manual",
+          servicio:
+            cert.catalogo_servicios?.nombre || snapshot?.curso?.name || "Manual",
+          tipo_servicio:
+            cert.catalogo_servicios?.tipo_servicio?.toString() || "Manual",
+          fecha_emision: fecha,
+          fecha_inicio_real: fecha,
+          fecha_fin_real: fecha,
+          id_empresa: id_empresa,
+          id_servicio: id_curso,
+          status_name: "Manual",
+          status_color: "#6B7280",
+          status_order: 0,
+          // Add indicator for manual mode
+          is_manual_batch: true,
+        } as any);
+      }
+    });
+
+    const allBatches = Array.from(batchMap.values());
+    const totalCount = allBatches.length;
+
+    // Apply pagination to grouped results
+    const offset = (page - 1) * limit;
+    const paginatedBatches = allBatches.slice(offset, offset + limit);
+
+    return {
+      osis: paginatedBatches,
+      totalCount,
+      metrics: {
+        total_hours: 0,
+        total_sesiones: 0,
+        unique_companies: new Set(allBatches.map((b) => b.id_empresa)).size,
+      },
+    };
+  } catch (err) {
+    console.error("Error in getManualOSIBatchesAction:", err);
+    return {
+      osis: [],
+      totalCount: 0,
+      metrics: { total_hours: 0, total_sesiones: 0, unique_companies: 0 },
+    };
+  }
+}
