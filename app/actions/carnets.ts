@@ -276,7 +276,8 @@ export async function getCarnetById(
           nro_hoja,
           nro_linea,
           nro_control,
-          qr_code
+          qr_code,
+          id_plantilla_carnet
         ),
         participante:participantes_certificados(
           id,

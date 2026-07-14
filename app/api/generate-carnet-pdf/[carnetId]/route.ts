@@ -3,6 +3,7 @@ import { getCarnetById } from "@/app/actions/carnets";
 import { CarnetGenerator } from "@/lib/carnet-generator";
 import { QRService } from "@/lib/qr-service";
 import { createClient } from "@/utils/supabase/server";
+import { getCarnetTemplateServer } from "@/app/actions/certificate-data";
 
 export async function GET(
   request: NextRequest,
@@ -47,6 +48,21 @@ export async function GET(
         snapshotData = JSON.parse(carnet.snapshot_contenido);
       } catch (e) {
         console.warn("Non-fatal: failed to parse snapshot in carnet API");
+      }
+    }
+
+    // Resolve carnet template: DB column first, snapshot as fallback
+    let carnetTemplateImage = "/templates/carnet.png";
+    const carnetTemplateId =
+      carnet.certificado?.id_plantilla_carnet ||
+      snapshotData?.id_plantilla_carnet ||
+      null;
+    if (carnetTemplateId) {
+      const carnetTemplate = await getCarnetTemplateServer(carnetTemplateId).catch(() => null);
+      if (carnetTemplate?.archivo) {
+        carnetTemplateImage = carnetTemplate.archivo.startsWith("/")
+          ? carnetTemplate.archivo
+          : `/templates/${carnetTemplate.archivo}`;
       }
     }
 
@@ -114,7 +130,7 @@ export async function GET(
         empresa_participante: carnet.empresa_participante,
         nro_control: carnet.certificado?.nro_control ?? carnet.id,
       },
-      templateImage: "/templates/carnet.png",
+      templateImage: carnetTemplateImage,
       isPreview: false,
       carnetId: carnet.id,
       qrDataURL, // Pass the generated QR code data URL

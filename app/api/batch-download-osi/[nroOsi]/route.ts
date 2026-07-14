@@ -8,6 +8,7 @@ import { requireApiAuth } from "@/utils/api-auth";
 import {
   getFacilitatorDataServer,
   getSignatureDataServer,
+  getCarnetTemplateServer,
 } from "@/app/actions/certificate-data";
 
 export async function GET(
@@ -239,6 +240,21 @@ export async function GET(
           const { CarnetGenerator } = await import("@/lib/carnet-generator");
           const carnetGenerator = new CarnetGenerator();
 
+          // Resolve carnet template: DB column first, snapshot as fallback
+          let batchCarnetTemplateImage = "/templates/carnet.png";
+          const batchCarnetTemplateId =
+            cert.id_plantilla_carnet ||
+            snapshot.plantilla?.id_plantilla_carnet ||
+            null;
+          if (batchCarnetTemplateId) {
+            const batchCarnetTemplate = await getCarnetTemplateServer(batchCarnetTemplateId).catch(() => null);
+            if (batchCarnetTemplate?.archivo) {
+              batchCarnetTemplateImage = batchCarnetTemplate.archivo.startsWith("/")
+                ? batchCarnetTemplate.archivo
+                : `/templates/${batchCarnetTemplate.archivo}`;
+            }
+          }
+
           const qrResult = await QRService.generateCertificateQR(
             cert.id,
             controlNumbers,
@@ -261,7 +277,7 @@ export async function GET(
               empresa_participante: snapshot.osi?.cliente_nombre_empresa || osiData?.nombre_empresa,
               nro_control: snapshot.certificado?.nro_control || cert.nro_control,
             },
-            templateImage: "/templates/carnet.png",
+            templateImage: batchCarnetTemplateImage,
             qrDataURL: qrResult.dataUrl,
           });
 

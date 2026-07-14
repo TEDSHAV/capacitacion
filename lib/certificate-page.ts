@@ -29,6 +29,7 @@ export class CertificatePage {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private preloadedAssets?: any;
   private templateKey?: string;
+  private isCustom: boolean = false;
 
   // QR Code configuration - shared between sample and real QR codes
   private static readonly QR_CONFIG = {
@@ -227,6 +228,9 @@ export class CertificatePage {
     const { name } = participant;
     const { certificate_title, date } = certificateData;
 
+    // Store is_custom flag for conditional seal/SHA label rendering
+    this.isCustom = !!(certificateData as any).is_custom;
+
     // Support both naming conventions for subtitle
     const certificate_subtitle =
       certificateData.certificate_subtitle ||
@@ -325,8 +329,8 @@ export class CertificatePage {
       await this.addSignatures(certificateData);
     }
 
-    // Add seal image if provided
-    if (sealImage) {
+    // Add seal image only for custom-generated certificates
+    if (sealImage && this.isCustom) {
       await this.addSealImage(sealImage);
     }
   }
@@ -581,7 +585,7 @@ export class CertificatePage {
           undefined,
           "FAST",
         );
-        this.addSHALabel(signatureConfig);
+        if (this.isCustom) this.addSHALabel(signatureConfig);
         return;
       }
 
@@ -605,7 +609,7 @@ export class CertificatePage {
           undefined,
           "FAST",
         );
-        this.addSHALabel(signatureConfig);
+        if (this.isCustom) this.addSHALabel(signatureConfig);
         return;
       }
 
@@ -618,7 +622,7 @@ export class CertificatePage {
           signatureConfig.width,
           signatureConfig.height,
         );
-        this.addSHALabel(signatureConfig);
+        if (this.isCustom) this.addSHALabel(signatureConfig);
       } else if (signatureData.firma) {
         await this.addSignatureImage(
           signatureData.firma,
@@ -627,7 +631,7 @@ export class CertificatePage {
           signatureConfig.width,
           signatureConfig.height,
         );
-        this.addSHALabel(signatureConfig);
+        if (this.isCustom) this.addSHALabel(signatureConfig);
       }
     } catch (error) {
       // Continue without SHA signature

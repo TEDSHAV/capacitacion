@@ -17,6 +17,7 @@ export interface CustomCertificateRecord {
   id_estado?: number | null;
   id_facilitador?: number | null;
   id_plantilla_certificado?: number | null;
+  id_plantilla_carnet?: number | null;
   calificacion?: number;
   is_active?: boolean;
   snapshot_contenido?: string | null;
@@ -191,6 +192,7 @@ function generateCustomSnapshot(
     plantilla: {
       id_plantilla_certificado: certificateData.id_plantilla_certificado,
       archivo_plantilla_certificado: certificateData.plantilla_certificado_archivo,
+      id_plantilla_carnet: certificateData.id_plantilla_carnet,
     },
     firmas: {
       facilitator_id: certificateData.facilitator_id,
@@ -299,6 +301,7 @@ export async function saveCustomCertificatesToDatabase(
           ? parseInt(updatedCertificateData.facilitator_id)
           : null,
         id_plantilla_certificado: updatedCertificateData.id_plantilla_certificado || null,
+        id_plantilla_carnet: updatedCertificateData.id_plantilla_carnet || null,
         calificacion: participant.score || 0,
         is_active: true,
         nro_libro: currentControlNumbers.nro_libro,

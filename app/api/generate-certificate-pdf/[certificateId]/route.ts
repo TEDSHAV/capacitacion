@@ -122,8 +122,14 @@ export async function GET(
       fecha_vencimiento: snapshotData.certificado?.fecha_vencimiento,
       id_estado: snapshotData.certificado?.id_estado,
       id_plantilla_certificado:
+        certificate.id_plantilla_certificado ||
         snapshotData.plantilla?.id_plantilla_certificado || null,
+      plantilla_certificado_archivo:
+        snapshotData.plantilla?.archivo_plantilla_certificado || undefined,
     };
+
+    (certificateData as any).is_custom =
+      snapshotData.metadatos?.generated_by === "custom_certificate_generation";
 
     // Fetch sha signature, facilitator and template in parallel — they are independent
     const [shaSignatureData, facilitatorRaw, templateData] = await Promise.all([

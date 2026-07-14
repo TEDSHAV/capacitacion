@@ -89,7 +89,6 @@ export async function getCertificateTemplateServer(
       .from("plantillas_certificados")
       .select("id, nombre, archivo")
       .eq("id", templateId)
-      .eq("is_active", true)
       .single();
 
     if (error) {
@@ -103,6 +102,36 @@ export async function getCertificateTemplateServer(
     return data;
   } catch (error) {
     console.error("Error fetching certificate template:", error);
+    return null;
+  }
+}
+
+/**
+ * Server-side action to fetch carnet template by ID
+ */
+export async function getCarnetTemplateServer(
+  templateId: number,
+): Promise<{ id: number; nombre: string; archivo: string } | null> {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("plantillas_carnets")
+      .select("id, nombre, archivo")
+      .eq("id", templateId)
+      .single();
+
+    if (error) {
+      console.error(
+        "Error fetching carnet template from database:",
+        error,
+      );
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching carnet template:", error);
     return null;
   }
 }
