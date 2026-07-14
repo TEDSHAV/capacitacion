@@ -116,6 +116,32 @@ export async function proxy(request: NextRequest) {
     return redirectToUnauthorized(request);
   }
 
+  // Protect /portal/facilitador routes (except login)
+  if (
+    request.nextUrl.pathname.startsWith("/portal/facilitador") &&
+    !request.nextUrl.pathname.startsWith("/portal/facilitador/login")
+  ) {
+    const sessionCookie = request.cookies.get("facilitador_session");
+    if (!sessionCookie) {
+      const loginUrl = new URL("/portal/facilitador/login", request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+    return supabaseResponse;
+  }
+
+  // Protect /portal/cliente routes (except login)
+  if (
+    request.nextUrl.pathname.startsWith("/portal/cliente") &&
+    !request.nextUrl.pathname.startsWith("/portal/cliente/login")
+  ) {
+    const sessionCookie = request.cookies.get("cliente_session");
+    if (!sessionCookie) {
+      const loginUrl = new URL("/portal/cliente/login", request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+    return supabaseResponse;
+  }
+
   return supabaseResponse;
 }
 

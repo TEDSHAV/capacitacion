@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import crypto from "node:crypto";
 import { optimizeDocumentImage } from "@/lib/image-optimization.server";
 import { OSIAttachment } from "@/types";
+import { signSession, verifySession } from "@/lib/session-signing";
 
 // Simple hash function using Node.js crypto
 function hashPassword(password: string): string {
@@ -93,7 +94,7 @@ export async function loginFacilitator(username: string, password: string) {
   };
 
   const cookieStore = await cookies();
-  cookieStore.set("facilitador_session", JSON.stringify(sessionData), {
+  cookieStore.set("facilitador_session", signSession(sessionData), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 8, // 8 hours
@@ -103,15 +104,21 @@ export async function loginFacilitator(username: string, password: string) {
   return { success: true };
 }
 
-export async function getFacilitatorSession() {
+export async function getFacilitatorSession(): Promise<{
+  id: number;
+  facilitador_id: number;
+  nombre: string;
+  username: string;
+} | null> {
   const cookieStore = await cookies();
   const session = cookieStore.get("facilitador_session");
   if (!session) return null;
-  try {
-    return JSON.parse(session.value);
-  } catch (e) {
-    return null;
-  }
+  return verifySession<{
+    id: number;
+    facilitador_id: number;
+    nombre: string;
+    username: string;
+  }>(session.value);
 }
 
 export async function logoutFacilitator() {
@@ -214,21 +221,6 @@ export async function getOSIParticipants(osiId: number, facilitadorId?: number):
     return { error: error.message };
   }
 
-  // Fallback: If we searched for a specific facilitator but found nothing, 
-  // try searching for ANY participants for this OSI (useful for the dashboard import)
-  if (facilitadorId && (!data || data.length === 0)) {
-    console.log(`[getOSIParticipants] No data for facilitator ${facilitadorId}, trying fallback to any facilitator for OSI ${osiId}`);
-    const { data: fallbackData } = await supabase
-      .from("ejecucion_osi_participantes")
-      .select("*")
-      .eq("osi_id", osiId)
-      .order("id", { ascending: true });
-    
-    if (fallbackData && fallbackData.length > 0) {
-      return { data: fallbackData };
-    }
-  }
-
   return { data: data || [] };
 }
 
@@ -238,6 +230,11 @@ export async function saveParticipants(
   participants: any[],
   status: "draft" | "final" = "draft"
 ) {
+  const session = await getFacilitatorSession();
+  if (!session || session.facilitador_id !== facilitadorId) {
+    return { error: "No autorizado" };
+  }
+
   const supabase = await createAdminClient();
 
   // Delete existing ones for this OSI/Facilitator to overwrite
@@ -347,6 +344,11 @@ export async function uploadOSIAttachment(
   facilitadorId: number,
   formData: FormData
 ): Promise<{ success?: boolean; data?: OSIAttachment; error?: string }> {
+  const session = await getFacilitatorSession();
+  if (!session || session.facilitador_id !== facilitadorId) {
+    return { error: "No autorizado" };
+  }
+
   const supabase = await createAdminClient();
   const file = formData.get("file") as File;
 
@@ -408,14 +410,19 @@ export async function uploadOSIAttachment(
 /**
  * Get all attachments for a specific OSI
  */
-export async function getOSIAttachments(osiId: number): Promise<{ data?: OSIAttachment[]; error?: string }> {
+export async function getOSIAttachments(osiId: number, facilitadorId?: number): Promise<{ data?: OSIAttachment[]; error?: string }> {
   const supabase = await createAdminClient();
   
-  const { data, error } = await supabase
+  let query = supabase
     .from("ejecucion_osi_asistencia")
     .select("*")
-    .eq("osi_id", osiId)
-    .order("created_at", { ascending: false });
+    .eq("osi_id", osiId);
+  
+  if (facilitadorId) {
+    query = query.eq("facilitador_id", facilitadorId);
+  }
+  
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     console.error("[getOSIAttachments] Error:", error);
@@ -438,9 +445,25 @@ export async function getOSIAttachments(osiId: number): Promise<{ data?: OSIAtta
  * Delete an attachment from storage and DB
  */
 export async function deleteOSIAttachment(id: string, storagePath: string): Promise<{ success?: boolean; error?: string }> {
+  const session = await getFacilitatorSession();
+  if (!session) {
+    return { error: "No autorizado" };
+  }
+
   const supabase = await createAdminClient();
 
   try {
+    // Verify ownership: the attachment must belong to this facilitador
+    const { data: att } = await supabase
+      .from("ejecucion_osi_asistencia")
+      .select("facilitador_id")
+      .eq("id", id)
+      .single();
+
+    if (!att || att.facilitador_id !== session.facilitador_id) {
+      return { error: "No autorizado" };
+    }
+
     // 1. Delete from storage
     const { error: storageError } = await supabase.storage
       .from("facilitador-uploads")

@@ -32,12 +32,12 @@ export const PhysicalListUpload = ({ osiId, facilitadorId }: PhysicalListUploadP
 
   const fetchAttachments = useCallback(async () => {
     setLoading(true);
-    const result = await getOSIAttachments(osiId);
+    const result = await getOSIAttachments(osiId, facilitadorId);
     if (result.data) {
       setAttachments(result.data as OSIAttachment[]);
     }
     setLoading(false);
-  }, [osiId]);
+  }, [osiId, facilitadorId]);
 
   useEffect(() => {
     fetchAttachments();

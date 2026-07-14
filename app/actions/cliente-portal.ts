@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import crypto from "node:crypto";
+import { signSession, verifySession } from "@/lib/session-signing";
 import type {
   ClienteCredential,
   ClienteSession,
@@ -184,7 +185,7 @@ export async function loginCliente(
   };
 
   const cookieStore = await cookies();
-  cookieStore.set("cliente_session", JSON.stringify(sessionData), {
+  cookieStore.set("cliente_session", signSession(sessionData), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 8, // 8 hours
@@ -198,11 +199,7 @@ export async function getClienteSession(): Promise<ClienteSession | null> {
   const cookieStore = await cookies();
   const session = cookieStore.get("cliente_session");
   if (!session) return null;
-  try {
-    return JSON.parse(session.value) as ClienteSession;
-  } catch {
-    return null;
-  }
+  return verifySession<ClienteSession>(session.value);
 }
 
 export async function logoutCliente(): Promise<{ success: boolean }> {
@@ -213,12 +210,20 @@ export async function logoutCliente(): Promise<{ success: boolean }> {
 
 // ─── Data Actions ───
 
+async function verifyClienteEmpresa(empresaId: number): Promise<boolean> {
+  const session = await getClienteSession();
+  return !!session && session.empresa_id === empresaId;
+}
+
 export async function getClienteCertificates(
   empresaId: number,
   filters: ClienteCertificateFilters,
   page: number = 1,
   itemsPerPage: number = 10,
 ): Promise<{ data?: ClienteCertificateRow[]; totalCount?: number; error?: string }> {
+  if (!(await verifyClienteEmpresa(empresaId))) {
+    return { error: "No autorizado" };
+  }
   const supabase = await createClient();
 
   // When filtering by OSI number, query directly since the RPC doesn't support nro_osi
@@ -335,6 +340,9 @@ export async function getClienteCarnets(
   page: number = 1,
   itemsPerPage: number = 10,
 ): Promise<{ data?: ClienteCarnetRow[]; totalCount?: number; error?: string }> {
+  if (!(await verifyClienteEmpresa(empresaId))) {
+    return { error: "No autorizado" };
+  }
   const supabase = await createClient();
 
   const from = (page - 1) * itemsPerPage;
@@ -387,6 +395,9 @@ export async function getClienteCarnets(
 export async function getClienteMetrics(
   empresaId: number,
 ): Promise<{ data?: ClienteMetrics; error?: string }> {
+  if (!(await verifyClienteEmpresa(empresaId))) {
+    return { error: "No autorizado" };
+  }
   const supabase = await createClient();
 
   // Count total certificates for this company
@@ -493,6 +504,9 @@ export async function getClienteRecentBatches(
   empresaId: number,
   limit: number = 5,
 ): Promise<{ data?: ClienteBatchSummary[]; error?: string }> {
+  if (!(await verifyClienteEmpresa(empresaId))) {
+    return { error: "No autorizado" };
+  }
   const supabase = await createClient();
 
   // Fetch certificates grouped by nro_osi — get all for this company first
@@ -555,6 +569,9 @@ export async function getClienteRecentBatches(
 export async function getClienteFilterOptions(
   empresaId: number,
 ): Promise<{ data?: ClienteFilterOptions; error?: string }> {
+  if (!(await verifyClienteEmpresa(empresaId))) {
+    return { error: "No autorizado" };
+  }
   const supabase = await createClient();
 
   // Get distinct courses for this company's certificates

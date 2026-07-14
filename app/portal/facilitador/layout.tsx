@@ -1,6 +1,3 @@
-import { getFacilitatorSession } from "@/app/actions/facilitador-portal";
-import { redirect } from "next/navigation";
-
 export default async function FacilitadorPortalLayout({
   children,
 }: {

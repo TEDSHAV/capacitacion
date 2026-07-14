@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import { join } from 'path';
 import { createClient } from '@/utils/supabase/server';
+import { requireDashboardAuth } from '@/utils/api-auth';
 
 export async function POST(request: NextRequest) {
+  const auth = await requireDashboardAuth(request);
+  if ('unauthorized' in auth) {
+    return auth.unauthorized;
+  }
+
   try {
     const formData = await request.formData();
     
@@ -199,6 +205,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireDashboardAuth(request);
+  if ('unauthorized' in auth) {
+    return auth.unauthorized;
+  }
+
   try {
     console.log('GET /api/facilitators - Starting request');
     const supabase = await createClient();

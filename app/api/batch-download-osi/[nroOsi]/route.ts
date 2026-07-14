@@ -4,12 +4,22 @@ import { getCertificatesByOSIAction } from "@/app/actions/certificados";
 import { CertificateGenerator } from "@/lib/certificate-generator";
 import { QRService } from "@/lib/qr-service";
 import { createClient } from "@/utils/supabase/server";
+import { requireApiAuth } from "@/utils/api-auth";
+import {
+  getFacilitatorDataServer,
+  getSignatureDataServer,
+} from "@/app/actions/certificate-data";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ nroOsi: string }> },
 ) {
   try {
+    const auth = await requireApiAuth(request);
+    if ("unauthorized" in auth) {
+      return auth.unauthorized;
+    }
+
     const resolvedParams = await params;
     const nroOsi = parseInt(resolvedParams.nroOsi);
 
@@ -31,6 +41,26 @@ export async function GET(
     }
 
     const certificates = certResult.certificates;
+
+    // If accessed via cliente portal, verify at least one certificate belongs to their empresa
+    if (auth.type === "cliente") {
+      const empresaId = (auth.session as { empresa_id?: number }).empresa_id;
+      const hasOwnership = certificates.some(
+        (cert: any) => cert.id_empresa === empresaId,
+      );
+      if (!hasOwnership) {
+        return NextResponse.json(
+          { error: "Forbidden" },
+          { status: 403 },
+        );
+      }
+      // Filter to only this empresa's certificates
+      const filtered = certificates.filter(
+        (cert: any) => cert.id_empresa === empresaId,
+      );
+      certificates.length = 0;
+      certificates.push(...filtered);
+    }
 
     // Fetch OSI data for metadata
     const supabase = await createClient();
@@ -129,6 +159,57 @@ export async function GET(
           complemento_empresa: snapshot.osi?.complemento_empresa,
         };
 
+        // Enrich missing facilitator data from database (same as generate-certificate-pdf route)
+        if (certData.facilitator_id && !certData.facilitator_data) {
+          try {
+            const facilitatorRaw = await getFacilitatorDataServer(
+              certData.facilitator_id.toString(),
+            );
+            if (facilitatorRaw) {
+              const facilitatorSignature =
+                Array.isArray(facilitatorRaw.firmas) && facilitatorRaw.firmas.length > 0
+                  ? facilitatorRaw.firmas[0]
+                  : facilitatorRaw.firmas;
+
+              (certData as any).facilitator_data = {
+                id: facilitatorRaw.id,
+                name: facilitatorRaw.nombre_apellido,
+                nombre_apellido: facilitatorRaw.nombre_apellido,
+                facilitator: facilitatorRaw.nombre_apellido,
+                cargo: "Facilitador",
+                firma: facilitatorSignature?.url_imagen,
+                firma_id: facilitatorRaw.firma_id,
+                sha_signature_id: facilitatorRaw.firma_id?.toString(),
+                signature_data: facilitatorSignature
+                  ? {
+                      id: facilitatorSignature.id,
+                      representante_sha: facilitatorSignature.nombre,
+                      firma: facilitatorSignature.url_imagen,
+                      url_imagen: facilitatorSignature.url_imagen,
+                      imagen_base64: facilitatorSignature.imagen_base64,
+                    }
+                  : undefined,
+              };
+            }
+          } catch (e) {
+            console.warn(`[BatchDownload] Failed to fetch facilitator for cert ${cert.id}:`, e);
+          }
+        }
+
+        // Enrich missing SHA signature data from database
+        if (certData.sha_signature_id && !certData.sha_signature_data) {
+          try {
+            const shaData = await getSignatureDataServer(
+              certData.sha_signature_id.toString(),
+            );
+            if (shaData) {
+              (certData as any).sha_signature_data = shaData;
+            }
+          } catch (e) {
+            console.warn(`[BatchDownload] Failed to fetch SHA signature for cert ${cert.id}:`, e);
+          }
+        }
+
         const controlNumbers = {
           nro_libro: snapshot.certificado?.nro_libro || cert.nro_libro,
           nro_hoja: snapshot.certificado?.nro_hoja || cert.nro_hoja,
@@ -148,7 +229,8 @@ export async function GET(
           paperSize: snapshot.certificado?.paperSize || "half-letter-custom",
         });
         const certFileName = `Certificado_${participant.idNumber}_${participant.name.replace(/\s+/g, "_")}.pdf`;
-        certsFolder?.file(certFileName, certBlob);
+        const certArrayBuffer = await certBlob.arrayBuffer();
+        certsFolder?.file(certFileName, certArrayBuffer);
         filesAdded++;
 
         // Generate carnet if applicable
@@ -184,7 +266,8 @@ export async function GET(
           });
 
           const carnetFileName = `Carnet_${participant.idNumber}_${participant.name.replace(/\s+/g, "_")}.pdf`;
-          carnetsFolder?.file(carnetFileName, carnetBlob);
+          const carnetArrayBuffer = await carnetBlob.arrayBuffer();
+          carnetsFolder?.file(carnetFileName, carnetArrayBuffer);
           filesAdded++;
         }
       } catch (err) {

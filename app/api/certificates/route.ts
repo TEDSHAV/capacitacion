@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { requireDashboardAuth } from "@/utils/api-auth";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireDashboardAuth(request);
+  if ('unauthorized' in auth) {
+    return auth.unauthorized;
+  }
+
   try {
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
@@ -121,6 +127,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireDashboardAuth(request);
+  if ('unauthorized' in auth) {
+    return auth.unauthorized;
+  }
+
   try {
     const body = await request.json();
     const supabase = await createClient();
