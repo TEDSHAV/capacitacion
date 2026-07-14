@@ -58,7 +58,7 @@ export async function GET(
         cedula_participante: carnet.cedula_participante,
         empresa_participante: carnet.empresa_participante
       },
-      templateImage: '/templates/certificado.png',
+      templateImage: '/templates/carnet.png',
       isPreview: false,
       carnetId: carnet.id
     };

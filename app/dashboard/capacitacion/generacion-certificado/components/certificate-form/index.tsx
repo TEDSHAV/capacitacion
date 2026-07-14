@@ -612,6 +612,7 @@ export const CertificateForm = ({
         selectedOSI={selectedOSI}
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
+        selectedCourse={selectedCourseTopic}
       />
     </div>
   );
