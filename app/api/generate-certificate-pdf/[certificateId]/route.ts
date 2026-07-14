@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCertificateById } from '@/app/actions/certificados';
 import { CertificateGenerator } from '@/lib/certificate-generator';
-import { certificateService } from '@/lib/certificate-service';
+import { getSignatureDataServer, getFacilitatorDataServer, getCertificateTemplateServer } from '@/app/actions/certificate-data';
 import { CertificateGeneration } from '@/types';
 
 export async function GET(
@@ -122,7 +122,7 @@ export async function GET(
     // Fetch SHA signature data if ID is available
     if (certificateData.sha_signature_id) {
       try {
-        const shaSignatureData = await certificateService.getSignatureData(certificateData.sha_signature_id);
+        const shaSignatureData = await getSignatureDataServer(certificateData.sha_signature_id);
         if (shaSignatureData) {
           (certificateData as any).sha_signature_data = shaSignatureData;
           console.log('Fetched SHA signature data for PDF generation:', shaSignatureData);
@@ -135,10 +135,26 @@ export async function GET(
     // Fetch facilitator data if ID is available and not already in data
     if (certificateData.facilitator_id && !certificateData.facilitator_data) {
       try {
-        const facilitatorData = await certificateService.getFacilitatorData(certificateData.facilitator_id);
+        const facilitatorData = await getFacilitatorDataServer(certificateData.facilitator_id);
         if (facilitatorData) {
-          (certificateData as any).facilitator_data = facilitatorData;
-          console.log('Fetched facilitator data for PDF generation:', facilitatorData);
+          // Transform to match expected CertificateFacilitator interface
+          (certificateData as any).facilitator_data = {
+            id: facilitatorData.id,
+            name: facilitatorData.nombre_apellido, // Map nombre_apellido to name
+            nombre_apellido: facilitatorData.nombre_apellido,
+            facilitator: facilitatorData.nombre_apellido,
+            cargo: 'Facilitador',
+            firma: facilitatorData.firmas?.url_imagen,
+            firma_id: facilitatorData.firma_id,
+            sha_signature_id: facilitatorData.firma_id?.toString(),
+            signature_data: facilitatorData.firmas ? {
+              id: facilitatorData.firmas.id,
+              representante_sha: facilitatorData.firmas.nombre,
+              firma: facilitatorData.firmas.url_imagen,
+              url_imagen: facilitatorData.firmas.url_imagen,
+            } : undefined,
+          };
+          console.log('Fetched and transformed facilitator data for PDF generation:', (certificateData as any).facilitator_data);
         }
       } catch (error) {
         console.warn('Failed to fetch facilitator data for PDF generation:', error);
@@ -160,11 +176,16 @@ export async function GET(
 
     // Get template image
     let templateImage = ''; // Start with empty template
+    console.log('Template ID from certificate data:', certificateData.id_plantilla_certificado);
+    
     if (certificateData.id_plantilla_certificado) {
       try {
-        const template = await certificateService.getCertificateTemplate(certificateData.id_plantilla_certificado);
+        console.log('Fetching template with ID:', certificateData.id_plantilla_certificado);
+        const template = await getCertificateTemplateServer(certificateData.id_plantilla_certificado);
+        console.log('Template data received:', template);
+        
         if (template?.archivo) {
-          templateImage = template.archivo;
+          templateImage = template.archivo.startsWith('/') ? template.archivo : `/templates/${template.archivo}`;
           console.log('Using template image:', templateImage);
         } else {
           console.log('Template found but no archivo field, using default');
@@ -178,6 +199,8 @@ export async function GET(
       console.log('No template specified, using default');
       templateImage = '/templates/certificado.png';
     }
+    
+    console.log('Final template image path:', templateImage);
 
     // Get seal image
     let sealImage = '';

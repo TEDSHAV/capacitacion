@@ -245,37 +245,43 @@ export class CertificatePage {
     if (certificateData.facilitator_id) {
       let facilitator: CertificateFacilitator | null = certificateData.facilitator_data as CertificateFacilitator | null;
       
-      // If facilitator_data is not available, fetch it using API route (works in browser)
+      // If facilitator_data is not available, try to fetch it
       if (!facilitator) {
-        try {
-          // Use API route instead of server action for browser compatibility
-          const response = await fetch(`/api/facilitators/${certificateData.facilitator_id}`);
-          
-          if (response.ok) {
-            const data = await response.json();
+        // Check if we're in a server environment
+        if (typeof window === 'undefined') {
+          // Server environment - data should already be provided, don't try to fetch
+          console.warn('Facilitator data not provided in server environment');
+        } else {
+          // Browser environment - use API route
+          try {
+            const response = await fetch(`/api/facilitators/${certificateData.facilitator_id}`);
             
-            if (data) {
-              // Transform API response to match expected interface
-              facilitator = {
-                id: data.id,
-                name: data.nombre_apellido,
-                nombre_apellido: data.nombre_apellido,
-                facilitator: data.nombre_apellido, // Same as name for consistency
-                cargo: 'Facilitador', // Default cargo since not returned by API
-                firma: data.firmas?.url_imagen,
-                firma_id: data.firma_id,
-                sha_signature_id: data.firma_id?.toString(),
-                signature_data: data.firmas ? {
-                  id: data.firmas.id,
-                  representante_sha: data.firmas.nombre,
-                  firma: data.firmas.url_imagen,
-                  url_imagen: data.firmas.url_imagen,
-                } : undefined,
-              };
+            if (response.ok) {
+              const data = await response.json();
+              
+              if (data) {
+                // Transform API response to match expected interface
+                facilitator = {
+                  id: data.id,
+                  name: data.nombre_apellido,
+                  nombre_apellido: data.nombre_apellido,
+                  facilitator: data.nombre_apellido, // Same as name for consistency
+                  cargo: 'Facilitador', // Default cargo since not returned by API
+                  firma: data.firmas?.url_imagen,
+                  firma_id: data.firma_id,
+                  sha_signature_id: data.firma_id?.toString(),
+                  signature_data: data.firmas ? {
+                    id: data.firmas.id,
+                    representante_sha: data.firmas.nombre,
+                    firma: data.firmas.url_imagen,
+                    url_imagen: data.firmas.url_imagen,
+                  } : undefined,
+                };
+              }
             }
+          } catch (error) {
+            console.error('Failed to fetch facilitator data from API:', error);
           }
-        } catch (error) {
-          console.error('Failed to fetch facilitator data from API:', error);
         }
       }
 
@@ -288,14 +294,21 @@ export class CertificatePage {
     if (certificateData.sha_signature_id) {
       let shaSignature = certificateData.sha_signature_data;
       
-      // If sha_signature_data is not available, fetch it using certificate service
+      // If sha_signature_data is not available, try to fetch it
       if (!shaSignature) {
-        try {
-          shaSignature = await certificateService.getSignatureData(
-            certificateData.sha_signature_id.toString()
-          );
-        } catch (error) {
-          console.warn('Failed to fetch SHA signature data:', error);
+        // Check if we're in a server environment
+        if (typeof window === 'undefined') {
+          // Server environment - data should already be provided, don't try to fetch
+          console.warn('SHA signature data not provided in server environment');
+        } else {
+          // Browser environment - use certificate service
+          try {
+            shaSignature = await certificateService.getSignatureData(
+              certificateData.sha_signature_id.toString()
+            );
+          } catch (error) {
+            console.warn('Failed to fetch SHA signature data:', error);
+          }
         }
       }
       
@@ -313,13 +326,13 @@ export class CertificatePage {
     signatureConfig: typeof this.config.signature
   ): Promise<void> {
     try {
-      console.log('Adding facilitator signature:', facilitator);
+      console.log('Adding facilitator signature:', JSON.stringify(facilitator, null, 2));
       
       // Add facilitator name - use the name field which is mapped from nombre_apellido
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(8);
       this.doc.text(
-        facilitator.name.toUpperCase(),
+        (facilitator.name || facilitator.nombre_apellido).toUpperCase(),
         60,
         100,
         { align: "center" }
@@ -335,7 +348,11 @@ export class CertificatePage {
         signatureUrl = facilitator.signature_data.firma;
       } else if (facilitator.firma) {
         signatureUrl = facilitator.firma;
+      } else if (facilitator.firmas?.url_imagen) {
+        signatureUrl = facilitator.firmas.url_imagen;
       }
+      
+      console.log('Facilitator signature URL found:', signatureUrl);
       
       if (signatureUrl) {
         console.log('Adding facilitator signature image:', signatureUrl);
@@ -364,7 +381,7 @@ export class CertificatePage {
     signatureConfig: typeof this.config.signature
   ): Promise<void> {
     try {
-      console.log('Adding SHA signature:', shaSignature);
+      console.log('Adding SHA signature:', JSON.stringify(shaSignature, null, 2));
       
       // Handle both array and object structures
       let signatureData = shaSignature;
@@ -395,6 +412,7 @@ export class CertificatePage {
         );
       } else {
         console.warn('No signature image found for SHA:', signatureData.nombre);
+        console.log('SHA signature data structure:', JSON.stringify(shaSignature, null, 2));
       }
     } catch (error) {
       console.error('Error adding SHA signature:', error);

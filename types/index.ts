@@ -295,6 +295,13 @@ export interface Facilitador {
   tiene_curriculum: boolean | null;
   tiene_certificaciones: boolean | null;
   tiene_foto_perfil: boolean | null;
+  firmas?: {
+    id: number;
+    nombre: string;
+    url_imagen: string;
+    tipo: string;
+    is_active: boolean;
+  } | null;
 }
 
 // Keep the old interface for backward compatibility

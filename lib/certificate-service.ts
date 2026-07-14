@@ -89,23 +89,19 @@ export class CertificateService {
       if (data && typeof data === 'object') {
         return {
           id: data.id.toString(),
-          name: data.nombre_apellido,
-          id_number: data.cedula || '',
-          phone: data.telefono || '',
+          nombre_apellido: data.nombre_apellido,
+          cedula: data.cedula || '',
+          telefono: data.telefono || '',
           email: data.email || '',
-          address: data.direccion || '',
-          city: '', // Would need to fetch from ciudad table
-          course_topics: data.temas_cursos || [],
-          technical_knowledge: data.nivel_tecnico || '',
-          signature_id: data.firma_id?.toString(),
-          created_at: data.fecha_creacion || new Date().toISOString(),
-          updated_at: data.fecha_actualizacion || new Date().toISOString()
+          direccion: data.direccion || '',
+          firma_id: data.firma_id?.toString(),
+          temas_cursos: data.temas_cursos || [],
+          nivel_tecnico: data.nivel_tecnico || '',
+          firmas: data.firmas
         };
       }
       
-      return this.validateApiResponse(data, (item): item is Facilitador => {
-        return 'id' in item && 'name' in item && 'facilitator' in item;
-      });
+      return data;
     } catch (error) {
       console.error("Error fetching facilitator:", error);
       return null;
@@ -134,22 +130,15 @@ export class CertificateService {
   /**
    * Batch fetch multiple signatures
    */
-  async getMultipleSignatures(signatureIds: string[]): Promise<Signature[]> {
+  async getMultipleSignatures(signatureIds: string[]): Promise<any[]> {
     const promises = signatureIds.map(id => this.getSignatureData(id));
     const results = await Promise.allSettled(promises);
     
     return results
-      .filter((result): result is PromiseFulfilledResult<Signature> => 
+      .filter((result): result is PromiseFulfilledResult<any> => 
         result.status === 'fulfilled' && result.value !== null
       )
       .map(result => result.value);
-  }
-
-  /**
-   * Validate API response structure
-   */
-  private validateApiResponse<T>(data: unknown, validator: (item: any) => item is T): T | null {
-    return validator(data) && typeof data === 'object' && data !== null ? data as T : null;
   }
 }
 

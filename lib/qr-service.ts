@@ -108,20 +108,53 @@ export class QRService {
     error?: string
   ): QRCodeVerificationData {
     if (isValid && certificate) {
+      // Extract data from parsed snapshot if available, otherwise use direct fields
+      const snapshot = certificate.parsed_snapshot;
+      const participantName = snapshot?.participante?.name || 
+                             certificate.participantes_certificados?.[0]?.nombre || 
+                             'Unknown Participant';
+      
+      const courseName = snapshot?.curso?.name || 
+                        snapshot?.certificado_detalles?.course_content ||
+                        certificate.cursos?.nombre || 
+                        'Unknown Course';
+      
+      const issueDate = snapshot?.certificado?.fecha_emision || 
+                       certificate.fecha_emision || 
+                       'Unknown';
+      
+      const expirationDate = snapshot?.certificado?.fecha_vencimiento || 
+                            certificate.fecha_vencimiento;
+
+      // Get control numbers from certificate record or snapshot
+      const controlNumbers = {
+        nro_libro: certificate.nro_libro || 
+                  snapshot?.certificado?.nro_libro || 
+                  snapshot?.certificado_detalles?.nro_libro || 
+                  0,
+        nro_hoja: certificate.nro_hoja || 
+                 snapshot?.certificado?.nro_hoja || 
+                 snapshot?.certificado_detalles?.nro_hoja || 
+                 0,
+        nro_linea: certificate.nro_linea || 
+                  snapshot?.certificado?.nro_linea || 
+                  snapshot?.certificado_detalles?.nro_linea || 
+                  0,
+        nro_control: certificate.nro_control || 
+                    snapshot?.certificado?.nro_control || 
+                    snapshot?.certificado_detalles?.nro_control || 
+                    0
+      };
+
       return {
         isValid: true,
         certificate: {
           id: certificate.id,
-          participantName: certificate.participante?.name || 'Unknown',
-          courseName: certificate.curso?.name || 'Unknown Course',
-          issueDate: certificate.certificado?.fecha_emision || 'Unknown',
-          expirationDate: certificate.certificado?.fecha_vencimiento,
-          controlNumbers: {
-            nro_libro: certificate.certificado?.nro_libro || 0,
-            nro_hoja: certificate.certificado?.nro_hoja || 0,
-            nro_linea: certificate.certificado?.nro_linea || 0,
-            nro_control: certificate.certificado?.nro_control || 0
-          }
+          participantName,
+          courseName,
+          issueDate,
+          expirationDate,
+          controlNumbers
         }
       };
     }
