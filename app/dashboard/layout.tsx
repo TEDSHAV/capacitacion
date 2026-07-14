@@ -1,42 +1,11 @@
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import Sidebar from "@/components/Sidebar";
-import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
-import { memo } from 'react'
-
-// Static departments moved outside component to prevent re-creation
-const STATIC_DEPARTMENTS = [
-  { id: '1', nombre: 'negocios', color: 'blue' },
-  { id: '2', nombre: 'capacitacion', color: 'purple' }
-];
-
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Check authentication before rendering anything
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) {
-    redirect('/login')
-  }
-
-  // Static departments for now to avoid database issues
-  const sortedDepartamentos = STATIC_DEPARTMENTS;
-
   return (
-    <div className="flex h-screen">
-      <Sidebar departamentos={sortedDepartamentos} />
-      <div className="flex flex-col flex-1">
-        <Navbar />
-        <main className="flex-1 overflow-y-auto bg-gray-100">
-          {children}
-        </main>
-        <Footer />
-      </div>
-    </div>
+    <main className="min-h-screen bg-gray-100">
+      {children}
+    </main>
   );
 }
