@@ -47,7 +47,7 @@ export default function ClienteLoginPage() {
             height={128}
             className="w-32 h-32 object-contain mb-4"
           />
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl  font-bold text-gray-900">
             Portal de Clientes
           </h1>
           <p className="text-gray-600 text-center mt-2">

@@ -1,18 +1,16 @@
-import { getFacilitatorSession, getAssignedOSIs } from "@/app/actions/facilitador-portal";
+import { getFacilitatorSession, getAssignedOSIs, logoutFacilitator } from "@/app/actions/facilitador-portal";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { PortalNavbar } from "@/components/PortalNavbar";
+import { toTitleCase } from "@/utils/string-utils";
 import { 
   ClipboardList, 
   Calendar, 
   Building2, 
   ChevronRight, 
-  LogOut,
-  User as UserIcon,
   CheckCircle2,
   Clock
 } from "lucide-react";
-import { logoutFacilitator } from "@/app/actions/facilitador-portal";
 
 export default async function FacilitadorDashboardPage() {
   const session = await getFacilitatorSession();
@@ -24,22 +22,14 @@ export default async function FacilitadorDashboardPage() {
   const { data: osis, error } = await getAssignedOSIs(session.facilitador_id);
 
   return (
-    <div className="max-w-5xl mx-auto py-10 px-4">
-      <header className="flex justify-between items-center mb-10">
+    <div className="min-h-screen bg-gray-50">
+      <PortalNavbar title="Portal de Facilitadores" logoutAction={logoutFacilitator} loginPath="/portal/facilitador/login" />
+      <div className="max-w-5xl mx-auto py-10 px-4">
+      <header className="mb-10">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Bienvenido, {session.nombre}</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Bienvenido, {toTitleCase(session.nombre)}</h1>
           <p className="text-gray-600">Aquí puedes gestionar tus servicios asignados.</p>
         </div>
-        <form action={async () => {
-          "use server";
-          await logoutFacilitator();
-          redirect("/portal/facilitador/login");
-        }}>
-          <Button variant="outline" type="submit" className="text-red-600 border-red-200 hover:bg-red-50">
-            <LogOut className="w-4 h-4 mr-2" />
-            Cerrar Sesión
-          </Button>
-        </form>
       </header>
 
       <div className="grid gap-6">
@@ -111,6 +101,7 @@ export default async function FacilitadorDashboardPage() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }
