@@ -65,3 +65,29 @@ export async function handleLogout() {
     return { error: "Error al cerrar sesión" };
   }
 }
+
+export async function getUserAppRoles() {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data: userData } = await supabase
+      .from("usuarios")
+      .select("id")
+      .eq("id_auth", user.id)
+      .single();
+
+    if (!userData) return [];
+
+    const { data: userRoles } = await supabase.rpc(
+      "get_user_roles_by_app",
+      { p_usuario_id: userData.id },
+    );
+
+    return userRoles || [];
+  } catch (error) {
+    console.error("Error fetching user app roles:", error);
+    return [];
+  }
+}

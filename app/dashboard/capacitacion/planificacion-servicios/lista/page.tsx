@@ -4,9 +4,23 @@ import {
   getAllControlServiciosRecords,
 } from "@/app/actions/control-servicios";
 import RequisicionRow from "./components/requisicion-row";
+import { getUserAppRoles } from "@/app/actions/auth";
 
 export default async function ListaControlServiciosPage() {
-  const records = await getAllControlServiciosRecords();
+  const [records, userRoles] = await Promise.all([
+    getAllControlServiciosRecords(),
+    getUserAppRoles(),
+  ]);
+
+  const requisicionesRole = userRoles.find((r: any) => r.app_slug === "requisiciones")?.role_slug?.toLowerCase();
+  const scapacitacionRole = userRoles.find((r: any) => r.app_slug === "scapacitacion")?.role_slug?.toLowerCase();
+  const sgestionRole = userRoles.find((r: any) => r.app_slug === "sgestion")?.role_slug?.toLowerCase();
+
+  const allowedRoles = ["admin", "lider", "superadmin"];
+  const canAccessRequisiciones = 
+    allowedRoles.includes(requisicionesRole || "") || 
+    allowedRoles.includes(scapacitacionRole || "") ||
+    allowedRoles.includes(sgestionRole || "");
 
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
@@ -19,9 +33,11 @@ export default async function ListaControlServiciosPage() {
             Registros de servicios ejecutados
           </p>
         </div>
-        <a href="/requisiciones/create" target="_parent">
-          <Button>Nuevo Registro</Button>
-        </a>
+        {canAccessRequisiciones && (
+          <a href={`${process.env.NEXT_PUBLIC_SHELL_URL || ""}/requisiciones/create`} target="_parent">
+            <Button>Nuevo Registro</Button>
+          </a>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
@@ -54,7 +70,7 @@ export default async function ListaControlServiciosPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {records && records.length > 0 ? (
               records.map((record: any) => (
-                <RequisicionRow key={record.id} record={record} />
+                <RequisicionRow key={record.id} record={record} canAccessRequisiciones={canAccessRequisiciones} />
               ))
             ) : (
               <tr>

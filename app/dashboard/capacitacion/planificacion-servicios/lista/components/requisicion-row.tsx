@@ -6,16 +6,23 @@ import { deleteControlServiciosRecord } from "@/app/actions/control-servicios";
 import { Eye, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function RequisicionRow({ record }: { record: any }) {
+export default function RequisicionRow({ record, canAccessRequisiciones }: { record: any, canAccessRequisiciones: boolean }) {
   const router = useRouter();
 
   const handleActionClick = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
 
+  const handleRowClick = () => {
+    if (canAccessRequisiciones) {
+      window.parent.location.href = `${process.env.NEXT_PUBLIC_SHELL_URL || ""}/requisiciones/view/${record.id}`;
+    }
+  };
+
   return (
     <tr 
-      className="hover:bg-gray-50 transition-colors"
+      onClick={handleRowClick}
+      className={canAccessRequisiciones ? "hover:bg-gray-50 cursor-pointer transition-colors" : "transition-colors"}
     >
       <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-blue-700">
         {record.nro_correlativo || "-"}
@@ -44,30 +51,32 @@ export default function RequisicionRow({ record }: { record: any }) {
           : "-"}
       </td>
       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900" onClick={handleActionClick}>
-        <div className="flex gap-1">
-          <a href={`${process.env.NEXT_PUBLIC_SHELL_URL || ""}/requisiciones/view/${record.id}`} target="_parent">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600 hover:text-gray-900" title="Ver">
-              <Eye className="h-4 w-4" />
-            </Button>
-          </a>
-          <a href={`${process.env.NEXT_PUBLIC_SHELL_URL || ""}/requisiciones/edit/${record.id}`} target="_parent">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-800" title="Editar">
-              <Edit className="h-4 w-4" />
-            </Button>
-          </a>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (confirm("¿Está seguro de que desea eliminar este registro?")) {
-                await deleteControlServiciosRecord(record.id);
-              }
-            }}
-          >
-            <Button type="submit" variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-800" title="Eliminar">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </form>
-        </div>
+        {canAccessRequisiciones && (
+          <div className="flex gap-1">
+            <a href={`${process.env.NEXT_PUBLIC_SHELL_URL || ""}/requisiciones/view/${record.id}`} target="_parent">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-600 hover:text-gray-900" title="Ver">
+                <Eye className="h-4 w-4" />
+              </Button>
+            </a>
+            <a href={`${process.env.NEXT_PUBLIC_SHELL_URL || ""}/requisiciones/edit/${record.id}`} target="_parent">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-800" title="Editar">
+                <Edit className="h-4 w-4" />
+              </Button>
+            </a>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (confirm("¿Está seguro de que desea eliminar este registro?")) {
+                  await deleteControlServiciosRecord(record.id);
+                }
+              }}
+            >
+              <Button type="submit" variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-800" title="Eliminar">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </form>
+          </div>
+        )}
       </td>
     </tr>
   );
