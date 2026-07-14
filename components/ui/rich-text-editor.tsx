@@ -2,8 +2,17 @@
 
 import { useEditor, EditorContent, Extension } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Bold, Italic, List, ListOrdered, Undo, Redo } from "lucide-react";
+import {
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  List,
+  ListOrdered,
+  Undo,
+  Redo,
+} from "lucide-react";
 import { useEffect } from "react";
+import Underline from "@tiptap/extension-underline";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 
@@ -66,7 +75,7 @@ export default function RichTextEditor({
 
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [StarterKit, HighlightLongLines],
+    extensions: [StarterKit, HighlightLongLines, Underline],
     content: value || "",
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
@@ -74,7 +83,8 @@ export default function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: "prose prose-sm max-w-none px-3 py-2 focus:outline-none",
+        class:
+          "prose prose-sm font-sans max-w-none px-3 py-2 focus:outline-none",
         style: `min-height: ${minHeight}`,
         "data-placeholder": placeholder || "Escribe aquí...",
       },
@@ -111,6 +121,13 @@ export default function RichTextEditor({
           title="Cursiva (Ctrl+I)"
         >
           <Italic className="w-3.5 h-3.5" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() => editor?.chain().focus().toggleUnderline().run()}
+          active={editor?.isActive("underline") ?? false}
+          title="Subrayado (Ctrl+U)"
+        >
+          <UnderlineIcon className="w-3.5 h-3.5" />
         </ToolbarBtn>
         <Divider />
         <ToolbarBtn

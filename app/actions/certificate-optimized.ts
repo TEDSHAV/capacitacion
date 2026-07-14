@@ -133,6 +133,8 @@ const getOptimizedCertificateData = cache(async () => {
 
     // Build a nombre-keyed map from cursos for O(1) enrichment lookups
     // Stores cursos.id so FK constraints on certificados and carnets are satisfied
+    // Note: If there are multiple cursos with the same nombre, only the last one will be kept
+    // cursos.contenido is the authoritative content source; catalogo_servicios.contenido_curso is a fallback
     const cursosByNombre = new Map<
       string,
       {
@@ -152,6 +154,17 @@ const getOptimizedCertificateData = cache(async () => {
         },
       ]),
     );
+
+    // Log warning if there are duplicate course names
+    const nombres = (cursosResult.data || []).map((c: any) =>
+      (c.nombre as string).toLowerCase(),
+    );
+    const uniqueNombres = new Set(nombres);
+    if (nombres.length !== uniqueNombres.size) {
+      console.warn(
+        `⚠️  Found ${nombres.length - uniqueNombres.size} duplicate course names in cursos table. This may cause incorrect content matching.`,
+      );
+    }
 
     // Handle signatures errors
     if (signaturesResult.error) {
@@ -214,15 +227,34 @@ const getOptimizedCertificateData = cache(async () => {
       const cursoMatch = cursosByNombre.get(
         (course.nombre as string).toLowerCase(),
       );
+
+      // Log content source for debugging
+      const contentSource = cursoMatch?.contenido
+        ? "cursos (primary)"
+        : course.contenido_curso
+          ? "catalogo_servicios (fallback)"
+          : "none";
+
+      if (course.nombre.toLowerCase().includes("permisos")) {
+        console.log(`🔍 Course "${course.nombre}":`, {
+          id: course.id,
+          catalogo_servicios_contenido:
+            course.contenido_curso?.substring(0, 50) + "...",
+          cursos_contenido: cursoMatch?.contenido?.substring(0, 50) + "...",
+          cursos_id: cursoMatch?.id,
+          content_source: contentSource,
+        });
+      }
+
       return {
         id: course.id.toString(), // catalogo_servicios.id — for OSI matching
         cursos_id: cursoMatch?.id ?? null, // cursos.id — for certificados/carnets FK
         nombre: course.nombre,
         name: course.nombre,
         description: course.nombre,
-        // Prefer catalogo_servicios.contenido_curso; fall back to cursos.contenido
+        // Prefer cursos.contenido (authoritative); fall back to catalogo_servicios.contenido_curso
         contenido_curso:
-          course.contenido_curso || cursoMatch?.contenido || null,
+          cursoMatch?.contenido || course.contenido_curso || null,
         horas_estimadas: course.carga_horaria_std,
         nota_aprobatoria: cursoMatch?.nota_aprobatoria ?? 14,
         emite_carnet: cursoMatch?.emite_carnet ?? false,

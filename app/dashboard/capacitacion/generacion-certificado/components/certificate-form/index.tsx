@@ -164,6 +164,7 @@ export const CertificateForm = ({
         courseTemplates={courseTemplates}
         courseTemplateId={certificateData.course_template_id}
         courseContent={certificateData.course_content}
+        contentFont={certificateData.content_font}
         selectedCourseTopic={selectedCourseTopic}
         selectedOSI={selectedOSI}
         onDataChange={onDataChange}

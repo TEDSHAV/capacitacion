@@ -55,6 +55,7 @@ export class ContentPage {
       layout.currentY,
       layout.columnWidth,
       maxY,
+      certificateData.content_font,
     );
 
     // Render table with seal in right column
@@ -107,6 +108,7 @@ export class ContentPage {
       layout.currentY,
       layout.columnWidth,
       maxY,
+      certificateData.content_font,
     );
 
     // Render table with seal in right column
@@ -167,6 +169,7 @@ export class ContentPage {
     currentY: number,
     columnWidth: number,
     maxY?: number,
+    contentFont?: "helvetica" | "times",
   ): void {
     if (!courseContent) return;
 
@@ -182,9 +185,10 @@ export class ContentPage {
     let fontSize = BASE_SIZE;
     let lineHeight = BASE_LINE_HEIGHT;
     let contentLines: string[] = [];
+    const font = contentFont || "helvetica";
 
     // Set font state STRICTLY before any measurement
-    this.doc.setFont("helvetica", "normal");
+    this.doc.setFont(font, "normal");
     this.doc.setCharSpace(0);
     this.doc.setLineHeightFactor(1.15);
 
@@ -247,7 +251,7 @@ export class ContentPage {
       if (maxY !== undefined && y + lineHeight > maxY) break;
 
       // Force state on every line to prevent leakage
-      this.doc.setFont("helvetica", "normal");
+      this.doc.setFont(font, "normal");
       this.doc.setFontSize(fontSize);
       this.doc.setCharSpace(0);
       this.doc.setTextColor(0, 0, 0);

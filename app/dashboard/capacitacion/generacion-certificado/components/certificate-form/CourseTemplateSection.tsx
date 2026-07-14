@@ -12,6 +12,7 @@ interface CourseTemplateSectionProps {
   courseTemplates: any[];
   courseTemplateId?: string;
   courseContent?: string;
+  contentFont?: "helvetica" | "times";
   selectedCourseTopic: CourseTopic | null;
   selectedOSI: CertificateOSI | null;
   onDataChange: (field: keyof CertificateGeneration, value: any) => void;
@@ -21,6 +22,7 @@ export const CourseTemplateSection = ({
   courseTemplates,
   courseTemplateId,
   courseContent,
+  contentFont = "helvetica",
   selectedCourseTopic,
   selectedOSI,
   onDataChange,
@@ -52,52 +54,79 @@ export const CourseTemplateSection = ({
 
   return (
     <>
-      {/* Course Template Selection */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Seleccionar Plantilla
-        </label>
-        <select
-          value={courseTemplateId || ""}
-          onChange={(e) => handleTemplateChange(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          disabled={!selectedOSI}
-        >
-          <option value="">Selecciona una plantilla...</option>
-          {courseTemplates.map((template: any) => {
-            let label =
-              template.nombre ||
-              template.descripcion ||
-              `Plantilla ${template.id}`;
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        {/* Course Template Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Seleccionar Plantilla
+          </label>
+          <select
+            value={courseTemplateId || ""}
+            onChange={(e) => handleTemplateChange(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={!selectedOSI}
+          >
+            <option value="">Selecciona una plantilla...</option>
+            {courseTemplates.map((template: any) => {
+              let label =
+                template.nombre ||
+                template.descripcion ||
+                `Plantilla ${template.id}`;
 
-            if (template.id === "original-course") {
-              label = selectedCourseTopic?.nombre || "Contenido base del curso";
-            } else if (template.empresas) {
-              const courseName = selectedCourseTopic?.nombre || "";
-              const companyName = template.empresas.razon_social || "";
-              label = `${courseName} ${companyName}`;
-            } else if (template.id_curso) {
-              const courseName = selectedCourseTopic?.nombre || "";
-              label = `${courseName} - ${template.descripcion}`;
-            }
+              if (template.id === "original-course") {
+                label =
+                  selectedCourseTopic?.nombre || "Contenido base del curso";
+              } else if (template.empresas) {
+                const courseName = selectedCourseTopic?.nombre || "";
+                const companyName = template.empresas.razon_social || "";
+                label = `${courseName} ${companyName}`;
+              } else if (template.id_curso) {
+                const courseName = selectedCourseTopic?.nombre || "";
+                label = `${courseName} - ${template.descripcion}`;
+              }
 
-            return (
-              <option
-                key={template.id.toString()}
-                value={template.id.toString()}
-              >
-                {label}
-              </option>
-            );
-          })}
-        </select>
-        <p className="text-xs text-gray-500 mt-1">
-          {!selectedOSI
-            ? "Selecciona una OSI primero para ver las plantillas disponibles"
-            : courseTemplates.length === 0
-              ? "No hay plantillas disponibles para este curso/cliente"
-              : "Plantillas disponibles para el curso seleccionado"}
-        </p>
+              return (
+                <option
+                  key={template.id.toString()}
+                  value={template.id.toString()}
+                >
+                  {label}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* Font Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Estilo de Fuente (PDF)
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onDataChange("content_font", "helvetica")}
+              className={`flex-1 px-3 py-2 text-sm font-medium rounded-md border transition-all ${
+                !selectedOSI || contentFont === "helvetica"
+                  ? "bg-blue-50 border-blue-200 text-blue-700 ring-1 ring-blue-500"
+                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              Helvetica (Sans)
+            </button>
+            <button
+              type="button"
+              onClick={() => onDataChange("content_font", "times")}
+              className={`flex-1 px-3 py-2 text-sm font-medium rounded-md border transition-all font-serif ${
+                contentFont === "times"
+                  ? "bg-blue-50 border-blue-200 text-blue-700 ring-1 ring-blue-500"
+                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              Times (Serif)
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Course Content (Editable) — always shown when a course is selected */}

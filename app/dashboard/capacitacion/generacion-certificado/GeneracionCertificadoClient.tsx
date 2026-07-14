@@ -284,8 +284,10 @@ export default function GeneracionCertificadoClient({
           ...prev,
           course_topic_id: selectedCourse.id,
           course_topic_data: selectedCourse,
-          course_content: selectedCourse.contenido_curso || "",
-          course_template_id: "original-course",
+          // Don't set course_content or course_template_id here — the hook
+          // will set them after templates finish loading to avoid race conditions
+          course_content: "",
+          course_template_id: "",
           passing_grade: passingGrade,
           horas_estimadas: selectedCourse.horas_estimadas,
           certificate_title: selectedCourse.name,

@@ -97,6 +97,13 @@ export function useCertificateForm({
 
   // Effect to load course templates when course changes
   useEffect(() => {
+    // Immediately clear stale templates to avoid mismatched value/options in dropdown
+    setCourseTemplates([]);
+
+    if (!selectedCourseTopic) return;
+
+    let cancelled = false;
+
     const loadCourseTemplates = async () => {
       try {
         // Use cursos_id (cursos.id) not id (catalogo_servicios.id) — plantillas_cursos.id_curso FK → cursos
@@ -108,6 +115,8 @@ export function useCertificateForm({
           courseId,
           empresaId,
         );
+
+        if (cancelled) return; // Discard stale response if OSI/course changed again
 
         if (templatesResult.data) {
           const templates = templatesResult.data;
@@ -124,8 +133,6 @@ export function useCertificateForm({
                 ...templates,
               ]
             : templates;
-
-          setCourseTemplates(allOptions);
 
           // Logic for auto-selecting the best template
           let templateToSelect = "original-course";
@@ -145,6 +152,9 @@ export function useCertificateForm({
             }
           }
 
+          // Set templates and selection atomically to avoid mismatched state
+          setCourseTemplates(allOptions);
+
           // In Edit Mode, if it's the initial load, we don't want to overwrite the loaded state
           if (isEditMode && isInitialLoad.current) {
             isInitialLoad.current = false;
@@ -161,6 +171,10 @@ export function useCertificateForm({
     };
 
     loadCourseTemplates();
+
+    return () => {
+      cancelled = true; // Cancel stale request on cleanup
+    };
   }, [
     selectedCourseTopic?.id,
     selectedCourseTopic?.contenido_curso,
