@@ -65,13 +65,13 @@ export default function Navbar() {
               <>
                 <button
                   onClick={() => router.push('/login')}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                  className="text-sm text-white hover:text-gray-200 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
                 >
                   Iniciar sesión
                 </button>
                 <button
                   onClick={() => router.push('/signup')}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                  className="text-sm text-white hover:text-gray-200 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
                 >
                   Registrarse
                 </button>
