@@ -297,7 +297,7 @@ export const CertificatePreview = ({
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setShowCarnet(false)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  className={`mx-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                     !showCarnet
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
@@ -307,7 +307,7 @@ export const CertificatePreview = ({
                 </button>
                 <button
                   onClick={() => setShowCarnet(true)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  className={`mx-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                     showCarnet
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
