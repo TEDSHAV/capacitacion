@@ -99,7 +99,7 @@ export default function GeneracionCertificadoClient({
       id_estado: undefined,
       id_plantilla_certificado: undefined,
       generate_documents: true, // Always true
-      include_previous_participants: true, // Default to true as per user preference
+      include_previous_participants: false,
       paperSize: "half-letter-custom", // New default format
     },
   );
@@ -1062,7 +1062,7 @@ export default function GeneracionCertificadoClient({
               let allParticipants = [...certificateRecords];
 
               if (
-                certificateData.include_previous_participants !== false &&
+                certificateData.include_previous_participants === true &&
                 selectedOSI?.nro_osi &&
                 selectedCourseTopic?.id
               ) {
@@ -1573,7 +1573,7 @@ export default function GeneracionCertificadoClient({
         id_plantilla_certificado: undefined,
         plantilla_certificado_archivo: undefined,
         generate_documents: true, // Reset to true
-        include_previous_participants: true, // Reset to default
+        include_previous_participants: false,
       });
       setSelectedOSI(null);
       setSelectedCourseTopic(null);

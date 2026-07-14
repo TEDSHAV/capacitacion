@@ -600,7 +600,7 @@ export const CertificateForm = ({
             <div className="relative flex items-center">
               <input
                 type="checkbox"
-                checked={certificateData.include_previous_participants !== false}
+                checked={certificateData.include_previous_participants === true}
                 onChange={(e) => onDataChange("include_previous_participants", e.target.checked)}
                 className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-300 bg-white checked:border-blue-600 checked:bg-blue-600 transition-all focus:ring-2 focus:ring-blue-500/20"
               />

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
-import { CertificateParticipant, ParticipantsSectionProps, OSIAttachment } from "@/types";
+import { CertificateParticipant, ParticipantsSectionProps, OSIAttachment, ParticipantVerificationResult, ExtractedParticipant } from "@/types";
 import { useParticipants } from "./use-participants";
 import { ParticipantScannerModal } from "./ParticipantScannerModal";
+import { SeniatVerificationPopover } from "./SeniatVerificationPopover";
 import { Button } from "@/components/ui/button";
-import { X, Camera, CheckCircle2, AlertCircle, Download, Loader2, FileSearch } from "lucide-react";
+import { X, Camera, CheckCircle2, AlertCircle, Download, Loader2, FileSearch, Search } from "lucide-react";
 import { getOSIParticipants, getOSIAttachments } from "@/app/actions/facilitador-portal";
 
 export const ParticipantsSection = ({
@@ -22,6 +23,7 @@ export const ParticipantsSection = ({
   const [portalAttachments, setPortalAttachments] = useState<OSIAttachment[]>([]);
   const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [activeVerificationIndex, setActiveVerificationIndex] = useState<number | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Ensure participants is always an array
@@ -182,6 +184,16 @@ export const ParticipantsSection = ({
       default:
         return "Sin calificación";
     }
+  };
+
+  const handleVerificationComplete = (
+    index: number,
+    result: ParticipantVerificationResult,
+  ) => {
+    const newParticipants = [...uniqueParticipants];
+    newParticipants[index].seniatVerification = result;
+    onChange(newParticipants);
+    setActiveVerificationIndex(null);
   };
 
   return (
@@ -354,10 +366,10 @@ export const ParticipantsSection = ({
                 key={participant.id || index}
                 className="flex justify-between items-center p-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
               >
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    {isEditMode ? (
-                      <div className="flex flex-col w-full">
+                <div className="flex-1 flex items-center gap-2">
+                  {isEditMode ? (
+                    <div className="flex items-center gap-2 w-full">
+                      <div className="flex flex-col">
                         <label className="text-xs text-gray-500 mb-1">
                           Nombre Completo
                         </label>
@@ -372,46 +384,136 @@ export const ParticipantsSection = ({
                           className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
-                    ) : (
-                      <>
-                        <span className="font-medium text-gray-900">
-                          {participant.name}
-                        </span>
-                        <span className="text-gray-500 text-sm">
-                          (
-                          {participant.nationality === "venezolano"
-                            ? "V-"
-                            : "E-"}
-                          {participant.idNumber})
-                        </span>
-
-                        {/* SENIAT Verification Status */}
-                        {participant.seniatVerification && (
-                          <div className="flex flex-col ml-2">
-                            {participant.seniatVerification.status ===
-                            "verified" ? (
-                              <div className="flex items-center text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
-                                <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
-                                <span
-                                  className="truncate max-w-[250px]"
-                                  title={
-                                    participant.seniatVerification.seniatName
-                                  }
-                                >
-                                  {participant.seniatVerification.seniatName}
-                                </span>
-                              </div>
-                            ) : participant.seniatVerification.status ===
-                              "not_found" ? (
-                              <div className="flex items-center text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
-                                <AlertCircle className="h-2.5 w-2.5 mr-1" />
-                                No en SENIAT
-                              </div>
-                            ) : null}
-                          </div>
+                      {/* SENIAT Verification (edit mode) */}
+                      {participant.seniatVerification && (
+                        <>
+                          {participant.seniatVerification.status === "verified" ? (
+                            <span className="flex items-center text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 whitespace-nowrap">
+                              <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
+                              <span className="truncate max-w-[200px]" title={participant.seniatVerification.seniatName}>
+                                {participant.seniatVerification.seniatName}
+                              </span>
+                            </span>
+                          ) : participant.seniatVerification.status === "not_found" ? (
+                            <span className="flex items-center text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 whitespace-nowrap">
+                              <AlertCircle className="h-2.5 w-2.5 mr-1" />
+                              No en SENIAT
+                            </span>
+                          ) : null}
+                        </>
+                      )}
+                      <div className="relative">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setActiveVerificationIndex(index)}
+                          disabled={activeVerificationIndex !== null}
+                          className="h-8 text-[10px] px-2 text-blue-600 hover:bg-blue-50 font-bold border border-blue-100 rounded-lg whitespace-nowrap"
+                        >
+                          <Search className="h-3 w-3 mr-1" />
+                          {participant.seniatVerification ? "Re-validar" : "Verificar"}
+                        </Button>
+                        {activeVerificationIndex === index && (
+                          <SeniatVerificationPopover
+                            participant={
+                              {
+                                name: participant.name,
+                                idNumber: participant.idNumber,
+                                nationality: participant.nationality,
+                              } as ExtractedParticipant
+                            }
+                            onVerify={(result) =>
+                              handleVerificationComplete(index, result)
+                            }
+                            onClose={() => setActiveVerificationIndex(null)}
+                            useFixedPosition
+                          />
                         )}
-                      </>
-                    )}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="font-medium text-gray-900 uppercase whitespace-nowrap">
+                        {participant.name}
+                      </span>
+                      <span className="text-gray-500 text-sm whitespace-nowrap">
+                        (
+                        {participant.nationality === "venezolano"
+                          ? "V-"
+                          : "E-"}
+                        {participant.idNumber})
+                      </span>
+
+                      {/* SENIAT Verification Status */}
+                      {participant.seniatVerification && (
+                        <>
+                          {participant.seniatVerification.status ===
+                          "verified" ? (
+                            <span className="flex items-center text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 whitespace-nowrap">
+                              <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
+                              <span
+                                className="truncate max-w-[200px]"
+                                title={
+                                  participant.seniatVerification.seniatName
+                                }
+                              >
+                                {participant.seniatVerification.seniatName}
+                              </span>
+                            </span>
+                          ) : participant.seniatVerification.status ===
+                            "not_found" ? (
+                            <span className="flex items-center text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 whitespace-nowrap">
+                              <AlertCircle className="h-2.5 w-2.5 mr-1" />
+                              No en SENIAT
+                            </span>
+                          ) : null}
+                        </>
+                      )}
+
+                      {/* SENIAT Verification Button */}
+                      <div className="relative ml-1">
+                        {participant.seniatVerification ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setActiveVerificationIndex(index)}
+                            disabled={activeVerificationIndex !== null}
+                            className="h-7 text-[9px] px-2 text-blue-600 hover:bg-blue-50 font-bold border border-blue-100 rounded-lg uppercase whitespace-nowrap"
+                          >
+                            Re-validar
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setActiveVerificationIndex(index)}
+                            disabled={activeVerificationIndex !== null}
+                            className="h-8 text-[10px] px-2 text-blue-600 hover:bg-blue-50 font-bold border border-blue-100 rounded-lg whitespace-nowrap"
+                          >
+                            <Search className="h-3 w-3 mr-1" />
+                            Verificar
+                          </Button>
+                        )}
+
+                        {activeVerificationIndex === index && (
+                          <SeniatVerificationPopover
+                            participant={
+                              {
+                                name: participant.name,
+                                idNumber: participant.idNumber,
+                                nationality: participant.nationality,
+                              } as ExtractedParticipant
+                            }
+                            onVerify={(result) =>
+                              handleVerificationComplete(index, result)
+                            }
+                            onClose={() => setActiveVerificationIndex(null)}
+                            useFixedPosition
+                          />
+                        )}
+                      </div>
+                    </>
+                  )}
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -448,7 +550,7 @@ export const ParticipantsSection = ({
                         <input
                           type="number"
                           value={
-                            participant.score !== undefined
+                            participant.score != null
                               ? participant.score
                               : ""
                           }
@@ -475,7 +577,6 @@ export const ParticipantsSection = ({
                       </div>
                     </div>
                   </div>
-                </div>
                 {!isEditMode && (
                   <Button
                     variant="ghost"
