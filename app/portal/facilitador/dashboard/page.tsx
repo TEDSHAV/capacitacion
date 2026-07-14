@@ -3,14 +3,16 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { PortalNavbar } from "@/components/PortalNavbar";
 import { toTitleCase } from "@/utils/string-utils";
-import { 
-  ClipboardList, 
-  Calendar, 
-  Building2, 
-  ChevronRight, 
+import {
+  ClipboardList,
+  Calendar,
+  Building2,
+  ChevronRight,
   CheckCircle2,
   Clock
 } from "lucide-react";
+import { DashboardTour } from "./DashboardTour";
+import { DashboardTourAutoStart as AutoStart } from "./DashboardTourAutoStart";
 
 export default async function FacilitadorDashboardPage() {
   const session = await getFacilitatorSession();
@@ -25,15 +27,18 @@ export default async function FacilitadorDashboardPage() {
     <div className="min-h-screen bg-gray-50">
       <PortalNavbar title="Portal de Facilitadores" logoutAction={logoutFacilitator} loginPath="/portal/facilitador/login" />
       <div className="max-w-5xl mx-auto py-4 sm:py-10 px-4">
-      <header className="mb-6 sm:mb-10">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Bienvenido, {toTitleCase(session.nombre)}</h1>
-          <p className="text-gray-600">Aquí puedes gestionar tus servicios asignados.</p>
+      <header className="mb-6 sm:mb-10" id="tour-welcome">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Bienvenido, {toTitleCase(session.nombre)}</h1>
+            <p className="text-gray-600">Aquí puedes gestionar tus servicios asignados.</p>
+          </div>
+          <DashboardTour />
         </div>
       </header>
 
       <div className="grid gap-6">
-        <h2 className="text-xl font-semibold flex items-center gap-2">
+        <h2 className="text-xl font-semibold flex items-center gap-2" id="tour-osi-cards">
           <ClipboardList className="w-6 h-6 text-blue-600" />
           Servicios Asignados
         </h2>
@@ -45,6 +50,7 @@ export default async function FacilitadorDashboardPage() {
                 key={osi.id_osi} 
                 href={`/portal/facilitador/osi/${osi.id_osi}`}
                 className="block bg-white border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-md transition-shadow group"
+                id={osis.findIndex((o: any) => o.id_osi === osi.id_osi) === 0 ? "tour-osi-card" : undefined}
               >
                 <div className="flex justify-between items-start gap-2">
                   <div className="space-y-3 min-w-0 flex-1">
@@ -73,7 +79,7 @@ export default async function FacilitadorDashboardPage() {
                     </div>
 
                     {/* Status badge visible on mobile */}
-                    <div className="sm:hidden">
+                    <div className="sm:hidden" id={osis.findIndex((o: any) => o.id_osi === osi.id_osi) === 0 ? "tour-status-badge-mobile" : undefined}>
                       {osi.participant_status === "final" ? (
                         <div className="flex items-center gap-1 text-green-600 font-medium text-xs">
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -89,7 +95,7 @@ export default async function FacilitadorDashboardPage() {
                   </div>
 
                   <div className="flex items-center gap-4 shrink-0">
-                    <div className="text-right hidden sm:block">
+                    <div className="text-right hidden sm:block" id={osis.findIndex((o: any) => o.id_osi === osi.id_osi) === 0 ? "tour-status-badge" : undefined}>
                       <p className="text-xs text-gray-400 uppercase font-bold tracking-tight">Estado</p>
                       {osi.participant_status === "final" ? (
                         <div className="flex items-center gap-1 text-green-600 font-medium">
@@ -116,6 +122,7 @@ export default async function FacilitadorDashboardPage() {
           </div>
         )}
       </div>
+      <AutoStart />
     </div>
     </div>
   );

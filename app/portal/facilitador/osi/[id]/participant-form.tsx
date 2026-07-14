@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -21,6 +21,9 @@ import { PhysicalListUpload } from "./physical-list-upload";
 import { SeniatVerificationPopover } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/SeniatVerificationPopover";
 import { ParticipantScannerModal } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/ParticipantScannerModal";
 import { ParticipantVerificationResult, ExtractedParticipant, CertificateParticipant, OSIAttachment } from "@/types";
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
+import { HelpCircle } from "lucide-react";
 
 interface Participant {
   nombre_apellido: string;
@@ -37,6 +40,60 @@ interface ParticipantFormProps {
 }
 
 const DISCLAIMER_TEXT = "Declaro bajo mi responsabilidad que he revisado exhaustivamente las calificaciones y datos de los participantes, y que la información aquí suministrada es veraz y ha sido contrastada con la lista de asistencia firmada.";
+
+const OSI_TOUR_KEY = "facilitador-osi-tour";
+
+const osiTourSteps = [
+  {
+    element: "#tour-upload-section",
+    popover: {
+      title: "Paso 1: Cargar Lista de Asistencia",
+      description: "Sube una foto de la lista de asistencia firmada. Puedes tomar una foto directamente o subir un archivo.",
+    },
+  },
+  {
+    element: "#tour-upload-button",
+    popover: {
+      title: "Subir Archivo",
+      description: "Toca aquí para subir un archivo o tomar una foto de la lista física.",
+    },
+  },
+  {
+    element: "#tour-scan-button",
+    popover: {
+      title: "Escanear con OCR",
+      description: "Después de subir la foto, toca 'Escanear' para que el sistema extraiga automáticamente los datos de los participantes mediante OCR.",
+    },
+  },
+  {
+    element: "#tour-verify-button",
+    popover: {
+      title: "Verificar con CNE",
+      description: "Usa 'Verificar' para validar la cédula de cada participante contra el CNE y obtener su nombre completo en caso de que no sea legible en la lista.",
+    },
+  },
+  {
+    element: "#tour-participant-list",
+    popover: {
+      title: "Lista de Participantes",
+      description: "Los participantes importados aparecerán aquí. Puedes editar nombres, cédulas y agregar nuevos participantes manualmente.",
+    },
+  },
+  {
+    element: "#tour-score-input",
+    popover: {
+      title: "Ingresar Calificaciones",
+      description: "Ingresa la nota de cada participante en el rango de 0 a 20.",
+    },
+  },
+  {
+    element: "#tour-submit-button",
+    popover: {
+      title: "Paso 2: Finalizar y Enviar",
+      description: "Revisa la declaración de responsabilidad, márcala como aceptada y presiona 'Finalizar y Enviar' para que el departamento de Capacitación reciba los datos para la emisión de certificados.",
+    },
+  },
+];
 
 export const ParticipantForm = ({
   osiId,
@@ -66,6 +123,37 @@ export const ParticipantForm = ({
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const disclaimerRef = useRef<HTMLDivElement>(null);
+  const [isTourReady, setIsTourReady] = useState(false);
+
+  useEffect(() => {
+    setIsTourReady(true);
+  }, []);
+
+  const startTour = useCallback(() => {
+    const driverInstance = driver({
+      steps: osiTourSteps,
+      showProgress: true,
+      allowClose: true,
+      nextBtnText: "Siguiente",
+      prevBtnText: "Anterior",
+      doneBtnText: "Entendido",
+      onDestroyed: () => {
+        localStorage.setItem(OSI_TOUR_KEY, "completed");
+      },
+    });
+    driverInstance.drive();
+  }, []);
+
+  useEffect(() => {
+    if (!isTourReady) return;
+    const completed = localStorage.getItem(OSI_TOUR_KEY);
+    if (!completed) {
+      const timer = setTimeout(() => {
+        startTour();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isTourReady, startTour]);
 
   useEffect(() => {
     if (success) {
@@ -253,10 +341,19 @@ export const ParticipantForm = ({
   return (
     <div className="p-4 sm:p-6 space-y-6">
       {/* Step 1: Upload & Scan / Edit Participants */}
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-2" id="tour-upload-section">
         <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">1</span>
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Cargar y Escanear Lista</h2>
         <span className="text-[10px] font-bold uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">Requerido</span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={startTour}
+          className="ml-auto text-blue-600 border-blue-200 hover:bg-blue-50"
+        >
+          <HelpCircle className="w-4 h-4 mr-2" />
+          <span className="hidden sm:inline">Tour</span>
+        </Button>
       </div>
       <PhysicalListUpload 
         osiId={osiId} 
@@ -291,7 +388,7 @@ export const ParticipantForm = ({
 
       <div className="flex flex-col gap-3 mb-4 mt-4">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-          <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2 flex-wrap">
+          <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2 flex-wrap" id="tour-participant-list">
             Participantes
             <span className="text-sm font-normal text-gray-500">
               ({participants.length})
@@ -430,6 +527,7 @@ export const ParticipantForm = ({
                 onChange={(e) => updateParticipant(index, "score", e.target.value)}
                 placeholder="0-20"
                 className="bg-white text-center font-bold"
+                id={index === 0 ? "tour-score-input" : undefined}
               />
             </div>
             <div className="flex items-end gap-1 pb-1 flex-wrap">
@@ -441,6 +539,7 @@ export const ParticipantForm = ({
                   onClick={() => setActiveVerificationIndex(index)}
                   disabled={activeVerificationIndex !== null}
                   className="text-blue-600 hover:bg-blue-50 border border-blue-100 rounded-lg h-9 px-2 text-[10px] font-bold whitespace-nowrap w-full sm:w-auto"
+                  id={index === 0 ? "tour-verify-button" : undefined}
                 >
                   <Search className="w-3.5 h-3.5 mr-1" />
                   {p.seniatVerification ? "Re-validar" : "Verificar"}
@@ -588,6 +687,7 @@ export const ParticipantForm = ({
               Guardar Borrador
             </Button>
             <Button 
+              id="tour-submit-button"
               onClick={() => handleSave("final")}
               disabled={saving || !hasAcknowledged}
               className={`w-full sm:w-auto transition-colors ${

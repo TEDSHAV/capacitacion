@@ -191,7 +191,7 @@ export const PhysicalListUpload = ({ osiId, facilitadorId, onAttachmentCountChan
           </p>
         </div>
         
-        <div className="relative w-full sm:w-auto">
+        <div className="relative w-full sm:w-auto" id="tour-upload-button">
           <input
             type="file"
             multiple
@@ -307,6 +307,7 @@ export const PhysicalListUpload = ({ osiId, facilitadorId, onAttachmentCountChan
                   <button
                     onClick={() => onScanAttachment(att)}
                     className="flex items-center gap-1 px-2 py-1.5 text-[10px] font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-md transition-colors whitespace-nowrap"
+                    id={attachments.findIndex((a) => a.id === att.id) === 0 ? "tour-scan-button" : undefined}
                   >
                     <ScanLine className="w-3.5 h-3.5" />
                     Escanear

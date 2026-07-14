@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Key, User, Loader2, AlertCircle } from "lucide-react";
+import { Key, User, Loader2, AlertCircle, Mail, Phone } from "lucide-react";
+import Image from "next/image";
 import { loginFacilitator } from "@/app/actions/facilitador-portal";
 
 export default function FacilitadorLoginPage() {
@@ -39,9 +40,13 @@ export default function FacilitadorLoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-gray-100 p-8">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-            <Key className="w-8 h-8 text-blue-600" />
-          </div>
+          <Image
+            src="/logo.png"
+            alt="SHA de Venezuela"
+            width={128}
+            height={128}
+            className="w-32 h-32 object-contain mb-4"
+          />
           <h1 className="text-2xl font-bold text-gray-900">Portal de Facilitadores</h1>
           <p className="text-gray-600 text-center mt-2">
             Ingresa tus credenciales para gestionar tus servicios
@@ -104,6 +109,16 @@ export default function FacilitadorLoginPage() {
             ¿Tienes problemas para ingresar? <br />
             Contacta al administrador del sistema.
           </p>
+          <div className="mt-3 flex flex-col items-center gap-2 text-sm">
+            <a href="mailto:capacitacion@shadevenezuela.com.ve" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:underline">
+              <Mail className="w-4 h-4" />
+              capacitacion@shadevenezuela.com.ve
+            </a>
+            <a href="tel:04120449046" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:underline">
+              <Phone className="w-4 h-4" />
+              0412-044-9046
+            </a>
+          </div>
         </div>
       </div>
     </div>

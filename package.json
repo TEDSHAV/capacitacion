@@ -46,6 +46,8 @@
 
     "docxtemplater": "^3.68.3",
 
+    "driver.js": "^1.7.0",
+
     "jspdf": "^4.2.0",
 
     "jszip": "^3.10.1",
