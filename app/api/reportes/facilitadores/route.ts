@@ -56,6 +56,13 @@ export async function GET(request: NextRequest) {
       .select("id, nombre_estado")
       .order("nombre_estado");
 
+    // Helper function to get state name by ID
+    const getStateName = (stateId: number | null) => {
+      if (!stateId) return "No definido";
+      const state = allStates?.find(s => s.id === stateId);
+      return state?.nombre_estado || "No definido";
+    };
+
     // Count facilitadores by state
     const stateStats = new Map<number, number>();
     
@@ -75,15 +82,22 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Combine states with counts
+    // Combine states with counts and add facilitador details
     const statesWithCounts = (allStates || []).map((state: any) => ({
       id: state.id,
       nombre_estado: state.nombre_estado,
       count: stateStats.get(state.id) || 0,
     }));
 
+    // Add state names to facilitadores
+    const facilitadoresWithStateNames = (facilitadores || []).map((facilitador: any) => ({
+      ...facilitador,
+      estado_base_nombre: getStateName(facilitador.id_estado_base),
+      estado_geografico_nombre: getStateName(facilitador.id_estado_geografico),
+    }));
+
     return NextResponse.json({
-      facilitadores: facilitadores || [],
+      facilitadores: facilitadoresWithStateNames,
       stateStats: statesWithCounts,
     });
   } catch (error) {

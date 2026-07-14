@@ -54,7 +54,7 @@ export default function FacilitadorHoursStats({ selectedState }: FacilitadorHour
   }
 
   const totalHours = facilitadorStats.reduce((sum, stat) => sum + stat.totalCombinedHours, 0);
-  const totalCertificates = facilitadorStats.reduce((sum, stat) => sum + stat.totalCertificates, 0);
+  const totalCourses = facilitadorStats.reduce((sum, stat) => sum + stat.totalCertificates, 0);
   const activeFacilitadores = facilitadorStats.filter(f => f.is_active);
   const topPerformers = facilitadorStats.slice(0, 5);
 
@@ -68,8 +68,8 @@ export default function FacilitadorHoursStats({ selectedState }: FacilitadorHour
         </div>
         
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Total Certificados</h3>
-          <p className="text-3xl font-bold text-green-600">{totalCertificates}</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Total Cursos</h3>
+          <p className="text-3xl font-bold text-green-600">{totalCourses}</p>
         </div>
         
         <div className="bg-white rounded-lg shadow p-6">
@@ -105,7 +105,7 @@ export default function FacilitadorHoursStats({ selectedState }: FacilitadorHour
                       {facilitador.nombre_apellido}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {facilitador.estado_nombre} • {facilitador.totalCertificates} certificados
+                      {facilitador.estado_nombre} • {facilitador.totalCertificates} cursos
                     </p>
                   </div>
                 </div>
@@ -141,10 +141,10 @@ export default function FacilitadorHoursStats({ selectedState }: FacilitadorHour
                   Estado
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Certificados
+                  Cursos
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Horas Certificados
+                  Horas Cursos
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Horas OSI

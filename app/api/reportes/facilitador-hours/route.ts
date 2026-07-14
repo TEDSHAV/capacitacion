@@ -1,48 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
+interface CertificateInfo {
+  nro_osi: number;
+  course_name: string;
+  hours: number;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const stateId = searchParams.get("stateId");
 
-    // Get certificates with facilitator and course information
+    // Start with simple certificate query without complex joins
     let query = supabase
       .from("certificados")
       .select(`
         id_facilitador,
         nro_osi,
         id_curso,
-        cursos (
-          id,
-          nombre,
-          horas_estimadas
-        ),
-        facilitadores (
-          id,
-          nombre_apellido,
-          is_active,
-          id_estatus,
-          id_estado_base,
-          id_estado_geografico,
-          conf_estatus (
-            nombre_estado,
-            definicion
-          ),
-          estado_base:cat_estados_venezuela (
-            nombre_estado
-          ),
-          estado_geografico:cat_estados_venezuela (
-            nombre_estado
-          )
-        )
+        snapshot_contenido
       `)
-      .eq("is_active", true)
       .not("id_facilitador", "is", null);
 
     if (stateId) {
-      query = query.or(`facilitadores.id_estado_base.eq.${stateId},facilitadores.id_estado_geografico.eq.${stateId}`);
+      // We'll need to filter facilitadores separately since we can't join in this simplified version
+      const { data: facilitadoresInState } = await supabase
+        .from("facilitadores")
+        .select("id")
+        .or(`id_estado_base.eq.${stateId},id_estado_geografico.eq.${stateId}`)
+        .eq("is_active", true);
+      
+      if (facilitadoresInState) {
+        const facilitatorIds = facilitadoresInState.map(f => f.id);
+        query = query.in("id_facilitador", facilitatorIds);
+      }
     }
 
     const { data: certificates, error } = await query;
@@ -50,10 +43,56 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error("Error fetching certificates:", error);
       return NextResponse.json(
-        { error: "Error fetching certificates" },
+        { error: "Error fetching certificates", details: error },
         { status: 500 }
       );
     }
+
+    // Get facilitadores info separately
+    const { data: facilitadores } = await supabase
+      .from("facilitadores")
+      .select(`
+        id,
+        nombre_apellido,
+        is_active,
+        id_estado_base,
+        id_estado_geografico
+      `)
+      .eq("is_active", true);
+
+    // Get all states for name lookup
+    const { data: allStates } = await supabase
+      .from("cat_estados_venezuela")
+      .select("id, nombre_estado")
+      .order("nombre_estado");
+
+    if (!facilitadores) {
+      return NextResponse.json({
+        facilitatorStats: [],
+        totalFacilitadores: 0,
+        totalHours: 0,
+      });
+    }
+
+    // Get cursos info separately (for course names only)
+    const cursoIds = [...new Set(certificates?.map(c => c.id_curso).filter(Boolean) || [])];
+    const { data: cursos } = await supabase
+      .from("cursos")
+      .select("id, nombre")
+      .in("id", cursoIds);
+
+    // Get OSI execution data
+    const { data: osiData } = await supabase
+      .from("ejecucion_osi")
+      .select("nro_osi, id_facilitador, dias_servicio")
+      .not("id_facilitador", "is", null);
+
+    // Helper function to get state name by ID
+    const getStateName = (stateId: number | null) => {
+      if (!stateId) return "No definido";
+      const state = allStates?.find(s => s.id === stateId);
+      return state?.nombre_estado || "No definido";
+    };
 
     // Calculate teaching hours per facilitator
     const facilitatorHours = new Map<number, {
@@ -64,97 +103,110 @@ export async function GET(request: NextRequest) {
       estatus_nombre: string;
       totalHours: number;
       totalCertificates: number;
-      certificates: Array<{
-        nro_osi: number;
-        course_name: string;
-        hours: number;
-      }>;
+      certificates: CertificateInfo[];
     }>();
 
-    if (certificates) {
+    // Process certificates - extract hours from snapshot_contenido and count unique courses
+    if (certificates && cursos) {
+      // Create a map to track unique courses per facilitador
+      const facilitadorCourses = new Map<number, Map<number, { course_name: string; hours: number; nro_osi: number }>>();
+      
       certificates.forEach((cert: any) => {
-        if (!cert.facilitadores || !cert.cursos) return;
+        if (!cert.id_facilitador || !cert.id_curso) return;
 
-        const facilitator = cert.facilitadores;
-        const course = cert.cursos;
-        const hours = course.horas_estimadas || 0;
-
-        const existing = facilitatorHours.get(facilitator.id);
+        const facilitator = facilitadores.find((f: any) => f.id === cert.id_facilitador);
+        const course = cursos.find(c => c.id === cert.id_curso);
         
-        if (existing) {
-          existing.totalHours += hours;
-          existing.totalCertificates += 1;
-          existing.certificates.push({
-            nro_osi: cert.nro_osi,
+        if (!facilitator || !course) return;
+
+        // Extract hours from snapshot_contenido
+        let hours = 0;
+        try {
+          if (cert.snapshot_contenido) {
+            const snapshot = JSON.parse(cert.snapshot_contenido);
+            // Try to get hours from the certificate details first
+            hours = snapshot?.certificado_detalles?.horas_estimadas || 0;
+            // If not found, try from course data in snapshot
+            if (!hours) {
+              hours = snapshot?.curso?.horas_estimadas || 0;
+            }
+          }
+        } catch (error) {
+          console.warn("Failed to parse snapshot_contenido for certificate:", cert.id_facilitador);
+          // Fallback to 0 hours if parsing fails
+        }
+
+        // Only add the course once per facilitador (unique by course ID)
+        if (!facilitadorCourses.has(facilitator.id)) {
+          facilitadorCourses.set(facilitator.id, new Map());
+        }
+        
+        const facilitatorCourseMap = facilitadorCourses.get(facilitator.id)!;
+        if (!facilitatorCourseMap.has(cert.id_curso)) {
+          facilitatorCourseMap.set(cert.id_curso, {
             course_name: course.nombre,
             hours: hours,
-          });
-        } else {
-          facilitatorHours.set(facilitator.id, {
-            facilitatorId: facilitator.id,
-            nombre_apellido: facilitator.nombre_apellido,
-            is_active: facilitator.is_active,
-            estado_nombre: facilitator.estado_base?.nombre_estado || facilitator.estado_geografico?.nombre_estado || "No definido",
-            estatus_nombre: facilitator.conf_estatus?.nombre_estado || "No definido",
-            totalHours: hours,
-            totalCertificates: 1,
-            certificates: [{
-              nro_osi: cert.nro_osi,
-              course_name: course.nombre,
-              hours: hours,
-            }],
+            nro_osi: cert.nro_osi || 0
           });
         }
       });
+
+      // Now convert the unique courses map to the facilitatorHours structure
+      facilitadorCourses.forEach((courseMap, facilitatorId) => {
+        const facilitator = facilitadores.find((f: any) => f.id === facilitatorId);
+        if (!facilitator) return;
+
+        const courses = Array.from(courseMap.values());
+        const totalHours = courses.reduce((sum, course) => sum + course.hours, 0);
+        const totalCourses = courses.length;
+
+        facilitatorHours.set(facilitatorId, {
+          facilitatorId: facilitator.id,
+          nombre_apellido: facilitator.nombre_apellido,
+          is_active: facilitator.is_active,
+          estado_nombre: getStateName(facilitator.id_estado_base || facilitator.id_estado_geografico),
+          estatus_nombre: "Activo",
+          totalHours: totalHours,
+          totalCertificates: totalCourses, // This now represents unique courses taught
+          certificates: courses.map(course => ({
+            nro_osi: course.nro_osi,
+            course_name: course.course_name,
+            hours: course.hours,
+          })),
+        });
+      });
     }
 
-    // Convert to array and sort by total hours
-    const facilitatorStats = Array.from(facilitatorHours.values())
-      .sort((a, b) => b.totalHours - a.totalHours);
-
-    // Also get OSI information for additional hours data
-    const { data: osiData } = await supabase
-      .from("ejecucion_osi")
-      .select(`
-        nro_osi,
-        id_facilitador,
-        dias_servicio,
-        facilitadores (
-          id,
-          nombre_apellido
-        )
-      `)
-      .not("id_facilitador", "is", null);
-
-    // Calculate OSI-based hours (assuming 8 hours per day of service)
+    // Add OSI hours
     const osiHours = new Map<number, number>();
-    
     if (osiData) {
       osiData.forEach((osi: any) => {
-        if (osi.facilitadores && osi.dias_servicio) {
+        if (osi.id_facilitador && osi.dias_servicio) {
           const hours = osi.dias_servicio * 8; // 8 hours per day
-          const current = osiHours.get(osi.facilitadores.id) || 0;
-          osiHours.set(osi.facilitadores.id, current + hours);
+          const current = osiHours.get(osi.id_facilitador) || 0;
+          osiHours.set(osi.id_facilitador, current + hours);
         }
       });
     }
 
-    // Merge OSI hours with certificate hours
-    const mergedStats = facilitatorStats.map((stat) => ({
-      ...stat,
-      osiHours: osiHours.get(stat.facilitatorId) || 0,
-      totalCombinedHours: stat.totalHours + (osiHours.get(stat.facilitatorId) || 0),
-    }));
+    // Convert to array and merge OSI hours
+    const facilitatorStats = Array.from(facilitatorHours.values())
+      .map((stat) => ({
+        ...stat,
+        osiHours: osiHours.get(stat.facilitatorId) || 0,
+        totalCombinedHours: stat.totalHours + (osiHours.get(stat.facilitatorId) || 0),
+      }))
+      .sort((a, b) => b.totalCombinedHours - a.totalCombinedHours);
 
     return NextResponse.json({
-      facilitatorStats: mergedStats,
-      totalFacilitadores: mergedStats.length,
-      totalHours: mergedStats.reduce((sum, stat) => sum + stat.totalCombinedHours, 0),
+      facilitatorStats,
+      totalFacilitadores: facilitatorStats.length,
+      totalHours: facilitatorStats.reduce((sum, stat) => sum + stat.totalCombinedHours, 0),
     });
   } catch (error) {
     console.error("Unexpected error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error },
       { status: 500 }
     );
   }

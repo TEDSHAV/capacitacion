@@ -45,6 +45,11 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
     return state?.nombre_estado || "N/A";
   };
 
+  // Function to get facilitador state name (now using API data)
+  const getFacilitadorStateName = (facilitador: FacilitadorReport) => {
+    return facilitador.estado_base_nombre || facilitador.estado_geografico_nombre || "N/A";
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -164,7 +169,7 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
                     {facilitador.email || "N/A"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {getStateName(facilitador.id_estado_base)}
+                    {getFacilitadorStateName(facilitador)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {facilitador.id_estatus ? `Estatus ${facilitador.id_estatus}` : "N/A"}
