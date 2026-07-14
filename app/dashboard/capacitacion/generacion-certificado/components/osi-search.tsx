@@ -3,13 +3,26 @@
 import { useState, useEffect, useRef } from 'react'
 import { CertificateOSI, CourseTopic, OSISearchProps } from '@/types'
 
-export default function OSISearch({ osis, selectedOSI, onSelect, matchedCourse }: OSISearchProps & { matchedCourse?: CourseTopic | null }) {
+export default function OSISearch({ osis, selectedOSI, onSelect, matchedCourse, allCourses }: OSISearchProps & { matchedCourse?: CourseTopic | null; allCourses?: CourseTopic[] }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const [visibleCount, setVisibleCount] = useState(10)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Helper function to find matching course for any OSI
+  const findMatchingCourse = (osi: CertificateOSI): CourseTopic | null => {
+    if (!allCourses) return null
+    
+    // If OSI has id_curso, use exact match
+    if (osi.id_curso) {
+      return allCourses.find(course => course.id === osi.id_curso!.toString()) || null
+    }
+    
+    // Fallback to matching by curso_nombre
+    return allCourses.find(course => course.name === osi.curso_nombre) || null
+  }
 
   const filteredOSIs = osis.filter(osi => 
     osi.is_active !== false && (
@@ -197,7 +210,7 @@ export default function OSISearch({ osis, selectedOSI, onSelect, matchedCourse }
                     {osi.cliente_nombre_empresa}
                   </div>
                   <div className="text-sm text-gray-500">
-                    Curso: {matchedCourse?.nombre || osi.curso_nombre || osi.detalle_capacitacion || 'Sin curso especificado'}
+                    Curso: {findMatchingCourse(osi)?.nombre || osi.curso_nombre || osi.detalle_capacitacion || 'Sin curso especificado'}
                   </div>
                 </div>
               ))}

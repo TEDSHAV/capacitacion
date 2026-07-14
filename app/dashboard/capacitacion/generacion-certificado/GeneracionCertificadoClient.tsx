@@ -46,7 +46,6 @@ export default function GeneracionCertificadoClient({
   // Use initial data from server component
   const osis = initialData.osis || [];
   const courses = initialData.courses || [];
-  const loading = false; // Already loaded on server
   const error = initialData.error;
 
   const handleOSISelect = (osi: CertificateOSI | null) => {
@@ -290,6 +289,7 @@ export default function GeneracionCertificadoClient({
           selectedOSI={selectedOSI}
           onSelect={handleOSISelect}
           matchedCourse={selectedCourseTopic}
+          allCourses={courses}
         />
 
         <CertificateForm

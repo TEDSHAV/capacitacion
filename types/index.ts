@@ -575,6 +575,7 @@ export interface OSISearchProps {
   osis: CertificateOSI[]
   selectedOSI: CertificateOSI | null
   onSelect: (osi: CertificateOSI | null) => void
+  allCourses?: CourseTopic[]
 }
 
 export interface CourseTopicSearchProps {
