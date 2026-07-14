@@ -90,7 +90,8 @@ export default function GestionCursosClient({
       if (result.error) {
         setError(result.error);
       } else {
-        setCursosList(prev => prev.filter(curso => curso.id !== id)); // Remove course from list
+        // Remove the course from the local list since it's now inactive
+        setCursosList(prev => prev.filter(curso => curso.id !== id));
       }
     } catch (err) {
       setError('Error al eliminar el curso');

@@ -53,6 +53,7 @@ export function useOSI(empresas: any[] = []) {
     contacto_id: null,
     codigo_cliente: null,
     direccion_ejecucion: null,
+    is_active: true,
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -78,11 +79,12 @@ export function useOSI(empresas: any[] = []) {
   // Load OSI data
   const loadOSI = async (osiNumber: string) => {
     try {
-      // First, get the OSI data
+      // First, get the OSI data (only active records)
       const { data: osiData, error: osiError } = await supabase
         .from("osi")
         .select("*")
         .eq("nro_osi", osiNumber)
+        .eq("is_active", true)
         .single();
 
       if (osiError) {
@@ -260,6 +262,7 @@ export function useOSI(empresas: any[] = []) {
         codigo_cliente: formData.codigo_cliente?.trim() || null,
         empresa_id: selectedEmpresaId,
         contacto_id: formData.contacto_id ? Number(formData.contacto_id) : null,
+        is_active: true,
       };
 
       console.log("Data prepared for save:", dataToSave);
@@ -313,18 +316,22 @@ export function useOSI(empresas: any[] = []) {
     }
   };
 
-  // Delete OSI
+  // Delete OSI (soft delete)
   const handleDelete = async () => {
     if (!osi) return;
 
     const confirmed = window.confirm(
-      "¿Estás seguro de que quieres eliminar esta OSI? Esta acción no se puede deshacer.",
+      "¿Estás seguro de que quieres eliminar esta OSI? Esta acción la desactivará del sistema.",
     );
 
     if (!confirmed) return;
 
     try {
-      const { error } = await supabase.from("osi").delete().eq("id", osi.id);
+      const { error } = await supabase
+        .from("osi")
+        .update({ is_active: false })
+        .eq("id", osi.id);
+      
       if (error) throw error;
 
       router.push("/dashboard/negocios/gestion-de-osis");

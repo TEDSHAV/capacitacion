@@ -26,7 +26,8 @@ export async function POST(request: Request) {
         titulo,
         empresa_id: empresa_id || null,
         contenido,
-        created_by: user.id
+        created_by: user.id,
+        is_active: true
       })
       .select()
       .single()
@@ -57,13 +58,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get all courses with company information
+    // Get all active courses with company information
     const { data, error } = await supabase
       .from('cursos')
       .select(`
         *,
         empresas (razon_social)
       `)
+      .eq('is_active', true)
       .order('created_at', { ascending: false })
 
     if (error) {

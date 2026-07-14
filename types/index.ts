@@ -21,6 +21,7 @@ export interface Curso {
   creado: string; // Add CREADO field for creation date
   tipo_servicio?: number;
   created_at: string;
+  is_active: boolean;
   empresas?: {
     razon_social: string;
   } | null;
@@ -90,6 +91,7 @@ export interface OSI {
   direccion_ejecucion: string | null
   codigo_cliente: string | null
   contacto_id: number | null
+  is_active: boolean
 }
 
 export interface CertificateGeneration {

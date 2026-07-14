@@ -36,7 +36,8 @@ export async function createCurso(formData: FormData) {
         nombre: titulo.trim(),
         contenido: contenido.trim(),
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
-        cliente_asociado: cliente_asociado?.trim() ? parseInt(cliente_asociado) : null
+        cliente_asociado: cliente_asociado?.trim() ? parseInt(cliente_asociado) : null,
+        is_active: true
       })
       .select()
       .single();
@@ -127,7 +128,8 @@ export async function duplicateCurso(id: string) {
         contenido: originalCourse.contenido,
         horas_estimadas: originalCourse.horas_estimadas,
         cliente_asociado: originalCourse.cliente_asociado,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        is_active: true
       })
       .select(`
         *,
@@ -157,10 +159,10 @@ export async function deleteCurso(id: string) {
       return { error: 'No autorizado' };
     }
 
-    // Delete the course from cursos table
+    // Soft delete: set is_active to false
     const { error } = await supabase
       .from('cursos')
-      .delete()
+      .update({ is_active: false })
       .eq('id', id);
 
     if (error) {
@@ -183,7 +185,7 @@ export async function getCursos() {
       return { error: 'No autorizado' };
     }
 
-    // Get all courses from cursos table with company information using the foreign key
+    // Get all active courses from cursos table with company information using the foreign key
     const { data, error } = await supabase
       .from('cursos')
       .select(`
@@ -192,6 +194,7 @@ export async function getCursos() {
           razon_social
         )
       `)
+      .eq('is_active', true)
       .order('id', { ascending: false });
 
     if (error) {

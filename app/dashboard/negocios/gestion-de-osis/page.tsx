@@ -46,10 +46,11 @@ export default function GestionDeOSIsPage() {
           usersData?.map((user) => [user.id, user.nombre_apellido]) || []
         );
 
-        // Fetch OSI data from Supabase (most recent OSIs)
+        // Fetch OSI data from Supabase (most recent active OSIs)
         const { data: osiData, error } = await supabase
           .from("osi")
           .select("*")
+          .eq("is_active", true)
           .order("fecha_emision", { ascending: false })
           .limit(100); // Fetch more to allow for filtering and pagination
 
