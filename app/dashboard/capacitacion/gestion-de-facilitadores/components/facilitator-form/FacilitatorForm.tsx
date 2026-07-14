@@ -2,18 +2,21 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
-import { FacilitadorFormData, State, CourseTopic, City } from "@/types";
+import { FacilitadorFormData, State, CourseTopic, City, Bank } from "@/types";
 import { PersonalInfoSection } from "./sections/PersonalInfoSection";
 import { ProfessionalInfoSection } from "./sections/ProfessionalInfoSection";
 import { LocationSection } from "./sections/LocationSection";
 import { CourseTopicsSection } from "./sections/CourseTopicsSection";
 import { FileUploadSection } from "./sections/FileUploadSection";
 import { AdditionalInfoSection } from "./sections/AdditionalInfoSection";
+import { BankDetailsSection } from "./sections/BankDetailsSection";
 import { FormActions } from "./sections/FormActions";
 import {
   getFacilitatorByIdAction,
   createFacilitatorAction,
   updateFacilitatorAction,
+  getBanksAction,
+  addBankAction,
 } from "@/app/actions/facilitators-crud";
 
 interface FacilitatorFormProps {
@@ -50,6 +53,12 @@ export const FacilitatorForm = ({
     tiene_certificaciones: false,
     tiene_foto_perfil: false,
     ano_ingreso: null,
+    // Banking information
+    banco: "",
+    nro_cuenta: "",
+    tipo_cuenta: "",
+    telefono_pago_movil: "",
+    cedula_titular: "",
   });
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,11 +68,14 @@ export const FacilitatorForm = ({
   const [loadingCities, setLoadingCities] = useState(true);
   const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
   const [loadingCourseTopics, setLoadingCourseTopics] = useState(true);
+  const [banks, setBanks] = useState<Bank[]>([]);
+  const [loadingBanks, setLoadingBanks] = useState(true);
 
   useEffect(() => {
     loadStates();
     loadCities();
     loadCourseTopics();
+    loadBanks();
   }, []);
 
   // Load facilitator data if in edit mode
@@ -104,6 +116,12 @@ export const FacilitatorForm = ({
             tiene_certificaciones: facilitator.tiene_certificaciones || false,
             tiene_foto_perfil: facilitator.tiene_foto_perfil || false,
             ano_ingreso: facilitator.ano_ingreso,
+            // Banking information
+            banco: facilitator.banco || "",
+            nro_cuenta: facilitator.nro_cuenta || "",
+            tipo_cuenta: facilitator.tipo_cuenta || "",
+            telefono_pago_movil: facilitator.telefono_pago_movil || "",
+            cedula_titular: facilitator.cedula_titular || "",
           });
         } catch (error) {
           console.error("Error loading facilitator:", error);
@@ -173,6 +191,34 @@ export const FacilitatorForm = ({
         throw new Error("Failed to add city");
       }
     } catch (error) {
+      throw error;
+    }
+  };
+
+  const loadBanks = async () => {
+    try {
+      setLoadingBanks(true);
+      const result = await getBanksAction();
+      if (result.data) {
+        setBanks(result.data);
+      }
+    } catch (error) {
+      console.error("Error loading banks:", error);
+    } finally {
+      setLoadingBanks(false);
+    }
+  };
+
+  const handleAddBank = async (bankName: string) => {
+    try {
+      const result = await addBankAction(bankName);
+      if (result.data) {
+        setBanks((prev) => [...prev, result.data as Bank].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      } else if (result.error) {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Error adding bank:", error);
       throw error;
     }
   };
@@ -374,6 +420,14 @@ export const FacilitatorForm = ({
         <AdditionalInfoSection
           formData={formData}
           handleInputChange={handleInputChange}
+        />
+
+        <BankDetailsSection
+          formData={formData}
+          handleInputChange={handleInputChange}
+          banks={banks}
+          loadingBanks={loadingBanks}
+          onAddBank={handleAddBank}
         />
 
         <FileUploadSection

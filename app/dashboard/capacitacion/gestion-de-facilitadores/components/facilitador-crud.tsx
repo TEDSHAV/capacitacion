@@ -488,6 +488,55 @@ export const FacilitadorCrud = ({
                 </div>
               </div>
 
+              {/* Banking Details */}
+              <div className="pt-4 border-t border-gray-100">
+                <h4 className="text-md font-medium text-gray-900 mb-3">
+                  Datos Bancarios
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Banco
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {selectedFacilitador.banco || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tipo de Cuenta
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {selectedFacilitador.tipo_cuenta || "N/A"}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Número de Cuenta
+                    </label>
+                    <p className="text-sm text-gray-900 font-mono">
+                      {selectedFacilitador.nro_cuenta || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Pago Móvil
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {selectedFacilitador.telefono_pago_movil || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Titular (C.I./RIF)
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {selectedFacilitador.cedula_titular || "N/A"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end">
                 <Button
                   onClick={() => {

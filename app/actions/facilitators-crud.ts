@@ -95,7 +95,7 @@ const getFacilitatorById = cache(async (id: string) => {
   try {
     const { data, error } = await supabase
       .from("facilitadores")
-      .select("*")
+      .select("*, datos_bancarios(*)")
       .eq("id", id)
       .single();
 
@@ -103,7 +103,18 @@ const getFacilitatorById = cache(async (id: string) => {
       return { error: error.message, data: null };
     }
 
-    return { data, error: null };
+    // Flatten data to include bank info in the main object if it exists
+    const facilitator = { ...data };
+    if (data.datos_bancarios && data.datos_bancarios.length > 0) {
+      const bankInfo = data.datos_bancarios.find((b: any) => b.es_principal) || data.datos_bancarios[0];
+      facilitator.banco = bankInfo.banco;
+      facilitator.nro_cuenta = bankInfo.nro_cuenta;
+      facilitator.tipo_cuenta = bankInfo.tipo_cuenta;
+      facilitator.telefono_pago_movil = bankInfo.telefono_pago_movil;
+      facilitator.cedula_titular = bankInfo.cedula_titular;
+    }
+
+    return { data: facilitator, error: null };
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Unknown error",
@@ -194,6 +205,34 @@ const createFacilitator = cache(async (formData: FormData) => {
     }
 
     const facilitador = data;
+
+    // Handle bank details if provided
+    const banco = formData.get("banco") as string;
+    const nro_cuenta = formData.get("nro_cuenta") as string;
+    const tipo_cuenta = formData.get("tipo_cuenta") as string;
+    const telefono_pago_movil = formData.get("telefono_pago_movil") as string;
+    const cedula_titular = formData.get("cedula_titular") as string;
+
+    if (banco || nro_cuenta || telefono_pago_movil) {
+      const { error: bankError } = await supabase
+        .from("datos_bancarios")
+        .insert([
+          {
+            id_facilitador: facilitador.id,
+            banco: banco || "Sin especificar",
+            nro_cuenta: nro_cuenta || "00000000000000000000",
+            tipo_cuenta: tipo_cuenta || null,
+            telefono_pago_movil: telefono_pago_movil || null,
+            cedula_titular: cedula_titular || null,
+            es_principal: true,
+          },
+        ]);
+
+      if (bankError) {
+        console.error("Error saving bank details:", bankError);
+        // We don't return error here because the facilitator was already created
+      }
+    }
 
     // Handle signature if provided
     const signatureFile = formData.get("signature") as File | null;
@@ -298,6 +337,42 @@ const updateFacilitator = cache(async (id: string, formData: FormData) => {
 
     const facilitador = data;
 
+    // Handle bank details if provided
+    const banco = formData.get("banco") as string;
+    const nro_cuenta = formData.get("nro_cuenta") as string;
+    const tipo_cuenta = formData.get("tipo_cuenta") as string;
+    const telefono_pago_movil = formData.get("telefono_pago_movil") as string;
+    const cedula_titular = formData.get("cedula_titular") as string;
+
+    if (banco || nro_cuenta || telefono_pago_movil) {
+      // Upsert bank details: try to find existing principal bank details for this facilitator
+      const { data: existingBank } = await supabase
+        .from("datos_bancarios")
+        .select("id")
+        .eq("id_facilitador", facilitador.id)
+        .eq("es_principal", true)
+        .maybeSingle();
+
+      const bankData = {
+        id_facilitador: facilitador.id,
+        banco: banco || "Sin especificar",
+        nro_cuenta: nro_cuenta || "00000000000000000000",
+        tipo_cuenta: tipo_cuenta || null,
+        telefono_pago_movil: telefono_pago_movil || null,
+        cedula_titular: cedula_titular || null,
+        es_principal: true,
+      };
+
+      if (existingBank) {
+        await supabase
+          .from("datos_bancarios")
+          .update(bankData)
+          .eq("id", existingBank.id);
+      } else {
+        await supabase.from("datos_bancarios").insert([bankData]);
+      }
+    }
+
     // Handle signature if provided
     const signatureFile = formData.get("signature") as File | null;
     if (signatureFile && signatureFile.size > 0) {
@@ -342,7 +417,62 @@ const deleteFacilitator = cache(async (id: string) => {
   }
 });
 
+// Get all banks from catalog
+const getBanks = cache(async () => {
+  const supabase = await createClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("cat_bancos")
+      .select("*")
+      .order("nombre");
+
+    if (error) {
+      return { error: error.message, data: [] };
+    }
+
+    return { data: data || [], error: null };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Unknown error",
+      data: [],
+    };
+  }
+});
+
+// Add a new bank to catalog
+const addBank = async (nombre: string) => {
+  const supabase = await createClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("cat_bancos")
+      .insert([{ nombre }])
+      .select()
+      .single();
+
+    if (error) {
+      return { error: error.message, data: null };
+    }
+
+    return { data, error: null };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Unknown error",
+      data: null,
+    };
+  }
+};
+
 // Export server actions
+export async function getBanksAction() {
+  return await getBanks();
+}
+
+export async function addBankAction(nombre: string) {
+  return await addBank(nombre);
+}
+
 export async function getFacilitatorsAction() {
   return await getFacilitators();
 }

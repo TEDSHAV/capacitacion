@@ -149,6 +149,30 @@ export interface FacilitadorFormData {
   tiene_certificaciones: boolean;
   tiene_foto_perfil: boolean;
   ano_ingreso: number | null;
+  // Banking information
+  banco: string;
+  nro_cuenta: string;
+  tipo_cuenta: "Ahorros" | "Corriente" | "";
+  telefono_pago_movil: string;
+  cedula_titular: string;
+}
+
+export interface Bank {
+  id: number;
+  nombre: string;
+  codigo: string | null;
+  is_active: boolean;
+}
+
+export interface BankDetailsSectionProps {
+  formData: FacilitadorFormData;
+  handleInputChange: (
+    field: keyof FacilitadorFormData,
+    value: FacilitadorFormData[keyof FacilitadorFormData],
+  ) => void;
+  banks: Bank[];
+  loadingBanks: boolean;
+  onAddBank: (bankName: string) => Promise<void>;
 }
 
 export interface State {
@@ -399,6 +423,12 @@ export interface Facilitador {
   tiene_curriculum: boolean | null;
   tiene_certificaciones: boolean | null;
   tiene_foto_perfil: boolean | null;
+  // Banking information
+  banco?: string;
+  nro_cuenta?: string;
+  tipo_cuenta?: string;
+  telefono_pago_movil?: string;
+  cedula_titular?: string;
   firmas?: {
     id: number;
     nombre: string;
