@@ -347,11 +347,13 @@ export class CarnetGenerator {
     const title = carnetData.titulo_curso.toUpperCase();
     const maxWidth = 60;
     const centerX = 33;
-    const courseY = 17; // Reverting to 17 to balance top/bottom space
     const lineHeight = 3.2; // Tighter line height for size 8 font
 
-    // Split text into lines to calculate total height
+    // Split text into lines to calculate total height and position
     const titleLines = pdf.splitTextToSize(title, maxWidth);
+    
+    // Set courseY dynamically: 19.5 for 1 line, 17 for multiple lines to keep it centered
+    const courseY = titleLines.length === 1 ? 21 : 17;
     
     // Add course title
     pdf.text(titleLines, centerX, courseY, {
