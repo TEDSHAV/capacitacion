@@ -70,7 +70,11 @@ export default function GeneracionCertificadoClient({
       facilitator_id: undefined,
       facilitator_data: undefined,
       sha_signature_id: undefined,
-      fecha_vencimiento: undefined,
+      fecha_vencimiento: (() => {
+        const exp = new Date();
+        exp.setFullYear(exp.getFullYear() + 2);
+        return exp.toISOString().split("T")[0];
+      })(),
       id_estado: undefined,
       id_plantilla_certificado: undefined,
       generate_documents: true, // Default to true for convenience
