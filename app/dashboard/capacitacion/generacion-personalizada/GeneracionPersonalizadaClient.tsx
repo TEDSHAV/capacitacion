@@ -431,7 +431,19 @@ export function GeneracionPersonalizadaClient({
 
       if (selectedCarnetTemplate && selectedCourseTopic.emite_carnet) {
         setGenerationStatus("Guardando carnets...");
-        const carnetDataList = participants.map((participant, index) => ({
+        // Only generate carnets for participants who approved (score >= passing_grade)
+        const carnetPassingGrade = selectedCourseTopic.nota_aprobatoria ?? 14;
+        const carnetEligibleIndices = participants
+          .map((participant, index) => ({ participant, index }))
+          .filter(
+            ({ participant }) =>
+              participant.score !== null &&
+              participant.score !== undefined &&
+              participant.score >= carnetPassingGrade,
+          )
+          .map(({ index }) => index);
+
+        const carnetDataList = carnetEligibleIndices.map((index) => ({
           id_certificado: dbResult.certificateIds![index],
           id_participante: dbResult.participantIds![index],
           id_empresa: mockOSI.empresa_id || null,
@@ -441,16 +453,21 @@ export function GeneracionPersonalizadaClient({
           subtitulo_curso: certificateDetails.subtitle || null,
           fecha_emision: certificateDetails.date,
           fecha_vencimiento: certificateDetails.fecha_vencimiento || null,
-          nombre_participante: participant.name,
-          cedula_participante: participant.idNumber,
+          nombre_participante: participants[index].name,
+          cedula_participante: participants[index].idNumber,
           empresa_participante: null,
           nro_control: dbResult.certificateNumbers![index]?.nro_control || 0,
           id_plantilla_carnet: selectedCarnetTemplate?.id ? parseInt(selectedCarnetTemplate.id) : undefined,
         }));
 
+        const carnetCertificateIds = carnetEligibleIndices.map(
+          (i) => dbResult.certificateIds![i],
+        );
+
+        if (carnetDataList.length > 0) {
         const carnetResult = await saveCustomCarnetsToDatabase(
           carnetDataList,
-          dbResult.certificateIds!,
+          carnetCertificateIds,
           carnetCoords,
         );
 
@@ -467,11 +484,10 @@ export function GeneracionPersonalizadaClient({
 
           const customCarnetGen = new CustomCarnetGenerator(carnetCoords);
 
-          for (let i = 0; i < participants.length; i += BATCH_SIZE) {
-            const batch = participants.slice(i, i + BATCH_SIZE);
+          for (let i = 0; i < carnetEligibleIndices.length; i += BATCH_SIZE) {
+            const batchIndices = carnetEligibleIndices.slice(i, i + BATCH_SIZE);
             await Promise.all(
-              batch.map(async (participant, batchIndex) => {
-                const globalIndex = i + batchIndex;
+              batchIndices.map(async (globalIndex) => {
                 try {
                   const certificateId = dbResult.certificateIds![globalIndex];
                   const qrData = QRService.generateQRData(certificateId);
@@ -483,17 +499,18 @@ export function GeneracionPersonalizadaClient({
                   });
 
                   await customCarnetGen.generateCarnet({
-                    participant,
-                    carnetData: carnetDataList[globalIndex] as any,
+                    participant: participants[globalIndex],
+                    carnetData: carnetDataList[batchIndices.indexOf(globalIndex)] as any,
                     templateImage: carnetTemplatePath,
                     qrDataURL,
                   });
                 } catch (e) {
-                  console.error("Carnet PDF error for participant:", participant.name, e);
+                  console.error("Carnet PDF error for participant:", participants[globalIndex].name, e);
                 }
               }),
             );
           }
+        }
         }
       }
 

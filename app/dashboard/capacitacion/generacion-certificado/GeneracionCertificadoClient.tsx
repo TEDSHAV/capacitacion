@@ -1317,8 +1317,19 @@ export default function GeneracionCertificadoClient({
             }
 
             // Generate carnet PDFs concurrently in batches
-            const carnetRequests = certificateData.participants.map(
-              (participant, index) => {
+            // Only for participants who approved (score >= passing_grade)
+            const carnetPassingGrade = certificateData.passing_grade || 14;
+            const carnetEligibleEntries = certificateData.participants
+              .map((participant, index) => ({ participant, index }))
+              .filter(
+                ({ participant }) =>
+                  participant.score !== null &&
+                  participant.score !== undefined &&
+                  participant.score >= carnetPassingGrade,
+              );
+
+            const carnetRequests = carnetEligibleEntries.map(
+              ({ participant, index }) => {
                 // Use preloaded base64 if available, otherwise use final URL
                 const templateImage =
                   carnetTemplateBase64 || finalCarnetTemplateUrl;
@@ -1355,13 +1366,12 @@ export default function GeneracionCertificadoClient({
             for (let i = 0; i < carnetRequests.length; i += CARNET_BATCH_SIZE) {
               const batch = carnetRequests.slice(i, i + CARNET_BATCH_SIZE);
 
-              const batchPromises = batch.map(async (carnetReq, index) => {
-                const actualIndex = i + index;
+              const batchPromises = batch.map(async (carnetReq) => {
 
                 // Generate QR code for carnet using the certificate ID
                 let qrDataURL: string | undefined;
                 try {
-                  const certificateId = dbResult.certificateIds![actualIndex];
+                  const certificateId = carnetReq.carnetData.id_certificado;
                   const qrData = QRService.generateQRData(certificateId);
                   qrDataURL = await QRService.generateQRDataURL({
                     data: qrData,

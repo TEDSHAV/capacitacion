@@ -588,8 +588,19 @@ export async function saveCertificatesToDatabase(
       try {
         const { saveCarnetsToDatabase } = await import("./carnets");
 
-        // Build carnet data for each certificate
-        const carnetDataList = participants.map((participant, index) => ({
+        // Only generate carnets for participants who approved (score >= passing_grade)
+        const passingGrade = updatedCertificateData.passing_grade || 14;
+        const carnetEligibleIndices = participants
+          .map((participant, index) => ({ participant, index }))
+          .filter(
+            ({ participant }) =>
+              participant.score !== null &&
+              participant.score !== undefined &&
+              participant.score >= passingGrade,
+          )
+          .map(({ index }) => index);
+
+        const carnetDataList = carnetEligibleIndices.map((index) => ({
           id_certificado: certificateIds[index],
           id_participante: participantIds[index],
           id_empresa: updatedCertificateData.osi_data?.empresa_id || null,
@@ -603,23 +614,29 @@ export async function saveCertificatesToDatabase(
           subtitulo_curso: updatedCertificateData.certificate_subtitle || null,
           fecha_emision: batchEmissionDate,
           fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
-          nombre_participante: participant.name,
-          cedula_participante: participant.idNumber,
+          nombre_participante: participants[index].name,
+          cedula_participante: participants[index].idNumber,
           empresa_participante: null,
           nro_control: certificateNumbers[index]?.nro_control || 0,
         }));
 
-        const carnetResult = await saveCarnetsToDatabase(
-          carnetDataList,
-          certificateIds,
+        const carnetCertificateIds = carnetEligibleIndices.map(
+          (i) => certificateIds[i],
         );
 
-        if (carnetResult.success) {
-          console.log(
-            `✅ Successfully created ${carnetResult.carnetIds?.length || 0} carnets`,
+        if (carnetDataList.length > 0) {
+          const carnetResult = await saveCarnetsToDatabase(
+            carnetDataList,
+            carnetCertificateIds,
           );
-        } else {
-          console.warn("⚠️ Failed to create carnets:", carnetResult.message);
+
+          if (carnetResult.success) {
+            console.log(
+              `✅ Successfully created ${carnetResult.carnetIds?.length || 0} carnets`,
+            );
+          } else {
+            console.warn("⚠️ Failed to create carnets:", carnetResult.message);
+          }
         }
       } catch (carnetError) {
         console.warn("⚠️ Error creating carnets:", carnetError);
