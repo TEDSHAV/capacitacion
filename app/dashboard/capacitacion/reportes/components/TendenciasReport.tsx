@@ -311,7 +311,7 @@ export default function TendenciasReport({ selectedState }: Props) {
       </div>
 
       {/* SVG Area Chart — 24 months */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="bg-white rounded-xl border border-gray-200 p-5 max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-sm font-semibold text-gray-900">

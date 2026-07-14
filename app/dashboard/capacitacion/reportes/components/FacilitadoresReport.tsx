@@ -159,7 +159,7 @@ export default function FacilitadoresReport({
       {/* Ranking + state distribution side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Top facilitadores ranking */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5 overflow-hidden">
           <h3 className="text-sm font-semibold text-gray-900 mb-4">
             Ranking por certificados emitidos
           </h3>
@@ -222,7 +222,7 @@ export default function FacilitadoresReport({
         </div>
 
         {/* State distribution */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-white rounded-xl border border-gray-200 p-5 overflow-hidden">
           <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-gray-400" />
             Por estado

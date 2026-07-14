@@ -68,7 +68,7 @@ function MonthlyTrendChart({
 }) {
   const maxVal = Math.max(...data.map((d) => d.count), 1);
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="bg-white rounded-xl border border-gray-200 p-5 overflow-hidden">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">
@@ -126,7 +126,7 @@ function TopList({
 }) {
   const maxVal = Math.max(...items.map((i) => i.count), 1);
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="bg-white rounded-xl border border-gray-200 p-5 overflow-hidden">
       <h3 className="text-sm font-semibold text-gray-900 mb-4">{title}</h3>
       {items.length === 0 ? (
         <p className="text-xs text-gray-400 italic">Sin datos en el período</p>

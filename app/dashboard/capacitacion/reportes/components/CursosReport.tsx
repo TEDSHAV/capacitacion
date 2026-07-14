@@ -235,7 +235,7 @@ export default function CursosReport({
 
       {/* Top 10 bar chart */}
       {data.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-white rounded-xl border border-gray-200 p-5 overflow-hidden">
           <h3 className="text-sm font-semibold text-gray-900 mb-4">
             Top cursos por certificados emitidos
           </h3>
@@ -244,17 +244,17 @@ export default function CursosReport({
               .sort((a, b) => b.totalCertificates - a.totalCertificates)
               .slice(0, 10)
               .map((c, i) => (
-                <div key={c.id} className="flex items-center gap-3">
+                <div key={c.id} className="flex items-center gap-3 min-w-0">
                   <span className="w-5 text-right text-xs text-gray-400 flex-shrink-0">
                     {i + 1}
                   </span>
                   <span
-                    className="w-48 text-xs text-gray-700 truncate flex-shrink-0"
+                    className="flex-1 text-xs text-gray-700 truncate min-w-0"
                     title={c.nombre}
                   >
                     {c.nombre}
                   </span>
-                  <div className="flex-1">
+                  <div className="w-24 flex-shrink-0">
                     <HorizontalBar value={c.totalCertificates} max={maxCerts} />
                   </div>
                 </div>
@@ -404,7 +404,7 @@ export default function CursosReport({
                                 expandedId === course.id ? null : course.id,
                               )
                             }
-                            className="text-xs text-sky-600 hover:text-sky-800 font-medium"
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg transition-all bg-sky-50 text-sky-700 hover:bg-sky-100"
                           >
                             {expandedId === course.id ? "Ocultar" : "Detalles"}
                           </button>

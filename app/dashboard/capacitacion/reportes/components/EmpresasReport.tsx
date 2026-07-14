@@ -232,7 +232,7 @@ export default function EmpresasReport({
 
       {/* Horizontal bar chart - top 10 */}
       {data.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-white rounded-xl border border-gray-200 p-5 overflow-hidden">
           <h3 className="text-sm font-semibold text-gray-900 mb-4">
             Top empresas por certificados emitidos
           </h3>
@@ -241,17 +241,17 @@ export default function EmpresasReport({
               .sort((a, b) => b.totalCerts - a.totalCerts)
               .slice(0, 10)
               .map((c, i) => (
-                <div key={c.id} className="flex items-center gap-3">
+                <div key={c.id} className="flex items-center gap-3 min-w-0">
                   <span className="w-5 text-right text-xs text-gray-400 flex-shrink-0">
                     {i + 1}
                   </span>
                   <span
-                    className="w-52 text-xs text-gray-700 truncate flex-shrink-0"
+                    className="flex-1 text-xs text-gray-700 truncate min-w-0"
                     title={c.razon_social}
                   >
                     {c.razon_social}
                   </span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-2">
+                  <div className="w-24 flex-shrink-0 bg-gray-100 rounded-full h-2">
                     <div
                       className="bg-sky-400 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${(c.totalCerts / maxCerts) * 100}%` }}
