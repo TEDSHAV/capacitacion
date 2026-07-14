@@ -277,17 +277,12 @@ export class TemplateBasedPdfGenerator {
       const [tableY, tableOverflowed] = this.drawBorderedTable(pdf, neHeaders, neColWidths, neRows, ML, y, 1);
       y = tableY + 10;
 
-      console.log(`📊 Nota de Entrega pagination: tableY=${tableY.toFixed(1)}, tableOverflowed=${tableOverflowed}, actualMaxY=${actualMaxY.toFixed(1)}, y before signature=${y.toFixed(1)}`);
-
       // Only add page break if table itself overflowed to page 2
       // Signature sections stay on page 1 as long as table fits on page 1
       if (tableOverflowed) {
-        console.log('📄 Adding page break because table overflowed');
         this.addPageFooter(pdf);
         pdf.addPage();
         y = 30;
-      } else {
-        console.log('📄 No page break - table fits on page 1');
       }
 
       y = this.addSHASignature(pdf, y);

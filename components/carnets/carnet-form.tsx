@@ -236,7 +236,7 @@ export function CarnetForm({
               </label>
               <input
                 type="text"
-                value={carnetData.id_osi.toString()}
+                value={carnetData.id_osi?.toString() || ''}
                 readOnly
                 className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-600"
               />
