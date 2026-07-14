@@ -71,7 +71,6 @@ const createFacilitator = cache(async (formData: FormData) => {
     const id_ciudad_base = formData.get('id_ciudad_base') ? parseInt(formData.get('id_ciudad_base') as string) : null;
     const id_estado_geografico = formData.get('id_estado_geografico') ? parseInt(formData.get('id_estado_geografico') as string) : null;
     const id_ciudad_geografico = formData.get('id_ciudad_geografico') ? parseInt(formData.get('id_ciudad_geografico') as string) : null;
-    const cv_file = formData.get('cv_file') as File;
 
     const { data, error } = await supabase
       .from('facilitadores')
@@ -92,7 +91,6 @@ const createFacilitator = cache(async (formData: FormData) => {
         id_ciudad_base,
         id_estado_geografico,
         id_ciudad_geografico,
-        cv_file: cv_file?.name || null
       }])
       .select()
       .single();

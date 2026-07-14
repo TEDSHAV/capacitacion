@@ -1,56 +1,38 @@
 "use client";
 
 import React from "react";
-import { FileUploadSectionProps } from "@/types";
 
-export const FileUploadSection = ({ resumeFile, signatureFile, onFileSelect }: FileUploadSectionProps) => {
+interface FileUploadSectionProps {
+  signatureFile: File | null;
+  onFileSelect: (event: React.ChangeEvent<HTMLInputElement>, fileType: "signature") => void;
+}
+
+export const FileUploadSection = ({ signatureFile, onFileSelect }: FileUploadSectionProps) => {
   return (
     <div className="space-y-4">
-      <h3 className="text-md font-medium text-gray-900">Archivos</h3>
+      <h3 className="text-md font-medium text-gray-900">Archivos Adjuntos</h3>
       
-      {/* Resume Upload */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Currículum Vitae (PDF, DOC, DOCX - Máx. 10MB)
-        </label>
-        <input
-          type="file"
-          accept=".pdf,.doc,.docx"
-          onChange={(e) => onFileSelect(e, 'resume')}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-        {resumeFile && (
-          <p className="text-sm text-gray-600 mt-1">
-            Archivo seleccionado: {resumeFile.name}
+      <div className="grid grid-cols-1 gap-4">
+        {/* Signature Upload */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Firma Digital
+          </label>
+          <input
+            type="file"
+            accept=".png,.jpg,.jpeg,.gif"
+            onChange={(e) => onFileSelect(e, "signature")}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Formatos aceptados: PNG, JPG, GIF (Máx. 5MB)
           </p>
-        )}
-      </div>
-
-      {/* Signature Upload */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Firma Digital (PNG, JPG, GIF - Máx. 5MB)
-        </label>
-        <input
-          type="file"
-          accept=".png,.jpg,.jpeg,.gif"
-          onChange={(e) => onFileSelect(e, 'signature')}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-        {signatureFile && (
-          <div className="mt-2">
-            <p className="text-sm text-gray-600">
-              Archivo seleccionado: {signatureFile.name}
+          {signatureFile && (
+            <p className="text-sm text-green-600 mt-1">
+              ✓ {signatureFile.name} ({(signatureFile.size / 1024 / 1024).toFixed(2)} MB)
             </p>
-            <div className="mt-2 border border-gray-200 rounded-md p-2 max-w-xs">
-              <img 
-                src={URL.createObjectURL(signatureFile)} 
-                alt="Firma preview" 
-                className="max-h-20 mx-auto"
-              />
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

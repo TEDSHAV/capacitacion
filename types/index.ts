@@ -127,6 +127,7 @@ export interface FacilitadorFormData {
   id_estado_base: number | null;
   id_ciudad_base: number | null;
   id_estado_geografico: number | null;
+  id_ciudad_geografico: number | null;
   id_estatus: number | null;
   temas_cursos: string[];
   ficha_tecnica: string;
@@ -144,6 +145,16 @@ export interface State {
   id: number;
   nombre_estado: string;
   capital_estado: string | null;
+}
+
+export interface City {
+  id: number;
+  nombre_ciudad: string;
+  id_estado: number;
+  cat_estados_venezuela?: {
+    id: number;
+    nombre_estado: string;
+  };
 }
 
 export interface CourseTopic {
@@ -176,7 +187,10 @@ export interface LocationSectionProps {
   formData: FacilitadorFormData;
   handleInputChange: (field: keyof FacilitadorFormData, value: any) => void;
   states: State[];
+  cities: City[];
   loadingStates: boolean;
+  loadingCities: boolean;
+  onAddCity: (stateId: number, cityName: string) => Promise<void>;
 }
 
 export interface CourseTopicsSectionProps {
@@ -192,9 +206,8 @@ export interface AdditionalInfoSectionProps {
 }
 
 export interface FileUploadSectionProps {
-  resumeFile: File | null;
   signatureFile: File | null;
-  onFileSelect: (event: React.ChangeEvent<HTMLInputElement>, fileType: "resume" | "signature") => void;
+  onFileSelect: (event: React.ChangeEvent<HTMLInputElement>, fileType: "signature") => void;
 }
 
 export interface OSI {

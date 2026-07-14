@@ -1,60 +1,77 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { CourseTopicsSectionProps } from "@/types";
 
 export const CourseTopicsSection = ({ formData, handleInputChange, courseTopics, loadingCourseTopics }: CourseTopicsSectionProps) => {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredTopics = courseTopics.filter(topic =>
+    topic.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleTopicToggle = (topicName: string) => {
+    if (formData.temas_cursos.includes(topicName)) {
+      handleInputChange("temas_cursos", formData.temas_cursos.filter((t: string) => t !== topicName));
+    } else {
+      handleInputChange("temas_cursos", [...formData.temas_cursos, topicName]);
+    }
+  };
+
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Temas de Curso que puede dictar *
-      </label>
-      {loadingCourseTopics ? (
-        <div className="animate-pulse">
-          <div className="h-20 bg-gray-200 rounded"></div>
+    <div className="space-y-4">
+      <h3 className="text-md font-medium text-gray-900">Temas de Curso</h3>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Selecciona los temas que puede dictar el facilitador
+        </label>
+        
+        <div className="mb-3">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar curso por nombre..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
         </div>
-      ) : (
-        <div className="space-y-2">
-          <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
-            {courseTopics.map((topic) => (
-              <label key={topic.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                <input
-                  type="checkbox"
-                  checked={formData.temas_cursos.includes(topic.nombre)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      handleInputChange("temas_cursos", [...formData.temas_cursos, topic.nombre]);
-                    } else {
-                      handleInputChange("temas_cursos", formData.temas_cursos.filter((t: string) => t !== topic.nombre));
-                    }
-                  }}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700">{topic.nombre}</span>
-              </label>
-            ))}
-          </div>
-          {formData.temas_cursos.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {formData.temas_cursos.map((topic: string, index: number) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
-                >
-                  {topic}
-                  <button
-                    type="button"
-                    onClick={() => handleInputChange("temas_cursos", formData.temas_cursos.filter((t: string) => t !== topic))}
-                    className="ml-1 text-blue-600 hover:text-blue-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+        
+        {loadingCourseTopics ? (
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+            <div className="space-y-2">
+              <div className="h-8 bg-gray-200 rounded"></div>
+              <div className="h-8 bg-gray-200 rounded"></div>
+              <div className="h-8 bg-gray-200 rounded"></div>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
+            {filteredTopics.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                {searchTerm ? "No se encontraron cursos que coincidan con la búsqueda" : "No hay temas de cursos disponibles"}
+              </p>
+            ) : (
+              filteredTopics.map((topic) => (
+                <label key={topic.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                  <input
+                    type="checkbox"
+                    checked={formData.temas_cursos.includes(topic.nombre)}
+                    onChange={() => handleTopicToggle(topic.nombre)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gray-700">{topic.nombre}</span>
+                </label>
+              ))
+            )}
+          </div>
+        )}
+        
+        <p className="text-xs text-gray-500 mt-1">
+          Selecciona todos los temas aplicables. El facilitador podrá dictar estos cursos.
+        </p>
+      </div>
     </div>
   );
 };

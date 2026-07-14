@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
-import { FacilitadorFormData, State, CourseTopic } from "@/types";
+import { FacilitadorFormData, State, CourseTopic, City } from "@/types";
 import { PersonalInfoSection } from "./facilitator-form/PersonalInfoSection";
 import { ProfessionalInfoSection } from "./facilitator-form/ProfessionalInfoSection";
 import { LocationSection } from "./facilitator-form/LocationSection";
@@ -37,6 +37,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
     id_estado_base: null,
     id_ciudad_base: null,
     id_estado_geografico: null,
+    id_ciudad_geografico: null,
     id_estatus: null,
     temas_cursos: [],
     ficha_tecnica: "",
@@ -47,16 +48,18 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
     tiene_certificaciones: false,
     tiene_foto_perfil: false,
   });
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [states, setStates] = useState<State[]>([]);
   const [loadingStates, setLoadingStates] = useState(true);
+  const [cities, setCities] = useState<City[]>([]);
+  const [loadingCities, setLoadingCities] = useState(true);
   const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
   const [loadingCourseTopics, setLoadingCourseTopics] = useState(true);
 
   useEffect(() => {
     loadStates();
+    loadCities();
     loadCourseTopics();
   }, []);
 
@@ -87,6 +90,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
               id_estado_base: facilitator.id_estado_base,
               id_ciudad_base: facilitator.id_ciudad_base,
               id_estado_geografico: facilitator.id_estado_geografico,
+              id_ciudad_geografico: facilitator.id_ciudad_geografico,
               id_estatus: facilitator.id_estatus,
               temas_cursos: facilitator.temas_cursos || [],
               ficha_tecnica: facilitator.ficha_tecnica || "",
@@ -136,6 +140,39 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
     }
   };
 
+  const loadCities = async () => {
+    try {
+      setLoadingCities(true);
+      const response = await fetch("/api/ciudades");
+      if (response.ok) {
+        const data = await response.json();
+        setCities(data);
+      }
+    } catch (error) {
+      console.error("Error loading cities:", error);
+    } finally {
+      setLoadingCities(false);
+    }
+  };
+
+  const handleAddCity = async (stateId: number, cityName: string) => {
+    try {
+      const response = await fetch("/api/ciudades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_estado: stateId, nombre_ciudad: cityName }),
+      });
+      if (response.ok) {
+        const newCity = await response.json();
+        setCities([...cities, newCity]);
+      } else {
+        throw new Error("Failed to add city");
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const handleInputChange = (field: keyof FacilitadorFormData, value: any) => {
     setFormData((prev: FacilitadorFormData) => ({
       ...prev,
@@ -145,41 +182,26 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
 
   const handleFileSelect = (
     event: React.ChangeEvent<HTMLInputElement>,
-    fileType: "resume" | "signature",
+    fileType: "signature",
   ) => {
     const file = event.target.files?.[0];
     if (file) {
       // Validate file type
-      const allowedTypes =
-        fileType === "resume"
-          ? [
-              "application/pdf",
-              "application/msword",
-              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ]
-          : ["image/png", "image/jpeg", "image/jpg", "image/gif"];
+      const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif"];
 
       if (!allowedTypes.includes(file.type)) {
-        const fileTypeText =
-          fileType === "resume" ? "PDF, DOC o DOCX" : "PNG, JPG o GIF";
-        alert(`Por favor selecciona un archivo ${fileTypeText}`);
+        alert("Por favor selecciona un archivo PNG, JPG o GIF");
         return;
       }
 
-      // Validate file size (10MB max for resume, 5MB max for signature)
-      const maxSize =
-        fileType === "resume" ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+      // Validate file size (5MB max for signature)
+      const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
-        const sizeText = fileType === "resume" ? "10MB" : "5MB";
-        alert(`El archivo es demasiado grande. Tamaño máximo: ${sizeText}`);
+        alert("El archivo es demasiado grande. Tamaño máximo: 5MB");
         return;
       }
 
-      if (fileType === "resume") {
-        setResumeFile(file);
-      } else {
-        setSignatureFile(file);
-      }
+      setSignatureFile(file);
     }
   };
 
@@ -244,9 +266,6 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
       });
 
       // Add files if selected
-      if (resumeFile) {
-        formDataToSend.append("resume", resumeFile);
-      }
       if (signatureFile) {
         formDataToSend.append("signature", signatureFile);
       }
@@ -319,7 +338,10 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
           formData={formData}
           handleInputChange={handleInputChange}
           states={states}
+          cities={cities}
           loadingStates={loadingStates}
+          loadingCities={loadingCities}
+          onAddCity={handleAddCity}
         />
 
         <CourseTopicsSection
@@ -335,7 +357,6 @@ export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: Facili
         />
 
         <FileUploadSection
-          resumeFile={resumeFile}
           signatureFile={signatureFile}
           onFileSelect={handleFileSelect}
         />

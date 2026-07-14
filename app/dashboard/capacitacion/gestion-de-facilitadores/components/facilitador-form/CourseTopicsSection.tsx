@@ -1,4 +1,5 @@
 import { FacilitadorFormData, CourseTopic } from "@/types";
+import { useState } from "react";
 
 interface CourseTopicsSectionProps {
   formData: FacilitadorFormData;
@@ -8,6 +9,8 @@ interface CourseTopicsSectionProps {
 }
 
 export const CourseTopicsSection = ({ formData, handleInputChange, courseTopics, loadingCourseTopics }: CourseTopicsSectionProps) => {
+  const [searchTerm, setSearchTerm] = useState("");
+
   const handleTopicToggle = (topicId: string, topicName: string) => {
     const currentTopics = formData.temas_cursos || [];
     const isSelected = currentTopics.includes(topicName);
@@ -24,6 +27,11 @@ export const CourseTopicsSection = ({ formData, handleInputChange, courseTopics,
     handleInputChange("temas_cursos", newTopics);
   };
 
+  const filteredTopics = courseTopics.filter(topic =>
+    topic.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (topic.description && topic.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
     <div className="space-y-4">
       <h3 className="text-md font-medium text-gray-900">Temas de Cursos</h3>
@@ -32,6 +40,16 @@ export const CourseTopicsSection = ({ formData, handleInputChange, courseTopics,
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Selecciona los temas que puede dictar el facilitador
         </label>
+        
+        <div className="mb-3">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar curso por nombre..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
         
         {loadingCourseTopics ? (
           <div className="animate-pulse">
@@ -44,10 +62,12 @@ export const CourseTopicsSection = ({ formData, handleInputChange, courseTopics,
           </div>
         ) : (
           <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
-            {courseTopics.length === 0 ? (
-              <p className="text-sm text-gray-500">No hay temas de cursos disponibles</p>
+            {filteredTopics.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                {searchTerm ? "No se encontraron cursos que coincidan con la búsqueda" : "No hay temas de cursos disponibles"}
+              </p>
             ) : (
-              courseTopics.map((topic) => (
+              filteredTopics.map((topic) => (
                 <label key={topic.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                   <input
                     type="checkbox"
