@@ -21,6 +21,7 @@ import {
   getCarnetTemplatesAction,
   getCertificateTemplatesAction,
 } from "@/app/actions/dropdown-data";
+import { loadImageAsBase64 } from "@/app/actions/image-loader";
 import { QRService } from "@/lib/qr-service";
 import { generateDocumentsServer } from "@/lib/document-server-actions";
 import {
@@ -493,19 +494,17 @@ export default function GeneracionCertificadoClient({
       const sealImageUrl = "/templates/sello.png";
 
       // Helper function to preload images as base64 standard PNG.
+      // Uses server action to load from filesystem (more reliable than fetch in production)
       // Uses canvas conversion to normalise palette/indexed PNGs (colour type 3)
       // that jsPDF cannot render, without any CORS risk (data: URL never taints canvas).
       async function preloadImage(url: string): Promise<string> {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to load image: ${url} (${response.status})`);
-        }
-        const blob = await response.blob();
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const originalDataUrl = reader.result as string;
-            const img = new Image();
+        try {
+          // Use server action to load image from filesystem
+          const base64DataUrl = await loadImageAsBase64(url);
+
+          // Still need canvas normalization for palette PNGs
+          const img = new Image();
+          return new Promise((resolve, reject) => {
             img.onload = () => {
               try {
                 const canvas = document.createElement("canvas");
@@ -513,21 +512,22 @@ export default function GeneracionCertificadoClient({
                 canvas.height = img.naturalHeight || 1;
                 const ctx = canvas.getContext("2d");
                 if (!ctx) {
-                  resolve(originalDataUrl);
+                  resolve(base64DataUrl);
                   return;
                 }
                 ctx.drawImage(img, 0, 0);
                 resolve(canvas.toDataURL("image/png"));
               } catch {
-                resolve(originalDataUrl);
+                resolve(base64DataUrl);
               }
             };
-            img.onerror = () => resolve(originalDataUrl);
-            img.src = originalDataUrl;
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
+            img.onerror = () => resolve(base64DataUrl);
+            img.src = base64DataUrl;
+          });
+        } catch (error) {
+          console.error("Failed to preload image via server action:", error);
+          throw error;
+        }
       }
 
       // Pre-fetch shared assets in parallel before generation loop
