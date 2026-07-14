@@ -15,7 +15,9 @@ export async function getBrowser(): Promise<Browser> {
     const isProduction = process.env.NODE_ENV === "production";
     browserInstance = await puppeteer.launch({
       headless: true,
-      executablePath: isProduction ? "/usr/bin/chromium" : undefined,
+      executablePath: isProduction
+        ? process.env.PUPPETEER_EXECUTABLE_PATH
+        : undefined,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
