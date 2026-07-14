@@ -74,6 +74,8 @@ const OSIForm = ({
           updateFormData?.('codigo_cliente', empresa.codigo_cliente)
           updateFormData?.('rif', empresa.rif)
           updateFormData?.('direccion_fiscal', empresa.direccion_fiscal)
+          updateFormData?.('direccion_envio', empresa.direccion_fiscal)
+          updateFormData?.('direccion_ejecucion', empresa.direccion_fiscal)
           setEmpresaSearchTerm?.('')
           setSelectedEmpresaIndex(-1)
         }
@@ -153,6 +155,8 @@ const OSIForm = ({
                       updateFormData?.('codigo_cliente', empresa.codigo_cliente)
                       updateFormData?.('rif', empresa.rif)
                       updateFormData?.('direccion_fiscal', empresa.direccion_fiscal)
+                      updateFormData?.('direccion_envio', empresa.direccion_fiscal)
+                      updateFormData?.('direccion_ejecucion', empresa.direccion_fiscal)
                       setEmpresaSearchTerm?.('')
                       setSelectedEmpresaIndex(-1)
                     }}
@@ -255,6 +259,32 @@ const OSIForm = ({
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
             rows={2}
             readOnly
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Dirección de Envío</label>
+          <textarea
+            value={initialData?.direccion_envio || ''}
+            onChange={(e) => updateFormData?.('direccion_envio', e.target.value)}
+            disabled={!isEditing && !isNew}
+            tabIndex={!isEditing && !isNew ? -1 : 0}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            rows={2}
+            placeholder="Dirección de envío..."
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Dirección de Ejecución</label>
+          <textarea
+            value={initialData?.direccion_ejecucion || ''}
+            onChange={(e) => updateFormData?.('direccion_ejecucion', e.target.value)}
+            disabled={!isEditing && !isNew}
+            tabIndex={!isEditing && !isNew ? -1 : 0}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            rows={2}
+            placeholder="Dirección de ejecución..."
           />
         </div>
       </div>

@@ -782,38 +782,45 @@ export default function OSIDetailPage() {
                     placeholder="RIF de la empresa"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Direccion Fiscal</label>
-                  <input
-                    type="text"
-                    value={formData.direccion_fiscal || ''}
-                    onChange={(e) => updateFormData('direccion_fiscal', e.target.value)}
-                    disabled={!isEditing && !isNew}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    placeholder="Direccion fiscal"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Direccion Ejecucion</label>
-                  <input
-                    type="text"
-                    value={formData.direccion_ejecucion || ''}
-                    onChange={(e) => updateFormData('direccion_ejecucion', e.target.value)}
-                    disabled={!isEditing && !isNew}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    placeholder="Direccion de ejecucion"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Direccion de Envio</label>
-                  <input
-                    type="text"
-                    value={formData.direccion_envio || ''}
-                    onChange={(e) => updateFormData('direccion_envio', e.target.value)}
-                    disabled={!isEditing && !isNew}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    placeholder="Direccion de envio"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Direccion Fiscal</label>
+                    <input
+                      type="text"
+                      value={formData.direccion_fiscal || ''}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        updateFormData('direccion_fiscal', value)
+                        updateFormData('direccion_ejecucion', value)
+                        updateFormData('direccion_envio', value)
+                      }}
+                      disabled={!isEditing && !isNew}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      placeholder="Direccion fiscal"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Direccion Ejecucion</label>
+                    <input
+                      type="text"
+                      value={formData.direccion_ejecucion || ''}
+                      onChange={(e) => updateFormData('direccion_ejecucion', e.target.value)}
+                      disabled={!isEditing && !isNew}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      placeholder="Direccion de ejecucion"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Direccion de Envio</label>
+                    <input
+                      type="text"
+                      value={formData.direccion_envio || ''}
+                      onChange={(e) => updateFormData('direccion_envio', e.target.value)}
+                      disabled={!isEditing && !isNew}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      placeholder="Direccion de envio"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tipo Servicio</label>

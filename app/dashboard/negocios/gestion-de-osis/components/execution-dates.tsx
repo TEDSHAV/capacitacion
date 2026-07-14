@@ -87,23 +87,6 @@ const ExecutionDates = ({
             placeholder="Detalle de la sesión..."
           />
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Dirección de Ejecución
-          </label>
-          <textarea
-            value={formData.direccion_ejecucion || ""}
-            onChange={(e) =>
-              updateFormData("direccion_ejecucion", e.target.value)
-            }
-            disabled={!isEditing && !isNew}
-            tabIndex={!isEditing && !isNew ? -1 : 0}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            rows={2}
-            placeholder="Dirección donde se ejecutará el servicio..."
-          />
-        </div>
       </div>
     </div>
   );
