@@ -27,9 +27,7 @@ const venezuelanLocations = [
   { state: "Zulia", cities: ["Maracaibo", "Cabimas", "Machiques", "Ciudad Ojeda"] }
 ]
 
-const allLocations = venezuelanLocations.flatMap(loc => 
-  loc.cities.map(city => `${city}, ${loc.state}`)
-)
+const allLocations = venezuelanLocations.flatMap(loc => loc.cities);
 
 export const useLocationSearch = (onLocationChange: (location: string) => void) => {
   const [locationInput, setLocationInput] = useState('')

@@ -109,6 +109,7 @@ export interface CertificateGeneration {
   date: string;
   created_at?: string;
   updated_at?: string;
+  horas_estimadas?: number;
 }
 
 export interface CourseTopic {
