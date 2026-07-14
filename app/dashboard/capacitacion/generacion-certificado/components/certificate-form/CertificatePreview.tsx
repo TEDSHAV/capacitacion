@@ -179,10 +179,30 @@ export const CertificatePreview = ({
         // Continue without QR code - carnet generator will use placeholder
       }
 
+      // Determine carnet template for preview
+      let carnetTemplateImage = "/templates/carnet.png";
+      if (certificateData.id_plantilla_carnet) {
+        try {
+          const { getCarnetTemplatesAction } =
+            await import("@/app/actions/dropdown-data");
+          const carnetResult = await getCarnetTemplatesAction();
+          if (carnetResult.data) {
+            const carnetTmpl = carnetResult.data.find(
+              (t: any) => t.id === certificateData.id_plantilla_carnet,
+            );
+            if (carnetTmpl?.archivo) {
+              carnetTemplateImage = `/templates/${carnetTmpl.archivo}`;
+            }
+          }
+        } catch {
+          // Continue with default
+        }
+      }
+
       const carnetPreviewUrl = await carnetGenerator.previewCarnet({
         participant: previewParticipant,
         carnetData,
-        templateImage: "/templates/carnet.png", // Always use default template for preview
+        templateImage: carnetTemplateImage,
         isPreview: true,
         qrDataURL, // Pass the QR code data URL
       });
@@ -229,16 +249,25 @@ export const CertificatePreview = ({
       let templateImage = "/templates/certificado.png";
       let sealImage = "/templates/sello.png";
 
-      // Get actual template if available (use cached signatures)
-      if (certificateData.id_plantilla_certificado && signatures.length > 0) {
-        const certificateTemplates = signatures.filter(
-          (sig: any) => sig.tipo === "plantilla_certificado",
-        );
-        const selectedTemplate = certificateTemplates.find(
-          (tmpl: any) => tmpl.id === certificateData.id_plantilla_certificado,
-        );
-        if (selectedTemplate?.url_imagen) {
-          templateImage = selectedTemplate.url_imagen;
+      // Use active certificate template if available
+      if (certificateData.plantilla_certificado_archivo) {
+        templateImage = `/templates/${certificateData.plantilla_certificado_archivo}`;
+      } else if (certificateData.id_plantilla_certificado) {
+        // Fallback: try to fetch the template info
+        try {
+          const { getCertificateTemplatesAction } =
+            await import("@/app/actions/dropdown-data");
+          const result = await getCertificateTemplatesAction();
+          if (result.data) {
+            const tmpl = result.data.find(
+              (t: any) => t.id === certificateData.id_plantilla_certificado,
+            );
+            if (tmpl?.archivo) {
+              templateImage = `/templates/${tmpl.archivo}`;
+            }
+          }
+        } catch {
+          // Continue with default
         }
       }
 

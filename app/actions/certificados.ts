@@ -915,6 +915,9 @@ function generateContentSnapshot(
     plantilla: {
       id_plantilla_certificado: updatedCertificateData.id_plantilla_certificado,
 
+      archivo_plantilla_certificado:
+        updatedCertificateData.plantilla_certificado_archivo,
+
       id_plantilla_curso: updatedCertificateData.course_template_id,
     },
 
@@ -1068,6 +1071,9 @@ function generateContentSnapshotWithControlNumbers(
 
     plantilla: {
       id_plantilla_certificado: certificateData.id_plantilla_certificado,
+
+      archivo_plantilla_certificado:
+        certificateData.plantilla_certificado_archivo,
     },
 
     firmas: {

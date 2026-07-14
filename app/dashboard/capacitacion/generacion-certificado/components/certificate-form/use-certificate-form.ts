@@ -168,20 +168,6 @@ export function useCertificateForm({
     selectedOSI?.empresa_id,
   ]);
 
-  // Effect to set default course content when course topic changes (but no template selected)
-  useEffect(() => {
-    if (selectedCourseTopic && !certificateData.course_template_id) {
-      // Use course's default content if available
-      if (selectedCourseTopic.contenido_curso) {
-        onDataChange("course_content", selectedCourseTopic.contenido_curso);
-      }
-    }
-  }, [
-    selectedCourseTopic?.id,
-    selectedCourseTopic?.contenido_curso,
-    certificateData.course_template_id,
-  ]);
-
   // Effect to sync id_estado from selectedOSI
   useEffect(() => {
     if (selectedOSI?.id_estado) {

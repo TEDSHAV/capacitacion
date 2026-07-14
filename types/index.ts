@@ -300,6 +300,7 @@ export interface CertificateGeneration {
   id_estado?: number; // Venezuelan state ID for certificate record
   id_plantilla_certificado?: number; // Certificate template ID
   id_plantilla_carnet?: number; // Carne template ID
+  plantilla_certificado_archivo?: string; // Certificate template file name for generation
   generate_documents?: boolean; // Whether to generate additional documents
 }
 
@@ -414,7 +415,9 @@ export interface PlantillaCertificado {
   id: number;
   nombre: string;
   archivo: string;
+  url_imagen?: string;
   created_at: string;
+  updated_at?: string;
   is_active: boolean;
 }
 

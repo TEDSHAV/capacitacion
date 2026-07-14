@@ -2,7 +2,10 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { PlantillaCurso } from "./types";
 
-const RichTextEditor = dynamic(() => import("@/components/ui/rich-text-editor"), { ssr: false });
+const RichTextEditor = dynamic(
+  () => import("@/components/ui/rich-text-editor"),
+  { ssr: false },
+);
 
 interface PlantillaCursoFormProps {
   plantilla?: PlantillaCurso | null;
@@ -17,14 +20,14 @@ export function PlantillaCursoForm({
   courses,
   empresas,
   onSave,
-  onCancel
+  onCancel,
 }: PlantillaCursoFormProps) {
   const [formData, setFormData] = useState({
     descripcion: plantilla?.descripcion || "",
     contenido: plantilla?.contenido || "",
     id_curso: plantilla?.id_curso || "",
     id_empresa: plantilla?.id_empresa || "",
-    is_active: plantilla?.is_active ?? true
+    is_active: plantilla?.is_active ?? true,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -32,48 +35,65 @@ export function PlantillaCursoForm({
 
     // Validate content length
     if ((formData.contenido?.length || 0) > 2000) {
-      alert('El contenido excede el límite de 2000 caracteres. Por favor, reduce el contenido.');
+      alert(
+        "El contenido excede el límite de 2000 caracteres. Por favor, reduce el contenido.",
+      );
       return;
     }
 
     const plantillaData = {
       ...formData,
       descripcion: formData.descripcion.toUpperCase(),
-      id_curso: formData.id_curso ? parseInt(formData.id_curso.toString()) : null,
-      id_empresa: formData.id_empresa ? parseInt(formData.id_empresa.toString()) : null
+      id_curso: formData.id_curso
+        ? parseInt(formData.id_curso.toString())
+        : null,
+      id_empresa: formData.id_empresa
+        ? parseInt(formData.id_empresa.toString())
+        : null,
     };
 
     onSave(plantillaData);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
+  ) => {
     const { name, value, type } = e.target;
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : (name === 'descripcion' ? value.toUpperCase() : value)
+      [name]:
+        type === "checkbox"
+          ? (e.target as HTMLInputElement).checked
+          : name === "descripcion"
+            ? value.toUpperCase()
+            : value,
     }));
   };
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-lg bg-white">
+      <div className="relative top-20 mx-auto p-5 border w-full max-w-5xl shadow-lg rounded-lg bg-white">
         <div className="mb-4">
           <h3 className="text-lg font-medium text-gray-900">
             {plantilla ? "Editar Plantilla" : "Nueva Plantilla de Curso"}
           </h3>
           <p className="text-sm text-gray-600 mt-1">
-            {plantilla 
+            {plantilla
               ? "Modifica los datos de la plantilla existente"
-              : "Crea una nueva plantilla de contenido para cursos"
-            }
+              : "Crea una nueva plantilla de contenido para cursos"}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Description */}
           <div>
-            <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="descripcion"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Descripción *
             </label>
             <input
@@ -95,11 +115,15 @@ export function PlantillaCursoForm({
             </label>
             <RichTextEditor
               value={formData.contenido}
-              onChange={(html) => setFormData(prev => ({ ...prev, contenido: html }))}
+              onChange={(html) =>
+                setFormData((prev) => ({ ...prev, contenido: html }))
+              }
               rows={10}
             />
             <div className="flex justify-between items-center mt-1">
-              <p className={`text-xs font-medium ${(formData.contenido?.length || 0) > 2000 ? 'text-red-600' : (formData.contenido?.length || 0) > 1800 ? 'text-yellow-600' : 'text-gray-500'}`}>
+              <p
+                className={`text-xs font-medium ${(formData.contenido?.length || 0) > 2000 ? "text-red-600" : (formData.contenido?.length || 0) > 1800 ? "text-yellow-600" : "text-gray-500"}`}
+              >
                 {formData.contenido?.length || 0} / 2000 caracteres
               </p>
             </div>
@@ -107,7 +131,10 @@ export function PlantillaCursoForm({
 
           {/* Course Selection */}
           <div>
-            <label htmlFor="id_curso" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="id_curso"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Curso (Opcional)
             </label>
             <select
@@ -125,13 +152,17 @@ export function PlantillaCursoForm({
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Si seleccionas un curso, esta plantilla estará disponible específicamente para ese curso.
+              Si seleccionas un curso, esta plantilla estará disponible
+              específicamente para ese curso.
             </p>
           </div>
 
           {/* Company Selection */}
           <div>
-            <label htmlFor="id_empresa" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="id_empresa"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Empresa (Opcional)
             </label>
             <select
@@ -149,7 +180,8 @@ export function PlantillaCursoForm({
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Si seleccionas una empresa, esta plantilla estará disponible específicamente para esa empresa.
+              Si seleccionas una empresa, esta plantilla estará disponible
+              específicamente para esa empresa.
             </p>
           </div>
 
@@ -163,7 +195,10 @@ export function PlantillaCursoForm({
               onChange={handleChange}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
-            <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
+            <label
+              htmlFor="is_active"
+              className="ml-2 block text-sm text-gray-900"
+            >
               Plantilla activa
             </label>
             <p className="text-xs text-gray-500 ml-4">

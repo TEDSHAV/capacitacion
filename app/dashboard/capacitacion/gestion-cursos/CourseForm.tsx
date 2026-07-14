@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
-import dynamic from 'next/dynamic';
-import { Curso, Empresa } from '@/types';
-import EmpresaSearch from './EmpresaSearch';
+import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
+import { Curso, Empresa } from "@/types";
+import EmpresaSearch from "./EmpresaSearch";
 
-const RichTextEditor = dynamic(() => import('@/components/ui/rich-text-editor'), { ssr: false });
+const RichTextEditor = dynamic(
+  () => import("@/components/ui/rich-text-editor"),
+  { ssr: false },
+);
 
 interface CourseFormProps {
   curso: Curso | null;
@@ -13,14 +16,21 @@ interface CourseFormProps {
   isEdit: boolean;
 }
 
-export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit }: CourseFormProps) {
+export default function CourseForm({
+  curso,
+  empresas,
+  onSubmit,
+  onCancel,
+  isEdit,
+}: CourseFormProps) {
   const [datosFormulario, setDatosFormulario] = useState({
     titulo: curso?.nombre || "",
     empresa_id: "", // Removed cliente_asociado reference as column doesn't exist
     empresa_nombre: curso?.empresas?.razon_social || "",
     contenido: curso?.contenido || "",
     horas_estimadas: curso?.horas_estimadas || 0,
-    tipo_certificado: curso?.nota_aprobatoria === 0 ? "participacion" : "calificacion", // Certificate type
+    tipo_certificado:
+      curso?.nota_aprobatoria === 0 ? "participacion" : "calificacion", // Certificate type
     nota_aprobatoria: curso?.nota_aprobatoria || 14, // Default to 14 for graded courses
     emite_carnet: curso?.emite_carnet || false, // Default to false
   });
@@ -31,51 +41,64 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
   // Handle ESC key press
   useEffect(() => {
     const handleEscKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         onCancel();
       }
     };
 
-    document.addEventListener('keydown', handleEscKey);
+    document.addEventListener("keydown", handleEscKey);
     return () => {
-      document.removeEventListener('keydown', handleEscKey);
+      document.removeEventListener("keydown", handleEscKey);
     };
   }, [onCancel]);
 
   // Handle click outside modal
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(event.target as Node)
+      ) {
         onCancel();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [onCancel]);
 
-  const manejarCambioInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const manejarCambioInput = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
+  ) => {
     const { name, value } = e.target;
-    setDatosFormulario(prev => ({
+    setDatosFormulario((prev) => ({
       ...prev,
-      [name]: (name === 'horas_estimadas' || name === 'nota_aprobatoria') ? 
-        (value === "" ? 0 : Number(value.replace(/^0+/, ''))) : 
-        (name === 'titulo' ? value.toUpperCase() : value)
+      [name]:
+        name === "horas_estimadas" || name === "nota_aprobatoria"
+          ? value === ""
+            ? 0
+            : Number(value.replace(/^0+/, ""))
+          : name === "titulo"
+            ? value.toUpperCase()
+            : value,
     }));
   };
 
   const handleTipoCertificadoChange = (tipo: string) => {
-    setDatosFormulario(prev => ({
+    setDatosFormulario((prev) => ({
       ...prev,
       tipo_certificado: tipo,
-      nota_aprobatoria: tipo === "participacion" ? 0 : (prev.nota_aprobatoria || 14) // Set to 0 for participation, keep existing or default for graded
+      nota_aprobatoria:
+        tipo === "participacion" ? 0 : prev.nota_aprobatoria || 14, // Set to 0 for participation, keep existing or default for graded
     }));
   };
 
   const handleEmpresaSelect = (empresaId: string, empresaData: Empresa) => {
-    setDatosFormulario(prev => ({
+    setDatosFormulario((prev) => ({
       ...prev,
       empresa_id: empresaId || "", // Keep as string for form state
       empresa_nombre: empresaData?.razon_social || "", // Set company name for display
@@ -87,17 +110,25 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
 
     // Validate content length
     if ((datosFormulario.contenido?.length || 0) > 2000) {
-      alert('El contenido excede el límite de 2000 caracteres. Por favor, reduce el contenido.');
+      alert(
+        "El contenido excede el límite de 2000 caracteres. Por favor, reduce el contenido.",
+      );
       return;
     }
 
     // Create FormData properly
     const formData = new FormData();
-    formData.append('titulo', datosFormulario.titulo.toUpperCase());
-    formData.append('contenido', datosFormulario.contenido);
-    formData.append('horas_estimadas', datosFormulario.horas_estimadas.toString());
-    formData.append('nota_aprobatoria', datosFormulario.nota_aprobatoria.toString());
-    formData.append('emite_carnet', datosFormulario.emite_carnet.toString());
+    formData.append("titulo", datosFormulario.titulo.toUpperCase());
+    formData.append("contenido", datosFormulario.contenido);
+    formData.append(
+      "horas_estimadas",
+      datosFormulario.horas_estimadas.toString(),
+    );
+    formData.append(
+      "nota_aprobatoria",
+      datosFormulario.nota_aprobatoria.toString(),
+    );
+    formData.append("emite_carnet", datosFormulario.emite_carnet.toString());
 
     // Note: empresa_id is no longer stored in database as cliente_asociado column doesn't exist
     // if (datosFormulario.empresa_id) {
@@ -108,13 +139,13 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
   };
 
   return (
-    <div 
+    <div
       ref={modalRef}
-      className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
     >
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-gray-900">
-          {isEdit ? 'Editar Curso' : 'Crear Nuevo Curso'}
+          {isEdit ? "Editar Curso" : "Crear Nuevo Curso"}
         </h2>
         <button
           onClick={onCancel}
@@ -127,7 +158,10 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
       <form onSubmit={manejarEnvio} className="space-y-4">
         {/* Title */}
         <div>
-          <label htmlFor="titulo" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="titulo"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Título del Curso *
           </label>
           <input
@@ -157,7 +191,10 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
 
         {/* Estimated Hours */}
         <div>
-          <label htmlFor="horas_estimadas" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="horas_estimadas"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Horas Estimadas
           </label>
           <input
@@ -178,10 +215,15 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
 
         {/* Certificate Type */}
         <div>
-          <label htmlFor="tipo_certificado" className="block text-sm font-medium text-gray-700 mb-1">
-            Tipo de Certificado * 
-            <br /> 
-            <span className='font-normal'>modificar solo si el certificado es de "Participación" </span>
+          <label
+            htmlFor="tipo_certificado"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Tipo de Certificado *
+            <br />
+            <span className="font-normal">
+              modificar solo si el certificado es de "Participación"{" "}
+            </span>
           </label>
           <select
             id="tipo_certificado"
@@ -194,17 +236,19 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
             <option value="participacion">Certificado de Participación</option>
           </select>
           <p className="text-sm text-gray-500 mt-1">
-            {datosFormulario.tipo_certificado === "calificacion" 
+            {datosFormulario.tipo_certificado === "calificacion"
               ? "Los participantes recibirán una calificación y necesitarán aprobar para obtener el certificado"
-              : "Todos los participantes recibirán el certificado por asistir, sin calificación"
-            }
+              : "Todos los participantes recibirán el certificado por asistir, sin calificación"}
           </p>
         </div>
 
         {/* Passing Grade - Only show for graded courses */}
         {datosFormulario.tipo_certificado === "calificacion" && (
           <div>
-            <label htmlFor="nota_aprobatoria" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="nota_aprobatoria"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Calificación Aprobatoria
             </label>
             <input
@@ -232,11 +276,15 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
           </label>
           <RichTextEditor
             value={datosFormulario.contenido}
-            onChange={(html) => setDatosFormulario(prev => ({ ...prev, contenido: html }))}
+            onChange={(html) =>
+              setDatosFormulario((prev) => ({ ...prev, contenido: html }))
+            }
             rows={8}
           />
           <div className="flex justify-between items-center mt-1">
-            <p className={`text-xs font-medium ${(datosFormulario.contenido?.length || 0) > 2000 ? 'text-red-600' : (datosFormulario.contenido?.length || 0) > 1800 ? 'text-yellow-600' : 'text-gray-500'}`}>
+            <p
+              className={`text-xs font-medium ${(datosFormulario.contenido?.length || 0) > 2000 ? "text-red-600" : (datosFormulario.contenido?.length || 0) > 1800 ? "text-yellow-600" : "text-gray-500"}`}
+            >
               {datosFormulario.contenido?.length || 0} / 2000 caracteres
             </p>
           </div>
@@ -249,10 +297,12 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
               type="checkbox"
               name="emite_carnet"
               checked={datosFormulario.emite_carnet || false}
-              onChange={(e) => setDatosFormulario(prev => ({
-                ...prev,
-                emite_carnet: e.target.checked
-              }))}
+              onChange={(e) =>
+                setDatosFormulario((prev) => ({
+                  ...prev,
+                  emite_carnet: e.target.checked,
+                }))
+              }
               className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
             />
             <span className="text-sm font-medium text-gray-700">
@@ -270,16 +320,16 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
             type="button"
             onClick={onCancel}
             className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition-colors shadow-md"
-            style={{ backgroundColor: 'var(--primary-gray)' }}
+            style={{ backgroundColor: "var(--primary-gray)" }}
           >
             Cancelar
           </button>
           <button
             type="submit"
             className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md"
-            style={{ backgroundColor: 'var(--primary-blue)' }}
+            style={{ backgroundColor: "var(--primary-blue)" }}
           >
-            {isEdit ? 'Actualizar Curso' : 'Crear Curso'}
+            {isEdit ? "Actualizar Curso" : "Crear Curso"}
           </button>
         </div>
       </form>
