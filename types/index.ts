@@ -1548,6 +1548,15 @@ export interface ControlServiciosEjecutados {
   };
 }
 
+export interface RequisicionItem {
+  id: string;
+  cant: number;
+  unidad: string;
+  descripcion: string;
+  costo_unitario: number;
+  total: number;
+}
+
 export interface ControlServiciosFormData {
   selectedOSI?: OSIFullData | null;
   corresponde_a: string;
@@ -1559,7 +1568,13 @@ export interface ControlServiciosFormData {
   solicitante: string;
   prioridad: "Alta" | "Media" | "Baja" | "";
 
-  // Details
+  // Details - Fixed Items Quantities
+  cant_traslado: number;
+  cant_impresion: number;
+  cant_honorarios: number;
+  cant_informe_final: number;
+
+  // Details - Values
   dias_traslado: number | null;
   costo_traslado: number | null;
   impresion_total: number | null;
@@ -1567,6 +1582,9 @@ export interface ControlServiciosFormData {
   honorarios_costo_hora: number | null;
   honorarios_total: number | null;
   informe_final_total: number | null;
+
+  // Additional dynamic items
+  additional_items: RequisicionItem[];
 
   // Facilitator
   cod_facilitador: string;

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ControlServiciosFormData, OSIFullData } from "@/types";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Plus, Trash2, CheckCircle2 } from "lucide-react";
+import { ControlServiciosFormData, OSIFullData, RequisicionItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
   getOSIForControlServicios,
   createControlServiciosRecord,
+  updateControlServiciosRecord,
+  getControlServiciosRecord,
   getFacilitatorsForDropdown,
   getCurrentUser,
 } from "@/app/actions/control-servicios";
@@ -24,8 +27,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function ControlServiciosForm() {
+  return (
+    <Suspense fallback={<div>Cargando formulario...</div>}>
+      <ControlServiciosFormContent />
+    </Suspense>
+  );
+}
+
+function ControlServiciosFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
   const [isLoading, setIsLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [osis, setOsis] = useState<OSIFullData[]>([]);
   const [facilitators, setFacilitators] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -42,14 +56,23 @@ export default function ControlServiciosForm() {
     solicitante: "",
     prioridad: "Alta",
 
+    // Details - Fixed Items Quantities
+    cant_traslado: 1,
+    cant_impresion: 1,
+    cant_honorarios: 1,
+    cant_informe_final: 1,
+
     // Details
-    dias_traslado: 0,
+    dias_traslado: 1,
     costo_traslado: 0,
     impresion_total: 0,
     honorarios_horas: 0,
     honorarios_costo_hora: 0,
     honorarios_total: 0,
     informe_final_total: 0,
+
+    // Additional dynamic items
+    additional_items: [],
 
     // Facilitator
     cod_facilitador: "",
@@ -73,6 +96,46 @@ export default function ControlServiciosForm() {
 
         if (osisData) setOsis(osisData);
         if (facilitatorsData) setFacilitators(facilitatorsData);
+        
+        // Handle Edit Mode
+        if (editId) {
+          const record = await getControlServiciosRecord(parseInt(editId));
+          if (record) {
+            setFormData({
+              selectedOSI: osisData.find((o: any) => o.id_osi === record.id_osi) || null,
+              corresponde_a: record.corresponde_a || "Servicios",
+              fecha_solicitud: record.fecha_solicitud || new Date().toISOString().split("T")[0],
+              tipo_solicitud: record.tipo_solicitud || "Interno",
+              nro_correlativo: record.nro_correlativo || "GS-DC-",
+              tipo_servicio: record.tipo_servicio || "Capacitación",
+              gerencia_solicitante: record.gerencia_solicitante || "",
+              solicitante: record.solicitante || "",
+              prioridad: record.prioridad || "Alta",
+              cant_traslado: record.cant_traslado ?? 1,
+              cant_impresion: record.cant_impresion ?? 1,
+              cant_honorarios: record.cant_honorarios ?? 1,
+              cant_informe_final: record.cant_informe_final ?? 1,
+              dias_traslado: record.dias_traslado ?? 1,
+              costo_traslado: record.costo_traslado ?? 0,
+              impresion_total: record.impresion_total ?? 0,
+              honorarios_horas: record.honorarios_horas ?? 0,
+              honorarios_costo_hora: record.honorarios_costo_hora ?? 0,
+              honorarios_total: record.honorarios_total ?? 0,
+              informe_final_total: record.informe_final_total ?? 0,
+              additional_items: record.additional_items || [],
+              cod_facilitador: record.cod_facilitador?.toString() || "",
+              facilitador: record.facilitador || "",
+              cedula_facilitador: record.cedula_facilitador || "",
+              rif_facilitador: record.rif_facilitador || "",
+              banco: record.banco || "",
+              nro_cuenta: record.nro_cuenta || "",
+              observaciones: record.observaciones_compras || "",
+            });
+            return;
+          }
+        }
+
+        // Default logic for new records
         if (userData) {
           setFormData((prev) => ({
             ...prev,
@@ -86,7 +149,7 @@ export default function ControlServiciosForm() {
     }
 
     loadData();
-  }, []);
+  }, [editId]);
 
   const filteredOSIs = osis.filter(
     (osi) =>
@@ -123,6 +186,42 @@ export default function ControlServiciosForm() {
     }));
   };
 
+  const addAdditionalItem = () => {
+    const newItem: RequisicionItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      cant: 1,
+      unidad: "",
+      descripcion: "",
+      costo_unitario: 0,
+      total: 0,
+    };
+    setFormData((prev) => ({
+      ...prev,
+      additional_items: [...prev.additional_items, newItem],
+    }));
+  };
+
+  const removeAdditionalItem = (id: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      additional_items: prev.additional_items.filter((item) => item.id !== id),
+    }));
+  };
+
+  const updateAdditionalItem = (id: string, updates: Partial<RequisicionItem>) => {
+    setFormData((prev) => ({
+      ...prev,
+      additional_items: prev.additional_items.map((item) => {
+        if (item.id === id) {
+          const updatedItem = { ...item, ...updates };
+          updatedItem.total = updatedItem.cant * updatedItem.costo_unitario;
+          return updatedItem;
+        }
+        return item;
+      }),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.selectedOSI) {
@@ -132,8 +231,16 @@ export default function ControlServiciosForm() {
 
     setIsLoading(true);
     try {
-      await createControlServiciosRecord(formData);
-      router.push("/dashboard/capacitacion/planificacion-servicios/lista");
+      if (editId) {
+        await updateControlServiciosRecord(parseInt(editId), formData);
+      } else {
+        await createControlServiciosRecord(formData);
+      }
+      setShowSuccess(true);
+      // Wait 2 seconds before redirecting
+      setTimeout(() => {
+        router.push("/dashboard/capacitacion/planificacion-servicios/lista");
+      }, 2000);
     } catch (error) {
       console.error("Error creating record:", error);
       alert("Error al crear el registro");
@@ -143,7 +250,29 @@ export default function ControlServiciosForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-5xl mx-auto pb-10">
+    <form onSubmit={handleSubmit} className="max-w-5xl mx-auto pb-10 relative">
+      {showSuccess && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <Card className="w-full max-w-sm mx-4 bg-white shadow-2xl border-none">
+            <CardContent className="p-8 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle2 className="w-10 h-10 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">¡Éxito!</h3>
+              <p className="text-gray-600">
+                La solicitud de requisición ha sido guardada correctamente.
+              </p>
+              <div className="mt-6 w-full h-1 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-green-500 animate-[progress_2s_linear]" />
+              </div>
+              <p className="mt-2 text-[10px] text-gray-400 uppercase tracking-widest font-medium">
+                Redirigiendo a la lista...
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <Card className="shadow-md border-gray-300">
         <CardContent className="p-0">
           {/* Header section mimicking the image */}
@@ -154,7 +283,7 @@ export default function ControlServiciosForm() {
             <div className="col-span-4 p-3 border-r border-gray-300">
               <Input 
                 value={formData.corresponde_a} 
-                onChange={(e) => setFormData(p => ({...p, corresponde_a: e.target.value}))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, corresponde_a: e.target.value}))}
                 className="h-8 border-none focus-visible:ring-0 px-0 font-medium"
               />
             </div>
@@ -165,7 +294,7 @@ export default function ControlServiciosForm() {
               <Input 
                 type="date"
                 value={formData.fecha_solicitud}
-                onChange={(e) => setFormData(p => ({...p, fecha_solicitud: e.target.value}))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, fecha_solicitud: e.target.value}))}
                 className="h-8 border-none focus-visible:ring-0 px-0"
               />
             </div>
@@ -231,7 +360,7 @@ export default function ControlServiciosForm() {
                <Input 
                   placeholder="Buscar OSI..."
                   value={searchTerm || (formData.selectedOSI?.nro_osi || "")}
-                  onChange={(e) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     setSearchTerm(e.target.value);
                     setIsDropdownOpen(true);
                   }}
@@ -262,7 +391,7 @@ export default function ControlServiciosForm() {
             <div className="col-span-4 p-3 border-r border-gray-300">
               <Input 
                 value={formData.gerencia_solicitante}
-                onChange={(e) => setFormData(p => ({...p, gerencia_solicitante: e.target.value}))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, gerencia_solicitante: e.target.value}))}
                 className="h-8 border-none focus-visible:ring-0 px-0 text-sm font-medium uppercase"
               />
             </div>
@@ -272,7 +401,7 @@ export default function ControlServiciosForm() {
             <div className="col-span-3 p-3 flex items-center">
               <Input 
                 value={formData.solicitante}
-                onChange={(e) => setFormData(p => ({...p, solicitante: e.target.value}))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, solicitante: e.target.value}))}
                 className="h-8 border-none focus-visible:ring-0 px-0 text-sm font-bold uppercase"
               />
             </div>
@@ -313,10 +442,11 @@ export default function ControlServiciosForm() {
             <thead>
               <tr className="bg-gray-50 text-center border-b border-gray-300">
                 <th className="p-2 border-r border-gray-300 w-12">ITEM</th>
-                <th className="p-2 border-r border-gray-300 w-12">CANT</th>
-                <th className="p-2 border-r border-gray-300 w-16">UNIDAD/ CONCEPTO</th>
+                <th className="p-2 border-r border-gray-300 w-16">CANT</th>
+                <th className="p-2 border-r border-gray-300 w-20">UNIDAD/ CONCEPTO</th>
                 <th className="p-2 border-r border-gray-300">DESCRIPCIÓN</th>
-                <th className="p-2 w-32">Verificación<br/>Listo / Pendiente</th>
+                <th className="p-2 w-32">TOTAL</th>
+                <th className="p-2 w-10"></th>
               </tr>
             </thead>
             <tbody>
@@ -324,7 +454,12 @@ export default function ControlServiciosForm() {
               <tr className="border-b border-gray-300">
                 <td className="p-2 text-center border-r border-gray-300 font-bold">1</td>
                 <td className="p-2 text-center border-r border-gray-300">
-                  <Input type="number" className="h-6 w-10 mx-auto text-center border-gray-300 p-1" defaultValue={1} />
+                  <Input 
+                    type="number" 
+                    className="h-6 w-12 mx-auto text-center border-gray-300 p-1" 
+                    value={formData.cant_traslado}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, cant_traslado: parseInt(e.target.value) || 0}))}
+                  />
                 </td>
                 <td className="p-2 text-center border-r border-gray-300 font-bold uppercase">T</td>
                 <td className="p-2 border-r border-gray-300">
@@ -332,85 +467,216 @@ export default function ControlServiciosForm() {
                     <Input 
                       type="number" 
                       value={formData.dias_traslado || ""} 
-                      onChange={(e) => setFormData(p => ({...p, dias_traslado: parseInt(e.target.value) || 0}))}
-                      className="h-6 w-12 border-gray-300 p-1" 
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, dias_traslado: parseInt(e.target.value) || 0}))}
+                      className="h-6 w-12 border-gray-300 p-1 text-center" 
                     />
-                    <span>DÍAS DE TRASL. COSTO X C/U</span>
-                    <span className="font-bold ml-2">${formData.costo_traslado}</span>
-                    <span className="font-bold ml-auto">TOTAL ${(formData.dias_traslado || 0) * (formData.costo_traslado || 0)}</span>
+                    <span className="uppercase text-[10px] font-medium">DÍAS DE TRASL. COSTO X C/U $</span>
+                    <Input 
+                      type="number" 
+                      value={formData.costo_traslado || ""} 
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, costo_traslado: parseFloat(e.target.value) || 0}))}
+                      className="h-6 w-20 border-gray-300 p-1 font-bold" 
+                    />
                   </div>
                 </td>
-                <td className="p-2"></td>
+                <td className="p-2 text-center font-bold">
+                  ${((formData.cant_traslado || 0) * (formData.dias_traslado || 0) * (formData.costo_traslado || 0)).toFixed(2)}
+                </td>
+                <td className="p-2 border-l border-gray-300"></td>
               </tr>
               {/* Item 2: Impresión */}
               <tr className="border-b border-gray-300">
                 <td className="p-2 text-center border-r border-gray-300 font-bold">2</td>
                 <td className="p-2 text-center border-r border-gray-300">
-                  <Input type="number" className="h-6 w-10 mx-auto text-center border-gray-300 p-1" defaultValue={1} />
+                  <Input 
+                    type="number" 
+                    className="h-6 w-12 mx-auto text-center border-gray-300 p-1" 
+                    value={formData.cant_impresion}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, cant_impresion: parseInt(e.target.value) || 0}))}
+                  />
                 </td>
                 <td className="p-2 text-center border-r border-gray-300 font-bold uppercase">I</td>
                 <td className="p-2 border-r border-gray-300">
                   <div className="flex items-center gap-2">
-                    <span className="uppercase">IMPRESIÓN TOTAL</span>
-                    <span className="font-bold ml-auto">${formData.impresion_total}</span>
+                    <span className="uppercase font-medium">IMPRESIÓN TOTAL $</span>
+                    <Input 
+                      type="number" 
+                      value={formData.impresion_total || ""} 
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, impresion_total: parseFloat(e.target.value) || 0}))}
+                      className="h-6 w-24 border-gray-300 p-1 font-bold" 
+                    />
                   </div>
                 </td>
-                <td className="p-2"></td>
+                <td className="p-2 text-center font-bold">
+                  ${((formData.cant_impresion || 0) * (formData.impresion_total || 0)).toFixed(2)}
+                </td>
+                <td className="p-2 border-l border-gray-300"></td>
               </tr>
               {/* Item 3: Honorarios */}
               <tr className="border-b border-gray-300">
                 <td className="p-2 text-center border-r border-gray-300 font-bold">3</td>
                 <td className="p-2 text-center border-r border-gray-300">
-                  <Input type="number" className="h-6 w-10 mx-auto text-center border-gray-300 p-1" defaultValue={1} />
+                  <Input 
+                    type="number" 
+                    className="h-6 w-12 mx-auto text-center border-gray-300 p-1" 
+                    value={formData.cant_honorarios}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, cant_honorarios: parseInt(e.target.value) || 0}))}
+                  />
                 </td>
                 <td className="p-2 text-center border-r border-gray-300 font-bold uppercase">H</td>
                 <td className="p-2 border-r border-gray-300">
                   <div className="flex items-center gap-2">
-                    <span>HONORARIOS</span>
+                    <span className="font-medium uppercase">HONORARIOS $</span>
+                    <Input 
+                      type="number" 
+                      value={formData.honorarios_costo_hora || ""} 
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        const cost = parseFloat(e.target.value) || 0;
+                        setFormData(p => ({
+                          ...p, 
+                          honorarios_costo_hora: cost, 
+                          honorarios_total: (p.honorarios_horas || 0) * cost
+                        }))
+                      }}
+                      className="h-6 w-24 border-gray-300 p-1 font-bold" 
+                    />
+                    <span className="font-medium uppercase">, POR HORAS</span>
                     <Input 
                       type="number" 
                       value={formData.honorarios_horas || ""} 
-                      onChange={(e) => {
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                         const h = parseFloat(e.target.value) || 0;
-                        setFormData(p => ({...p, honorarios_horas: h, honorarios_total: h * (p.honorarios_costo_hora ?? 0)}))
+                        setFormData(p => ({
+                          ...p, 
+                          honorarios_horas: h, 
+                          honorarios_total: h * (p.honorarios_costo_hora ?? 0)
+                        }))
                       }}
-                      className="h-6 w-12 border-gray-300 p-1" 
+                      className="h-6 w-12 border-gray-300 p-1 text-center" 
                     />
-                    <span>HORAS POR</span>
-                    <span className="font-bold ml-2">${formData.honorarios_costo_hora}</span>
-                    <span className="font-bold ml-auto">TOTAL ${formData.honorarios_total}</span>
                   </div>
                 </td>
-                <td className="p-2"></td>
+                <td className="p-2 text-center font-bold">
+                  ${((formData.cant_honorarios || 0) * (formData.honorarios_total || 0)).toFixed(2)}
+                </td>
+                <td className="p-2 border-l border-gray-300"></td>
               </tr>
               {/* Item 4: Informe Final */}
               <tr className="border-b border-gray-300">
                 <td className="p-2 text-center border-r border-gray-300 font-bold">4</td>
                 <td className="p-2 text-center border-r border-gray-300">
-                  <Input type="number" className="h-6 w-10 mx-auto text-center border-gray-300 p-1" defaultValue={1} />
+                  <Input 
+                    type="number" 
+                    className="h-6 w-12 mx-auto text-center border-gray-300 p-1" 
+                    value={formData.cant_informe_final}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, cant_informe_final: parseInt(e.target.value) || 0}))}
+                  />
                 </td>
                 <td className="p-2 text-center border-r border-gray-300 font-bold uppercase whitespace-nowrap">IF</td>
                 <td className="p-2 border-r border-gray-300">
                   <div className="flex items-center gap-2">
-                    <span className="uppercase">INFORME FINAL</span>
-                    <div className="ml-auto flex items-center gap-2">
-                      <span>$</span>
-                      <Input 
-                        type="number" 
-                        value={formData.informe_final_total || ""} 
-                        onChange={(e) => setFormData(p => ({...p, informe_final_total: parseFloat(e.target.value) || 0}))}
-                        className="h-6 w-20 border-gray-300 p-1" 
-                        placeholder="0.00"
-                      />
-                      <span>TOTAL $</span>
-                      <span className="font-bold w-12 text-right">{formData.informe_final_total}</span>
-                    </div>
+                    <span className="uppercase font-medium">INFORME FINAL $</span>
+                    <Input 
+                      type="number" 
+                      value={formData.informe_final_total || ""} 
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(p => ({...p, informe_final_total: parseFloat(e.target.value) || 0}))}
+                      className="h-6 w-24 border-gray-300 p-1 font-bold" 
+                      placeholder="0.00"
+                    />
                   </div>
                 </td>
-                <td className="p-2"></td>
+                <td className="p-2 text-center font-bold">
+                  ${((formData.cant_informe_final || 0) * (formData.informe_final_total || 0)).toFixed(2)}
+                </td>
+                <td className="p-2 border-l border-gray-300"></td>
+              </tr>
+
+              {/* Additional Items */}
+              {formData.additional_items.map((item, index) => (
+                <tr key={item.id} className="border-b border-gray-300 bg-blue-50/30">
+                  <td className="p-2 text-center border-r border-gray-300 font-bold">{index + 5}</td>
+                  <td className="p-2 text-center border-r border-gray-300">
+                    <Input 
+                      type="number" 
+                      className="h-6 w-12 mx-auto text-center border-gray-300 p-1" 
+                      value={item.cant}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAdditionalItem(item.id, { cant: parseInt(e.target.value) || 0 })}
+                    />
+                  </td>
+                  <td className="p-2 border-r border-gray-300">
+                    <Input 
+                      className="h-6 w-full text-center border-gray-300 p-1 uppercase font-bold" 
+                      value={item.unidad}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAdditionalItem(item.id, { unidad: e.target.value })}
+                      placeholder="UND"
+                    />
+                  </td>
+                  <td className="p-2 border-r border-gray-300">
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        className="h-6 flex-1 border-gray-300 p-1 uppercase" 
+                        value={item.descripcion}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAdditionalItem(item.id, { descripcion: e.target.value })}
+                        placeholder="Descripción del item..."
+                      />
+                      <div className="flex items-center gap-1">
+                        <span>$</span>
+                        <Input 
+                          type="number"
+                          className="h-6 w-20 border-gray-300 p-1" 
+                          value={item.costo_unitario}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAdditionalItem(item.id, { costo_unitario: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-2 text-center font-bold">
+                    ${item.total.toFixed(2)}
+                  </td>
+                  <td className="p-2 border-l border-gray-300 text-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => removeAdditionalItem(item.id)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+
+              {/* Total Row */}
+              <tr className="bg-gray-100 border-b border-gray-300">
+                <td colSpan={4} className="p-2 text-right font-bold uppercase text-sm">Total General:</td>
+                <td className="p-2 text-center font-bold text-sm bg-yellow-50">
+                  ${(
+                    (formData.cant_traslado || 0) * (formData.dias_traslado || 0) * (formData.costo_traslado || 0) +
+                    (formData.cant_impresion || 0) * (formData.impresion_total || 0) +
+                    (formData.cant_honorarios || 0) * (formData.honorarios_total || 0) +
+                    (formData.cant_informe_final || 0) * (formData.informe_final_total || 0) +
+                    formData.additional_items.reduce((sum, item) => sum + item.total, 0)
+                  ).toFixed(2)}
+                </td>
+                <td className="p-2 border-l border-gray-300"></td>
               </tr>
             </tbody>
           </table>
+
+          {/* Add Item Button */}
+          <div className="p-2 border-b border-gray-300 flex justify-center bg-gray-50/50">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs flex gap-2 border-dashed border-gray-400"
+              onClick={addAdditionalItem}
+            >
+              <Plus size={14} />
+              Añadir Item Personalizado
+            </Button>
+          </div>
 
           {/* Observations and Facilitator section */}
           <div className="bg-gray-200 py-0.5 font-bold px-2 text-sm border-b border-gray-300 uppercase">
@@ -419,7 +685,7 @@ export default function ControlServiciosForm() {
           <div className="p-2 border-b border-gray-300">
             <Textarea 
               value={formData.observaciones}
-              onChange={(e) => setFormData(p => ({...p, observaciones: e.target.value}))}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData(p => ({...p, observaciones: e.target.value}))}
               className="min-h-[60px] text-xs border-gray-300 uppercase"
               placeholder="Escriba aquí cualquier observación adicional..."
             />

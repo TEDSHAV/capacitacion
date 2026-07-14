@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import {
   ControlServiciosEjecutados,
@@ -50,6 +51,13 @@ export async function createControlServiciosRecord(
   const supabase = await createClient();
   const userResponse = await supabase.auth.getUser();
 
+  // Format additional items for observations
+  const formattedAdditionalItems = formData.additional_items && formData.additional_items.length > 0
+    ? "\n[ITEMS ADICIONALES]\n" + formData.additional_items.map(item => 
+        `- ${item.cant} ${item.unidad || 'UND'} - ${item.descripcion} (Unit: $${item.costo_unitario}) Total: $${item.total.toFixed(2)}`
+      ).join("\n")
+    : "";
+
   // Combine extra fields into observations if not in DB
   const combinedObservations = `
 [REQUISICION DATA]
@@ -60,70 +68,107 @@ Nro Correlativo: ${formData.nro_correlativo}
 Tipo Servicio: ${formData.tipo_servicio}
 Gerencia: ${formData.gerencia_solicitante}
 Prioridad: ${formData.prioridad}
+
+[CANTIDADES ITEMS FIJOS]
+Traslado: ${formData.cant_traslado}
+Impresión: ${formData.cant_impresion}
+Honorarios: ${formData.cant_honorarios}
+Informe Final: ${formData.cant_informe_final}
+
+[TOTALES]
 Honorarios Total: ${formData.honorarios_total}
 Informe Final: ${formData.informe_final_total}
 Banco: ${formData.banco}
 Nro Cuenta: ${formData.nro_cuenta}
+${formattedAdditionalItems}
 -------------------
 ${formData.observaciones}
 `.trim();
 
   const record = {
     id_osi: formData.selectedOSI?.id_osi || null,
-    responsable: formData.solicitante,
+    solicitante: formData.solicitante,
+    gerencia_solicitante: formData.gerencia_solicitante,
+    fecha_solicitud: formData.fecha_solicitud,
+    tipo_solicitud: formData.tipo_solicitud || null,
+    nro_correlativo: formData.nro_correlativo,
+    tipo_servicio: formData.tipo_servicio || null,
+    prioridad: formData.prioridad || null,
+    corresponde_a: formData.corresponde_a,
 
-    // OSI Data
-    numero_osi: formData.selectedOSI?.nro_osi,
-    nombre_curso: formData.selectedOSI?.servicio,
-    fecha_osi: formData.selectedOSI?.fecha_inicio_real,
-    monto_x_traslado_mt: formData.costo_traslado,
-    horas_honorarios_h: formData.honorarios_horas,
-    costo_por_hora: formData.honorarios_costo_hora,
-    gasto_impresion_i: formData.impresion_total,
+    // Values
+    costo_traslado: formData.costo_traslado,
+    impresion_total: formData.impresion_total,
+    honorarios_total: formData.honorarios_total,
+    informe_final_total: formData.informe_final_total,
+    dias_traslado: formData.dias_traslado,
 
-    // Details table data
-    dias_traslado_t: formData.dias_traslado,
+    // Quantities
+    cant_traslado: formData.cant_traslado,
+    cant_impresion: formData.cant_impresion,
+    cant_honorarios: formData.cant_honorarios,
+    cant_informe_final: formData.cant_informe_final,
 
     // Facilitator
-    cod_facilitador: formData.cod_facilitador
-      ? parseInt(formData.cod_facilitador)
-      : null,
+    cod_facilitador: formData.cod_facilitador ? parseInt(formData.cod_facilitador) : null,
     facilitador: formData.facilitador,
+    banco: formData.banco,
+    nro_cuenta: formData.nro_cuenta,
 
-    observaciones: combinedObservations,
-    created_by: userResponse.data.user?.id,
+    // Dynamic Items
+    additional_items: formData.additional_items,
+
+    observaciones_compras: formData.observaciones,
+    created_by: userResponse.data.user?.id || null,
   };
 
   const { data, error } = await supabase
-    .from("control_servicios_ejecutados")
+    .from("requisiciones")
     .insert(record)
     .select()
     .single();
 
   if (error) throw error;
+  revalidatePath("/dashboard/capacitacion/planificacion-servicios/lista");
   return data;
 }
 
 // Get all control records (list view)
 export async function getAllControlServiciosRecords() {
   const supabase = await createClient();
+  
+  // Try to fetch with relationships
   const { data, error } = await supabase
-    .from("control_servicios_ejecutados")
-    .select(
-      `
+    .from("requisiciones")
+    .select(`
       *,
-      ejecucion_osi (
+      ejecucion_osi!left (
+        id,
         nro_osi_secuencial
       ),
-      facilitadores (
+      facilitadores!left (
         nombre_apellido,
         cedula
       )
-    `,
-    )
-    .order("created_at", { ascending: false });
+    `)
+    .order("id", { ascending: false }); // Sort by ID which we know exists
 
-  if (error) throw error;
+  if (error) {
+    console.error("Error fetching requisiciones (with joins):", JSON.stringify(error, null, 2));
+    
+    // Fallback: Try to fetch just the main table data if joins fail
+    const { data: simpleData, error: simpleError } = await supabase
+      .from("requisiciones")
+      .select("*")
+      .order("id", { ascending: false });
+      
+    if (simpleError) {
+      console.error("Error fetching requisiciones (simple):", JSON.stringify(simpleError, null, 2));
+      return [];
+    }
+    return simpleData;
+  }
+  
   return data;
 }
 
@@ -131,7 +176,7 @@ export async function getAllControlServiciosRecords() {
 export async function getControlServiciosRecord(id: number) {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("control_servicios_ejecutados")
+    .from("requisiciones")
     .select("*")
     .eq("id", id)
     .single();
@@ -148,6 +193,13 @@ export async function updateControlServiciosRecord(
   const supabase = await createClient();
   const userResponse = await supabase.auth.getUser();
 
+    // Format additional items for observations
+    const formattedAdditionalItems = formData.additional_items && formData.additional_items.length > 0
+      ? "\n[ITEMS ADICIONALES]\n" + formData.additional_items.map(item => 
+          `- ${item.cant} ${item.unidad || 'UND'} - ${item.descripcion} (Unit: $${item.costo_unitario}) Total: $${item.total.toFixed(2)}`
+        ).join("\n")
+      : "";
+
     // Combine extra fields into observations if not in DB
     const combinedObservations = `
 [REQUISICION DATA]
@@ -158,43 +210,65 @@ Nro Correlativo: ${formData.nro_correlativo}
 Tipo Servicio: ${formData.tipo_servicio}
 Gerencia: ${formData.gerencia_solicitante}
 Prioridad: ${formData.prioridad}
+
+[CANTIDADES ITEMS FIJOS]
+Traslado: ${formData.cant_traslado}
+Impresión: ${formData.cant_impresion}
+Honorarios: ${formData.cant_honorarios}
+Informe Final: ${formData.cant_informe_final}
+
+[TOTALES]
 Honorarios Total: ${formData.honorarios_total}
 Informe Final: ${formData.informe_final_total}
 Banco: ${formData.banco}
 Nro Cuenta: ${formData.nro_cuenta}
+${formattedAdditionalItems}
 -------------------
 ${formData.observaciones}
 `.trim();
 
     const record = {
-      responsable: formData.solicitante,
+      solicitante: formData.solicitante,
+      gerencia_solicitante: formData.gerencia_solicitante,
+      fecha_solicitud: formData.fecha_solicitud,
+      tipo_solicitud: formData.tipo_solicitud || null,
+      nro_correlativo: formData.nro_correlativo,
+      tipo_servicio: formData.tipo_servicio || null,
+      prioridad: formData.prioridad || null,
+      corresponde_a: formData.corresponde_a,
 
-      // Details table data
-      dias_traslado_t: formData.dias_traslado,
-      monto_x_traslado_mt: formData.costo_traslado,
-      gasto_impresion_i: formData.impresion_total,
-      horas_honorarios_h: formData.honorarios_horas,
-      costo_por_hora: formData.honorarios_costo_hora,
+      // Values and Quantities
+      dias_traslado: formData.dias_traslado,
+      costo_traslado: formData.costo_traslado,
+      impresion_total: formData.impresion_total,
+      honorarios_total: formData.honorarios_total,
+      informe_final_total: formData.informe_final_total,
+      cant_traslado: formData.cant_traslado,
+      cant_impresion: formData.cant_impresion,
+      cant_honorarios: formData.cant_honorarios,
+      cant_informe_final: formData.cant_informe_final,
 
       // Facilitator
-      cod_facilitador: formData.cod_facilitador
-        ? parseInt(formData.cod_facilitador)
-        : null,
+      cod_facilitador: formData.cod_facilitador ? parseInt(formData.cod_facilitador) : null,
       facilitador: formData.facilitador,
+      banco: formData.banco,
+      nro_cuenta: formData.nro_cuenta,
 
-      observaciones: combinedObservations,
-      updated_by: userResponse.data.user?.id,
+      additional_items: formData.additional_items,
+      observaciones_compras: formData.observaciones,
+      updated_by: userResponse.data.user?.id || null,
       updated_at: new Date().toISOString(),
     };
 
   const { data, error } = await supabase
-    .from("control_servicios_ejecutados")
+    .from("requisiciones")
     .update(record)
     .eq("id", id)
     .select()
     .single();
 
   if (error) throw error;
+  revalidatePath("/dashboard/capacitacion/planificacion-servicios/lista");
   return data;
 }
 
@@ -202,11 +276,12 @@ ${formData.observaciones}
 export async function deleteControlServiciosRecord(id: number) {
   const supabase = await createClient();
   const { error } = await supabase
-    .from("control_servicios_ejecutados")
+    .from("requisiciones")
     .delete()
     .eq("id", id);
 
   if (error) throw error;
+  revalidatePath("/dashboard/capacitacion/planificacion-servicios/lista");
 }
 
 // Get facilitators for dropdown with banking details

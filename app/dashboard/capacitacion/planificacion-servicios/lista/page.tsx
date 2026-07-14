@@ -29,16 +29,19 @@ export default async function ListaControlServiciosPage() {
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Correlativo
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 OSI
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Curso
+                Solicitante
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Facilitador
+                Gerencia
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ejecutada
+                Tipo
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Fecha
@@ -52,25 +55,30 @@ export default async function ListaControlServiciosPage() {
             {records && records.length > 0 ? (
               records.map((record: any) => (
                 <tr key={record.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-blue-700">
+                    {record.nro_correlativo || "-"}
+                  </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                     {record.numero_osi ||
                       record.ejecucion_osi?.nro_osi_secuencial ||
                       "-"}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {record.nombre_curso || "-"}
+                    {record.solicitante || "-"}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {record.gerencia_solicitante || "-"}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {record.facilitador ||
-                      record.facilitadores?.nombre_apellido ||
-                      "-"}
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                      record.tipo_solicitud === 'Interno' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                    }`}>
+                      {record.tipo_solicitud || "-"}
+                    </span>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {record.ejecutada_mes_curso || "-"}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {record.created_at
-                      ? new Date(record.created_at).toLocaleDateString()
+                    {record.fecha_solicitud
+                      ? new Date(record.fecha_solicitud).toLocaleDateString()
                       : "-"}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -98,10 +106,10 @@ export default async function ListaControlServiciosPage() {
             ) : (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-4 py-8 text-center text-sm text-gray-500"
                 >
-                  No hay registros de control de servicios
+                  No hay registros de requisiciones
                 </td>
               </tr>
             )}
