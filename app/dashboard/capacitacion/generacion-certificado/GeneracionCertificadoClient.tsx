@@ -1085,6 +1085,7 @@ export default function GeneracionCertificadoClient({
 
       try {
         const additionalDocsResult = await additionalDocsPromise;
+        console.log("Additional docs result:", additionalDocsResult);
 
         if (
           additionalDocsResult &&
@@ -1097,6 +1098,10 @@ export default function GeneracionCertificadoClient({
           documentsGenerated = Object.keys(
             additionalDocsResult.documents,
           ).length;
+          console.log(
+            "Documents generated:",
+            Object.keys(additionalDocsResult.documents),
+          );
         } else if (additionalDocsResult && "error" in additionalDocsResult) {
           console.error(
             "Document generation error:",

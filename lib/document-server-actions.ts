@@ -180,69 +180,58 @@ export async function generateDocumentsServer(
     const documents: { [key: string]: string } = {};
     const errors: string[] = [];
 
-    // Define generation tasks
-    const tasks = [];
+    // Generate documents sequentially to avoid browser resource exhaustion
+    // Puppeteer's singleton browser can struggle with too many concurrent pages
 
     if (options?.includeCertificacionCompetencias !== false) {
       log("Starting certificacion_competencias generation");
-      tasks.push(
-        (async () => {
-          try {
-            const html = buildCertificacionCompetenciasHtml(templateData);
-            const buffer = await generatePdfFromHtml(html);
-            documents.certificacion_competencias = buffer.toString("base64");
-            log("certificacion_competencias generated successfully");
-          } catch (error) {
-            const errorMsg = `Failed to generate certificacion de competencias: ${error instanceof Error ? error.message : "Unknown error"}`;
-            log("certificacion_competencias error", errorMsg);
-            errors.push(errorMsg);
-          }
-        })(),
-      );
+      try {
+        const html = buildCertificacionCompetenciasHtml(templateData);
+        const buffer = await generatePdfFromHtml(html);
+        documents.certificacion_competencias = buffer.toString("base64");
+        log("certificacion_competencias generated successfully");
+      } catch (error) {
+        const errorMsg = `Failed to generate certificacion de competencias: ${error instanceof Error ? error.message : "Unknown error"}`;
+        log("certificacion_competencias error", errorMsg);
+        errors.push(errorMsg);
+      }
     }
 
     if (options?.includeNotaEntrega !== false) {
       log("Starting nota_entrega generation");
-      tasks.push(
-        (async () => {
-          try {
-            const html = buildNotaEntregaHtml(templateData);
-            const buffer = await generatePdfFromHtml(html);
-            documents.nota_entrega = buffer.toString("base64");
-            log("nota_entrega generated successfully");
-          } catch (error) {
-            const errorMsg = `Failed to generate nota de entrega: ${error instanceof Error ? error.message : "Unknown error"}`;
-            log("nota_entrega error", errorMsg);
-            errors.push(errorMsg);
-          }
-        })(),
-      );
+      try {
+        const html = buildNotaEntregaHtml(templateData);
+        const buffer = await generatePdfFromHtml(html);
+        documents.nota_entrega = buffer.toString("base64");
+        log("nota_entrega generated successfully");
+      } catch (error) {
+        const errorMsg = `Failed to generate nota de entrega: ${error instanceof Error ? error.message : "Unknown error"}`;
+        log("nota_entrega error", errorMsg);
+        errors.push(errorMsg);
+      }
     }
 
     if (options?.includeValidacionDatos !== false) {
       log("Starting validacion_datos generation");
-      tasks.push(
-        (async () => {
-          try {
-            const html = buildValidacionDatosHtml(templateData);
-            const buffer = await generatePdfFromHtml(html);
-            documents.validacion_datos = buffer.toString("base64");
-            log("validacion_datos generated successfully");
-          } catch (error) {
-            const errorMsg = `Failed to generate validacion de datos: ${error instanceof Error ? error.message : "Unknown error"}`;
-            log("validacion_datos error", errorMsg);
-            errors.push(errorMsg);
-          }
-        })(),
-      );
+      try {
+        const html = buildValidacionDatosHtml(templateData);
+        const buffer = await generatePdfFromHtml(html);
+        documents.validacion_datos = buffer.toString("base64");
+        log("validacion_datos generated successfully");
+      } catch (error) {
+        const errorMsg = `Failed to generate validacion de datos: ${error instanceof Error ? error.message : "Unknown error"}`;
+        log("validacion_datos error", errorMsg);
+        errors.push(errorMsg);
+      }
     }
 
-    // Run all generation tasks in parallel
-    await Promise.all(tasks);
+    log("Document generation complete (sequential)", { taskCount: 3 });
 
     log("Document generation complete", {
       documentsGenerated: Object.keys(documents).length,
+      documentKeys: Object.keys(documents),
       errors,
+      totalErrors: errors.length,
     });
 
     // Return success if at least one document was generated, otherwise return error
