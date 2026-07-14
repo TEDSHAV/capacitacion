@@ -24,7 +24,6 @@ export default function FacilitadorStateStats({ selectedState }: FacilitadorStat
       if (result.error) {
         setError(result.error);
       } else if (result.data && result.data.estadoStats) {
-        console.log('Facilitadores data:', result.data.facilitadores);
         setStateStats(result.data.estadoStats);
         setFacilitadores(result.data.facilitadores as any[]);
       }
