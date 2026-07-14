@@ -255,6 +255,47 @@ export default function GeneracionCertificadoClient({
       const templateImageUrl = '/templates/certificado.png';
       const sealImageUrl = '/templates/sello.png';
       
+      // Prepare data for additional documents (available before generation starts)
+      const certificateRecords = certificateData.participants.map((participant, index) => ({
+        participant_name: participant.name,
+        participant_id_number: participant.id_number,
+        participant_id_type: participant.id_type,
+        participant_nationality: participant.nationality,
+        course_title: certificateData.certificate_title,
+        company_name: selectedOSI?.cliente_nombre_empresa || '',
+        osi_number: selectedOSI?.nro_osi || '',
+        city: certificateData.location || 'Puerto La Cruz',
+        location: certificateData.location || '',
+        execution_address: selectedOSI?.direccion_ejecucion || '',
+        execution_date: selectedOSI?.fecha_ejecucion1 || certificateData.date,
+        score: participant.score || 14,
+        control_number: dbResult.certificateNumbers![index]?.nro_control?.toString() || '',
+      }));
+
+      // Start additional document generation in parallel
+      const additionalDocsPromise = certificateData.generate_documents
+        ? (async () => {
+            try {
+              const result = await generateDocumentsServer({
+                certificates: certificateRecords,
+                osiData: selectedOSI || {},
+                firmanteData: {
+                  nombre: 'DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.',
+                  cargo: 'Jefe de Capacitación'
+                },
+                options: {
+                  includeCertificacionCompetencias: true,
+                  includeNotaEntrega: true,
+                  includeValidacionDatos: true,
+                }
+              });
+              return result;
+            } catch (error) {
+              return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
+            }
+          })()
+        : Promise.resolve(null);
+
       // Generate certificates sequentially to prevent race conditions
       const certificates = [];
       for (let i = 0; i < certificateData.participants.length; i++) {
@@ -386,84 +427,49 @@ export default function GeneracionCertificadoClient({
         }
       }
 
-      // Generate and download additional documents
+      // Generate and download additional documents (already running in parallel)
       let documentsGenerated = 0;
-      if (certificateData.generate_documents) {
-        try {
-          
-          // Prepare certificate data for document generation
-          const certificateRecords = certificates.map(({ participant }, index) => ({
-            participant_name: participant.name,
-            participant_id_number: participant.id_number,
-            participant_id_type: participant.id_type, // V- or E- prefix info
-            participant_nationality: participant.nationality, // venezolano or extranjero
-            course_title: certificateData.certificate_title,
-            company_name: selectedOSI?.cliente_nombre_empresa || '',
-            osi_number: selectedOSI?.nro_osi || '',
-            city: certificateData.location || 'Puerto La Cruz',
-            location: certificateData.location || '',
-            execution_address: selectedOSI?.direccion_ejecucion || '',
-            execution_date: selectedOSI?.fecha_ejecucion1 || certificateData.date,
-            score: participant.score || 14,
-            control_number: dbResult.certificateNumbers![index]?.nro_control?.toString() || '', // Use actual control numbers from database
-          }));
-
-          // Call server action for document generation
-          const result = await generateDocumentsServer({
-            certificates: certificateRecords,
-            osiData: selectedOSI || {},
-            firmanteData: {
-              nombre: 'DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.',
-              cargo: 'Jefe de Capacitación'
-            },
-            options: {
-              includeCertificacionCompetencias: true,
-              includeNotaEntrega: true,
-              includeValidacionDatos: true,
+      try {
+        const additionalDocsResult = await additionalDocsPromise;
+        
+        if (additionalDocsResult && 'success' in additionalDocsResult && additionalDocsResult.success && 'documents' in additionalDocsResult && additionalDocsResult.documents) {
+          // Download all generated documents with staggered delay
+          const documentEntries = Object.entries(additionalDocsResult.documents);
+          for (let i = 0; i < documentEntries.length; i++) {
+            const [docType, base64String] = documentEntries[i];
+            const filename = getDocumentFileName(docType, selectedOSI?.nro_osi);
+            
+            // Convert Base64 string back to Buffer
+            const binaryString = atob(base64String as string);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let j = 0; j < binaryString.length; j++) {
+              bytes[j] = binaryString.charCodeAt(j);
             }
-          });
-
-          if (result.success && result.documents) {
-            // Download all generated documents with staggered delay
-            const documentEntries = Object.entries(result.documents);
-            for (let i = 0; i < documentEntries.length; i++) {
-              const [docType, base64String] = documentEntries[i];
-              const filename = getDocumentFileName(docType, selectedOSI?.nro_osi);
-              
-              // Convert Base64 string back to Buffer
-              const binaryString = atob(base64String);
-              const bytes = new Uint8Array(binaryString.length);
-              for (let j = 0; j < binaryString.length; j++) {
-                bytes[j] = binaryString.charCodeAt(j);
-              }
-              const buffer = Buffer.from(bytes);
-              
-              const blob = new Blob([buffer], { 
-                type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-              });
-              
-              const url = window.URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = filename;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              window.URL.revokeObjectURL(url);
-              
-              // Reduced delay to 50ms for faster feel
-              if (i < documentEntries.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 50));
-              }
+            const buffer = Buffer.from(bytes);
+            
+            const blob = new Blob([buffer], { 
+              type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            });
+            
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            // Reduced delay to 50ms for faster feel
+            if (i < documentEntries.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 50));
             }
-
-            documentsGenerated = Object.keys(result.documents).length;
-          } else {
           }
-          
-        } catch (error) {
-          // Don't show alert for document errors since certificates/carnets were generated successfully
+
+          documentsGenerated = Object.keys(additionalDocsResult.documents).length;
         }
+      } catch (error) {
+        // Don't show alert for document errors since certificates/carnets were generated successfully
       }
 
       const documentText = documentsGenerated > 0 ? ` y ${documentsGenerated} documentos adicionales` : '';
