@@ -9,6 +9,7 @@ import { Edit, Trash2, Check, Star, StarHalf, Key } from "lucide-react";
 import { toTitleCase } from "@/utils/string-utils";
 import { createClient } from "@/utils/supabase/client";
 import { getFacilitatorRatings } from "@/app/actions/facilitators";
+import { getFacilitatorByIdAction } from "@/app/actions/facilitators-crud";
 import { PortalCredentialsModal } from "./portal-credentials-modal";
 
 interface FacilitadorCrudProps {
@@ -153,9 +154,17 @@ export const FacilitadorCrud = ({
   };
 
   // Show facilitador details
-  const handleShowDetails = (facilitador: Facilitador) => {
+  const handleShowDetails = async (facilitador: Facilitador) => {
     setSelectedFacilitador(facilitador);
     setShowDetailsModal(true);
+    try {
+      const result = await getFacilitatorByIdAction(facilitador.id.toString());
+      if (result.data) {
+        setSelectedFacilitador(result.data as Facilitador);
+      }
+    } catch (error) {
+      console.error("Error loading facilitator details:", error);
+    }
   };
 
   // Show facilitador portal modal
@@ -299,7 +308,7 @@ export const FacilitadorCrud = ({
       </div>
 
       {/* Facilitadores Table */}
-      <div className="bg-white shadow overflow-hidden rounded-lg">
+      <div className="bg-white shadow overflow-x-auto rounded-lg">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -381,27 +390,25 @@ export const FacilitadorCrud = ({
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {getStateName(facilitador.id_estado_geografico)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <td className="px-6 py-4 text-sm font-medium">
                   <div
-                    className="flex space-x-2"
+                    className="flex items-center gap-1.5"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <button
                       onClick={() => handleEdit(facilitador)}
-                      className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2 text-sm"
+                      className="text-white p-2 rounded-md hover:opacity-90 transition-colors shadow-sm"
                       style={{ backgroundColor: "var(--primary-blue)" }}
                       title="Editar"
                     >
                       <Edit className="w-4 h-4" />
-                      Editar
                     </button>
                     <button
                       onClick={() => handleShowPortal(facilitador)}
-                      className="bg-purple-600 text-white px-3 py-2 rounded-md hover:bg-purple-700 transition-colors shadow-md flex items-center gap-2 text-sm"
+                      className="bg-purple-600 text-white p-2 rounded-md hover:bg-purple-700 transition-colors shadow-sm"
                       title="Credenciales Portal"
                     >
                       <Key className="w-4 h-4" />
-                      Portal
                     </button>
                     <button
                       onClick={() =>
@@ -410,9 +417,7 @@ export const FacilitadorCrud = ({
                           facilitador.is_active,
                         )
                       }
-                      className={`${
-                        facilitador.is_active ? "bg-red-600" : "bg-blue-600"
-                      } text-white px-3 py-2 rounded-md hover:opacity-90 transition-colors shadow-md flex items-center gap-2 text-sm`}
+                      className={`text-white p-2 rounded-md hover:opacity-90 transition-colors shadow-sm`}
                       style={{
                         backgroundColor: facilitador.is_active
                           ? "var(--primary-red)"
@@ -423,15 +428,9 @@ export const FacilitadorCrud = ({
                       }
                     >
                       {facilitador.is_active ? (
-                        <>
-                          <Trash2 className="w-4 h-4" />
-                          Inhabilitar
-                        </>
+                        <Trash2 className="w-4 h-4" />
                       ) : (
-                        <>
-                          <Check className="w-4 h-4" />
-                          Habilitar
-                        </>
+                        <Check className="w-4 h-4" />
                       )}
                     </button>
                   </div>
@@ -462,9 +461,9 @@ export const FacilitadorCrud = ({
       {/* Facilitador Details Modal */}
       {showDetailsModal && selectedFacilitador && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-xl font-semibold text-gray-900">
                 Detalles del Facilitador
               </h3>
               <Button
@@ -478,8 +477,8 @@ export const FacilitadorCrud = ({
               </Button>
             </div>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Nombre y Apellido
@@ -618,11 +617,11 @@ export const FacilitadorCrud = ({
               </div>
 
               {/* Banking Details */}
-              <div className="pt-4 border-t border-gray-100">
-                <h4 className="text-md font-medium text-gray-900 mb-3">
+              <div className="pt-3 border-t border-gray-100">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">
                   Datos Bancarios
                 </h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Banco

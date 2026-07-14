@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Key, Save, Loader2, X, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Key, Save, Loader2, X, AlertCircle, CheckCircle2, Copy, Check } from "lucide-react";
 import { 
   getFacilitatorCredentials, 
   createFacilitatorCredentials 
@@ -27,6 +27,8 @@ export const PortalCredentialsModal = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [savedPassword, setSavedPassword] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -60,8 +62,10 @@ export const PortalCredentialsModal = ({
     if (result.error) {
       setError(result.error);
     } else {
+      setSavedPassword(password);
       setSuccess("Credenciales guardadas exitosamente");
       setPassword(""); // Clear password field for security
+      setCopied(false);
     }
     setSaving(false);
   };
@@ -77,7 +81,11 @@ export const PortalCredentialsModal = ({
             </h3>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => {
+              setSavedPassword("");
+              setCopied(false);
+              onClose();
+            }}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -129,14 +137,44 @@ export const PortalCredentialsModal = ({
             )}
 
             {success && (
-              <div className="p-3 bg-green-50 border border-green-100 rounded-md flex items-start gap-2 text-green-700 text-sm">
-                <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-                <span>{success}</span>
+              <div className="space-y-3">
+                <div className="p-3 bg-green-50 border border-green-100 rounded-md flex items-start gap-2 text-green-700 text-sm">
+                  <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>{success}</span>
+                </div>
+                {savedPassword && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const text = `Usuario: ${username}\nContraseña: ${savedPassword}\nURL: https://capacitacion.shadevenezuela.com.ve/portal/facilitador/login`;
+                      await navigator.clipboard.writeText(text);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        ¡Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        Copiar credenciales
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             )}
 
             <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={() => {
+                setSavedPassword("");
+                setCopied(false);
+                onClose();
+              }}>
                 Cerrar
               </Button>
               <Button type="submit" disabled={saving}>
