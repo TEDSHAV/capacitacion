@@ -741,6 +741,457 @@ export default function OSIDetailPage() {
               </div>
             </div>
           </div>
+        <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo Servicio</label>
+                  <select
+                    value={formData.tipo_servicio || ''}
+                    onChange={(e) => updateFormData('tipo_servicio', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Seleccione un servicio</option>
+                    {servicios.map((servicio) => (
+                      <option key={servicio.id} value={servicio.nombre}>
+                        {servicio.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tema</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={temaSearchTerm || formData.tema || ''}
+                      onChange={(e) => {
+                        setTemaSearchTerm(e.target.value)
+                        if (!e.target.value) {
+                          updateFormData('tema', '')
+                        }
+                      }}
+                      onFocus={() => setTemaSearchTerm(formData.tema || '')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setTemaSearchTerm('')
+                          ;(e.target as HTMLInputElement).blur()
+                        } else if (e.key === 'ArrowDown') {
+                          e.preventDefault()
+                          // Focus first option if available
+                          const firstOption = document.querySelector('[data-tema-option="0"]') as HTMLElement
+                          if (firstOption) firstOption.focus()
+                        }
+                      }}
+                      disabled={!isEditing && !isNew || !formData.tipo_servicio}
+                      tabIndex={!isEditing && !isNew || !formData.tipo_servicio ? -1 : 0}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      placeholder={
+                        !formData.tipo_servicio 
+                          ? 'Seleccione primero un tipo de servicio' 
+                          : 'Escriba para buscar tema...'
+                      }
+                    />
+                    {temaSearchTerm && filteredCatalogoServicios.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {filteredCatalogoServicios.map((servicio, index) => (
+                          <div
+                            key={servicio.id}
+                            data-tema-option={index}
+                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                            onClick={() => {
+                              updateFormData('tema', servicio.nombre)
+                              setTemaSearchTerm('')
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                updateFormData('tema', servicio.nombre)
+                                setTemaSearchTerm('')
+                              } else if (e.key === 'ArrowDown') {
+                                e.preventDefault()
+                                const nextOption = document.querySelector(`[data-tema-option="${index + 1}"]`) as HTMLElement
+                                if (nextOption) {
+                                  nextOption.focus()
+                                } else {
+                                  // Wrap to first option
+                                  const firstOption = document.querySelector('[data-tema-option="0"]') as HTMLElement
+                                  if (firstOption) firstOption.focus()
+                                }
+                              } else if (e.key === 'ArrowUp') {
+                                e.preventDefault()
+                                const prevOption = document.querySelector(`[data-tema-option="${index - 1}"]`) as HTMLElement
+                                if (prevOption) {
+                                  prevOption.focus()
+                                } else {
+                                  // Wrap to last option
+                                  const lastOption = document.querySelector(`[data-tema-option="${filteredCatalogoServicios.length - 1}"]`) as HTMLElement
+                                  if (lastOption) lastOption.focus()
+                                }
+                              }
+                            }}
+                            tabIndex={0}
+                          >
+                            <div className="font-medium">{servicio.nombre}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ejecutivo Negocios</label>
+                  <select
+                    value={formData.ejecutivo_negocios || ''}
+                    onChange={(e) => updateFormData('ejecutivo_negocios', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Seleccione un ejecutivo</option>
+                    {usuarios.map((usuario) => (
+                      <option key={usuario.id} value={usuario.id}>
+                        {usuario.nombre_apellido}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nro Presupuesto</label>
+                  <input
+                    type="text"
+                    value={formData.nro_presupuesto || ''}
+                    onChange={(e) => updateFormData('nro_presupuesto', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="Número de presupuesto"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nro Orden Compra</label>
+                  <input
+                    type="text"
+                    value={formData.nro_orden_compra || ''}
+                    onChange={(e) => updateFormData('nro_orden_compra', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="Número de orden de compra"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Service Details Section */}
+          <div className="space-y-3">
+                  <input
+                    type="date"
+                    value={formData.fecha_emision ? 
+                      (formData.fecha_emision instanceof Date ? formData.fecha_emision : new Date(formData.fecha_emision)).toISOString().split('T')[0] : ''}
+                    onChange={(e) => updateFormData('fecha_emision', e.target.value ? new Date(e.target.value) : null)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Servicio</label>
+                  <input
+                    type="date"
+                    value={formData.fecha_servicio ? 
+                      (formData.fecha_servicio instanceof Date ? formData.fecha_servicio : new Date(formData.fecha_servicio)).toISOString().split('T')[0] : ''}
+                    onChange={(e) => updateFormData('fecha_servicio', e.target.value ? new Date(e.target.value) : null)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Número de Sesiones</label>
+                  <input
+                    type="number"
+                    value={formData.nro_sesiones || 1}
+                    onChange={(e) => updateFormData('nro_sesiones', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    min="1"
+                    max="5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Participantes Máximos</label>
+                  <input
+                    type="number"
+                    value={formData.participantes_max || 0}
+                    onChange={(e) => updateFormData('participantes_max', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Detalle Sesión</label>
+                  <textarea
+                    value={formData.detalle_sesion || ''}
+                    onChange={(e) => updateFormData('detalle_sesion', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    rows={3}
+                    placeholder="Detalle de la sesión"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Detalle Capacitación</label>
+                  <textarea
+                    value={formData.detalle_capacitacion || ''}
+                    onChange={(e) => updateFormData('detalle_capacitacion', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    rows={3}
+                    placeholder="Detalle de la capacitación"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Execution Dates Section */}
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Fechas de Ejecución</h2>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Ejecución 1</label>
+                  <input
+                    type="date"
+                    value={formData.fecha_ejecucion1 || ''}
+                    onChange={(e) => updateFormData('fecha_ejecucion1', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Ejecución 2</label>
+                  <input
+                    type="date"
+                    value={formData.fecha_ejecucion2 || ''}
+                    onChange={(e) => updateFormData('fecha_ejecucion2', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Ejecución 3</label>
+                  <input
+                    type="date"
+                    value={formData.fecha_ejecucion3 || ''}
+                    onChange={(e) => updateFormData('fecha_ejecucion3', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Ejecución 4</label>
+                  <input
+                    type="date"
+                    value={formData.fecha_ejecucion4 || ''}
+                    onChange={(e) => updateFormData('fecha_ejecucion4', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Ejecución 5</label>
+                  <input
+                    type="date"
+                    value={formData.fecha_ejecucion5 || ''}
+                    onChange={(e) => updateFormData('fecha_ejecucion5', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Cost Section */}
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Costos</h2>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Costo Honorarios (por hora)</label>
+                  <input
+                    type="number"
+                    value={formData.costo_honorarios || 0}
+                    onChange={(e) => updateFormData('costo_honorarios', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Número de Horas</label>
+                  <input
+                    type="number"
+                    value={formData.nro_horas || 0}
+                    onChange={(e) => updateFormData('nro_horas', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    min="0"
+                    step="0.5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Costo Total</label>
+                  <input
+                    type="number"
+                    value={(
+                      ((formData.nro_horas || 0) * (formData.costo_honorarios || 0)) +
+                      (formData.costo_impresion_material || 0) +
+                      (formData.costo_traslado || 0) +
+                      (formData.costo_logistica_comida || 0) +
+                      (formData.costo_otros || 0)
+                    ).toFixed(2)}
+                    disabled
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 font-semibold"
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Costo Impresión Material</label>
+                  <input
+                    type="number"
+                    value={formData.costo_impresion_material || 0}
+                    onChange={(e) => updateFormData('costo_impresion_material', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Costo Traslado</label>
+                  <input
+                    type="number"
+                    value={formData.costo_traslado || 0}
+                    onChange={(e) => updateFormData('costo_traslado', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Costo Logística Comida</label>
+                  <input
+                    type="number"
+                    value={formData.costo_logistica_comida || 0}
+                    onChange={(e) => updateFormData('costo_logistica_comida', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Costo Otros</label>
+                  <input
+                    type="number"
+                    value={formData.costo_otros || 0}
+                    onChange={(e) => updateFormData('costo_otros', e.target.value)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Information Section */}
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Información Adicional</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Observaciones Adicionales</label>
+                <textarea
+                  value={formData.observaciones_adicionales || ''}
+                  onChange={(e) => updateFormData('observaciones_adicionales', e.target.value)}
+                  disabled={!isEditing && !isNew}
+                  tabIndex={!isEditing && !isNew ? -1 : 0}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  rows={4}
+                  placeholder="Observaciones adicionales"
+                />
+              </div>
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.certificado_impreso || false}
+                    onChange={(e) => updateFormData('certificado_impreso', e.target.checked)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="mr-2"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Certificado Impreso</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.carnet_impreso || false}
+                    onChange={(e) => updateFormData('carnet_impreso', e.target.checked)}
+                    disabled={!isEditing && !isNew}
+                    tabIndex={!isEditing && !isNew ? -1 : 0}
+                    className="mr-2"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Carnet Impreso</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Status Section */}
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Estado</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                <select
+                  value={formData.estado || 'pendiente'}
+                  onChange={(e) => updateFormData('estado', e.target.value)}
+                  disabled={!isEditing && !isNew}
+                  tabIndex={!isEditing && !isNew ? -1 : 0}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  <option value="pendiente">Pendiente</option>
+                  <option value="active">Activa</option>
+                  <option value="inactive">Cerrada</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
