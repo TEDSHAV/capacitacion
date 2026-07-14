@@ -208,6 +208,7 @@ export interface OSIFormProps {
   empresas?: Empresa[]
   usuarios?: Usuario[]
   contactos?: Contacto[]
+  servicios?: Servicio[]
   filteredEmpresas?: Empresa[]
   cursos?: any[]
   filteredCursos?: any[]

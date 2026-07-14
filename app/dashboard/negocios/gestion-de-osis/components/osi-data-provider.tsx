@@ -16,6 +16,7 @@ export function useOSIData() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [cursos, setCursos] = useState<any[]>([])
   const [contactos, setContactos] = useState<Contacto[]>([])
+  const [servicios, setServicios] = useState<any[]>([])
   const [filteredEmpresas, setFilteredEmpresas] = useState<Empresa[]>([])
   const [filteredCursos, setFilteredCursos] = useState<any[]>([])
 
@@ -140,6 +141,35 @@ export function useOSIData() {
     }
   }
 
+  // Load tipos de servicio
+  const loadTiposServicio = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tipo_servicio")
+        .select("id, nombre")
+        .order("nombre")
+      
+      if (error) {
+        console.error('Error loading tipos de servicio:', error)
+        errorDialog.showError(
+          'Error al cargar los tipos de servicio',
+          JSON.stringify(error, null, 2),
+          'Error de Carga'
+        )
+        return
+      }
+      console.log('Tipos de servicio loaded:', data?.length || 0)
+      setServicios(data || [])
+    } catch (err) {
+      console.error('Error in loadTiposServicio:', err)
+      errorDialog.showError(
+        'Error inesperado al cargar tipos de servicio',
+        err instanceof Error ? err.message : 'Error desconocido',
+        'Error de Carga'
+      )
+    }
+  }
+
   // Load initial data
   const loadInitialData = async () => {
     setLoading(true)
@@ -149,7 +179,8 @@ export function useOSIData() {
       await Promise.all([
         loadUsuarios(),
         loadEmpresas(),
-        loadCursos()
+        loadCursos(),
+        loadTiposServicio()
       ])
     } catch (err) {
       setError('Error al cargar los datos iniciales')
@@ -165,6 +196,7 @@ export function useOSIData() {
     usuarios,
     cursos,
     contactos,
+    servicios,
     filteredEmpresas,
     filteredCursos,
     setFilteredEmpresas,

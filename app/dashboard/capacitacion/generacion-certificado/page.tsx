@@ -84,8 +84,12 @@ export default function GeneracionCertificadoPage() {
         // Include courses associated with the client
         const isClientMatch = courseClientId && osiClientId === courseClientId;
         
-        // Include courses that match the OSI content (tema, detalle_capacitacion, or detalle_sesion)
-        const isContentMatch = (
+        // Include courses that don't have any company association (cliente_asociado is null/undefined)
+        const hasNoCompanyAssociation = !courseClientId;
+        
+        // Include if client matches OR has no company association
+        // Also ensure content relevance for better UX
+        const isContentRelevant = !osi.tema || (
           (osi.tema && topic.name.toLowerCase().includes(osi.tema!.toLowerCase())) ||
           (osi.detalle_capacitacion && (
             topic.name.toLowerCase().includes(osi.detalle_capacitacion!.toLowerCase()) ||
@@ -97,8 +101,8 @@ export default function GeneracionCertificadoPage() {
           ))
         );
         
-        // Include if either client matches OR content matches
-        return isClientMatch || isContentMatch;
+        // Show if either: (client matches AND content is relevant) OR (has no company association AND content is relevant)
+        return (isClientMatch || hasNoCompanyAssociation) && isContentRelevant;
       });
       
       setFilteredCourseTopics(clientCourses);

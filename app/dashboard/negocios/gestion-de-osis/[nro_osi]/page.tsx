@@ -20,6 +20,7 @@ export default function OSIDetailPage() {
     usuarios,
     cursos,
     contactos,
+    servicios,
     filteredEmpresas,
     filteredCursos,
     setFilteredEmpresas,
@@ -146,6 +147,7 @@ export default function OSIDetailPage() {
             empresas={empresas}
             usuarios={usuarios}
             contactos={contactos}
+            servicios={servicios}
             cursos={cursos}
             filteredEmpresas={filteredEmpresas}
             filteredCursos={filteredCursos}

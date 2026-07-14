@@ -10,6 +10,7 @@ const OSIForm = ({
   empresas,
   usuarios,
   contactos,
+  servicios,
   filteredEmpresas,
   cursos,
   filteredCursos,
@@ -250,14 +251,20 @@ const OSIForm = ({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Servicio</label>
-          <input
-            type="text"
-            value="Capacitación"
-            disabled
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-            readOnly
-          />
-          <p className="mt-1 text-xs text-gray-500">Solo se ofrece capacitación</p>
+          <select
+            value={initialData?.tipo_servicio || ''}
+            onChange={(e) => updateFormData?.('tipo_servicio', e.target.value)}
+            disabled={!isEditing && !isNew}
+            tabIndex={!isEditing && !isNew ? -1 : 0}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          >
+            <option value="">Seleccione un tipo de servicio</option>
+            {servicios?.map((servicio) => (
+              <option key={servicio.id} value={servicio.nombre}>
+                {servicio.nombre}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>

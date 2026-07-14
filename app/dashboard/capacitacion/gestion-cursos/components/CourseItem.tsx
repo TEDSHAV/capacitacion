@@ -58,7 +58,7 @@ export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: Cou
         {/* Client */}
         <div className="col-span-2">
           <div className="text-sm text-gray-600 truncate">
-            {curso.empresas?.razon_social || 'Sin cliente'}
+            {curso.empresas?.razon_social || 'Uso General'}
           </div>
         </div>
 

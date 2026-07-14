@@ -70,7 +70,7 @@ export async function updateCurso(id: string, formData: FormData) {
     }
 
     const titulo = formData.get('titulo') as string;
-    const cliente_asociado = formData.get('empresa_id') as string;
+    const cliente_asociado = formData.get('cliente_asociado') as string;
     const contenido = formData.get('contenido') as string;
     const horas_estimadas = formData.get('horas_estimadas') as string;
     const nota_aprobatoria = formData.get('nota_aprobatoria') as string;
@@ -124,7 +124,7 @@ export async function duplicateCurso(id: string) {
       .from('cursos')
       .select(`
         *,
-        empresas!inner (
+        empresas (
           razon_social
         )
       `)
@@ -151,7 +151,7 @@ export async function duplicateCurso(id: string) {
       })
       .select(`
         *,
-        empresas!inner (
+        empresas (
           razon_social
         )
       `)
