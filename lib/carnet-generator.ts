@@ -2,24 +2,29 @@ import jsPDF from "jspdf";
 import { CarnetGeneration, CarnetRequest } from "@/types";
 import { QRService } from "@/lib/qr-service";
 
-import { compressImageToJpeg, compressServerImageToJpeg } from "./image-compress";
+import {
+  compressImageToJpeg,
+  compressServerImageToJpeg,
+} from "./image-compress";
 
 const _serverCarnetCache = new Map<string, string>();
 const _browserCarnetCache = new Map<string, string>();
 
 export class CarnetGenerator {
-  private pdf: jsPDF;
   private pageWidth: number;
   private pageHeight: number;
 
   constructor() {
-    this.pdf = new jsPDF({
+    this.pageWidth = 86;
+    this.pageHeight = 54;
+  }
+
+  private createPdfInstance(): jsPDF {
+    return new jsPDF({
       orientation: "landscape",
       unit: "mm",
       format: [86, 54], // Standard credit card size
     });
-    this.pageWidth = 86;
-    this.pageHeight = 54;
   }
 
   async generateCarnet(request: CarnetRequest): Promise<Blob> {
@@ -32,28 +37,30 @@ export class CarnetGenerator {
       qrDataURL,
     } = request;
 
+    const pdf = this.createPdfInstance();
+
     try {
       // Add background design
-      await this.addPngBackground(templateImage);
+      await this.addPngBackground(pdf, templateImage);
 
       // Add participant information
-      await this.addParticipantInfo(participant, carnetData);
+      await this.addParticipantInfo(pdf, participant, carnetData);
 
       // Add course information
-      await this.addCourseInfo(carnetData);
+      await this.addCourseInfo(pdf, carnetData);
 
       // Add dates
-      await this.addDates(carnetData);
+      await this.addDates(pdf, carnetData);
 
       // Add QR code
-      await this.addQRCode(qrDataURL);
+      await this.addQRCode(pdf, qrDataURL);
 
       // Add preview watermark if needed
       if (isPreview) {
-        this.addPreviewWatermark();
+        this.addPreviewWatermark(pdf);
       }
 
-      const blob = this.pdf.output("blob");
+      const blob = pdf.output("blob");
       return blob;
     } catch (error) {
       throw new Error(
@@ -62,41 +69,41 @@ export class CarnetGenerator {
     }
   }
 
-  private async addBackgroundDesign(): Promise<void> {
+  private async addBackgroundDesign(pdf: jsPDF): Promise<void> {
     // Add gradient-like background
-    this.pdf.setFillColor(250, 250, 250);
-    this.pdf.rect(0, 0, this.pageWidth, this.pageHeight, "F");
+    pdf.setFillColor(250, 250, 250);
+    pdf.rect(0, 0, this.pageWidth, this.pageHeight, "F");
 
     // Add main border
-    this.pdf.setDrawColor(100, 100, 100);
-    this.pdf.rect(2, 2, this.pageWidth - 4, this.pageHeight - 4);
+    pdf.setDrawColor(100, 100, 100);
+    pdf.rect(2, 2, this.pageWidth - 4, this.pageHeight - 4);
 
     // Add decorative elements
-    this.pdf.setDrawColor(200, 200, 200);
-    this.pdf.setLineWidth(0.5);
-    this.pdf.line(2, 15, this.pageWidth - 2, 15); // Top separator
-    this.pdf.line(2, 40, this.pageWidth - 2, 40); // Bottom separator
+    pdf.setDrawColor(200, 200, 200);
+    pdf.setLineWidth(0.5);
+    pdf.line(2, 15, this.pageWidth - 2, 15); // Top separator
+    pdf.line(2, 40, this.pageWidth - 2, 40); // Bottom separator
 
     // Add corner decorations
-    this.pdf.setDrawColor(150, 150, 150);
-    this.pdf.setLineWidth(1);
+    pdf.setDrawColor(150, 150, 150);
+    pdf.setLineWidth(1);
     // Top-left corner
-    this.pdf.line(2, 2, 8, 2);
-    this.pdf.line(2, 2, 2, 8);
+    pdf.line(2, 2, 8, 2);
+    pdf.line(2, 2, 2, 8);
     // Top-right corner
-    this.pdf.line(this.pageWidth - 8, 2, this.pageWidth - 2, 2);
-    this.pdf.line(this.pageWidth - 2, 2, this.pageWidth - 2, 8);
+    pdf.line(this.pageWidth - 8, 2, this.pageWidth - 2, 2);
+    pdf.line(this.pageWidth - 2, 2, this.pageWidth - 2, 8);
     // Bottom-left corner
-    this.pdf.line(2, this.pageHeight - 8, 2, this.pageHeight - 2);
-    this.pdf.line(2, this.pageHeight - 2, 8, this.pageHeight - 2);
+    pdf.line(2, this.pageHeight - 8, 2, this.pageHeight - 2);
+    pdf.line(2, this.pageHeight - 2, 8, this.pageHeight - 2);
     // Bottom-right corner
-    this.pdf.line(
+    pdf.line(
       this.pageWidth - 8,
       this.pageHeight - 2,
       this.pageWidth - 2,
       this.pageHeight - 2,
     );
-    this.pdf.line(
+    pdf.line(
       this.pageWidth - 2,
       this.pageHeight - 8,
       this.pageWidth - 2,
@@ -104,16 +111,19 @@ export class CarnetGenerator {
     );
 
     // Add title
-    this.pdf.setFontSize(8);
-    this.pdf.setFont("helvetica", "bold");
-    this.pdf.text("CARNET", 43, 10, { align: "center" });
+    pdf.setFontSize(8);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("CARNET", 43, 10, { align: "center" });
   }
 
-  private async addPngBackground(templatePath: string): Promise<void> {
+  private async addPngBackground(
+    pdf: jsPDF,
+    templatePath: string,
+  ): Promise<void> {
     try {
       // Skip template if no image path provided
       if (!templatePath) {
-        this.addBackgroundDesign();
+        this.addBackgroundDesign(pdf);
         return;
       }
 
@@ -138,15 +148,23 @@ export class CarnetGenerator {
           } else {
             const imageBuffer = fs.readFileSync(imagePath);
             const base64Png = imageBuffer.toString("base64");
-            const { compressServerImageToJpeg } = await import("./image-compress");
-            const compressed = await compressServerImageToJpeg(base64Png, 82, 1200);
-            const mime = compressed.format === "JPEG" ? "image/jpeg" : "image/png";
+            const { compressServerImageToJpeg } =
+              await import("./image-compress");
+            const compressed = await compressServerImageToJpeg(
+              base64Png,
+              82,
+              1200,
+            );
+            const mime =
+              compressed.format === "JPEG" ? "image/jpeg" : "image/png";
             cachedDataUrl = `data:${mime};base64,${compressed.base64}`;
             _serverCarnetCache.set(imagePath, cachedDataUrl);
           }
 
-          const format = cachedDataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
-          this.pdf.addImage(
+          const format = cachedDataUrl.startsWith("data:image/jpeg")
+            ? "JPEG"
+            : "PNG";
+          pdf.addImage(
             cachedDataUrl,
             format,
             0,
@@ -157,7 +175,7 @@ export class CarnetGenerator {
             "FAST",
           );
         } else {
-          this.addBackgroundDesign();
+          this.addBackgroundDesign(pdf);
         }
         return;
       }
@@ -165,7 +183,7 @@ export class CarnetGenerator {
       // Browser environment - use Image constructor with JPEG compression
       if (_browserCarnetCache.has(templatePath)) {
         const jpegDataUrl = _browserCarnetCache.get(templatePath)!;
-        this.pdf.addImage(
+        pdf.addImage(
           jpegDataUrl,
           "JPEG",
           0,
@@ -181,9 +199,13 @@ export class CarnetGenerator {
       const { compressImageToJpeg } = await import("./image-compress");
       return new Promise(async (resolve, reject) => {
         try {
-          const jpegDataUrl = await compressImageToJpeg(templatePath, 0.82, 1200);
+          const jpegDataUrl = await compressImageToJpeg(
+            templatePath,
+            0.82,
+            1200,
+          );
           _browserCarnetCache.set(templatePath, jpegDataUrl);
-          this.pdf.addImage(
+          pdf.addImage(
             jpegDataUrl,
             "JPEG",
             0,
@@ -200,91 +222,108 @@ export class CarnetGenerator {
         }
         const img = new Image();
         img.onload = () => {
-          this.pdf.addImage(img, "PNG", 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
+          pdf.addImage(
+            img,
+            "PNG",
+            0,
+            0,
+            this.pageWidth,
+            this.pageHeight,
+            undefined,
+            "FAST",
+          );
           resolve();
         };
         img.onerror = (error) => {
-          this.addBackgroundDesign();
+          this.addBackgroundDesign(pdf);
           resolve();
         };
         img.src = templatePath;
       });
     } catch (error) {
-      this.addBackgroundDesign();
+      this.addBackgroundDesign(pdf);
     }
   }
 
   private async addParticipantInfo(
+    pdf: jsPDF,
     participant: any,
     carnetData: CarnetGeneration,
   ): Promise<void> {
     // Set font styles
-    this.pdf.setFontSize(6);
-    this.pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(6);
+    pdf.setFont("helvetica", "bold");
 
     // Add participant name (centered below course title)
     const nameY = 42; // Below course info
-    this.pdf.text(`Nombre: ${participant.name}`, 28, nameY - 10, {
+    pdf.text(`Nombre: ${participant.name}`, 28, nameY - 10, {
       maxWidth: 70,
     });
 
     // Add ID number (centered below name)
-    this.pdf.setFontSize(6);
-    this.pdf.setFont("helvetica", "bold");
-    
+    pdf.setFontSize(6);
+    pdf.setFont("helvetica", "bold");
+
     // Determine ID label based on nationality
-    const idLabel = participant.nationality === 'extranjero' ? 'Pasaporte' : 'Cédula';
-    this.pdf.text(`${idLabel}: ${participant.id_number}`, 28, nameY - 6);
+    const idLabel =
+      participant.nationality === "extranjero" ? "Pasaporte" : "Cédula";
+    pdf.text(`${idLabel}: ${participant.id_number}`, 28, nameY - 6);
   }
 
-  private async addCourseInfo(carnetData: CarnetGeneration): Promise<void> {
+  private async addCourseInfo(
+    pdf: jsPDF,
+    carnetData: CarnetGeneration,
+  ): Promise<void> {
     // Set font styles
-    this.pdf.setFontSize(7);
-    this.pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(7);
+    pdf.setFont("helvetica", "bold");
 
     // Add course title (centered within border area)
     const courseY = 18;
-    this.pdf.text(`${carnetData.titulo_curso.toUpperCase()}`, 54, courseY, {
+    pdf.text(`${carnetData.titulo_curso.toUpperCase()}`, 54, courseY, {
       align: "center",
       maxWidth: 50,
     });
   }
 
-  private async addDates(carnetData: CarnetGeneration): Promise<void> {
+  private async addDates(
+    pdf: jsPDF,
+    carnetData: CarnetGeneration,
+  ): Promise<void> {
     // Set font styles
-    this.pdf.setFontSize(5);
-    this.pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(5);
+    pdf.setFont("helvetica", "bold");
 
     // Add emission date (left side, below QR code)
     const emissionDate = new Date(carnetData.fecha_emision).toLocaleDateString(
       "es-VE",
     );
-    this.pdf.text("Emisión: ", 3, 40);
-    this.pdf.text(emissionDate, 15, 40);
+    pdf.text("Emisión: ", 3, 40);
+    pdf.text(emissionDate, 15, 40);
 
     // Add expiration date if available (left side, below emission date)
     if (carnetData.fecha_vencimiento) {
       const expirationDate = new Date(
         carnetData.fecha_vencimiento,
       ).toLocaleDateString("es-VE");
-      this.pdf.setTextColor(255, 0, 0); // Set text color to red
-      this.pdf.text("Vencimiento: ", 3, 43);
-      this.pdf.setTextColor(0, 0, 0); // Reset text color to black
-      this.pdf.text(expirationDate, 15, 43); // Position date after "Vencimiento: "
+      pdf.setTextColor(255, 0, 0); // Set text color to red
+      pdf.text("Vencimiento: ", 3, 43);
+      pdf.setTextColor(0, 0, 0); // Reset text color to black
+      pdf.text(expirationDate, 15, 43); // Position date after "Vencimiento: "
     }
 
     // Add control number at bottom right
     if (carnetData.nro_control) {
-      this.pdf.setFontSize(7);
-      this.pdf.setFont("helvetica", "bold");
-      this.pdf.setTextColor(255, 0, 0); // Set text color to red
-      this.pdf.text("N°: ", 66, 44);
-      this.pdf.setTextColor(0, 0, 0); // Reset text color to black
-      this.pdf.text(`${carnetData.nro_control}`, 70, 44);
+      pdf.setFontSize(7);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(255, 0, 0); // Set text color to red
+      pdf.text("N°: ", 66, 44);
+      pdf.setTextColor(0, 0, 0); // Reset text color to black
+      pdf.text(`${carnetData.nro_control}`, 70, 44);
     }
   }
 
-  private async addQRCode(qrDataURL?: string): Promise<void> {
+  private async addQRCode(pdf: jsPDF, qrDataURL?: string): Promise<void> {
     try {
       if (!qrDataURL) {
         return;
@@ -296,28 +335,28 @@ export class CarnetGenerator {
       const qrY = 16; // Center vertically in the left area
 
       // Add QR code image to PDF
-      this.pdf.addImage(qrDataURL, "PNG", qrX, qrY, qrSize, qrSize);
+      pdf.addImage(qrDataURL, "PNG", qrX, qrY, qrSize, qrSize);
     } catch (error) {
       // Continue without QR code if it fails
     }
   }
 
-  private addPreviewWatermark(): void {
-    this.pdf.setFontSize(20);
-    this.pdf.setTextColor(200, 200, 200);
-    this.pdf.setFont("helvetica", "bold");
+  private addPreviewWatermark(pdf: jsPDF): void {
+    pdf.setFontSize(20);
+    pdf.setTextColor(200, 200, 200);
+    pdf.setFont("helvetica", "bold");
 
     // Add watermark text diagonally
-    this.pdf.saveGraphicsState();
-    this.pdf.setGState(this.pdf.GState({ opacity: 0.3 }));
-    this.pdf.text("PREVIEW", this.pageWidth / 2, this.pageHeight / 2, {
+    pdf.saveGraphicsState();
+    pdf.setGState(pdf.GState({ opacity: 0.3 }));
+    pdf.text("PREVIEW", this.pageWidth / 2, this.pageHeight / 2, {
       align: "center",
       angle: 45,
     });
-    this.pdf.restoreGraphicsState();
+    pdf.restoreGraphicsState();
 
     // Reset text color
-    this.pdf.setTextColor(0, 0, 0);
+    pdf.setTextColor(0, 0, 0);
   }
 
   async generateMultipleCarnets(requests: CarnetRequest[]): Promise<Blob[]> {
@@ -333,8 +372,11 @@ export class CarnetGenerator {
 
     const results = await Promise.allSettled(carnetPromises);
     return results
-      .filter((r): r is PromiseFulfilledResult<{blob: Blob, success: true}> => r.status === 'fulfilled' && r.value.success)
-      .map(r => r.value.blob);
+      .filter(
+        (r): r is PromiseFulfilledResult<{ blob: Blob; success: true }> =>
+          r.status === "fulfilled" && r.value.success,
+      )
+      .map((r) => r.value.blob);
   }
 
   async generateCombinedPDF(requests: CarnetRequest[]): Promise<Blob> {
@@ -422,13 +464,16 @@ export class CarnetGenerator {
   /**
    * Download multiple blobs with delay to prevent browser throttling
    */
-  async downloadMultipleBlobs(items: { blob: Blob; filename: string }[], delayMs: number = 200): Promise<void> {
+  async downloadMultipleBlobs(
+    items: { blob: Blob; filename: string }[],
+    delayMs: number = 200,
+  ): Promise<void> {
     for (let i = 0; i < items.length; i++) {
       const { blob, filename } = items[i];
       this.downloadBlob(blob, filename);
       // Add delay between downloads to prevent browser throttling (except for last one)
       if (i < items.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
   }

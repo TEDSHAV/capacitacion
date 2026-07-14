@@ -156,6 +156,7 @@ export async function saveCertificatesToDatabase(
     }
 
     const today = new Date().toLocaleDateString("en-CA"); // en-CA format gives YYYY-MM-DD in local timezone
+    const batchEmissionDate = today; // Constant for the whole batch
 
     const certificateIds: number[] = [];
 
@@ -281,15 +282,33 @@ export async function saveCertificatesToDatabase(
 
       participantIds.push(participantId);
 
-      // Generate unique control numbers for this participant
+      // Generate unique control numbers for this participant with wrapping logic
+      // Assuming 10 lines per page (nro_hoja) and 100 pages per book (nro_libro)
+      // This MUST match the logic in the database trigger to keep snapshots consistent
+      let currentLine = nextControlNumbers.nro_linea + i;
+      let currentSheet = nextControlNumbers.nro_hoja;
+      let currentBook = nextControlNumbers.nro_libro;
+
+      // Handle wrapping of lines to sheets
+      if (currentLine > 10) {
+        const extraLines = currentLine - 1;
+        currentLine = (extraLines % 10) + 1;
+        currentSheet =
+          nextControlNumbers.nro_hoja + Math.floor(extraLines / 10);
+
+        // Handle wrapping of sheets to books
+        if (currentSheet > 100) {
+          const extraSheets = currentSheet - 1;
+          currentSheet = (extraSheets % 100) + 1;
+          currentBook =
+            nextControlNumbers.nro_libro + Math.floor(extraSheets / 100);
+        }
+      }
 
       const currentControlNumbers = {
-        nro_libro: nextControlNumbers.nro_libro,
-
-        nro_hoja: nextControlNumbers.nro_hoja,
-
-        nro_linea: nextControlNumbers.nro_linea + i,
-
+        nro_libro: currentBook,
+        nro_hoja: currentSheet,
+        nro_linea: currentLine,
         nro_control: nextControlNumbers.nro_control + i,
       };
 
@@ -372,6 +391,7 @@ export async function saveCertificatesToDatabase(
         currentControlNumbers.nro_hoja,
         currentControlNumbers.nro_linea,
         currentControlNumbers.nro_control,
+        batchEmissionDate, // Pass constant date
       );
 
       // 3. Insert certificate record with snapshot already generated
@@ -568,6 +588,10 @@ async function createOrUpdateParticipant(
 
         is_active: existingParticipant.is_active,
       });
+
+      // Update the participant object with authoritative data from database
+      // This ensures the snapshot matches the database record
+      participant.name = existingParticipant.nombre;
 
       // If existing participant is inactive, reactivate them
 
@@ -770,6 +794,7 @@ function generateContentSnapshot(
   participant: CertificateParticipant,
 
   participantId: number,
+  batchEmissionDate?: string,
 ): string {
   // Get the actual participant data from database for snapshot
 
@@ -789,7 +814,8 @@ function generateContentSnapshot(
 
       id_curso: updatedCertificateData.course_topic_data?.cursos_id ?? null, // FK → cursos
 
-      fecha_emision: new Date().toLocaleDateString("en-CA"), // Current date in local timezone
+      fecha_emision:
+        batchEmissionDate || new Date().toLocaleDateString("en-CA"), // Use constant date if provided
 
       fecha_vencimiento: updatedCertificateData.fecha_vencimiento,
 
@@ -919,6 +945,7 @@ function generateContentSnapshotWithControlNumbers(
   nro_linea: number,
 
   nro_control: number,
+  batchEmissionDate?: string,
 ): string {
   const snapshot = {
     // Certificate record fields from certificados table
@@ -930,7 +957,8 @@ function generateContentSnapshotWithControlNumbers(
 
       id_curso: certificateData.course_topic_data?.cursos_id ?? null, // FK → cursos
 
-      fecha_emision: new Date().toLocaleDateString("en-CA"), // Current date in local timezone
+      fecha_emision:
+        batchEmissionDate || new Date().toLocaleDateString("en-CA"), // Use constant date if provided
 
       fecha_vencimiento: certificateData.fecha_vencimiento,
 

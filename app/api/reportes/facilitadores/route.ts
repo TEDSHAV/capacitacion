@@ -8,22 +8,18 @@ export async function GET(request: NextRequest) {
     const stateId = searchParams.get("stateId");
 
     // Start with a simple query to debug
-    let query = supabase
-      .from("facilitadores")
-      .select(`
+    let query = supabase.from("facilitadores").select(`
         id,
         nombre_apellido,
         cedula,
         email,
         telefono,
         is_active,
-        id_estatus,
-        id_estado_base,
         id_estado_geografico
       `);
 
     if (stateId) {
-      query = query.or(`id_estado_base.eq.${stateId},id_estado_geografico.eq.${stateId}`);
+      query = query.eq("id_estado_geografico", stateId);
     }
 
     const { data: facilitadores, error } = await query.order("nombre_apellido");
@@ -32,21 +28,21 @@ export async function GET(request: NextRequest) {
       console.error("Error fetching facilitadores:", error);
       return NextResponse.json(
         { error: "Error fetching facilitadores", details: error },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Count by state
     const { data: stateCounts, error: countError } = await supabase
       .from("facilitadores")
-      .select("id_estado_base, id_estado_geografico")
+      .select("id_estado_geografico")
       .eq("is_active", true);
 
     if (countError) {
       console.error("Error counting facilitadores by state:", countError);
       return NextResponse.json(
         { error: "Error counting facilitadores by state", details: countError },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -59,22 +55,15 @@ export async function GET(request: NextRequest) {
     // Helper function to get state name by ID
     const getStateName = (stateId: number | null) => {
       if (!stateId) return "No definido";
-      const state = allStates?.find(s => s.id === stateId);
+      const state = allStates?.find((s) => s.id === stateId);
       return state?.nombre_estado || "No definido";
     };
 
     // Count facilitadores by state
     const stateStats = new Map<number, number>();
-    
+
     if (stateCounts) {
       stateCounts.forEach((facilitador: any) => {
-        // Count by base state
-        if (facilitador.id_estado_base) {
-          const current = stateStats.get(facilitador.id_estado_base) || 0;
-          stateStats.set(facilitador.id_estado_base, current + 1);
-        }
-        
-        // Count by geographic state
         if (facilitador.id_estado_geografico) {
           const current = stateStats.get(facilitador.id_estado_geografico) || 0;
           stateStats.set(facilitador.id_estado_geografico, current + 1);
@@ -90,11 +79,14 @@ export async function GET(request: NextRequest) {
     }));
 
     // Add state names to facilitadores
-    const facilitadoresWithStateNames = (facilitadores || []).map((facilitador: any) => ({
-      ...facilitador,
-      estado_base_nombre: getStateName(facilitador.id_estado_base),
-      estado_geografico_nombre: getStateName(facilitador.id_estado_geografico),
-    }));
+    const facilitadoresWithStateNames = (facilitadores || []).map(
+      (facilitador: any) => ({
+        ...facilitador,
+        estado_geografico_nombre: getStateName(
+          facilitador.id_estado_geografico,
+        ),
+      }),
+    );
 
     return NextResponse.json({
       facilitadores: facilitadoresWithStateNames,
@@ -104,7 +96,7 @@ export async function GET(request: NextRequest) {
     console.error("Unexpected error:", error);
     return NextResponse.json(
       { error: "Internal server error", details: error },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -20,20 +20,22 @@ export async function GET(
 
     const supabase = await createClient();
 
-    // Clean ID/Name - detect if it's a number (cedula) or string (name)
-    const isNumeric = /^\d+$/.test(queryParam.trim());
+    // Clean ID/Name - detect if it's a cedula (digits only or V-/E- prefixed) or a name
+    const trimmed = queryParam.trim();
+    const hasCedulaPrefix = /^[VEve]-/.test(trimmed);
+    const isNumeric = /^\d+$/.test(trimmed) || hasCedulaPrefix;
 
     let query = supabase
       .from("participantes_certificados")
-      .select("id, nombre, cedula");
+      .select("id, nombre, cedula, nacionalidad");
 
     if (isNumeric) {
-      const cleanIdNumber = queryParam
-        .replace(/^[VE]-/i, "")
+      const cleanIdNumber = trimmed
+        .replace(/^[VEve]-/, "")
         .replace(/[^0-9]/g, "");
       query = query.eq("cedula", cleanIdNumber);
     } else {
-      query = query.ilike("nombre", `%${queryParam.trim()}%`);
+      query = query.ilike("nombre", `%${trimmed}%`);
     }
 
     if (suggestionMode) {
@@ -162,18 +164,12 @@ export async function GET(
     // Use the first participant as the primary record for display
     const primaryParticipant = participants[0];
 
-    // Determine nationality
-    let nationality = (primaryParticipant as any)?.nacionalidad;
-
-    if (!nationality) {
-      nationality = queryParam.startsWith("E-") ? "E-" : "V-";
-    } else if (nationality === "venezolano") {
-      nationality = "V-";
-    } else if (nationality === "extranjero") {
-      nationality = "E-";
-    } else if (nationality !== "V-" && nationality !== "E-") {
-      nationality = queryParam.startsWith("E-") ? "E-" : "V-";
-    }
+    // Normalize nationality to consistent venezolano/extranjero format
+    let nationality = (primaryParticipant as any)?.nacionalidad || "";
+    if (nationality === "V-") nationality = "venezolano";
+    else if (nationality === "E-") nationality = "extranjero";
+    else if (!["venezolano", "extranjero"].includes(nationality))
+      nationality = "venezolano";
 
     const response = {
       participant: {

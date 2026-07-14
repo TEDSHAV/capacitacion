@@ -762,10 +762,7 @@ export interface FacilitadorReport {
   email: string | null;
   telefono: string | null;
   is_active: boolean;
-  id_estatus: number | null;
-  id_estado_base: number | null;
   id_estado_geografico: number | null;
-  estado_base_nombre: string;
   estado_geografico_nombre: string;
 }
 

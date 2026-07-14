@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import JSZip from 'jszip';
+import JSZip from "jszip";
 import {
   CourseTopic,
   CertificateGeneration,
@@ -10,13 +10,16 @@ import {
   CarnetGeneration,
 } from "@/types";
 import OSISearch from "./components/osi-search";
-import { CertificateForm } from './components/certificate-form';
-import { CarnetDebug } from '@/components/carnets/carnet-debug';
-import { saveCertificatesToDatabase } from '@/app/actions/certificados';
-import { getCarnetTemplatesAction } from '@/app/actions/dropdown-data';
-import { QRService } from '@/lib/qr-service';
-import { generateDocumentsServer } from '@/lib/document-server-actions';
-import { getDocumentFileName, getDefaultFirmante } from '@/lib/document-client-utils';
+import { CertificateForm } from "./components/certificate-form";
+import { CarnetDebug } from "@/components/carnets/carnet-debug";
+import { saveCertificatesToDatabase } from "@/app/actions/certificados";
+import { getCarnetTemplatesAction } from "@/app/actions/dropdown-data";
+import { QRService } from "@/lib/qr-service";
+import { generateDocumentsServer } from "@/lib/document-server-actions";
+import {
+  getDocumentFileName,
+  getDefaultFirmante,
+} from "@/lib/document-client-utils";
 
 interface GeneracionCertificadoClientProps {
   user: any;
@@ -25,67 +28,80 @@ interface GeneracionCertificadoClientProps {
 
 export default function GeneracionCertificadoClient({
   user,
-  initialData
+  initialData,
 }: GeneracionCertificadoClientProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({
-    currentPhase: '',
+    currentPhase: "",
     percentage: 0,
     currentCertificate: 0,
-    totalCertificates: 0
+    totalCertificates: 0,
   });
   const [selectedOSI, setSelectedOSI] = useState<CertificateOSI | null>(null);
-  const [selectedCourseTopic, setSelectedCourseTopic] = useState<CourseTopic | null>(null);
+  const [selectedCourseTopic, setSelectedCourseTopic] =
+    useState<CourseTopic | null>(null);
   const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
   const [carnetTemplates, setCarnetTemplates] = useState<any[]>([]);
-  const [certificateData, setCertificateData] = useState<CertificateGeneration>({
-    osi_id: "",
-    certificate_title: "",
-    certificate_subtitle: "",
-    passing_grade: 14,
-    course_topic_id: "",
-    course_topic_data: undefined,
-    course_template_id: undefined,
-    course_content: "",
-    participants: [],
-    location: "",
-    date: new Date().toISOString().split("T")[0],
-    horas_estimadas: undefined,
-    facilitator_id: undefined,
-    facilitator_data: undefined,
-    sha_signature_id: undefined,
-    fecha_vencimiento: undefined,
-    id_estado: undefined,
-    id_plantilla_certificado: undefined,
-    generate_documents: true, // Default to true for convenience
-  });
+  const [certificateData, setCertificateData] = useState<CertificateGeneration>(
+    {
+      osi_id: "",
+      certificate_title: "",
+      certificate_subtitle: "",
+      passing_grade: 14,
+      course_topic_id: "",
+      course_topic_data: undefined,
+      course_template_id: undefined,
+      course_content: "",
+      participants: [],
+      location: "",
+      date: new Date().toISOString().split("T")[0],
+      horas_estimadas: undefined,
+      facilitator_id: undefined,
+      facilitator_data: undefined,
+      sha_signature_id: undefined,
+      fecha_vencimiento: undefined,
+      id_estado: undefined,
+      id_plantilla_certificado: undefined,
+      generate_documents: true, // Default to true for convenience
+    },
+  );
 
   // Use initial data from server component
   const osis = initialData.osis || [];
   const courses = initialData.courses || [];
-  
+
   // Comprehensive error handling to ensure we always have a string or null
   const error = (() => {
     if (!initialData.error) return null;
-    
+
     // If it's already a string, return it
-    if (typeof initialData.error === 'string') return initialData.error;
-    
+    if (typeof initialData.error === "string") return initialData.error;
+
     // If it's an object with a message property, return the message
-    if (initialData.error && typeof initialData.error === 'object' && 'message' in initialData.error) {
+    if (
+      initialData.error &&
+      typeof initialData.error === "object" &&
+      "message" in initialData.error
+    ) {
       return initialData.error.message;
     }
-    
+
     // If it's an object with an error property, return that
-    if (initialData.error && typeof initialData.error === 'object' && 'error' in initialData.error) {
-      return typeof initialData.error.error === 'string' ? initialData.error.error : 'Error occurred';
+    if (
+      initialData.error &&
+      typeof initialData.error === "object" &&
+      "error" in initialData.error
+    ) {
+      return typeof initialData.error.error === "string"
+        ? initialData.error.error
+        : "Error occurred";
     }
-    
+
     // Fallback: convert to string if possible, otherwise return generic error
     try {
       return String(initialData.error);
     } catch {
-      return 'Error loading data';
+      return "Error loading data";
     }
   })();
 
@@ -101,7 +117,7 @@ export default function GeneracionCertificadoClient({
         // Continue without templates
       }
     };
-    
+
     loadCarnetTemplates();
   }, []);
 
@@ -110,10 +126,17 @@ export default function GeneracionCertificadoClient({
     if (selectedCourseTopic && !certificateData.course_template_id) {
       // Use course's default content if available
       if (selectedCourseTopic.contenido_curso) {
-        handleCertificateDataChange("course_content", selectedCourseTopic.contenido_curso);
+        handleCertificateDataChange(
+          "course_content",
+          selectedCourseTopic.contenido_curso,
+        );
       }
     }
-  }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, certificateData.course_template_id]);
+  }, [
+    selectedCourseTopic?.id,
+    selectedCourseTopic?.contenido_curso,
+    certificateData.course_template_id,
+  ]);
 
   const handleOSISelect = (osi: CertificateOSI | null) => {
     setSelectedOSI(osi);
@@ -133,24 +156,27 @@ export default function GeneracionCertificadoClient({
       let selectedCourse: CourseTopic | null = null;
 
       if (osi.id_curso) {
-        selectedCourse = courses.find(
-          (topic: CourseTopic) => topic.id === osi.id_curso!.toString()
-        ) || null;
+        selectedCourse =
+          courses.find(
+            (topic: CourseTopic) => topic.id === osi.id_curso!.toString(),
+          ) || null;
       }
 
       // Auto-select the course if found
       if (selectedCourse) {
         const passingGrade = selectedCourse.nota_aprobatoria ?? 14;
-        
+
         setCertificateData((prev) => ({
           ...prev,
           course_topic_id: selectedCourse.id,
           course_topic_data: selectedCourse,
-          course_content: selectedCourse.contenido_curso || '',
+          course_content: selectedCourse.contenido_curso || "",
           passing_grade: passingGrade,
           horas_estimadas: selectedCourse.horas_estimadas,
           certificate_title: selectedCourse.name,
-          id_plantilla_certificado: selectedCourse.id_plantilla_certificado || prev.id_plantilla_certificado,
+          id_plantilla_certificado:
+            selectedCourse.id_plantilla_certificado ||
+            prev.id_plantilla_certificado,
         }));
         setSelectedCourseTopic(selectedCourse);
       }
@@ -172,29 +198,35 @@ export default function GeneracionCertificadoClient({
     field: keyof CertificateGeneration,
     value: any,
   ) => {
-    if (field === 'course_topic_id') {
-      const selectedTopic = courses.find((topic: CourseTopic) => topic.id === value);
-      
+    if (field === "course_topic_id") {
+      const selectedTopic = courses.find(
+        (topic: CourseTopic) => topic.id === value,
+      );
+
       if (selectedTopic) {
         const passingGrade = selectedTopic.nota_aprobatoria ?? 14;
-        
+
         setCertificateData((prev) => ({
           ...prev,
           [field]: value,
           course_topic_data: selectedTopic,
-          course_content: selectedTopic.contenido_curso || '',
+          course_content: selectedTopic.contenido_curso || "",
           passing_grade: passingGrade,
           horas_estimadas: selectedTopic.horas_estimadas,
           certificate_title: prev.certificate_title || selectedTopic.name,
-          id_plantilla_certificado: selectedTopic.id_plantilla_certificado || prev.id_plantilla_certificado,
-          fecha_vencimiento: selectedTopic.emite_carnet ? prev.fecha_vencimiento : undefined,
+          id_plantilla_certificado:
+            selectedTopic.id_plantilla_certificado ||
+            prev.id_plantilla_certificado,
+          fecha_vencimiento: selectedTopic.emite_carnet
+            ? prev.fecha_vencimiento
+            : undefined,
         }));
         setSelectedCourseTopic(selectedTopic);
       } else {
         setCertificateData((prev) => ({
           ...prev,
           [field]: value,
-          course_content: '',
+          course_content: "",
           passing_grade: 14,
           fecha_vencimiento: undefined,
         }));
@@ -226,54 +258,69 @@ export default function GeneracionCertificadoClient({
       return;
     }
 
-    if (selectedCourseTopic?.emite_carnet && !certificateData.fecha_vencimiento) {
-      alert("Este curso emite carnet, por lo que la fecha de vencimiento es requerida");
+    if (
+      selectedCourseTopic?.emite_carnet &&
+      !certificateData.fecha_vencimiento
+    ) {
+      alert(
+        "Este curso emite carnet, por lo que la fecha de vencimiento es requerida",
+      );
       return;
     }
 
     // Validate content length
     if ((certificateData.course_content?.length || 0) > 2000) {
-      alert('El contenido del curso excede el límite de 2000 caracteres. Por favor, reduce el contenido.');
+      alert(
+        "El contenido del curso excede el límite de 2000 caracteres. Por favor, reduce el contenido.",
+      );
       return;
     }
 
     try {
       setIsGenerating(true);
       setGenerationProgress({
-        currentPhase: 'Guardando certificados en base de datos...',
+        currentPhase: "Guardando certificados en base de datos...",
         percentage: 5,
         currentCertificate: 0,
-        totalCertificates: certificateData.participants.length
+        totalCertificates: certificateData.participants.length,
       });
 
       const dbResult = await saveCertificatesToDatabase(
         certificateData,
-        certificateData.participants
+        certificateData.participants,
       );
 
       if (!dbResult.success) {
-        alert(`Error guardando certificados en base de datos: ${dbResult.message}`);
+        alert(
+          `Error guardando certificados en base de datos: ${dbResult.message}`,
+        );
         return;
       }
 
-      if (!dbResult.certificateNumbers || dbResult.certificateNumbers.length === 0) {
-        alert("Error: No se pudieron obtener los números de control de la base de datos");
+      if (
+        !dbResult.certificateNumbers ||
+        dbResult.certificateNumbers.length === 0
+      ) {
+        alert(
+          "Error: No se pudieron obtener los números de control de la base de datos",
+        );
         return;
       }
 
       // Use existing certificate generation
-      const { CertificateGenerator } = await import('@/lib/certificate-generator');
+      const { CertificateGenerator } =
+        await import("@/lib/certificate-generator");
       const certificateGenerator = new CertificateGenerator();
 
       setGenerationProgress({
-        currentPhase: 'Cargando assets...',
+        currentPhase: "Cargando assets...",
         percentage: 10,
         currentCertificate: 0,
-        totalCertificates: certificateData.participants.length
+        totalCertificates: certificateData.participants.length,
       });
 
-      const templateImageUrl = '/templates/certificado.png';
-      const sealImageUrl = '/templates/sello.png';
+      const templateImageUrl = "/templates/certificado.png";
+      const sealImageUrl = "/templates/sello.png";
 
       // Helper function to preload images as base64
       async function preloadImage(url: string): Promise<string> {
@@ -291,15 +338,19 @@ export default function GeneracionCertificadoClient({
 
       // Fetch facilitator data once
       let facilitatorData: any = null;
-      let facilitatorSignatureBase64 = '';
+      let facilitatorSignatureBase64 = "";
       if (certificateData.facilitator_id) {
-        const facilitatorResponse = await fetch(`/api/facilitators/${certificateData.facilitator_id}`);
+        const facilitatorResponse = await fetch(
+          `/api/facilitators/${certificateData.facilitator_id}`,
+        );
         facilitatorData = await facilitatorResponse.json();
 
         // Preload facilitator signature if available
         if (facilitatorData?.firmas?.url_imagen) {
           try {
-            facilitatorSignatureBase64 = await preloadImage(facilitatorData.firmas.url_imagen);
+            facilitatorSignatureBase64 = await preloadImage(
+              facilitatorData.firmas.url_imagen,
+            );
           } catch (error) {
             console.error("Failed to preload facilitator signature:", error);
           }
@@ -307,7 +358,7 @@ export default function GeneracionCertificadoClient({
       }
 
       // Preload seal image
-      let selloBase64 = '';
+      let selloBase64 = "";
       try {
         selloBase64 = await preloadImage(sealImageUrl);
       } catch (error) {
@@ -315,7 +366,7 @@ export default function GeneracionCertificadoClient({
       }
 
       // Preload template image
-      let templateBase64 = '';
+      let templateBase64 = "";
       try {
         templateBase64 = await preloadImage(templateImageUrl);
       } catch (error) {
@@ -323,10 +374,12 @@ export default function GeneracionCertificadoClient({
       }
 
       // Preload SHA signature if available
-      let shaSignatureBase64 = '';
+      let shaSignatureBase64 = "";
       if (certificateData.sha_signature_data?.url_imagen) {
         try {
-          shaSignatureBase64 = await preloadImage(certificateData.sha_signature_data.url_imagen);
+          shaSignatureBase64 = await preloadImage(
+            certificateData.sha_signature_data.url_imagen,
+          );
         } catch (error) {
           console.error("Failed to preload SHA signature:", error);
         }
@@ -335,28 +388,31 @@ export default function GeneracionCertificadoClient({
       console.log("Assets loaded. Starting batch generation...");
 
       setGenerationProgress({
-        currentPhase: 'Generando certificados...',
+        currentPhase: "Generando certificados...",
         percentage: 15,
         currentCertificate: 0,
-        totalCertificates: certificateData.participants.length
+        totalCertificates: certificateData.participants.length,
       });
 
       // Prepare data for additional documents (available before generation starts)
-      const certificateRecords = certificateData.participants.map((participant, index) => ({
-        participant_name: participant.name,
-        participant_id_number: participant.id_number,
-        participant_id_type: participant.id_type,
-        participant_nationality: participant.nationality,
-        course_title: certificateData.certificate_title,
-        company_name: selectedOSI?.cliente_nombre_empresa || '',
-        osi_number: selectedOSI?.nro_osi || '',
-        city: certificateData.location || 'Puerto La Cruz',
-        location: certificateData.location || '',
-        execution_address: selectedOSI?.direccion_ejecucion || '',
-        execution_date: selectedOSI?.fecha_ejecucion1 || certificateData.date,
-        score: participant.score || 14,
-        control_number: dbResult.certificateNumbers![index]?.nro_control?.toString() || '',
-      }));
+      const certificateRecords = certificateData.participants.map(
+        (participant, index) => ({
+          participant_name: participant.name,
+          participant_id_number: participant.id_number,
+          participant_id_type: participant.id_type,
+          participant_nationality: participant.nationality,
+          course_title: certificateData.certificate_title,
+          company_name: selectedOSI?.cliente_nombre_empresa || "",
+          osi_number: selectedOSI?.nro_osi || "",
+          city: certificateData.location || "Puerto La Cruz",
+          location: certificateData.location || "",
+          execution_address: selectedOSI?.direccion_ejecucion || "",
+          execution_date: selectedOSI?.fecha_ejecucion1 || certificateData.date,
+          score: participant.score || 14,
+          control_number:
+            dbResult.certificateNumbers![index]?.nro_control?.toString() || "",
+        }),
+      );
 
       // Start additional document generation in parallel
       const additionalDocsPromise = certificateData.generate_documents
@@ -366,18 +422,22 @@ export default function GeneracionCertificadoClient({
                 certificates: certificateRecords,
                 osiData: selectedOSI || {},
                 firmanteData: {
-                  nombre: 'DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.',
-                  cargo: 'Jefe de Capacitación'
+                  nombre: "DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.",
+                  cargo: "Jefe de Capacitación",
                 },
                 options: {
                   includeCertificacionCompetencias: true,
                   includeNotaEntrega: true,
                   includeValidacionDatos: true,
-                }
+                },
               });
               return result;
             } catch (error) {
-              return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
+              return {
+                success: false,
+                message:
+                  error instanceof Error ? error.message : "Unknown error",
+              };
             }
           })()
         : Promise.resolve(null);
@@ -387,7 +447,11 @@ export default function GeneracionCertificadoClient({
       const failedCertificates: { participant: any; error: any }[] = [];
       const BATCH_SIZE = 5;
 
-      for (let i = 0; i < certificateData.participants.length; i += BATCH_SIZE) {
+      for (
+        let i = 0;
+        i < certificateData.participants.length;
+        i += BATCH_SIZE
+      ) {
         const batch = certificateData.participants.slice(i, i + BATCH_SIZE);
 
         const batchPromises = batch.map(async (participant, index) => {
@@ -406,41 +470,58 @@ export default function GeneracionCertificadoClient({
               preloadedAssets: {
                 facilitator: facilitatorData,
                 facilitatorSignature: facilitatorSignatureBase64,
-                shaSignature: shaSignatureBase64
-              }
+                shaSignature: shaSignatureBase64,
+              },
             });
             return { success: true, participant, blob };
           } catch (error) {
-            console.error(`Failed to generate certificate for participant ${participant.name}:`, error);
+            console.error(
+              `Failed to generate certificate for participant ${participant.name}:`,
+              error,
+            );
             return { success: false, participant, error };
           }
         });
 
         const results = await Promise.all(batchPromises);
 
-        results.forEach(result => {
+        results.forEach((result) => {
           if (result.success) {
-            certificates.push({ participant: result.participant, blob: result.blob! });
+            certificates.push({
+              participant: result.participant,
+              blob: result.blob!,
+            });
           } else {
-            failedCertificates.push({ participant: result.participant, error: result.error });
+            failedCertificates.push({
+              participant: result.participant,
+              error: result.error,
+            });
           }
         });
 
         // Update progress after each batch
-        const completedCount = Math.min(i + BATCH_SIZE, certificateData.participants.length);
-        const progressPercentage = 15 + (completedCount / certificateData.participants.length) * 50;
+        const completedCount = Math.min(
+          i + BATCH_SIZE,
+          certificateData.participants.length,
+        );
+        const progressPercentage =
+          15 + (completedCount / certificateData.participants.length) * 50;
         setGenerationProgress({
           currentPhase: `Generando certificados... (${completedCount}/${certificateData.participants.length})`,
           percentage: progressPercentage,
           currentCertificate: completedCount,
-          totalCertificates: certificateData.participants.length
+          totalCertificates: certificateData.participants.length,
         });
       }
 
       // Notify user about failed certificates
       if (failedCertificates.length > 0) {
-        const failedNames = failedCertificates.map(f => f.participant.name).join(', ');
-        alert(`Error: ${failedCertificates.length} certificate(s) failed to generate: ${failedNames}. Please check the console for details.`);
+        const failedNames = failedCertificates
+          .map((f) => f.participant.name)
+          .join(", ");
+        alert(
+          `Error: ${failedCertificates.length} certificate(s) failed to generate: ${failedNames}. Please check the console for details.`,
+        );
       }
 
       // Generate carnets if course requires them
@@ -448,61 +529,66 @@ export default function GeneracionCertificadoClient({
       const carnetBlobs: { participant: any; blob: Blob }[] = [];
       if (selectedCourseTopic?.emite_carnet) {
         setGenerationProgress({
-          currentPhase: 'Generando carnets...',
+          currentPhase: "Generando carnets...",
           percentage: 65,
           currentCertificate: certificateData.participants.length,
-          totalCertificates: certificateData.participants.length
+          totalCertificates: certificateData.participants.length,
         });
 
         try {
-          const { CarnetGenerator } = await import('@/lib/carnet-generator');
+          const { CarnetGenerator } = await import("@/lib/carnet-generator");
           const carnetGenerator = new CarnetGenerator();
-          
-          // Prepare carnet data for all participants
-          const carnetData: CarnetGeneration[] = certificateData.participants.map((participant, index) => {
-            return {
-              id_certificado: dbResult.certificateIds![index],
-              id_participante: dbResult.participantIds?.[index] || 0, // Use REAL database ID
-              id_empresa: selectedOSI?.empresa_id || null,
-              id_curso: certificateData.course_topic_data?.cursos_id ?? null, // FK → cursos; cursos_id holds the real cursos.id
-              id_osi: null, // nro_osi is the reference; stored in snapshot_contenido. carnets.id_osi FK → osi not applicable here.
-              titulo_curso: certificateData.certificate_title,
-              fecha_emision: certificateData.date,
-              fecha_vencimiento: certificateData.fecha_vencimiento || null,
-              nombre_participante: participant.name,
-              cedula_participante: participant.id_number,
-              empresa_participante: participant.company || null,
-              nro_control: dbResult.certificateNumbers![index].nro_control
-            };
-          });
 
-          const carnetDbResult = await (await import('@/app/actions/carnets')).saveCarnetsToDatabase(
-            carnetData,
-            dbResult.certificateIds!
-          );
+          // Prepare carnet data for all participants
+          const carnetData: CarnetGeneration[] =
+            certificateData.participants.map((participant, index) => {
+              return {
+                id_certificado: dbResult.certificateIds![index],
+                id_participante: dbResult.participantIds?.[index] || 0, // Use REAL database ID
+                id_empresa: selectedOSI?.empresa_id || null,
+                id_curso: certificateData.course_topic_data?.cursos_id ?? null, // FK → cursos; cursos_id holds the real cursos.id
+                id_osi: null, // nro_osi is the reference; stored in snapshot_contenido. carnets.id_osi FK → osi not applicable here.
+                titulo_curso: certificateData.certificate_title,
+                fecha_emision: certificateData.date,
+                fecha_vencimiento: certificateData.fecha_vencimiento || null,
+                nombre_participante: participant.name,
+                cedula_participante: participant.id_number,
+                empresa_participante: participant.company || null,
+                nro_control: dbResult.certificateNumbers![index].nro_control,
+              };
+            });
+
+          const carnetDbResult = await (
+            await import("@/app/actions/carnets")
+          ).saveCarnetsToDatabase(carnetData, dbResult.certificateIds!);
 
           if (carnetDbResult.success && carnetDbResult.carnetIds) {
-            
             // Generate carnet PDFs concurrently in batches
             const carnetRequests = carnetData.map((carnet, index) => {
               // Get template image based on selected carnet template
-              const defaultTemplate = '/templates/carnet.png';
+              const defaultTemplate = "/templates/carnet.png";
               let templateImage = defaultTemplate;
-              
+
               if (certificateData.id_plantilla_carnet) {
-                const selectedTemplate = carnetTemplates.find((template: any) => template.id === certificateData.id_plantilla_carnet);
-                if (selectedTemplate?.archivo && selectedTemplate.archivo !== 'carnet.png') {
+                const selectedTemplate = carnetTemplates.find(
+                  (template: any) =>
+                    template.id === certificateData.id_plantilla_carnet,
+                );
+                if (
+                  selectedTemplate?.archivo &&
+                  selectedTemplate.archivo !== "carnet.png"
+                ) {
                   // Try to use custom template, carnet generator will fallback if it doesn't exist
                   templateImage = `/templates/${selectedTemplate.archivo}`;
                 }
               }
-              
+
               return {
                 participant: certificateData.participants[index],
                 carnetData: carnet,
                 templateImage,
                 isPreview: false,
-                carnetId: carnetDbResult.carnetIds![index]
+                carnetId: carnetDbResult.carnetIds![index],
               };
             });
 
@@ -522,8 +608,8 @@ export default function GeneracionCertificadoClient({
                   qrDataURL = await QRService.generateQRDataURL({
                     data: qrData,
                     size: 60,
-                    level: 'M',
-                    includeMargin: true
+                    level: "M",
+                    includeMargin: true,
                   });
                 } catch (qrError) {
                   // Continue without QR code - carnet generator will use placeholder
@@ -531,43 +617,67 @@ export default function GeneracionCertificadoClient({
 
                 const carnetReqWithQR = {
                   ...carnetReq,
-                  qrDataURL
+                  qrDataURL,
                 };
 
                 try {
-                  const blob = await carnetGenerator.generateCarnet(carnetReqWithQR);
-                  return { success: true, participant: carnetReq.participant, blob };
+                  const blob =
+                    await carnetGenerator.generateCarnet(carnetReqWithQR);
+                  return {
+                    success: true,
+                    participant: carnetReq.participant,
+                    blob,
+                  };
                 } catch (error) {
-                  console.error(`Failed to generate carnet for participant ${carnetReq.participant.name}:`, error);
-                  return { success: false, participant: carnetReq.participant, error };
+                  console.error(
+                    `Failed to generate carnet for participant ${carnetReq.participant.name}:`,
+                    error,
+                  );
+                  return {
+                    success: false,
+                    participant: carnetReq.participant,
+                    error,
+                  };
                 }
               });
 
               const results = await Promise.all(batchPromises);
 
-              results.forEach(result => {
+              results.forEach((result) => {
                 if (result.success) {
-                  carnetBlobs.push({ participant: result.participant, blob: result.blob! });
+                  carnetBlobs.push({
+                    participant: result.participant,
+                    blob: result.blob!,
+                  });
                 }
               });
 
               // Update progress after each carnet batch
-              const completedCount = Math.min(i + CARNET_BATCH_SIZE, carnetRequests.length);
-              const progressPercentage = 65 + (completedCount / carnetRequests.length) * 10;
+              const completedCount = Math.min(
+                i + CARNET_BATCH_SIZE,
+                carnetRequests.length,
+              );
+              const progressPercentage =
+                65 + (completedCount / carnetRequests.length) * 10;
               setGenerationProgress({
                 currentPhase: `Generando carnets... (${completedCount}/${carnetRequests.length})`,
                 percentage: progressPercentage,
                 currentCertificate: certificateData.participants.length,
-                totalCertificates: certificateData.participants.length
+                totalCertificates: certificateData.participants.length,
               });
             }
 
             carnetsGenerated = carnetBlobs.length;
           } else {
-            alert(`Error guardando carnets en base de datos: ${carnetDbResult.message}`);
+            alert(
+              `Error guardando carnets en base de datos: ${carnetDbResult.message}`,
+            );
           }
         } catch (error) {
-          alert('Error generando carnets. Los certificados se generaron correctamente. Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
+          alert(
+            "Error generando carnets. Los certificados se generaron correctamente. Error: " +
+              (error instanceof Error ? error.message : "Unknown error"),
+          );
         }
       }
 
@@ -576,28 +686,36 @@ export default function GeneracionCertificadoClient({
       let additionalDocsData: { [key: string]: string } | null = null;
 
       setGenerationProgress({
-        currentPhase: 'Generando documentos adicionales...',
+        currentPhase: "Generando documentos adicionales...",
         percentage: 75,
         currentCertificate: certificateData.participants.length,
-        totalCertificates: certificateData.participants.length
+        totalCertificates: certificateData.participants.length,
       });
 
       try {
         const additionalDocsResult = await additionalDocsPromise;
 
-        if (additionalDocsResult && 'success' in additionalDocsResult && additionalDocsResult.success && 'documents' in additionalDocsResult && additionalDocsResult.documents) {
+        if (
+          additionalDocsResult &&
+          "success" in additionalDocsResult &&
+          additionalDocsResult.success &&
+          "documents" in additionalDocsResult &&
+          additionalDocsResult.documents
+        ) {
           additionalDocsData = additionalDocsResult.documents;
-          documentsGenerated = Object.keys(additionalDocsResult.documents).length;
+          documentsGenerated = Object.keys(
+            additionalDocsResult.documents,
+          ).length;
         }
       } catch (error) {
         // Don't show alert for document errors since certificates/carnets were generated successfully
       }
 
       setGenerationProgress({
-        currentPhase: 'Creando archivo ZIP...',
+        currentPhase: "Creando archivo ZIP...",
         percentage: 85,
         currentCertificate: certificateData.participants.length,
-        totalCertificates: certificateData.participants.length
+        totalCertificates: certificateData.participants.length,
       });
 
       // Initialize JSZip and create folders
@@ -608,13 +726,13 @@ export default function GeneracionCertificadoClient({
 
       // Add certificates to ZIP
       for (const { participant, blob } of certificates) {
-        const filename = `certificado_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
+        const filename = `certificado_${participant.name.replace(/\s+/g, "_")}_${participant.id_number}.pdf`;
         certFolder?.file(filename, blob);
       }
 
       // Add carnets to ZIP if generated
       for (const { participant, blob } of carnetBlobs) {
-        const filename = `carnet_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
+        const filename = `carnet_${participant.name.replace(/\s+/g, "_")}_${participant.id_number}.pdf`;
         carnetsFolder?.file(filename, blob);
       }
 
@@ -630,21 +748,23 @@ export default function GeneracionCertificadoClient({
       // Generate and download the ZIP file
       try {
         setGenerationProgress({
-          currentPhase: 'Descargando archivo...',
+          currentPhase: "Descargando archivo...",
           percentage: 95,
           currentCertificate: certificateData.participants.length,
-          totalCertificates: certificateData.participants.length
+          totalCertificates: certificateData.participants.length,
         });
 
         const zipBlob = await zip.generateAsync({
           type: "blob",
-          compression: "STORE" // Skip compression for PDFs (already compressed)
+          compression: "STORE", // Skip compression for PDFs (already compressed)
         });
-        const batchName = selectedOSI?.nro_osi ? `OSI_${selectedOSI.nro_osi}` : 'Lote';
+        const batchName = selectedOSI?.nro_osi
+          ? `OSI_${selectedOSI.nro_osi}`
+          : "Lote";
         const zipFilename = `Certificados_y_Documentos_${batchName}.zip`;
 
         const url = window.URL.createObjectURL(zipBlob);
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
         link.download = zipFilename;
         document.body.appendChild(link);
@@ -653,18 +773,21 @@ export default function GeneracionCertificadoClient({
         window.URL.revokeObjectURL(url);
 
         setGenerationProgress({
-          currentPhase: '¡Completado!',
+          currentPhase: "¡Completado!",
           percentage: 100,
           currentCertificate: certificateData.participants.length,
-          totalCertificates: certificateData.participants.length
+          totalCertificates: certificateData.participants.length,
         });
       } catch (error) {
         console.error("Error bundling files into ZIP:", error);
-        alert('Error creando archivo ZIP. Por favor intente nuevamente.');
+        alert("Error creando archivo ZIP. Por favor intente nuevamente.");
       }
 
-      const documentText = documentsGenerated > 0 ? ` y ${documentsGenerated} documentos adicionales` : '';
-      const successMessage = `Se generaron y guardaron ${certificates.length} certificados${carnetsGenerated > 0 ? ` y ${carnetsGenerated} carnets` : ''}${documentText} exitosamente!`;
+      const documentText =
+        documentsGenerated > 0
+          ? ` y ${documentsGenerated} documentos adicionales`
+          : "";
+      const successMessage = `Se generaron y guardaron ${certificates.length} certificados${carnetsGenerated > 0 ? ` y ${carnetsGenerated} carnets` : ""}${documentText} exitosamente!`;
       alert(successMessage);
 
       // Reset form
@@ -690,9 +813,8 @@ export default function GeneracionCertificadoClient({
       });
       setSelectedOSI(null);
       setSelectedCourseTopic(null);
-
     } catch (error) {
-      alert('Error generando certificados. Por favor intente nuevamente.');
+      alert("Error generando certificados. Por favor intente nuevamente.");
     } finally {
       setIsGenerating(false);
     }
@@ -704,8 +826,16 @@ export default function GeneracionCertificadoClient({
         <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <div className="flex">
             <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              <svg
+                className="h-5 w-5 text-red-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
               </svg>
             </div>
             <div className="ml-3">
@@ -713,7 +843,7 @@ export default function GeneracionCertificadoClient({
                 Error al cargar los datos
               </h3>
               <div className="mt-2 text-sm text-red-700">
-                <p>{error || 'Error desconocido'}</p>
+                <p>{error || "Error desconocido"}</p>
               </div>
             </div>
           </div>
@@ -729,7 +859,8 @@ export default function GeneracionCertificadoClient({
           Generación de Certificados
         </h1>
         <p className="mt-2 text-gray-600">
-          Crea certificados personalizados para los participantes de capacitaciones
+          Crea certificados personalizados para los participantes de
+          capacitaciones
         </p>
       </div>
 
@@ -738,7 +869,7 @@ export default function GeneracionCertificadoClient({
           selectedCourseTopic={selectedCourseTopic} 
           certificateData={certificateData} 
         /> */}
-        
+
         <OSISearch
           osis={osis}
           selectedOSI={selectedOSI}
