@@ -21,10 +21,13 @@ export default function GestionDeFacilitadoresPage() {
   }, [createMode, editId]);
 
   const handleFacilitadorSaved = () => {
-    // Refresh or navigate as needed
-    if (createMode || editId) {
-      router.replace('/dashboard/capacitacion/gestion-de-facilitadores');
-    }
+    // Just hide the form, no navigation needed
+    setShowForm(false);
+  };
+
+  const handleCancel = () => {
+    // Just hide the form, no navigation needed
+    setShowForm(false);
   };
 
   if (showForm) {
@@ -51,6 +54,7 @@ export default function GestionDeFacilitadoresPage() {
 
         <FacilitatorForm 
           onFacilitatorSaved={handleFacilitadorSaved}
+          onCancel={handleCancel}
           editId={editId}
         />
       </div>
@@ -69,18 +73,9 @@ export default function GestionDeFacilitadoresPage() {
       </div>
 
       <FacilitadorCrud 
-        onFacilitadorSaved={() => {
-          // Refresh or navigate as needed
-          router.replace('/dashboard/capacitacion/gestion-de-facilitadores');
-        }}
-        onFacilitadorDeleted={() => {
-          // Refresh or navigate as needed
-          router.replace('/dashboard/capacitacion/gestion-de-facilitadores');
-        }}
-        onFacilitadorUpdated={() => {
-          // Refresh or navigate as needed
-          router.replace('/dashboard/capacitacion/gestion-de-facilitadores');
-        }}
+        onFacilitadorSaved={() => {}}
+        onFacilitadorDeleted={() => {}}
+        onFacilitadorUpdated={() => {}}
       />
     </div>
   );

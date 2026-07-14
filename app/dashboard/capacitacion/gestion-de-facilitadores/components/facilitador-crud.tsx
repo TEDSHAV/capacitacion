@@ -25,7 +25,6 @@ export const FacilitadorCrud = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFacilitador, setSelectedFacilitador] = useState<Facilitador | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [justification, setJustification] = useState("");
 
   // Client-side only: Check if we're in the browser
   const isClient = typeof window !== 'undefined';
@@ -100,15 +99,19 @@ export const FacilitadorCrud = ({
     }
   };
 
-  // Inhabilitar facilitador (instead of delete)
-  const handleInhabilitar = async (id: string) => {
-    // Show confirmation dialog with textarea
-    const justification = prompt(
-      "¿Estás seguro de que quieres inhabilitar este facilitador? Esta acción lo marcará como inactivo y no podrá ser asignado a nuevas capacitaciones.\n\nPor favor, indica el motivo por el cual se está inhabilitando este facilitador:"
-    );
+  // Toggle facilitador status (inhabilitar/habilitar)
+  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
+    const action = currentStatus ? "inhabilitar" : "habilitar";
+    const justification = currentStatus 
+      ? prompt(
+          "¿Estás seguro de que quieres inhabilitar este facilitador? Esta acción lo marcará como inactivo y no podrá ser asignado a nuevas capacitaciones.\n\nPor favor, indica el motivo por el cual se está inhabilitando este facilitador:"
+        )
+      : prompt(
+          "¿Estás seguro de que quieres habilitar este facilitador? Esta acción lo marcará como activo y podrá ser asignado a nuevas capacitaciones.\n\nPor favor, indica el motivo por el cual se está habilitando este facilitador:"
+        );
     
     if (!justification || justification.trim() === '') {
-      alert("Debe proporcionar un motivo para inhabilitar al facilitador.");
+      alert(`Debe proporcionar un motivo para ${action} al facilitador.`);
       return;
     }
     
@@ -120,22 +123,22 @@ export const FacilitadorCrud = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          is_active: false,
+          is_active: !currentStatus,
           notas_observaciones: justification.trim()
         }),
       });
 
       if (response.ok) {
-        alert("Facilitador inhabilitado exitosamente");
+        alert(`Facilitador ${action === "inhabilitar" ? "inhabilitado" : "habilitado"} exitosamente`);
         await loadFacilitadores();
-        onFacilitadorDeleted?.();
+        // The data is already reloaded, so we don't need the callback
       } else {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || "Error al inhabilitar el facilitador";
+        const errorMessage = errorData.error || `Error al ${action} el facilitador`;
         throw new Error(errorMessage);
       }
     } catch (error) {
-      alert(`Error al inhabilitar el facilitador: ${error instanceof Error ? error.message : 'Por favor intenta nuevamente.'}`);
+      alert(`Error al ${action} el facilitador: ${error instanceof Error ? error.message : 'Por favor intenta nuevamente.'}`);
     }
   };
 
@@ -267,11 +270,11 @@ export const FacilitadorCrud = ({
                       Editar
                     </Button>
                     <Button 
-                      variant="destructive" 
+                      variant={facilitador.is_active ? "destructive" : "default"}
                       size="sm"
-                      onClick={() => handleInhabilitar(facilitador.id.toString())}
+                      onClick={() => handleToggleStatus(facilitador.id.toString(), facilitador.is_active)}
                     >
-                      Inhabilitar
+                      {facilitador.is_active ? "Inhabilitar" : "Habilitar"}
                     </Button>
                   </div>
                 </td>

@@ -13,10 +13,11 @@ import { FormActions } from "./facilitator-form/FormActions";
 
 interface FacilitatorFormProps {
   onFacilitatorSaved: () => void;
+  onCancel?: () => void;
   editId?: string | null;
 }
 
-export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormProps) => {
+export const FacilitatorForm = ({ onFacilitatorSaved, onCancel, editId }: FacilitatorFormProps) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [formData, setFormData] = useState<FacilitadorFormData>({
     fuente: "",
@@ -181,18 +182,28 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
   const handleCancel = () => {
     if (loading) return;
     
-    // Check if there are unsaved changes
-    const hasChanges = formData.nombre_apellido !== "" || 
-                      formData.cedula !== "" || 
-                      formData.email !== "" || 
-                      formData.telefono !== "";
-    
-    if (hasChanges) {
-      if (confirm("¿Estás seguro de que deseas cancelar? Los cambios no guardados se perderán.")) {
-        onFacilitatorSaved();
+    // For new facilitators, check if any field has been filled
+    if (!editId) {
+      const hasChanges = formData.nombre_apellido !== "" || 
+                        formData.cedula !== "" || 
+                        formData.email !== "" || 
+                        formData.telefono !== "" ||
+                        formData.fuente !== "" ||
+                        formData.direccion !== "" ||
+                        formData.nivel_tecnico !== "" ||
+                        formData.alcance !== "" ||
+                        formData.notas_observaciones !== "";
+      
+      if (hasChanges) {
+        if (confirm("¿Estás seguro de que deseas cancelar? Los cambios no guardados se perderán.")) {
+          onCancel?.();
+        }
+      } else {
+        onCancel?.();
       }
     } else {
-      onFacilitatorSaved();
+      // For editing, always allow cancel since we're going back to the list
+      onCancel?.();
     }
   };
 
@@ -239,8 +250,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
           ano_ingreso: formData.fecha_ingreso ? new Date(formData.fecha_ingreso).getFullYear() : null,
         };
         
-        console.log('Sending update data:', updateData);
-        
+                
         response = await fetch(`/api/facilitators/${editId}`, {
           method: 'PUT',
           headers: {
@@ -255,8 +265,7 @@ export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormP
         } else {
           const errorData = await response.json().catch(() => ({}));
           const errorMessage = errorData.error || 'Error al actualizar el facilitador';
-          console.error('Update error response:', errorData);
-          alert(`Error: ${errorMessage}`);
+                    alert(`Error: ${errorMessage}`);
         }
       } else {
         // Create new facilitator - send as FormData for file upload
