@@ -8,17 +8,14 @@ import {
   MapPin, 
   Calendar,
   ChevronRight,
-  Star
+  Star,
+  Download
 } from "lucide-react";
-import { createClient } from "@/utils/supabase/client";
+import { getSurveysReport } from "@/app/actions/reportes";
+import { exportSurveysReport } from "@/lib/csv-export";
 import Link from "next/link";
 
-interface SurveysReportProps {
-  dateFrom?: string;
-  dateTo?: string;
-  selectedState?: string;
-}
-
+// Type for the survey data returned from server action
 interface SurveySummary {
   id_osi: number;
   nro_osi: string;
@@ -28,6 +25,18 @@ interface SurveySummary {
   fecha_inicio_real: string;
   survey_count: number;
   avg_score: number;
+  // New fields for richer analytics
+  question_averages: { [key: string]: number };
+  question_distributions: { [key: string]: { [score: number]: number } };
+  attendance_reasons: { [reason: string]: number };
+  participant_count?: number;
+  response_rate?: number;
+}
+
+interface SurveysReportProps {
+  dateFrom?: string;
+  dateTo?: string;
+  selectedState?: string;
 }
 
 export default function SurveysReport({ 
@@ -42,86 +51,19 @@ export default function SurveysReport({
   useEffect(() => {
     async function fetchSurveyData() {
       setLoading(true);
-      const supabase = createClient();
-
+      
       try {
-        // 1. Fetch all surveys first
-        const { data: surveyData, error: surveyError } = await supabase
-          .from("course_satisfaction_surveys")
-          .select("id_osi, q9");
-
-        if (surveyError) throw surveyError;
-
-        if (!surveyData || surveyData.length === 0) {
+        const result = await getSurveysReport(dateFrom, dateTo, selectedState);
+        
+        if (result.error) {
+          console.error("Error fetching survey report data:", result.error);
           setSummaries([]);
-          return;
+        } else {
+          setSummaries(result.data);
         }
-
-        // 2. Get unique OSI IDs
-        const uniqueOsiIds = Array.from(new Set(surveyData.map(s => s.id_osi)));
-
-        // 3. Fetch OSI details for these IDs
-        let osiQuery = supabase
-          .from("v_osi_formato_completo")
-          .select(`
-            id_osi,
-            nro_osi,
-            nombre_empresa,
-            servicio,
-            direccion_ejecucion,
-            fecha_inicio_real,
-            id_estado_direccion_ejecucion_efectiva
-          `)
-          .in("id_osi", uniqueOsiIds);
-
-        if (dateFrom) osiQuery = osiQuery.gte("fecha_inicio_real", dateFrom);
-        if (dateTo) osiQuery = osiQuery.lte("fecha_inicio_real", dateTo);
-        if (selectedState) osiQuery = osiQuery.eq("id_estado_direccion_ejecucion_efectiva", selectedState);
-
-        const { data: osiData, error: osiError } = await osiQuery;
-
-        if (osiError) throw osiError;
-
-        // 4. Group surveys by OSI
-        const osiMap = new Map();
-        osiData?.forEach(osi => {
-          osiMap.set(osi.id_osi, {
-            ...osi,
-            total_score: 0,
-            survey_count: 0
-          });
-        });
-
-        surveyData.forEach(survey => {
-          const osiEntry = osiMap.get(survey.id_osi);
-          if (osiEntry) {
-            osiEntry.total_score += survey.q9;
-            osiEntry.survey_count += 1;
-          }
-        });
-
-        // 5. Final transformation
-        const summariesData: SurveySummary[] = Array.from(osiMap.values())
-          .filter(osi => osi.survey_count > 0)
-          .map(g => ({
-            id_osi: g.id_osi,
-            nro_osi: g.nro_osi,
-            nombre_empresa: g.nombre_empresa,
-            servicio: g.servicio,
-            direccion_ejecucion: g.direccion_ejecucion,
-            fecha_inicio_real: g.fecha_inicio_real,
-            survey_count: g.survey_count,
-            avg_score: g.total_score / g.survey_count,
-          }));
-
-        // Sort by most recent
-        summariesData.sort((a, b) => 
-          new Date(b.fecha_inicio_real).getTime() - new Date(a.fecha_inicio_real).getTime()
-        );
-
-        setSummaries(summariesData);
       } catch (err) {
         console.error("Error fetching survey report data:", err);
+        setSummaries([]);
       } finally {
         setLoading(false);
       }
@@ -184,7 +126,7 @@ export default function SurveysReport({
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Promedio Global</p>
               <p className="text-xl font-bold text-gray-900">
                 {summaries.length > 0 
-                  ? (summaries.reduce((acc, s) => acc + s.avg_score, 0) / summaries.length).toFixed(1)
+                  ? (summaries.reduce((acc, s) => acc + (s.avg_score * s.survey_count), 0) / summaries.reduce((acc, s) => acc + s.survey_count, 0)).toFixed(1)
                   : "0.0"
                 }
               </p>
@@ -192,6 +134,113 @@ export default function SurveysReport({
           </div>
         </div>
       </div>
+
+      {/* Export button */}
+      {summaries.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => exportSurveysReport(filteredSummaries)}
+            className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Exportar Excel
+          </button>
+        </div>
+      )}
+
+      {/* Rich Analytics Section */}
+      {summaries.length > 0 && (
+        <div className="space-y-6">
+          {/* Question Breakdown */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Análisis por Pregunta</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 10 }, (_, i) => i + 1).map(qNum => {
+                const qKey = `q${qNum}`;
+                const avgScore = summaries.reduce((acc, s) => acc + (s.question_averages[qKey] || 0) * s.survey_count, 0) / 
+                              summaries.reduce((acc, s) => acc + s.survey_count, 0);
+                const scoreColor = getScoreColor(avgScore);
+                
+                return (
+                  <div key={qKey} className="border border-gray-100 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-700">Pregunta {qNum}</span>
+                      <span className={`text-sm font-bold ${scoreColor}`}>
+                        {avgScore.toFixed(1)}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {[5, 4, 3, 2, 1].map(score => {
+                        const count = summaries.reduce((acc, s) => acc + (s.question_distributions[qKey]?.[score] || 0), 0);
+                        const total = summaries.reduce((acc, s) => acc + s.survey_count, 0);
+                        const pct = total > 0 ? (count / total) * 100 : 0;
+                        
+                        return (
+                          <div key={score} className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 w-3">{score}</span>
+                            <div className="flex-1 bg-gray-100 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full ${
+                                  score >= 4 ? 'bg-green-500' : score >= 3 ? 'bg-yellow-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500 w-8 text-right">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Attendance Reasons */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Razones de Asistencia</h3>
+            <div className="space-y-2">
+              {Object.entries(
+                summaries.reduce((acc, s) => {
+                  Object.entries(s.attendance_reasons).forEach(([reason, count]) => {
+                    acc[reason] = (acc[reason] || 0) + count;
+                  });
+                  return acc;
+                }, {} as { [reason: string]: number })
+              )
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 10)
+                .map(([reason, count]) => {
+                  const total = Object.values(
+                    summaries.reduce((acc, s) => {
+                      Object.entries(s.attendance_reasons).forEach(([r, c]) => {
+                        acc[r] = (acc[r] || 0) + c;
+                      });
+                      return acc;
+                    }, {} as { [reason: string]: number })
+                  ).reduce((sum, c) => sum + c, 0);
+                  const pct = total > 0 ? (count / total) * 100 : 0;
+                  
+                  return (
+                    <div key={reason} className="flex items-center gap-3">
+                      <span className="text-sm text-gray-700 min-w-0 flex-1 truncate">{reason}</span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="w-24 bg-gray-100 rounded-full h-2">
+                          <div 
+                            className="bg-sky-500 h-2 rounded-full"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500 w-8 text-right">{count}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Grid of OSIs with Surveys */}
       {filteredSummaries.length === 0 ? (

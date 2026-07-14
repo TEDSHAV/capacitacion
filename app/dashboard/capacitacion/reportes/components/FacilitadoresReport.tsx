@@ -9,9 +9,12 @@ import {
   CheckCircle2,
   XCircle,
   Hash,
+  Download,
 } from "lucide-react";
 import { getFacilitadoresReport } from "@/app/actions/reportes";
 import { FacilitadoresReportData } from "@/types";
+import { exportFacilitadoresReport } from "@/lib/csv-export";
+import Link from "next/link";
 
 interface Props {
   dateFrom?: string;
@@ -155,6 +158,19 @@ export default function FacilitadoresReport({
           <p className="text-2xl font-bold text-amber-600">{avgHours}</p>
         </div>
       </div>
+
+      {/* Export button */}
+      {facilitadores.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => exportFacilitadoresReport(filtered)}
+            className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Exportar Excel
+          </button>
+        </div>
+      )}
 
       {/* Ranking + state distribution side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -12,9 +12,12 @@ import {
   Clock,
   Users,
   CheckCircle2,
+  Download,
 } from "lucide-react";
 import { getCursosReport } from "@/app/actions/reportes";
 import { CursoReportItem } from "@/types";
+import { exportCursosReport } from "@/lib/csv-export";
+import Link from "next/link";
 
 interface Props {
   dateFrom?: string;
@@ -232,6 +235,19 @@ export default function CursosReport({
           <p className="text-2xl font-bold text-amber-600">{avgScore}</p>
         </div>
       </div>
+
+      {/* Export button */}
+      {data.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => exportCursosReport(sorted)}
+            className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Exportar Excel
+          </button>
+        </div>
+      )}
 
       {/* Top 10 bar chart */}
       {data.length > 0 && (

@@ -9,6 +9,62 @@ import {
   TendenciasData,
 } from "@/types";
 
+// Helper function to check for data truncation
+function checkTruncation(data: any[] | null, limit: number): { isTruncated: boolean; message?: string } {
+  if (data && data.length >= limit) {
+    return {
+      isTruncated: true,
+      message: `Advertencia: Los resultados están truncados a ${limit} filas. Algunos datos pueden no mostrarse.`
+    };
+  }
+  return { isTruncated: false };
+}
+
+// Helper function to calculate hours with consistent fallback logic
+function calculateHoursForCertificate(
+  cert: any,
+  osiData: any,
+  serviciosMap: Map<number, any>
+): number {
+  // First try to get hours from certificate snapshot (user overrides)
+  if (cert.snapshot_contenido) {
+    try {
+      const snapshot = JSON.parse(cert.snapshot_contenido);
+      const hours = snapshot.certificado_detalles?.horas_estimadas || 0;
+      if (hours > 0) return hours;
+    } catch (e) {
+      // Snapshot parsing failed, continue with fallback
+    }
+  }
+  
+  // If no hours from snapshot, try OSI executed hours
+  if (osiData && osiData.horas_academicas_ejecucion) {
+    return osiData.horas_academicas_ejecucion;
+  }
+  
+  // Final fallback to course standard hours
+  const servicio = serviciosMap.get(cert.id_curso);
+  return servicio?.carga_horaria_std || 0;
+}
+
+// SurveySummary interface (defined inline since it's only used here)
+interface SurveySummary {
+  id_osi: number;
+  nro_osi: string;
+  nombre_empresa: string;
+  servicio: string;
+  direccion_ejecucion: string;
+  fecha_inicio_real: string;
+  survey_count: number;
+  avg_score: number;
+  // New fields for richer analytics
+  question_averages: { [key: string]: number };
+  question_distributions: { [key: string]: { [score: number]: number } };
+  attendance_reasons: { [reason: string]: number };
+  participant_count?: number;
+  response_rate?: number;
+}
+
 // ─── Overview ────────────────────────────────────────────────────────────────
 
 export async function getOverviewMetrics(
@@ -44,6 +100,9 @@ export async function getOverviewMetrics(
     ]);
 
     if (error) return { error: error.message, data: null };
+
+    // Check for truncation
+    const truncationWarning = checkTruncation(certs, 5000);
 
     // Create a map of servicios for quick lookup
     const serviciosMap = new Map((servicios || []).map((s: any) => [s.id, s]));
@@ -93,6 +152,8 @@ export async function getOverviewMetrics(
         scoreCount++;
       }
 
+      // Note: OverviewMetrics uses carga_horaria_std directly for performance
+      // For consistency with FacilitadoresReport, we could fetch OSI data and use calculateHoursForCertificate()
       const servicio = serviciosMap.get(cert.id_curso);
       totalHours += servicio?.carga_horaria_std || 0;
 
@@ -184,7 +245,7 @@ export async function getOverviewMetrics(
         topCompanies,
         monthlyTrend,
       },
-      error: null,
+      error: truncationWarning.isTruncated ? truncationWarning.message : null,
     };
   } catch (err) {
     return {
@@ -224,6 +285,9 @@ export async function getCursosReport(
     ]);
 
     if (error) return { error: error.message, data: [] };
+
+    // Check for truncation
+    const truncationWarning = checkTruncation(certs, 5000);
 
     // Create a map of servicios for quick lookup
     const serviciosMap = new Map((servicios || []).map((s: any) => [s.id, s]));
@@ -305,7 +369,7 @@ export async function getCursosReport(
       }))
       .sort((a, b) => b.totalCertificates - a.totalCertificates);
 
-    return { data: result, error: null };
+    return { data: result, error: truncationWarning.isTruncated ? truncationWarning.message : null };
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Error desconocido",
@@ -371,40 +435,8 @@ export async function getFacilitadoresReport(
     if (certsRes.error) return { error: certsRes.error.message, data: null };
     if (osiRes.error) return { error: osiRes.error.message, data: null };
 
-    // DEBUG: Log raw data
-    console.log('DEBUG: Raw certificates data:', certsRes.data?.length, 'certificates');
-    console.log('DEBUG: Raw OSI data:', osiRes.data?.length, 'OSIs');
-    console.log('DEBUG: Sample certificate:', certsRes.data?.[0]);
-    console.log('DEBUG: Sample OSI:', osiRes.data?.[0]);
-    console.log('DEBUG: All OSI fields:', osiRes.data?.[0] ? Object.keys(osiRes.data?.[0]) : 'No OSI data');
-    
-    // DEBUG: Check certificate snapshot for hours
-    const sampleCert = certsRes.data?.[0];
-    if (sampleCert?.snapshot_contenido) {
-      try {
-        const snapshot = JSON.parse(sampleCert.snapshot_contenido);
-        console.log('DEBUG: Sample certificate snapshot keys:', Object.keys(snapshot));
-        console.log('DEBUG: Sample certificate snapshot:', snapshot);
-      } catch (e) {
-        console.log('DEBUG: Snapshot parsing failed:', e);
-        console.log('DEBUG: Raw snapshot content:', sampleCert.snapshot_contenido);
-      }
-    } else {
-      console.log('DEBUG: No snapshot content in certificate');
-    }
-    
-    // DEBUG: Check OSI ID ranges
-    const certOsiIds = certsRes.data?.map(c => c.nro_osi?.toString()).filter(id => id != null);
-    const viewOsiIds = osiRes.data?.map(osi => osi.nro_osi?.toString());
-    console.log('DEBUG: Certificate OSI IDs (first 20):', certOsiIds?.slice(0, 20));
-    console.log('DEBUG: View OSI nro_osi IDs (first 20):', viewOsiIds?.slice(0, 20));
-    
-    // Check for any matches
-    const certSet = new Set(certOsiIds);
-    const viewSet = new Set(viewOsiIds);
-    const matches = certOsiIds?.filter(id => viewSet.has(id)) || [];
-    console.log('DEBUG: Matching OSI IDs:', matches.length, 'matches found');
-    console.log('DEBUG: Sample matches:', matches.slice(0, 10));
+    // Check for truncation
+    const truncationWarning = checkTruncation(certsRes.data, 5000);
 
     // Create maps for quick lookup
     const serviciosMap = new Map(
@@ -415,7 +447,6 @@ export async function getFacilitadoresReport(
       (osiRes.data || []).map((osi: any) => [osi.nro_osi?.toString(), osi]),
     );
 
-    console.log('DEBUG: OSI Map created with', osiMap.size, 'entries');
 
     const stateNames = new Map<number, string>();
     statesRes.data?.forEach((s: any) => stateNames.set(s.id, s.nombre_estado));
@@ -439,16 +470,6 @@ export async function getFacilitadoresReport(
       const fid = cert.id_facilitador;
       const osiId = cert.nro_osi?.toString();
       
-      // DEBUG: Log first few certificates
-      if (index < 5) {
-        console.log(`DEBUG: Certificate ${index}:`, {
-          facilitatorId: fid,
-          osiId: osiId,
-          course: cert.id_curso,
-          date: cert.fecha_emision
-        });
-      }
-      
       if (!certStats.has(fid)) {
         certStats.set(fid, {
           totalCerts: 0,
@@ -461,7 +482,6 @@ export async function getFacilitadoresReport(
         
         // Initialize OSI tracking for this facilitator
         facilitatorOSIMap.set(fid, new Set());
-        console.log(`DEBUG: Initialized stats for facilitator ${fid}`);
       }
       
       const s = certStats.get(fid)!;
@@ -471,48 +491,12 @@ export async function getFacilitadoresReport(
       if (!osiSet.has(osiId)) {
         osiSet.add(osiId);
         const osiData = osiMap.get(osiId);
-        console.log(`DEBUG: OSI ${osiId} lookup:`, osiData ? 'FOUND' : 'NOT FOUND');
         
-        let hours = 0;
-        let hoursSource = '';
-        
-        // First try to get hours from certificate snapshot (user overrides)
-        if (cert.snapshot_contenido) {
-          try {
-            const snapshot = JSON.parse(cert.snapshot_contenido);
-            hours = snapshot.certificado_detalles?.horas_estimadas || 0;
-            if (hours > 0) {
-              hoursSource = 'Certificate snapshot hours';
-              console.log(`DEBUG: Using certificate snapshot hours: ${hours} for OSI ${osiId}`);
-            }
-          } catch (e) {
-            console.log(`DEBUG: Failed to parse snapshot for OSI ${osiId}:`, e);
-          }
-        }
-        
-        // If no hours from snapshot, try OSI executed hours
-        if (hours === 0 && osiData && osiData.horas_academicas_ejecucion) {
-          hours = osiData.horas_academicas_ejecucion;
-          hoursSource = 'OSI executed hours';
-          console.log(`DEBUG: Using OSI executed hours: ${hours} for OSI ${osiId}`);
-        }
-        
-        // Final fallback to course standard hours
-        if (hours === 0) {
-          const servicio = serviciosMap.get(cert.id_curso);
-          hours = servicio?.carga_horaria_std || 0;
-          hoursSource = 'Course standard hours';
-          console.log(`DEBUG: Using course standard hours: ${hours} for course ${cert.id_curso} (OSI ${osiId})`);
-        }
+        const hours = calculateHoursForCertificate(cert, osiData, serviciosMap);
         
         if (hours > 0) {
           s.totalHours += hours;
-          console.log(`DEBUG: Added ${hours} hours (${hoursSource}) to facilitator ${fid} for OSI ${osiId}`);
-        } else {
-          console.log(`DEBUG: No hours available for OSI ${osiId} (course ${cert.id_curso})`);
         }
-      } else {
-        console.log(`DEBUG: OSI ${osiId} already counted for facilitator ${fid}, skipping`);
       }
       
       // Continue with other metrics (certificates, scores, courses, activity)
@@ -551,21 +535,10 @@ export async function getFacilitadoresReport(
           lastActivity: s?.lastActivity || null,
         };
         
-        // DEBUG: Log facilitator results
-        console.log(`DEBUG: Facilitator ${f.nombre_apellido} (${f.id}):`, {
-          totalCerts: result.totalCerts,
-          totalHours: result.totalHours,
-          uniqueCourses: result.uniqueCourses,
-          avgScore: result.avgScore,
-          hasStats: !!s
-        });
-        
         return result;
       })
       .filter((f) => f.totalCerts > 0);
 
-    console.log('DEBUG: Final facilitadoresList:', facilitadoresList.length, 'facilitators');
-    console.log('DEBUG: Sample final facilitator:', facilitadoresList[0]);
 
     facilitadoresList.sort((a, b) => b.totalCerts - a.totalCerts);
 
@@ -583,7 +556,7 @@ export async function getFacilitadoresReport(
 
     return {
       data: { facilitadores: facilitadoresList, stateStats },
-      error: null,
+      error: truncationWarning.isTruncated ? truncationWarning.message : null,
     };
   } catch (err) {
     return {
@@ -617,6 +590,9 @@ export async function getEmpresasReport(
 
     const { data: certs, error } = await query;
     if (error) return { error: error.message, data: [] };
+
+    // Check for truncation
+    const truncationWarning = checkTruncation(certs, 5000);
 
     const companyMap = new Map<
       number,
@@ -673,7 +649,7 @@ export async function getEmpresasReport(
       }))
       .sort((a, b) => b.totalCerts - a.totalCerts);
 
-    return { data: result, error: null };
+    return { data: result, error: truncationWarning.isTruncated ? truncationWarning.message : null };
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Error desconocido",
@@ -705,6 +681,9 @@ export async function getTendenciasReport(stateId?: string): Promise<{
     ]);
 
     if (certsRes.error) return { error: certsRes.error.message, data: null };
+
+    // Check for truncation
+    const truncationWarning = checkTruncation(certsRes.data, 10000);
 
     const stateNames = new Map<number, string>();
     statesRes.data?.forEach((s: any) => stateNames.set(s.id, s.nombre_estado));
@@ -752,12 +731,143 @@ export async function getTendenciasReport(stateId?: string): Promise<{
 
     return {
       data: { monthlyData, yearlyTotals, stateDistribution },
-      error: null,
+      error: truncationWarning.isTruncated ? truncationWarning.message : null,
     };
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Error desconocido",
       data: null,
+    };
+  }
+}
+
+// ─── Surveys ───────────────────────────────────────────────────────────────────
+
+export async function getSurveysReport(
+  dateFrom?: string,
+  dateTo?: string,
+  stateId?: string,
+): Promise<{ data: SurveySummary[]; error: string | null }> {
+  const supabase = await createClient();
+  try {
+    // 1. First, fetch OSI data with date/state filters applied
+    let osiQuery = supabase
+      .from("v_osi_formato_completo")
+      .select(`
+        id_osi,
+        nro_osi,
+        nombre_empresa,
+        servicio,
+        direccion_ejecucion,
+        fecha_inicio_real,
+        id_estado_direccion_ejecucion_efectiva
+      `);
+
+    if (dateFrom) osiQuery = osiQuery.gte("fecha_inicio_real", dateFrom);
+    if (dateTo) osiQuery = osiQuery.lte("fecha_inicio_real", dateTo);
+    if (stateId) osiQuery = osiQuery.eq("id_estado_direccion_ejecucion_efectiva", stateId);
+
+    const { data: osiData, error: osiError } = await osiQuery;
+
+    if (osiError) return { error: osiError.message, data: [] };
+
+    if (!osiData || osiData.length === 0) return { data: [], error: null };
+
+    // 2. Get unique OSI IDs from filtered OSI data
+    const filteredOsiIds = osiData.map(osi => osi.id_osi);
+
+    // 3. Fetch surveys only for the filtered OSIs (all questions + attendance reasons)
+    const { data: surveyData, error: surveyError } = await supabase
+      .from("course_satisfaction_surveys")
+      .select("id_osi, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, attendance_reasons")
+      .in("id_osi", filteredOsiIds);
+
+    if (surveyError) return { error: surveyError.message, data: [] };
+
+    // 4. Group surveys by OSI with detailed analytics
+    const osiMap = new Map();
+    osiData?.forEach(osi => {
+      osiMap.set(osi.id_osi, {
+        ...osi,
+        total_score: 0,
+        survey_count: 0,
+        question_sums: {} as { [key: string]: number },
+        question_counts: {} as { [key: string]: { [score: number]: number } },
+        attendance_reasons: {} as { [reason: string]: number }
+      });
+    });
+
+    surveyData?.forEach(survey => {
+      const osiEntry = osiMap.get(survey.id_osi);
+      if (osiEntry) {
+        osiEntry.total_score += survey.q9;
+        osiEntry.survey_count += 1;
+        
+        // Process each question (q1-q10)
+        for (let i = 1; i <= 10; i++) {
+          const qKey = `q${i}`;
+          const score = (survey as any)[qKey];
+          if (score != null) {
+            osiEntry.question_sums[qKey] = (osiEntry.question_sums[qKey] || 0) + score;
+            if (!osiEntry.question_counts[qKey]) {
+              osiEntry.question_counts[qKey] = {};
+            }
+            osiEntry.question_counts[qKey][score] = (osiEntry.question_counts[qKey][score] || 0) + 1;
+          }
+        }
+        
+        // Process attendance reasons
+        if (survey.attendance_reasons && Array.isArray(survey.attendance_reasons)) {
+          survey.attendance_reasons.forEach((reason: any) => {
+            if (typeof reason === 'string') {
+              osiEntry.attendance_reasons[reason] = (osiEntry.attendance_reasons[reason] || 0) + 1;
+            }
+          });
+        }
+      }
+    });
+
+    // 5. Final transformation with rich analytics
+    const summariesData: SurveySummary[] = Array.from(osiMap.values())
+      .filter(osi => osi.survey_count > 0)
+      .map(g => {
+        const question_averages: { [key: string]: number } = {};
+        const question_distributions: { [key: string]: { [score: number]: number } } = {};
+        
+        // Calculate averages for each question
+        for (let i = 1; i <= 10; i++) {
+          const qKey = `q${i}`;
+          const sum = g.question_sums[qKey] || 0;
+          const count = g.survey_count;
+          question_averages[qKey] = count > 0 ? sum / count : 0;
+          question_distributions[qKey] = g.question_counts[qKey] || {};
+        }
+        
+        return {
+          id_osi: g.id_osi,
+          nro_osi: g.nro_osi,
+          nombre_empresa: g.nombre_empresa,
+          servicio: g.servicio,
+          direccion_ejecucion: g.direccion_ejecucion,
+          fecha_inicio_real: g.fecha_inicio_real,
+          survey_count: g.survey_count,
+          avg_score: g.total_score / g.survey_count,
+          question_averages,
+          question_distributions,
+          attendance_reasons: g.attendance_reasons,
+        };
+      });
+
+    // Sort by most recent
+    summariesData.sort((a, b) => 
+      new Date(b.fecha_inicio_real).getTime() - new Date(a.fecha_inicio_real).getTime()
+    );
+
+    return { data: summariesData, error: null };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Error desconocido",
+      data: [],
     };
   }
 }

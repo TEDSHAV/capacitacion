@@ -11,9 +11,12 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
+  Download,
 } from "lucide-react";
 import { getEmpresasReport } from "@/app/actions/reportes";
 import { EmpresaReportItem } from "@/types";
+import { exportEmpresasReport } from "@/lib/csv-export";
+import Link from "next/link";
 
 interface Props {
   dateFrom?: string;
@@ -229,6 +232,19 @@ export default function EmpresasReport({
           )}
         </div>
       </div>
+
+      {/* Export button */}
+      {data.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => exportEmpresasReport(sorted)}
+            className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Exportar Excel
+          </button>
+        </div>
+      )}
 
       {/* Horizontal bar chart - top 10 */}
       {data.length > 0 && (

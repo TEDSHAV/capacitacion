@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   BookOpen,
@@ -10,6 +11,8 @@ import {
   ChevronRight,
   MapPin,
   ClipboardList,
+  Calendar,
+  X,
 } from "lucide-react";
 import { State } from "@/types";
 import OverviewReport from "./components/OverviewReport";
@@ -76,6 +79,7 @@ const DATE_PRESETS = [
   { label: "3 meses", value: "3m" },
   { label: "6 meses", value: "6m" },
   { label: "Este año", value: "year" },
+  { label: "Personalizado", value: "custom" },
   { label: "Todo", value: "all" },
 ];
 
@@ -106,11 +110,56 @@ interface ReportesClientProps {
 }
 
 export default function ReportesClient({ user, states }: ReportesClientProps) {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<ReportTab>("overview");
   const [datePreset, setDatePreset] = useState("all");
   const [selectedState, setSelectedState] = useState("");
+  const [customFromDate, setCustomFromDate] = useState("");
+  const [customToDate, setCustomToDate] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const { from: dateFrom, to: dateTo } = getDateRange(datePreset);
+  // Initialize state from URL params
+  useEffect(() => {
+    const tab = searchParams.get("tab") as ReportTab;
+    const date = searchParams.get("date");
+    const state = searchParams.get("state");
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+
+    if (tab && NAV_ITEMS.find(item => item.id === tab)) {
+      setActiveTab(tab);
+    }
+    if (date && DATE_PRESETS.find(item => item.value === date)) {
+      setDatePreset(date);
+    }
+    if (state && states.find(s => s.id.toString() === state)) {
+      setSelectedState(state);
+    }
+    if (from && to) {
+      setCustomFromDate(from);
+      setCustomToDate(to);
+      setDatePreset("custom");
+    }
+  }, [searchParams, states]);
+
+  // Update URL params when state changes
+  useEffect(() => {
+    const params = new URLSearchParams();
+    params.set("tab", activeTab);
+    params.set("date", datePreset);
+    if (selectedState) params.set("state", selectedState);
+    if (datePreset === "custom" && customFromDate && customToDate) {
+      params.set("from", customFromDate);
+      params.set("to", customToDate);
+    }
+
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, "", newUrl);
+  }, [activeTab, datePreset, selectedState, customFromDate, customToDate]);
+
+  const { from: dateFrom, to: dateTo } = datePreset === "custom" 
+    ? { from: customFromDate, to: customToDate }
+    : getDateRange(datePreset);
   const activeNav = NAV_ITEMS.find((n) => n.id === activeTab)!;
 
   return (
@@ -185,13 +234,20 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap relative">
             {/* Date preset pills */}
             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
               {DATE_PRESETS.map((p) => (
                 <button
                   key={p.value}
-                  onClick={() => setDatePreset(p.value)}
+                  onClick={() => {
+                    if (p.value === "custom") {
+                      setShowDatePicker(!showDatePicker);
+                    } else {
+                      setDatePreset(p.value);
+                      setShowDatePicker(false);
+                    }
+                  }}
                   className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
                     datePreset === p.value
                       ? "bg-white text-sky-700 shadow-sm"
@@ -202,6 +258,66 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
                 </button>
               ))}
             </div>
+
+            {/* Custom date picker */}
+            {showDatePicker && (
+              <div className="absolute top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50 min-w-[300px]">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900">Rango de fechas personalizado</h3>
+                  <button
+                    onClick={() => setShowDatePicker(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Desde</label>
+                    <input
+                      type="date"
+                      value={customFromDate}
+                      onChange={(e) => setCustomFromDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Hasta</label>
+                    <input
+                      type="date"
+                      value={customToDate}
+                      onChange={(e) => setCustomToDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={() => {
+                        if (customFromDate && customToDate) {
+                          setDatePreset("custom");
+                          setShowDatePicker(false);
+                        }
+                      }}
+                      disabled={!customFromDate || !customToDate}
+                      className="flex-1 px-3 py-2 bg-sky-600 text-white text-sm font-medium rounded-md hover:bg-sky-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Aplicar
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCustomFromDate("");
+                        setCustomToDate("");
+                        setDatePreset("all");
+                        setShowDatePicker(false);
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* State filter */}
             <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-sm text-gray-600">
