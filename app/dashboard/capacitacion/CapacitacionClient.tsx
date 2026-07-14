@@ -167,7 +167,7 @@ export default function CapacitacionClient({
           <div className="relative">
             {/* Tab container with enhanced styling */}
             <div className="relative bg-gray-100 rounded-t-xl border border-gray-300 shadow-lg">
-              <div className="flex gap-2 p-2">
+              <div className="flex gap-4 p-2">
                 {categories.map((category) => {
                   const isActive = activeSection === category.id;
                   const categoryColors = {
