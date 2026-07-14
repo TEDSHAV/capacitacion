@@ -28,6 +28,10 @@ tests
 __tests__
 coverage
 .nyc_output
+build_output.log
+document-generation.log
+.env.example
+.env.docker.example
 docker-compose*.yml
 Dockerfile*
 .dockerignore

@@ -1,10 +1,19 @@
-# Stage 1: Build native dependencies
+# Stage 1: Build all dependencies (including devDependencies for build stage)
 FROM node:22-bookworm-slim AS deps
 ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/lib/apt/lists \
+    --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
+
+# Stage 1b: Prune to production-only dependencies for runner image
+FROM node:22-bookworm-slim AS deps-prod
+WORKDIR /app
+COPY --from=deps /app/package.json /app/package-lock.json* ./
+COPY --from=deps /app/node_modules ./node_modules
+RUN npm prune --production
 
 # Stage 2: Build Next.js
 FROM node:22-bookworm-slim AS builder
@@ -25,7 +34,7 @@ COPY package.json package-lock.json* ./
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production NODE_OPTIONS="--max-old-space-size=4096" TURBOPACK_DISABLED=1
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
 # Stage 3: Runner
 FROM node:22-bookworm-slim AS runner
@@ -34,7 +43,9 @@ WORKDIR /app
 
 # 1. Install system libraries needed for Puppeteer/jsPDF canvas operations and sharp
 # Use runtime libvips (not -dev) to reduce image size
-RUN apt-get update && apt-get install -y \
+RUN --mount=type=cache,target=/var/lib/apt/lists \
+    --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y \
     fonts-liberation \
     libnss3 \
     libatk1.0-0 \
@@ -55,8 +66,8 @@ RUN groupadd --system --gid 1001 nodejs && \
     mkdir -p /home/nextjs/.cache/puppeteer && \
     chown -R nextjs:nodejs /home/nextjs
 
-# 3. Copy node_modules
-COPY --chown=nextjs:nodejs --from=deps /app/node_modules ./node_modules
+# 3. Copy production-only node_modules (devDependencies pruned)
+COPY --chown=nextjs:nodejs --from=deps-prod /app/node_modules ./node_modules
 
 # 4. Environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
