@@ -1,12 +1,13 @@
 "use client";
 
-import { getAnalyticsMetrics } from "@/app/actions/participants";
+import { getParticipantMetrics } from "@/app/actions/participants";
 import { useState, useEffect, useRef } from "react";
 import {
   Search,
   User,
-  Award,
-  Clock,
+  MapPin,
+  BookOpen,
+  Building2,
   Download,
   ExternalLink,
 } from "lucide-react";
@@ -26,17 +27,17 @@ export default function ParticipantLookup() {
   const [participantData, setParticipantData] =
     useState<ParticipantLookupResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState<any>(null);
+  const [metrics, setMetrics] = useState<any>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [recentParticipants, setRecentParticipants] = useState<any[]>([]);
 
   useEffect(() => {
-    async function loadStats() {
-      const data = await getAnalyticsMetrics();
-      setStats(data);
+    async function loadMetrics() {
+      const data = await getParticipantMetrics();
+      setMetrics(data);
     }
-    loadStats();
+    loadMetrics();
 
     async function loadRecent() {
       const data = await import("@/app/actions/participants").then((m) =>
@@ -175,41 +176,50 @@ export default function ParticipantLookup() {
         </p>
 
         {/* Metrics Row */}
-        {stats && (
+        {metrics && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
               <User className="h-8 w-8 text-blue-600" />
               <div>
                 <p className="text-sm text-gray-500">Total Participantes</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {stats.total_participants || 0}
+                  {metrics.total_participants || 0}
                 </p>
               </div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
-              <Award className="h-8 w-8 text-green-600" />
+              <MapPin className="h-8 w-8 text-green-600" />
               <div>
-                <p className="text-sm text-gray-500">Certificados Emitidos</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.total_certificates || 0}
+                <p className="text-sm text-gray-500">Estado Principal</p>
+                <p className="text-sm font-bold text-gray-900 truncate max-w-[150px]">
+                  {metrics.top_states?.[0]?.name || "N/A"}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {metrics.top_states?.[0]?.count || 0} participantes
                 </p>
               </div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
-              <Clock className="h-8 w-8 text-purple-600" />
+              <BookOpen className="h-8 w-8 text-purple-600" />
               <div>
-                <p className="text-sm text-gray-500">Promedio General</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.average_score || 0}
+                <p className="text-sm text-gray-500">Curso Popular</p>
+                <p className="text-sm font-bold text-gray-900 truncate max-w-[150px]">
+                  {metrics.top_courses?.[0]?.name || "N/A"}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {metrics.top_courses?.[0]?.count || 0} certificados
                 </p>
               </div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
-              <Download className="h-8 w-8 text-orange-600" />
+              <Building2 className="h-8 w-8 text-orange-600" />
               <div>
-                <p className="text-sm text-gray-500">Este Mes</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.certificates_this_month || 0}
+                <p className="text-sm text-gray-500">Empresa Top</p>
+                <p className="text-sm font-bold text-gray-900 truncate max-w-[150px]">
+                  {metrics.top_companies?.[0]?.name || "N/A"}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {metrics.top_companies?.[0]?.count || 0} certificados
                 </p>
               </div>
             </div>

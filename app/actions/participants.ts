@@ -202,6 +202,155 @@ export async function deleteParticipant(
   }
 }
 
+export async function getParticipantMetrics(): Promise<any> {
+  try {
+    const supabase = await createClient();
+
+    const [
+      { count: totalParticipants },
+      { data: certs, error },
+      { data: topCompaniesData },
+    ] = await Promise.all([
+      supabase
+        .from("participantes_certificados")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true),
+      supabase
+        .from("certificados")
+        .select(
+          `
+          id_participante,
+          id_curso,
+          id_estado,
+          id_empresa,
+          cat_estados_venezuela (nombre_estado),
+          cursos (nombre),
+          empresas (razon_social)
+        `,
+        )
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(2000),
+      // Direct aggregation for top companies if possible, otherwise we do it in-memory
+      supabase
+        .from("certificados")
+        .select("id_empresa, empresas(razon_social)")
+        .eq("is_active", true)
+        .limit(1000),
+    ]);
+
+    if (error) throw error;
+
+    const stateMap: Record<string, number> = {};
+    const courseMap: Record<string, number> = {};
+    const companyMap: Record<string, number> = {};
+
+    certs?.forEach((cert: any) => {
+      const stateName =
+        cert.cat_estados_venezuela?.nombre_estado || "Desconocido";
+      stateMap[stateName] = (stateMap[stateName] || 0) + 1;
+
+      const courseName = cert.cursos?.nombre || "Desconocido";
+      courseMap[courseName] = (courseMap[courseName] || 0) + 1;
+
+      const companyName = cert.empresas?.razon_social || "Desconocido";
+      companyMap[companyName] = (companyMap[companyName] || 0) + 1;
+    });
+
+    const topStates = Object.entries(stateMap)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    const topCourses = Object.entries(courseMap)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    const topCompanies = Object.entries(companyMap)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    return {
+      total_participants: totalParticipants || 0,
+      top_states: topStates,
+      top_courses: topCourses,
+      top_companies: topCompanies,
+    };
+  } catch (error) {
+    console.error("Error fetching participant metrics:", error);
+    return null;
+  }
+}
+
+export async function getFacilitatorMetrics(): Promise<any> {
+  try {
+    const supabase = await createClient();
+
+    const [
+      { count: totalFacilitators },
+      { count: activeFacilitators },
+      { data: facilitators, error },
+    ] = await Promise.all([
+      supabase
+        .from("facilitadores")
+        .select("*", { count: "exact", head: true }),
+      supabase
+        .from("facilitadores")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true),
+      supabase.from("facilitadores").select(`
+            id,
+            id_estado_geografico,
+            cat_estados_venezuela (nombre_estado),
+            temas_cursos,
+            is_active
+          `),
+    ]);
+
+    if (error) throw error;
+
+    const stateMap: Record<string, number> = {};
+    const courseThemeMap: Record<string, number> = {};
+
+    facilitators?.forEach((f: any) => {
+      // Only count active ones for state and theme popularity
+      if (f.is_active) {
+        const stateName =
+          f.cat_estados_venezuela?.nombre_estado || "Desconocido";
+        stateMap[stateName] = (stateMap[stateName] || 0) + 1;
+
+        if (Array.isArray(f.temas_cursos)) {
+          f.temas_cursos.forEach((tema: string) => {
+            courseThemeMap[tema] = (courseThemeMap[tema] || 0) + 1;
+          });
+        }
+      }
+    });
+
+    const topStates = Object.entries(stateMap)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    const topThemes = Object.entries(courseThemeMap)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    return {
+      total_facilitators: totalFacilitators || 0,
+      active_facilitators: activeFacilitators || 0,
+      top_states: topStates,
+      top_themes: topThemes,
+    };
+  } catch (error) {
+    console.error("Error fetching facilitator metrics:", error);
+    return null;
+  }
+}
+
 export async function getAnalyticsMetrics(): Promise<any> {
   try {
     const supabase = await createClient();
