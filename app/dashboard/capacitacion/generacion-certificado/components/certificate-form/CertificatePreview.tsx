@@ -6,6 +6,8 @@ import { CertificateGeneration, CertificateParticipant } from "@/types";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getSignaturesForDropdownAction } from "@/app/actions/dropdown-data";
 import { QRService } from "@/lib/qr-service";
+import { Button } from "@/components/ui/button";
+import { X, RefreshCw, ChevronRight } from "lucide-react";
 
 interface CertificatePreviewProps {
   certificateData: CertificateGeneration;
@@ -431,24 +433,15 @@ export const CertificatePreview = ({
                 </button>
               </div>
             )}
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-600 transition-colors rounded-full"
+              title="Cerrar vista previa"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+              <X className="w-6 h-6" />
+            </Button>
           </div>
         </div>
 
@@ -482,7 +475,7 @@ export const CertificatePreview = ({
 
           {(isGenerating || (showCarnet && isGeneratingCarnet)) && (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <RefreshCw className="animate-spin h-8 w-8 text-blue-600" />
               <span className="ml-2 text-gray-600">
                 {showCarnet
                   ? "Generando vista previa del carnet..."

@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { CertificateParticipant, ExtractedParticipant } from "@/types";
+import { Button } from "@/components/ui/button";
+import { X, Upload, Camera, RefreshCw } from "lucide-react";
 
 interface ParticipantScannerModalProps {
   isOpen: boolean;
@@ -153,24 +155,14 @@ export const ParticipantScannerModal = ({
             <h2 className="text-2xl font-bold text-gray-900">
               Escanear Lista de Participantes
             </h2>
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 rounded-full"
             >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+              <X className="h-6 w-6" />
+            </Button>
           </div>
 
           {extractedParticipants.length === 0 ? (
@@ -219,19 +211,7 @@ export const ParticipantScannerModal = ({
                     id="file-upload"
                   />
                   <label htmlFor="file-upload" className="cursor-pointer">
-                    <svg
-                      className="mx-auto h-12 w-12 text-gray-400"
-                      stroke="currentColor"
-                      fill="none"
-                      viewBox="0 0 48 48"
-                    >
-                      <path
-                        d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
+                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
                     <p className="mt-1 text-sm text-gray-600">
                       {file
                         ? file.name
@@ -273,19 +253,7 @@ export const ParticipantScannerModal = ({
               >
                 {isProcessing ? (
                   <div className="flex items-center justify-center">
-                    <svg
-                      className="animate-spin h-5 w-5 mr-2 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 4v16m1.414 0l3.586-3.586a2 2 0 013.414 3.414L20 8.586a2 2 0 01-3.414-3.414L12 15.414a2 2 0 01-3.414-3.414L4 8.586a2 2 0 013.414 3.414z"
-                      />
-                    </svg>
+                    <RefreshCw className="animate-spin h-5 w-5 mr-2 text-white" />
                     Procesando...
                   </div>
                 ) : (
@@ -379,24 +347,15 @@ export const ParticipantScannerModal = ({
                         className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => handleRemoveParticipant(index)}
-                      className="text-red-600 hover:text-red-800"
+                      className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full flex-shrink-0"
+                      title="Eliminar participante"
                     >
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
+                      <X className="h-5 w-5" />
+                    </Button>
                   </div>
                 ))}
               </div>

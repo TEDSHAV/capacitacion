@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { CertificateOSI, CourseTopic, OSISearchProps } from "@/types";
+import { Button } from "@/components/ui/button";
+import { X, Search } from "lucide-react";
 
 export default function OSISearch({
   osis,
@@ -150,19 +152,7 @@ export default function OSISearch({
       {/* Search Input */}
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg
-            className="h-5 w-5 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+          <Search className="h-5 w-5 text-gray-400" />
         </div>
         <input
           type="text"
@@ -180,24 +170,14 @@ export default function OSISearch({
           className={`w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${disabled ? "bg-gray-50 cursor-not-allowed opacity-75" : ""}`}
         />
         {searchTerm && !disabled && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setSearchTerm("")}
-            className="absolute inset-y-0 right-0 w-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
+            className="absolute inset-y-0 right-0 w-8 h-full flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-md"
           >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+            <X className="h-5 w-5" />
+          </Button>
         )}
       </div>
 
@@ -236,24 +216,15 @@ export default function OSISearch({
               )}
             </div>
             {!disabled && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleClear}
-                className="ml-2 text-blue-600 hover:text-blue-800"
+                className="ml-2 h-8 w-8 text-blue-600 hover:text-red-600 hover:bg-red-50 rounded-full flex-shrink-0"
+                title="Quitar selección"
               >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
+                <X className="h-5 w-5" />
+              </Button>
             )}
           </div>
         </div>
