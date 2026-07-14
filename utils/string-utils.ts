@@ -12,10 +12,15 @@ export function toTitleCase(str: string): string {
 }
 
 /**
- * Convert a string to lowercase for database storage
- * Example: "Juan Perez" -> "juan perez"
+ * Mask a name for privacy (e.g., "JUAN PEREZ" -> "J*** P***")
  */
-export function toLowerCase(str: string): string {
-  if (!str) return str;
-  return str.trim().toLowerCase();
+export function maskName(name: string): string {
+  if (!name) return name;
+  return name
+    .split(" ")
+    .map((part) => {
+      if (part.length <= 1) return part;
+      return part.charAt(0) + "*".repeat(Math.min(part.length - 1, 3));
+    })
+    .join(" ");
 }

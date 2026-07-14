@@ -1,7 +1,9 @@
 "use client";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { handleLogin } from "@/app/actions";
 import { useEffect, useState } from "react";
+import { ShieldCheck } from "lucide-react";
 
 const LoginForm = () => {
   const searchParams = useSearchParams();
@@ -110,10 +112,29 @@ const LoginForm = () => {
           <button
             type="submit"
             disabled={isClearing}
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
           >
             {isClearing ? "Limpiando sesión..." : "Iniciar sesión"}
           </button>
+        </div>
+
+        <div className="relative my-8">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <div className="w-full border-t border-gray-200"></div>
+          </div>
+          <div className="relative flex justify-center text-xs uppercase tracking-widest font-bold">
+            <span className="px-3 bg-gray-50 text-gray-400">O continúe como externo</span>
+          </div>
+        </div>
+
+        <div>
+          <Link
+            href="/consultar"
+            className="group relative w-full flex justify-center items-center py-2.5 px-4 border-2 border-blue-600 text-sm font-bold rounded-lg text-blue-700 bg-white hover:bg-blue-50 focus:outline-none transition-all duration-300 shadow-sm"
+          >
+            <ShieldCheck className="w-4 h-4 mr-2 text-blue-600 group-hover:scale-110 transition-transform" />
+            Verificar Certificado
+          </Link>
         </div>
       </form>
     </div>

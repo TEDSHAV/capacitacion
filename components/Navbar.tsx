@@ -80,14 +80,16 @@ const Navbar = () => {
                 </button>
               </>
             ) : (
-              <>
-                <button
-                  onClick={handleLoginClick}
-                  className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 px-2 sm:px-3 py-2 rounded-md hover:bg-blue-50 transition-colors duration-200 whitespace-nowrap"
-                >
-                  Iniciar sesión
-                </button>
-              </>
+              !pathname.includes("/consultar") && (
+                <>
+                  <button
+                    onClick={handleLoginClick}
+                    className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 px-2 sm:px-3 py-2 rounded-md hover:bg-blue-50 transition-colors duration-200 whitespace-nowrap"
+                  >
+                    Iniciar sesión
+                  </button>
+                </>
+              )
             )}
           </div>
         </div>
