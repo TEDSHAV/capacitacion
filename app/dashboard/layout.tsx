@@ -6,7 +6,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <main className="min-h-screen bg-gray-100">
+    <main className="min-h-screen bg-gray-100 overflow-x-hidden">
       <Breadcrumb />
       {children}
     </main>
