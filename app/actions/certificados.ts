@@ -46,7 +46,7 @@ export async function saveCertificatesToDatabase(
       return { success: false, message: "OSI data and course topic data are required" };
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA'); // en-CA format gives YYYY-MM-DD in local timezone
     const certificateIds: number[] = [];
     const certificateNumbers: CertificateWithNumbers[] = [];
 
@@ -284,7 +284,7 @@ function generateContentSnapshot(
       id_participante: participantId, // Use actual participant ID from database
       id_empresa: certificateData.osi_data?.empresa_id,
       id_curso: certificateData.course_topic_data?.id,
-      fecha_emision: new Date().toISOString().split('T')[0], // Current date
+      fecha_emision: new Date().toLocaleDateString('en-CA'), // Current date in local timezone
       fecha_vencimiento: certificateData.fecha_vencimiento,
       nro_osi: certificateData.osi_data?.nro_osi,
       id_estado: certificateData.id_estado,
@@ -370,7 +370,7 @@ function generateContentSnapshotWithControlNumbers(
       id_participante: participantId, // Use actual participant ID from database
       id_empresa: certificateData.osi_data?.empresa_id,
       id_curso: certificateData.course_topic_data?.id,
-      fecha_emision: new Date().toISOString().split('T')[0], // Current date
+      fecha_emision: new Date().toLocaleDateString('en-CA'), // Current date in local timezone
       fecha_vencimiento: certificateData.fecha_vencimiento,
       nro_osi: certificateData.osi_data?.nro_osi,
       id_estado: certificateData.id_estado,

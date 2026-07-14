@@ -729,3 +729,55 @@ export interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg'
   className?: string
 }
+
+// Participant Lookup Interfaces
+export interface ParticipantLookup {
+  id: number;
+  nombre: string;
+  cedula: string;
+  nacionalidad: string;
+  total_records?: number; // Number of participant records with same ID
+}
+
+export interface ParticipantCertificate {
+  id: number;
+  fecha_emision: string;
+  fecha_vencimiento?: string;
+  calificacion?: number;
+  qr_code?: string;
+  nro_libro: number;
+  nro_hoja: number;
+  nro_linea: number;
+  nro_control: number;
+  cursos?: {
+    id: number;
+    nombre: string;
+    horas_estimadas?: number;
+  };
+  empresas?: {
+    id: number;
+    razon_social: string;
+    rif: string;
+  };
+  facilitadores?: {
+    id: number;
+    nombre_apellido: string;
+  };
+  parsed_snapshot?: any;
+}
+
+export interface ParticipantStatistics {
+  totalCertificates: number;
+  totalHours: number;
+  averageScore: number;
+  uniqueCompaniesCount: number;
+  uniqueCoursesCount: number;
+  uniqueCompanies: string[];
+  uniqueCourses: string[];
+}
+
+export interface ParticipantLookupResponse {
+  participant: ParticipantLookup;
+  certificates: ParticipantCertificate[];
+  statistics: ParticipantStatistics;
+}

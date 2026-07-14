@@ -66,6 +66,12 @@ export default memo(function OptimizedCapacitacionClient({
       color: 'bg-blue-500'
     },
     {
+      id: 'consulta-participantes',
+      title: 'Consulta de Participantes',
+      description: 'Buscar participantes por cédula y ver historial de certificados',
+      color: 'bg-teal-500'
+    },
+    {
       id: 'gestion-cursos',
       title: 'Gestión de Cursos',
       description: 'Crear y administrar contenidos de cursos',

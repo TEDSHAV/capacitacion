@@ -33,10 +33,10 @@ export async function getCertificateData(options?: { osiLimit?: number; courseLi
     const supabase = await createClient();
     const { osiLimit = 50, courseLimit = 100 } = options || {};
 
-    // Fetch OSIs with pagination - start with minimal fields for debugging
+    // Fetch OSIs with pagination - include empresa_id
     const { data: osis, error: osiError } = await supabase
       .from("osi")
-      .select("id, nro_osi, cliente_nombre_empresa, tema, is_active")
+      .select("id, nro_osi, cliente_nombre_empresa, tema, is_active, empresa_id")
       .eq("is_active", true)
       .order("nro_osi", { ascending: false })
       .limit(osiLimit);
