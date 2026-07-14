@@ -33,7 +33,7 @@ export class CertificatePage {
   private static readonly QR_CONFIG = {
     GENERATION_SIZE: 70, // Size for QR code generation
     PDF_SIZE_MM: 20, // Size in mm for PDF
-    MARGIN: 10, // Margin from edges
+    MARGIN: 5, // Margin from edges
     X_OFFSET: 10, // Additional X offset adjustment
     Y_OFFSET: 12.4, // Additional Y offset adjustment
   };
@@ -65,7 +65,7 @@ export class CertificatePage {
       return;
     }
 
-    const margin = 10;
+    const margin = 5;
     const upperHalfHeight =
       this.config.contentPage.upperHalfHeight ?? this.pageHeight / 2;
     const templateArea = {

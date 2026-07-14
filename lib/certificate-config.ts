@@ -121,19 +121,19 @@ export const CERTIFICATE_CONFIG: CertificateLayoutConfig = {
 
   contentPage: {
     upperHalfHeight: 0, // Will be calculated dynamically (pageHeight / 2)
-    margin: 10,
+    margin: 5,
     tableCellHeight: 8,
     sealSize: 30,
     // sealX and sealY left undefined for dynamic calculation by default
   },
 
-  facilitatorName: { x: 60, y: 100 },
+  facilitatorName: { x: 56, y: 100 },
   facilitatorSignature: { x: 38, y: 72 },
   shaSignatureOffset: { x: 10, y: -45 },
   dateY: 105,
-  durationY: 96.5,
-  durationOffsetX: 10,
-  qrY: 22.5,
+  durationY: 98.5,
+  durationOffsetX: 8,
+  qrY: 19,
   seal: { x: 160, y: 45, size: 25 },
 };
 
