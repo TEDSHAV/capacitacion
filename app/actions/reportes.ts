@@ -335,18 +335,28 @@ export async function getFacilitadoresReport(
         stateId,
       );
 
-    const [facilitadoresRes, certsRes, statesRes, serviciosRes] =
+    const [facilitadoresRes, certsRes, osiRes, statesRes, serviciosRes] =
       await Promise.all([
         facilitadoresQuery,
 
         (async () => {
           let q = supabase
             .from("certificados")
-            .select(`id_facilitador, fecha_emision, calificacion, id_curso`)
+            .select(`id_facilitador, fecha_emision, calificacion, id_curso, nro_osi, snapshot_contenido`)
             .not("id_facilitador", "is", null)
+            .not("nro_osi", "is", null)
             .limit(5000);
           if (dateFrom) q = q.gte("fecha_emision", dateFrom);
           if (dateTo) q = q.lte("fecha_emision", dateTo);
+          return q;
+        })(),
+
+        (async () => {
+          let q = supabase
+            .from("v_osi_formato_completo")
+            .select(`id_osi, nro_osi, horas_academicas_ejecucion, sesiones_ejecucion, id_estatus`)
+            .not("id_osi", "is", null)
+            .limit(5000);
           return q;
         })(),
 
@@ -359,14 +369,59 @@ export async function getFacilitadoresReport(
       ]);
 
     if (certsRes.error) return { error: certsRes.error.message, data: null };
+    if (osiRes.error) return { error: osiRes.error.message, data: null };
 
-    // Create a map of servicios for quick lookup
+    // DEBUG: Log raw data
+    console.log('DEBUG: Raw certificates data:', certsRes.data?.length, 'certificates');
+    console.log('DEBUG: Raw OSI data:', osiRes.data?.length, 'OSIs');
+    console.log('DEBUG: Sample certificate:', certsRes.data?.[0]);
+    console.log('DEBUG: Sample OSI:', osiRes.data?.[0]);
+    console.log('DEBUG: All OSI fields:', osiRes.data?.[0] ? Object.keys(osiRes.data?.[0]) : 'No OSI data');
+    
+    // DEBUG: Check certificate snapshot for hours
+    const sampleCert = certsRes.data?.[0];
+    if (sampleCert?.snapshot_contenido) {
+      try {
+        const snapshot = JSON.parse(sampleCert.snapshot_contenido);
+        console.log('DEBUG: Sample certificate snapshot keys:', Object.keys(snapshot));
+        console.log('DEBUG: Sample certificate snapshot:', snapshot);
+      } catch (e) {
+        console.log('DEBUG: Snapshot parsing failed:', e);
+        console.log('DEBUG: Raw snapshot content:', sampleCert.snapshot_contenido);
+      }
+    } else {
+      console.log('DEBUG: No snapshot content in certificate');
+    }
+    
+    // DEBUG: Check OSI ID ranges
+    const certOsiIds = certsRes.data?.map(c => c.nro_osi?.toString()).filter(id => id != null);
+    const viewOsiIds = osiRes.data?.map(osi => osi.nro_osi?.toString());
+    console.log('DEBUG: Certificate OSI IDs (first 20):', certOsiIds?.slice(0, 20));
+    console.log('DEBUG: View OSI nro_osi IDs (first 20):', viewOsiIds?.slice(0, 20));
+    
+    // Check for any matches
+    const certSet = new Set(certOsiIds);
+    const viewSet = new Set(viewOsiIds);
+    const matches = certOsiIds?.filter(id => viewSet.has(id)) || [];
+    console.log('DEBUG: Matching OSI IDs:', matches.length, 'matches found');
+    console.log('DEBUG: Sample matches:', matches.slice(0, 10));
+
+    // Create maps for quick lookup
     const serviciosMap = new Map(
       (serviciosRes.data || []).map((s: any) => [s.id, s]),
     );
 
+    const osiMap = new Map(
+      (osiRes.data || []).map((osi: any) => [osi.nro_osi?.toString(), osi]),
+    );
+
+    console.log('DEBUG: OSI Map created with', osiMap.size, 'entries');
+
     const stateNames = new Map<number, string>();
     statesRes.data?.forEach((s: any) => stateNames.set(s.id, s.nombre_estado));
+
+    // Track unique OSIs per facilitator to avoid double-counting hours
+    const facilitatorOSIMap = new Map<number, Set<number>>();
 
     const certStats = new Map<
       number,
@@ -380,8 +435,20 @@ export async function getFacilitadoresReport(
       }
     >();
 
-    certsRes.data?.forEach((cert: any) => {
+    certsRes.data?.forEach((cert: any, index: number) => {
       const fid = cert.id_facilitador;
+      const osiId = cert.nro_osi?.toString();
+      
+      // DEBUG: Log first few certificates
+      if (index < 5) {
+        console.log(`DEBUG: Certificate ${index}:`, {
+          facilitatorId: fid,
+          osiId: osiId,
+          course: cert.id_curso,
+          date: cert.fecha_emision
+        });
+      }
+      
       if (!certStats.has(fid)) {
         certStats.set(fid, {
           totalCerts: 0,
@@ -391,15 +458,69 @@ export async function getFacilitadoresReport(
           uniqueCourses: new Set(),
           lastActivity: null,
         });
+        
+        // Initialize OSI tracking for this facilitator
+        facilitatorOSIMap.set(fid, new Set());
+        console.log(`DEBUG: Initialized stats for facilitator ${fid}`);
       }
+      
       const s = certStats.get(fid)!;
+      const osiSet = facilitatorOSIMap.get(fid)!;
+      
+      // Only count hours once per OSI
+      if (!osiSet.has(osiId)) {
+        osiSet.add(osiId);
+        const osiData = osiMap.get(osiId);
+        console.log(`DEBUG: OSI ${osiId} lookup:`, osiData ? 'FOUND' : 'NOT FOUND');
+        
+        let hours = 0;
+        let hoursSource = '';
+        
+        // First try to get hours from certificate snapshot (user overrides)
+        if (cert.snapshot_contenido) {
+          try {
+            const snapshot = JSON.parse(cert.snapshot_contenido);
+            hours = snapshot.certificado_detalles?.horas_estimadas || 0;
+            if (hours > 0) {
+              hoursSource = 'Certificate snapshot hours';
+              console.log(`DEBUG: Using certificate snapshot hours: ${hours} for OSI ${osiId}`);
+            }
+          } catch (e) {
+            console.log(`DEBUG: Failed to parse snapshot for OSI ${osiId}:`, e);
+          }
+        }
+        
+        // If no hours from snapshot, try OSI executed hours
+        if (hours === 0 && osiData && osiData.horas_academicas_ejecucion) {
+          hours = osiData.horas_academicas_ejecucion;
+          hoursSource = 'OSI executed hours';
+          console.log(`DEBUG: Using OSI executed hours: ${hours} for OSI ${osiId}`);
+        }
+        
+        // Final fallback to course standard hours
+        if (hours === 0) {
+          const servicio = serviciosMap.get(cert.id_curso);
+          hours = servicio?.carga_horaria_std || 0;
+          hoursSource = 'Course standard hours';
+          console.log(`DEBUG: Using course standard hours: ${hours} for course ${cert.id_curso} (OSI ${osiId})`);
+        }
+        
+        if (hours > 0) {
+          s.totalHours += hours;
+          console.log(`DEBUG: Added ${hours} hours (${hoursSource}) to facilitator ${fid} for OSI ${osiId}`);
+        } else {
+          console.log(`DEBUG: No hours available for OSI ${osiId} (course ${cert.id_curso})`);
+        }
+      } else {
+        console.log(`DEBUG: OSI ${osiId} already counted for facilitator ${fid}, skipping`);
+      }
+      
+      // Continue with other metrics (certificates, scores, courses, activity)
       s.totalCerts++;
       if (cert.calificacion != null) {
         s.totalScore += cert.calificacion;
         s.scoreCount++;
       }
-      const servicio = serviciosMap.get(cert.id_curso);
-      s.totalHours += servicio?.carga_horaria_std || 0;
       if (cert.id_curso) s.uniqueCourses.add(cert.id_curso);
       if (
         cert.fecha_emision &&
@@ -412,7 +533,7 @@ export async function getFacilitadoresReport(
     const facilitadoresList = (facilitadoresRes.data || [])
       .map((f) => {
         const s = certStats.get(f.id);
-        return {
+        const result = {
           id: f.id,
           nombre_apellido: f.nombre_apellido,
           is_active: f.is_active,
@@ -429,8 +550,22 @@ export async function getFacilitadoresReport(
               : 0,
           lastActivity: s?.lastActivity || null,
         };
+        
+        // DEBUG: Log facilitator results
+        console.log(`DEBUG: Facilitator ${f.nombre_apellido} (${f.id}):`, {
+          totalCerts: result.totalCerts,
+          totalHours: result.totalHours,
+          uniqueCourses: result.uniqueCourses,
+          avgScore: result.avgScore,
+          hasStats: !!s
+        });
+        
+        return result;
       })
       .filter((f) => f.totalCerts > 0);
+
+    console.log('DEBUG: Final facilitadoresList:', facilitadoresList.length, 'facilitators');
+    console.log('DEBUG: Sample final facilitator:', facilitadoresList[0]);
 
     facilitadoresList.sort((a, b) => b.totalCerts - a.totalCerts);
 
