@@ -46,7 +46,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     <tr>
       <td>${p.index}</td>
       <td>${escapeHtml(p.nombre_apellido)}</td>
-      <td>cedula: ${escapeHtml(p.cedula)}</td>
+      <td>${escapeHtml(p.cedula)}</td>
       <td>${p.puntuacion || ""}</td>
       <td>${p.condicion || ""}</td>
       <td>${escapeHtml(p.numero_control)}</td>
@@ -135,6 +135,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 
     .content {
       flex: 1;
+      overflow: hidden;
     }
 
     .date-right {
@@ -205,8 +206,10 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     }
 
     .footer {
-      margin-top: auto;
+      page-break-inside: avoid;
       padding-top: 10px;
+      margin-top: 10px;
+      flex-shrink: 0;
     }
 
     .footer-image {
@@ -287,7 +290,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     <tr>
       <td>${p.index}</td>
       <td>${escapeHtml(p.nombre_apellido)}</td>
-      <td>cedula: ${escapeHtml(p.cedula)}</td>
+      <td>${escapeHtml(p.cedula)}</td>
       <td>${escapeHtml(p.numero_control)}</td>
     </tr>
   `,
@@ -374,6 +377,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
 
     .content {
       flex: 1;
+      overflow: hidden;
     }
 
     .date-right {
@@ -482,8 +486,10 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     }
 
     .footer {
-      margin-top: auto;
+      page-break-inside: avoid;
       padding-top: 10px;
+      margin-top: 10px;
+      flex-shrink: 0;
     }
 
     .footer-image {
@@ -572,7 +578,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     <tr>
       <td>${p.index}</td>
       <td>${escapeHtml(p.nombre_apellido)}</td>
-      <td>cedula: ${escapeHtml(p.cedula)}</td>
+      <td>${escapeHtml(p.cedula)}</td>
       <td>${escapeHtml(p.numero_control)}</td>
     </tr>
   `,
@@ -659,6 +665,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
 
     .content {
       flex: 1;
+      overflow: hidden;
     }
 
     .date-right {
@@ -724,8 +731,10 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     }
 
     .footer {
-      margin-top: auto;
+      page-break-inside: avoid;
       padding-top: 10px;
+      margin-top: 10px;
+      flex-shrink: 0;
     }
 
     .footer-image {

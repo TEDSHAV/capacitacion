@@ -499,72 +499,90 @@ export default function GeneracionCertificadoClient({
         });
       }
 
-      // Pre-fetch shared assets once before generation loop
-
-      // Fetch facilitator data once
+      // Pre-fetch shared assets in parallel before generation loop
       let facilitatorData: any = null;
       let facilitatorSignatureBase64 = "";
-      if (certificateData.facilitator_id) {
-        const facilitatorResponse = await fetch(
-          `/api/facilitators/${certificateData.facilitator_id}`,
-        );
-        facilitatorData = await facilitatorResponse.json();
-
-        // Preload facilitator signature if available
-        if (facilitatorData?.firmas?.url_imagen) {
-          try {
-            facilitatorSignatureBase64 = await preloadImage(
-              facilitatorData.firmas.url_imagen,
-            );
-          } catch (error) {
-            console.error("Failed to preload facilitator signature:", error);
-          }
-        }
-      }
-
-      // Preload seal image
       let selloBase64 = "";
-      try {
-        selloBase64 = await preloadImage(sealImageUrl);
-      } catch (error) {
-        console.error("Failed to preload seal image:", error);
-      }
-
-      // Preload template image
       let templateBase64 = "";
-      try {
-        templateBase64 = await preloadImage(templateImageUrl);
-      } catch (error) {
-        console.error("Failed to preload template image:", error);
-      }
-
-      // Preload SHA signature if available
       let shaSignatureBase64 = "";
       let shaSignatureDataToUse = certificateData.sha_signature_data;
 
-      // If missing data but we have an ID, try to fetch it or find it from initialData
-      if (!shaSignatureDataToUse && certificateData.sha_signature_id) {
-        try {
-          const response = await fetch(
-            `/api/signatures/${certificateData.sha_signature_id}`,
-          );
-          if (response.ok) {
-            shaSignatureDataToUse = await response.json();
-          }
-        } catch (error) {
-          console.error("Failed to fetch SHA signature data:", error);
-        }
+      setGenerationProgress({
+        currentPhase: "Cargando recursos...",
+        percentage: 10,
+        currentCertificate: 0,
+        totalCertificates: certificateData.participants.length,
+      });
+
+      const assetPromises = [];
+
+      // 1. Facilitator data and signature
+      if (certificateData.facilitator_id) {
+        assetPromises.push(
+          (async () => {
+            try {
+              const facilitatorResponse = await fetch(
+                `/api/facilitators/${certificateData.facilitator_id}`,
+              );
+              facilitatorData = await facilitatorResponse.json();
+              if (facilitatorData?.firmas?.url_imagen) {
+                facilitatorSignatureBase64 = await preloadImage(
+                  facilitatorData.firmas.url_imagen,
+                );
+              }
+            } catch (error) {
+              console.error("Failed to preload facilitator assets:", error);
+            }
+          })(),
+        );
       }
 
-      if (shaSignatureDataToUse?.url_imagen) {
-        try {
-          shaSignatureBase64 = await preloadImage(
-            shaSignatureDataToUse.url_imagen,
-          );
-        } catch (error) {
-          console.error("Failed to preload SHA signature:", error);
-        }
-      }
+      // 2. Seal image
+      assetPromises.push(
+        (async () => {
+          try {
+            selloBase64 = await preloadImage(sealImageUrl);
+          } catch (error) {
+            console.error("Failed to preload seal image:", error);
+          }
+        })(),
+      );
+
+      // 3. Template image
+      assetPromises.push(
+        (async () => {
+          try {
+            templateBase64 = await preloadImage(templateImageUrl);
+          } catch (error) {
+            console.error("Failed to preload template image:", error);
+          }
+        })(),
+      );
+
+      // 4. SHA Signature
+      assetPromises.push(
+        (async () => {
+          try {
+            if (!shaSignatureDataToUse && certificateData.sha_signature_id) {
+              const response = await fetch(
+                `/api/signatures/${certificateData.sha_signature_id}`,
+              );
+              if (response.ok) {
+                shaSignatureDataToUse = await response.json();
+              }
+            }
+            if (shaSignatureDataToUse?.url_imagen) {
+              shaSignatureBase64 = await preloadImage(
+                shaSignatureDataToUse.url_imagen,
+              );
+            }
+          } catch (error) {
+            console.error("Failed to preload SHA signature:", error);
+          }
+        })(),
+      );
+
+      await Promise.all(assetPromises);
 
       console.log("Assets loaded. Starting batch generation...");
 
@@ -626,7 +644,7 @@ export default function GeneracionCertificadoClient({
       // Generate certificates concurrently in batches
       const certificates: { participant: any; blob: Blob }[] = [];
       const failedCertificates: { participant: any; error: any }[] = [];
-      const BATCH_SIZE = 5;
+      const BATCH_SIZE = 15;
 
       for (
         let i = 0;
@@ -792,7 +810,7 @@ export default function GeneracionCertificadoClient({
             });
 
             // Generate carnet PDFs in batches
-            const CARNET_BATCH_SIZE = 5;
+            const CARNET_BATCH_SIZE = 15;
             for (let i = 0; i < carnetRequests.length; i += CARNET_BATCH_SIZE) {
               const batch = carnetRequests.slice(i, i + CARNET_BATCH_SIZE);
 
@@ -957,10 +975,20 @@ export default function GeneracionCertificadoClient({
           type: "blob",
           compression: "STORE", // Skip compression for PDFs (already compressed)
         });
-        const batchName = selectedOSI?.nro_osi
-          ? `OSI_${selectedOSI.nro_osi}`
-          : "Lote";
-        const zipFilename = `Certificados_y_Documentos_${batchName}.zip`;
+        const osiNumber = selectedOSI?.nro_osi || "S-N";
+        const clientName = (
+          selectedOSI?.cliente_nombre_empresa || "Cliente"
+        ).replace(/\s+/g, "_");
+        const courseName = (selectedOSI?.curso_nombre || "Curso").replace(
+          /\s+/g,
+          "_",
+        );
+        const topicName = (certificateData.certificate_title || "Tema").replace(
+          /\s+/g,
+          "_",
+        );
+
+        const zipFilename = `${osiNumber}_${clientName}_${courseName}_${topicName}.zip`;
 
         const url = window.URL.createObjectURL(zipBlob);
         const link = document.createElement("a");

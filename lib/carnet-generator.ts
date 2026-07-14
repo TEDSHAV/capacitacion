@@ -24,6 +24,7 @@ export class CarnetGenerator {
       orientation: "landscape",
       unit: "mm",
       format: [86, 54], // Standard credit card size
+      compress: true,
     });
   }
 
@@ -265,9 +266,8 @@ export class CarnetGenerator {
     pdf.setFont("helvetica", "bold");
 
     // Determine ID label and prefix based on nationality
-    const idLabel = "cedula:";
     const idPrefix = participant.nationality === "extranjero" ? "e-" : "V-";
-    pdf.text(`${idLabel} ${idPrefix}${participant.idNumber}`, 28, nameY - 6);
+    pdf.text(`${idPrefix}${participant.idNumber}`, 28, nameY - 6);
   }
 
   private async addCourseInfo(
