@@ -55,7 +55,8 @@ export default function Navbar() {
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors duration-200 shadow-md"
+                  style={{ backgroundColor: '#dc2626', color: 'white' }}
                 >
                   Cerrar sesión
                 </button>

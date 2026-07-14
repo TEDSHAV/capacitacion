@@ -7,22 +7,11 @@ import { createClient } from '@/utils/supabase/client'
 interface OSI {
   id: number
   nro_osi: string
-  nombre_empresa: string
-  empresa_rif: string
   nro_orden_compra: string
-  pedido: string
   tipo_servicio: string
-  fecha_emision: string
   nro_presupuesto: string
-  ejecutivo_negocios: string
+  ejecutivo_negocios: number
   cliente_nombre_empresa: string
-  cliente_codigo: string
-  direccion_ejecucion: string
-  direccion_envio: string
-  direccion_fiscal_cliente: string
-  persona_contacto: string
-  telefono_contacto: string
-  email_contacto: string
   tema: string
   fecha_servicio: string
   participantes_max: number
@@ -35,7 +24,18 @@ interface OSI {
   costo_traslado: number
   costo_logistica_comida: number
   costo_otros: number
-  estado: 'pendiente' | 'active' | 'inactive'
+  estado: string
+  empresa_id: number
+  persona_contacto_id: number
+  direccion_fiscal: number
+  direccion_envio: string
+  direccion_ejecucion: string
+  nro_sesiones: number
+  fecha_ejecucion1: string
+  fecha_ejecucion2: string
+  fecha_ejecucion3: string
+  fecha_ejecucion4: string
+  fecha_ejecucion5: string
 }
 
 export default function OSIDetailPage() {
@@ -45,25 +45,20 @@ export default function OSIDetailPage() {
   
   const [osi, setOsi] = useState<OSI | null>(null)
   const [formData, setFormData] = useState<Partial<OSI>>({
-    nombre_empresa: '',
-    empresa_rif: '',
     nro_osi: '',
     nro_orden_compra: '',
-    pedido: '',
     tipo_servicio: '',
-    fecha_emision: '',
     nro_presupuesto: '',
-    ejecutivo_negocios: '',
+    ejecutivo_negocios: 0,
     cliente_nombre_empresa: '',
-    cliente_codigo: '',
-    direccion_ejecucion: '',
-    direccion_envio: '',
-    direccion_fiscal_cliente: '',
-    persona_contacto: '',
-    telefono_contacto: '',
-    email_contacto: '',
     tema: '',
     fecha_servicio: '',
+    nro_sesiones: 1,
+    fecha_ejecucion1: '',
+    fecha_ejecucion2: '',
+    fecha_ejecucion3: '',
+    fecha_ejecucion4: '',
+    fecha_ejecucion5: '',
     participantes_max: 0,
     detalle_sesion: '',
     certificado_impreso: false,
@@ -74,7 +69,12 @@ export default function OSIDetailPage() {
     costo_traslado: 0,
     costo_logistica_comida: 0,
     costo_otros: 0,
-    estado: 'pendiente'
+    estado: 'pendiente',
+    empresa_id: 0,
+    persona_contacto_id: 0,
+    direccion_fiscal: 0,
+    direccion_envio: '',
+    direccion_ejecucion: ''
   })
 
     const [isLoading, setIsLoading] = useState(false)
@@ -145,19 +145,61 @@ export default function OSIDetailPage() {
       if (!formData.nro_osi?.trim()) {
         throw new Error('El número de OSI es requerido')
       }
-      if (!formData.nombre_empresa?.trim()) {
-        throw new Error('El nombre de la empresa es requerido')
-      }
       if (!formData.tipo_servicio?.trim()) {
         throw new Error('El tipo de servicio es requerido')
       }
       
+      // Prepare data for Supabase - ensure all fields are properly typed and not undefined
+      // Only include fields that exist in the database schema
+      const dataToSave = {
+        nro_osi: formData.nro_osi?.trim() || '',
+        nro_orden_compra: formData.nro_orden_compra?.trim() || null,
+        tipo_servicio: formData.tipo_servicio?.trim() || '',
+        nro_presupuesto: formData.nro_presupuesto?.trim() || null,
+        ejecutivo_negocios: Number(formData.ejecutivo_negocios) || null,
+        cliente_nombre_empresa: formData.cliente_nombre_empresa?.trim() || '',
+        tema: formData.tema?.trim() || null,
+        fecha_servicio: formData.fecha_servicio || null,
+        nro_sesiones: Number(formData.nro_sesiones) || 1,
+        fecha_ejecucion1: formData.fecha_ejecucion1 || null,
+        fecha_ejecucion2: formData.fecha_ejecucion2 || null,
+        fecha_ejecucion3: formData.fecha_ejecucion3 || null,
+        fecha_ejecucion4: formData.fecha_ejecucion4 || null,
+        fecha_ejecucion5: formData.fecha_ejecucion5 || null,
+        participantes_max: Number(formData.participantes_max) || null,
+        detalle_sesion: formData.detalle_sesion?.trim() || null,
+        certificado_impreso: Boolean(formData.certificado_impreso),
+        carnet_impreso: Boolean(formData.carnet_impreso),
+        observaciones_adicionales: formData.observaciones_adicionales?.trim() || null,
+        costo_honorarios_hora: Number(formData.costo_honorarios_hora) || null,
+        costo_impresion_material: Number(formData.costo_impresion_material) || null,
+        costo_traslado: Number(formData.costo_traslado) || null,
+        costo_logistica_comida: Number(formData.costo_logistica_comida) || null,
+        costo_otros: Number(formData.costo_otros) || null,
+        estado: formData.estado || 'pendiente',
+        empresa_id: Number(formData.empresa_id) || null,
+        persona_contacto_id: Number(formData.persona_contacto_id) || null,
+        direccion_fiscal: Number(formData.direccion_fiscal) || null,
+        direccion_envio: formData.direccion_envio?.trim() || '',
+        direccion_ejecucion: formData.direccion_ejecucion?.trim() || ''
+      }
+      
       if (isNew) {
-        const { error } = await supabase.from("osi").insert([formData])
-        if (error) throw error
+        console.log('Data being sent to Supabase:', dataToSave)
+        const { error } = await supabase.from("osi").insert([dataToSave])
+        if (error) {
+          console.error('Supabase insert error:', error)
+          console.error('Error details:', JSON.stringify(error, null, 2))
+          throw error
+        }
       } else if (osi) {
-        const { error } = await supabase.from("osi").update(formData).eq("id", osi.id)
-        if (error) throw error
+        console.log('Data being sent to Supabase for update:', dataToSave)
+        const { error } = await supabase.from("osi").update(dataToSave).eq("id", osi.id)
+        if (error) {
+          console.error('Supabase update error:', error)
+          console.error('Error details:', JSON.stringify(error, null, 2))
+          throw error
+        }
       }
       
       router.push('/dashboard/negocios')
@@ -185,7 +227,7 @@ export default function OSIDetailPage() {
   const updateFormData = (field: keyof OSI, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // Clear error when user starts typing in required fields
-    if (error && (field === 'nro_osi' || field === 'nombre_empresa' || field === 'tipo_servicio')) {
+    if (error && (field === 'nro_osi' || field === 'tipo_servicio')) {
       setError(null)
     }
   }
@@ -221,7 +263,8 @@ export default function OSIDetailPage() {
             <p className="text-red-600">{error}</p>
             <button
               onClick={() => router.push('/dashboard/negocios')}
-              className="mt-4 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+              className="mt-4 text-indigo-600 hover:text-indigo-900 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors"
+              style={{ backgroundColor: 'transparent', background: 'none' }}
             >
               Volver a OSI
             </button>
@@ -248,7 +291,7 @@ export default function OSIDetailPage() {
                 {isNew ? 'Nueva OSI' : `OSI ${formData.nro_osi || ''}`}
               </h1>
               <p className="mt-2 text-gray-600">
-                {formData.nombre_empresa || 'Nueva Orden de Servicio de Ingeniería'}
+                {formData.cliente_nombre_empresa || 'Nueva Orden de Servicio de Ingeniería'}
               </p>
             </div>
           </div>
@@ -271,7 +314,8 @@ export default function OSIDetailPage() {
                 {!isNew && (
                   <button
                     onClick={cancelEditing}
-                    className="px-6 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                    className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition-colors shadow-md"
+                    style={{ backgroundColor: '#4b5563', color: 'white' }}
                   >
                     Cancelar
                   </button>
@@ -351,8 +395,8 @@ export default function OSIDetailPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Empresa</label>
                   <input
                     type="text"
-                    value={formData.nombre_empresa || ''}
-                    onChange={(e) => updateFormData('nombre_empresa', e.target.value)}
+                    value={formData.cliente_nombre_empresa || ''}
+                    onChange={(e) => updateFormData('cliente_nombre_empresa', e.target.value)}
                     disabled={!isEditing && !isNew}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Nombre de la empresa"
@@ -361,14 +405,14 @@ export default function OSIDetailPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">RIF Empresa</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Empresa ID</label>
                   <input
-                    type="text"
-                    value={formData.empresa_rif || ''}
-                    onChange={(e) => updateFormData('empresa_rif', e.target.value)}
+                    type="number"
+                    value={formData.empresa_id || 0}
+                    onChange={(e) => updateFormData('empresa_id', parseInt(e.target.value) || 0)}
                     disabled={!isEditing && !isNew}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    placeholder="RIF de la empresa"
+                    placeholder="ID de la empresa"
                   />
                 </div>
                 <div>
@@ -384,6 +428,17 @@ export default function OSIDetailPage() {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ejecutivo Negocios ID</label>
+                  <input
+                    type="number"
+                    value={formData.ejecutivo_negocios || 0}
+                    onChange={(e) => updateFormData('ejecutivo_negocios', parseInt(e.target.value) || 0)}
+                    disabled={!isEditing && !isNew}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="ID del ejecutivo de negocios"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
                   <select
@@ -425,45 +480,43 @@ export default function OSIDetailPage() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Ejecutivo Negocios</label>
-                <input
-                  type="text"
-                  value={formData.ejecutivo_negocios || ''}
-                  onChange={(e) => updateFormData('ejecutivo_negocios', e.target.value)}
-                  disabled={!isEditing && !isNew}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  placeholder="Ejecutivo de negocios"
-                />
-              </div>
             </div>
           </div>
         </div>
 
-          {/* Dates Section */}
+          {/* Service Details Section */}
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Fechas</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Detalles Servicio</h2>
+          <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Emisión</label>
-              <input
-                type="date"
-                value={formData.fecha_emision || ''}
-                onChange={(e) => updateFormData('fecha_emision', e.target.value)}
+              <label className="block text-sm font-medium text-gray-700 mb-2">Tema</label>
+              <select
+                value={formData.nro_sesiones || 1}
+                onChange={(e) => updateFormData('nro_sesiones', parseInt(e.target.value))}
                 disabled={!isEditing && !isNew}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              />
+              >
+                <option value={1}>1 sesión</option>
+                <option value={2}>2 sesiones</option>
+                <option value={3}>3 sesiones</option>
+                <option value={4}>4 sesiones</option>
+                <option value={5}>5 sesiones</option>
+              </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Servicio</label>
-              <input
-                type="date"
-                value={formData.fecha_servicio || ''}
-                onChange={(e) => updateFormData('fecha_servicio', e.target.value)}
-                disabled={!isEditing && !isNew}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              />
-            </div>
+            {Array.from({ length: formData.nro_sesiones || 1 }, (_, index) => (
+              <div key={index}>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de Sesión {index + 1}
+                </label>
+                <input
+                  type="date"
+                  value={formData[`fecha_ejecucion${index + 1}` as keyof OSI] || ''}
+                  onChange={(e) => updateFormData(`fecha_ejecucion${index + 1}` as keyof OSI, e.target.value)}
+                  disabled={!isEditing && !isNew}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                />
+              </div>
+            ))}
           </div>
         </div>
 
@@ -484,62 +537,37 @@ export default function OSIDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Código Cliente</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Persona Contacto ID</label>
                 <input
-                  type="text"
-                  value={formData.cliente_codigo || ''}
-                  onChange={(e) => updateFormData('cliente_codigo', e.target.value)}
+                  type="number"
+                  value={formData.persona_contacto_id || 0}
+                  onChange={(e) => updateFormData('persona_contacto_id', parseInt(e.target.value) || 0)}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  placeholder="Código del cliente"
+                  placeholder="ID de la persona de contacto"
                 />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Persona Contacto</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Dirección Fiscal ID</label>
                 <input
-                  type="text"
-                  value={formData.persona_contacto || ''}
-                  onChange={(e) => updateFormData('persona_contacto', e.target.value)}
+                  type="number"
+                  value={formData.direccion_fiscal || 0}
+                  onChange={(e) => updateFormData('direccion_fiscal', parseInt(e.target.value) || 0)}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  placeholder="Persona de contacto"
+                  placeholder="ID de dirección fiscal"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono Contacto</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Servicio</label>
                 <input
-                  type="text"
-                  value={formData.telefono_contacto || ''}
-                  onChange={(e) => updateFormData('telefono_contacto', e.target.value)}
+                  type="date"
+                  value={formData.fecha_servicio || ''}
+                  onChange={(e) => updateFormData('fecha_servicio', e.target.value)}
                   disabled={!isEditing && !isNew}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  placeholder="Teléfono de contacto"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email Contacto</label>
-                <input
-                  type="email"
-                  value={formData.email_contacto || ''}
-                  onChange={(e) => updateFormData('email_contacto', e.target.value)}
-                  disabled={!isEditing && !isNew}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  placeholder="Email de contacto"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Dirección Fiscal Cliente</label>
-                <textarea
-                  value={formData.direccion_fiscal_cliente || ''}
-                  onChange={(e) => updateFormData('direccion_fiscal_cliente', e.target.value)}
-                  disabled={!isEditing && !isNew}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  rows={2}
-                  placeholder="Dirección fiscal del cliente"
                 />
               </div>
             </div>
@@ -559,17 +587,6 @@ export default function OSIDetailPage() {
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 rows={3}
                 placeholder="Tema del servicio"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Pedido</label>
-              <textarea
-                value={formData.pedido || ''}
-                onChange={(e) => updateFormData('pedido', e.target.value)}
-                disabled={!isEditing && !isNew}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                rows={3}
-                placeholder="Descripción del pedido"
               />
             </div>
             <div>
@@ -734,7 +751,8 @@ export default function OSIDetailPage() {
           <div className="flex justify-end gap-3">
             <button
               onClick={() => router.push('/dashboard/negocios')}
-              className="px-6 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition-colors shadow-md"
+              style={{ backgroundColor: '#4b5563', color: 'white' }}
             >
               Cancelar
             </button>
