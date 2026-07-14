@@ -239,7 +239,7 @@ export class CarnetGenerator {
         return;
       }
 
-      // Fetch-based approach (avoids canvas CORS/taint issues)
+      // Fetch-based approach with canvas normalisation so palette PNGs work in jsPDF
       return new Promise(async (resolve) => {
         try {
           const response = await fetch(templatePath);
@@ -254,27 +254,40 @@ export class CarnetGenerator {
           const blob = await response.blob();
           const reader = new FileReader();
           reader.onloadend = () => {
-            try {
-              const dataUrl = reader.result as string;
-              _browserCarnetCache.set(templatePath, dataUrl);
-              const format = dataUrl.startsWith("data:image/jpeg")
-                ? "JPEG"
-                : "PNG";
-              pdf.addImage(
-                dataUrl,
-                format,
-                0,
-                0,
-                this.pageWidth,
-                this.pageHeight,
-                undefined,
-                "FAST",
-              );
-            } catch (e) {
-              console.error("Failed to add carnet template to PDF:", e);
+            const originalDataUrl = reader.result as string;
+            // Convert via canvas to standard PNG (handles palette/indexed PNGs)
+            const img = new Image();
+            img.onload = () => {
+              try {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth || 1;
+                canvas.height = img.naturalHeight || 1;
+                const ctx = canvas.getContext("2d");
+                const dataUrl = ctx
+                  ? (ctx.drawImage(img, 0, 0), canvas.toDataURL("image/png"))
+                  : originalDataUrl;
+                _browserCarnetCache.set(templatePath, dataUrl);
+                pdf.addImage(
+                  dataUrl,
+                  "PNG",
+                  0,
+                  0,
+                  this.pageWidth,
+                  this.pageHeight,
+                  undefined,
+                  "FAST",
+                );
+              } catch (e) {
+                console.error("Failed to add carnet template to PDF:", e);
+                this.addBackgroundDesign(pdf);
+              }
+              resolve();
+            };
+            img.onerror = () => {
               this.addBackgroundDesign(pdf);
-            }
-            resolve();
+              resolve();
+            };
+            img.src = originalDataUrl;
           };
           reader.onerror = () => {
             this.addBackgroundDesign(pdf);

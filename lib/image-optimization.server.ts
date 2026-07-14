@@ -15,16 +15,16 @@ interface OptimizeOptions {
  */
 export async function optimizeSignatureImage(
   buffer: Buffer,
-  options: OptimizeOptions = {}
+  options: OptimizeOptions = {},
 ): Promise<Buffer> {
   const { maxWidth = 1024, maxHeight = 1024 } = options;
 
   try {
     const sharpInstance = sharp(buffer);
-    
+
     // Get image metadata to decide if resizing is needed
     const metadata = await sharpInstance.metadata();
-    
+
     let pipeline = sharpInstance
       .rotate() // Auto-rotate based on EXIF
       .resize({
@@ -33,11 +33,9 @@ export async function optimizeSignatureImage(
         fit: "inside",
         withoutEnlargement: true,
       })
-      .trim() // Remove extra whitespace around the signature
       .png({
-        palette: true, // Use palette-based compression (very efficient for signatures)
         quality: 80,
-        compressionLevel: 9,
+        compressionLevel: 6,
       });
 
     return await pipeline.toBuffer();
@@ -54,22 +52,23 @@ export async function optimizeSignatureImage(
 export async function saveOptimizedSignature(
   file: File,
   type: string,
-  filename_prefix: string = ""
+  filename_prefix: string = "",
 ): Promise<{ filename: string; filepath: string; url: string }> {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
-  
+
   // Optimize the buffer
   const optimizedBuffer = await optimizeSignatureImage(buffer);
-  
+
   // Create signatures directory if it doesn't exist
   const signaturesDir = join(process.cwd(), "public", "signatures");
   await mkdir(signaturesDir, { recursive: true });
 
   // Generate unique filename
   const timestamp = Date.now();
-  const sanitizedOriginalName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-  const filename = `${type}_${timestamp}_${sanitizedOriginalName}.png`; // Always save as PNG for transparency
+  const nameWithoutExt = file.name.replace(/\.[^.]+$/, ""); // strip extension to avoid double .png.png
+  const sanitizedOriginalName = nameWithoutExt.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const filename = `${type}_${timestamp}_${sanitizedOriginalName}.png`;
   const filepath = join(signaturesDir, filename);
 
   // Save to public/signatures directory
@@ -78,6 +77,6 @@ export async function saveOptimizedSignature(
   return {
     filename,
     filepath,
-    url: `/signatures/${filename}`
+    url: `/signatures/${filename}`,
   };
 }

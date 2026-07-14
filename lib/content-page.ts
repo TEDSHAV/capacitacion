@@ -220,23 +220,11 @@ export class ContentPage {
       fontSize -= 0.5;
     }
 
-    // Hard-cap lines: truncate what doesn't fit
-    const maxLines = Math.floor(availableHeight / lineHeight);
-    if (contentLines.length > maxLines) {
-      contentLines = contentLines.slice(0, maxLines);
-      // Add ellipsis to last line if truncated
-      if (contentLines.length > 0) {
-        contentLines[contentLines.length - 1] += "...";
-      }
-    }
-
-    // Render lines
+    // Render all lines without truncation (user ensures content fits via course creation warnings)
     let y = currentY;
     this.doc.setFontSize(fontSize);
 
     for (const line of contentLines) {
-      if (maxY !== undefined && y + lineHeight > maxY + 2) break;
-
       this.doc.text(line.trim(), leftColumnX, y, { align: "left" });
       y += lineHeight;
     }

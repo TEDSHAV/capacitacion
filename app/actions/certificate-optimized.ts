@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { cache } from "react";
 import { getSignaturesForDropdownAction } from "./dropdown-data";
+import { getActiveTemplate } from "./template-actions";
 
 // Optimized cached server action for certificate data
 const getOptimizedCertificateData = cache(async () => {
@@ -16,6 +17,8 @@ const getOptimizedCertificateData = cache(async () => {
       cursosResult,
       signaturesResult,
       certificatesResult,
+      activeCertificateTemplate,
+      activeCarnetTemplate,
     ] = await Promise.all([
       // Fetch OSIs from the execution view with all fields needed for certificate generation
       supabase
@@ -86,6 +89,12 @@ const getOptimizedCertificateData = cache(async () => {
         .eq("is_active", true)
         .order("id", { ascending: false })
         .limit(5000),
+
+      // Fetch active certificate template
+      getActiveTemplate("certificate"),
+
+      // Fetch active carnet template
+      getActiveTemplate("carnet"),
     ]);
 
     // Handle OSI errors
@@ -256,6 +265,12 @@ const getOptimizedCertificateData = cache(async () => {
       osis: transformedOSIs,
       courses: transformedCourses,
       signatures: signaturesResult.data || [],
+      activeCertificateTemplate: activeCertificateTemplate.success
+        ? activeCertificateTemplate.data
+        : null,
+      activeCarnetTemplate: activeCarnetTemplate.success
+        ? activeCarnetTemplate.data
+        : null,
       error: null,
     };
   } catch (error) {
@@ -264,6 +279,8 @@ const getOptimizedCertificateData = cache(async () => {
       osis: [],
       courses: [],
       signatures: [],
+      activeCertificateTemplate: null,
+      activeCarnetTemplate: null,
       error: error instanceof Error ? error.message : "Unknown error occurred",
     };
   }

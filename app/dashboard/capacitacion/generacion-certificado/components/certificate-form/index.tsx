@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Lock, Unlock } from "lucide-react";
 import { CertificateFormProps } from "@/types";
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
@@ -22,6 +23,7 @@ export const CertificateForm = ({
   onGenerate,
 }: CertificateFormProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isPassingGradeLocked, setIsPassingGradeLocked] = useState(true);
 
   const { shaSignatures, courseTemplates } = useCertificateForm({
     certificateData,
@@ -199,26 +201,53 @@ export const CertificateForm = ({
 
       {/* Passing Grade */}
       <div className="mb-4">
-        <label
-          htmlFor="passing_grade"
-          className="block text-sm font-medium text-gray-700 mb-2"
-        >
-          Calificación Aprobatoria (Mínimo para aprobar)
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Nota Aprobatoria
         </label>
-        <input
-          type="number"
-          id="passing_grade"
-          value={certificateData.passing_grade || 0}
-          onChange={(e) =>
-            onDataChange("passing_grade", parseInt(e.target.value) || 0)
-          }
-          min="0"
-          max="20"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
+        <div className="flex items-center gap-2">
+          {isPassingGradeLocked ? (
+            <>
+              <span className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-800 font-semibold text-base min-w-[56px] text-center">
+                {certificateData.passing_grade ?? 14}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsPassingGradeLocked(false)}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors border border-gray-200"
+                title="Editar nota aprobatoria"
+              >
+                <Lock className="h-3.5 w-3.5" />
+                Editar
+              </button>
+            </>
+          ) : (
+            <>
+              <input
+                type="number"
+                value={certificateData.passing_grade ?? 14}
+                onChange={(e) =>
+                  onDataChange("passing_grade", parseInt(e.target.value) || 0)
+                }
+                min="0"
+                max="20"
+                autoFocus
+                className="w-20 px-3 py-2 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+              />
+              <button
+                type="button"
+                onClick={() => setIsPassingGradeLocked(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors border border-blue-300"
+                title="Bloquear nota aprobatoria"
+              >
+                <Unlock className="h-3.5 w-3.5" />
+                Bloquear
+              </button>
+            </>
+          )}
+        </div>
         <p className="text-xs text-gray-500 mt-1">
-          Los participantes con calificación mayor o igual a este valor serán
-          marcados como "Aprobado"
+          Participantes con calificación ≥ {certificateData.passing_grade ?? 14}{" "}
+          serán marcados como "Aprobado"
         </p>
       </div>
 

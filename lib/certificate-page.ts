@@ -756,16 +756,27 @@ export class CertificatePage {
           const blob = await response.blob();
           const reader = new FileReader();
           reader.onloadend = () => {
-            try {
-              const dataUrl = reader.result as string;
-              const format = dataUrl.startsWith("data:image/jpeg")
-                ? "JPEG"
-                : "PNG";
-              this.doc.addImage(dataUrl, format, x, y, width, height);
-              resolve();
-            } catch (error) {
-              reject(error);
-            }
+            const originalDataUrl = reader.result as string;
+            // Convert via canvas to standard PNG (handles palette/indexed PNGs)
+            const img = new Image();
+            img.onload = () => {
+              try {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth || 1;
+                canvas.height = img.naturalHeight || 1;
+                const ctx = canvas.getContext("2d");
+                const dataUrl = ctx
+                  ? (ctx.drawImage(img, 0, 0), canvas.toDataURL("image/png"))
+                  : originalDataUrl;
+                this.doc.addImage(dataUrl, "PNG", x, y, width, height);
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
+            };
+            img.onerror = () =>
+              reject(new Error("Failed to decode signature image"));
+            img.src = originalDataUrl;
           };
           reader.onerror = () =>
             reject(new Error("Failed to read signature blob"));

@@ -471,8 +471,12 @@ export default function GeneracionCertificadoClient({
       });
 
       // Determine certificate template image URL from active template
+      // Priority: initialData.activeCertificateTemplate (from server) > certificateData.id_plantilla_certificado > default
       let templateImageUrl = "/templates/certificado.png"; // fallback
-      if (
+
+      if (initialData.activeCertificateTemplate?.archivo) {
+        templateImageUrl = `/templates/${initialData.activeCertificateTemplate.archivo}`;
+      } else if (
         certificateData.id_plantilla_certificado &&
         certificateTemplates.length > 0
       ) {
@@ -485,9 +489,12 @@ export default function GeneracionCertificadoClient({
       } else if (certificateData.plantilla_certificado_archivo) {
         templateImageUrl = `/templates/${certificateData.plantilla_certificado_archivo}`;
       }
+
       const sealImageUrl = "/templates/sello.png";
 
-      // Helper function to preload images as base64
+      // Helper function to preload images as base64 standard PNG.
+      // Uses canvas conversion to normalise palette/indexed PNGs (colour type 3)
+      // that jsPDF cannot render, without any CORS risk (data: URL never taints canvas).
       async function preloadImage(url: string): Promise<string> {
         const response = await fetch(url);
         if (!response.ok) {
@@ -496,7 +503,28 @@ export default function GeneracionCertificadoClient({
         const blob = await response.blob();
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
+          reader.onloadend = () => {
+            const originalDataUrl = reader.result as string;
+            const img = new Image();
+            img.onload = () => {
+              try {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth || 1;
+                canvas.height = img.naturalHeight || 1;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                  resolve(originalDataUrl);
+                  return;
+                }
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL("image/png"));
+              } catch {
+                resolve(originalDataUrl);
+              }
+            };
+            img.onerror = () => resolve(originalDataUrl);
+            img.src = originalDataUrl;
+          };
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
@@ -555,7 +583,20 @@ export default function GeneracionCertificadoClient({
       assetPromises.push(
         (async () => {
           try {
-            templateBase64 = await preloadImage(templateImageUrl);
+            try {
+              templateBase64 = await preloadImage(templateImageUrl);
+            } catch (preloadError) {
+              console.warn(
+                `Failed to preload custom certificate template ${templateImageUrl}, falling back to default`,
+                preloadError,
+              );
+              if (templateImageUrl !== "/templates/certificado.png") {
+                templateImageUrl = "/templates/certificado.png";
+                templateBase64 = await preloadImage(templateImageUrl);
+              } else {
+                throw preloadError;
+              }
+            }
           } catch (error) {
             console.error("Failed to preload template image:", error);
           }
@@ -566,12 +607,12 @@ export default function GeneracionCertificadoClient({
       assetPromises.push(
         (async () => {
           try {
-            // First try to use the data already in certificateData
+            // Priority: certificateData.sha_signature_data > certificateData.sha_signature_id > active from server
             if (certificateData.sha_signature_data) {
               shaSignatureDataToUse = certificateData.sha_signature_data;
             }
 
-            // If still no data, fetch from API
+            // If still no data, try the ID from certificateData
             if (!shaSignatureDataToUse && certificateData.sha_signature_id) {
               const response = await fetch(
                 `/api/signatures/${certificateData.sha_signature_id}`,
@@ -581,12 +622,66 @@ export default function GeneracionCertificadoClient({
               }
             }
 
+            // If still no data, use the active SHA signature from server
+            if (!shaSignatureDataToUse && initialData.signatures) {
+              const activeShaFromServer = initialData.signatures.find(
+                (sig: any) => sig.tipo === "representante_sha" && sig.is_active,
+              );
+              if (activeShaFromServer) {
+                shaSignatureDataToUse = activeShaFromServer;
+              }
+            }
+
             // Preload the image if we have the URL
             if (shaSignatureDataToUse) {
               const imageUrl =
                 shaSignatureDataToUse.url_imagen || shaSignatureDataToUse.firma;
               if (imageUrl) {
-                shaSignatureBase64 = await preloadImage(imageUrl);
+                try {
+                  shaSignatureBase64 = await preloadImage(imageUrl);
+                } catch (preloadError) {
+                  console.warn(
+                    `Failed to preload primary SHA signature: ${imageUrl}. Attempting to find a fallback.`,
+                  );
+
+                  // Fallback: Fetch all signatures and try to find another active representante_sha
+                  try {
+                    const allSigsResponse = await fetch("/api/signatures");
+                    if (allSigsResponse.ok) {
+                      const allSigs = await allSigsResponse.json();
+                      const otherSigs = allSigs.filter(
+                        (sig: any) =>
+                          sig.tipo === "representante_sha" &&
+                          sig.is_active &&
+                          sig.id !== shaSignatureDataToUse?.id,
+                      );
+
+                      for (const sig of otherSigs) {
+                        const fallBackUrl = sig.url_imagen || sig.firma;
+                        if (fallBackUrl) {
+                          try {
+                            shaSignatureBase64 =
+                              await preloadImage(fallBackUrl);
+                            if (shaSignatureBase64) {
+                              console.log(
+                                `Successfully fell back to SHA signature: ${fallBackUrl}`,
+                              );
+                              shaSignatureDataToUse = sig; // Update the data to use as well
+                              break;
+                            }
+                          } catch (e) {
+                            // Try next one
+                          }
+                        }
+                      }
+                    }
+                  } catch (fallbackError) {
+                    console.error(
+                      "Failed to fetch fallback signatures",
+                      fallbackError,
+                    );
+                  }
+                }
               }
             }
           } catch (error) {
@@ -795,50 +890,54 @@ export default function GeneracionCertificadoClient({
           if (carnetDbResult.success && carnetDbResult.carnetIds) {
             // Preload carnet template image as base64
             let carnetTemplateBase64 = "";
-            try {
-              const carnetTemplateUrl = (() => {
-                const defaultTemplate = "/templates/carnet.png";
-                if (certificateData.id_plantilla_carnet) {
-                  const selectedTemplate = carnetTemplates.find(
-                    (template: any) =>
-                      template.id === certificateData.id_plantilla_carnet,
-                  );
-                  if (
-                    selectedTemplate?.archivo &&
-                    selectedTemplate.archivo !== "carnet.png"
-                  ) {
-                    return `/templates/${selectedTemplate.archivo}`;
-                  }
-                }
-                return defaultTemplate;
-              })();
+            let finalCarnetTemplateUrl = "/templates/carnet.png"; // Default fallback
 
-              carnetTemplateBase64 = await preloadImage(carnetTemplateUrl);
+            try {
+              // Priority: initialData.activeCarnetTemplate (from server) > certificateData.id_plantilla_carnet > default
+              if (initialData.activeCarnetTemplate?.archivo) {
+                finalCarnetTemplateUrl = `/templates/${initialData.activeCarnetTemplate.archivo}`;
+              } else if (certificateData.id_plantilla_carnet) {
+                const selectedTemplate = carnetTemplates.find(
+                  (template: any) =>
+                    template.id === certificateData.id_plantilla_carnet,
+                );
+                if (
+                  selectedTemplate?.archivo &&
+                  selectedTemplate.archivo !== "carnet.png"
+                ) {
+                  finalCarnetTemplateUrl = `/templates/${selectedTemplate.archivo}`;
+                }
+              }
+
+              // Try to preload the determined URL
+              try {
+                carnetTemplateBase64 = await preloadImage(
+                  finalCarnetTemplateUrl,
+                );
+              } catch (preloadError) {
+                console.warn(
+                  `Failed to preload carnet template ${finalCarnetTemplateUrl}, falling back to default carnet.png`,
+                  preloadError,
+                );
+                // If it wasn't already the default, try the default
+                if (finalCarnetTemplateUrl !== "/templates/carnet.png") {
+                  finalCarnetTemplateUrl = "/templates/carnet.png";
+                  carnetTemplateBase64 = await preloadImage(
+                    finalCarnetTemplateUrl,
+                  );
+                } else {
+                  throw preloadError; // Already failed on default
+                }
+              }
             } catch (error) {
-              console.error("Failed to preload carnet template:", error);
+              console.error("Failed to load any carnet template:", error);
             }
 
             // Generate carnet PDFs concurrently in batches
             const carnetRequests = carnetData.map((carnet, index) => {
-              // Use preloaded base64 if available, otherwise use URL
+              // Use preloaded base64 if available, otherwise use final URL
               const templateImage =
-                carnetTemplateBase64 ||
-                (() => {
-                  const defaultTemplate = "/templates/carnet.png";
-                  if (certificateData.id_plantilla_carnet) {
-                    const selectedTemplate = carnetTemplates.find(
-                      (template: any) =>
-                        template.id === certificateData.id_plantilla_carnet,
-                    );
-                    if (
-                      selectedTemplate?.archivo &&
-                      selectedTemplate.archivo !== "carnet.png"
-                    ) {
-                      return `/templates/${selectedTemplate.archivo}`;
-                    }
-                  }
-                  return defaultTemplate;
-                })();
+                carnetTemplateBase64 || finalCarnetTemplateUrl;
 
               return {
                 participant: certificateData.participants[index],
