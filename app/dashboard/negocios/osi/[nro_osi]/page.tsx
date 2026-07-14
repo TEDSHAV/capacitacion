@@ -138,8 +138,20 @@ export default function OSIDetailPage() {
 
   const handleSave = async () => {
     setIsLoading(true)
+    setError(null)
     
     try {
+      // Validation for required fields
+      if (!formData.nro_osi?.trim()) {
+        throw new Error('El número de OSI es requerido')
+      }
+      if (!formData.nombre_empresa?.trim()) {
+        throw new Error('El nombre de la empresa es requerido')
+      }
+      if (!formData.tipo_servicio?.trim()) {
+        throw new Error('El tipo de servicio es requerido')
+      }
+      
       if (isNew) {
         const { error } = await supabase.from("osi").insert([formData])
         if (error) throw error
@@ -151,6 +163,7 @@ export default function OSIDetailPage() {
       router.push('/dashboard/negocios')
     } catch (error) {
       console.error('Error saving OSI:', error)
+      setError(error instanceof Error ? error.message : 'Error al guardar la OSI')
     } finally {
       setIsLoading(false)
     }
@@ -171,6 +184,10 @@ export default function OSIDetailPage() {
 
   const updateFormData = (field: keyof OSI, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    // Clear error when user starts typing in required fields
+    if (error && (field === 'nro_osi' || field === 'nombre_empresa' || field === 'tipo_servicio')) {
+      setError(null)
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -286,6 +303,25 @@ export default function OSIDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="bg-white rounded-lg shadow-md p-4 space-y-4">
