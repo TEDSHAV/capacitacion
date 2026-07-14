@@ -18,7 +18,8 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
     empresa_nombre: curso?.empresas?.razon_social || "",
     contenido: curso?.contenido || "",
     horas_estimadas: curso?.horas_estimadas || 0,
-    nota_aprobatoria: curso?.nota_aprobatoria || 0, // Default to 0
+    tipo_certificado: curso?.nota_aprobatoria === 0 ? "participacion" : "calificacion", // Certificate type
+    nota_aprobatoria: curso?.nota_aprobatoria || 14, // Default to 14 for graded courses
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +58,14 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
     setDatosFormulario(prev => ({
       ...prev,
       [name]: (name === 'horas_estimadas' || name === 'nota_aprobatoria') ? (value === "" ? 0 : Number(value)) : value
+    }));
+  };
+
+  const handleTipoCertificadoChange = (tipo: string) => {
+    setDatosFormulario(prev => ({
+      ...prev,
+      tipo_certificado: tipo,
+      nota_aprobatoria: tipo === "participacion" ? 0 : (prev.nota_aprobatoria || 14) // Set to 0 for participation, keep existing or default for graded
     }));
   };
 
@@ -155,27 +164,52 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
           </p>
         </div>
 
-        {/* Passing Grade */}
+        {/* Certificate Type */}
         <div>
-          <label htmlFor="nota_aprobatoria" className="block text-sm font-medium text-gray-700 mb-1">
-            Calificación Aprobatoria
+          <label htmlFor="tipo_certificado" className="block text-sm font-medium text-gray-700 mb-1">
+            Tipo de Certificado *
           </label>
-          <input
-            type="number"
-            id="nota_aprobatoria"
-            name="nota_aprobatoria"
-            value={datosFormulario.nota_aprobatoria}
-            onChange={manejarCambioInput}
-            min="1"
-            max="20"
-            step="1"
+          <select
+            id="tipo_certificado"
+            name="tipo_certificado"
+            value={datosFormulario.tipo_certificado}
+            onChange={(e) => handleTipoCertificadoChange(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            placeholder="Ej: 14"
-          />
+          >
+            <option value="calificacion">Certificado con Calificación</option>
+            <option value="participacion">Certificado de Participación</option>
+          </select>
           <p className="text-sm text-gray-500 mt-1">
-            Nota mínima para aprobar el curso (escala 1-20)
+            {datosFormulario.tipo_certificado === "calificacion" 
+              ? "Los participantes recibirán una calificación y necesitarán aprobar para obtener el certificado"
+              : "Todos los participantes recibirán el certificado por asistir, sin calificación"
+            }
           </p>
         </div>
+
+        {/* Passing Grade - Only show for graded courses */}
+        {datosFormulario.tipo_certificado === "calificacion" && (
+          <div>
+            <label htmlFor="nota_aprobatoria" className="block text-sm font-medium text-gray-700 mb-1">
+              Calificación Aprobatoria
+            </label>
+            <input
+              type="number"
+              id="nota_aprobatoria"
+              name="nota_aprobatoria"
+              value={datosFormulario.nota_aprobatoria}
+              onChange={manejarCambioInput}
+              min="1"
+              max="20"
+              step="1"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="Ej: 14"
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              Nota mínima para aprobar el curso (escala 1-20)
+            </p>
+          </div>
+        )}
 
         {/* Content */}
         <div>
