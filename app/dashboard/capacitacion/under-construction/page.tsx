@@ -23,8 +23,7 @@ export default function UnderConstructionPage() {
             Sección en Construcción
           </h1>
           <p className="text-gray-500 leading-relaxed">
-            Estamos trabajando para brindarte una mejor experiencia. Esta
-            funcionalidad estará disponible próximamente.
+            Esta funcionalidad estará disponible próximamente.
           </p>
         </div>
 
