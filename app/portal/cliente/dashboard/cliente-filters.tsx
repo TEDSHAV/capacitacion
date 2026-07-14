@@ -111,7 +111,7 @@ export function ClienteFilters({
         {/* City */}
         {showSedeFilter && (
         <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-600">Ciudad / Sede</label>
+          <label className="text-xs font-medium text-gray-600">Ciudad</label>
           <select
             value={filters.cityId || ""}
             onChange={(e) =>
