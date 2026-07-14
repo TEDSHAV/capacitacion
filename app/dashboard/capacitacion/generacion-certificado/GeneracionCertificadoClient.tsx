@@ -238,6 +238,24 @@ export default function GeneracionCertificadoClient({
         certificateGenerator.downloadBlob(blob, filename);
       });
 
+      // Effect to set default course content when course topic changes (but no template selected)
+      useEffect(() => {
+        if (selectedCourseTopic && !certificateData.course_template_id) {
+          // Use course's default content if available
+          if (selectedCourseTopic.contenido_curso) {
+            onDataChange("course_content", selectedCourseTopic.contenido_curso);
+            console.log('Setting default course content:', selectedCourseTopic.contenido_curso);
+            console.log('Available course fields:', {
+              id: selectedCourseTopic.id,
+              name: selectedCourseTopic.name,
+              contenido_curso: selectedCourseTopic.contenido_curso,
+              contenido: selectedCourseTopic.contenido_curso,
+              descripcion: selectedCourseTopic.descripcion
+            });
+          }
+        }
+      }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, selectedCourseTopic?.name, selectedCourseTopic?.descripcion, certificateData.course_template_id]);
+
       // Generate carnets if course requires them
       let carnetsGenerated = 0;
       if (selectedCourseTopic?.emite_carnet) {
@@ -286,11 +304,13 @@ export default function GeneracionCertificadoClient({
             // Generate carnet PDFs
             const carnetRequests = carnetData.map((carnet, index) => {
               // Get template image based on selected carnet template
-              let templateImage = '/templates/carnet.png'; // fallback
+              const defaultTemplate = '/templates/carnet.png';
+              let templateImage = defaultTemplate;
+              
               if (certificateData.id_plantilla_carnet) {
                 const selectedTemplate = carnetTemplates.find((template: any) => template.id === certificateData.id_plantilla_carnet);
-                if (selectedTemplate?.archivo) {
-                  // Use the template file, but fallback to carnet.png if file doesn't exist
+                if (selectedTemplate?.archivo && selectedTemplate.archivo !== 'carnet.png') {
+                  // Try to use custom template, carnet generator will fallback if it doesn't exist
                   templateImage = `/templates/${selectedTemplate.archivo}`;
                 }
               }

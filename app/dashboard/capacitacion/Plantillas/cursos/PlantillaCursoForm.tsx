@@ -17,7 +17,7 @@ export function PlantillaCursoForm({
   onCancel
 }: PlantillaCursoFormProps) {
   const [formData, setFormData] = useState({
-    descripcion: plantilla?.descripcion || "",
+    titulo: plantilla?.titulo || (plantilla?.descripcion || ""),
     contenido: plantilla?.contenido || "",
     id_curso: plantilla?.id_curso || "",
     id_empresa: plantilla?.id_empresa || "",
@@ -29,9 +29,22 @@ export function PlantillaCursoForm({
     
     const plantillaData = {
       ...formData,
+      descripcion: formData.titulo, // Use title as the main description field in database
+      titulo: formData.titulo, // Keep title for frontend display
       id_curso: formData.id_curso ? parseInt(formData.id_curso.toString()) : null,
-      id_empresa: formData.id_empresa ? parseInt(formData.id_empresa.toString()) : null
+      id_empresa: formData.id_empresa ? formData.id_empresa.toString() : null // Handle as string
     };
+
+    // Validate required fields
+    if (!plantillaData.id_curso) {
+      alert('Debe seleccionar un curso para crear la plantilla.');
+      return;
+    }
+    
+    if (!plantillaData.id_empresa) {
+      alert('Debe seleccionar una empresa para crear la plantilla.');
+      return;
+    }
     
     onSave(plantillaData);
   };
@@ -43,6 +56,19 @@ export function PlantillaCursoForm({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
+
+    // If course is changed, auto-populate content from already loaded course data
+    if (name === 'id_curso' && value && !plantilla) {
+      const selectedCourse = courses.find(course => course.id === parseInt(value.toString()));
+      if (selectedCourse) {
+        setFormData(prev => ({
+          ...prev,
+          titulo: prev.titulo || selectedCourse.nombre || "",
+          contenido: prev.contenido || selectedCourse.contenido || ""
+        }));
+        console.log('Auto-populated content from course:', selectedCourse.nombre);
+      }
+    }
   };
 
   return (
@@ -61,20 +87,49 @@ export function PlantillaCursoForm({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Description */}
+          {/* Course Selection - First Field */}
           <div>
-            <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 mb-1">
-              Descripción *
+            <label htmlFor="id_curso" className="block text-sm font-medium text-gray-700 mb-1">
+              Curso *
+            </label>
+            <select
+              id="id_curso"
+              name="id_curso"
+              value={formData.id_curso}
+              onChange={handleChange}
+              required
+              disabled={!!plantilla}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+              <option value="">Seleccionar curso...</option>
+              {courses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.nombre}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              {plantilla 
+                ? "El curso asociado no puede ser modificado."
+                : "Selecciona un curso para autocargar su contenido. Podrás modificarlo según necesites."
+              }
+            </p>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label htmlFor="titulo" className="block text-sm font-medium text-gray-700 mb-1">
+              Título *
             </label>
             <input
               type="text"
-              id="descripcion"
-              name="descripcion"
-              value={formData.descripcion}
+              id="titulo"
+              name="titulo"
+              value={formData.titulo}
               onChange={handleChange}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Ej: Contenido general de seguridad industrial"
+              placeholder="Ej: Plantilla de Seguridad Industrial"
             />
           </div>
 
@@ -89,46 +144,23 @@ export function PlantillaCursoForm({
               value={formData.contenido}
               onChange={handleChange}
               required
-              rows={10}
+              rows={12}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Ingresa el contenido detallado de la plantilla..."
             />
           </div>
 
-          {/* Course Selection */}
-          <div>
-            <label htmlFor="id_curso" className="block text-sm font-medium text-gray-700 mb-1">
-              Curso (Opcional)
-            </label>
-            <select
-              id="id_curso"
-              name="id_curso"
-              value={formData.id_curso}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Seleccionar curso...</option>
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.nombre}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Si seleccionas un curso, esta plantilla estará disponible específicamente para ese curso.
-            </p>
-          </div>
-
           {/* Company Selection */}
           <div>
             <label htmlFor="id_empresa" className="block text-sm font-medium text-gray-700 mb-1">
-              Empresa (Opcional)
+              Empresa *
             </label>
             <select
               id="id_empresa"
               name="id_empresa"
               value={formData.id_empresa}
               onChange={handleChange}
+              required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Seleccionar empresa...</option>
@@ -139,7 +171,7 @@ export function PlantillaCursoForm({
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Si seleccionas una empresa, esta plantilla estará disponible específicamente para esa empresa.
+              La empresa para la cual se creará esta plantilla de curso.
             </p>
           </div>
 

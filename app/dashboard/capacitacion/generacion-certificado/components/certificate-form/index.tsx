@@ -171,23 +171,51 @@ export const CertificateForm = ({
     loadFilteredTemplates();
   }, [selectedCourseTopic?.id, selectedCourseTopic?.id_plantilla_certificado]);
 
-  // Effect to load course templates when OSI or course changes
+  // Effect to load course templates when course changes
   useEffect(() => {
     const loadCourseTemplates = async () => {
       try {
         const courseId = selectedCourseTopic?.id;
-        const osiCompanyId = selectedOSI?.empresa_id;
         
-        const templatesResult = await getCourseTemplatesByOSIAction(courseId, osiCompanyId);
+        const templatesResult = await getCourseTemplatesByOSIAction(courseId);
         if (templatesResult.data) {
           const templates = templatesResult.data;
-          setCourseTemplates(templates);
-          console.log('Course templates loaded:', templates);
           
-          // If no templates exist for this course, use the course's default content
+          // Add original course content as first option if course exists
+          const allOptions = selectedCourseTopic ? [
+            {
+              id: 'original-course',
+              descripcion: selectedCourseTopic.nombre || 'Curso sin nombre',
+              contenido: selectedCourseTopic.contenido_curso || ''
+            },
+            ...templates
+          ] : templates;
+          
+          console.log('🔧 Template options created:', {
+            courseName: selectedCourseTopic?.name || 'No course selected',
+            originalCourse: selectedCourseTopic ? {
+              id: 'original-course',
+              descripcion: selectedCourseTopic.name || 'Curso sin nombre',
+              contenido: selectedCourseTopic.contenido_curso || ''
+            } : null,
+            customTemplates: templates,
+            totalOptions: allOptions.length,
+            allOptions: allOptions
+          });
+          
+          setCourseTemplates(allOptions);
+          console.log('Course templates loaded:', allOptions);
+          
+          // If no templates exist for this course, use course's default content
           if (templates.length === 0 && selectedCourseTopic?.contenido_curso) {
             onDataChange("course_content", selectedCourseTopic.contenido_curso);
+            // Auto-select the original course option
+            onDataChange("course_template_id", 'original-course');
             console.log('Using default course content since no templates available');
+          } else if (selectedCourseTopic?.contenido_curso) {
+            // Auto-select the original course option by default
+            onDataChange("course_template_id", 'original-course');
+            onDataChange("course_content", selectedCourseTopic.contenido_curso);
           }
         }
       } catch (error) {
@@ -196,7 +224,7 @@ export const CertificateForm = ({
     };
 
     loadCourseTemplates();
-  }, [selectedOSI?.empresa_id, selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso]);
+  }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, selectedCourseTopic?.name]);
 
   // Effect to set default course content when course topic changes (but no template selected)
   useEffect(() => {
@@ -342,26 +370,41 @@ export const CertificateForm = ({
           value={certificateData.course_template_id || ""}
           onChange={(e) => {
             const templateId = e.target.value;
+            console.log('🎯 Template selection changed:', {
+              templateId,
+              templateIdType: typeof templateId,
+              availableTemplates: courseTemplates,
+              availableTemplateDetails: courseTemplates.map(t => ({
+                id: t.id,
+                idType: typeof t.id,
+                descripcion: t.descripcion
+              })),
+              selectedTemplate: courseTemplates.find((template: any) => template.id === templateId),
+              comparisonCheck: courseTemplates.map(t => `${t.id}` === templateId)
+            });
+            
             onDataChange("course_template_id", templateId);
             
             if (templateId) {
-              // Find the selected template and load its content
+              // Find selected template and load its content
               const selectedTemplate = courseTemplates.find(
-                (template: any) => template.id === templateId,
+                (template: any) => template.id.toString() === templateId,
               );
+              
+              console.log('🔍 Selected template details:', selectedTemplate);
               
               if (selectedTemplate) {
                 onDataChange("course_content", selectedTemplate.contenido || '');
-                console.log('Course template selected, using template content:', selectedTemplate.descripcion);
+                console.log('✅ Template selected, using content:', selectedTemplate.descripcion);
               } else {
                 // Fallback to course content if template not found
                 onDataChange("course_content", selectedCourseTopic?.contenido_curso || '');
-                console.log('Template not found, using course default content');
+                console.log('⚠️ Template not found, using course default content');
               }
             } else {
               // No template selected, use course's default content
               onDataChange("course_content", selectedCourseTopic?.contenido_curso || '');
-              console.log('Template deselected, using course default content');
+              console.log('📋 Template deselected, using course default content');
             }
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -370,7 +413,10 @@ export const CertificateForm = ({
           <option value="">Selecciona una plantilla...</option>
           {courseTemplates.map((template: any) => (
             <option key={template.id} value={template.id}>
-              {template.descripcion || `Plantilla ${template.id}`}
+              {template.id === 'original-course' 
+                ? selectedCourseTopic?.nombre || 'Curso sin nombre'
+                : template.nombre || template.descripcion || `Plantilla ${template.id}`
+              }
             </option>
           ))}
         </select>
@@ -440,28 +486,6 @@ export const CertificateForm = ({
         />
         <p className="text-xs text-gray-500 mt-1">
           Duración total del curso en horas (se puede editar si es necesario)
-        </p>
-      </div>
-
-      {/* Course Content */}
-      <div className="mb-4">
-        <label
-          htmlFor="course_content"
-          className="block text-sm font-medium text-gray-700 mb-2"
-        >
-          Contenido del Curso
-        </label>
-        <textarea
-          id="course_content"
-          value={certificateData.course_content || ""}
-          onChange={(e) => onDataChange("course_content", e.target.value)}
-          rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="El contenido del curso se prellenará automáticamente desde la información de la OSI..."
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          Este campo se prellena automáticamente con el detalle de capacitación
-          o tema de la OSI seleccionada
         </p>
       </div>
 

@@ -73,14 +73,29 @@ export const CertificatePreview = ({
       const carnetPreviewUrl = await carnetGenerator.previewCarnet({
         participant: previewParticipant,
         carnetData,
-        templateImage: certificateData.id_plantilla_carnet 
-          ? (() => {
-              const selectedTemplate = carnetTemplates.find((t: any) => t.id === certificateData.id_plantilla_carnet);
-              return selectedTemplate?.archivo 
-                ? `/templates/${selectedTemplate.archivo}` 
-                : '/templates/carnet.png'; // fallback
-            })()
-          : '/templates/carnet.png',
+        templateImage: (() => {
+          // Default fallback
+          const defaultTemplate = '/templates/carnet.png';
+          
+          if (!certificateData.id_plantilla_carnet) {
+            return defaultTemplate;
+          }
+          
+          const selectedTemplate = carnetTemplates.find((t: any) => t.id === certificateData.id_plantilla_carnet);
+          
+          if (!selectedTemplate?.archivo) {
+            return defaultTemplate;
+          }
+          
+          // Check if it's already the default template
+          if (selectedTemplate.archivo === 'carnet.png') {
+            return defaultTemplate;
+          }
+          
+          // For custom templates, try to use them but they might not exist
+          // The carnet generator will handle the fallback to default design
+          return `/templates/${selectedTemplate.archivo}`;
+        })(),
         isPreview: true
       });
       
