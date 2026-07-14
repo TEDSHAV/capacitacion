@@ -10,12 +10,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { titulo, empresa_id, contenido } = await request.json()
+    const { nombre, empresa_id, contenido } = await request.json()
 
     // Validate required fields
-    if (!titulo || !contenido) {
+    if (!nombre || !contenido) {
       return NextResponse.json({ 
-        error: 'Title and content are required' 
+        error: 'Name and content are required' 
       }, { status: 400 })
     }
 
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from('cursos')
       .insert({
-        titulo,
+        nombre,
         empresa_id: empresa_id || null,
         contenido,
         created_by: user.id,

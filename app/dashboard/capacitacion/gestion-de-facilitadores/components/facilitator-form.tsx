@@ -1,76 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FacilitadorFormData, State, CourseTopic } from "@/types";
 import { PersonalInfoSection } from "./facilitator-form/PersonalInfoSection";
 import { ProfessionalInfoSection } from "./facilitator-form/ProfessionalInfoSection";
 import { LocationSection } from "./facilitator-form/LocationSection";
 import { CourseTopicsSection } from "./facilitator-form/CourseTopicsSection";
 import { FileUploadSection } from "./facilitator-form/FileUploadSection";
-
-// Temporary inline component to bypass import issue
-const AdditionalInfoSection = ({ formData, handleInputChange }: { formData: FacilitadorFormData; handleInputChange: (field: keyof FacilitadorFormData, value: any) => void; }) => {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-md font-medium text-gray-900">Información Adicional</h3>
-      
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Conocimientos Técnicos
-        </label>
-        <textarea
-          value={formData.ficha_tecnica}
-          onChange={(e) => handleInputChange("ficha_tecnica", e.target.value)}
-          rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Describe los conocimientos técnicos y experiencia del facilitador..."
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Notas y Observaciones
-        </label>
-        <textarea
-          value={formData.notas_observaciones}
-          onChange={(e) => handleInputChange("notas_observaciones", e.target.value)}
-          rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Notas adicionales sobre el facilitador..."
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Rating (para implementación futura)
-        </label>
-        <input
-          type="number"
-          min="1"
-          max="5"
-          step="0.1"
-          value={formData.calificacion || ""}
-          onChange={(e) => handleInputChange("calificacion", e.target.value ? parseFloat(e.target.value) : undefined)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="1-5"
-          disabled
-        />
-        <p className="text-xs text-gray-500 mt-1">Esta funcionalidad se implementará próximamente</p>
-      </div>
-    </div>
-  );
-};
+import { AdditionalInfoSection } from "./facilitator-form/AdditionalInfoSection";
 
 interface FacilitatorFormProps {
   onFacilitatorSaved: () => void;
+  editId?: string | null;
 }
 
-export const FacilitatorForm = ({
-  onFacilitatorSaved,
-}: FacilitatorFormProps) => {
+export const FacilitatorForm = ({ onFacilitatorSaved, editId }: FacilitatorFormProps) => {
   const [formData, setFormData] = useState<FacilitadorFormData>({
     fuente: "",
-    ano_ingreso: "" as string,
+    ano_ingreso: "",
     nombre_apellido: "",
     cedula: "",
     rif: "",
@@ -81,17 +29,18 @@ export const FacilitatorForm = ({
     formacion_docente_certificada: false,
     tipo_impacto: "",
     notas_observaciones: "",
-    id_ciudad_base: "" as string,
-    id_estado_geografico: "" as string,
-    id_estatus: 1, // Default active status
-    temas_cursos: [] as string[],
+    id_estado_base: null,
+    id_ciudad_base: null,
+    id_estado_geografico: null,
+    id_estatus: null,
+    temas_cursos: [],
     ficha_tecnica: "",
-    calificacion: undefined as number | undefined,
+    calificacion: null,
     url_curriculum: "",
   });
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [states, setStates] = useState<State[]>([]);
   const [loadingStates, setLoadingStates] = useState(true);
   const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
@@ -101,6 +50,46 @@ export const FacilitatorForm = ({
     loadStates();
     loadCourseTopics();
   }, []);
+
+  // Load facilitator data if in edit mode
+  useEffect(() => {
+    if (editId) {
+      const loadFacilitator = async () => {
+        try {
+          const response = await fetch(`/api/facilitators/${editId}`);
+          if (response.ok) {
+            const facilitator = await response.json();
+            setFormData({
+              fuente: facilitator.fuente || "",
+              ano_ingreso: facilitator.ano_ingreso ? String(facilitator.ano_ingreso) : "",
+              nombre_apellido: facilitator.nombre_apellido || "",
+              cedula: facilitator.cedula || "",
+              rif: facilitator.rif || "",
+              email: facilitator.email || "",
+              telefono: facilitator.telefono || "",
+              direccion: facilitator.direccion || "",
+              nivel_tecnico: facilitator.nivel_tecnico || "",
+              formacion_docente_certificada: facilitator.formacion_docente_certificada || false,
+              tipo_impacto: facilitator.tipo_impacto || "",
+              notas_observaciones: facilitator.notas_observaciones || "",
+              id_estado_base: facilitator.id_estado_base,
+              id_ciudad_base: facilitator.id_ciudad_base,
+              id_estado_geografico: facilitator.id_estado_geografico,
+              id_estatus: facilitator.id_estatus,
+              temas_cursos: facilitator.temas_cursos || [],
+              ficha_tecnica: facilitator.ficha_tecnica || "",
+              calificacion: facilitator.calificacion,
+              url_curriculum: facilitator.url_curriculum || "",
+            });
+          }
+        } catch (error) {
+          console.error('Error loading facilitator:', error);
+        }
+      };
+
+      loadFacilitator();
+    }
+  }, [editId]);
 
   const loadCourseTopics = async () => {
     try {
@@ -192,7 +181,7 @@ export const FacilitatorForm = ({
       return;
     }
 
-    setUploading(true);
+    setLoading(true);
     try {
       const formDataToSend = new FormData();
 
@@ -205,60 +194,63 @@ export const FacilitatorForm = ({
         }
       });
 
-      // Add resume file if selected
+      // Add files if selected
       if (resumeFile) {
         formDataToSend.append("resume", resumeFile);
       }
+      if (signatureFile) {
+        formDataToSend.append("signature", signatureFile);
+      }
 
-      const response = await fetch("/api/facilitators", {
-        method: "POST",
-        body: formDataToSend,
-      });
-
-      if (response.ok) {
-        alert("Facilitador guardado exitosamente");
-
-        // Reset form
-        setFormData({
-          fuente: "",
-          ano_ingreso: "",
-          nombre_apellido: "",
-          cedula: "",
-          rif: "",
-          email: "",
-          telefono: "",
-          direccion: "",
-          nivel_tecnico: "",
-          formacion_docente_certificada: false,
-          tipo_impacto: "",
-          notas_observaciones: "",
-          id_ciudad_base: "",
-          id_estado_geografico: "",
-          id_estatus: 1,
-          temas_cursos: [],
-          ficha_tecnica: "",
-          calificacion: undefined,
-          url_curriculum: "",
+      let response;
+      if (editId) {
+        // Update existing facilitator
+        response = await fetch(`/api/facilitators/${editId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
         });
-        setResumeFile(null);
-        setSignatureFile(null);
-
-        onFacilitatorSaved();
+        
+        if (response.ok) {
+          alert('Facilitador actualizado exitosamente');
+          const handleFacilitadorSaved = () => {
+            // Refresh or navigate as needed
+            if (editId) {
+              router.replace('/dashboard/capacitacion/gestion-de-facilitadores');
+            }
+          };
+          handleFacilitadorSaved();
+        } else {
+          alert('Error al actualizar el facilitador');
+        }
       } else {
-        throw new Error("Error al guardar el facilitador");
+        // Create new facilitator
+        response = await fetch('/api/facilitators/', {
+          method: 'POST',
+          body: formDataToSend,
+        });
+        
+        if (response.ok) {
+          alert('Facilitador creado exitosamente');
+          onFacilitatorSaved();
+        } else {
+          alert('Error al crear el facilitador');
+        }
       }
     } catch (error) {
       alert("Error al guardar el facilitador. Por favor intenta nuevamente.");
       console.error("Save error:", error);
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   };
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-6">
-        Registrar Nuevo Facilitador
+        {editId ? "Editar Facilitador" : "Registrar Nuevo Facilitador"}
       </h2>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -303,10 +295,10 @@ export const FacilitatorForm = ({
         <div>
           <button
             type="submit"
-            disabled={uploading}
+            disabled={loading}
             className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            {uploading ? "Guardando..." : "Guardar Facilitador"}
+            {loading ? "Guardando..." : "Guardar Facilitador"}
           </button>
         </div>
       </form>

@@ -15,7 +15,7 @@ export const LocationSection = ({ formData, handleInputChange, states, loadingSt
           </label>
           <input
             type="text"
-            value={formData.id_ciudad_base}
+            value={formData.id_ciudad_base || ""}
             onChange={(e) => handleInputChange("id_ciudad_base", e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Ej: Caracas, Valencia, Maracaibo"
@@ -33,7 +33,7 @@ export const LocationSection = ({ formData, handleInputChange, states, loadingSt
             </div>
           ) : (
             <select
-              value={formData.id_estado_geografico}
+              value={formData.id_estado_geografico || ""}
               onChange={(e) => handleInputChange("id_estado_geografico", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
@@ -53,7 +53,7 @@ export const LocationSection = ({ formData, handleInputChange, states, loadingSt
           Dirección
         </label>
         <textarea
-          value={formData.direccion}
+          value={formData.direccion || ""}
           onChange={(e) => handleInputChange("direccion", e.target.value)}
           rows={2}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

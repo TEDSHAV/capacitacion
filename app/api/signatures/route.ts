@@ -6,19 +6,23 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     
     const { data, error } = await supabase
-      .from('signatures')
+      .from('firmas')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('fecha_creacion', { ascending: false });
 
     if (error) {
-      throw error;
+      console.error('Signatures fetch error:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch signatures', details: error },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error('Signatures fetch error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch signatures' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

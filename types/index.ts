@@ -64,12 +64,13 @@ export interface FacilitadorFormData {
   formacion_docente_certificada: boolean;
   tipo_impacto: string;
   notas_observaciones: string;
-  id_ciudad_base: string;
-  id_estado_geografico: string;
-  id_estatus: number;
+  id_ciudad_base: number | null;
+  id_estado_geografico: number | null;
+  id_estado_base: number | null;
+  id_estatus: number | null;
   temas_cursos: string[];
   ficha_tecnica: string;
-  calificacion: number | undefined;
+  calificacion: number | null;
   url_curriculum: string;
 }
 
@@ -200,12 +201,12 @@ export interface CertificateParticipant {
 }
 
 export interface Signature {
-  id: string;
-  name: string;
-  type: SignatureType;
-  image_url: string;
-  created_at: string;
-  updated_at: string;
+  id: number;
+  nombre: string;
+  tipo: string;
+  url_imagen: string;
+  fecha_creacion: string;
+  fecha_actualizacion: string;
 }
 
 export enum SignatureType {

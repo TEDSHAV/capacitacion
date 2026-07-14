@@ -12,7 +12,7 @@ export default function CapacitacionClient({
 
   const submodules = [
     {
-      id: 'gestion-participantes',
+      id: 'participantes',
       title: 'Gestión de Participantes',
       description: 'Gestión de participantes en capacitaciones',
       color: 'bg-blue-500'
@@ -28,6 +28,12 @@ export default function CapacitacionClient({
       title: 'Gestión de Facilitadores',
       description: 'Administración de facilitadores e instructores',
       color: 'bg-blue-500'
+    },
+    {
+      id: 'gestion-de-firmas',
+      title: 'Gestión de Firmas',
+      description: 'Administrar firmas digitales para certificados',
+      color: 'bg-purple-500'
     },
     {
       id: 'generacion-certificado',

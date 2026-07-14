@@ -10,7 +10,7 @@ import {
 
 import { ParticipantsSection } from "./ParticipantsSection";
 import { CertificatePreview } from "./CertificatePreview";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FacilitatorSelection } from "../../../gestion-de-facilitadores/components/facilitator-selection";
 import { SignatureSelection } from "../../../gestion-de-firmas/components/signature-selection";
 
@@ -25,6 +25,25 @@ export const CertificateForm = ({
   onGenerate,
 }: CertificateFormProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [shaSignatures, setShaSignatures] = useState([]);
+
+  useEffect(() => {
+    const loadShaSignatures = async () => {
+      try {
+        const response = await fetch("/api/signatures");
+        if (response.ok) {
+          const data = await response.json();
+          // Filter only SHA representative signatures
+          const shaOnly = data.filter((sig: any) => sig.tipo === 'representante_sha');
+          setShaSignatures(shaOnly);
+        }
+      } catch (error) {
+        console.error("Error loading SHA signatures:", error);
+      }
+    };
+
+    loadShaSignatures();
+  }, []);
 
   const handleGenerateCertificate = () => {
     // Validation
@@ -227,8 +246,6 @@ export const CertificateForm = ({
         </p>
       </div>
 
-
-
       {/* Date */}
       <div className="mb-6">
         <label
@@ -256,7 +273,9 @@ export const CertificateForm = ({
         <div className="mb-4">
           <FacilitatorSelection
             selectedFacilitatorId={certificateData.facilitator_id}
-            onFacilitatorChange={(id: string) => onDataChange("facilitator_id", id)}
+            onFacilitatorChange={(id: string) => {
+              onDataChange("facilitator_id", id);
+            }}
           />
         </div>
         
@@ -275,6 +294,11 @@ export const CertificateForm = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">Seleccionar firma SHA...</option>
+            {shaSignatures.map((signature: any) => (
+              <option key={signature.id} value={signature.id}>
+                {signature.nombre}
+              </option>
+            ))}
           </select>
           <p className="text-xs text-gray-500 mt-1">
             Las firmas SHA se gestionan en el módulo de Gestión de Firmas. 
@@ -303,29 +327,10 @@ export const CertificateForm = ({
             !certificateData.osi_id ||
             !certificateData.course_topic_id ||
             certificateData.participants.length === 0 ||
-                  !certificateData.date
+            !certificateData.date
           }
-          className="flex-1 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+          className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-            />
-          </svg>
           Vista Previa
         </button>
 
@@ -333,37 +338,28 @@ export const CertificateForm = ({
         <button
           type="button"
           onClick={handleGenerateCertificate}
-          disabled={
-            isGenerating ||
+          disabled={isGenerating || 
             !certificateData.certificate_title ||
             !certificateData.osi_id ||
             !certificateData.course_topic_id ||
             certificateData.participants.length === 0 ||
-                  !certificateData.date
+            !certificateData.date
           }
-          className="flex-1 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           {isGenerating ? (
             <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
               Generando Certificados...
             </>
           ) : (
-            'Generar Certificado(s)'
+            "Generar Certificados"
           )}
         </button>
       </div>
-
-      {/* Validation Message */}
-      {(!certificateData.certificate_title ||
-        !certificateData.osi_id ||
-        !certificateData.course_topic_id ||
-        certificateData.participants.length === 0 ||
-          !certificateData.date) && (
-        <p className="mt-2 text-sm text-red-600">
-          Por favor completa todos los campos obligatorios
-        </p>
-      )}
 
       {/* Certificate Preview Modal */}
       <CertificatePreview

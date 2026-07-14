@@ -15,14 +15,13 @@ export async function POST(request: NextRequest) {
     const rif = formData.get('rif') as string;
     const email = formData.get('email') as string;
     const telefono = formData.get('telefono') as string;
-    const ciudad = formData.get('id_ciudad_base') as string; // City name from text input
     const direccion = formData.get('direccion') as string;
     const nivel_tecnico = formData.get('nivel_tecnico') as string;
     const formacion_docente_certificada = formData.get('formacion_docente_certificada') === 'true';
     const tipo_impacto = formData.get('tipo_impacto') as string;
     const notas_observaciones = formData.get('notas_observaciones') as string;
     const id_estado_base = formData.get('id_estado_base') ? parseInt(formData.get('id_estado_base') as string) : null;
-    const id_ciudad_base = null; // We'll store city name in direccion field
+    const id_ciudad_base = formData.get('id_ciudad_base') ? parseInt(formData.get('id_ciudad_base') as string) : null;
     const id_estado_geografico = formData.get('id_estado_geografico') ? parseInt(formData.get('id_estado_geografico') as string) : null;
     const id_estatus = formData.get('id_estatus') ? parseInt(formData.get('id_estatus') as string) : 1;
     const temas_cursos = JSON.parse(formData.get('temas_cursos') as string || '[]');
@@ -31,9 +30,6 @@ export async function POST(request: NextRequest) {
     const firma_id = formData.get('firma_id') ? parseInt(formData.get('firma_id') as string) : null;
     const resumeFile = formData.get('resume') as File | null;
     const signatureFile = formData.get('signature') as File | null;
-
-    // Combine city and address in direccion field
-    const fullDireccion = ciudad ? (direccion ? `${ciudad}, ${direccion}` : ciudad) : direccion;
 
     // Validate required fields
     if (!nombre_apellido || !cedula || !email || !telefono) {
@@ -73,8 +69,11 @@ export async function POST(request: NextRequest) {
     // Save facilitator record to database
     const supabase = await createClient();
 
+    console.log('Creating facilitator with signature:', signatureFile ? signatureFile.name : 'No signature file');
+
     // Handle signature file upload if provided
     if (signatureFile) {
+      console.log('Processing signature file:', signatureFile.name, 'Size:', signatureFile.size, 'Type:', signatureFile.type);
       // Create signatures directory if it doesn't exist
       const signaturesDir = join(process.cwd(), 'public', 'signatures');
       try {
@@ -101,14 +100,16 @@ export async function POST(request: NextRequest) {
         .insert([
           {
             nombre: nombre_apellido,
-            imagen_url: signatureUrl,
+            url_imagen: signatureUrl,
             tipo: 'facilitador',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            fecha_creacion: new Date().toISOString(),
+            fecha_actualizacion: new Date().toISOString(),
           },
         ])
         .select()
         .single();
+
+      console.log('Signature record created:', { signatureData, error: signatureError });
 
       if (signatureError) {
         // Clean up signature file if database insert fails
@@ -121,6 +122,7 @@ export async function POST(request: NextRequest) {
       }
 
       signatureId = signatureData.id;
+      console.log('Signature ID to link to facilitator:', signatureId);
     }
 
     const { data, error } = await supabase
@@ -134,7 +136,7 @@ export async function POST(request: NextRequest) {
           rif: rif || null,
           email,
           telefono,
-          direccion: fullDireccion || null,
+          direccion: direccion || null,
           nivel_tecnico: nivel_tecnico || null,
           formacion_docente_certificada,
           tipo_impacto: tipo_impacto || null,
@@ -154,6 +156,8 @@ export async function POST(request: NextRequest) {
       ])
       .select()
       .single();
+
+    console.log('Facilitator record created:', { data, error, signatureId });
 
     if (error) {
       // If database insert fails, clean up the uploaded files
@@ -189,7 +193,24 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('GET /api/facilitators - Starting request');
     const supabase = await createClient();
+    
+    // Test database connection
+    const { data: testData, error: testError } = await supabase
+      .from('facilitadores')
+      .select('count')
+      .single();
+    
+    if (testError) {
+      console.error('Database connection test failed:', testError);
+      return NextResponse.json(
+        { error: 'Database connection failed', details: testError },
+        { status: 500 }
+      );
+    }
+    
+    console.log('Database connection OK, count:', testData);
     
     const { data, error } = await supabase
       .from('facilitadores')
@@ -197,14 +218,19 @@ export async function GET(request: NextRequest) {
       .order('fecha_creacion', { ascending: false });
 
     if (error) {
-      throw error;
+      console.error('Facilitators fetch error:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch facilitators', details: error },
+        { status: 500 }
+      );
     }
 
+    console.log('Successfully fetched facilitators:', data?.length || 0, 'records');
     return NextResponse.json(data);
   } catch (error) {
     console.error('Facilitators fetch error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch facilitators' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

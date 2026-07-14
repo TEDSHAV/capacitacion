@@ -20,24 +20,23 @@ export default function GeneracionCertificadoPage() {
   const [allCourseTopics, setAllCourseTopics] = useState<CourseTopic[]>([]);
   const [filteredCourseTopics, setFilteredCourseTopics] = useState<CourseTopic[]>([]);
   const [selectedOSI, setSelectedOSI] = useState<OSI | null>(null);
-  const [selectedCourseTopic, setSelectedCourseTopic] =
-    useState<CourseTopic | null>(null);
-  const [certificateData, setCertificateData] = useState<CertificateGeneration>(
-    {
-      osi_id: "",
-      certificate_title: "",
-      certificate_subtitle: "",
-      passing_grade: 14,
-      course_topic_id: "",
-      course_content: "",
-      participants: [],
-      location: "",
-      date: new Date().toISOString().split("T")[0],
-      horas_estimadas: undefined,
-      facilitator_id: undefined,
-      sha_signature_id: undefined,
-    },
-  );
+  const [selectedCourseTopic, setSelectedCourseTopic] = useState<CourseTopic | null>(null);
+  const [certificateData, setCertificateData] = useState<CertificateGeneration>({
+    osi_id: "",
+    certificate_title: "",
+    certificate_subtitle: "",
+    passing_grade: 14,
+    course_topic_id: "",
+    course_content: "",
+    participants: [],
+    location: "",
+    date: new Date().toISOString().split("T")[0],
+    horas_estimadas: undefined,
+    facilitator_id: undefined,
+    sha_signature_id: undefined,
+  });
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingFacilitator, setEditingFacilitator] = useState<any>(null);
 
   useEffect(() => {
     const loadData = async () => {

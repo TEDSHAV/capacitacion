@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { Facilitador } from "@/types";
 
 interface FacilitatorSelectionProps {
-  selectedFacilitatorId?: number;
-  onFacilitatorChange: (id: number) => void;
+  selectedFacilitatorId?: string;
+  onFacilitatorChange: (id: string) => void;
 }
 
 export const FacilitatorSelection = ({
@@ -22,7 +22,7 @@ export const FacilitatorSelection = ({
 
   const loadFacilitators = async () => {
     try {
-      const response = await fetch("/api/facilitators");
+      const response = await fetch("/api/facilitators/");
       if (response.ok) {
         const data = await response.json();
         setFacilitators(data);
@@ -54,7 +54,7 @@ export const FacilitatorSelection = ({
       <select
         id="facilitator"
         value={selectedFacilitatorId?.toString() || ""}
-        onChange={(e) => onFacilitatorChange(parseInt(e.target.value))}
+        onChange={(e) => onFacilitatorChange(e.target.value)}
         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
       >
         <option value="">Seleccionar facilitador...</option>
@@ -74,8 +74,8 @@ export const FacilitatorSelection = ({
       )}
       {selectedFacilitatorId && (
         <div className="mt-2 text-xs text-gray-500">
-          {facilitators.find(f => f.id === selectedFacilitatorId)?.temas_cursos?.slice(0, 3).join(', ')}
-          {(facilitators.find(f => f.id === selectedFacilitatorId)?.temas_cursos?.length || 0) > 3 && '...'}
+          {facilitators.find(f => f.id === parseInt(selectedFacilitatorId))?.temas_cursos?.slice(0, 3).join(', ')}
+          {(facilitators.find(f => f.id === parseInt(selectedFacilitatorId))?.temas_cursos?.length || 0) > 3 && '...'}
         </div>
       )}
     </div>

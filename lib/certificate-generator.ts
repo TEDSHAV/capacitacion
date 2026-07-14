@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import { CertificateParticipant, CertificateGeneration, Signature, Facilitator } from "@/types";
+import { CertificateParticipant, CertificateGeneration, Signature, Facilitador } from "@/types";
 
 interface CertificateData {
   participant: CertificateParticipant;
@@ -27,15 +27,17 @@ export class CertificateGenerator {
     try {
       const response = await fetch(`/api/signatures/${signatureId}`);
       if (response.ok) {
-        return await response.json();
+        const data = await response.json();
+        return data;
       }
+      return null;
     } catch (error) {
       console.error('Error fetching signature:', error);
+      return null;
     }
-    return null;
   }
 
-  private async getFacilitatorData(facilitatorId: string): Promise<Facilitator | null> {
+  private async getFacilitatorData(facilitatorId: string): Promise<Facilitador | null> {
     try {
       const response = await fetch(`/api/facilitators/${facilitatorId}`);
       if (response.ok) {
@@ -490,25 +492,37 @@ export class CertificateGenerator {
     // Add facilitator signature if available
     if (certificateData.facilitator_id) {
       const facilitator = await this.getFacilitatorData(certificateData.facilitator_id);
+      console.log('Facilitator data for signature:', facilitator);
+      
       if (facilitator) {
         try {
           // If facilitator has a signature, use it; otherwise just show name
-          if (facilitator.signature_id) {
-            const signature = await this.getSignatureData(facilitator.signature_id);
-            if (signature) {
-              await this.addSignatureImage(signature.image_url, leftSignatureX, signatureY, signatureWidth, signatureHeight);
+          if (facilitator.firma_id) {
+            console.log('Fetching signature with ID:', facilitator.firma_id);
+            const signature = await this.getSignatureData(facilitator.firma_id.toString());
+            if (signature && signature.url_imagen) {
+              console.log('Adding facilitator signature image:', signature.url_imagen);
+              await this.addSignatureImage(signature.url_imagen, leftSignatureX, signatureY, signatureWidth, signatureHeight);
+            } else {
+              console.log('Signature not found or missing url_imagen');
             }
+          } else {
+            console.log('Facilitator has no firma_id');
           }
           
           // Add facilitator name and title
           this.doc.setFont("helvetica", "normal");
           this.doc.setFontSize(10);
-          this.doc.text(facilitator.name, leftSignatureX, signatureY + signatureHeight + 5, { align: "center" });
+          this.doc.text(facilitator.nombre_apellido || "Facilitador", leftSignatureX, signatureY + signatureHeight + 5, { align: "center" });
           this.doc.text("Facilitador", leftSignatureX, signatureY + signatureHeight + 10, { align: "center" });
         } catch (error) {
           console.error('Error adding facilitator signature:', error);
         }
+      } else {
+        console.log('Facilitator not found for ID:', certificateData.facilitator_id);
       }
+    } else {
+      console.log('No facilitator_id in certificate data');
     }
 
     // Add SHA signature if available
@@ -517,12 +531,12 @@ export class CertificateGenerator {
       if (shaSignature) {
         try {
           // Add signature image
-          await this.addSignatureImage(shaSignature.image_url, rightSignatureX, signatureY, signatureWidth, signatureHeight);
+          await this.addSignatureImage(shaSignature.url_imagen, rightSignatureX, signatureY, signatureWidth, signatureHeight);
           
           // Add signature label
           this.doc.setFont("helvetica", "normal");
           this.doc.setFontSize(10);
-          this.doc.text(shaSignature.name, rightSignatureX, signatureY + signatureHeight + 5, { align: "center" });
+          this.doc.text(shaSignature.nombre, rightSignatureX, signatureY + signatureHeight + 5, { align: "center" });
           this.doc.text("Representante SHA", rightSignatureX, signatureY + signatureHeight + 10, { align: "center" });
         } catch (error) {
           console.error('Error adding SHA signature:', error);

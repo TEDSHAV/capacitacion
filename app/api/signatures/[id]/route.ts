@@ -9,10 +9,10 @@ export async function GET(
 ) {
   try {
     const supabase = await createClient();
-    const id = params.id;
+    const id = parseInt(params.id);
 
     const { data, error } = await supabase
-      .from('signatures')
+      .from('firmas')
       .select('*')
       .eq('id', id)
       .single();
@@ -40,11 +40,11 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createClient();
-    const id = params.id;
+    const id = parseInt(params.id);
 
     // First, get the signature record to find the image file
     const { data: signature, error: fetchError } = await supabase
-      .from('signatures')
+      .from('firmas')
       .select('*')
       .eq('id', id)
       .single();
@@ -58,7 +58,7 @@ export async function DELETE(
 
     // Delete the signature record from database
     const { error: deleteError } = await supabase
-      .from('signatures')
+      .from('firmas')
       .delete()
       .eq('id', id);
 
