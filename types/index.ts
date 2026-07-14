@@ -849,6 +849,87 @@ export interface DebouncedInputProps {
   type?: string;
 }
 
+// OSI Management Types
+export interface OSIFilters {
+  monthIssued?: string;
+  companyName?: string;
+  nroOsi?: string;
+  tipoServicio?: string;
+  status?: string;
+  dateServiceFrom?: string;
+  dateServiceTo?: string;
+  dateIssuedFrom?: string;
+  dateIssuedTo?: string;
+  numParticipantsMin?: number;
+  numParticipantsMax?: number;
+  numSesionesMin?: number;
+  numSesionesMax?: number;
+  numHoursMin?: number;
+  numHoursMax?: number;
+  location?: string;
+  ejecutivo?: string;
+}
+
+export interface OSIManagement {
+  id_osi: number;
+  nro_osi: string;
+  nombre_empresa: string;
+  id_empresa: number;
+  id_servicio: number;
+  servicio: string;
+  tipo_servicio: string;
+  ejecutivo_negocios: string;
+  fecha_inicio_real: string;
+  fecha_fin_real: string;
+  fecha_emision: string;
+  horas_academicas_ejecucion: number;
+  sesiones_ejecucion: number;
+  direccion_ejecucion: string;
+  contenido_servicio: string;
+  codigo_cliente: number;
+  nro_presupuesto: number;
+  id_estatus: number;
+  observaciones_totales?: string | null;
+  // Cost fields (capacitacion department only)
+  costo_honorarios_instructor?: number | null;
+  costo_traslado?: number | null;
+  costo_impresion_material?: number | null;
+  costo_logistica_comida?: number | null;
+  costo_otros?: number | null;
+  // Computed fields
+  status_name?: string;
+  status_color?: string;
+  status_order?: number;
+  num_participants?: number;
+}
+
+export interface OSISearchResult {
+  osis: OSIManagement[];
+  totalCount: number;
+  metrics?: OSIMetrics;
+}
+
+export interface OSIMetrics {
+  total_osis: number;
+  by_status: { status: string; count: number }[];
+  by_company: { company: string; count: number }[];
+  by_month: { month: string; count: number }[];
+}
+
+export interface OSIStatus {
+  id: number;
+  nombre_estado: string;
+  color_hex: string;
+  orden: number;
+  es_estado_final: boolean;
+}
+
+export interface OSILifecycleProps {
+  currentStatusId: number;
+  statuses: OSIStatus[];
+  compact?: boolean;
+}
+
 export interface UseOptimizedFetchOptions<T> {
   initialData?: T;
   cacheTime?: number;
