@@ -46,6 +46,10 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
+# Setup non-root user
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 nextjs
+
 # Install Puppeteer Chrome as root during build
 RUN npx puppeteer browsers install chrome
 
@@ -60,10 +64,6 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME="0.0.0.0"
-
-# Setup non-root user
-RUN groupadd --system --gid 1001 nodejs && \
-    useradd --system --uid 1001 nextjs
 
 # Copy standalone build artifacts
 COPY --from=builder /app/public ./public
