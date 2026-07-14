@@ -4,44 +4,15 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-interface OSI {
-  id: number
-  nro_osi: string
-  nombre_empresa: string
-  empresa_rif: string
-  nro_orden_compra: string
-  pedido: string
-  tipo_servicio: string
-  fecha_emision: string
-  nro_presupuesto: string
-  ejecutivo_negocios: string
-  cliente_nombre_empresa: string
-  cliente_codigo: string
-  direccion_ejecucion: string
-  direccion_envio: string
-  direccion_fiscal_cliente: string
-  persona_contacto: string
-  telefono_contacto: string
-  email_contacto: string
-  tema: string
-  fecha_servicio: string
-  participantes_max: number
-  detalle_sesion: string
-  certificado_impreso: boolean
-  carnet_impreso: boolean
-  observaciones_adicionales: string
-  costo_honorarios_hora: number
-  costo_impresion_material: number
-  costo_traslado: number
-  costo_logistica_comida: number
-  costo_otros: number
-  estado: 'pendiente' | 'active' | 'inactive'
-}
-
 export default function NegociosPage() {
   const router = useRouter()
-  const [osis, setOsis] = useState<OSI[]>([])
   const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalOSIs: 0,
+    totalClientes: 0,
+    osisActivas: 0,
+    clientesActivos: 0
+  })
 
   const supabase = createClient()
 
@@ -55,9 +26,16 @@ export default function NegociosPage() {
           return
         }
 
-        // Fetch OSI data from Supabase
+        // Fetch stats from Supabase
         const { data: osiData } = await supabase.from("osi").select("*")
-        setOsis(osiData || [])
+        const { data: clientesData } = await supabase.from("clientes").select("*")
+        
+        setStats({
+          totalOSIs: osiData?.length || 0,
+          totalClientes: clientesData?.length || 0,
+          osisActivas: osiData?.filter(osi => osi.estado === 'active').length || 0,
+          clientesActivos: clientesData?.filter(cliente => cliente.estado === 'active').length || 0
+        })
       } catch (error) {
         console.error('Error loading data:', error)
       } finally {
@@ -79,19 +57,6 @@ export default function NegociosPage() {
     return () => subscription.unsubscribe()
   }, [router])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800'
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800'
-      case 'pendiente':
-        return 'bg-yellow-100 text-yellow-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white min-h-screen">
@@ -108,103 +73,147 @@ export default function NegociosPage() {
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
       <div className="mb-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Departamento de Negocios
-            </h1>
-            <p className="mt-2 text-gray-600">
-              Administración de OSI
-            </p>
-          </div>
-          <button
-            onClick={() => router.push('/dashboard/negocios/osi/new')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-md"
-            style={{ backgroundColor: 'var(--primary-blue)' }}
-          >
-            + Nueva OSI
-          </button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Departamento de Negocios
+          </h1>
+          <p className="mt-2 text-gray-600">
+            Gestión integral de OSIs y Clientes
+          </p>
         </div>
       </div>
 
-      {/* OSI List */}
-      {osis.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="bg-gray-50 rounded-lg p-8">
-            <div className="text-gray-400 mb-4">
-              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 bg-blue-100 rounded-lg p-3">
+              <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay OSI registradas</h3>
-            <p className="text-gray-500 mb-4">Comienza creando tu primera Orden de Servicio de Ingeniería</p>
-            <button
-              onClick={() => router.push('/dashboard/negocios/osi/new')}
-              className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors"
-            >
-              + Crear Primera OSI
-            </button>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total OSIs</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.totalOSIs}</p>
+            </div>
           </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {osis.map((osi) => (
-            <div
-              key={osi.id}
-              onClick={() => router.push(`/dashboard/negocios/osi/${osi.nro_osi}`)}
-              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg cursor-pointer transform transition-all duration-200 hover:scale-105 h-64 flex flex-col w-full"
-            >
-              <div className={`h-2 flex-shrink-0 ${osi.estado === 'active' ? 'bg-green-500' : osi.estado === 'pendiente' ? 'bg-yellow-500' : 'bg-gray-500'}`}></div>
-              <div className="p-6 flex-1 flex flex-col w-full overflow-hidden">
-                <div className="flex justify-between items-start mb-4 flex-shrink-0" style={{ minHeight: '80px' }}>
-                  <div className="flex-1 min-w-0 overflow-hidden">
-                    <h3 className="text-xl font-semibold text-gray-900 truncate leading-tight">
-                      OSI-{osi.nro_osi}
-                    </h3>
-                    <p className="text-gray-800 text-sm mt-1 font-medium truncate leading-tight">
-                      {osi.nombre_empresa?.trim() || osi.cliente_nombre_empresa?.trim() || ''}
-                    </p>
-                  </div>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${getStatusColor(osi.estado)}`}>
-                    {osi.estado === 'active' ? 'Activa' : osi.estado === 'pendiente' ? 'Pendiente' : 'Cerrada'}
-                  </span>
-                </div>
-                
-                <div className="space-y-2 mb-4 flex-1 overflow-hidden">
-                  <p className="text-gray-700 text-sm truncate">
-                    <span className="font-medium">Servicio:</span> {osi.tipo_servicio}
-                  </p>
-                  {osi.fecha_servicio && (
-                    <p className="text-gray-700 text-sm truncate">
-                      <span className="font-medium">Fecha:</span> {new Date(osi.fecha_servicio).toLocaleDateString()}
-                    </p>
-                  )}
-                  {osi.nro_presupuesto && (
-                    <p className="text-gray-700 text-sm truncate">
-                      <span className="font-medium">Presupuesto:</span> {osi.nro_presupuesto}
-                    </p>
-                  )}
-                </div>
 
-                <div className="flex items-center justify-end pt-4 border-t border-gray-100 mt-auto flex-shrink-0">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      router.push(`/dashboard/negocios/osi/${osi.nro_osi}`)
-                    }}
-                    className="text-blue-600 hover:text-blue-900 text-sm font-medium flex items-center flex-shrink-0"
-                  >
-                    Ver detalles
-                    <svg className="w-4 h-4 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 bg-green-100 rounded-lg p-3">
+              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
-          ))}
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">OSIs Activas</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.osisActivas}</p>
+            </div>
+          </div>
         </div>
-      )}
+
+        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 bg-purple-100 rounded-lg p-3">
+              <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Clientes</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.totalClientes}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 bg-emerald-100 rounded-lg p-3">
+              <svg className="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Clientes Activos</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.clientesActivos}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Module Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div
+          onClick={() => router.push('/dashboard/negocios/gestion-de-osis')}
+          className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg cursor-pointer transform transition-all duration-200 hover:scale-105 border border-gray-200"
+        >
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 h-32 flex items-center justify-center">
+            <svg className="h-16 w-16 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <div className="p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Gestión de OSIs</h3>
+            <p className="text-gray-600 mb-4">
+              Administración de Órdenes de Servicio de Ingeniería, creación, seguimiento y gestión de estados.
+            </p>
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-500">
+                <span className="font-medium">{stats.totalOSIs}</span> OSIs registradas
+              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/negocios/gestion-de-osis')
+                }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium flex items-center shadow-md"
+                style={{ backgroundColor: 'var(--primary-blue)' }}
+              >
+                Acceder
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          onClick={() => router.push('/dashboard/negocios/gestion-de-clientes')}
+          className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg cursor-pointer transform transition-all duration-200 hover:scale-105 border border-gray-200"
+        >
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 h-32 flex items-center justify-center">
+            <svg className="h-16 w-16 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <div className="p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Gestión de Clientes</h3>
+            <p className="text-gray-600 mb-4">
+              Administración de clientes y empresas, gestión de información de contacto y estados.
+            </p>
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-500">
+                <span className="font-medium">{stats.totalClientes}</span> clientes registrados
+              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/negocios/gestion-de-clientes')
+                }}
+                className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors text-sm font-medium flex items-center shadow-md"
+                style={{ backgroundColor: 'var(--primary-purple)' }}
+              >
+                Acceder
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
