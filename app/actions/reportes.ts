@@ -7,6 +7,8 @@ import {
   FacilitadoresReportData,
   EmpresaReportItem,
   TendenciasData,
+  CarnetsMetrics,
+  MonthlyCarnetData,
 } from "@/types";
 
 // Helper function to check for data truncation
@@ -134,6 +136,12 @@ export async function getOverviewMetrics(
       topCourses: [],
       topCompanies: [],
       monthlyTrend: [],
+      // Carnets metrics
+      totalCarnets: 0,
+      activeCarnets: 0,
+      expiringSoonCarnets: 0,
+      expiredCarnets: 0,
+      carnetsThisMonth: 0,
     };
 
     if (!certs || certs.length === 0) return { data: empty, error: null };

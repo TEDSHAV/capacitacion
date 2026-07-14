@@ -36,7 +36,7 @@ export default function CarnetsReport({ dateFrom, dateTo, selectedState }: Props
     getCarnetsMetrics(dateFrom, dateTo)
       .then((res) => {
         if (res.error) setError(res.error);
-        else setData(res.data);
+        else setData(res.data || null);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -102,10 +102,7 @@ export default function CarnetsReport({ dateFrom, dateTo, selectedState }: Props
 
   if (!data) return null;
 
-  // Filter template usage based on search
-  const filteredTemplates = data.templateUsage.filter(template =>
-    template.templateName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Template filtering removed
 
   return (
     <div className="space-y-6">
