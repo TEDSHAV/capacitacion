@@ -2,14 +2,29 @@
 
 import { createClient } from '@/utils/supabase/server';
 
-// Simplified OSI type for certificate generation
+// Certificate OSI type matching the actual database schema
 export interface CertificateOSI {
   id: string;
   nro_osi: string;
-  cliente_nombre_empresa: string;
-  tema: string;
+  nro_orden_compra?: string;
   tipo_servicio: string;
+  nro_presupuesto?: string;
+  ejecutivo_negocios: number;
+  cliente_nombre_empresa: string;
+  tema?: string;
+  fecha_servicio?: string;
   empresa_id: number;
+  direccion_fiscal?: string;
+  direccion_envio?: string;
+  direccion_ejecucion?: string;
+  nro_sesiones?: number;
+  fecha_ejecucion1?: string;
+  fecha_ejecucion2?: string;
+  fecha_emision?: string;
+  nro_horas?: number;
+  costo_total?: number;
+  detalle_capacitacion?: string;
+  codigo_cliente?: number;
   is_active: boolean;
 }
 
@@ -18,13 +33,15 @@ export async function getCertificateData(options?: { osiLimit?: number; courseLi
     const supabase = await createClient();
     const { osiLimit = 50, courseLimit = 100 } = options || {};
 
-    // Fetch OSIs with pagination - only fields needed for certificate generation
+    // Fetch OSIs with pagination - start with minimal fields for debugging
     const { data: osis, error: osiError } = await supabase
       .from("osi")
-      .select("id, nro_osi, cliente_nombre_empresa, tema, tipo_servicio, empresa_id, is_active")
+      .select("id, nro_osi, cliente_nombre_empresa, tema, is_active")
       .eq("is_active", true)
       .order("nro_osi", { ascending: false })
       .limit(osiLimit);
+
+    console.log('OSI Query Result:', { osis, osiError }); // Debug log
 
     if (osiError) {
       throw osiError;

@@ -39,6 +39,14 @@ export class CertificateGenerator {
       await this.certificatePage.addTemplate(templateImage);
       await this.certificatePage.addCertificateContent(participant, certificateData);
 
+      // Add QR code if not in preview mode and we have control numbers
+      if (!isPreview && controlNumbers) {
+        // For now, we'll use a placeholder certificate ID
+        // In a real implementation, this should come from the database after certificate creation
+        const certificateId = controlNumbers.nro_control; // Use control number as temporary ID
+        await this.certificatePage.addQRCode(certificateId, controlNumbers);
+      }
+
       // Add new page for content
       this.doc.addPage();
 
@@ -48,7 +56,8 @@ export class CertificateGenerator {
       // Return as blob
       return this.doc.output("blob");
     } catch (error) {
-      throw new Error("Failed to generate certificate");
+      console.error('Certificate generation error:', error);
+      throw error; // Re-throw the actual error instead of hiding it
     }
   }
 

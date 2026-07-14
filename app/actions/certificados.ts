@@ -2,19 +2,21 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { CertificateGeneration, CertificateParticipant } from '@/types';
+import { QRService } from '@/lib/qr-service';
 
 export interface CertificateRecord {
-  id_participante?: number;
-  id_empresa?: number;
-  id_curso: number;
-  fecha_emision: string;
-  fecha_vencimiento?: string;
-  nro_osi: number;
-  id_estado?: number;
-  id_facilitador?: number;
-  id_plantilla_certificado?: number;
-  calificacion: number;
-  snapshot_contenido?: string;
+  id_participante?: number | null;
+  id_empresa?: number | null;
+  id_curso?: number | null;
+  fecha_emision?: string | null;
+  fecha_vencimiento?: string | null;
+  nro_osi?: number | null; // Made optional since it's working in snapshot
+  id_estado?: number | null;
+  id_facilitador?: number | null;
+  id_plantilla_certificado?: number | null;
+  calificacion?: number;
+  is_active?: boolean;
+  snapshot_contenido?: string | null;
 }
 
 export interface CertificateWithNumbers {
@@ -33,39 +35,68 @@ export async function saveCertificatesToDatabase(
   participants: CertificateParticipant[]
 ): Promise<{ success: boolean; message: string; certificateIds?: number[]; certificateNumbers?: CertificateWithNumbers[] }> {
   try {
+    console.log('=== STARTING CERTIFICATE SAVE PROCESS ===');
+    console.log('Certificate data:', JSON.stringify(certificateData, null, 2));
+    console.log('Participants count:', participants.length);
+    console.log('Participants:', JSON.stringify(participants, null, 2));
+
     const supabase = await createClient();
     
     if (!certificateData.osi_data || !certificateData.course_topic_data) {
       return { success: false, message: "OSI data and course topic data are required" };
     }
 
+    const today = new Date().toISOString().split('T')[0];
     const certificateIds: number[] = [];
     const certificateNumbers: CertificateWithNumbers[] = [];
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
-    for (const participant of participants) {
+    for (let i = 0; i < participants.length; i++) {
+      const participant = participants[i];
+      console.log(`\n--- Processing participant ${i + 1}/${participants.length}: ${participant.name} ---`);
+      
       // 1. Create or find participant record
+      console.log('Step 1: Creating/updating participant...');
       const participantId = await createOrUpdateParticipant(participant);
+      console.log('Participant ID result:', participantId);
+      
       if (!participantId) {
+        console.error('FAILED: Could not create/update participant:', participant.name);
         continue;
       }
 
       // 2. Prepare certificate record data with proper participant ID
+      console.log('Step 2: Preparing certificate record...');
       const certificateRecord: CertificateRecord = {
-        id_participante: participantId,
-        id_empresa: certificateData.osi_data.empresa_id || undefined,
-        id_curso: parseInt(certificateData.course_topic_data.id),
+        id_participante: participantId || null,
+        id_empresa: certificateData.osi_data?.empresa_id || null,
+        id_curso: certificateData.course_topic_data?.id ? parseInt(certificateData.course_topic_data.id) : null,
         fecha_emision: today,
-        fecha_vencimiento: certificateData.fecha_vencimiento || undefined,
-        nro_osi: parseInt(certificateData.osi_data.nro_osi),
-        id_estado: certificateData.id_estado || undefined,
-        id_facilitador: certificateData.facilitator_id ? parseInt(certificateData.facilitator_id) : undefined,
-        id_plantilla_certificado: certificateData.id_plantilla_certificado || undefined,
+        fecha_vencimiento: certificateData.fecha_vencimiento || null,
+        nro_osi: certificateData.osi_data?.nro_osi ? parseInt(certificateData.osi_data.nro_osi.toString()) : null, // REQUIRED for OSI certificates
+        id_estado: certificateData.id_estado || null,
+        id_facilitador: certificateData.facilitator_id ? parseInt(certificateData.facilitator_id) : null,
+        id_plantilla_certificado: certificateData.id_plantilla_certificado || null,
         calificacion: participant.score || 0,
+        is_active: true,
         snapshot_contenido: generateContentSnapshot(certificateData, participant, participantId)
       };
 
+      console.log('Prepared certificate record:', JSON.stringify(certificateRecord, null, 2));
+
+      // Validate that we have required fields for OSI certificates
+      if (!certificateRecord.id_participante) {
+        console.error('FAILED: Missing participant ID for certificate:', participant.name);
+        continue;
+      }
+      
+      // Log warning for missing OSI number but don't fail (it's in snapshot)
+      if (!certificateRecord.nro_osi) {
+        console.warn('WARNING: Missing OSI number for certificate:', participant.name);
+        console.warn('OSI data available:', certificateData.osi_data);
+      }
+
       // 3. Insert certificate record and return the control numbers
+      console.log('Step 3: Inserting certificate record...');
       const { data: certificateInsert, error: certificateError } = await supabase
         .from("certificados")
         .insert(certificateRecord)
@@ -73,8 +104,14 @@ export async function saveCertificatesToDatabase(
         .single();
 
       if (certificateError) {
+        console.error('FAILED: Certificate insertion error for participant:', participant.name);
+        console.error('Database error:', certificateError);
+        console.error('Error details:', JSON.stringify(certificateError, null, 2));
+        console.error('Certificate record that failed:', JSON.stringify(certificateRecord, null, 2));
         continue;
       }
+
+      console.log('SUCCESS: Certificate inserted:', certificateInsert);
 
       if (certificateInsert) {
         certificateIds.push(certificateInsert.id);
@@ -97,14 +134,49 @@ export async function saveCertificatesToDatabase(
           certificateInsert.nro_control
         );
 
-        await supabase
+        // Generate QR code for this certificate
+        console.log('Step 4: Generating QR code...');
+        let qrCodeDataUrl = '';
+        try {
+          const qrResult = await QRService.generateCertificateQR(
+            certificateInsert.id,
+            {
+              nro_libro: certificateInsert.nro_libro,
+              nro_hoja: certificateInsert.nro_hoja,
+              nro_linea: certificateInsert.nro_linea,
+              nro_control: certificateInsert.nro_control
+            }
+          );
+          qrCodeDataUrl = qrResult.dataUrl;
+          console.log('QR code generated successfully');
+        } catch (error) {
+          console.warn('WARNING: Failed to generate QR code for certificate:', certificateInsert.id, error);
+        }
+
+        // Update certificate with snapshot and QR code
+        console.log('Step 5: Updating certificate with snapshot and QR code...');
+        const { error: updateError } = await supabase
           .from("certificados")
-          .update({ snapshot_contenido: updatedSnapshot })
+          .update({ 
+            snapshot_contenido: updatedSnapshot,
+            qr_code: qrCodeDataUrl || null
+          })
           .eq("id", certificateInsert.id);
+
+        if (updateError) {
+          console.warn('WARNING: Failed to update certificate with snapshot/QR:', updateError);
+        } else {
+          console.log('SUCCESS: Certificate updated with snapshot and QR code');
+        }
       }
     }
 
+    console.log('\n=== CERTIFICATE SAVE PROCESS COMPLETE ===');
+    console.log('Total certificates saved:', certificateIds.length);
+    console.log('Certificate IDs:', certificateIds);
+
     if (certificateIds.length === 0) {
+      console.error('FAILED: No certificates were saved to database');
       return { success: false, message: "No certificates were saved to database" };
     }
 
@@ -116,6 +188,8 @@ export async function saveCertificatesToDatabase(
     };
 
   } catch (error) {
+    console.error('FATAL ERROR in saveCertificatesToDatabase:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return { 
       success: false, 
       message: error instanceof Error ? error.message : "Unknown error occurred" 
@@ -237,9 +311,10 @@ function generateContentSnapshot(
       id_plantilla_certificado: certificateData.id_plantilla_certificado
     },
     firmas: {
-      facilitator_id: certificateData.facilitator_id,
-      sha_signature_id: certificateData.sha_signature_id
-    },
+  facilitator_id: certificateData.facilitator_id,
+  facilitator_data: certificateData.facilitator_data, 
+  sha_signature_id: certificateData.sha_signature_id
+},
     // Metadata
     metadatos: {
       generated_at: new Date().toISOString(),
@@ -323,6 +398,7 @@ function generateContentSnapshotWithControlNumbers(
     },
     firmas: {
       facilitator_id: certificateData.facilitator_id,
+      facilitator_data: certificateData.facilitator_data,
       sha_signature_id: certificateData.sha_signature_id
     },
     // Metadata
@@ -355,6 +431,96 @@ export async function getCertificateTemplates(): Promise<{ id: number; nombre: s
     return data || [];
   } catch (error) {
     return [];
+  }
+}
+
+/**
+ * Get certificate by ID for verification
+ */
+export async function getCertificateById(certificateId: number): Promise<any | null> {
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from("certificados")
+      .select(`
+        *,
+        participantes_certificados (
+          id,
+          nombre,
+          cedula,
+          nacionalidad
+        ),
+        cursos (
+          id,
+          nombre,
+          contenido,
+          horas_estimadas,
+          nota_aprobatoria,
+          emite_carnet
+        ),
+        empresas (
+          id,
+          razon_social,
+          rif
+        )
+      `)
+      .eq("id", certificateId)
+      .eq("is_active", true)
+      .single();
+
+    if (error) {
+      return null;
+    }
+
+    // Parse snapshot_contenido if it exists
+    let parsedSnapshot = null;
+    if (data.snapshot_contenido) {
+      try {
+        parsedSnapshot = JSON.parse(data.snapshot_contenido);
+      } catch (parseError) {
+        console.warn('Failed to parse snapshot content for certificate:', certificateId);
+      }
+    }
+
+    return {
+      ...data,
+      parsed_snapshot: parsedSnapshot
+    };
+
+  } catch (error) {
+    console.error('Error fetching certificate:', error);
+    return null;
+  }
+}
+
+/**
+ * Verify certificate by ID using QR service
+ */
+export async function verifyCertificate(certificateId: number): Promise<{ isValid: boolean; certificate?: any; error?: string }> {
+  try {
+    const certificate = await getCertificateById(certificateId);
+    
+    if (!certificate) {
+      return {
+        isValid: false,
+        error: 'Certificate not found or inactive'
+      };
+    }
+
+    // Use QR service to create verification data
+    const verificationData = QRService.createVerificationData(true, certificate);
+    
+    return {
+      isValid: verificationData.isValid,
+      certificate: verificationData.certificate
+    };
+
+  } catch (error) {
+    return {
+      isValid: false,
+      error: error instanceof Error ? error.message : 'Verification failed'
+    };
   }
 }
 

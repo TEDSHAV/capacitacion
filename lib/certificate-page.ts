@@ -1,8 +1,10 @@
 import jsPDF from "jspdf";
-import { CertificateParticipant, CertificateGeneration } from "@/types";
+import { CertificateGeneration, CertificateParticipant, Facilitador, ControlNumbers } from '@/types';
+import { CertificateFacilitator } from '@/app/actions/facilitators';
 import { getDynamicConfig } from "./certificate-config";
 import { TextRenderer } from "./text-renderer";
 import { certificateService } from "./certificate-service";
+import { QRService } from "./qr-service";
 
 export class CertificatePage {
   private doc: jsPDF;
@@ -23,24 +25,77 @@ export class CertificatePage {
    * Add template background image
    */
   async addTemplate(imageUrl: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const upperHalfHeight = this.pageHeight / 2;
-        const margin = 10;
-        const templateArea = {
-          x: margin,
-          y: margin,
-          width: this.pageWidth - (margin * 2),
-          height: upperHalfHeight - (margin * 2)
-        };
+    // Skip template if no image URL provided
+    if (!imageUrl) {
+      console.log('No template image provided, skipping template');
+      return;
+    }
+
+    try {
+      // Check if we're in a server environment
+      if (typeof window === 'undefined') {
+        // Server environment - use fs to read image file
+        const fs = require('fs');
+        const path = require('path');
         
-        this.doc.addImage(img, "PNG", templateArea.x, templateArea.y, templateArea.width, templateArea.height);
-        resolve();
-      };
-      img.onerror = reject;
-      img.src = imageUrl;
-    });
+        // Convert URL to file path
+        let imagePath = imageUrl;
+        if (imageUrl.startsWith('/')) {
+          imagePath = path.join(process.cwd(), 'public', imageUrl);
+        }
+        
+        console.log('Server environment, loading template from file:', imagePath);
+        
+        // Check if file exists
+        if (fs.existsSync(imagePath)) {
+          // Read file as base64
+          const imageBuffer = fs.readFileSync(imagePath);
+          const base64Image = imageBuffer.toString('base64');
+          
+          const upperHalfHeight = this.pageHeight / 2;
+          const margin = 10;
+          const templateArea = {
+            x: margin,
+            y: margin,
+            width: this.pageWidth - (margin * 2),
+            height: upperHalfHeight - (margin * 2)
+          };
+          
+          // Add base64 image to PDF
+          this.doc.addImage(`data:image/png;base64,${base64Image}`, "PNG", templateArea.x, templateArea.y, templateArea.width, templateArea.height);
+          console.log('Template image loaded successfully in server environment');
+        } else {
+          console.warn('Template image file not found:', imagePath);
+        }
+        return;
+      }
+
+      // Browser environment - use Image constructor
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const upperHalfHeight = this.pageHeight / 2;
+          const margin = 10;
+          const templateArea = {
+            x: margin,
+            y: margin,
+            width: this.pageWidth - (margin * 2),
+            height: upperHalfHeight - (margin * 2)
+          };
+          
+          this.doc.addImage(img, "PNG", templateArea.x, templateArea.y, templateArea.width, templateArea.height);
+          resolve();
+        };
+        img.onerror = (error) => {
+          console.warn('Failed to load template image:', imageUrl, error);
+          resolve(); // Continue without template instead of failing
+        };
+        img.src = imageUrl;
+      });
+    } catch (error) {
+      console.warn('Error in addTemplate:', error);
+      // Continue without template instead of failing
+    }
   }
 
   /**
@@ -179,9 +234,18 @@ export class CertificatePage {
 
     // Add facilitator signature if available
     if (certificateData.facilitator_id) {
-      const facilitator = await certificateService.getFacilitatorData(
-        certificateData.facilitator_id
-      );
+      let facilitator: CertificateFacilitator | null = certificateData.facilitator_data as CertificateFacilitator | null;
+      
+      // If facilitator_data is not available, fetch it using server action
+      if (!facilitator) {
+        try {
+          // Import server action
+          const { getFacilitatorData } = await import('@/app/actions/facilitators');
+          facilitator = await getFacilitatorData(certificateData.facilitator_id);
+        } catch (error) {
+          console.warn('Failed to fetch facilitator data:', error);
+        }
+      }
 
       if (facilitator) {
         await this.addFacilitatorSignature(facilitator, signature);
@@ -204,18 +268,26 @@ export class CertificatePage {
    * Add facilitator signature
    */
   private async addFacilitatorSignature(
-    facilitator: any,
+    facilitator: CertificateFacilitator,
     signatureConfig: typeof this.config.signature
   ): Promise<void> {
     try {
-      if (facilitator.firma_id) {
-        const signature = await certificateService.getSignatureData(
-          facilitator.firma_id.toString()
-        );
-        
-        if (signature?.url_imagen) {
+      // Add facilitator name
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(8);
+      this.doc.text(
+        facilitator.name.toUpperCase(),
+        60,
+        100,
+        { align: "center" }
+      );
+
+      // Add facilitator signature if available
+      if (facilitator.firma) {
+        // Use the firma field directly if it contains a URL/path
+        if (facilitator.firma.startsWith('/')) {
           await this.addSignatureImage(
-            signature.url_imagen,
+            facilitator.firma,
             38,
             72,
             signatureConfig.width,
@@ -223,16 +295,17 @@ export class CertificatePage {
           );
         }
       }
-
-      // Add facilitator name
-      this.doc.setFont("helvetica", "normal");
-      this.doc.setFontSize(8);
-      this.doc.text(
-        facilitator.nombre_apellido.toUpperCase(),
-        60,
-        100,
-        { align: "center" }
-      );
+      
+      // Add SHA signature if available
+      if (facilitator.signature_data?.firma) {
+        await this.addSignatureImage(
+          facilitator.signature_data.firma,
+          38,
+          72,
+          signatureConfig.width,
+          signatureConfig.height
+        );
+      }
     } catch (error) {
       throw error;
     }
@@ -257,6 +330,42 @@ export class CertificatePage {
      
     } catch (error) {
       throw error;
+    }
+  }
+
+  /**
+   * Add QR code to certificate (upper right corner)
+   */
+  async addQRCode(certificateId: number, controlNumbers?: ControlNumbers): Promise<void> {
+    try {
+      // Generate QR code data
+      const qrData = QRService.generateQRData(certificateId, controlNumbers);
+      
+      // Generate QR code as data URL
+      const qrDataUrl = await QRService.generateQRDataURL({
+        data: qrData,
+        size: 80, // Smaller size for PDF
+        level: 'M',
+        includeMargin: true
+      });
+
+      // Position QR code in upper right corner
+      const qrSize = 25; // Size in mm for PDF
+      const margin = 10;
+      const x = this.pageWidth - qrSize - margin - 9;
+      const y = margin + 12; // Position from top
+
+      // Add QR code image
+      this.doc.addImage(qrDataUrl, 'PNG', x, y, qrSize, qrSize);
+
+      // Add "Scan to Verify" text below QR code
+      this.doc.setFont("helvetica", "normal");
+      this.doc.setFontSize(5);
+      this.doc.text("Scan to Verify", x + qrSize/2, y + qrSize + 3, { align: "center" });
+
+    } catch (error) {
+      console.warn('Failed to add QR code to certificate:', error);
+      // Continue without QR code if it fails
     }
   }
 

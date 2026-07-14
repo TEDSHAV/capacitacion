@@ -29,12 +29,14 @@ export default function GeneracionCertificadoPage() {
     certificate_subtitle: "",
     passing_grade: 14,
     course_topic_id: "",
+    course_topic_data: undefined,
     course_content: "",
     participants: [],
     location: "",
     date: new Date().toISOString().split("T")[0],
     horas_estimadas: undefined,
     facilitator_id: undefined,
+    facilitator_data: undefined,
     sha_signature_id: undefined,
     fecha_vencimiento: undefined,
     id_estado: undefined,
@@ -53,11 +55,14 @@ export default function GeneracionCertificadoPage() {
           courseLimit: 100  // Reasonable limit for course selection
         });
 
+        console.log('Certificate Data Result:', result); // Debug log
+
         if (result.error) {
           // Don't redirect, just show error
           return;
         }
 
+        console.log('Setting OSIs:', result.osis); // Debug log
         setOsis(result.osis || []);
         setAllCourseTopics(result.courseTopics || []);
         setFilteredCourseTopics(result.courseTopics || []);
@@ -77,7 +82,7 @@ export default function GeneracionCertificadoPage() {
     if (osi) {
       setCertificateData((prev) => ({
         ...prev,
-        osi_id: osi.nro_osi,
+        osi_id: osi.id, // Use OSI ID, not OSI number
         osi_data: osi,
         course_topic_id: "",
         course_topic_data: undefined,

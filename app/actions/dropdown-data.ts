@@ -33,10 +33,10 @@ const getCertificateTemplates = cache(async () => {
   
   try {
     const { data, error } = await supabase
-      .from('certificate_templates')
+      .from('plantillas_certificados')
       .select('*')
       .eq('is_active', true)
-      .order('name');
+      .order('nombre');
     
     if (error) {
       return { error: error.message, data: [] };
@@ -57,7 +57,7 @@ const getVenezuelanStates = cache(async () => {
   
   try {
     const { data, error } = await supabase
-      .from('estados')
+      .from('cat_estados_venezuela')
       .select('*')
       .order('nombre_estado');
     

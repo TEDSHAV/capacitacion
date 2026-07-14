@@ -81,6 +81,25 @@ export class CertificateService {
   }
 
   /**
+   * Fetch certificate template by ID
+   */
+  async getCertificateTemplate(templateId: number): Promise<{ id: number; nombre: string; archivo: string } | null> {
+    try {
+      const response = await fetch(`/api/certificate-templates/${templateId}`);
+      
+      if (!response.ok) {
+        return null;
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching certificate template:", error);
+      return null;
+    }
+  }
+
+  /**
    * Batch fetch multiple signatures
    */
   async getMultipleSignatures(signatureIds: string[]): Promise<Signature[]> {

@@ -44,8 +44,25 @@ export const CertificatePreview = ({
       }
       
       // Get template and seal images
-      const templateImage = "/templates/certificado.png";
-      const sealImage = "/templates/sello.png";
+      let templateImage = "/templates/certificado.png";
+      let sealImage = "/templates/sello.png";
+
+      // Get actual template if available
+      if (certificateData.id_plantilla_certificado) {
+        try {
+          const templatesResult = await getSignaturesForDropdownAction();
+          if (templatesResult.data) {
+            // Find certificate templates from the signatures result
+            const certificateTemplates = templatesResult.data.filter((sig: any) => sig.tipo === 'plantilla_certificado');
+            const selectedTemplate = certificateTemplates.find((tmpl: any) => tmpl.id === certificateData.id_plantilla_certificado);
+            if (selectedTemplate?.url_imagen) {
+              templateImage = selectedTemplate.url_imagen;
+            }
+          }
+        } catch (error) {
+          // Could not fetch template for preview
+        }
+      }
 
       // Fetch active SHA signature if not already in certificateData
       let certificateDataWithSHA = { ...certificateData };
@@ -66,6 +83,25 @@ export const CertificatePreview = ({
           }
         } catch (error) {
           // Could not fetch SHA signature for preview
+        }
+      }
+
+      // Fetch facilitator data for preview
+      if (certificateDataWithSHA.facilitator_id) {
+        try {
+          const facilitatorsResult = await getSignaturesForDropdownAction();
+          if (facilitatorsResult.data) {
+            const facilitators = facilitatorsResult.data.filter((sig: any) => sig.tipo === 'facilitador');
+            const selectedFacilitator = facilitators.find((fac: any) => fac.id.toString() === certificateDataWithSHA.facilitator_id);
+            if (selectedFacilitator) {
+              certificateDataWithSHA = {
+                ...certificateDataWithSHA,
+                facilitator_data: selectedFacilitator
+              };
+            }
+          }
+        } catch (error) {
+          // Could not fetch facilitator for preview
         }
       }
 

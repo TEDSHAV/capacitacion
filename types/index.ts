@@ -233,6 +233,7 @@ export interface CertificateGeneration {
   created_at?: string;
   horas_estimadas?: number;
   facilitator_id?: string; // ID of selected facilitator (includes signature)
+  facilitator_data?: any; // Full facilitator data
   sha_signature_id?: string; // ID of SHA representative signature (separate from facilitator)
   fecha_vencimiento?: string; // Certificate expiration date
   id_estado?: number; // Venezuelan state ID for certificate record
@@ -500,13 +501,26 @@ export interface CertificateData {
 export interface CertificateOSI {
   id: string;
   nro_osi: string;
-  cliente_nombre_empresa: string;
-  tema: string;
+  nro_orden_compra?: string;
   tipo_servicio: string;
+  nro_presupuesto?: string;
+  ejecutivo_negocios: number;
+  cliente_nombre_empresa: string;
+  tema?: string;
+  fecha_servicio?: string;
   empresa_id: number;
-  is_active: boolean;
+  direccion_fiscal?: string;
+  direccion_envio?: string;
+  direccion_ejecucion?: string;
+  nro_sesiones?: number;
+  fecha_ejecucion1?: string;
+  fecha_ejecucion2?: string;
+  fecha_emision?: string;
+  nro_horas?: number;
+  costo_total?: number;
   detalle_capacitacion?: string;
-  detalle_sesion?: string;
+  codigo_cliente?: number;
+  is_active: boolean;
 }
 
 export interface CertificateTemplateProps {

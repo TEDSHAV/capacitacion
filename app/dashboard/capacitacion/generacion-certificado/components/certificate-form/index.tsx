@@ -28,19 +28,24 @@ export const CertificateForm = ({
       try {
         // Load SHA signatures
         const signaturesResult = await getSignaturesForDropdownAction();
+        console.log('Signatures Result:', signaturesResult); // Debug log
+        
         if (signaturesResult.data) {
           const shaOnly = signaturesResult.data.filter(
             (sig: any) => sig.tipo === "representante_sha",
           );
+          console.log('SHA Only signatures:', shaOnly); // Debug log
           setShaSignatures(shaOnly as Signature[]);
 
           // Auto-select the active SHA signature
           const activeShaSignature = shaOnly.find(
             (sig: any) => sig.is_active,
           );
+          console.log('Active SHA signature:', activeShaSignature); // Debug log
 
           if (activeShaSignature && !certificateData.sha_signature_id) {
             onDataChange("sha_signature_id", activeShaSignature.id.toString());
+            console.log('Auto-selected SHA signature ID:', activeShaSignature.id); // Debug log
           }
         }
 
@@ -61,9 +66,11 @@ export const CertificateForm = ({
 
         // Load Venezuelan states
         const statesResult = await getVenezuelanStatesAction();
+        console.log('States Result:', statesResult); // Debug log
+        
         if (statesResult.data) {
-          const states = statesResult.data;
-          setVenezuelanStates(states);
+          console.log('Setting Venezuelan states:', statesResult.data); // Debug log
+          setVenezuelanStates(statesResult.data);
         }
       } catch (error) {
         // Error loading form data
@@ -425,8 +432,21 @@ export const CertificateForm = ({
         <div className="mb-4">
           <FacilitatorSelection
             selectedFacilitatorId={certificateData.facilitator_id}
-            onFacilitatorChange={(id: string) => {
+            onFacilitatorChange={async (id: string) => {
               onDataChange("facilitator_id", id);
+              
+              // Fetch facilitator data when selected
+              if (id) {
+                try {
+                  const { getFacilitatorData } = await import("../../../../../actions/facilitators");
+                  const facilitatorData = await getFacilitatorData(id);
+                  onDataChange("facilitator_data", facilitatorData);
+                } catch (error) {
+                  console.error("Error fetching facilitator data:", error);
+                }
+              } else {
+                onDataChange("facilitator_data", null);
+              }
             }}
           />
         </div>

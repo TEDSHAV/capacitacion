@@ -21,8 +21,20 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('facilitadores')
-      .select('*')
+      .select(`
+        id,
+        nombre_apellido,
+        firma_id,
+        firmas (
+          id,
+          nombre,
+          url_imagen,
+          tipo,
+          is_active
+        )
+      `)
       .eq('id', id)
+      .eq('is_active', true)
       .single();
 
     if (error) {
