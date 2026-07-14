@@ -527,7 +527,7 @@ export const ClienteCredentialsModal = ({
                                 <p className="text-xs text-blue-600 flex items-center gap-1">
                                   <MapPin className="w-3 h-3" />
                                   {cred.id_sede.length === 1
-                                    ? (sedes.find((s) => s.id === cred.id_sede[0])?.nombre_sede || `Sede #${cred.id_sede[0]}`)
+                                    ? (sedes.find((s) => s.id === cred.id_sede![0])?.nombre_sede || `Sede #${cred.id_sede![0]}`)
                                     : `${cred.id_sede.length} sedes seleccionadas`
                                   }
                                 </p>
