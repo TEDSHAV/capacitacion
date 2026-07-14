@@ -18,6 +18,7 @@ export async function createCurso(formData: FormData) {
     const cliente_asociado = formData.get('cliente_asociado') as string;
     const contenido = formData.get('contenido') as string;
     const horas_estimadas = formData.get('horas_estimadas') as string;
+    const nota_aprobatoria = formData.get('nota_aprobatoria') as string;
 
     // Validate required fields
     if (!titulo?.trim()) {
@@ -37,6 +38,7 @@ export async function createCurso(formData: FormData) {
         contenido: contenido.trim(),
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
         cliente_asociado: cliente_asociado?.trim() ? parseInt(cliente_asociado) : null,
+        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 0,
         is_active: true
       })
       .select()
@@ -65,6 +67,7 @@ export async function updateCurso(id: string, formData: FormData) {
     const cliente_asociado = formData.get('empresa_id') as string;
     const contenido = formData.get('contenido') as string;
     const horas_estimadas = formData.get('horas_estimadas') as string;
+    const nota_aprobatoria = formData.get('nota_aprobatoria') as string;
 
     // Validate required fields
     if (!titulo || !contenido) {
@@ -78,7 +81,8 @@ export async function updateCurso(id: string, formData: FormData) {
         nombre: titulo,
         contenido: contenido,
         horas_estimadas: horas_estimadas ? parseInt(horas_estimadas) : null,
-        cliente_asociado: cliente_asociado && cliente_asociado.trim() ? parseInt(cliente_asociado) : null
+        cliente_asociado: cliente_asociado && cliente_asociado.trim() ? parseInt(cliente_asociado) : null,
+        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 0
       })
       .eq('id', id)
       .select()

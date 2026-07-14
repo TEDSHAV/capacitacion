@@ -118,9 +118,9 @@ export const CertificateForm = ({
         <input
           type="number"
           id="passing_grade"
-          value={certificateData.passing_grade || 14}
+          value={certificateData.passing_grade || 0}
           onChange={(e) =>
-            onDataChange("passing_grade", parseInt(e.target.value) || 14)
+            onDataChange("passing_grade", parseInt(e.target.value) || 0)
           }
           min="0"
           max="20"

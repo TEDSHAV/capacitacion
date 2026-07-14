@@ -22,6 +22,7 @@ export interface Curso {
   tipo_servicio?: number;
   created_at: string;
   is_active: boolean;
+  nota_aprobatoria?: number; // Passing grade for the course
   empresas?: {
     razon_social: string;
   } | null;
@@ -118,6 +119,7 @@ export interface CourseTopic {
   contenido_curso?: string; // Course content from catalogo_servicios
   cliente_asociado?: number; // Client ID associated with this course (number from DB)
   created_at?: string;
+  nota_aprobatoria?: number; // Passing grade from cursos table
 }
 
 export interface CertificateParticipant {

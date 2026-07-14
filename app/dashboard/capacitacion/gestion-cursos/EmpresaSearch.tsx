@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Empresa, EmpresaSearchProps } from "@/types";
 
 export default function EmpresaSearch({ 
@@ -13,6 +13,9 @@ export default function EmpresaSearch({
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredEmpresas, setFilteredEmpresas] = useState<Empresa[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Find the selected empresa
   const selectedEmpresa = empresas.find(emp => emp.id.toString() === value);
@@ -40,6 +43,7 @@ export default function EmpresaSearch({
     const value = e.target.value;
     setSearchTerm(value);
     setIsDropdownOpen(true);
+    setHighlightedIndex(-1);
     
     // Clear selection if input is empty
     if (!value.trim()) {
@@ -51,6 +55,7 @@ export default function EmpresaSearch({
     onChange(empresa.id, empresa);
     setSearchTerm(empresa.razon_social);
     setIsDropdownOpen(false);
+    setHighlightedIndex(-1);
   };
 
   const handleInputFocus = () => {
@@ -59,12 +64,70 @@ export default function EmpresaSearch({
 
   const handleInputBlur = () => {
     // Delay closing to allow click on options
-    setTimeout(() => setIsDropdownOpen(false), 300); // Increased delay
+    setTimeout(() => setIsDropdownOpen(false), 300);
   };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isDropdownOpen) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault()
+          setHighlightedIndex(prev => {
+            const newIndex = prev + 1
+            return newIndex >= filteredEmpresas.length ? 0 : newIndex
+          })
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          setHighlightedIndex(prev => {
+            const newIndex = prev - 1
+            return newIndex < 0 ? filteredEmpresas.length - 1 : newIndex
+          })
+          break
+        case 'Enter':
+          e.preventDefault()
+          if (highlightedIndex >= 0 && highlightedIndex < filteredEmpresas.length) {
+            handleSelectEmpresa(filteredEmpresas[highlightedIndex])
+          }
+          break
+        case 'Escape':
+          e.preventDefault()
+          setIsDropdownOpen(false)
+          setHighlightedIndex(-1)
+          inputRef.current?.blur()
+          break
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isDropdownOpen, highlightedIndex, filteredEmpresas])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false)
+        setHighlightedIndex(-1)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Reset highlighted index when search term changes
+  useEffect(() => {
+    setHighlightedIndex(-1)
+  }, [searchTerm])
 
   return (
     <div className="relative">
       <input
+        ref={inputRef}
         type="text"
         value={searchTerm}
         onChange={handleInputChange}
@@ -76,12 +139,17 @@ export default function EmpresaSearch({
       />
       
       {isDropdownOpen && searchTerm && filteredEmpresas.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto"
-             onMouseDown={(e) => e.preventDefault()}>
+        <div 
+          ref={dropdownRef}
+          className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto"
+          onMouseDown={(e) => e.preventDefault()}
+        >
           {filteredEmpresas.map((empresa, index) => (
             <div
               key={empresa.id}
-              className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+              className={`px-3 py-2 cursor-pointer border-b border-gray-200 last:border-b-0 ${
+                highlightedIndex === index ? 'bg-green-50' : 'hover:bg-gray-100'
+              }`}
               onClick={() => handleSelectEmpresa(empresa)}
             >
               <div className="font-medium text-gray-900">

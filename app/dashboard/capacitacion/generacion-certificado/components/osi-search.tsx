@@ -1,29 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { OSI, OSISearchProps } from '@/types'
 
 export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [isOpen, setIsOpen] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const filteredOSIs = osis.filter(osi => 
-    (osi.nro_osi && osi.nro_osi.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (osi.cliente_nombre_empresa && osi.cliente_nombre_empresa.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (osi.tema && osi.tema.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (osi.tipo_servicio && osi.tipo_servicio.toLowerCase().includes(searchTerm.toLowerCase()))
+    osi.is_active !== false && (
+      (osi.nro_osi && osi.nro_osi.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (osi.cliente_nombre_empresa && osi.cliente_nombre_empresa.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (osi.tema && osi.tema.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (osi.tipo_servicio && osi.tipo_servicio.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
   )
 
   const handleSelect = (osi: OSI) => {
     onSelect(osi)
     setIsOpen(false)
     setSearchTerm('')
+    setHighlightedIndex(-1)
   }
 
   const handleClear = () => {
     onSelect(null)
     setSearchTerm('')
     setIsOpen(false)
+    setHighlightedIndex(-1)
   }
 
   const handleInputBlur = () => {
@@ -34,6 +41,63 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
   const handleDropdownMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
   }
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen) return
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault()
+          setHighlightedIndex(prev => {
+            const newIndex = prev + 1
+            return newIndex >= filteredOSIs.length ? 0 : newIndex
+          })
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          setHighlightedIndex(prev => {
+            const newIndex = prev - 1
+            return newIndex < 0 ? filteredOSIs.length - 1 : newIndex
+          })
+          break
+        case 'Enter':
+          e.preventDefault()
+          if (highlightedIndex >= 0 && highlightedIndex < filteredOSIs.length) {
+            handleSelect(filteredOSIs[highlightedIndex])
+          }
+          break
+        case 'Escape':
+          e.preventDefault()
+          setIsOpen(false)
+          setHighlightedIndex(-1)
+          inputRef.current?.blur()
+          break
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, highlightedIndex, filteredOSIs])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+        setHighlightedIndex(-1)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Reset highlighted index when search term changes
+  useEffect(() => {
+    setHighlightedIndex(-1)
+  }, [searchTerm])
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -50,6 +114,7 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
         </div>
         <input
           type="text"
+          ref={inputRef}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={() => setIsOpen(true)}
@@ -99,6 +164,7 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
       {/* Dropdown Results */}
       {isOpen && !selectedOSI && (
         <div 
+          ref={dropdownRef}
           className="absolute mt-2 w-full border border-gray-300 rounded-md shadow-lg bg-white max-h-60 overflow-y-auto z-50"
           onMouseDown={handleDropdownMouseDown}
         >
@@ -107,11 +173,13 @@ export default function OSISearch({ osis, selectedOSI, onSelect }: OSISearchProp
               No se encontraron OSIs que coincidan con la búsqueda
             </div>
           ) : (
-            filteredOSIs.slice(0, 10).map((osi) => (
+            filteredOSIs.slice(0, 10).map((osi, index) => (
               <div
                 key={osi.id}
                 onClick={() => handleSelect(osi)}
-                className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                className={`p-3 cursor-pointer border-b border-gray-100 last:border-b-0 ${
+                  highlightedIndex === index ? 'bg-blue-50' : 'hover:bg-gray-50'
+                }`}
               >
                 <div className="font-medium text-gray-900">
                   {osi.nro_osi}

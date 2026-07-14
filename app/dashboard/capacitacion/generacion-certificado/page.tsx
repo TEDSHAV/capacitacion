@@ -26,7 +26,7 @@ export default function GeneracionCertificadoPage() {
       osi_id: "",
       certificate_title: "",
       certificate_subtitle: "",
-      passing_grade: 14,
+      passing_grade: 0,
       course_topic_id: "",
       course_content: "",
       participants: [],
@@ -164,20 +164,29 @@ export default function GeneracionCertificadoPage() {
     value: any,
   ) => {
     if (field === 'course_topic_id') {
-      // Find the selected course topic and populate course content
+      // Find the selected course topic and populate course content and passing grade
       const selectedTopic = allCourseTopics.find(topic => topic.id === value);
+      console.log('Selected course topic:', selectedTopic);
+      console.log('Available course topics:', allCourseTopics);
+      
       if (selectedTopic) {
+        const passingGrade = selectedTopic.nota_aprobatoria || 0;
+        console.log(`Using passing grade: ${passingGrade} for course: ${selectedTopic.name}`);
+        
         setCertificateData((prev) => ({
           ...prev,
           [field]: value,
           course_content: selectedTopic.contenido_curso || '',
+          passing_grade: passingGrade, // Use course's passing grade or default to 0
         }));
         setSelectedCourseTopic(selectedTopic);
       } else {
+        console.log('No course topic found, using default passing grade of 0');
         setCertificateData((prev) => ({
           ...prev,
           [field]: value,
           course_content: '',
+          passing_grade: 0, // Default to 0 if no course selected
         }));
         setSelectedCourseTopic(null);
       }

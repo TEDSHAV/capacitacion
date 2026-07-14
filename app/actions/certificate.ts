@@ -18,27 +18,30 @@ export async function getCertificateData() {
       throw osiError;
     }
 
-    // Fetch course topics from catalogo_servicios where tipo_servicio = 1
-    const { data: courseData, error: courseError } = await supabase
-      .from("catalogo_servicios")
-      .select("id, nombre, contenido_curso, cliente_asociado, created_at")
-      .eq("tipo_servicio", 1)
+    // Fetch cursos directly - no longer using catalogo_servicios
+    const { data: cursosData, error: cursosError } = await supabase
+      .from("cursos")
+      .select("id, nombre, contenido, cliente_asociado, created_at, nota_aprobatoria")
+      .eq("is_active", true)
       .order("created_at", { ascending: false });
 
-    if (courseError) {
-      console.error('Course topics fetch error:', courseError);
-      throw courseError;
+    if (cursosError) {
+      console.error('Cursos fetch error:', cursosError);
+      throw cursosError;
     }
+
+    console.log('Cursos data:', cursosData);
 
     return {
       osis: osis || [],
-      courseTopics: (courseData || []).map((course) => ({
-        id: course.id.toString(),
-        name: course.nombre,
-        description: course.nombre,
-        contenido_curso: course.contenido_curso,
-        cliente_asociado: course.cliente_asociado, // Keep as number from DB
-        created_at: course.created_at,
+      courseTopics: (cursosData || []).map((curso) => ({
+        id: curso.id.toString(),
+        name: curso.nombre,
+        description: curso.nombre,
+        contenido_curso: curso.contenido,
+        cliente_asociado: curso.cliente_asociado,
+        created_at: curso.created_at,
+        nota_aprobatoria: curso.nota_aprobatoria || 0, // Default to 0 if no nota_aprobatoria
       }))
     };
 

@@ -18,6 +18,7 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
     empresa_nombre: curso?.empresas?.razon_social || "",
     contenido: curso?.contenido || "",
     horas_estimadas: curso?.horas_estimadas || 0,
+    nota_aprobatoria: curso?.nota_aprobatoria || 0, // Default to 0
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +27,7 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
     const { name, value } = e.target;
     setDatosFormulario(prev => ({
       ...prev,
-      [name]: name === 'horas_estimadas' ? (value === "" ? 0 : Number(value)) : value
+      [name]: (name === 'horas_estimadas' || name === 'nota_aprobatoria') ? (value === "" ? 0 : Number(value)) : value
     }));
   };
 
@@ -46,6 +47,7 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
     formData.append('titulo', datosFormulario.titulo);
     formData.append('contenido', datosFormulario.contenido);
     formData.append('horas_estimadas', datosFormulario.horas_estimadas.toString());
+    formData.append('nota_aprobatoria', datosFormulario.nota_aprobatoria.toString());
     
     // Handle empresa_id properly - convert number to string for FormData
     if (datosFormulario.empresa_id) {
@@ -118,6 +120,28 @@ export default function CourseForm({ curso, empresas, onSubmit, onCancel, isEdit
           />
           <p className="text-sm text-gray-500 mt-1">
             Duración estimada del curso en horas
+          </p>
+        </div>
+
+        {/* Passing Grade */}
+        <div>
+          <label htmlFor="nota_aprobatoria" className="block text-sm font-medium text-gray-700 mb-1">
+            Calificación Aprobatoria
+          </label>
+          <input
+            type="number"
+            id="nota_aprobatoria"
+            name="nota_aprobatoria"
+            value={datosFormulario.nota_aprobatoria}
+            onChange={manejarCambioInput}
+            min="1"
+            max="20"
+            step="1"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            placeholder="Ej: 14"
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            Nota mínima para aprobar el curso (escala 1-20)
           </p>
         </div>
 
