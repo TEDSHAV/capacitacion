@@ -72,9 +72,7 @@ const LoginForm = () => {
           </button>
         </div>
 
-        <div className="text-center text-sm text-gray-600">
-          Credenciales de demo: admin@company.com / admin123
-        </div>
+       
       </form>
     </div>
   );
