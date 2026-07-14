@@ -37,6 +37,9 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
   // Selected OSI for details modal
   const [selectedOSI, setSelectedOSI] = useState<OSIManagement | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [modalSection, setModalSection] = useState<"info" | "documents">(
+    "info",
+  );
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -112,10 +115,14 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     setCurrentPage(1); // Reset to first page when items per page changes
   }, []);
 
-  const handleViewDetails = useCallback((osi: OSIManagement) => {
-    setSelectedOSI(osi);
-    setShowModal(true);
-  }, []);
+  const handleViewDetails = useCallback(
+    (osi: OSIManagement, section: "info" | "documents" = "info") => {
+      setSelectedOSI(osi);
+      setModalSection(section);
+      setShowModal(true);
+    },
+    [],
+  );
 
   const handleCloseModal = useCallback(() => {
     setShowModal(false);
@@ -181,6 +188,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
           osi={selectedOSI}
           onClose={handleCloseModal}
           statuses={statuses}
+          initialSection={modalSection}
         />
       )}
     </div>

@@ -29,18 +29,21 @@ interface OSIDetailsModalV2Props {
   osi: OSIManagement | null;
   onClose: () => void;
   statuses: OSIStatus[];
+  initialSection?: "info" | "documents";
 }
 
 export default function OSIDetailsModalV2({
   osi,
   onClose,
   statuses,
+  initialSection = "info",
 }: OSIDetailsModalV2Props) {
   const [loadingCerts, setLoadingCerts] = useState(false);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
   const [downloadingBatch, setDownloadingBatch] = useState<string | null>(null);
-  const [expandedSection, setExpandedSection] = useState<string>("info"); // 'info' or 'documents'
+  const [expandedSection, setExpandedSection] =
+    useState<string>(initialSection); // 'info' or 'documents'
 
   useEffect(() => {
     if (osi) {

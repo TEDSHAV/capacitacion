@@ -1,14 +1,14 @@
 "use client";
 
 import { OSIManagement } from "@/types";
-import { Calendar, Building2, Clock, FileText } from "lucide-react";
+import { Calendar, Building2, Clock, FileText, Download } from "lucide-react";
 import type { OSIStatus } from "@/types";
 
 interface OSITableV2Props {
   osis: OSIManagement[];
   loading: boolean;
   statuses: OSIStatus[];
-  onViewDetails: (osi: OSIManagement) => void;
+  onViewDetails: (osi: OSIManagement, section?: "info" | "documents") => void;
 }
 
 export default function OSITableV2({
@@ -79,8 +79,8 @@ export default function OSITableV2({
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Fecha Servicio
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Duración
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Acciones
               </th>
             </tr>
           </thead>
@@ -139,19 +139,17 @@ export default function OSITableV2({
                     <span>{formatDate(osi.fecha_inicio_real)}</span>
                   </div>
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-3 text-sm text-gray-700">
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium">
-                        {osi.horas_academicas_ejecucion}h
-                      </span>
-                    </div>
-                    <span className="text-gray-300">|</span>
-                    <span className="font-medium">
-                      {osi.sesiones_ejecucion}s
-                    </span>
-                  </div>
+                <td className="px-4 py-4 whitespace-nowrap text-right">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewDetails(osi, "documents");
+                    }}
+                    className="inline-flex items-center p-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-md transition-colors shadow-sm"
+                    title="Ver documentos generados"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
                 </td>
               </tr>
             ))}
