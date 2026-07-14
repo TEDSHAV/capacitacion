@@ -267,7 +267,7 @@ export class CarnetGenerator {
     // Determine ID label based on nationality
     const idLabel =
       participant.nationality === "extranjero" ? "Pasaporte" : "Cédula";
-    pdf.text(`${idLabel}: ${participant.id_number}`, 28, nameY - 6);
+    pdf.text(`${idLabel}: ${participant.idNumber}`, 28, nameY - 6);
   }
 
   private async addCourseInfo(

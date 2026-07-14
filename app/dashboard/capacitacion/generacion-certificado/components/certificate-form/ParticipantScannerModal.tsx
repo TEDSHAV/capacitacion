@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import { useState, useRef, useEffect } from 'react'
-import { CertificateParticipant, ExtractedParticipant } from '@/types'
+import { useState, useRef, useEffect } from "react";
+import { CertificateParticipant, ExtractedParticipant } from "@/types";
 
 interface ParticipantScannerModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onAddParticipants: (participants: CertificateParticipant[]) => void
+  isOpen: boolean;
+  onClose: () => void;
+  onAddParticipants: (participants: CertificateParticipant[]) => void;
 }
 
 export const ParticipantScannerModal = ({
@@ -14,15 +14,17 @@ export const ParticipantScannerModal = ({
   onClose,
   onAddParticipants,
 }: ParticipantScannerModalProps) => {
-  const [file, setFile] = useState<File | null>(null)
-  const [apiKey, setApiKey] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [extractedParticipants, setExtractedParticipants] = useState<ExtractedParticipant[]>([])
-  const [error, setError] = useState('')
-  const [previewUrl, setPreviewUrl] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [extractedParticipants, setExtractedParticipants] = useState<
+    ExtractedParticipant[]
+  >([]);
+  const [error, setError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [hasEnvApiKey, setHasEnvApiKey] = useState(false)
+  const [hasEnvApiKey, setHasEnvApiKey] = useState(false);
 
   // Load API key from environment variable if available (server-side)
   // For client-side, users will need to enter it manually
@@ -30,112 +32,118 @@ export const ParticipantScannerModal = ({
     if (isOpen) {
       // Try to get from process.env if available (Next.js)
       // Note: In production, this should be handled server-side for security
-      const envApiKey = process.env.NEXT_PUBLIC_MISTRAL_API_KEY || ''
+      const envApiKey = process.env.NEXT_PUBLIC_MISTRAL_API_KEY || "";
       if (envApiKey) {
-        setApiKey(envApiKey)
-        setHasEnvApiKey(true)
+        setApiKey(envApiKey);
+        setHasEnvApiKey(true);
       } else {
-        setHasEnvApiKey(false)
+        setHasEnvApiKey(false);
       }
     }
-  }, [isOpen])
+  }, [isOpen]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
+    const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      setFile(selectedFile)
-      setError('')
-      
+      setFile(selectedFile);
+      setError("");
+
       // Create preview
-      if (selectedFile.type.startsWith('image/')) {
-        const url = URL.createObjectURL(selectedFile)
-        setPreviewUrl(url)
+      if (selectedFile.type.startsWith("image/")) {
+        const url = URL.createObjectURL(selectedFile);
+        setPreviewUrl(url);
       } else {
-        setPreviewUrl('')
+        setPreviewUrl("");
       }
     }
-  }
+  };
 
   const handleProcess = async () => {
     if (!file) {
-      setError('Por favor selecciona un archivo')
-      return
+      setError("Por favor selecciona un archivo");
+      return;
     }
 
     if (!apiKey && !hasEnvApiKey) {
-      setError('Por favor proporciona la API key de Mistral')
-      return
+      setError("Por favor proporciona la API key de Mistral");
+      return;
     }
 
-    setIsProcessing(true)
-    setError('')
+    setIsProcessing(true);
+    setError("");
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('apiKey', apiKey)
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("apiKey", apiKey);
 
-      const response = await fetch('/api/ocr/process', {
-        method: 'POST',
+      const response = await fetch("/api/ocr/process", {
+        method: "POST",
         body: formData,
-      })
+      });
 
-      const result = await response.json()
+      const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Error procesando la imagen')
+        throw new Error(result.error || "Error procesando la imagen");
       }
 
       if (result.success && result.participants) {
-        setExtractedParticipants(result.participants)
+        setExtractedParticipants(result.participants);
       } else {
-        setError('No se pudieron extraer participantes de la imagen')
+        setError("No se pudieron extraer participantes de la imagen");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido')
+      setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
-      setIsProcessing(false)
+      setIsProcessing(false);
     }
-  }
+  };
 
-  const handleParticipantChange = (index: number, field: keyof ExtractedParticipant, value: string) => {
-    const updated = [...extractedParticipants]
-    updated[index] = { ...updated[index], [field]: value }
-    setExtractedParticipants(updated)
-  }
+  const handleParticipantChange = (
+    index: number,
+    field: keyof ExtractedParticipant,
+    value: string,
+  ) => {
+    const updated = [...extractedParticipants];
+    updated[index] = { ...updated[index], [field]: value };
+    setExtractedParticipants(updated);
+  };
 
   const handleRemoveParticipant = (index: number) => {
-    const updated = extractedParticipants.filter((_, i) => i !== index)
-    setExtractedParticipants(updated)
-  }
+    const updated = extractedParticipants.filter((_, i) => i !== index);
+    setExtractedParticipants(updated);
+  };
 
   const handleAddAll = () => {
-    const participants: CertificateParticipant[] = extractedParticipants.map((p, index) => ({
-      id: `temp-${Date.now()}-${index}`,
-      name: p.name,
-      id_number: p.id_number,
-      nationality: p.nationality || 'venezolano',
-      id_type: 'cedula',
-      score: p.score,
-    }))
+    const participants: CertificateParticipant[] = extractedParticipants.map(
+      (p, index) => ({
+        id: `temp-${Date.now()}-${index}`,
+        name: p.name.trim(),
+        idNumber: p.idNumber,
+        nationality: p.nationality || "venezolano",
+        idType: "cedula",
+        score: p.score,
+      }),
+    );
 
-    onAddParticipants(participants)
-    handleClose()
-  }
+    onAddParticipants(participants);
+    handleClose();
+  };
 
   const handleClose = () => {
-    setFile(null)
-    setApiKey('')
-    setExtractedParticipants([])
-    setError('')
-    setPreviewUrl('')
+    setFile(null);
+    setApiKey("");
+    setExtractedParticipants([]);
+    setError("");
+    setPreviewUrl("");
     if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+      fileInputRef.current.value = "";
     }
-    onClose()
-  }
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -149,8 +157,18 @@ export const ParticipantScannerModal = ({
               onClick={handleClose}
               className="text-gray-400 hover:text-gray-600"
             >
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -171,7 +189,7 @@ export const ParticipantScannerModal = ({
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Obtén tu API key en{' '}
+                    Obtén tu API key en{" "}
                     <a
                       href="https://console.mistral.ai/"
                       target="_blank"
@@ -179,8 +197,9 @@ export const ParticipantScannerModal = ({
                       className="text-blue-600 hover:underline"
                     >
                       console.mistral.ai
-                    </a>
-                    {' '}o agrégala a tu archivo .env como NEXT_PUBLIC_MISTRAL_API_KEY
+                    </a>{" "}
+                    o agrégala a tu archivo .env como
+                    NEXT_PUBLIC_MISTRAL_API_KEY
                   </p>
                 </div>
               )}
@@ -199,10 +218,7 @@ export const ParticipantScannerModal = ({
                     className="hidden"
                     id="file-upload"
                   />
-                  <label
-                    htmlFor="file-upload"
-                    className="cursor-pointer"
-                  >
+                  <label htmlFor="file-upload" className="cursor-pointer">
                     <svg
                       className="mx-auto h-12 w-12 text-gray-400"
                       stroke="currentColor"
@@ -217,7 +233,9 @@ export const ParticipantScannerModal = ({
                       />
                     </svg>
                     <p className="mt-1 text-sm text-gray-600">
-                      {file ? file.name : 'Haz clic para subir o arrastra un archivo'}
+                      {file
+                        ? file.name
+                        : "Haz clic para subir o arrastra un archivo"}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       PNG, JPG, PDF (máximo 10MB)
@@ -271,7 +289,7 @@ export const ParticipantScannerModal = ({
                     Procesando...
                   </div>
                 ) : (
-                  'Procesar Imagen'
+                  "Procesar Imagen"
                 )}
               </button>
             </div>
@@ -304,15 +322,23 @@ export const ParticipantScannerModal = ({
                       <input
                         type="text"
                         value={participant.name}
-                        onChange={(e) => handleParticipantChange(index, 'name', e.target.value)}
+                        onChange={(e) =>
+                          handleParticipantChange(index, "name", e.target.value)
+                        }
                         placeholder="Nombre"
                         className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div className="flex items-center gap-1">
                       <select
-                        value={participant.nationality || 'venezolano'}
-                        onChange={(e) => handleParticipantChange(index, 'nationality', e.target.value)}
+                        value={participant.nationality || "venezolano"}
+                        onChange={(e) =>
+                          handleParticipantChange(
+                            index,
+                            "nationality",
+                            e.target.value,
+                          )
+                        }
                         className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="venezolano">V-</option>
@@ -320,15 +346,27 @@ export const ParticipantScannerModal = ({
                       </select>
                       <input
                         type="text"
-                        value={participant.id_number}
-                        onChange={(e) => handleParticipantChange(index, 'id_number', e.target.value)}
+                        value={participant.idNumber}
+                        onChange={(e) =>
+                          handleParticipantChange(
+                            index,
+                            "idNumber",
+                            e.target.value,
+                          )
+                        }
                         placeholder="Cédula"
                         className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                       <input
                         type="number"
-                        value={participant.score || ''}
-                        onChange={(e) => handleParticipantChange(index, 'score', e.target.value)}
+                        value={participant.score || ""}
+                        onChange={(e) =>
+                          handleParticipantChange(
+                            index,
+                            "score",
+                            e.target.value,
+                          )
+                        }
                         placeholder="Nota"
                         className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -337,8 +375,18 @@ export const ParticipantScannerModal = ({
                       onClick={() => handleRemoveParticipant(index)}
                       className="text-red-600 hover:text-red-800"
                     >
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -366,5 +414,5 @@ export const ParticipantScannerModal = ({
         </div>
       </div>
     </div>
-  )
-}
+  );
+};

@@ -547,14 +547,17 @@ async function createOrUpdateParticipant(
     );
 
     // Validate required fields
-    if (!participant.name || !participant.id_number) {
+    if (!participant.name || !participant.idNumber) {
       console.error("FAILED: Missing required participant fields:", {
         name: participant.name,
-        id_number: participant.id_number,
+        idNumber: participant.idNumber,
         nationality: participant.nationality,
       });
       return null;
     }
+
+    const normalizedName = participant.name.trim().toLowerCase();
+    const cleanIdNumber = participant.idNumber.trim();
 
     // First, try to find existing participant by cedula (primary match) - name can vary slightly
 
@@ -564,7 +567,7 @@ async function createOrUpdateParticipant(
 
       .select("id, nombre, cedula, nacionalidad, is_active")
 
-      .eq("cedula", participant.id_number)
+      .eq("cedula", cleanIdNumber)
 
       .maybeSingle();
 
@@ -692,8 +695,8 @@ async function createOrUpdateParticipant(
       normalizedNationality,
     );
     console.log("Participant data to insert:", {
-      nombre: participant.name,
-      cedula: participant.id_number,
+      nombre: normalizedName,
+      cedula: cleanIdNumber,
       nacionalidad: normalizedNationality,
       is_active: true,
     });
@@ -701,8 +704,8 @@ async function createOrUpdateParticipant(
     const { data: newParticipant, error: insertError } = await supabase
       .from("participantes_certificados")
       .insert({
-        nombre: participant.name,
-        cedula: participant.id_number,
+        nombre: normalizedName,
+        cedula: cleanIdNumber,
         nacionalidad: normalizedNationality,
         is_active: true, // Ensure new participants are active
       })
@@ -748,7 +751,7 @@ async function createOrUpdateParticipant(
 
           .select("id, nombre, cedula, nacionalidad, is_active")
 
-          .eq("cedula", participant.id_number)
+          .eq("cedula", cleanIdNumber)
 
           .single();
 
@@ -847,13 +850,13 @@ function generateContentSnapshot(
 
       name: participant.name,
 
-      cedula: participant.id_number, // Store cédula properly
+      cedula: participant.idNumber, // Store cédula properly
 
       nacionalidad: participant.nationality || "venezolano",
 
       score: participant.score,
 
-      cedula_completa: `${participant.nationality === "extranjero" ? "E" : "V"}-${participant.id_number}`, // Full cédula format with proper prefix
+      cedula_completa: `${participant.nationality === "extranjero" ? "E" : "V"}-${participant.idNumber}`, // Full cédula format with proper prefix
     },
 
     // Certificate details
@@ -992,13 +995,13 @@ function generateContentSnapshotWithControlNumbers(
 
       name: participant.name,
 
-      cedula: participant.id_number, // Store cédula properly
+      cedula: participant.idNumber, // Store cédula properly
 
       nacionalidad: participant.nationality || "venezolano",
 
       score: participant.score,
 
-      cedula_completa: `${participant.nationality === "extranjero" ? "E" : "V"}-${participant.id_number}`, // Full cédula format with proper prefix
+      cedula_completa: `${participant.nationality === "extranjero" ? "E" : "V"}-${participant.idNumber}`, // Full cédula format with proper prefix
     },
 
     // Certificate details
@@ -1421,8 +1424,8 @@ export async function updateCertificateAction(
     const { error: participantUpdateError } = await supabase
       .from("participantes_certificados")
       .update({
-        nombre: participant.name,
-        cedula: participant.id_number,
+        nombre: participant.name.trim().toLowerCase(),
+        cedula: participant.idNumber.trim(),
         nacionalidad: participant.nationality || "venezolano",
       })
       .eq("id", existingCert.id_participante);
