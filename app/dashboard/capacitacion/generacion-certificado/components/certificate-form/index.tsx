@@ -21,6 +21,7 @@ export const CertificateForm = ({
   onDataChange,
   onParticipantsChange,
   onGenerate,
+  onPreview,
 }: CertificateFormProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isPassingGradeLocked, setIsPassingGradeLocked] = useState(true);
@@ -109,7 +110,13 @@ export const CertificateForm = ({
     if (!isBaseFormValid) {
       // Check if OSI or course topic is missing (these are in parent component)
       if (!certificateData.osi_id) {
-        alert("Por favor selecciona una OSI");
+        if (certificateData.manual_mode) {
+          alert(
+            "Por favor completa los datos del modo manual (OSI, Empresa, Ciudad)",
+          );
+        } else {
+          alert("Por favor selecciona una OSI");
+        }
         return;
       }
       if (!certificateData.course_topic_id) {
@@ -151,31 +158,50 @@ export const CertificateForm = ({
     onGenerate();
   };
 
-  const handlePreview = () => {
+  const handlePreview = async () => {
+    // Call parent's preview handler first (to build mock OSI in manual mode)
+    if (onPreview) {
+      const success = await onPreview();
+      if (!success) {
+        return; // Parent handler indicated validation failed
+      }
+    }
+
     setHasAttemptedSubmission(true);
-    if (!isBaseFormValid) {
-      // Check if OSI or course topic is missing (these are in parent component)
-      if (!certificateData.osi_id) {
-        alert("Por favor selecciona una OSI");
-        return;
-      }
-      if (!certificateData.course_topic_id) {
-        alert("Por favor selecciona un curso");
-        return;
-      }
-      // Scroll to first missing field in this form
-      scrollToFirstMissingField();
+
+    // Check form fields (OSI validation is handled by parent)
+    if (!certificateData.certificate_title) {
+      alert("Por favor completa el título del certificado");
       return;
     }
+    if (certificateData.participants.length === 0) {
+      alert("Por favor agrega al menos un participante");
+      return;
+    }
+    if (!certificateData.date) {
+      alert("Por favor selecciona la fecha del curso");
+      return;
+    }
+    if (!certificateData.horas_estimadas) {
+      alert("Por favor completa la duración del curso");
+      return;
+    }
+    if (!certificateData.facilitator_id) {
+      alert("Por favor selecciona un facilitador");
+      return;
+    }
+    if (!certificateData.course_topic_id) {
+      alert("Por favor selecciona un curso");
+      return;
+    }
+
     if (!isCarnetValid) {
-      scrollToFirstMissingField();
-      setTimeout(() => {
-        alert(
-          "Este curso emite carnet, por lo que la fecha de vencimiento es requerida",
-        );
-      }, 100);
+      alert(
+        "Este curso emite carnet, por lo que la fecha de vencimiento es requerida",
+      );
       return;
     }
+
     // Validate duration hours
     if (
       certificateData.horas_estimadas !== undefined &&

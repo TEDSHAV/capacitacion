@@ -321,6 +321,8 @@ export interface CertificateGeneration {
   plantilla_certificado_archivo?: string; // Certificate template file name for generation
   generate_documents?: boolean; // Whether to generate additional documents
   paperSize?: PaperSize; // Preferred paper size for printing
+  manual_mode?: boolean; // Whether using manual OSI input mode
+  manual_osi_data?: ManualOSIInput; // Manual OSI input data when in manual mode
 }
 
 export interface CertificateParticipant {
@@ -426,6 +428,7 @@ export interface CertificateFormProps {
   onDataChange: (field: keyof CertificateGeneration, value: any) => void;
   onParticipantsChange: (participants: CertificateParticipant[]) => void;
   onGenerate: () => void;
+  onPreview?: () => Promise<boolean>;
 }
 
 export interface LocationSearchProps {
@@ -654,6 +657,14 @@ export interface CertificateOSI {
   curso_nombre?: string; // Mapped from v_osi_formato_completo.servicio (catalogo_servicios.nombre)
   tema?: string | null;
   has_certificates?: boolean;
+}
+
+// Manual OSI input type for certificate generation without database OSI record
+export interface ManualOSIInput {
+  osi_number?: string; // Manual OSI number (no validation)
+  company_id?: string; // Selected from empresas dropdown (string because Empresa.id is string)
+  company_name?: string; // Manual company name input
+  city_id?: number; // Selected from cat_ciudades dropdown
 }
 
 export interface CertificateTemplateProps {

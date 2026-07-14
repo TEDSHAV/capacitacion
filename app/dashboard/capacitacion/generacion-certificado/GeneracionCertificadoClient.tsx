@@ -9,9 +9,13 @@ import {
   CertificateParticipant,
   CertificateOSI,
   CarnetGeneration,
+  ManualOSIInput,
+  Empresa,
+  City,
 } from "@/types";
 import OSISearch from "./components/osi-search";
 import { CertificateForm } from "./components/certificate-form";
+import { ManualOSIInput as ManualOSIInputComponent } from "./components/manual-osi-input";
 import { CarnetDebug } from "@/components/carnets/carnet-debug";
 import {
   saveCertificatesToDatabase,
@@ -22,6 +26,7 @@ import {
   getCarnetTemplatesAction,
   getCertificateTemplatesAction,
 } from "@/app/actions/dropdown-data";
+import { getCompaniesAndCities } from "@/app/actions/companies-cities";
 import { QRService } from "@/lib/qr-service";
 import { generateDocumentsServer } from "@/lib/document-server-actions";
 import {
@@ -54,6 +59,16 @@ export default function GeneracionCertificadoClient({
   const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
   const [carnetTemplates, setCarnetTemplates] = useState<any[]>([]);
   const [certificateTemplates, setCertificateTemplates] = useState<any[]>([]);
+
+  // Manual mode state
+  const [osiInputMode, setOsiInputMode] = useState<"automatic" | "manual">(
+    "automatic",
+  );
+  const [manualOSIData, setManualOSIData] = useState<ManualOSIInput>({});
+  const [companies, setCompanies] = useState<Empresa[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [hasAttemptedManualSubmission, setHasAttemptedManualSubmission] =
+    useState(false);
   const [certificateData, setCertificateData] = useState<CertificateGeneration>(
     {
       osi_id: "",
@@ -126,10 +141,12 @@ export default function GeneracionCertificadoClient({
   useEffect(() => {
     const loadTemplates = async () => {
       try {
-        const [carnetResult, certResult] = await Promise.all([
-          getCarnetTemplatesAction(),
-          getCertificateTemplatesAction(),
-        ]);
+        const [carnetResult, certResult, companiesCitiesResult] =
+          await Promise.all([
+            getCarnetTemplatesAction(),
+            getCertificateTemplatesAction(),
+            getCompaniesAndCities(),
+          ]);
         if (carnetResult.data) {
           setCarnetTemplates(carnetResult.data);
           // Auto-set the active carnet template if not already set
@@ -157,6 +174,10 @@ export default function GeneracionCertificadoClient({
                 prev.plantilla_certificado_archivo || activeTemplate.archivo,
             }));
           }
+        }
+        if (companiesCitiesResult.success) {
+          setCompanies(companiesCitiesResult.companies || []);
+          setCities(companiesCitiesResult.cities || []);
         }
       } catch (error) {
         // Continue without templates
@@ -410,7 +431,167 @@ export default function GeneracionCertificadoClient({
     }));
   };
 
+  // Helper function to build mock OSI object from manual inputs
+  const buildMockOSI = (manualData: ManualOSIInput): CertificateOSI => {
+    // If company_id is set but company_name is not, look up the company name from the companies array
+    let companyName = manualData.company_name || "";
+    if (!companyName && manualData.company_id) {
+      // Handle both string and numeric IDs for comparison
+      const company = companies.find(
+        (c) => c.id.toString() === manualData.company_id.toString(),
+      );
+      if (company) {
+        companyName = company.razon_social || "";
+        console.log(
+          "Looking up company name from company_id:",
+          manualData.company_id,
+          "found:",
+          companyName,
+        );
+      }
+    }
+    console.log(
+      "buildMockOSI - company_id:",
+      manualData.company_id,
+      "company_name:",
+      manualData.company_name,
+      "final companyName:",
+      companyName,
+    );
+
+    return {
+      id: "manual",
+      nro_osi: manualData.osi_number || "MANUAL",
+      tipo_servicio: "Manual",
+      cliente_nombre_empresa: companyName,
+      id_curso: null,
+      empresa_id: manualData.company_id ? parseInt(manualData.company_id) : 0,
+      direccion_ejecucion: "",
+      fecha_servicio: undefined,
+      fecha_emision: undefined,
+      id_ciudad: manualData.city_id,
+      is_active: true,
+      // Add other required fields with sensible defaults
+    };
+  };
+
+  // Handler for manual OSI data changes
+  const handleManualOSIDataChange = (
+    field: keyof ManualOSIInput,
+    value: any,
+  ) => {
+    setManualOSIData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  // Handler for preview - build mock OSI if in manual mode
+  const handlePreview = async () => {
+    if (osiInputMode === "manual") {
+      // Always validate manual data in manual mode
+      // Check for truthy values (not just non-null/undefined)
+      const missingFields = [];
+      if (!manualOSIData.osi_number?.trim()) {
+        missingFields.push("Número OSI");
+      }
+      // Check for either company_id (from dropdown) or company_name (manual input)
+      if (!manualOSIData.company_id && !manualOSIData.company_name?.trim()) {
+        missingFields.push("Empresa");
+      }
+      if (!manualOSIData.city_id) {
+        missingFields.push("Ciudad");
+      }
+
+      if (missingFields.length > 0) {
+        alert(
+          `Por favor completa los siguientes campos del modo manual: ${missingFields.join(", ")}`,
+        );
+        return false;
+      }
+
+      // Build mock OSI for preview in manual mode
+      const mockOSI = buildMockOSI(manualOSIData);
+      setSelectedOSI(mockOSI);
+      setCertificateData((prev) => ({
+        ...prev,
+        osi_id: mockOSI.id,
+        osi_data: mockOSI,
+        manual_mode: true,
+        manual_osi_data: manualOSIData,
+      }));
+      // Wait a tick for state to update
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    return true;
+  };
+
+  const handleModeSwitch = (mode: "automatic" | "manual") => {
+    // Warn if data has been entered
+    if (osiInputMode === "automatic" && selectedOSI) {
+      if (
+        !confirm("Cambiar de modo borrará la OSI seleccionada. ¿Continuar?")
+      ) {
+        return;
+      }
+    }
+    if (
+      osiInputMode === "manual" &&
+      (manualOSIData.osi_number || manualOSIData.company_name)
+    ) {
+      if (
+        !confirm(
+          "Cambiar de modo borrará los datos ingresados manualmente. ¿Continuar?",
+        )
+      ) {
+        return;
+      }
+    }
+
+    setOsiInputMode(mode);
+    setSelectedOSI(null);
+    setManualOSIData({});
+    setSelectedCourseTopic(null);
+    setCertificateData((prev) => ({
+      ...prev,
+      osi_id: "",
+      osi_data: undefined,
+      course_topic_id: "",
+      course_topic_data: undefined,
+      course_content: "",
+      manual_mode: mode === "manual",
+      manual_osi_data: mode === "manual" ? {} : undefined,
+      date: new Date().toISOString().split("T")[0],
+    }));
+  };
+
   const handleGenerateCertificate = async () => {
+    // Manual mode validation
+    if (osiInputMode === "manual") {
+      setHasAttemptedManualSubmission(true);
+      // Check for either company_id (from dropdown) or company_name (manual input)
+      if (
+        !manualOSIData.osi_number ||
+        (!manualOSIData.company_id && !manualOSIData.company_name) ||
+        !manualOSIData.city_id
+      ) {
+        alert(
+          "Por favor completa todos los campos obligatorios del modo manual",
+        );
+        return;
+      }
+      // Build mock OSI and set it
+      const mockOSI = buildMockOSI(manualOSIData);
+      setSelectedOSI(mockOSI);
+      setCertificateData((prev) => ({
+        ...prev,
+        osi_id: mockOSI.id,
+        osi_data: mockOSI,
+        manual_mode: true,
+        manual_osi_data: manualOSIData,
+      }));
+    }
+
     if (
       !certificateData.osi_id ||
       !certificateData.certificate_title ||
@@ -782,9 +963,6 @@ export default function GeneracionCertificadoClient({
           location: certificateData.location || "",
           execution_address: selectedOSI?.direccion_ejecucion || "",
           execution_date: certificateData.date,
-          score: participant.score || 14,
-          control_number:
-            dbResult.certificateNumbers![index]?.nro_control?.toString() || "",
         }),
       );
 
@@ -1367,19 +1545,106 @@ export default function GeneracionCertificadoClient({
       </div>
 
       <div className="space-y-6">
+        {/* Mode Toggle - Only show if not in edit mode */}
+        {!editData && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex space-x-4">
+              <button
+                type="button"
+                onClick={() => handleModeSwitch("automatic")}
+                className={`flex-1 px-4 py-3 rounded-md font-medium transition-colors ${
+                  osiInputMode === "automatic"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Seleccionar OSI (Automático)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeSwitch("manual")}
+                className={`flex-1 px-4 py-3 rounded-md font-medium transition-colors ${
+                  osiInputMode === "manual"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Ingreso Manual
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* <CarnetDebug 
           selectedCourseTopic={selectedCourseTopic} 
           certificateData={certificateData} 
         /> */}
 
-        <OSISearch
-          osis={osis}
-          selectedOSI={selectedOSI}
-          onSelect={handleOSISelect}
-          matchedCourse={selectedCourseTopic}
-          allCourses={courses}
-          disabled={!!editData}
-        />
+        {/* Conditional rendering based on mode */}
+        {!editData && osiInputMode === "automatic" ? (
+          <OSISearch
+            osis={osis}
+            selectedOSI={selectedOSI}
+            onSelect={handleOSISelect}
+            matchedCourse={selectedCourseTopic}
+            allCourses={courses}
+            disabled={!!editData}
+          />
+        ) : !editData && osiInputMode === "manual" ? (
+          <ManualOSIInputComponent
+            companies={companies}
+            cities={cities}
+            courseTopics={courses}
+            data={manualOSIData}
+            onDataChange={handleManualOSIDataChange}
+            onCourseSelect={(courseTopic) => {
+              setSelectedCourseTopic(courseTopic);
+              handleCertificateDataChange("course_topic_id", courseTopic.id);
+              const passingGrade = courseTopic.nota_aprobatoria ?? 14;
+              setCertificateData((prev) => ({
+                ...prev,
+                course_topic_id: courseTopic.id,
+                course_topic_data: courseTopic,
+                course_content: courseTopic.contenido_curso || "",
+                course_template_id: "original-course",
+                passing_grade: passingGrade,
+                horas_estimadas: courseTopic.horas_estimadas,
+                certificate_title: prev.certificate_title || courseTopic.name,
+                id_plantilla_certificado:
+                  courseTopic.id_plantilla_certificado ||
+                  prev.id_plantilla_certificado,
+                fecha_vencimiento: courseTopic.emite_carnet
+                  ? prev.fecha_vencimiento
+                  : undefined,
+              }));
+            }}
+            selectedCourseTopic={selectedCourseTopic}
+            hasAttemptedSubmission={hasAttemptedManualSubmission}
+          />
+        ) : null}
+
+        {/* Course Topic Search - Show in manual mode or when OSI is selected in automatic mode */}
+        {!editData &&
+          ((osiInputMode === "manual" && selectedCourseTopic) ||
+            (osiInputMode === "automatic" && selectedOSI)) && (
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Curso Seleccionado
+              </h3>
+              {selectedCourseTopic && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="font-medium text-blue-900">
+                    {selectedCourseTopic.nombre}
+                  </div>
+                  <div className="text-sm text-blue-700 mt-1">
+                    {selectedCourseTopic.horas_estimadas &&
+                      `Horas: ${selectedCourseTopic.horas_estimadas}`}
+                    {selectedCourseTopic.emite_carnet && " • Emite carnet"}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
         <CertificateForm
           certificateData={certificateData}
@@ -1392,6 +1657,7 @@ export default function GeneracionCertificadoClient({
           onDataChange={handleCertificateDataChange}
           onParticipantsChange={handleParticipantsChange}
           onGenerate={handleGenerateCertificate}
+          onPreview={handlePreview}
         />
       </div>
     </div>
