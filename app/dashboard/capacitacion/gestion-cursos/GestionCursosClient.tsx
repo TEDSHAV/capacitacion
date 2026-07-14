@@ -17,7 +17,6 @@ export default function GestionCursosClient({
   const [creandoCurso, setCreandoCurso] = useState(false);
   const [editandoCurso, setEditandoCurso] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
-  const [selectedEmpresa, setSelectedEmpresa] = useState<Empresa | null>(null);
   const [datosFormulario, setDatosFormulario] = useState({
     titulo: "",
     empresa_id: "",
@@ -46,7 +45,6 @@ export default function GestionCursosClient({
 
   const handleEmpresaSelect = (empresaId: string, empresaData: Empresa) => {
     setDatosFormulario(prev => ({ ...prev, empresa_id: empresaId }));
-    setSelectedEmpresa(empresaData);
   };
 
   const resetForm = () => {
@@ -55,20 +53,15 @@ export default function GestionCursosClient({
       empresa_id: "",
       contenido: ""
     });
-    setSelectedEmpresa(null);
     setError(null);
   };
 
   const abrirModalEdicion = (curso: Curso) => {
-    // Find the empresa data if cliente_asociado exists
-    const empresaData = curso.cliente_asociado ? empresas.find(emp => emp.id === curso.cliente_asociado) || null : null;
-    
     setDatosFormulario({
       titulo: curso.nombre || "",
       empresa_id: curso.cliente_asociado || "",
       contenido: curso.contenido_curso || ""
     });
-    setSelectedEmpresa(empresaData);
     setEditandoCurso(curso.id);
     setError(null);
   };
@@ -76,18 +69,15 @@ export default function GestionCursosClient({
   const cerrarModal = () => {
     setCreandoCurso(false);
     setEditandoCurso(null);
-    resetForm();
+    setError(null);
   };
 
   // Filter courses based on search
-  const cursosFiltrados = cursos.filter(curso => {
-    const terminoBusqueda = busqueda.toLowerCase();
-    return (
-      curso.nombre?.toLowerCase().includes(terminoBusqueda) ||
-      curso.contenido_curso?.toLowerCase().includes(terminoBusqueda) ||
-      (curso.empresas?.razon_social?.toLowerCase().includes(terminoBusqueda) || false)
-    );
-  });
+  const cursosFiltrados = cursos.filter(curso =>
+    curso.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
+    curso.contenido_curso?.toLowerCase().includes(busqueda.toLowerCase()) ||
+    (curso.empresas?.razon_social?.toLowerCase().includes(busqueda.toLowerCase()) || false)
+  );
 
   const manejarCambioInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

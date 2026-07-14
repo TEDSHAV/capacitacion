@@ -33,7 +33,7 @@ export default function EmpresaSearch({
       empresa.codigo_cliente?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredEmpresas(filtered);
-  }, [searchTerm, empresas]);
+  }, [empresas, searchTerm]);
 
   // Update search term when selected empresa changes
   useEffect(() => {
