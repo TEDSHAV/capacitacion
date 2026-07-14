@@ -64,7 +64,7 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
     await page.setViewport({ width: 1200, height: 1600 });
 
     // Set content and wait for network idle
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "domcontentloaded" });
 
     // Generate PDF with letter format and margins
     const pdfBuffer = await page.pdf({

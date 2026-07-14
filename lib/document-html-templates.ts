@@ -564,12 +564,13 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
   const signatureContent = `
       <div class="signature-block ${signatureClass}">
         <div class="signature-text">Atentamente,</div>
-        <div class="signature-name">REPRESENTANTE SHA</div>
+        <div class="signature-dept">DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.</div>
+        <div class="signature-name">[NOMBRE Y APELLIDO]</div>
+        <div class="signature-cargo">[CARGO]</div>
 
         <div class="received-section">
           <div class="received-label">Recibido por:</div>
-          <div style="margin-left: 40px;">
-            <div class="signature-line"></div>
+          <div class="received-content">
             <div class="seal-label">SELLO Y FIRMA DEL CLIENTE</div>
             <div class="received-name">${escapeHtml(data.nombre_recibido || "[NOMBRE Y APELLIDO]")}</div>
             <div class="received-cargo">${escapeHtml(data.cargo_recibido || "[CARGO]")}</div>
@@ -811,7 +812,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     }
 
     .signature-block {
-      text-align: center;
+      text-align: left;
       page-break-inside: avoid;
       margin-bottom: 30px;
     }
@@ -830,11 +831,24 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       margin-bottom: 20px;
     }
 
-    .signature-name {
-      text-align: center;
+    .signature-dept {
       font-weight: bold;
       font-size: 13px;
+      margin-bottom: 20px;
       margin-top: 15px;
+      text-align: center;
+    }
+
+    .signature-name {
+      font-weight: bold;
+      font-size: 13px;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+
+    .signature-cargo {
+      font-size: 13px;
+      text-align: center;
     }
 
     .received-section {
@@ -845,12 +859,11 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     .received-label {
       font-weight: normal;
       margin-bottom: 15px;
+      text-align: left;
     }
 
-    .signature-line {
-      border-top: 1px solid #000;
-      margin: 20px 0;
-      width: 100px;
+    .received-content {
+      text-align: center;
     }
 
     .seal-label {
@@ -882,7 +895,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
 
     .footer {
       page-break-inside: avoid;
-      padding-top: 10px;
+      padding-top: 30px;
       margin-top: auto;
       flex-shrink: 0;
     }

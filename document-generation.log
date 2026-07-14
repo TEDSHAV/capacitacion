@@ -189,3 +189,19 @@
 [2026-05-15T16:25:25.369Z] nota_entrega generated successfully
 [2026-05-15T16:25:25.942Z] certificacion_competencias generated successfully
 [2026-05-15T16:25:25.944Z] Document generation complete {"documentsGenerated":3,"errors":[]}
+[2026-05-15T16:37:54.242Z] generateDocumentsServer called {"options":{"includeCertificacionCompetencias":true,"includeNotaEntrega":true,"includeValidacionDatos":true},"certificatesCount":1}
+[2026-05-15T16:37:54.244Z] Starting certificacion_competencias generation
+[2026-05-15T16:37:54.249Z] Starting nota_entrega generation
+[2026-05-15T16:37:54.255Z] Starting validacion_datos generation
+[2026-05-15T16:38:28.588Z] nota_entrega error "Failed to generate nota de entrega: Failed to generate PDF from HTML: Navigation timeout of 30000 ms exceeded"
+[2026-05-15T16:38:28.650Z] certificacion_competencias error "Failed to generate certificacion de competencias: Failed to generate PDF from HTML: Navigation timeout of 30000 ms exceeded"
+[2026-05-15T16:38:28.662Z] validacion_datos error "Failed to generate validacion de datos: Failed to generate PDF from HTML: Navigation timeout of 30000 ms exceeded"
+[2026-05-15T16:38:28.662Z] Document generation complete {"documentsGenerated":0,"errors":["Failed to generate nota de entrega: Failed to generate PDF from HTML: Navigation timeout of 30000 ms exceeded","Failed to generate certificacion de competencias: Failed to generate PDF from HTML: Navigation timeout of 30000 ms exceeded","Failed to generate validacion de datos: Failed to generate PDF from HTML: Navigation timeout of 30000 ms exceeded"]}
+[2026-05-15T16:39:45.519Z] generateDocumentsServer called {"options":{"includeCertificacionCompetencias":true,"includeNotaEntrega":true,"includeValidacionDatos":true},"certificatesCount":1}
+[2026-05-15T16:39:45.521Z] Starting certificacion_competencias generation
+[2026-05-15T16:39:45.525Z] Starting nota_entrega generation
+[2026-05-15T16:39:45.528Z] Starting validacion_datos generation
+[2026-05-15T16:39:50.022Z] certificacion_competencias generated successfully
+[2026-05-15T16:39:50.175Z] nota_entrega generated successfully
+[2026-05-15T16:39:50.546Z] validacion_datos generated successfully
+[2026-05-15T16:39:50.547Z] Document generation complete {"documentsGenerated":3,"errors":[]}
