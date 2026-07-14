@@ -46,16 +46,87 @@ export const CertificateForm = ({
   const isCarnetValid =
     !selectedCourseTopic?.emite_carnet || !!certificateData.fecha_vencimiento;
 
+  const scrollToFirstMissingField = () => {
+    // Check each required field in order and scroll to the first missing one
+    if (!certificateData.certificate_title) {
+      const element = document.getElementById("field-certificate_title");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        const input = document.getElementById("certificate_title");
+        if (input) input.focus();
+        return true;
+      }
+    }
+    if (!certificateData.horas_estimadas) {
+      const element = document.getElementById("field-horas_estimadas");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        const input = document.getElementById("horas_estimadas");
+        if (input) input.focus();
+        return true;
+      }
+    }
+    if (!certificateData.date) {
+      const element = document.getElementById("field-date");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        const input = document.getElementById("date");
+        if (input) input.focus();
+        return true;
+      }
+    }
+    if (!certificateData.facilitator_id) {
+      const element = document.getElementById("field-facilitator");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        return true;
+      }
+    }
+    if (certificateData.participants.length === 0) {
+      const element = document.getElementById("field-participants");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        return true;
+      }
+    }
+    if (
+      selectedCourseTopic?.emite_carnet &&
+      !certificateData.fecha_vencimiento
+    ) {
+      const element = document.getElementById("field-fecha_vencimiento");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        const input = document.getElementById("fecha_vencimiento_years");
+        if (input) input.focus();
+        return true;
+      }
+    }
+    return false;
+  };
+
   const handleGenerateCertificate = () => {
     setHasAttemptedSubmission(true);
     if (!isBaseFormValid) {
-      alert("Por favor completa todos los campos obligatorios");
+      // Check if OSI or course topic is missing (these are in parent component)
+      if (!certificateData.osi_id) {
+        alert("Por favor selecciona una OSI");
+        return;
+      }
+      if (!certificateData.course_topic_id) {
+        alert("Por favor selecciona un curso");
+        return;
+      }
+      // Scroll to first missing field in this form
+      scrollToFirstMissingField();
       return;
     }
     if (!isCarnetValid) {
-      alert(
-        "Este curso emite carnet, por lo que la fecha de vencimiento es requerida",
-      );
+      scrollToFirstMissingField();
+      setTimeout(() => {
+        alert(
+          "Este curso emite carnet, por lo que la fecha de vencimiento es requerida",
+        );
+      }, 100);
       return;
     }
     // Validate duration hours
@@ -83,15 +154,26 @@ export const CertificateForm = ({
   const handlePreview = () => {
     setHasAttemptedSubmission(true);
     if (!isBaseFormValid) {
-      alert(
-        "Por favor completa todos los campos obligatorios para generar la vista previa",
-      );
+      // Check if OSI or course topic is missing (these are in parent component)
+      if (!certificateData.osi_id) {
+        alert("Por favor selecciona una OSI");
+        return;
+      }
+      if (!certificateData.course_topic_id) {
+        alert("Por favor selecciona un curso");
+        return;
+      }
+      // Scroll to first missing field in this form
+      scrollToFirstMissingField();
       return;
     }
     if (!isCarnetValid) {
-      alert(
-        "Este curso emite carnet, por lo que la fecha de vencimiento es requerida para la vista previa",
-      );
+      scrollToFirstMissingField();
+      setTimeout(() => {
+        alert(
+          "Este curso emite carnet, por lo que la fecha de vencimiento es requerida",
+        );
+      }, 100);
       return;
     }
     // Validate duration hours
@@ -145,7 +227,7 @@ export const CertificateForm = ({
       </div>
 
       {/* Certificate Title */}
-      <div className="mb-4">
+      <div id="field-certificate_title" className="mb-4">
         <label
           htmlFor="certificate_title"
           className="block text-sm font-medium text-gray-700 mb-2"
@@ -265,7 +347,7 @@ export const CertificateForm = ({
       />
 
       {/* Course Duration */}
-      <div className="mb-4">
+      <div id="field-horas_estimadas" className="mb-4">
         <label
           htmlFor="horas_estimadas"
           className="block text-sm font-medium text-gray-700 mb-2"
@@ -310,18 +392,17 @@ export const CertificateForm = ({
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
               />
             </svg>
-            La duración es requerida. Muchos cursos no tienen este dato en el
-            catálogo y debe ingresarse manualmente.
+            La duración es requerida. Por favor ingresa un valor.
           </p>
         ) : (
           <p className="text-xs text-gray-500 mt-1">
-            Duración total del curso en horas (se puede editar si es necesario)
+            Duración total del curso en horas
           </p>
         )}
       </div>
 
       {/* Date */}
-      <div className="mb-4">
+      <div id="field-date" className="mb-4">
         <label
           htmlFor="date"
           className="block text-sm font-medium text-gray-700 mb-2"
@@ -342,7 +423,7 @@ export const CertificateForm = ({
 
       {/* Expiration Date - Only show if course emits card */}
       {selectedCourseTopic?.emite_carnet && (
-        <div className="mb-4">
+        <div id="field-fecha_vencimiento" className="mb-4">
           <label
             htmlFor="fecha_vencimiento_years"
             className="block text-sm font-medium text-gray-700 mb-2"
@@ -405,25 +486,28 @@ export const CertificateForm = ({
         </div>
       )}
 
-      <SignatureSection
-        shaSignatures={shaSignatures}
-        facilitatorId={certificateData.facilitator_id}
-        shaSignatureId={certificateData.sha_signature_id}
-        onDataChange={onDataChange}
-      />
+      <div id="field-facilitator">
+        <SignatureSection
+          shaSignatures={shaSignatures}
+          facilitatorId={certificateData.facilitator_id}
+          shaSignatureId={certificateData.sha_signature_id}
+          onDataChange={onDataChange}
+        />
+      </div>
 
       {/* Participants */}
-      <ParticipantsSection
-        participants={certificateData.participants}
-        onChange={onParticipantsChange}
-        passing_grade={certificateData.passing_grade}
-        isEditMode={isEditMode}
-      />
+      <div id="field-participants">
+        <ParticipantsSection
+          participants={certificateData.participants}
+          onChange={onParticipantsChange}
+          passing_grade={certificateData.passing_grade}
+          isEditMode={isEditMode}
+        />
+      </div>
 
       <FormActionButtons
         isGenerating={isGenerating}
         isEditMode={isEditMode}
-        isDisabled={!isBaseFormValid}
         generationProgress={generationProgress}
         onPreview={handlePreview}
         onGenerate={handleGenerateCertificate}

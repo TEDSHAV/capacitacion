@@ -10,7 +10,6 @@ interface GenerationProgress {
 interface FormActionButtonsProps {
   isGenerating: boolean;
   isEditMode: boolean;
-  isDisabled: boolean;
   generationProgress?: GenerationProgress;
   onPreview: () => void;
   onGenerate: () => void;
@@ -19,7 +18,6 @@ interface FormActionButtonsProps {
 export const FormActionButtons = ({
   isGenerating,
   isEditMode,
-  isDisabled,
   generationProgress,
   onPreview,
   onGenerate,
@@ -32,7 +30,7 @@ export const FormActionButtons = ({
         <button
           type="button"
           onClick={onPreview}
-          disabled={isGenerating || isDisabled}
+          disabled={isGenerating}
           className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           Vista Previa
@@ -42,9 +40,11 @@ export const FormActionButtons = ({
         <button
           type="button"
           onClick={onGenerate}
-          disabled={isGenerating || isDisabled}
+          disabled={isGenerating}
           className={`px-4 py-2 text-white rounded-md transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed ${
-            isEditMode ? "bg-orange-600 hover:bg-orange-700" : "bg-blue-600 hover:bg-blue-700"
+            isEditMode
+              ? "bg-orange-600 hover:bg-orange-700"
+              : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
           {isGenerating ? (
