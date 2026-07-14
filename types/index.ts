@@ -624,3 +624,81 @@ export interface FacilitadorHoursStat {
   totalCombinedHours: number;
   certificates: CertificateInfo[];
 }
+
+// Performance Optimization Interfaces
+export interface OptimizedDataProviderProps {
+  children: (props: {
+    osis: OSI[]
+    filteredOsis: OSI[]
+    loading: boolean
+    searchTerm: string
+    selectedMonth: string
+    selectedStatus: string
+    selectedLocation: string
+    recentFilter: string
+    currentPage: number
+    itemsPerPage: number
+    setSearchTerm: (value: string) => void
+    setSelectedMonth: (value: string) => void
+    setSelectedStatus: (value: string) => void
+    setSelectedLocation: (value: string) => void
+    setRecentFilter: (value: string) => void
+    setCurrentPage: (value: number) => void
+    setItemsPerPage: (value: number) => void
+    clearAllFilters: () => void
+    hasActiveFilters: boolean
+    monthOptions: { value: string; label: string }[]
+  }) => React.ReactNode
+}
+
+export interface OptimizedOSITableProps {
+  osis: OSI[]
+  onOSIClick: (osi: OSI) => void
+  getStatusColor: (status: string) => string
+}
+
+export interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+  fallback?: string
+  threshold?: number
+  rootMargin?: string
+}
+
+export interface VirtualizedListProps<T> {
+  items: T[]
+  itemHeight: number
+  containerHeight: number
+  renderItem: (item: T, index: number) => React.ReactNode
+  overscan?: number
+  className?: string
+}
+
+export interface DebouncedInputProps {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  delay?: number
+  className?: string
+  type?: string
+}
+
+export interface UseOptimizedFetchOptions<T> {
+  initialData?: T
+  cacheTime?: number
+  retryCount?: number
+  retryDelay?: number
+}
+
+export interface UseOptimizedFetchReturn<T> {
+  data: T | null
+  loading: boolean
+  error: Error | null
+  refetch: () => Promise<void>
+}
+
+// Loading Spinner Component Interface
+export interface LoadingSpinnerProps {
+  message?: string
+  color?: 'blue' | 'purple' | 'indigo' | 'green' | 'red'
+  size?: 'sm' | 'md' | 'lg'
+  className?: string
+}

@@ -12,7 +12,7 @@ const getCompanies = cache(async () => {
   return data || []
 })
 
-export default async function CapacitacionPage() {
+export default async function OptimizedCapacitacionPage() {
   // Check authentication
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -24,7 +24,7 @@ export default async function CapacitacionPage() {
   // Fetch cached companies data
   const companies = await getCompanies()
 
-  // Dynamic import of optimized client component for better code splitting
+  // Dynamic import of client component for better code splitting
   const CapacitacionClient = (await import('./CapacitacionClient-optimized')).default
 
   return <CapacitacionClient user={user} companies={companies} />

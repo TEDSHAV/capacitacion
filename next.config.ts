@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
   // Experimental features
   experimental: {
     optimizeCss: true,
-    // optimizePackageImports: ['@supabase/supabase-js', 'lucide-react'], // Commented out for Turbopack compatibility
+    optimizePackageImports: ['@supabase/supabase-js', 'lucide-react', 'jspdf'],
   },
 
   // Redirects for SEO and security

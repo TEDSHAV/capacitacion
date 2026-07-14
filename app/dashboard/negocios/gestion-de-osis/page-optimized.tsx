@@ -1,19 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import React, { useCallback } from "react";
-import LoadingSpinner from '@/components/ui/loading-spinner'
-import { OSI } from "@/types";
-import OSIFilters from "./components/osi-filters";
-import OSITable from "./components/osi-table";
-import OSIPagination from "./components/osi-pagination";
-import OSIEmptyState from "./components/osi-empty-state";
-
-// Import optimized components
+import { useCallback } from "react";
 import OptimizedDataProvider from "./components/osi-data-provider-optimized";
 import OptimizedOSITable from "./components/osi-table-optimized";
+import OSIFilters from "./components/osi-filters";
+import OSIPagination from "./components/osi-pagination";
+import OSIEmptyState from "./components/osi-empty-state";
+import { OSI } from "@/types";
 
-export default function GestionDeOSIsPage() {
+export default function OptimizedGestionDeOSIsPage() {
   const router = useRouter();
 
   // Memoized navigation functions
@@ -65,7 +61,16 @@ export default function GestionDeOSIsPage() {
         const currentItems = filteredOsis.slice(startIndex, endIndex);
 
         if (loading) {
-          return <LoadingSpinner message="Cargando..." color="blue" />;
+          return (
+            <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
+              <div className="flex justify-center items-center h-64">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Cargando...</p>
+                </div>
+              </div>
+            </div>
+          );
         }
 
         return (
