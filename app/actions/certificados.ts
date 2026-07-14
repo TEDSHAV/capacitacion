@@ -2555,6 +2555,7 @@ export async function getFacilitatorsForFilters(): Promise<
  */
 export async function getOSIsWithCertificatesAction(): Promise<{
   nro_osi: number;
+  id_curso: number;
   company_name: string;
   course_name: string;
 }[]> {
