@@ -30,7 +30,7 @@ FROM node:22-bookworm-slim AS runner
 ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
-# 1. Install Playwright dependencies and system libraries
+# 1. Install system libraries needed for Puppeteer/jsPDF canvas operations
 RUN apt-get update && apt-get install -y \
     fonts-liberation \
     libnss3 \
@@ -49,28 +49,20 @@ RUN apt-get update && apt-get install -y \
 # 2. Setup user and permissions properly
 RUN groupadd --system --gid 1001 nodejs && \
     useradd --system --uid 1001 nextjs && \
-    mkdir -p /home/nextjs/.cache/ms-playwright && \
     mkdir -p /home/nextjs/.cache/puppeteer && \
     chown -R nextjs:nodejs /home/nextjs
 
-# 3. Copy node_modules to install Playwright browsers
+# 3. Copy node_modules
 COPY --chown=nextjs:nodejs --from=deps /app/node_modules ./node_modules
 
-# 4. Install Playwright browsers (must be done before changing user)
-ENV PLAYWRIGHT_BROWSERS_PATH=/home/nextjs/.cache/ms-playwright
-RUN npx playwright install chromium && \
-    chown -R nextjs:nodejs /home/nextjs/.cache
-
-# 5. Environment variables
+# 4. Environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PLAYWRIGHT_BROWSERS_PATH=/home/nextjs/.cache/ms-playwright \
-    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
     NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME="0.0.0.0"
 
-# 6. Copy build artifacts
+# 5. Copy build artifacts
 COPY --chown=nextjs:nodejs --from=builder /app/public ./public
 COPY --chown=nextjs:nodejs --from=builder /app/.next/standalone ./
 COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
