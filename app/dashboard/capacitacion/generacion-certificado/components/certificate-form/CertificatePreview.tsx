@@ -367,6 +367,7 @@ export const CertificatePreview = ({
         templateImage: templateBase64 || templateImage,
         sealImage: sealBase64 || sealImage,
         isPreview: true,
+        paperSize: certificateData.paperSize,
         preloadedAssets: {
           facilitator:
             certificateDataWithSHA.facilitator_data || facilitatorData,

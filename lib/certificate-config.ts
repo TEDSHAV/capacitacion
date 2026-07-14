@@ -3,9 +3,11 @@
 export interface PDFOptions {
   orientation: "portrait" | "landscape";
   unit: "mm" | "pt" | "in" | "px";
-  format: "a3" | "a4" | "a5" | "letter" | "legal";
+  format: "a3" | "a4" | "a5" | "letter" | "legal" | [number, number];
   compress?: boolean;
 }
+
+export const HALF_LETTER_CUSTOM: [number, number] = [209.9, 139.9];
 
 export interface TextLayoutConfig {
   maxWidth: number; // in mm
@@ -181,6 +183,11 @@ export const getDynamicConfig = (
   pageHeight: number,
   templateKey?: string,
 ) => {
+  // If height is small (half-letter), we use the full height for content
+  // Normal letter height in portrait is ~279mm, landscape ~216mm.
+  // Our custom half-letter is 139.9mm height in landscape.
+  const isHalfLetter = pageHeight < 150;
+
   const base = {
     ...CERTIFICATE_CONFIG,
     signature: {
@@ -189,7 +196,7 @@ export const getDynamicConfig = (
     },
     contentPage: {
       ...CERTIFICATE_CONFIG.contentPage,
-      upperHalfHeight: pageHeight / 2,
+      upperHalfHeight: isHalfLetter ? pageHeight : pageHeight / 2,
     },
   };
 

@@ -66,7 +66,8 @@ export class CertificatePage {
     }
 
     const margin = 10;
-    const upperHalfHeight = this.pageHeight / 2;
+    const upperHalfHeight =
+      this.config.contentPage.upperHalfHeight ?? this.pageHeight / 2;
     const templateArea = {
       x: margin,
       y: margin,

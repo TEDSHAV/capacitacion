@@ -268,6 +268,8 @@ export interface OSI {
   contacto_telefono?: string | null;
 }
 
+export type PaperSize = "letter" | "half-letter-custom";
+
 export interface CertificateRequest {
   participant: CertificateParticipant;
   certificateData: CertificateGeneration;
@@ -277,6 +279,7 @@ export interface CertificateRequest {
   isPreview?: boolean;
   certificateId?: number; // Actual certificate database ID for QR code generation
   singlePage?: boolean; // Whether to generate single-page certificate
+  paperSize?: PaperSize; // Preference for paper size
   preloadedAssets?: {
     facilitator?: any;
     facilitatorSignature?: string;
@@ -317,6 +320,7 @@ export interface CertificateGeneration {
   id_plantilla_carnet?: number; // Carne template ID
   plantilla_certificado_archivo?: string; // Certificate template file name for generation
   generate_documents?: boolean; // Whether to generate additional documents
+  paperSize?: PaperSize; // Preferred paper size for printing
 }
 
 export interface CertificateParticipant {

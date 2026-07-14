@@ -4,7 +4,11 @@ import {
   CertificateGeneration,
   CertificateRequest,
 } from "@/types";
-import { CERTIFICATE_CONFIG, getTemplateKey } from "./certificate-config";
+import {
+  CERTIFICATE_CONFIG,
+  getTemplateKey,
+  HALF_LETTER_CUSTOM,
+} from "./certificate-config";
 import { CertificatePage } from "./certificate-page";
 import { ContentPage } from "./content-page";
 
@@ -28,13 +32,26 @@ export class CertificateGenerator {
       isPreview,
       certificateId,
       singlePage = false,
+      paperSize = "half-letter-custom",
       preloadedAssets,
     } = data;
 
+    // Determine PDF configuration based on paperSize
+    const pdfConfig = { ...CERTIFICATE_CONFIG.page };
+    if (paperSize === "half-letter-custom") {
+      pdfConfig.format = HALF_LETTER_CUSTOM;
+      pdfConfig.orientation = "landscape";
+    }
+
     // Initialize document ONLY when needed
-    const doc = new jsPDF(CERTIFICATE_CONFIG.page);
+    const doc = new jsPDF(pdfConfig);
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
+
+    // If using custom small paper, force two-page mode because
+    // single-page mode (combined) requires a full letter sheet.
+    const effectiveSinglePage =
+      paperSize === "half-letter-custom" ? false : singlePage;
 
     // Determine template key for coordinate overrides
     const templateKey = getTemplateKey(
@@ -58,7 +75,7 @@ export class CertificateGenerator {
     );
 
     try {
-      if (singlePage) {
+      if (effectiveSinglePage) {
         // Generate single-page certificate
         return await this.generateSinglePageCertificate(
           doc,

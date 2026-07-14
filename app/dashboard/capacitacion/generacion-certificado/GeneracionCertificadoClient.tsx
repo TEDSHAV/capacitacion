@@ -78,6 +78,7 @@ export default function GeneracionCertificadoClient({
       id_estado: undefined,
       id_plantilla_certificado: undefined,
       generate_documents: true, // Default to true for convenience
+      paperSize: "half-letter-custom", // New default format
     },
   );
 
@@ -827,6 +828,7 @@ export default function GeneracionCertificadoClient({
               controlNumbers,
               isPreview: false,
               certificateId: dbResult.certificateIds![actualIndex],
+              paperSize: certificateData.paperSize,
               preloadedAssets: {
                 facilitator: facilitatorData,
                 facilitatorSignature: facilitatorSignatureBase64,
