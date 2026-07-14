@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, User, Key, Loader2, AlertCircle } from "lucide-react";
+import { User, Key, Loader2, AlertCircle } from "lucide-react";
+import Image from "next/image";
 import { loginCliente } from "@/app/actions/cliente-portal";
 
 export default function ClienteLoginPage() {
@@ -39,9 +40,13 @@ export default function ClienteLoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-gray-100 p-8">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center mb-4">
-            <Building2 className="w-8 h-8 text-cyan-600" />
-          </div>
+          <Image
+            src="/logo.png"
+            alt="SHA de Venezuela"
+            width={128}
+            height={128}
+            className="w-32 h-32 object-contain mb-4"
+          />
           <h1 className="text-2xl font-bold text-gray-900">
             Portal de Clientes
           </h1>

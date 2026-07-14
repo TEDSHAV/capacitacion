@@ -129,7 +129,7 @@ const LoginForm = () => {
 
         <div>
           <Link
-            href="/consultar"
+            href="/portal/cliente/login"
             className="group relative w-full flex justify-center items-center py-2.5 px-4 border-2 border-blue-600 text-sm font-bold rounded-lg text-blue-700 bg-white hover:bg-blue-50 focus:outline-none transition-all duration-300 shadow-sm"
           >
             <ShieldCheck className="w-4 h-4 mr-2 text-blue-600 group-hover:scale-110 transition-transform" />

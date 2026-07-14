@@ -12,7 +12,7 @@ const Footer = () => {
           </div>
           <div className="flex gap-6">
             <Link
-              href="/consultar"
+              href="/portal/cliente/login"
               className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
               Verificar Certificado

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, memo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { User } from "@/types/dashboard";
@@ -8,7 +8,6 @@ import Image from "next/image";
 
 const Navbar = () => {
   const router = useRouter();
-  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const supabase = createClient(); // Create client once
 
@@ -80,16 +79,14 @@ const Navbar = () => {
                 </button>
               </>
             ) : (
-              !pathname.includes("/consultar") && (
-                <>
-                  <button
-                    onClick={handleLoginClick}
-                    className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 px-2 sm:px-3 py-2 rounded-md hover:bg-blue-50 transition-colors duration-200 whitespace-nowrap"
-                  >
-                    Iniciar sesión
-                  </button>
-                </>
-              )
+              <>
+                <button
+                  onClick={handleLoginClick}
+                  className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 px-2 sm:px-3 py-2 rounded-md hover:bg-blue-50 transition-colors duration-200 whitespace-nowrap"
+                >
+                  Iniciar sesión
+                </button>
+              </>
             )}
           </div>
         </div>
