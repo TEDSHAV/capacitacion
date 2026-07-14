@@ -348,7 +348,7 @@ export class CarnetGenerator {
     const courseY = 18;
     pdf.text(`${carnetData.titulo_curso.toUpperCase()}`, 40, courseY, {
       align: "center",
-      maxWidth: 50,
+      maxWidth: 45 ,
     });
 
     // Add optional subtitle
@@ -383,9 +383,9 @@ export class CarnetGenerator {
         carnetData.fecha_vencimiento + "T12:00:00",
       ).toLocaleDateString("es-VE");
       pdf.setTextColor(255, 0, 0); // Set text color to red
-      pdf.text("Vencimiento: ", 50, 40);
+      pdf.text("Vencimiento: ", 50, 42);
       pdf.setTextColor(0, 0, 0); // Reset text color to black
-      pdf.text(expirationDate, 70, 40); // Position date after "Vencimiento: "
+      pdf.text(expirationDate, 70, 42); // Position date after "Vencimiento: "
     }
 
     // Add control number at bottom right
