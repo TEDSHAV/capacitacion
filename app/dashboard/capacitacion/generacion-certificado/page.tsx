@@ -1,42 +1,50 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/utils/supabase/client'
-import { OSI, CourseTopic, CertificateGeneration, CertificateParticipant } from '@/types'
-import OSISearch from './components/osi-search'
-import CourseTopicSearch from './components/course-topic-search'
-import CertificateForm from './components/certificate-form'
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
+import {
+  OSI,
+  CourseTopic,
+  CertificateGeneration,
+  CertificateParticipant,
+} from "@/types";
+import OSISearch from "./components/osi-search";
+import { CertificateForm } from './components/certificate-form';
 
 export default function GeneracionCertificadoPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [osis, setOsis] = useState<OSI[]>([])
-  const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([])
-  const [selectedOSI, setSelectedOSI] = useState<OSI | null>(null)
-  const [selectedCourseTopic, setSelectedCourseTopic] = useState<CourseTopic | null>(null)
-  const [isCourseTopicAutoPopulated, setIsCourseTopicAutoPopulated] = useState(false)
-  const [certificateData, setCertificateData] = useState<CertificateGeneration>({
-    osi_id: '',
-    certificate_title: '',
-    certificate_subtitle: '',
-    passing_grade: 14, // Default passing grade
-    course_topic_id: '',
-    participants: [],
-    location: '',
-    date: new Date().toISOString().split('T')[0]
-  })
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [osis, setOsis] = useState<OSI[]>([]);
+  const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
+  const [selectedOSI, setSelectedOSI] = useState<OSI | null>(null);
+  const [selectedCourseTopic, setSelectedCourseTopic] =
+    useState<CourseTopic | null>(null);
+  const [certificateData, setCertificateData] = useState<CertificateGeneration>(
+    {
+      osi_id: "",
+      certificate_title: "",
+      certificate_subtitle: "",
+      passing_grade: 14, // Default passing grade
+      course_topic_id: "",
+      participants: [],
+      location: "",
+      date: new Date().toISOString().split("T")[0],
+    },
+  );
 
-  const supabase = createClient()
+  const supabase = createClient();
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
         if (!user) {
-          router.push('/login')
-          return
+          router.push("/login");
+          return;
         }
 
         // Fetch OSI data
@@ -44,173 +52,180 @@ export default function GeneracionCertificadoPage() {
           .from("osi")
           .select("*")
           .order("fecha_emision", { ascending: false })
-          .limit(100)
-        
-        if (osiError) throw osiError
-        setOsis(osiData || [])
+          .limit(100);
+
+        if (osiError) throw osiError;
+        setOsis(osiData || []);
 
         // Fetch course topics from catalogo_servicios where tipo_servicio = 1
         const { data: courseData, error: courseError } = await supabase
           .from("catalogo_servicios")
           .select("id, nombre, created_at")
           .eq("tipo_servicio", 1)
-          .order("created_at", { ascending: false })
-        
-        if (courseError) throw courseError
-        setCourseTopics((courseData || []).map(course => ({
-          id: course.id.toString(),
-          name: course.nombre,
-          description: course.nombre, // Using nombre as description since description field might not exist
-          created_at: course.created_at
-        })))
-        
+          .order("created_at", { ascending: false });
+
+        if (courseError) throw courseError;
+        setCourseTopics(
+          (courseData || []).map((course) => ({
+            id: course.id.toString(),
+            name: course.nombre,
+            description: course.nombre, // Using nombre as description since description field might not exist
+            created_at: course.created_at,
+          })),
+        );
       } catch (error) {
-        console.error('Error loading data:', error)
+        console.error("Error loading data:", error);
+        setLoading(false);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    checkAuth()
+    checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event: any, session: any) => {
-        if (!session?.user) {
-          router.push('/login')
-        }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+      if (!session?.user) {
+        router.push("/login");
       }
-    )
+    });
 
-    return () => subscription.unsubscribe()
-  }, [router])
+    return () => subscription.unsubscribe();
+  }, [router]);
 
   const handleOSISelect = (osi: OSI | null) => {
-    setSelectedOSI(osi)
-    
+    setSelectedOSI(osi);
+
     if (osi) {
-      setCertificateData(prev => ({
+      setCertificateData((prev) => ({
         ...prev,
         osi_id: osi.nro_osi,
-        osi_data: osi
-      }))
+        osi_data: osi,
+      }));
 
       // Auto-populate course topic based on OSI data
-      const matchingTopic = findMatchingCourseTopic(osi)
+      const matchingTopic = findMatchingCourseTopic(osi);
       if (matchingTopic) {
-        setSelectedCourseTopic(matchingTopic)
-        setIsCourseTopicAutoPopulated(true)
-        setCertificateData(prev => ({
+        setSelectedCourseTopic(matchingTopic);
+        setCertificateData((prev) => ({
           ...prev,
           course_topic_id: matchingTopic.id,
-          course_topic_data: matchingTopic
-        }))
+          course_topic_data: matchingTopic,
+        }));
       } else {
-        setSelectedCourseTopic(null)
-        setIsCourseTopicAutoPopulated(false)
-        setCertificateData(prev => ({
+        setSelectedCourseTopic(null);
+        setCertificateData((prev) => ({
           ...prev,
-          course_topic_id: '',
-          course_topic_data: undefined
-        }))
+          course_topic_id: "",
+          course_topic_data: undefined,
+        }));
       }
     } else {
       // Clear all related data when OSI is cleared
-      setCertificateData(prev => ({
+      setCertificateData((prev) => ({
         ...prev,
-        osi_id: '',
+        osi_id: "",
         osi_data: undefined,
-        course_topic_id: '',
-        course_topic_data: undefined
-      }))
-      setSelectedCourseTopic(null)
-      setIsCourseTopicAutoPopulated(false)
+        course_topic_id: "",
+        course_topic_data: undefined,
+      }));
+      setSelectedCourseTopic(null);
     }
-  }
+  };
 
   const findMatchingCourseTopic = (osi: OSI): CourseTopic | null => {
     if (!osi.tema && !osi.detalle_capacitacion && !osi.detalle_sesion) {
-      return null
+      return null;
     }
 
     // Try to find exact match with tema
-    let match = courseTopics.find(topic => 
-      osi.tema && topic.name.toLowerCase().includes(osi.tema!.toLowerCase())
-    )
+    let match = courseTopics.find(
+      (topic) =>
+        osi.tema && topic.name.toLowerCase().includes(osi.tema!.toLowerCase()),
+    );
 
     // If no exact match, try with detalle_capacitacion
     if (!match && osi.detalle_capacitacion) {
-      match = courseTopics.find(topic => 
-        topic.name.toLowerCase().includes(osi.detalle_capacitacion!.toLowerCase()) ||
-        (topic.description && topic.description.toLowerCase().includes(osi.detalle_capacitacion!.toLowerCase()))
-      )
+      match = courseTopics.find(
+        (topic) =>
+          topic.name
+            .toLowerCase()
+            .includes(osi.detalle_capacitacion!.toLowerCase()) ||
+          (topic.description &&
+            topic.description
+              .toLowerCase()
+              .includes(osi.detalle_capacitacion!.toLowerCase())),
+      );
     }
 
     // If still no match, try with detalle_sesion
     if (!match && osi.detalle_sesion) {
-      match = courseTopics.find(topic => 
-        topic.name.toLowerCase().includes(osi.detalle_sesion!.toLowerCase()) ||
-        (topic.description && topic.description.toLowerCase().includes(osi.detalle_sesion!.toLowerCase()))
-      )
+      match = courseTopics.find(
+        (topic) =>
+          topic.name
+            .toLowerCase()
+            .includes(osi.detalle_sesion!.toLowerCase()) ||
+          (topic.description &&
+            topic.description
+              .toLowerCase()
+              .includes(osi.detalle_sesion!.toLowerCase())),
+      );
     }
 
-    return match || null
-  }
+    return match || null;
+  };
 
-  const handleCourseTopicSelect = (courseTopic: CourseTopic) => {
-    setSelectedCourseTopic(courseTopic)
-    setIsCourseTopicAutoPopulated(false) // Reset auto-populated flag when manually selected
-    setCertificateData(prev => ({
+  const handleCertificateDataChange = (
+    field: keyof CertificateGeneration,
+    value: any,
+  ) => {
+    setCertificateData((prev) => ({
       ...prev,
-      course_topic_id: courseTopic.id,
-      course_topic_data: courseTopic
-    }))
-  }
-
-  const handleCertificateDataChange = (field: keyof CertificateGeneration, value: any) => {
-    setCertificateData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-  }
+      [field]: value,
+    }));
+  };
 
   const handleParticipantsChange = (participants: CertificateParticipant[]) => {
-    setCertificateData(prev => ({
+    setCertificateData((prev) => ({
       ...prev,
-      participants
-    }))
-  }
+      participants,
+    }));
+  };
 
   const handleGenerateCertificate = async () => {
     // Validate required fields
-    if (!certificateData.osi_id || !certificateData.certificate_title || 
-        !certificateData.course_topic_id || certificateData.participants.length === 0) {
-      alert('Por favor completa todos los campos obligatorios')
-      return
+    if (
+      !certificateData.osi_id ||
+      !certificateData.certificate_title ||
+      !certificateData.course_topic_id ||
+      certificateData.participants.length === 0
+    ) {
+      alert("Por favor completa todos los campos obligatorios");
+      return;
     }
 
     try {
       // Here you would typically save to database and/or generate PDF
-      console.log('Generating certificate with data:', certificateData)
-      alert('Certificado generado exitosamente!')
-      
+      alert("Certificado generado exitosamente!");
+
       // Reset form
-      setSelectedOSI(null)
-      setSelectedCourseTopic(null)
-      setIsCourseTopicAutoPopulated(false)
+      setSelectedOSI(null);
+      setSelectedCourseTopic(null);
       setCertificateData({
-        osi_id: '',
-        certificate_title: '',
-        certificate_subtitle: '',
-        course_topic_id: '',
+        osi_id: "",
+        certificate_title: "",
+        certificate_subtitle: "",
+        passing_grade: 14,
+        course_topic_id: "",
         participants: [],
-        location: '',
-        date: new Date().toISOString().split('T')[0]
-      })
+        location: "",
+        date: new Date().toISOString().split("T")[0],
+      });
     } catch (error) {
-      console.error('Error generating certificate:', error)
-      alert('Error al generar el certificado')
+      alert("Error al generar el certificado");
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -222,7 +237,7 @@ export default function GeneracionCertificadoPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -232,7 +247,8 @@ export default function GeneracionCertificadoPage() {
           Generación de Certificados
         </h1>
         <p className="mt-2 text-gray-600">
-          Crea certificados personalizados para los participantes de capacitaciones
+          Crea certificados personalizados para los participantes de
+          capacitaciones
         </p>
       </div>
 
@@ -255,5 +271,5 @@ export default function GeneracionCertificadoPage() {
         />
       </div>
     </div>
-  )
+  );
 }
