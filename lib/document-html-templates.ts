@@ -187,7 +187,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 `;
 
   const introContent = `
-    <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha || "")}</div>
+    <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha_hoy || data.fecha || "")}</div>
 
     <div class="recipient"><strong>Sres. ${escapeHtml(data.nombre_cliente || "")}</strong></div>
 
@@ -323,7 +323,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       page-break-after: always;
       width: 100%;
       min-height: 11in;
-      padding: 0.75in;
+      padding: 0.5in;
       box-sizing: border-box;
     }
 
@@ -491,8 +491,8 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     .footer {
       position: fixed;
       bottom: 0;
-      left: 0.75in;
-      right: 0.75in;
+      left: 0.5in;
+      right: 0.5in;
       height: 0.8in;
       z-index: 1000;
       overflow: hidden;
@@ -628,7 +628,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
 `;
 
   const introContent = `
-    <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha || "")}</div>
+    <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha_hoy || data.fecha || "")}</div>
 
     <div class="recipient"><strong>Sres. ${escapeHtml(data.nombre_cliente || "")}</strong></div>
 
@@ -738,7 +738,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
       page-break-after: always;
       width: 100%;
       min-height: 11in;
-      padding: 0.75in;
+      padding: 0.5in;
       box-sizing: border-box;
     }
 
@@ -926,8 +926,8 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     .footer {
       position: fixed;
       bottom: 0;
-      left: 0.75in;
-      right: 0.75in;
+      left: 0.5in;
+      right: 0.5in;
       height: 0.8in;
       z-index: 1000;
       overflow: hidden;
@@ -1052,7 +1052,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
 `;
 
   const introContent = `
-    <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha || "")}</div>
+    <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha_hoy || data.fecha || "")}</div>
 
     <div class="recipient">
       ${
@@ -1169,7 +1169,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       page-break-after: always;
       width: 100%;
       min-height: 11in;
-      padding: 0.75in;
+      padding: 0.5in;
       box-sizing: border-box;
     }
 
@@ -1315,8 +1315,8 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     .footer {
       position: fixed;
       bottom: 0;
-      left: 0.75in;
-      right: 0.75in;
+      left: 0.5in;
+      right: 0.5in;
       height: 0.8in;
       z-index: 1000;
       overflow: hidden;

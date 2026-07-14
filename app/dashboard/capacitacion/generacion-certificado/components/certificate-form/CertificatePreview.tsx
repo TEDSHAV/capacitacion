@@ -7,7 +7,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { getSignaturesForDropdownAction } from "@/app/actions/dropdown-data";
 import { QRService } from "@/lib/qr-service";
 import { Button } from "@/components/ui/button";
-import { X, RefreshCw, ChevronRight } from "lucide-react";
+import { X, RefreshCw, ChevronRight, FileText } from "lucide-react";
+import { previewDocumentsServer } from "@/lib/document-server-actions";
+import { getPreviousParticipantsByOSIAction } from "@/app/actions/certificados";
 
 interface CertificatePreviewProps {
   certificateData: CertificateGeneration;
@@ -26,11 +28,20 @@ export const CertificatePreview = ({
 }: CertificatePreviewProps) => {
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [carnetPreviewUrl, setCarnetPreviewUrl] = useState<string>("");
+  const [documentsPreviewHtml, setDocumentsPreviewHtml] = useState<{
+    [key: string]: string;
+  }>({});
+  const [activeTab, setActiveTab] = useState<
+    "certificate" | "carnet" | "documents"
+  >("certificate");
+  const [selectedDocType, setSelectedDocType] = useState<string>(
+    "certificacion_competencias",
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingCarnet, setIsGeneratingCarnet] = useState(false);
+  const [isGeneratingDocuments, setIsGeneratingDocuments] = useState(false);
   const [error, setError] = useState<string>("");
   const [selectedParticipantIndex, setSelectedParticipantIndex] = useState(0);
-  const [showCarnet, setShowCarnet] = useState(false);
   const [cachedSignatures, setCachedSignatures] = useState<any[]>([]);
   const [cachedFacilitators, setCachedFacilitators] = useState<
     Map<string, any>
@@ -63,12 +74,15 @@ export const CertificatePreview = ({
     }
 
     debounceTimeoutRef.current = setTimeout(() => {
-      generatePreview();
-      if (selectedCourse?.emite_carnet) {
+      if (activeTab === "certificate") {
+        generatePreview();
+      } else if (activeTab === "carnet") {
         generateCarnetPreview();
+      } else if (activeTab === "documents") {
+        generateDocumentsPreview();
       }
     }, 300); // 300ms debounce
-  }, [certificateData, selectedParticipantIndex, selectedCourse]);
+  }, [certificateData, selectedParticipantIndex, selectedCourse, activeTab]);
 
   useEffect(() => {
     if (isOpen && certificateData.participants.length > 0) {
@@ -82,6 +96,105 @@ export const CertificatePreview = ({
       }
     };
   }, [isOpen, debouncedGeneratePreview]);
+
+  // Generate documents preview
+  const generateDocumentsPreview = async () => {
+    setIsGeneratingDocuments(true);
+    try {
+      // Use existing records for preview
+      const certificateRecords = certificateData.participants.map(
+        (participant, index) => ({
+          participant_name: participant.name,
+          participant_id_number: participant.idNumber,
+          participant_id_type: participant.idType,
+          participant_nationality: participant.nationality,
+          course_title: certificateData.certificate_title,
+          company_name: selectedOSI?.cliente_nombre_empresa || "",
+          osi_number: selectedOSI?.nro_osi || "",
+          city: certificateData.location || "Puerto La Cruz",
+          location: certificateData.location || "",
+          execution_address: selectedOSI?.direccion_ejecucion || "",
+          execution_date: certificateData.date,
+          score: participant.score || 14,
+          control_number: "PREVIEW",
+        }),
+      );
+
+      // Fetch previous participants if OSI already has certificates
+      let allParticipants = [...certificateRecords];
+      if (selectedOSI?.nro_osi && selectedCourse?.id) {
+        try {
+          const nroOsiNum = parseInt(selectedOSI.nro_osi.replace(/[^\d]/g, ""));
+          const courseIdNum = parseInt(selectedCourse.id);
+
+          if (!isNaN(nroOsiNum) && !isNaN(courseIdNum)) {
+            // Import the action from certificates since it's defined there
+            const { getPreviousParticipantsByOSIAction } =
+              await import("@/app/actions/certificados");
+            const previousResult = await getPreviousParticipantsByOSIAction(
+              nroOsiNum,
+              courseIdNum,
+            );
+
+            if (
+              previousResult.success &&
+              previousResult.data &&
+              previousResult.data.length > 0
+            ) {
+              const existingCidNumbers = new Set(
+                certificateRecords.map((r) => r.participant_id_number),
+              );
+              const enrichedPrevious = previousResult.data
+                .filter(
+                  (p: any) => !existingCidNumbers.has(p.participant_id_number),
+                )
+                .map((p: any) => ({
+                  ...p,
+                  course_title: certificateData.certificate_title,
+                  company_name: selectedOSI?.cliente_nombre_empresa || "",
+                  osi_number: selectedOSI?.nro_osi || "",
+                  city: certificateData.location || "Puerto La Cruz",
+                  location: certificateData.location || "",
+                  execution_address: selectedOSI?.direccion_ejecucion || "",
+                  execution_date: certificateData.date,
+                }));
+
+              allParticipants = [...enrichedPrevious, ...certificateRecords];
+              allParticipants.sort((a, b) => {
+                const numA = parseInt(a.control_number || "0");
+                const numB = parseInt(b.control_number || "0");
+                return numA - numB;
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to fetch previous participants for preview:", e);
+        }
+      }
+
+      const result = await previewDocumentsServer({
+        certificates: allParticipants,
+        osiData: selectedOSI || {},
+        firmanteData: {
+          nombre: "DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.",
+          cargo: "Jefe de Capacitación",
+        },
+      });
+
+      if (result.success && result.html) {
+        setDocumentsPreviewHtml(result.html);
+      } else {
+        setError(
+          result.error || "Error al generar la vista previa de documentos",
+        );
+      }
+    } catch (err) {
+      console.error("Error generating documents preview:", err);
+      setError("Error al generar la vista previa de documentos");
+    } finally {
+      setIsGeneratingDocuments(false);
+    }
+  };
 
   // Cache and fetch all required data in parallel
   const fetchRequiredData = async () => {
@@ -406,50 +519,57 @@ export const CertificatePreview = ({
       setCarnetPreviewUrl("");
     }
     setSelectedParticipantIndex(0); // Reset to first participant
-    setShowCarnet(false);
+    setActiveTab("certificate");
     onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 text-gray-900">
+      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Vista Previa del Certificado
-            {selectedCourse?.emite_carnet ? " y Carnet" : ""}
-          </h3>
-          <div className="flex items-center space-x-4">
-            {selectedCourse?.emite_carnet && (
-              <div className="flex bg-gray-100 rounded-lg p-1">
+          <h3 className="text-xl font-bold text-gray-800">Vista Previa</h3>
+          <div className="flex items-center space-x-6">
+            <div className="flex bg-gray-100 p-1 rounded-xl">
+              <button
+                onClick={() => setActiveTab("certificate")}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+                  activeTab === "certificate"
+                    ? "bg-white text-blue-600 shadow-sm ring-1 ring-black/5"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                }`}
+              >
+                Certificado
+              </button>
+              {selectedCourse?.emite_carnet && (
                 <button
-                  onClick={() => setShowCarnet(false)}
-                  className={`mx-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    !showCarnet
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  Certificado
-                </button>
-                <button
-                  onClick={() => setShowCarnet(true)}
-                  className={`mx-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    showCarnet
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
+                  onClick={() => setActiveTab("carnet")}
+                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+                    activeTab === "carnet"
+                      ? "bg-white text-blue-600 shadow-sm ring-1 ring-black/5"
+                      : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
                   }`}
                 >
                   Carnet
                 </button>
-              </div>
-            )}
+              )}
+              <button
+                onClick={() => setActiveTab("documents")}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+                  activeTab === "documents"
+                    ? "bg-white text-blue-600 shadow-sm ring-1 ring-black/5"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                }`}
+              >
+                Documentos
+              </button>
+            </div>
             <Button
               variant="ghost"
               size="icon"
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors rounded-full"
+              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all rounded-full"
               title="Cerrar vista previa"
             >
               <X className="w-6 h-6" />
@@ -457,147 +577,247 @@ export const CertificatePreview = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          {certificateData.participants.length > 1 && (
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Seleccionar Participante:
-              </label>
-              <div className="flex items-center space-x-4">
-                <select
-                  value={selectedParticipantIndex}
-                  onChange={(e) =>
-                    setSelectedParticipantIndex(Number(e.target.value))
-                  }
-                  className="block w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {certificateData.participants.map((participant, index) => (
-                    <option key={participant.id || index} value={index}>
-                      {participant.name} ({participant.idNumber})
-                    </option>
-                  ))}
-                </select>
-                <span className="text-sm text-gray-500">
-                  {selectedParticipantIndex + 1} de{" "}
-                  {certificateData.participants.length}
-                </span>
+        <div className="flex-1 overflow-y-auto p-8">
+          {activeTab === "documents" && (
+            <div className="mb-8">
+              <div className="flex flex-wrap gap-3">
+                {[
+                  {
+                    id: "certificacion_competencias",
+                    label: "Certificación de Competencias",
+                  },
+                  { id: "nota_entrega", label: "Nota de Entrega" },
+                  { id: "validacion_datos", label: "Validación de Datos" },
+                ].map((doc) => (
+                  <button
+                    key={doc.id}
+                    onClick={() => setSelectedDocType(doc.id)}
+                    className={`px-5 py-2.5 text-sm font-bold rounded-full border-2 transition-all ${
+                      selectedDocType === doc.id
+                        ? "bg-blue-600 text-white border-blue-600 shadow-md transform scale-105"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:bg-blue-50/30"
+                    }`}
+                  >
+                    {doc.label}
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
-          {(isGenerating || (showCarnet && isGeneratingCarnet)) && (
-            <div className="flex items-center justify-center py-12">
-              <RefreshCw className="animate-spin h-8 w-8 text-blue-600" />
-              <span className="ml-2 text-gray-600">
-                {showCarnet
-                  ? "Generando vista previa del carnet..."
-                  : "Generando vista previa..."}
-              </span>
+          {activeTab !== "documents" &&
+            certificateData.participants.length > 1 && (
+              <div className="mb-8 p-4 bg-blue-50/50 rounded-xl border border-blue-100 max-w-2xl">
+                <label className="block text-sm font-bold text-blue-900 mb-3 uppercase tracking-wider">
+                  Seleccionar Participante
+                </label>
+                <div className="flex items-center space-x-4">
+                  <select
+                    value={selectedParticipantIndex}
+                    onChange={(e) =>
+                      setSelectedParticipantIndex(Number(e.target.value))
+                    }
+                    className="block w-full px-4 py-2.5 bg-white border border-blue-200 rounded-lg shadow-sm focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 font-medium text-gray-900 outline-none transition-all"
+                  >
+                    {certificateData.participants.map((participant, index) => (
+                      <option key={participant.id || index} value={index}>
+                        {participant.name} ({participant.idNumber})
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex-shrink-0 bg-blue-600 text-white px-4 py-2.5 rounded-lg font-bold text-sm shadow-sm">
+                    {selectedParticipantIndex + 1} /{" "}
+                    {certificateData.participants.length}
+                  </div>
+                </div>
+              </div>
+            )}
+
+          {(isGenerating || isGeneratingCarnet || isGeneratingDocuments) && (
+            <div className="flex flex-col items-center justify-center py-20 bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-200">
+              <RefreshCw className="animate-spin h-12 w-12 text-blue-600 mb-4" />
+              <p className="text-lg font-bold text-gray-600 animate-pulse">
+                Generando vista previa...
+              </p>
+              <p className="text-sm text-gray-400 mt-2">
+                Esto puede tomar unos segundos
+              </p>
             </div>
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
-              <p className="text-red-600">{error}</p>
+            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 mb-8 flex items-start space-x-4 shadow-sm">
+              <div className="bg-red-100 p-2 rounded-lg">
+                <X className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-red-800 font-bold mb-1">Hubo un problema</p>
+                <p className="text-red-600 text-sm">{error}</p>
+              </div>
             </div>
           )}
 
-          {(showCarnet ? carnetPreviewUrl : previewUrl) &&
-            !(isGenerating || (showCarnet && isGeneratingCarnet)) &&
+          {!isGenerating &&
+            !isGeneratingCarnet &&
+            !isGeneratingDocuments &&
             !error && (
-              <div className="space-y-4">
-                <div className="text-sm text-gray-600">
-                  <p>
-                    Vista previa de:{" "}
-                    <strong>{showCarnet ? "Carnet" : "Certificado"}</strong>
-                  </p>
-                  <p>
-                    Para:{" "}
-                    <strong>
-                      {
-                        certificateData.participants[selectedParticipantIndex]
-                          ?.name
-                      }
-                    </strong>
-                  </p>
-                  <p className="text-blue-600">
-                    {certificateData.participants[selectedParticipantIndex]
-                      ?.nationality === "extranjero"
-                      ? "Pasaporte"
-                      : "Cédula"}
-                    :{" "}
-                    {
-                      certificateData.participants[selectedParticipantIndex]
-                        ?.idNumber
-                    }
-                  </p>
-                  {certificateData.horas_estimadas && (
-                    <p className="text-blue-600">
-                      Duración del curso: {certificateData.horas_estimadas}{" "}
-                      horas
-                    </p>
-                  )}
-                  {certificateData.participants.length > 1 && (
-                    <p className="text-green-600">
-                      Mostrando vista previa del participante{" "}
-                      {selectedParticipantIndex + 1} de{" "}
-                      {certificateData.participants.length}
-                    </p>
-                  )}
-                </div>
-
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <object
-                    data={showCarnet ? carnetPreviewUrl : previewUrl}
-                    type="application/pdf"
-                    className={`w-full ${showCarnet ? "h-[300px]" : "h-[400px]"}`}
-                    aria-label={`${showCarnet ? "Carnet" : "Certificate"} Preview`}
-                  >
-                    <div className="p-4 text-sm text-gray-600 text-center">
-                      <p className="mb-2">
-                        No se puede mostrar la vista previa del PDF en este
-                        navegador.
-                      </p>
-                      <a
-                        href={showCarnet ? carnetPreviewUrl : previewUrl}
-                        download={`${showCarnet ? "carnet" : "certificado"}-preview.pdf`}
-                        className="text-blue-600 underline"
-                      >
-                        Descargar PDF para visualizar
-                      </a>
-                    </div>
-                  </object>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <div className="text-sm text-gray-500">
-                    {certificateData.participants.length > 1 && (
-                      <p>
-                        Puedes seleccionar cualquier participante para
-                        previsualizar su certificado
-                      </p>
+              <div className="space-y-6">
+                {activeTab === "documents" ? (
+                  <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-inner min-h-[600px] flex flex-col">
+                    {documentsPreviewHtml[selectedDocType] ? (
+                      <iframe
+                        srcDoc={documentsPreviewHtml[selectedDocType]}
+                        className="w-full flex-grow border-none"
+                        title="Document Preview"
+                        style={{ height: "600px" }}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center flex-grow py-32 text-gray-500">
+                        <FileText className="h-16 w-12 text-gray-200 mb-4" />
+                        <p className="text-lg font-bold">Sin vista previa</p>
+                        <p className="text-sm text-gray-400">
+                          Selecciona otro tipo de documento
+                        </p>
+                      </div>
                     )}
                   </div>
-                  <div className="flex space-x-3">
-                    {certificateData.participants.length > 1 && (
-                      <button
-                        onClick={() =>
-                          setSelectedParticipantIndex((prev) =>
-                            prev === certificateData.participants.length - 1
-                              ? 0
-                              : prev + 1,
-                          )
-                        }
-                        className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm"
-                      >
-                        Siguiente Participante →
-                      </button>
-                    )}
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                      <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col space-y-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          Documento
+                        </p>
+                        <p className="text-lg font-black text-blue-600">
+                          {activeTab === "carnet" ? "Carnet" : "Certificado"}
+                        </p>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col space-y-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          Participante
+                        </p>
+                        <p className="text-lg font-black text-gray-800 truncate">
+                          {
+                            certificateData.participants[
+                              selectedParticipantIndex
+                            ]?.name
+                          }
+                        </p>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col space-y-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          Identificación
+                        </p>
+                        <p className="text-lg font-black text-gray-800">
+                          <span className="text-blue-500 mr-1">
+                            {certificateData.participants[
+                              selectedParticipantIndex
+                            ]?.nationality === "extranjero"
+                              ? "E-"
+                              : "V-"}
+                          </span>
+                          {
+                            certificateData.participants[
+                              selectedParticipantIndex
+                            ]?.idNumber
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="border border-gray-200 rounded-2xl overflow-hidden bg-gray-50 shadow-inner p-4">
+                      {(() => {
+                        const url =
+                          activeTab === "carnet"
+                            ? carnetPreviewUrl
+                            : previewUrl;
+                        if (!url)
+                          return (
+                            <div className="flex flex-col items-center justify-center py-40 text-gray-400">
+                              <RefreshCw className="animate-spin h-10 w-10 mb-4 text-blue-200" />
+                              <p className="font-bold">
+                                Preparando vista previa...
+                              </p>
+                            </div>
+                          );
+
+                        return (
+                          <object
+                            data={url}
+                            type="application/pdf"
+                            className={`w-full rounded-lg ${activeTab === "carnet" ? "h-[350px]" : "h-[550px]"}`}
+                            aria-label={`${activeTab === "carnet" ? "Carnet" : "Certificate"} Preview`}
+                          >
+                            <div className="p-20 text-gray-500 text-center bg-white rounded-lg border-2 border-dashed border-gray-100">
+                              <FileText className="mx-auto h-16 w-12 text-gray-100 mb-6" />
+                              <p className="text-lg font-bold mb-3">
+                                La visualización no es compatible
+                              </p>
+                              <p className="text-sm text-gray-400 mb-8 max-w-sm mx-auto">
+                                Tu navegador no puede mostrar el PDF
+                                directamente en esta ventana.
+                              </p>
+                              <a
+                                href={url}
+                                download={`${activeTab === "carnet" ? "carnet" : "certificado"}-preview.pdf`}
+                                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all hover:translate-y-[-2px] active:translate-y-0"
+                              >
+                                Descargar PDF para ver
+                              </a>
+                            </div>
+                          </object>
+                        );
+                      })()}
+                    </div>
+                  </>
+                )}
+
+                <div className="flex flex-col md:flex-row justify-between items-center bg-gray-50 p-6 rounded-2xl gap-6 mt-8 border border-gray-200/50">
+                  <div className="text-gray-500 flex items-center">
+                    {activeTab !== "documents" &&
+                    certificateData.participants.length > 1 ? (
+                      <>
+                        <ChevronRight className="w-5 h-5 text-blue-400 mr-2" />
+                        <p className="text-sm font-medium italic">
+                          Puedes navegar entre participantes usando el selector
+                          superior o el botón siguiente
+                        </p>
+                      </>
+                    ) : activeTab === "documents" ? (
+                      <>
+                        <ChevronRight className="w-5 h-5 text-blue-400 mr-2" />
+                        <p className="text-sm font-medium italic">
+                          Esta vista previa incluye todos los participantes del
+                          curso para esta OSI
+                        </p>
+                      </>
+                    ) : null}
+                  </div>
+                  <div className="flex space-x-4 w-full md:w-auto">
+                    {activeTab !== "documents" &&
+                      certificateData.participants.length > 1 && (
+                        <button
+                          onClick={() =>
+                            setSelectedParticipantIndex((prev) =>
+                              prev === certificateData.participants.length - 1
+                                ? 0
+                                : prev + 1,
+                            )
+                          }
+                          className="flex-1 md:flex-none px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-all active:scale-95"
+                        >
+                          Siguiente Participante →
+                        </button>
+                      )}
                     <button
                       onClick={
-                        showCarnet ? generateCarnetPreview : generatePreview
+                        activeTab === "carnet"
+                          ? generateCarnetPreview
+                          : activeTab === "documents"
+                            ? generateDocumentsPreview
+                            : generatePreview
                       }
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                      className="flex-1 md:flex-none px-8 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all hover:scale-105 active:scale-95"
                     >
                       Actualizar Vista Previa
                     </button>

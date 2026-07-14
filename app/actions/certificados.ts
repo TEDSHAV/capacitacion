@@ -1199,9 +1199,66 @@ function generateContentSnapshotWithControlNumbers(
 }
 
 /**
+ * Get previous participants for an OSI and course
+ */
+export async function getPreviousParticipantsByOSIAction(
+  nro_osi: number,
+  courseId: number,
+) {
+  try {
+    const supabase = await createClient();
 
+    const { data, error } = await supabase
+      .from("certificados")
+      .select(
+        `
+        calificacion,
+        nro_control,
+        participantes_certificados!inner (
+          nombre,
+          cedula,
+          nacionalidad
+        )
+      `,
+      )
+      .eq("nro_osi", nro_osi)
+      .eq("id_curso", courseId)
+      .eq("is_active", true)
+      .order("nro_control", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching previous participants:", error);
+      return { success: false, message: error.message };
+    }
+
+    const participants = (data || []).map((cert: any) => ({
+      participant_name: cert.participantes_certificados?.nombre || "",
+      participant_id_number: cert.participantes_certificados?.cedula || "",
+      participant_id_type: cert.participantes_certificados?.cedula?.startsWith(
+        "E",
+      )
+        ? "E-"
+        : "V-",
+      participant_nationality: cert.participantes_certificados?.nacionalidad,
+      score: cert.calificacion || 0,
+      control_number: cert.nro_control?.toString() || "",
+    }));
+
+    return { success: true, data: participants };
+  } catch (error) {
+    console.error(
+      "Unexpected error in getPreviousParticipantsByOSIAction:",
+      error,
+    );
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
  * Get available certificate templates
-
  */
 
 export async function getCertificateTemplates(): Promise<

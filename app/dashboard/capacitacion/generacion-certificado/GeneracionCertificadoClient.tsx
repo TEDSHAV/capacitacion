@@ -16,6 +16,7 @@ import { CarnetDebug } from "@/components/carnets/carnet-debug";
 import {
   saveCertificatesToDatabase,
   updateCertificateAction,
+  getPreviousParticipantsByOSIAction,
 } from "@/app/actions/certificados";
 import {
   getCarnetTemplatesAction,
@@ -790,8 +791,72 @@ export default function GeneracionCertificadoClient({
       const additionalDocsPromise = certificateData.generate_documents
         ? (async () => {
             try {
+              // 🔍 FETCH PREVIOUS PARTICIPANTS FOR THIS OSI AND COURSE
+              let allParticipants = [...certificateRecords];
+
+              if (selectedOSI?.nro_osi && selectedCourseTopic?.id) {
+                const nroOsiNum = parseInt(
+                  selectedOSI.nro_osi.replace(/[^\d]/g, ""),
+                );
+                const courseIdNum = parseInt(selectedCourseTopic.id);
+
+                if (!isNaN(nroOsiNum) && !isNaN(courseIdNum)) {
+                  const previousResult =
+                    await getPreviousParticipantsByOSIAction(
+                      nroOsiNum,
+                      courseIdNum,
+                    );
+
+                  if (
+                    previousResult.success &&
+                    previousResult.data &&
+                    previousResult.data.length > 0
+                  ) {
+                    console.log(
+                      `Merging ${previousResult.data.length} previous participants into additional documents`,
+                    );
+
+                    // Filter out any duplicates if the user is regenerating someone in the current batch
+                    const existingCidNumbers = new Set(
+                      certificateRecords.map((r) => r.participant_id_number),
+                    );
+
+                    // Enrich previous participants with common data needed for documents
+                    const enrichedPrevious = previousResult.data
+                      .filter(
+                        (p: any) =>
+                          !existingCidNumbers.has(p.participant_id_number),
+                      )
+                      .map((p: any) => ({
+                        ...p,
+                        course_title: certificateData.certificate_title,
+                        company_name: selectedOSI?.cliente_nombre_empresa || "",
+                        osi_number: selectedOSI?.nro_osi || "",
+                        city: certificateData.location || "Puerto La Cruz",
+                        location: certificateData.location || "",
+                        execution_address:
+                          selectedOSI?.direccion_ejecucion || "",
+                        execution_date: certificateData.date,
+                      }));
+
+                    // Combine lists
+                    allParticipants = [
+                      ...enrichedPrevious,
+                      ...certificateRecords,
+                    ];
+
+                    // Sort by control number to keep them in order
+                    allParticipants.sort((a, b) => {
+                      const numA = parseInt(a.control_number || "0");
+                      const numB = parseInt(b.control_number || "0");
+                      return numA - numB;
+                    });
+                  }
+                }
+              }
+
               const result = await generateDocumentsServer({
-                certificates: certificateRecords,
+                certificates: allParticipants,
                 osiData: selectedOSI || {},
                 firmanteData: {
                   nombre: "DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.",

@@ -15,6 +15,7 @@ export interface TemplateParticipant {
 
 export interface TemplateData {
   fecha: string;
+  fecha_hoy?: string;
   nombre_cliente: string;
   titulo_curso: string;
   ciudad: string;
