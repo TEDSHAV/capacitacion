@@ -116,16 +116,14 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
           <div className={`flex items-center justify-center ${
             isCollapsed ? '' : 'flex-1'
           }`}>
-            <div className={`relative overflow-hidden transition-all duration-300 ${
-              isCollapsed ? 'w-[32px] h-[32px]' : 'w-[80px] h-[80px]'
-            }`}>
+            <div className={`relative overflow-hidden transition-all duration-300 w-[32px] h-[32px]`}>
               <Image 
-                src={isCollapsed ? "/favicon.ico" : "/logo-dark-theme.png"} 
+                src="/favicon.ico" 
                 alt="Logo de SHA de Venezuela" 
                 fill
                 className="object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
                 onClick={() => router.push('/dashboard')}
-                sizes={isCollapsed ? "32px" : "80px"}
+                sizes="32px"
               />
             </div>
           </div>
