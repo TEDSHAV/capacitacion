@@ -461,27 +461,24 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       font-size: 13px;
       margin-bottom: 20px;
       margin-top: 15px;
-      text-align: justify;
-      text-justify: inter-word;
+      text-align: center;
     }
 
     .signature-name {
       font-weight: bold;
       font-size: 13px;
       margin-bottom: 5px;
-      text-align: justify;
-      text-justify: inter-word;
+      text-align: center;
     }
 
     .signature-cargo {
       font-size: 13px;
-      text-align: justify;
-      text-justify: inter-word;
+      text-align: center;
     }
 
     .footer {
       page-break-inside: avoid;
-      padding-top: 10px;
+      padding-top: 30px;
       margin-top: auto;
       flex-shrink: 0;
     }
@@ -994,7 +991,9 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
           ? `
       <div class="signature-block ${signatureClass}">
         <div class="signature-text">Atentamente,</div>
-        <div class="signature-name">REPRESENTANTE SHA</div>
+        <div class="signature-dept">DPTO. CAPACITACIÓN / SHA DE VENEZUELA, C.A.</div>
+        <div class="signature-name">[NOMBRE Y APELLIDO]</div>
+        <div class="signature-cargo">[CARGO]</div>
       </div>
       `
           : ""
@@ -1213,7 +1212,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     }
 
     .signature-block {
-      text-align: center;
+      text-align: left;
       page-break-inside: avoid;
       margin-bottom: 30px;
     }
@@ -1232,15 +1231,29 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
       margin-bottom: 20px;
     }
 
+    .signature-dept {
+      font-weight: bold;
+      font-size: 13px;
+      margin-bottom: 20px;
+      margin-top: 15px;
+      text-align: center;
+    }
+
     .signature-name {
       font-weight: bold;
       font-size: 13px;
-      margin-top: 15px;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+
+    .signature-cargo {
+      font-size: 13px;
+      text-align: center;
     }
 
     .footer {
       page-break-inside: avoid;
-      padding-top: 10px;
+      padding-top: 30px;
       margin-top: auto;
       flex-shrink: 0;
     }
