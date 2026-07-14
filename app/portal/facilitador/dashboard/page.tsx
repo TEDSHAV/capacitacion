@@ -86,10 +86,17 @@ export default async function FacilitadorDashboardPage() {
                   <div className="flex items-center gap-4">
                     <div className="text-right hidden sm:block">
                       <p className="text-xs text-gray-400 uppercase font-bold tracking-tight">Estado</p>
-                      <div className="flex items-center gap-1 text-amber-600 font-medium">
-                        <Clock className="w-4 h-4" />
-                        <span>Pendiente Datos</span>
-                      </div>
+                      {osi.participant_status === "final" ? (
+                        <div className="flex items-center gap-1 text-green-600 font-medium">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Listado Enviado</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-amber-600 font-medium">
+                          <Clock className="w-4 h-4" />
+                          <span>Pendiente Datos</span>
+                        </div>
+                      )}
                     </div>
                     <ChevronRight className="w-6 h-6 text-gray-300 group-hover:text-blue-600 transition-colors" />
                   </div>

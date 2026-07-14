@@ -165,7 +165,32 @@ export async function getAssignedOSIs(facilitadorId: number) {
     return { error: error.message };
   }
 
-  return { data };
+  // Fetch participant submission status for each OSI
+  let enrichedData = data || [];
+  if (allOsiIds.length > 0) {
+    const { data: participantsData } = await supabase
+      .from("ejecucion_osi_participantes")
+      .select("osi_id, status")
+      .in("osi_id", allOsiIds);
+
+    if (participantsData && participantsData.length > 0) {
+      const osiStatusMap = new Map<number, string>();
+      for (const p of participantsData) {
+        const current = osiStatusMap.get(p.osi_id);
+        if (p.status === "final") {
+          osiStatusMap.set(p.osi_id, "final");
+        } else if (current !== "final") {
+          osiStatusMap.set(p.osi_id, "draft");
+        }
+      }
+      enrichedData = enrichedData.map((osi: any) => ({
+        ...osi,
+        participant_status: osiStatusMap.get(osi.id_osi) || null,
+      }));
+    }
+  }
+
+  return { data: enrichedData };
 }
 
 export async function getOSIParticipants(osiId: number, facilitadorId?: number): Promise<{ data?: any[]; error?: string }> {
@@ -243,6 +268,7 @@ export async function saveParticipants(
     return { error: error.message };
   }
 
+  revalidatePath("/portal/facilitador/dashboard");
   return { success: true };
 }
 
