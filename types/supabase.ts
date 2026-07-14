@@ -1482,9 +1482,14 @@ export type Database = {
         Row: {
           activo: boolean
           created_at: string
+          dia_cierre_semanal: number
           factor_meta_presupuesto: number
           factor_meta_venta: number
+          hora_cierre_anual: string
+          hora_cierre_mensual: string
           hora_cierre_semanal: string
+          hora_cierre_semestral: string
+          hora_cierre_trimestral: string
           id: number
           porcentaje_aprobacion_meta: number
           updated_at: string
@@ -1493,9 +1498,14 @@ export type Database = {
         Insert: {
           activo?: boolean
           created_at?: string
+          dia_cierre_semanal?: number
           factor_meta_presupuesto?: number
           factor_meta_venta?: number
+          hora_cierre_anual?: string
+          hora_cierre_mensual?: string
           hora_cierre_semanal?: string
+          hora_cierre_semestral?: string
+          hora_cierre_trimestral?: string
           id?: number
           porcentaje_aprobacion_meta?: number
           updated_at?: string
@@ -1504,15 +1514,58 @@ export type Database = {
         Update: {
           activo?: boolean
           created_at?: string
+          dia_cierre_semanal?: number
           factor_meta_presupuesto?: number
           factor_meta_venta?: number
+          hora_cierre_anual?: string
+          hora_cierre_mensual?: string
           hora_cierre_semanal?: string
+          hora_cierre_semestral?: string
+          hora_cierre_trimestral?: string
           id?: number
           porcentaje_aprobacion_meta?: number
           updated_at?: string
           zona_horaria?: string
         }
         Relationships: []
+      }
+      dashboard_cierres_log: {
+        Row: {
+          accion: string
+          detalle: string | null
+          ejecutado_at: string
+          ejecutado_por: number | null
+          id: number
+          periodo_id: number
+          version: number
+        }
+        Insert: {
+          accion: string
+          detalle?: string | null
+          ejecutado_at?: string
+          ejecutado_por?: number | null
+          id?: number
+          periodo_id: number
+          version?: number
+        }
+        Update: {
+          accion?: string
+          detalle?: string | null
+          ejecutado_at?: string
+          ejecutado_por?: number | null
+          id?: number
+          periodo_id?: number
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_cierres_log_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_periodos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dashboard_metas_auditoria: {
         Row: {
@@ -1614,6 +1667,7 @@ export type Database = {
         Row: {
           cerrado_at: string | null
           cerrado_por: number | null
+          cierre_programado_activo: boolean
           created_at: string
           estado: string
           etiqueta: string
@@ -1623,10 +1677,12 @@ export type Database = {
           id: number
           tipo: string
           updated_at: string
+          version: number
         }
         Insert: {
           cerrado_at?: string | null
           cerrado_por?: number | null
+          cierre_programado_activo?: boolean
           created_at?: string
           estado?: string
           etiqueta: string
@@ -1636,10 +1692,12 @@ export type Database = {
           id?: number
           tipo: string
           updated_at?: string
+          version?: number
         }
         Update: {
           cerrado_at?: string | null
           cerrado_por?: number | null
+          cierre_programado_activo?: boolean
           created_at?: string
           estado?: string
           etiqueta?: string
@@ -1649,6 +1707,7 @@ export type Database = {
           id?: number
           tipo?: string
           updated_at?: string
+          version?: number
         }
         Relationships: []
       }
@@ -1762,6 +1821,59 @@ export type Database = {
             foreignKeyName: "dashboard_snapshot_global_periodo_id_fkey"
             columns: ["periodo_id"]
             isOneToOne: true
+            referencedRelation: "dashboard_periodos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dashboard_snapshot_series: {
+        Row: {
+          aprobacion_acum: number
+          cantidad_aprobados_acum: number
+          cantidad_presupuestos_validos_acum: number
+          ejecutivo_id: number
+          fecha_fin_bucket: string
+          label: string
+          meta_presupuesto_acum: number
+          meta_venta_acum: number
+          monto_aprobado_acum: number
+          monto_presupuestado_acum: number
+          periodo_id: number
+          scope: string
+        }
+        Insert: {
+          aprobacion_acum?: number
+          cantidad_aprobados_acum?: number
+          cantidad_presupuestos_validos_acum?: number
+          ejecutivo_id?: number
+          fecha_fin_bucket: string
+          label: string
+          meta_presupuesto_acum?: number
+          meta_venta_acum?: number
+          monto_aprobado_acum?: number
+          monto_presupuestado_acum?: number
+          periodo_id: number
+          scope: string
+        }
+        Update: {
+          aprobacion_acum?: number
+          cantidad_aprobados_acum?: number
+          cantidad_presupuestos_validos_acum?: number
+          ejecutivo_id?: number
+          fecha_fin_bucket?: string
+          label?: string
+          meta_presupuesto_acum?: number
+          meta_venta_acum?: number
+          monto_aprobado_acum?: number
+          monto_presupuestado_acum?: number
+          periodo_id?: number
+          scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_snapshot_series_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
             referencedRelation: "dashboard_periodos"
             referencedColumns: ["id"]
           },
@@ -6108,6 +6220,18 @@ export type Database = {
           meta_venta_mensual: number
         }[]
       }
+      fn_dashboard_bucket_ends: {
+        Args: {
+          p_fecha_corte?: string
+          p_fin: string
+          p_inicio: string
+          p_periodo_tipo: string
+        }
+        Returns: {
+          fecha_fin_bucket: string
+          label: string
+        }[]
+      }
       fn_dias_habiles_mes: { Args: { p_mes: string }; Returns: number }
       fn_dias_habiles_rango: {
         Args: { p_fin: string; p_inicio: string }
@@ -6520,12 +6644,15 @@ export type Database = {
           brecha: number
           cantidad_aprobados: number
           cantidad_presupuestos_validos: number
+          cumplimiento_operativo_pct: number
           cumplimiento_pct: number
           es_parcial: boolean
           estado_periodo: string
           fecha_corte_efectiva: string
           fecha_fin: string
           fecha_inicio: string
+          logrado_operativo: number
+          meta_operativa: number
           meta_presupuesto: number
           monto_aprobado: number
           periodo_id: number
@@ -6535,6 +6662,10 @@ export type Database = {
         }[]
       }
       sp_register_dashboard_close_jobs: { Args: never; Returns: undefined }
+      sp_set_cierre_programado_periodo: {
+        Args: { p_activo: boolean; p_periodo_id: number; p_usuario_id?: number }
+        Returns: undefined
+      }
       sp_sync_meta_mensual_ecc: {
         Args: { p_anio_mes: string; p_usuario_id?: number }
         Returns: undefined
