@@ -318,7 +318,7 @@ export class CarnetGenerator {
     const nameY = 42; // Below course info
     const upperCaseName = participant.name.toUpperCase();
     pdf.text(`Nombre: ${upperCaseName}`, 3, nameY - 10, {
-      maxWidth: 45,
+      maxWidth: 47,
     });
 
     // Add ID number (centered below name)
