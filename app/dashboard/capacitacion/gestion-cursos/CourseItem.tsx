@@ -55,13 +55,6 @@ export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: Cou
           </div>
         </div>
 
-        {/* Client */}
-        <div className="col-span-2">
-          <div className="text-sm text-gray-600 truncate">
-            {curso.empresas?.razon_social || 'Uso General'}
-          </div>
-        </div>
-
         {/* Duration */}
         <div className="col-span-2">
           <div className="text-sm font-medium text-gray-900">
@@ -77,7 +70,7 @@ export default function CourseItem({ curso, onEdit, onDelete, onDuplicate }: Cou
         </div>
 
         {/* Actions */}
-        <div className="col-span-2 flex justify-end" onClick={(e) => e.stopPropagation()}>
+        <div className="col-span-4 flex justify-end" onClick={(e) => e.stopPropagation()}>
           <CourseActions 
             curso={curso}
             onEdit={onEdit}

@@ -60,9 +60,6 @@ export interface Curso {
   is_active: boolean;
   nota_aprobatoria: number | null;
   emite_carnet: boolean | null;
-  empresas?: {
-    razon_social: string;
-  } | null;
 }
 
 export interface Servicio {

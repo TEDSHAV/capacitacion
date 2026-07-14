@@ -59,6 +59,12 @@ const getOptimizedCertificateData = cache(async () => {
       throw new Error(`Failed to load courses: ${coursesResult.error.message}`);
     }
 
+    // Handle signatures errors
+    if (signaturesResult.error) {
+      console.error('Signatures fetch error:', signaturesResult.error);
+      throw new Error(`Failed to load signatures: ${signaturesResult.error}`);
+    }
+
     console.log('🔍 Courses Debug:', {
       totalCourses: coursesResult.data?.length || 0,
       sampleCourses: coursesResult.data?.slice(0, 10) || [],

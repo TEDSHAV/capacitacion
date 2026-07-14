@@ -56,7 +56,31 @@ export default function GeneracionCertificadoClient({
   // Use initial data from server component
   const osis = initialData.osis || [];
   const courses = initialData.courses || [];
-  const error = initialData.error;
+  
+  // Comprehensive error handling to ensure we always have a string or null
+  const error = (() => {
+    if (!initialData.error) return null;
+    
+    // If it's already a string, return it
+    if (typeof initialData.error === 'string') return initialData.error;
+    
+    // If it's an object with a message property, return the message
+    if (initialData.error && typeof initialData.error === 'object' && 'message' in initialData.error) {
+      return initialData.error.message;
+    }
+    
+    // If it's an object with an error property, return that
+    if (initialData.error && typeof initialData.error === 'object' && 'error' in initialData.error) {
+      return typeof initialData.error.error === 'string' ? initialData.error.error : 'Error occurred';
+    }
+    
+    // Fallback: convert to string if possible, otherwise return generic error
+    try {
+      return String(initialData.error);
+    } catch {
+      return 'Error loading data';
+    }
+  })();
 
   // Load carnet templates
   useEffect(() => {
@@ -508,7 +532,7 @@ export default function GeneracionCertificadoClient({
                 Error al cargar los datos
               </h3>
               <div className="mt-2 text-sm text-red-700">
-                <p>{error}</p>
+                <p>{error || 'Error desconocido'}</p>
               </div>
             </div>
           </div>

@@ -23,7 +23,14 @@ export default async function GestionCursosPage() {
   const coursesResult = await getCursos();
   
   if (coursesResult.error) {
-    return { error: coursesResult.error };
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <h2 className="text-red-800 font-semibold">Error</h2>
+          <p className="text-red-600">{coursesResult.error}</p>
+        </div>
+      </div>
+    );
   }
 
   return (
