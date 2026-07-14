@@ -169,7 +169,7 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
         <Image src="/logo.png" alt="SHA Logo" width={150} height={50} priority />
         <div className="text-center md:text-right">
           <h1 className="text-xl font-bold text-gray-800">ENCUESTA DE SATISFACCIÓN</h1>
-          <p className="text-sm text-gray-500 uppercase tracking-wider">Código: SHA-RG-CAP-003</p>
+          {/* <p className="text-sm text-gray-500 uppercase tracking-wider">Código: SHA-RG-CAP-003</p> */}
         </div>
       </div>
 
