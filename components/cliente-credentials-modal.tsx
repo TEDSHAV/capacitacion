@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,8 @@ import {
   Building2,
   Power,
   Search,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   getClienteCompanies,
@@ -46,6 +48,12 @@ export const ClienteCredentialsModal = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [savedPassword, setSavedPassword] = useState("");
+  const [savedUsername, setSavedUsername] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // New credential form
   const [newUsername, setNewUsername] = useState("");
@@ -66,10 +74,25 @@ export const ClienteCredentialsModal = ({
     loadCompanies();
   }, []);
 
+  useEffect(() => {
+    if (highlightedIndex < 0 || !dropdownRef.current) return;
+    const container = dropdownRef.current;
+    const items = container.querySelectorAll("[data-company-item]");
+    const item = items[highlightedIndex] as HTMLElement | undefined;
+    if (item) {
+      item.scrollIntoView({ block: "nearest" });
+    }
+  }, [highlightedIndex]);
+
+  useEffect(() => {
+    if (showCompanyDropdown && dropdownRef.current) {
+      dropdownRef.current.focus();
+    }
+  }, [showCompanyDropdown]);
+
   const loadCredentials = useCallback(async (empresaId: number) => {
     setLoadingCreds(true);
     setError(null);
-    setSuccess(null);
     const { data, error } = await getClienteCredentials(empresaId);
     if (error) {
       setError(error);
@@ -83,6 +106,9 @@ export const ClienteCredentialsModal = ({
     setSelectedCompanyId(companyId);
     setShowCompanyDropdown(false);
     setCompanySearch("");
+    setHighlightedIndex(-1);
+    setSuccess(null);
+    setSavedPassword("");
     loadCredentials(companyId);
   };
 
@@ -108,10 +134,13 @@ export const ClienteCredentialsModal = ({
     if (result.error) {
       setError(result.error);
     } else {
+      setSavedUsername(newUsername);
+      setSavedPassword(newPassword);
       setSuccess("Credencial creada exitosamente");
       setNewUsername("");
       setNewPassword("");
       setNewDisplayName("");
+      setCopied(false);
       loadCredentials(selectedCompanyId);
     }
     setSaving(false);
@@ -124,6 +153,8 @@ export const ClienteCredentialsModal = ({
     if (result.error) {
       setError(result.error);
     } else if (selectedCompanyId) {
+      setSuccess(null);
+      setSavedPassword("");
       loadCredentials(selectedCompanyId);
     }
   };
@@ -135,9 +166,23 @@ export const ClienteCredentialsModal = ({
     if (result.error) {
       setError(result.error);
     } else if (selectedCompanyId) {
+      setSuccess(null);
+      setSavedPassword("");
       loadCredentials(selectedCompanyId);
     }
   };
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !showCompanyDropdown) {
+        setSavedPassword("");
+        setCopied(false);
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [showCompanyDropdown, onClose]);
 
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId);
   const filteredCompanies = companySearch
@@ -157,7 +202,11 @@ export const ClienteCredentialsModal = ({
             </h3>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => {
+              setSavedPassword("");
+              setCopied(false);
+              onClose();
+            }}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -190,17 +239,42 @@ export const ClienteCredentialsModal = ({
                 </div>
 
                 {showCompanyDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
+                  <div
+                    ref={dropdownRef}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setHighlightedIndex((prev) =>
+                          prev < filteredCompanies.length - 1 ? prev + 1 : 0,
+                        );
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setHighlightedIndex((prev) =>
+                          prev > 0 ? prev - 1 : filteredCompanies.length - 1,
+                        );
+                      } else if (e.key === "Enter" && highlightedIndex >= 0) {
+                        e.preventDefault();
+                        handleSelectCompany(filteredCompanies[highlightedIndex].id);
+                      } else if (e.key === "Escape") {
+                        setShowCompanyDropdown(false);
+                      }
+                    }}
+                    className="mt-1 w-full bg-white border border-gray-200 rounded-md shadow-md max-h-80 overflow-y-auto focus:outline-none"
+                  >
+                    <div className="p-2 border-b border-gray-100 bg-white">
                       <div className="relative">
                         <Search className="absolute left-2 top-2.5 w-4 h-4 text-gray-400" />
                         <input
+                          ref={searchInputRef}
                           type="text"
                           value={companySearch}
-                          onChange={(e) => setCompanySearch(e.target.value)}
+                          onChange={(e) => {
+                            setCompanySearch(e.target.value);
+                            setHighlightedIndex(-1);
+                          }}
                           placeholder="Buscar empresa..."
                           className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-blue-500"
-                          autoFocus
                         />
                       </div>
                     </div>
@@ -209,11 +283,16 @@ export const ClienteCredentialsModal = ({
                         No se encontraron empresas
                       </p>
                     ) : (
-                      filteredCompanies.map((company) => (
+                      filteredCompanies.map((company, index) => (
                         <div
                           key={company.id}
+                          data-company-item
                           onClick={() => handleSelectCompany(company.id)}
-                          className="px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-50 last:border-0"
+                          className={`px-3 py-2.5 cursor-pointer text-sm border-b border-gray-50 last:border-0 transition-colors ${
+                            index === highlightedIndex
+                              ? "bg-blue-100 ring-1 ring-inset ring-blue-300"
+                              : "hover:bg-gray-50"
+                          }`}
                         >
                           <p className="font-medium text-gray-900">
                             {company.razon_social}
@@ -366,9 +445,35 @@ export const ClienteCredentialsModal = ({
                   )}
 
                   {success && (
-                    <div className="p-3 bg-green-50 border border-green-100 rounded-md flex items-start gap-2 text-green-700 text-sm">
-                      <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-                      <span>{success}</span>
+                    <div className="space-y-3">
+                      <div className="p-3 bg-green-50 border border-green-100 rounded-md flex items-start gap-2 text-green-700 text-sm">
+                        <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                        <span>{success}</span>
+                      </div>
+                      {savedPassword && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const text = `Usuario: ${savedUsername}\nContraseña: ${savedPassword}\nURL: https://capacitacion.shadevenezuela.com.ve/portal/cliente/login`;
+                            await navigator.clipboard.writeText(text);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              ¡Copiado!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4" />
+                              Copiar credenciales
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -397,9 +502,17 @@ export const ClienteCredentialsModal = ({
         )}
 
         <div className="flex justify-end pt-4 mt-4 border-t border-gray-100">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <button
+            type="button"
+            onClick={() => {
+              setSavedPassword("");
+              setCopied(false);
+              onClose();
+            }}
+            className="px-5 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
             Cerrar
-          </Button>
+          </button>
         </div>
       </div>
     </div>

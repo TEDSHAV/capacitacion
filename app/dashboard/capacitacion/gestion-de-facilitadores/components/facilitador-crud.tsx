@@ -406,7 +406,7 @@ export const FacilitadorCrud = ({
                     <button
                       onClick={() => handleShowPortal(facilitador)}
                       className="bg-purple-600 text-white p-2 rounded-md hover:bg-purple-700 transition-colors shadow-sm"
-                      title="Credenciales Portal"
+                      title="Crear Credenciales para el Portal"
                     >
                       <Key className="w-4 h-4" />
                     </button>
