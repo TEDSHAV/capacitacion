@@ -1289,8 +1289,9 @@ export default function GeneracionCertificadoClient({
                     id_curso: certificateData.course_topic_data?.id
                       ? parseInt(certificateData.course_topic_data.id)
                       : null,
-                    id_osi: null,
+                    id_osi: selectedOSI?.id ? (typeof selectedOSI.id === 'string' ? parseInt(selectedOSI.id) : selectedOSI.id) : null,
                     titulo_curso: certificateData.certificate_title,
+                    subtitulo_curso: certificateData.certificate_subtitle || null,
                     fecha_emision: certificateData.date,
                     fecha_vencimiento:
                       certificateData.fecha_vencimiento || null,
