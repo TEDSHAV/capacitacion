@@ -83,8 +83,8 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       <td>${p.index}</td>
       <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
       <td class="text-center">${escapeHtml(p.cedula)}</td>
-      <td>${p.puntuacion || ""}</td>
-      <td>${p.condicion || ""}</td>
+      <td class="text-center">${p.puntuacion || ""}</td>
+      <td class="text-center">${p.condicion || ""}</td>
       <td class="text-center">${escapeHtml(p.numero_control)}</td>
     </tr>
   `,
@@ -102,8 +102,8 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       <td>${p.index}</td>
       <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
       <td class="text-center">${escapeHtml(p.cedula)}</td>
-      <td>${p.puntuacion || ""}</td>
-      <td>${p.condicion || ""}</td>
+      <td class="text-center">${p.puntuacion || ""}</td>
+      <td class="text-center">${p.condicion || ""}</td>
       <td class="text-center">${escapeHtml(p.numero_control)}</td>
     </tr>
   `,
@@ -121,8 +121,8 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       <td>${p.index}</td>
       <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
       <td class="text-center">${escapeHtml(p.cedula)}</td>
-      <td>${p.puntuacion || ""}</td>
-      <td>${p.condicion || ""}</td>
+      <td class="text-center">${p.puntuacion || ""}</td>
+      <td class="text-center">${p.condicion || ""}</td>
       <td class="text-center">${escapeHtml(p.numero_control)}</td>
     </tr>
   `,

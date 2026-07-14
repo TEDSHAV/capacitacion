@@ -1,5 +1,6 @@
 # Stage 1: Build native dependencies
 FROM node:22-bookworm-slim AS deps
+ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json* ./
@@ -7,6 +8,7 @@ RUN npm ci
 
 # Stage 2: Build Next.js
 FROM node:22-bookworm-slim AS builder
+ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
 # Install system dependencies needed for build-time optimizations (sharp, critters, etc)
@@ -25,6 +27,7 @@ RUN npm run build
 
 # Stage 3: Runner
 FROM node:22-bookworm-slim AS runner
+ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
 # 1. Install Playwright dependencies and system libraries
