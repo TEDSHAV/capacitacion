@@ -225,7 +225,12 @@ export class CertificatePage {
     sealImage?: string,
   ): Promise<void> {
     const { name } = participant;
-    const { certificate_title, certificate_subtitle, date } = certificateData;
+    const { certificate_title, date } = certificateData;
+
+    // Support both naming conventions for subtitle
+    const certificate_subtitle =
+      certificateData.certificate_subtitle ||
+      (certificateData as any).subtitulo_curso;
 
     // Calculate content layout
     const contentLayout = this.calculateContentLayout(

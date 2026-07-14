@@ -8,6 +8,7 @@ interface CertificateDetails {
   id: number;
   participantName: string;
   courseName: string;
+  courseSubtitle?: string;
   issueDate: string;
   expirationDate?: string;
   controlNumbers: ControlNumbers;
@@ -167,6 +168,11 @@ export default function CertificateVerificationPage() {
                   <p className="text-sm text-gray-900">
                     {certificate.courseName}
                   </p>
+                  {certificate.courseSubtitle && (
+                    <p className="text-xs text-gray-500 italic">
+                      {certificate.courseSubtitle}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500">

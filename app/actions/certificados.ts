@@ -565,7 +565,7 @@ export async function saveCertificatesToDatabase(
           id_osi: updatedCertificateData.osi_data?.id
             ? parseInt(updatedCertificateData.osi_data.id)
             : null,
-          titulo_curso: updatedCertificateData.course_topic_data?.nombre || "",
+          titulo_curso: updatedCertificateData.certificate_title || "",
           subtitulo_curso: updatedCertificateData.certificate_subtitle || null,
           fecha_emision: batchEmissionDate,
           fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
@@ -1872,6 +1872,7 @@ export async function updateCertificateAction(
             ? parseInt(certificateData.osi_data.id)
             : null,
           titulo_curso: certificateData.certificate_title || "",
+          subtitulo_curso: certificateData.certificate_subtitle || null,
           fecha_emision: certificateData.date || "",
           fecha_vencimiento: certificateData.fecha_vencimiento || null,
           nombre_participante: participant.name.toUpperCase(),

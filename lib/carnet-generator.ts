@@ -351,11 +351,14 @@ export class CarnetGenerator {
       maxWidth: 45 ,
     });
 
+    // Support both naming conventions for subtitle
+    const subtitle = carnetData.subtitulo_curso || (carnetData as any).certificate_subtitle;
+
     // Add optional subtitle
-    if (carnetData.subtitulo_curso) {
+    if (subtitle) {
       pdf.setFontSize(6);
       pdf.setFont("helvetica", "normal");
-      pdf.text(`${carnetData.subtitulo_curso}`, 40, courseY + 4, {
+      pdf.text(`${subtitle}`, 40, courseY + 4, {
         align: "center",
         maxWidth: 50,
       });

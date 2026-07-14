@@ -760,6 +760,7 @@ export default function GeneracionCertificadoClient({
           participant_id_type: participant.idType,
           participant_nationality: participant.nationality,
           course_title: certificateData.certificate_title,
+          course_subtitle: certificateData.certificate_subtitle,
           company_name: selectedOSI?.cliente_nombre_empresa || "",
           osi_number: selectedOSI?.nro_osi || "",
           city: certificateData.location || "Puerto La Cruz",

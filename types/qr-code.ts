@@ -30,6 +30,7 @@ export interface QRCodeVerificationData {
     id: number;
     participantName: string;
     courseName: string;
+    courseSubtitle?: string | null;
     issueDate: string;
     expirationDate?: string;
     controlNumbers: ControlNumbers;

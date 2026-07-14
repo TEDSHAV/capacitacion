@@ -139,6 +139,11 @@ export class QRService {
         certificate.cursos?.nombre ||
         "Unknown Course";
 
+      const courseSubtitle =
+        snapshot?.certificado_detalles?.subtitle ||
+        snapshot?.subtitulo_curso ||
+        null;
+
       const issueDate =
         snapshot?.certificado?.fecha_emision ||
         certificate.fecha_emision ||
@@ -181,6 +186,7 @@ export class QRService {
           id: certificate.id,
           participantName,
           courseName,
+          courseSubtitle,
           issueDate,
           expirationDate,
           controlNumbers,

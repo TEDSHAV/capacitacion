@@ -66,7 +66,10 @@ export async function GET(
       id: certificateId.toString(),
       certificate_title:
         snapshotData.certificado_detalles?.title || "Certificate",
-      certificate_subtitle: snapshotData.certificado_detalles?.subtitle,
+      certificate_subtitle:
+        snapshotData.certificado_detalles?.subtitle ||
+        snapshotData.subtitulo_curso ||
+        null,
       date:
         snapshotData.certificado_detalles?.date ||
         new Date().toISOString().split("T")[0],

@@ -6,7 +6,7 @@ Una aplicación web moderna para la gestión completa de capacitaciones, generac
 
 ### Gestión de Capacitaciones
 - **Administración de Cursos**: Creación y gestión de cursos con contenido, duración y notas de aprobación
-- **Gestión de OSI**: Orden de Servicio de Instrucción con relación directa a cursos
+- **Gestión de OSI**: Orden de Servicio Interna con relación directa a cursos
 - **Asignación de Facilitadores**: Gestión de instructores y su asignación a cursos/capacitaciones
 - **Control de Participantes**: Registro y seguimiento de participantes 
 
@@ -128,7 +128,7 @@ Visita [http://localhost:3000](http://localhost:3000) para ver la aplicación.
 ### Flujo de Trabajo Típico
 
 1. **Crear Cliente**: Registrar empresa cliente en el sistema
-2. **Generar OSI**: Crear Orden de Servicio de Instrucción
+2. **Generar OSI**: Crear Orden de Servicio Interna
 3. **Asignar Curso**: Seleccionar curso de la base de datos o crear nuevo
 4. **Registrar Participantes**: Agregar participantes al curso
 5. **Generar Certificados**: Emitir certificados con códigos QR

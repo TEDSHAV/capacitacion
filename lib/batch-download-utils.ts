@@ -69,7 +69,7 @@ export async function downloadBatchAction(
               },
               certificado_detalles: {
                 title: courseTitle,
-                subtitle: cert.subtitulo_curso || "",
+                subtitle: "",
               },
               osi: osiData,
               firmas: {
@@ -98,7 +98,11 @@ export async function downloadBatchAction(
         const certData = {
           ...snapshot.certificado_detalles,
           certificate_title: snapshot.certificado_detalles?.title || courseTitle,
-          certificate_subtitle: snapshot.certificado_detalles?.subtitle || cert.subtitulo_curso || "",
+          certificate_subtitle:
+            snapshot.certificado_detalles?.subtitle ||
+            snapshot.subtitulo_curso ||
+            snapshot.certificate_subtitle ||
+            "",
           course_topic_data: snapshot.curso || { name: courseTitle },
           osi_data: snapshot.osi || osiData,
           facilitator_data: snapshot.firmas?.facilitator_data || cert.facilitadores,
