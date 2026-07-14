@@ -103,7 +103,7 @@ const OSIForm = ({
       <h2 className="text-lg font-semibold text-gray-900 border-b pb-1">Información del Cliente</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Número de OSI *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Número de OSI</label>
           <input
             type="text"
             value={initialData?.nro_osi || ''}

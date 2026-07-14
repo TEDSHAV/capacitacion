@@ -66,6 +66,11 @@ export interface OSI {
   fecha_ejecucion3: Date | null
   fecha_ejecucion4: Date | null
   fecha_ejecucion5: Date | null
+  hora_ejecucion1: string | null
+  hora_ejecucion2: string | null
+  hora_ejecucion3: string | null
+  hora_ejecucion4: string | null
+  hora_ejecucion5: string | null
   participantes_max: number | null
   detalle_sesion: string | null
   certificado_impreso: boolean | null

@@ -45,6 +45,11 @@ export default function OSIDetailPage() {
     fecha_ejecucion3: null,
     fecha_ejecucion4: null,
     fecha_ejecucion5: null,
+    hora_ejecucion1: null,
+    hora_ejecucion2: null,
+    hora_ejecucion3: null,
+    hora_ejecucion4: null,
+    hora_ejecucion5: null,
     participantes_max: null,
     detalle_sesion: null,
     certificado_impreso: false,
@@ -254,7 +259,7 @@ export default function OSIDetailPage() {
   const updateFormData = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }))
     // Clear error when user starts typing in required fields
-    if (error && (field === 'nro_osi' || field === 'tipo_servicio')) {
+    if (error && field === 'tipo_servicio') {
       setError(null)
     }
   }
@@ -325,15 +330,7 @@ export default function OSIDetailPage() {
     
     try {
       // Validation for required fields
-      if (!formData.nro_osi?.trim()) {
-        errorDialog.showError(
-          'El número de OSI es requerido',
-          'Por favor, ingrese un número de OSI válido.',
-          'Error de Validación'
-        )
-        setIsLoading(false)
-        return
-      }
+      // Note: nro_osi is no longer required as Supabase will auto-generate it
       if (!formData.tipo_servicio?.trim()) {
         errorDialog.showError(
           'El tipo de servicio es requerido',
@@ -365,6 +362,11 @@ export default function OSIDetailPage() {
         fecha_ejecucion3: formData.fecha_ejecucion3 ? new Date(formData.fecha_ejecucion3) : null,
         fecha_ejecucion4: formData.fecha_ejecucion4 ? new Date(formData.fecha_ejecucion4) : null,
         fecha_ejecucion5: formData.fecha_ejecucion5 ? new Date(formData.fecha_ejecucion5) : null,
+        hora_ejecucion1: formData.hora_ejecucion1?.trim() || null,
+        hora_ejecucion2: formData.hora_ejecucion2?.trim() || null,
+        hora_ejecucion3: formData.hora_ejecucion3?.trim() || null,
+        hora_ejecucion4: formData.hora_ejecucion4?.trim() || null,
+        hora_ejecucion5: formData.hora_ejecucion5?.trim() || null,
         participantes_max: Number(formData.participantes_max) || null,
         certificado_impreso: Boolean(formData.certificado_impreso),
         carnet_impreso: Boolean(formData.carnet_impreso),
@@ -592,6 +594,11 @@ export default function OSIDetailPage() {
         fecha_ejecucion3: null,
         fecha_ejecucion4: null,
         fecha_ejecucion5: null,
+        hora_ejecucion1: null,
+        hora_ejecucion2: null,
+        hora_ejecucion3: null,
+        hora_ejecucion4: null,
+        hora_ejecucion5: null,
         participantes_max: null,
         detalle_sesion: '',
         certificado_impreso: true, // Default to true

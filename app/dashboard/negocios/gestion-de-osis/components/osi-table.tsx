@@ -40,7 +40,7 @@ export default function OSITable({ osis, onOSIClick, getStatusColor }: OSITableP
                     osi.estado === 'pendiente' ? 'bg-yellow-500' : 'bg-gray-500'
                   }`}></div>
                   <div>
-                    <div className="text-sm font-medium text-gray-900">OSI-{osi.nro_osi}</div>
+                    <div className="text-sm font-medium text-gray-900">{osi.nro_osi}</div>
                     {osi.nro_presupuesto && (
                       <div className="text-xs text-gray-500">Presupuesto: {osi.nro_presupuesto}</div>
                     )}
