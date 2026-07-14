@@ -11,17 +11,10 @@ export default function OSISearch({ osis, selectedOSI, onSelect, matchedCourse, 
   const dropdownRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Helper function to find matching course for any OSI
+  // id_curso is id_servicio from v_osi_formato_completo — direct match against catalogo_servicios.id
   const findMatchingCourse = (osi: CertificateOSI): CourseTopic | null => {
-    if (!allCourses) return null
-    
-    // If OSI has id_curso, use exact match
-    if (osi.id_curso) {
-      return allCourses.find(course => course.id === osi.id_curso!.toString()) || null
-    }
-    
-    // Fallback to matching by curso_nombre
-    return allCourses.find(course => course.name === osi.curso_nombre) || null
+    if (!allCourses || !osi.id_curso) return null
+    return allCourses.find(course => course.id === osi.id_curso!.toString()) || null
   }
 
   const filteredOSIs = osis.filter(osi => 

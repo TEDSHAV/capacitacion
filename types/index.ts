@@ -147,7 +147,8 @@ export interface State {
 }
 
 export interface CourseTopic {
-  id: string;
+  id: string;          // catalogo_servicios.id — used for OSI course matching
+  cursos_id?: number | null; // cursos.id — required for FK constraints on certificados & carnets
   nombre: string;
   name: string; // Alias for nombre for compatibility
   description?: string;
@@ -566,32 +567,31 @@ export interface CertificateData {
   certificateId: string;
 }
 
-// Simplified OSI type for certificate generation
+// Simplified OSI type for certificate generation (sourced from v_osi_formato_completo)
 export interface CertificateOSI {
   id: string;
   nro_osi: string;
-  nro_orden_compra?: string;
   tipo_servicio: string;
-  nro_presupuesto?: string;
-  ejecutivo_negocios: number;
+  nro_presupuesto?: number | null;
+  ejecutivo_negocios?: string | null; // Full name from view (ejecutivo.nombre_apellido)
   cliente_nombre_empresa: string;
-  id_curso: number | null;
+  id_curso: number | null; // Not in ECC chain; populated via name match fallback
+  id_servicio?: number | null; // catalogo_servicios.id from the view
   fecha_servicio?: string;
   empresa_id: number;
   direccion_fiscal?: string;
   direccion_envio?: string;
   direccion_ejecucion?: string;
-  nro_sesiones?: number;
+  nro_sesiones?: number | null;
   fecha_ejecucion1?: string;
   fecha_ejecucion2?: string;
   fecha_emision?: string;
-  nro_horas?: number;
-  costo_total?: number;
+  nro_horas?: number | null;
   detalle_capacitacion?: string;
   detalle_sesion?: string;
-  codigo_cliente?: number;
+  codigo_cliente?: number | null;
   is_active: boolean;
-  curso_nombre?: string; // Added course name from join
+  curso_nombre?: string; // Mapped from v_osi_formato_completo.servicio (catalogo_servicios.nombre)
   tema?: string | null;
 }
 
@@ -1015,8 +1015,8 @@ export interface CarnetGeneration {
   id_certificado: number;
   id_participante: number; // Back to number since we use proper sequential IDs
   id_empresa: number | null;
-  id_curso: number;
-  id_osi: number;
+  id_curso: number | null;
+  id_osi: number | null;
   titulo_curso: string;
   fecha_emision: string;
   fecha_vencimiento: string | null;

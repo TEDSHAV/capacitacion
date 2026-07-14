@@ -123,9 +123,9 @@ export default function GeneracionCertificadoClient({
       }));
       setSelectedCourseTopic(null);
 
-      // Find exact course by id_curso if available
+      // id_curso is id_servicio from v_osi_formato_completo — direct match against catalogo_servicios.id
       let selectedCourse: CourseTopic | null = null;
-      
+
       if (osi.id_curso) {
         selectedCourse = courses.find(
           (topic: CourseTopic) => topic.id === osi.id_curso!.toString()
@@ -297,8 +297,8 @@ export default function GeneracionCertificadoClient({
               id_certificado: dbResult.certificateIds![index],
               id_participante: dbResult.participantIds?.[index] || 0, // Use REAL database ID
               id_empresa: selectedOSI?.empresa_id || null,
-              id_curso: parseInt(certificateData.course_topic_id),
-              id_osi: parseInt(certificateData.osi_id),
+              id_curso: certificateData.course_topic_data?.cursos_id ?? null, // FK → cursos; cursos_id holds the real cursos.id
+              id_osi: null, // nro_osi is the reference; stored in snapshot_contenido. carnets.id_osi FK → osi not applicable here.
               titulo_curso: certificateData.certificate_title,
               fecha_emision: certificateData.date,
               fecha_vencimiento: certificateData.fecha_vencimiento || null,

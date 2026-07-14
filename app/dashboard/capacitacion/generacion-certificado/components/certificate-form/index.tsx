@@ -100,7 +100,8 @@ export const CertificateForm = ({
   useEffect(() => {
     const loadCourseTemplates = async () => {
       try {
-        const courseId = selectedCourseTopic?.id;
+        // Use cursos_id (cursos.id) not id (catalogo_servicios.id) — plantillas_cursos.id_curso FK → cursos
+        const courseId = selectedCourseTopic?.cursos_id?.toString();
         
         const templatesResult = await getCourseTemplatesByOSIAction(courseId);
         if (templatesResult.data) {
@@ -355,17 +356,17 @@ export const CertificateForm = ({
         </p>
       </div>
 
-      {/* Course Content (Editable) */}
-      {certificateData.course_content && (
+      {/* Course Content (Editable) — always shown when a course is selected */}
+      {selectedCourseTopic && (
         <div className="mb-4">
           <label
             htmlFor="course_content"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
             Contenido del Curso
-            {certificateData.course_template_id && (
+            {certificateData.course_template_id && certificateData.course_template_id !== 'original-course' && (
               <span className="ml-2 text-xs text-blue-600">
-                (Desde plantilla: {courseTemplates.find((t: any) => t.id === certificateData.course_template_id)?.descripcion})
+                (Desde plantilla: {courseTemplates.find((t: any) => t.id.toString() === certificateData.course_template_id?.toString())?.descripcion || courseTemplates.find((t: any) => t.id.toString() === certificateData.course_template_id?.toString())?.nombre})
               </span>
             )}
           </label>
@@ -375,10 +376,10 @@ export const CertificateForm = ({
             onChange={(e) => onDataChange("course_content", e.target.value)}
             rows={8}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="El contenido del curso se cargará desde la plantilla seleccionada..."
+            placeholder="Escribe o pega aquí el contenido temático del curso..."
           />
           <p className="text-xs text-gray-500 mt-1">
-            {certificateData.course_template_id 
+            {certificateData.course_template_id
               ? 'Puedes editar este contenido según sea necesario para esta capacitación específica'
               : 'Este es el contenido predeterminado del curso. Puedes editarlo según sea necesario.'
             }

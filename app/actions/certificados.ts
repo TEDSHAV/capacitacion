@@ -370,7 +370,7 @@ export async function saveCertificatesToDatabase(
 
         id_empresa: updatedCertificateData.osi_data?.empresa_id || null,
 
-        id_curso: updatedCertificateData.course_topic_data?.id ? parseInt(updatedCertificateData.course_topic_data.id) : null,
+        id_curso: updatedCertificateData.course_topic_data?.cursos_id ?? null, // FK → cursos; cursos_id holds the real cursos.id
 
         fecha_emision: today,
 
@@ -952,7 +952,7 @@ function generateContentSnapshot(
 
       id_empresa: updatedCertificateData.osi_data?.empresa_id,
 
-      id_curso: updatedCertificateData.course_topic_data?.id,
+      id_curso: updatedCertificateData.course_topic_data?.cursos_id ?? null, // FK → cursos
 
       fecha_emision: new Date().toLocaleDateString('en-CA'), // Current date in local timezone
 
@@ -1114,7 +1114,7 @@ function generateContentSnapshotWithControlNumbers(
 
       id_empresa: certificateData.osi_data?.empresa_id,
 
-      id_curso: certificateData.course_topic_data?.id,
+      id_curso: certificateData.course_topic_data?.cursos_id ?? null, // FK → cursos
 
       fecha_emision: new Date().toLocaleDateString('en-CA'), // Current date in local timezone
 
@@ -1180,21 +1180,29 @@ function generateContentSnapshotWithControlNumbers(
 
     },
 
-    // OSI information
+    // OSI information (from v_osi_formato_completo)
 
     osi: {
+
+      id_osi: certificateData.osi_data?.id ? parseInt(certificateData.osi_data.id) : null, // ejecucion_osi.id integer
 
       nro_osi: certificateData.osi_data?.nro_osi,
 
       cliente_nombre_empresa: certificateData.osi_data?.cliente_nombre_empresa,
 
-      tema: certificateData.osi_data?.tema,
+      tipo_servicio: certificateData.osi_data?.tipo_servicio,
+
+      ejecutivo_negocios: certificateData.osi_data?.ejecutivo_negocios,
 
       detalle_capacitacion: certificateData.osi_data?.detalle_capacitacion,
 
       empresa_id: certificateData.osi_data?.empresa_id,
 
-      direccion_ejecucion: certificateData.osi_data?.direccion_ejecucion
+      direccion_ejecucion: certificateData.osi_data?.direccion_ejecucion,
+
+      fecha_ejecucion1: certificateData.osi_data?.fecha_ejecucion1,
+
+      fecha_ejecucion2: certificateData.osi_data?.fecha_ejecucion2,
 
     },
 
@@ -1204,7 +1212,9 @@ function generateContentSnapshotWithControlNumbers(
 
       name: certificateData.course_topic_data?.name,
 
-      id: certificateData.course_topic_data?.id,
+      id: certificateData.course_topic_data?.id,             // catalogo_servicios.id
+
+      cursos_id: certificateData.course_topic_data?.cursos_id, // cursos.id (FK)
 
       contenido: certificateData.course_topic_data?.contenido_curso,
 
@@ -1228,7 +1238,9 @@ function generateContentSnapshotWithControlNumbers(
 
       facilitator_data: certificateData.facilitator_data,
 
-      sha_signature_id: certificateData.sha_signature_id
+      sha_signature_id: certificateData.sha_signature_id,
+
+      sha_signature_data: (certificateData as any).sha_signature_data ?? null, // Full data for PDF recreation
 
     },
 
