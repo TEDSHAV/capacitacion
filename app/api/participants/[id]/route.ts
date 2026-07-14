@@ -163,7 +163,7 @@ export async function GET(
     const primaryParticipant = participants[0];
 
     // Determine nationality
-    let nationality = primaryParticipant.nacionalidad;
+    let nationality = (primaryParticipant as any)?.nacionalidad;
 
     if (!nationality) {
       nationality = queryParam.startsWith("E-") ? "E-" : "V-";

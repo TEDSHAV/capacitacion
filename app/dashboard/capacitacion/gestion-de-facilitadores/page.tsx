@@ -160,11 +160,7 @@ export default function GestionDeFacilitadoresPage() {
           </div>
         )}
 
-      <FacilitadorCrud
-        onFacilitadorSaved={() => {}}
-        onFacilitadorDeleted={() => {}}
-        onFacilitatorUpdated={() => {}}
-      />
+      <FacilitadorCrud />
     </div>
   );
 }
