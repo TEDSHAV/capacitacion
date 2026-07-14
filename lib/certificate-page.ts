@@ -241,45 +241,117 @@ export class CertificatePage {
   private async addSignatures(certificateData: CertificateGeneration): Promise<void> {
     const { signature } = this.config;
 
+    console.log('=== SIGNATURE FLOW DEBUG ===');
+    console.log('Certificate data for signatures:', {
+      facilitator_id: certificateData.facilitator_id,
+      facilitator_data: certificateData.facilitator_data,
+      sha_signature_id: certificateData.sha_signature_id,
+      sha_signature_data: certificateData.sha_signature_data
+    });
+
     // Add facilitator signature if available
     if (certificateData.facilitator_id) {
+      console.log('Attempting to add facilitator signature for ID:', certificateData.facilitator_id);
       let facilitator: CertificateFacilitator | null = certificateData.facilitator_data as CertificateFacilitator | null;
       
-      // If facilitator_data is not available, fetch it using server action
+      // If facilitator_data is not available, fetch it using API route (works in browser)
       if (!facilitator) {
+        console.log('Facilitator data not available, fetching from API route...');
         try {
-          // Import server action
-          const { getFacilitatorData } = await import('@/app/actions/facilitators');
-          facilitator = await getFacilitatorData(certificateData.facilitator_id);
+          // Use API route instead of server action for browser compatibility
+          const response = await fetch(`/api/facilitators/${certificateData.facilitator_id}`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('Raw facilitator data from API:', data);
+            console.log('Firmas data:', data.firmas);
+            console.log('Firma_id:', data.firma_id);
+            
+            if (data) {
+              // Transform API response to match expected interface
+              facilitator = {
+                id: data.id,
+                name: data.nombre_apellido,
+                nombre_apellido: data.nombre_apellido,
+                facilitator: data.facilitator,
+                cargo: data.cargo,
+                firma: data.firma,
+                firma_id: data.firma_id,
+                sha_signature_id: data.sha_signature_id,
+                signature_data: data.firmas ? {
+                  id: data.firmas.id,
+                  representante_sha: data.firmas.nombre,
+                  firma: data.firmas.url_imagen,
+                  url_imagen: data.firmas.url_imagen,
+                } : undefined,
+              };
+              console.log('Transformed facilitator data:', facilitator);
+              
+              // Check if we have signature data
+              if (!facilitator.signature_data && !facilitator.firma) {
+                console.warn('No signature data found for facilitator:', facilitator.name);
+                console.warn('Available fields:', {
+                  firma: facilitator.firma,
+                  firma_id: facilitator.firma_id,
+                  signature_data: facilitator.signature_data,
+                  firmas: data.firmas
+                });
+              }
+            }
+          } else {
+            console.warn('Facilitator API response not ok:', response.status);
+          }
         } catch (error) {
-          console.warn('Failed to fetch facilitator data:', error);
+          console.error('Failed to fetch facilitator data from API:', error);
+          console.error('Error details:', error instanceof Error ? error.message : error);
         }
+      } else {
+        console.log('Using existing facilitator data:', facilitator);
       }
 
       if (facilitator) {
+        console.log('Adding facilitator signature to certificate...');
         await this.addFacilitatorSignature(facilitator, signature);
+        console.log('Facilitator signature added successfully');
+      } else {
+        console.warn('No facilitator data available, skipping facilitator signature');
       }
+    } else {
+      console.log('No facilitator_id provided, skipping facilitator signature');
     }
 
     // Add SHA signature if available
     if (certificateData.sha_signature_id) {
+      console.log('Attempting to add SHA signature for ID:', certificateData.sha_signature_id);
       let shaSignature = certificateData.sha_signature_data;
       
       // If sha_signature_data is not available, fetch it using certificate service
       if (!shaSignature) {
+        console.log('SHA signature data not available, fetching from service...');
         try {
           shaSignature = await certificateService.getSignatureData(
-            certificateData.sha_signature_id
+            certificateData.sha_signature_id.toString()
           );
+          console.log('Fetched SHA signature from service:', shaSignature);
         } catch (error) {
           console.warn('Failed to fetch SHA signature data:', error);
         }
+      } else {
+        console.log('Using existing SHA signature data:', shaSignature);
       }
       
       if (shaSignature) {
+        console.log('Adding SHA signature to certificate...');
         await this.addSHASignature(shaSignature, signature);
+        console.log('SHA signature added successfully');
+      } else {
+        console.warn('No SHA signature data available, skipping SHA signature');
       }
+    } else {
+      console.log('No sha_signature_id provided, skipping SHA signature');
     }
+    
+    console.log('=== SIGNATURE FLOW DEBUG END ===');
   }
 
   /**
@@ -292,7 +364,7 @@ export class CertificatePage {
     try {
       console.log('Adding facilitator signature:', facilitator);
       
-      // Add facilitator name
+      // Add facilitator name - use the name field which is mapped from nombre_apellido
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(8);
       this.doc.text(
@@ -305,11 +377,13 @@ export class CertificatePage {
       // Add facilitator signature if available
       let signatureUrl = null;
       
-      // Check multiple possible signature fields
+      // Check multiple possible signature fields in order of preference
       if (facilitator.firma) {
         signatureUrl = facilitator.firma;
       } else if (facilitator.signature_data?.firma) {
         signatureUrl = facilitator.signature_data.firma;
+      } else if (facilitator.signature_data?.url_imagen) {
+        signatureUrl = facilitator.signature_data.url_imagen;
       }
       
       if (signatureUrl) {
@@ -340,28 +414,43 @@ export class CertificatePage {
     try {
       console.log('Adding SHA signature:', shaSignature);
       
+      // Handle both array and object structures
+      let signatureData = shaSignature;
+      if (Array.isArray(shaSignature) && shaSignature.length > 0) {
+        signatureData = shaSignature[0];
+      }
+      
       // Add SHA signature name
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(8);
       this.doc.text(
-        shaSignature.nombre?.toUpperCase() || shaSignature.representante_sha?.toUpperCase() || '',
+        signatureData.nombre?.toUpperCase() || signatureData.representante_sha?.toUpperCase() || '',
         signatureConfig.rightX + 35,
         100,
         { align: "center" }
       );
       
       // Add SHA signature image if available
-      if (shaSignature.url_imagen) {
-        console.log('Adding SHA signature image:', shaSignature.url_imagen);
+      if (signatureData.url_imagen) {
+        console.log('Adding SHA signature image:', signatureData.url_imagen);
         await this.addSignatureImage(
-          shaSignature.url_imagen,
+          signatureData.url_imagen,
+          signatureConfig.rightX + 10,
+          signatureConfig.y - 45,
+          signatureConfig.width,
+          signatureConfig.height
+        );
+      } else if (signatureData.firma) {
+        console.log('Adding SHA signature image from firma field:', signatureData.firma);
+        await this.addSignatureImage(
+          signatureData.firma,
           signatureConfig.rightX + 10,
           signatureConfig.y - 45,
           signatureConfig.width,
           signatureConfig.height
         );
       } else {
-        console.warn('No signature image found for SHA:', shaSignature.nombre);
+        console.warn('No signature image found for SHA:', signatureData.nombre);
       }
     } catch (error) {
       console.error('Error adding SHA signature:', error);
@@ -490,10 +579,17 @@ export class CertificatePage {
         const fs = require('fs');
         const path = require('path');
         
-        // Convert URL to file path
+        // Convert URL to file path, handle both relative and absolute paths
         let imagePath = imageUrl;
         if (imageUrl.startsWith('/')) {
           imagePath = path.join(process.cwd(), 'public', imageUrl);
+        } else if (imageUrl.startsWith('file://')) {
+          // Convert file:// URL to path
+          imagePath = imageUrl.replace('file://', '');
+          // Handle Windows paths
+          if (imagePath.startsWith('/') && imagePath.includes(':')) {
+            imagePath = imagePath.substring(1);
+          }
         }
         
         console.log('Server environment, loading signature from file:', imagePath);
@@ -513,18 +609,51 @@ export class CertificatePage {
         return;
       }
 
-      // Browser environment - use Image constructor
+      // Browser environment - convert to absolute URL if needed, then load as base64
+      let finalImageUrl = imageUrl;
+      
+      // Convert relative paths to absolute URLs
+      if (imageUrl.startsWith('/')) {
+        finalImageUrl = window.location.origin + imageUrl;
+      } else if (imageUrl.startsWith('file://')) {
+        console.warn('Cannot load file:// URLs in browser environment:', imageUrl);
+        return;
+      }
+      
       return new Promise((resolve, reject) => {
         const img = new Image();
+        
+        // Enable cross-origin for external images
+        img.crossOrigin = 'anonymous';
+        
         img.onload = () => {
-          this.doc.addImage(img, "PNG", x, y, width, height);
-          resolve();
+          try {
+            // Create canvas to convert to base64
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx?.drawImage(img, 0, 0);
+            
+            // Convert to base64 data URL
+            const base64DataUrl = canvas.toDataURL('image/png');
+            
+            // Add to PDF using base64 data URL
+            this.doc.addImage(base64DataUrl, "PNG", x, y, width, height);
+            console.log('Signature image loaded and converted to base64 in browser');
+            resolve();
+          } catch (error) {
+            console.error('Error converting image to base64:', error);
+            reject(error);
+          }
         };
+        
         img.onerror = (error) => {
-          console.error('Failed to load signature image in browser:', imageUrl, error);
+          console.error('Failed to load signature image in browser:', finalImageUrl, error);
           reject(error);
         };
-        img.src = imageUrl;
+        
+        img.src = finalImageUrl;
       });
     } catch (error) {
       console.error('Error in addSignatureImage:', error);

@@ -6,14 +6,17 @@ import { createClient } from '@/utils/supabase/server';
 export interface CertificateFacilitator {
   id: number;
   name: string;
-  facilitator: string;
+  nombre_apellido: string;
+  facilitator?: string;
   cargo?: string;
   firma?: string;
+  firma_id?: number;
   sha_signature_id?: number;
   signature_data?: {
     id: number;
     representante_sha: string;
     firma: string;
+    url_imagen?: string;
   };
 }
 
@@ -110,34 +113,89 @@ export async function deleteFacilitator(id: number) {
  */
 export async function getFacilitatorData(facilitatorId: string): Promise<CertificateFacilitator | null> {
   try {
-    const supabase = await createClient();
+    console.log('=== FACILITATOR DATA FETCH DEBUG ===');
+    console.log('Fetching facilitator data for ID:', facilitatorId);
     
-    const { data, error } = await supabase
+    // Validate input
+    if (!facilitatorId) {
+      console.error('No facilitator ID provided');
+      return null;
+    }
+    
+    const facilitatorIdNum = parseInt(facilitatorId);
+    if (isNaN(facilitatorIdNum)) {
+      console.error('Invalid facilitator ID format:', facilitatorId);
+      return null;
+    }
+    
+    console.log('Parsed facilitator ID:', facilitatorIdNum);
+    
+    const supabase = await createClient();
+    console.log('Supabase client created');
+    
+    const query = supabase
       .from('facilitadores')
       .select(`
         id,
-        name,
+        nombre_apellido,
         facilitator,
         cargo,
         firma,
+        firma_id,
         sha_signature_id,
         firmas (
           id,
-          representante_sha,
-          firma
+          nombre,
+          tipo,
+          url_imagen
         )
       `)
-      .eq('id', parseInt(facilitatorId))
+      .eq('id', facilitatorIdNum)
       .single();
+    
+    console.log('Executing query:', query);
+    
+    const { data, error } = await query;
+
+    console.log('Supabase query result:', { data, error });
 
     if (error) {
       console.error('Error fetching facilitator:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       return null;
     }
 
-    return data as CertificateFacilitator;
+    if (!data) {
+      console.error('No facilitator data found for ID:', facilitatorId);
+      return null;
+    }
+
+    console.log('Raw facilitator data from DB:', data);
+
+    // Transform the data to match the expected interface
+    const facilitator: CertificateFacilitator = {
+      id: data.id,
+      name: data.nombre_apellido, // Map nombre_apellido to name
+      nombre_apellido: data.nombre_apellido,
+      facilitator: data.facilitator,
+      cargo: data.cargo,
+      firma: data.firma,
+      firma_id: data.firma_id,
+      sha_signature_id: data.sha_signature_id,
+      signature_data: data.firmas && data.firmas.length > 0 ? {
+        id: data.firmas[0].id,
+        representante_sha: data.firmas[0].nombre,
+        firma: data.firmas[0].url_imagen,
+        url_imagen: data.firmas[0].url_imagen,
+      } : undefined,
+    };
+
+    console.log('Transformed facilitator data:', facilitator);
+    console.log('=== FACILITATOR DATA FETCH DEBUG END ===');
+    return facilitator;
   } catch (error) {
     console.error('Error in getFacilitatorData:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack available');
     return null;
   }
 }

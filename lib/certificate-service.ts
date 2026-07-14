@@ -40,18 +40,33 @@ export class CertificateService {
    * Fetch signature data by ID
    * Uses Next.js 15+ compatible API call pattern
    */
-  async getSignatureData(signatureId: string): Promise<Signature | null> {
+  async getSignatureData(signatureId: string): Promise<any | null> {
     try {
       const response = await fetch(`/api/signatures/${signatureId}`);
       
       if (!response.ok) {
+        console.warn('Signature API response not ok:', response.status);
         return null;
       }
       
       const data = await response.json();
-      return this.validateApiResponse(data, (item): item is Signature => {
-        return 'id' in item && 'name' in item && 'signature' in item;
-      });
+      console.log('Raw signature data from API:', data);
+      
+      // The API returns the firma table structure directly
+      // Transform it to match expected format if needed
+      if (data && typeof data === 'object') {
+        return {
+          id: data.id,
+          nombre: data.nombre,
+          representante_sha: data.nombre, // For SHA signatures
+          firma: data.url_imagen,
+          url_imagen: data.url_imagen,
+          tipo: data.tipo,
+          is_active: data.is_active
+        };
+      }
+      
+      return data;
     } catch (error) {
       console.error("Error fetching signature:", error);
       return null;
@@ -64,13 +79,35 @@ export class CertificateService {
    */
   async getFacilitatorData(facilitatorId: string): Promise<Facilitador | null> {
     try {
+      console.log('Fetching facilitator data from API for ID:', facilitatorId);
       const response = await fetch(`/api/facilitators/${facilitatorId}`);
       
       if (!response.ok) {
+        console.warn('Facilitator API response not ok:', response.status);
         return null;
       }
       
       const data = await response.json();
+      console.log('Raw facilitator data from API:', data);
+      
+      // The API returns facilitator data, but we need to transform it to match Facilitator interface
+      if (data && typeof data === 'object') {
+        return {
+          id: data.id.toString(),
+          name: data.nombre_apellido,
+          id_number: data.cedula || '',
+          phone: data.telefono || '',
+          email: data.email || '',
+          address: data.direccion || '',
+          city: '', // Would need to fetch from ciudad table
+          course_topics: data.temas_cursos || [],
+          technical_knowledge: data.nivel_tecnico || '',
+          signature_id: data.firma_id?.toString(),
+          created_at: data.fecha_creacion || new Date().toISOString(),
+          updated_at: data.fecha_actualizacion || new Date().toISOString()
+        };
+      }
+      
       return this.validateApiResponse(data, (item): item is Facilitador => {
         return 'id' in item && 'name' in item && 'facilitator' in item;
       });
