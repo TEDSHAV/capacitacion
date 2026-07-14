@@ -66,10 +66,12 @@ const getOptimizedCertificateData = cache(async () => {
         .order("nombre", { ascending: true })
         .limit(200),
 
-      // Fetch cursos for nota_aprobatoria and emite_carnet (no FK to catalogo_servicios; merged by nombre)
+      // Fetch cursos for nota_aprobatoria, emite_carnet, and horas_estimadas (no FK to catalogo_servicios; merged by nombre)
       supabase
         .from("cursos")
-        .select(`id, nombre, contenido, nota_aprobatoria, emite_carnet`)
+        .select(
+          `id, nombre, contenido, nota_aprobatoria, emite_carnet, horas_estimadas`,
+        )
         .eq("is_active", true),
 
       // Get signatures for dropdown
@@ -131,6 +133,7 @@ const getOptimizedCertificateData = cache(async () => {
     // Stores cursos.id so FK constraints on certificados and carnets are satisfied
     // Note: If there are multiple cursos with the same nombre, only the last one will be kept
     // cursos.contenido is the authoritative content source; catalogo_servicios.contenido_curso is a fallback
+    // cursos.horas_estimadas is the authoritative duration source; catalogo_servicios.carga_horaria_std is a fallback
     const cursosByNombre = new Map<
       string,
       {
@@ -138,6 +141,7 @@ const getOptimizedCertificateData = cache(async () => {
         contenido: string | null;
         nota_aprobatoria: number | null;
         emite_carnet: boolean | null;
+        horas_estimadas: number | null;
       }
     >(
       (cursosResult.data || []).map((c: any) => [
@@ -147,6 +151,7 @@ const getOptimizedCertificateData = cache(async () => {
           contenido: c.contenido,
           nota_aprobatoria: c.nota_aprobatoria,
           emite_carnet: c.emite_carnet,
+          horas_estimadas: c.horas_estimadas,
         },
       ]),
     );
@@ -240,7 +245,8 @@ const getOptimizedCertificateData = cache(async () => {
         // Prefer cursos.contenido (authoritative); fall back to catalogo_servicios.contenido_curso
         contenido_curso:
           cursoMatch?.contenido || course.contenido_curso || null,
-        horas_estimadas: course.carga_horaria_std,
+        horas_estimadas:
+          cursoMatch?.horas_estimadas ?? course.carga_horaria_std,
         nota_aprobatoria: cursoMatch?.nota_aprobatoria ?? 14,
         emite_carnet: cursoMatch?.emite_carnet ?? false,
       };
