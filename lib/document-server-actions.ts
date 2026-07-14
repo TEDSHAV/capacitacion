@@ -62,15 +62,17 @@ export async function generateDocumentsServer(request: DocumentGenerationRequest
         return `${idType}-${cleanCedula}`;
       }
       
-      // Check nationality as fallback
+      // Check nationality as fallback - this should work now
       if (participant.participant_nationality) {
         const nationality = participant.participant_nationality.toLowerCase();
+        console.log(`🔍 Formatting cédula for nationality: ${nationality}`);
         if (nationality === 'extranjero') {
           return `E-${cleanCedula}`;
         }
       }
       
       // Default to Venezuelan if no specific info
+      console.log(`🔍 Defaulting to V- for participant: ${participant.participant_name || 'unknown'}`);
       return `V-${cleanCedula}`;
     };
 
