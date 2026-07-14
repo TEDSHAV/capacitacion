@@ -29,9 +29,8 @@ RUN npm run build
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
-# Install Chromium and required fonts/libraries ONLY in the final stage
+# Install required fonts/libraries (not Chromium - we'll use Puppeteer's bundled Chrome)
 RUN apt-get update && apt-get install -y \
-    chromium \
     fonts-liberation \
     libnss3 \
     libatk1.0-0 \
@@ -43,11 +42,20 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     libgtk-3-0 \
     libvips-dev \
+    wget \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Puppeteer Chrome as root during build
+RUN npx puppeteer browsers install chrome
+
+# Create cache directory with correct permissions for nextjs user
+RUN mkdir -p /home/nextjs/.cache/puppeteer && \
+    chown -R nextjs:nodejs /home/nextjs/.cache
+
 # Environment variables for Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false \
+    PUPPETEER_CACHE_PATH=/home/nextjs/.cache/puppeteer \
     NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \

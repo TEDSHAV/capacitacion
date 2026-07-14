@@ -12,23 +12,14 @@ export async function getBrowser(): Promise<Browser> {
   }
 
   try {
-    const isProduction = process.env.NODE_ENV === "production";
     browserInstance = await puppeteer.launch({
       headless: true,
-      executablePath: isProduction
-        ? process.env.PUPPETEER_EXECUTABLE_PATH
-        : undefined,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
-        "--no-zygote",
-        "--single-process",
-        "--disable-crash-reporter",
-        "--disable-features=VizDisplayCompositor",
       ],
-      ignoreDefaultArgs: ["--disable-extensions"],
     });
 
     // Graceful shutdown on process exit
