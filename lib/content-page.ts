@@ -46,7 +46,7 @@ export class ContentPage {
     this.renderCourseContent(certificateData.course_content, leftColumnX, currentY, columnWidth);
 
     // Render table with seal in right column
-    this.renderContentTable(participant, certificateData, rightColumnX, currentY, columnWidth, sealImage);
+    await this.renderContentTable(participant, certificateData, rightColumnX, currentY, columnWidth, sealImage);
   }
 
   /**
@@ -101,14 +101,14 @@ export class ContentPage {
   /**
    * Render content table with seal in right column
    */
-  private renderContentTable(
+  private async renderContentTable(
     participant: CertificateParticipant,
     certificateData: CertificateGeneration,
     rightColumnX: number,
     currentY: number,
     columnWidth: number,
     sealImage?: string
-  ): void {
+  ): Promise<void> {
     const { contentPage } = this.config;
     const tableY = currentY - 5;
     const cellHeight = contentPage.tableCellHeight;
@@ -121,7 +121,7 @@ export class ContentPage {
 
     // Add seal image if provided
     if (sealImage) {
-      this.addSealImage(sealImage, rightColumnX, tableY, columnWidth, cellHeight);
+      await this.addSealImage(sealImage, rightColumnX, tableY, columnWidth, cellHeight);
     }
   }
 
@@ -213,7 +213,7 @@ export class ContentPage {
     
     // Row 4: CI and Nombre
     this.doc.setFont("helvetica", "bold");
-    this.doc.setFontSize(8);
+    this.doc.setFontSize(6);
     
     // Use TextRenderer for ID text
     this.textRenderer.renderIDText(
@@ -241,56 +241,33 @@ export class ContentPage {
     cellHeight: number
   ): Promise<void> {
     const { contentPage } = this.config;
-    const sealY = tableY + cellHeight * 4 + 5;
-
+    const sealY = tableY + (cellHeight * 4) + 8; // After all 4 table rows + 8mm spacing
+    const sealX = tableX + tableWidth / 2 - contentPage.sealSize / 2;
+    
     try {
-      await this.addSealImageToPDF(
-        sealImage,
-        tableX + tableWidth / 2 - contentPage.sealSize / 2,
-        sealY,
-        contentPage.sealSize,
-        contentPage.sealSize
-      );
+      console.log("Adding seal image at:", { x: sealX, y: sealY, sealImage });
+      
+      // Simple image loading
+      await new Promise<void>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          this.doc.addImage(img, "PNG", sealX, sealY, contentPage.sealSize, contentPage.sealSize);
+          console.log("Seal image added successfully");
+          resolve();
+        };
+        img.onerror = (error) => {
+          console.error("Failed to load seal image:", error);
+          // Draw placeholder
+          this.doc.setDrawColor(200, 200, 200);
+          this.doc.rect(sealX, sealY, contentPage.sealSize, contentPage.sealSize);
+          resolve();
+        };
+        img.src = sealImage;
+      });
+      
     } catch (error) {
       console.error("Error adding seal image:", error);
-      // Draw placeholder
-      this.doc.setDrawColor(200, 200, 200);
-      this.doc.rect(
-        tableX + tableWidth / 2 - contentPage.sealSize / 2,
-        sealY,
-        contentPage.sealSize,
-        contentPage.sealSize
-      );
-      this.doc.setFont("helvetica", "italic");
-      this.doc.setFontSize(6);
-      this.doc.text(
-        "Sello",
-        tableX + tableWidth / 2,
-        sealY + contentPage.sealSize / 2,
-        { align: "center" }
-      );
     }
-  }
-
-  /**
-   * Add seal image to PDF
-   */
-  private async addSealImageToPDF(
-    imageUrl: string,
-    x: number,
-    y: number,
-    width: number,
-    height: number
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        this.doc.addImage(img, "PNG", x, y, width, height);
-        resolve();
-      };
-      img.onerror = reject;
-      img.src = imageUrl;
-    });
   }
 
   /**

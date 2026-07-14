@@ -36,7 +36,7 @@ export const CertificatePreview = ({
       // Use the first participant for preview
       const previewParticipant: CertificateParticipant = certificateData.participants[0];
       
-      // Get template image - use default template path
+      // Get template and seal images
       const templateImage = "/templates/certificado.png";
       const sealImage = "/templates/sello.png";
 

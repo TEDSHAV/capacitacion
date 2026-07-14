@@ -106,7 +106,7 @@ export const CERTIFICATE_CONFIG: CertificateLayoutConfig = {
   contentPage: {
     upperHalfHeight: 0, // Will be calculated dynamically (pageHeight / 2)
     margin: 10,
-    tableCellHeight: 6,
+    tableCellHeight: 8,
     sealSize: 30,
   },
 };

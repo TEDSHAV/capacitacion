@@ -101,7 +101,7 @@ export class TextRenderer {
     const idLabel = isVenezolano ? "CI:" : "Pasaporte:";
     const idPrefix = isVenezolano ? "V-" : "E-";
     
-    this.doc.setFont("helvetica", "bold");
+    this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8);
     this.doc.text(
       `${idLabel} ${idPrefix}${participant.id_number}`,
