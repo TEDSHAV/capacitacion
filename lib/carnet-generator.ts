@@ -219,8 +219,8 @@ export class CarnetGenerator {
     this.pdf.setFontSize(7);
     this.pdf.setFont("helvetica", "bold");
 
-    // Add course title (centered)
-    const courseY = 17;
+       // Add course title (centered within border area)
+    const courseY = 18;
     this.pdf.text(`${carnetData.titulo_curso.toUpperCase()}`, 54, courseY, {
       align: "center",
       maxWidth: 50,
