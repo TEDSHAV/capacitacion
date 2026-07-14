@@ -353,7 +353,7 @@ export default function OSIDetailPage() {
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="pendiente">Pendiente</option>
-                    <option value="active">Activa</option>
+                    <option value="active">Activa </option>
                     <option value="inactive">Cerrada</option>
                   </select>
                 </div>
@@ -666,7 +666,7 @@ export default function OSIDetailPage() {
               <label className="flex items-center">
                 <input
                   type="checkbox"
-                  checked={formData.certificado_impreso || false}
+                  checked={formData.certificado_impreso || true}
                   onChange={(e) => updateFormData('certificado_impreso', e.target.checked)}
                   disabled={!isEditing && !isNew}
                   className="mr-3 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
