@@ -36,6 +36,81 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const resolvedParams = await params;
+    const supabase = await createClient();
+    const id = parseInt(resolvedParams.id);
+    
+    const body = await request.json();
+    const { activate } = body;
+
+    if (typeof activate !== 'boolean') {
+      return NextResponse.json(
+        { error: 'activate field is required and must be boolean' },
+        { status: 400 }
+      );
+    }
+
+    // If activating, check if there's already an active signature of the same type
+    if (activate) {
+      // First get the signature type
+      const { data: signature, error: fetchError } = await supabase
+        .from('firmas')
+        .select('tipo')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !signature) {
+        return NextResponse.json(
+          { error: 'Signature not found' },
+          { status: 404 }
+        );
+      }
+
+      // For SHA representatives, ensure only one is active at a time
+      if (signature.tipo === 'representante_sha') {
+        // Deactivate all other SHA representative signatures
+        await supabase
+          .from('firmas')
+          .update({
+            is_active: false,
+            fecha_actualizacion: new Date().toISOString(),
+          })
+          .eq('tipo', 'representante_sha')
+          .neq('id', id);
+      }
+    }
+
+    // Update the signature
+    const { error: updateError } = await supabase
+      .from('firmas')
+      .update({
+        is_active: activate,
+        fecha_actualizacion: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      message: activate ? 'Signature activated successfully' : 'Signature deactivated successfully'
+    });
+  } catch (error) {
+    console.error('Signature patch error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update signature' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -45,7 +120,7 @@ export async function DELETE(
     const supabase = await createClient();
     const id = parseInt(resolvedParams.id);
 
-    // First, get the signature record to check if it exists and get its type
+    // First, get signature record to check if it exists and get its type
     const { data: signature, error: fetchError } = await supabase
       .from('firmas')
       .select('*')
@@ -59,7 +134,7 @@ export async function DELETE(
       );
     }
 
-    // Soft delete: set is_active to false instead of deleting the record
+    // Soft delete: set is_active to false instead of deleting record
     const { error: updateError } = await supabase
       .from('firmas')
       .update({
@@ -72,7 +147,7 @@ export async function DELETE(
       throw updateError;
     }
 
-    // If it's a facilitator signature, also clear the firma_id from the facilitador
+    // If it's a facilitator signature, also clear firma_id from facilitador
     if (signature.tipo === 'facilitador') {
       const { error: facilitatorUpdateError } = await supabase
         .from('facilitadores')

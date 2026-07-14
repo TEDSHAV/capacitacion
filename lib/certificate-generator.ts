@@ -23,7 +23,7 @@ export class CertificateGenerator {
    * Generate a complete certificate with both pages
    */
   async generateCertificate(data: CertificateRequest): Promise<Blob> {
-    const { participant, certificateData, templateImage, sealImage } = data;
+    const { participant, certificateData, templateImage, sealImage, controlNumbers, isPreview } = data;
 
     // Clear any existing content
     this.doc = new jsPDF(CERTIFICATE_CONFIG.page);
@@ -43,7 +43,7 @@ export class CertificateGenerator {
       this.doc.addPage();
 
       // Page 2: Content table with seal
-      await this.contentPage.addContentPage(participant, certificateData, sealImage);
+      await this.contentPage.addContentPage(participant, certificateData, sealImage, controlNumbers, isPreview);
 
       // Return as blob
       return this.doc.output("blob");

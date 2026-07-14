@@ -268,23 +268,7 @@ export default function GeneracionCertificadoPage() {
     try {
       setIsGenerating(true);
       
-      // Import the certificate generator
-      const { CertificateGenerator } = await import('@/lib/certificate-generator');
-      const generator = new CertificateGenerator();
-
-      // Get template and seal images
-      const templateImageUrl = '/templates/certificado.png';
-      const sealImageUrl = '/templates/sello.png';
-      
-      // Generate certificates for all participants
-      const certificates = await generator.generateMultipleCertificates(
-        certificateData.participants,
-        certificateData,
-        templateImageUrl,
-        sealImageUrl
-      );
-
-      // Save certificates to database
+      // Step 1: Save certificates to database first to get actual control numbers
       const dbResult = await saveCertificatesToDatabase(
         certificateData,
         certificateData.participants
@@ -293,19 +277,52 @@ export default function GeneracionCertificadoPage() {
       if (!dbResult.success) {
         console.error("Database save error:", dbResult.message);
         alert(`Error guardando certificados en base de datos: ${dbResult.message}`);
-        // Still download PDFs even if database save fails
+        return;
       }
 
-      // Download each certificate
+      if (!dbResult.certificateNumbers || dbResult.certificateNumbers.length === 0) {
+        console.error("No control numbers returned from database");
+        alert("Error: No se pudieron obtener los números de control de la base de datos");
+        return;
+      }
+
+      // Step 2: Import the certificate generator
+      const { CertificateGenerator } = await import('@/lib/certificate-generator');
+      const generator = new CertificateGenerator();
+
+      // Get template and seal images
+      const templateImageUrl = '/templates/certificado.png';
+      const sealImageUrl = '/templates/sello.png';
+      
+      // Step 3: Generate certificates with actual control numbers
+      const certificates = [];
+      for (let i = 0; i < certificateData.participants.length; i++) {
+        const participant = certificateData.participants[i];
+        const controlNumbers = dbResult.certificateNumbers![i];
+        
+        try {
+          const blob = await generator.generateCertificate({
+            participant,
+            certificateData,
+            templateImage: templateImageUrl,
+            sealImage: sealImageUrl,
+            controlNumbers,
+            isPreview: false
+          });
+          certificates.push({ participant, blob });
+        } catch (error) {
+          console.error(`Error generating certificate for ${participant.name}:`, error);
+          // Continue with other participants
+        }
+      }
+
+      // Step 4: Download each certificate
       certificates.forEach(({ participant, blob }) => {
         const filename = `certificado_${participant.name.replace(/\s+/g, '_')}_${participant.id_number}.pdf`;
         generator.downloadBlob(blob, filename);
       });
 
-      const successMessage = dbResult.success 
-        ? `Se generaron y guardaron ${certificates.length} certificados exitosamente! (${dbResult.certificateIds?.length} registros en base de datos)`
-        : `Se generaron ${certificates.length} certificados, pero hubo errores al guardar en base de datos`;
-      
+      const successMessage = `Se generaron y guardaron ${certificates.length} certificados exitosamente! (${dbResult.certificateIds?.length} registros en base de datos)`;
       alert(successMessage);
 
       // Reset form

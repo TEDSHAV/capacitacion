@@ -203,6 +203,15 @@ export interface CertificateRequest {
   certificateData: CertificateGeneration;
   templateImage: string;
   sealImage?: string;
+  controlNumbers?: ControlNumbers;
+  isPreview?: boolean;
+}
+
+export interface ControlNumbers {
+  nro_libro: number;
+  nro_hoja: number;
+  nro_linea: number;
+  nro_control: number;
 }
 
 export interface CertificateGeneration {

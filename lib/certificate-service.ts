@@ -1,4 +1,4 @@
-import { Signature, Facilitador } from "@/types";
+import { Signature, Facilitador, ControlNumbers } from "@/types";
 
 export class CertificateService {
   private static instance: CertificateService;
@@ -10,6 +10,31 @@ export class CertificateService {
       CertificateService.instance = new CertificateService();
     }
     return CertificateService.instance;
+  }
+
+  /**
+   * Fetch control numbers for certificate preview
+   */
+  async getControlNumbers(): Promise<ControlNumbers | null> {
+    try {
+      const response = await fetch('/api/control-numbers');
+      
+      if (!response.ok) {
+        console.warn(`Control numbers API returned ${response.status}`);
+        return null;
+      }
+      
+      const data = await response.json();
+      return {
+        nro_libro: data.nro_libro,
+        nro_hoja: data.nro_hoja,
+        nro_linea: data.nro_linea,
+        nro_control: data.nro_control
+      };
+    } catch (error) {
+      console.error("Error fetching control numbers:", error);
+      return null;
+    }
   }
 
   /**

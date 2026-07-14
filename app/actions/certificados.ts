@@ -17,13 +17,21 @@ export interface CertificateRecord {
   snapshot_contenido?: string;
 }
 
+export interface CertificateWithNumbers {
+  id: number;
+  nro_libro: number;
+  nro_hoja: number;
+  nro_linea: number;
+  nro_control: number;
+}
+
 /**
  * Save certificate records to database for all participants
  */
 export async function saveCertificatesToDatabase(
   certificateData: CertificateGeneration,
   participants: CertificateParticipant[]
-): Promise<{ success: boolean; message: string; certificateIds?: number[] }> {
+): Promise<{ success: boolean; message: string; certificateIds?: number[]; certificateNumbers?: CertificateWithNumbers[] }> {
   try {
     const supabase = await createClient();
     
@@ -32,6 +40,7 @@ export async function saveCertificatesToDatabase(
     }
 
     const certificateIds: number[] = [];
+    const certificateNumbers: CertificateWithNumbers[] = [];
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
     for (const participant of participants) {
@@ -57,11 +66,11 @@ export async function saveCertificatesToDatabase(
         snapshot_contenido: generateContentSnapshot(certificateData, participant)
       };
 
-      // 3. Insert certificate record
+      // 3. Insert certificate record and return the control numbers
       const { data: certificateInsert, error: certificateError } = await supabase
         .from("certificados")
         .insert(certificateRecord)
-        .select('id')
+        .select('id, nro_libro, nro_hoja, nro_linea, nro_control')
         .single();
 
       if (certificateError) {
@@ -71,6 +80,13 @@ export async function saveCertificatesToDatabase(
 
       if (certificateInsert) {
         certificateIds.push(certificateInsert.id);
+        certificateNumbers.push({
+          id: certificateInsert.id,
+          nro_libro: certificateInsert.nro_libro,
+          nro_hoja: certificateInsert.nro_hoja,
+          nro_linea: certificateInsert.nro_linea,
+          nro_control: certificateInsert.nro_control
+        });
       }
     }
 
@@ -81,7 +97,8 @@ export async function saveCertificatesToDatabase(
     return { 
       success: true, 
       message: `Successfully saved ${certificateIds.length} certificates to database`,
-      certificateIds 
+      certificateIds,
+      certificateNumbers
     };
 
   } catch (error) {
@@ -150,32 +167,74 @@ function generateContentSnapshot(
   participant: CertificateParticipant
 ): string {
   const snapshot = {
-    participant: {
+    // Certificate record fields from certificados table
+    certificado: {
+      id_participante: participant.name, // Will be updated with actual ID after insertion
+      id_empresa: certificateData.osi_data?.empresa_id,
+      id_curso: certificateData.course_topic_data?.id,
+      fecha_emision: new Date().toISOString().split('T')[0], // Current date
+      fecha_vencimiento: certificateData.fecha_vencimiento,
+      nro_osi: certificateData.osi_data?.nro_osi,
+      id_estado: certificateData.id_estado,
+      id_facilitador: certificateData.facilitator_id,
+      id_plantilla_certificado: certificateData.id_plantilla_certificado,
+      calificacion: participant.score || 0,
+      is_active: true, // Default value
+      nro_libro: 1, // Default value from trigger
+      nro_hoja: 1, // Default value from trigger
+      nro_linea: 1, // Default value from trigger
+      // nro_control is handled by sequence/trigger
+    },
+    // Participant information
+    participante: {
       name: participant.name,
       id_number: participant.id_number,
+      nacionalidad: participant.nacionalidad || 'V',
       score: participant.score
     },
-    certificate: {
+    // Certificate details
+    certificado_detalles: {
       title: certificateData.certificate_title,
       subtitle: certificateData.certificate_subtitle,
       course_content: certificateData.course_content,
       date: certificateData.date,
       location: certificateData.location,
-      horas_estimadas: certificateData.horas_estimadas
+      horas_estimadas: certificateData.horas_estimadas,
+      passing_grade: certificateData.passing_grade
     },
+    // OSI information
     osi: {
       nro_osi: certificateData.osi_data?.nro_osi,
-      cliente: certificateData.osi_data?.cliente_nombre_empresa,
-      tema: certificateData.osi_data?.tema
+      cliente_nombre_empresa: certificateData.osi_data?.cliente_nombre_empresa,
+      tema: certificateData.osi_data?.tema,
+      detalle_capacitacion: certificateData.osi_data?.detalle_capacitacion,
+      empresa_id: certificateData.osi_data?.empresa_id,
+      direccion_ejecucion: certificateData.osi_data?.direccion_ejecucion
     },
-    course: {
+    // Course information
+    curso: {
       name: certificateData.course_topic_data?.name,
-      id: certificateData.course_topic_data?.id
+      id: certificateData.course_topic_data?.id,
+      contenido: certificateData.course_topic_data?.contenido_curso,
+      nota_aprobatoria: certificateData.course_topic_data?.nota_aprobatoria,
+      emite_carnet: certificateData.course_topic_data?.emite_carnet
     },
-    generated_at: new Date().toISOString()
+    // Template and signatures
+    plantilla: {
+      id_plantilla_certificado: certificateData.id_plantilla_certificado
+    },
+    firmas: {
+      facilitator_id: certificateData.facilitator_id,
+      sha_signature_id: certificateData.sha_signature_id
+    },
+    // Metadata
+    metadatos: {
+      generated_at: new Date().toISOString(),
+      generated_by: "certificate_generation_system"
+    }
   };
 
-  return JSON.stringify(snapshot);
+  return JSON.stringify(snapshot, null, 2);
 }
 
 /**

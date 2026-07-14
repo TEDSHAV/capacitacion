@@ -70,6 +70,32 @@ export const SignatureList = ({
     }
   };
 
+  const handleActivate = async (id: string, signatureName: string) => {
+    if (!confirm(`¿Estás seguro de que quieres activar la firma de "${signatureName}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/signatures/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ activate: true }),
+      });
+
+      if (response.ok) {
+        alert("Firma activada exitosamente");
+        onSignatureDeleted();
+      } else {
+        throw new Error("Error al activar la firma");
+      }
+    } catch (error) {
+      alert("Error al activar la firma. Por favor intenta nuevamente.");
+      console.error("Activate error:", error);
+    }
+  };
+
   const signatureTypeLabels: Record<string, string> = {
     "facilitador": "Facilitador",
     "representante_sha": "Representante SHA",
@@ -91,6 +117,10 @@ export const SignatureList = ({
 
   // Get other signature types (representante_sha) - show all regardless of active status
   const otherSignatures = signatureList.filter(sig => sig.tipo !== 'facilitador');
+
+  // Separate active and inactive SHA signatures
+  const activeSHASignatures = otherSignatures.filter(sig => sig.is_active);
+  const inactiveSHASignatures = otherSignatures.filter(sig => !sig.is_active);
 
   if (loading) {
     return (
@@ -148,17 +178,17 @@ export const SignatureList = ({
         </div>
       )}
 
-      {/* Other signature types */}
-      {otherSignatures.length > 0 && (
+      {/* Active SHA Signatures */}
+      {activeSHASignatures.length > 0 && (
         <div className="mb-8">
           <h3 className="text-md font-medium text-gray-900 mb-4">
-            {signatureTypeLabels['representante_sha']}
+            {signatureTypeLabels['representante_sha']} - Activos
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {otherSignatures.map((signature) => (
+            {activeSHASignatures.map((signature) => (
               <div
                 key={signature.id}
-                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                className="border border-green-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-green-50"
               >
                 <div className="aspect-w-4 aspect-h-3 mb-3">
                   <img
@@ -170,17 +200,9 @@ export const SignatureList = ({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-gray-900">{signature.nombre}</p>
-                    {signature.tipo === 'representante_sha' && (
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          signature.is_active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {signature.is_active ? 'Activo' : 'Inactivo'}
-                      </span>
-                    )}
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Activo
+                    </span>
                   </div>
                   <p className="text-sm text-gray-500">
                     {new Date(signature.fecha_creacion).toLocaleDateString("es-ES")}
@@ -191,6 +213,56 @@ export const SignatureList = ({
                   >
                     Desactivar
                   </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Inactive SHA Signatures */}
+      {inactiveSHASignatures.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-md font-medium text-gray-900 mb-4">
+            {signatureTypeLabels['representante_sha']} - Inactivos
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {inactiveSHASignatures.map((signature) => (
+              <div
+                key={signature.id}
+                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-gray-50"
+              >
+                <div className="aspect-w-4 aspect-h-3 mb-3">
+                  <img
+                    src={signature.url_imagen}
+                    alt={`Firma de ${signature.nombre}`}
+                    className="w-full h-32 object-contain border border-gray-200 rounded bg-white opacity-75"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-gray-700">{signature.nombre}</p>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      Inactivo
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {new Date(signature.fecha_creacion).toLocaleDateString("es-ES")}
+                  </p>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleActivate(signature.id.toString(), signature.nombre)}
+                      className="flex-1 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                    >
+                      Activar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(signature.id.toString())}
+                      className="flex-1 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

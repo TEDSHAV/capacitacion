@@ -40,9 +40,31 @@ export const CertificatePreview = ({
       const templateImage = "/templates/certificado.png";
       const sealImage = "/templates/sello.png";
 
+      // Fetch active SHA signature if not already in certificateData
+      let certificateDataWithSHA = { ...certificateData };
+      if (!certificateData.sha_signature_id) {
+        try {
+          const signaturesResponse = await fetch("/api/signatures");
+          if (signaturesResponse.ok) {
+            const signatures = await signaturesResponse.json();
+            const activeSHASignature = signatures.find((sig: any) => 
+              sig.tipo === 'representante_sha' && sig.is_active
+            );
+            if (activeSHASignature) {
+              certificateDataWithSHA = {
+                ...certificateData,
+                sha_signature_id: activeSHASignature.id.toString()
+              };
+            }
+          }
+        } catch (error) {
+          console.warn("Could not fetch SHA signature for preview:", error);
+        }
+      }
+
       const blob = await generator.generateCertificate({
         participant: previewParticipant,
-        certificateData: certificateData,
+        certificateData: certificateDataWithSHA,
         templateImage,
         sealImage,
       });

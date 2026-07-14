@@ -24,7 +24,9 @@ export class ContentPage {
   async addContentPage(
     participant: CertificateParticipant,
     certificateData: CertificateGeneration,
-    sealImage?: string
+    sealImage?: string,
+    controlNumbers?: any,
+    isPreview?: boolean
   ): Promise<void> {
     const { contentPage } = this.config;
     
@@ -46,7 +48,7 @@ export class ContentPage {
     this.renderCourseContent(certificateData.course_content, leftColumnX, currentY, columnWidth);
 
     // Render table with seal in right column
-    await this.renderContentTable(participant, certificateData, rightColumnX, currentY, columnWidth, sealImage);
+    await this.renderContentTable(participant, certificateData, rightColumnX, currentY, columnWidth, sealImage, controlNumbers, isPreview);
   }
 
   /**
@@ -107,7 +109,9 @@ export class ContentPage {
     rightColumnX: number,
     currentY: number,
     columnWidth: number,
-    sealImage?: string
+    sealImage?: string,
+    controlNumbers?: any,
+    isPreview?: boolean
   ): Promise<void> {
     const { contentPage } = this.config;
     const tableY = currentY - 5;
@@ -117,7 +121,7 @@ export class ContentPage {
     this.drawTableStructure(rightColumnX, tableY, columnWidth, cellHeight);
 
     // Add table content
-    this.addTableContent(participant, certificateData, rightColumnX, tableY, columnWidth, cellHeight);
+    this.addTableContent(participant, certificateData, rightColumnX, tableY, columnWidth, cellHeight, controlNumbers, isPreview);
 
     // Add seal image if provided
     if (sealImage) {
@@ -161,7 +165,9 @@ export class ContentPage {
     tableX: number,
     tableY: number,
     tableWidth: number,
-    cellHeight: number
+    cellHeight: number,
+    controlNumbers?: any,
+    isPreview?: boolean
   ): void {
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8);
@@ -175,14 +181,17 @@ export class ContentPage {
     );
     
     // Row 2: Libro Nro and Nro Control
+    const libroNro = controlNumbers?.nro_libro ?? '';
+    const controlNro = controlNumbers?.nro_control ?? '';
+    
     this.doc.text(
-      "Libro Nro: 100",
+      libroNro ? `Libro Nro: ${libroNro}` : 'Libro Nro:',
       tableX + tableWidth / 4,
       tableY + cellHeight + cellHeight / 2 + 1.5,
       { align: "center" }
     );
     this.doc.text(
-      "Nro. Control: 321213",
+      controlNro ? `Nro. Control: ${controlNro}` : 'Nro. Control:',
       tableX + tableWidth * 3 / 4,
       tableY + cellHeight + cellHeight / 2 + 1.5,
       { align: "center" }
@@ -196,8 +205,10 @@ export class ContentPage {
       tableY + cellHeight * 2 + cellHeight / 2 + 1.5,
       { align: "center" }
     );
+    
+    const hojaNro = controlNumbers?.nro_hoja ?? '';
     this.doc.text(
-      "Hoja Nro: 1",
+      hojaNro ? `Hoja Nro: ${hojaNro}` : 'Hoja Nro:',
       tableX + tableWidth / 2,
       tableY + cellHeight * 2 + cellHeight / 2 + 1.5,
       { align: "center" }
