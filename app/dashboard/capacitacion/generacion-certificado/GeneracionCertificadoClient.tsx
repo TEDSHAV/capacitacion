@@ -323,7 +323,7 @@ export default function GeneracionCertificadoClient({
             const city = cities.find((c) => c.id === osi.id_ciudad);
             if (city) return city.nombre_ciudad;
           }
-          return osi.ciudad || prev.location || "Puerto La Cruz";
+          return prev.location || "Puerto La Cruz";
         })(),
       }));
       setSelectedCourseTopic(null);

@@ -998,7 +998,7 @@ export interface OSIManagement {
   carnet_impreso?: boolean | null;
   pop_incluido?: boolean | null;
   traslado_externo?: number | null;
-  sesiones_programadas?: any[] | null;
+  sesiones_programadas?: unknown[] | null;
   // Computed fields
   status_name?: string;
   status_color?: string;

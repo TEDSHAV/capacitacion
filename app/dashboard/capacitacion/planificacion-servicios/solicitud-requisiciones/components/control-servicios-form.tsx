@@ -372,7 +372,7 @@ export default function ControlServiciosForm() {
                       value={formData.honorarios_horas || ""} 
                       onChange={(e) => {
                         const h = parseFloat(e.target.value) || 0;
-                        setFormData(p => ({...p, honorarios_horas: h, honorarios_total: h * p.honorarios_costo_hora}))
+                        setFormData(p => ({...p, honorarios_horas: h, honorarios_total: h * (p.honorarios_costo_hora ?? 0)}))
                       }}
                       className="h-6 w-12 border-gray-300 p-1" 
                     />
