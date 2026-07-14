@@ -167,7 +167,6 @@ export function useOSI(empresas: any[] = []) {
 
     try {
       // Validation
-
       if (!formData.tipo_servicio?.trim()) {
         console.log("Validation failed: missing tipo_servicio");
         errorDialog.showError(
@@ -179,7 +178,28 @@ export function useOSI(empresas: any[] = []) {
         return;
       }
 
+      if (isNew && !formData.cliente_nombre_empresa?.trim()) {
+        errorDialog.showError(
+          "Validación requerida",
+          "Debe seleccionar una empresa",
+          "Error de Validación",
+        );
+        setIsLoading(false);
+        return;
+      }
+
       // Prepare data
+      // Find selected empresa to get its ID
+      let selectedEmpresaId = null;
+      if (formData.cliente_nombre_empresa && empresas.length > 0) {
+        const selectedEmpresa = empresas.find(empresa => 
+          empresa.razon_social === formData.cliente_nombre_empresa
+        );
+        if (selectedEmpresa) {
+          selectedEmpresaId = selectedEmpresa.id;
+        }
+      }
+
       const dataToSave = {
         nro_osi: formData.nro_osi?.trim() || "",
         nro_orden_compra: formData.nro_orden_compra?.trim() || null,
@@ -233,15 +253,27 @@ export function useOSI(empresas: any[] = []) {
         persona_contacto_id: Number(formData.persona_contacto_id) || null,
         direccion_ejecucion: formData.direccion_ejecucion?.trim() || "",
         direccion_envio: formData.direccion_envio?.trim() || null,
+        // Add missing empresa-related fields
+        direccion_fiscal: formData.direccion_fiscal?.trim() || null,
+        codigo_cliente: formData.codigo_cliente?.trim() || null,
+        empresa_id: selectedEmpresaId,
+        contacto_id: formData.contacto_id ? Number(formData.contacto_id) : null,
       };
 
       console.log("Data prepared for save:", dataToSave);
+      console.log("Data types:", Object.entries(dataToSave).map(([key, value]) => [key, typeof value, value]));
 
       if (isNew) {
         console.log("Inserting new OSI...");
-        const { error } = await supabase.from("osi").insert([dataToSave]);
+        const { data, error } = await supabase.from("osi").insert([dataToSave]);
+        console.log("Insert result:", { data, error });
         if (error) {
-          console.error("Insert error:", error);
+          console.error("Insert error details:", {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          });
           throw error;
         }
         console.log("New OSI inserted successfully");
