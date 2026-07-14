@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState, useCallback, memo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { User } from '@/types/dashboard'
@@ -8,6 +8,7 @@ import Image from 'next/image'
 
 const Navbar = () => {
   const router = useRouter()
+  const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
   const supabase = createClient() // Create client once
 
@@ -52,8 +53,8 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-20">
           {/* Left side - Navigation buttons */}
           <div className="flex items-center space-x-4">
-            {/* Back button - only shown when user is authenticated */}
-            {user && (
+            {/* Back button - only shown when user is authenticated and not on dashboard */}
+            {user && pathname !== '/dashboard' && (
               <button
                 onClick={handleBackClick}
                 className="p-2 rounded-md hover:bg-gray-100 transition-colors duration-200"
