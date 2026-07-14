@@ -6,6 +6,8 @@ import {
 import RequisicionRow from "./components/requisicion-row";
 import { getUserAppRoles } from "@/app/actions/auth";
 
+export const dynamic = 'force-dynamic';
+
 export default async function ListaControlServiciosPage() {
   const [records, userRoles] = await Promise.all([
     getAllControlServiciosRecords(),

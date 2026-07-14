@@ -2,6 +2,8 @@ import Link from "next/link";
 import { FileText, List, Users } from "lucide-react";
 import { getUserAppRoles } from "@/app/actions/auth";
 
+export const dynamic = 'force-dynamic';
+
 export default async function PlanificacionServiciosPage() {
   const userRoles = await getUserAppRoles();
   
