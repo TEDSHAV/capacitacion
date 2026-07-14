@@ -94,9 +94,12 @@ export function useOSI(empresas: any[] = []) {
         return;
       }
 
-
       // If OSI has empresa_id but missing empresa fields, fetch from empresas table
-      if (osiData && osiData.empresa_id && (!osiData.rif || !osiData.direccion_fiscal || !osiData.codigo_cliente)) {
+      if (
+        osiData &&
+        osiData.empresa_id &&
+        (!osiData.rif || !osiData.direccion_fiscal || !osiData.codigo_cliente)
+      ) {
         const { data: empresaData, error: empresaError } = await supabase
           .from("empresas")
           .select("rif, direccion_fiscal, codigo_cliente, razon_social")
@@ -192,8 +195,8 @@ export function useOSI(empresas: any[] = []) {
       // Find selected empresa to get its ID
       let selectedEmpresaId = null;
       if (formData.cliente_nombre_empresa && empresas.length > 0) {
-        const selectedEmpresa = empresas.find(empresa => 
-          empresa.razon_social === formData.cliente_nombre_empresa
+        const selectedEmpresa = empresas.find(
+          (empresa) => empresa.razon_social === formData.cliente_nombre_empresa,
         );
         if (selectedEmpresa) {
           selectedEmpresaId = selectedEmpresa.id;
@@ -253,7 +256,6 @@ export function useOSI(empresas: any[] = []) {
         persona_contacto_id: Number(formData.persona_contacto_id) || null,
         direccion_ejecucion: formData.direccion_ejecucion?.trim() || "",
         direccion_envio: formData.direccion_envio?.trim() || null,
-        // Add missing empresa-related fields
         direccion_fiscal: formData.direccion_fiscal?.trim() || null,
         codigo_cliente: formData.codigo_cliente?.trim() || null,
         empresa_id: selectedEmpresaId,
@@ -261,7 +263,14 @@ export function useOSI(empresas: any[] = []) {
       };
 
       console.log("Data prepared for save:", dataToSave);
-      console.log("Data types:", Object.entries(dataToSave).map(([key, value]) => [key, typeof value, value]));
+      console.log(
+        "Data types:",
+        Object.entries(dataToSave).map(([key, value]) => [
+          key,
+          typeof value,
+          value,
+        ]),
+      );
 
       if (isNew) {
         console.log("Inserting new OSI...");
@@ -272,7 +281,7 @@ export function useOSI(empresas: any[] = []) {
             message: error.message,
             details: error.details,
             hint: error.hint,
-            code: error.code
+            code: error.code,
           });
           throw error;
         }
