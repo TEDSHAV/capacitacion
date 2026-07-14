@@ -34,7 +34,7 @@ export function useOSI() {
     fecha_ejecucion5: null,
     participantes_max: null,
     detalle_sesion: null,
-    certificado_impreso: false,
+    certificado_impreso: true,
     carnet_impreso: false,
     observaciones_adicionales: null,
     detalle_capacitacion: null,

@@ -36,6 +36,16 @@ export default function GestionDeOSIsPage() {
           return;
         }
 
+        // Fetch all users to create a lookup map for executive names
+        const { data: usersData, error: usersError } = await supabase
+          .from("usuarios")
+          .select("id, nombre_apellido");
+
+        // Create a map of user ID to name
+        const executiveMap = new Map(
+          usersData?.map((user) => [user.id, user.nombre_apellido]) || []
+        );
+
         // Fetch OSI data from Supabase (most recent OSIs)
         const { data: osiData, error } = await supabase
           .from("osi")
@@ -43,8 +53,14 @@ export default function GestionDeOSIsPage() {
           .order("fecha_emision", { ascending: false })
           .limit(100); // Fetch more to allow for filtering and pagination
 
-        setOsis(osiData || []);
-        setFilteredOsis(osiData || []);
+        // Map executive names to OSI data
+        const osiDataWithExecutiveNames = osiData?.map(osi => ({
+          ...osi,
+          executive_name: executiveMap.get(osi.ejecutivo_negocios)
+        }));
+
+        setOsis(osiDataWithExecutiveNames || []);
+        setFilteredOsis(osiDataWithExecutiveNames || []);
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
