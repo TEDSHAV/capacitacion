@@ -1,17 +1,14 @@
 "use client";
 
-import { CertificateGeneration, OSI, CourseTopic, CertificateParticipant } from "@/types";
+import {
+  CertificateGeneration,
+  OSI,
+  CourseTopic,
+  CertificateParticipant,
+  CertificateFormProps,
+} from "@/types";
 import { LocationSearch } from "./LocationSearch";
 import { ParticipantsSection } from "./ParticipantsSection";
-
-interface CertificateFormProps {
-  certificateData: CertificateGeneration;
-  selectedOSI: OSI | null;
-  selectedCourseTopic: CourseTopic | null;
-  onDataChange: (field: keyof CertificateGeneration, value: any) => void;
-  onParticipantsChange: (participants: CertificateParticipant[]) => void;
-  onGenerate: () => void;
-}
 
 export const CertificateForm = ({
   certificateData,

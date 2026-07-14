@@ -1,10 +1,5 @@
-import { CertificateParticipant } from '@/types'
+import { CertificateParticipant, ParticipantsSectionProps } from '@/types'
 import { useParticipants } from './use-participants'
-
-interface ParticipantsSectionProps {
-  participants: CertificateParticipant[]
-  onChange: (participants: CertificateParticipant[]) => void
-}
 
 export const ParticipantsSection = ({ participants, onChange }: ParticipantsSectionProps) => {
   const {

@@ -1,9 +1,5 @@
+import { LocationSearchProps } from '@/types'
 import { useLocationSearch } from './use-location-search'
-
-interface LocationSearchProps {
-  value: string
-  onChange: (value: string) => void
-}
 
 export const LocationSearch = ({ value, onChange }: LocationSearchProps) => {
   const {
