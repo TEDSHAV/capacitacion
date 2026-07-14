@@ -11,6 +11,15 @@ interface ClienteBatchesProps {
 
 export function ClienteBatches({ batches, onBatchClick }: ClienteBatchesProps) {
   const [downloadingOsi, setDownloadingOsi] = useState<number | null>(null);
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "N/A";
+    const date = dateString.includes("T")
+      ? new Date(dateString)
+      : new Date(dateString + "T12:00:00");
+    return date.toLocaleDateString("es-ES");
+  };
+
   if (batches.length === 0) return null;
 
   return (
@@ -40,9 +49,7 @@ export function ClienteBatches({ batches, onBatchClick }: ClienteBatchesProps) {
                   <div className="flex items-center gap-1.5">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <span>
-                      {batch.fecha_emision
-                        ? new Date(batch.fecha_emision).toLocaleDateString()
-                        : "N/A"}
+                      {formatDate(batch.fecha_emision)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">

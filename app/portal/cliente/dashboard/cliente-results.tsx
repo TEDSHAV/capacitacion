@@ -12,6 +12,14 @@ export function ClienteResults({
   certificates,
   nroOsi,
 }: ClienteResultsProps) {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "N/A";
+    const date = dateString.includes("T")
+      ? new Date(dateString)
+      : new Date(dateString + "T12:00:00");
+    return date.toLocaleDateString("es-ES");
+  };
+
   const hasData = certificates.length > 0;
 
   if (!hasData) {
@@ -70,9 +78,7 @@ export function ClienteResults({
                     {cert.course_nombre || "N/A"}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
-                    {cert.fecha_emision
-                      ? new Date(cert.fecha_emision).toLocaleDateString()
-                      : "N/A"}
+                    {formatDate(cert.fecha_emision)}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {cert.state_nombre_estado || "N/A"}
