@@ -5,7 +5,6 @@ import {
   ClipboardList, 
   Search, 
   Building2, 
-  BookOpen, 
   MapPin, 
   Calendar,
   ChevronRight,

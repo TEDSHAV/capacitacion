@@ -14,11 +14,6 @@ interface OSISurveyModalProps {
 export default function OSISurveyModal({ osi, onClose }: OSISurveyModalProps) {
   const [qrUrl, setQrUrl] = useState<string>("");
   const [copied, setCopied] = useState(false);
-  const [currentOrigin, setCurrentOrigin] = useState("");
-
-  useEffect(() => {
-    setCurrentOrigin(window.location.origin);
-  }, []);
 
   // Use production domain for QR code even in localhost, or environment variable if set
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prisma.shadevenezuela.com.ve";
@@ -37,12 +32,12 @@ export default function OSISurveyModal({ osi, onClose }: OSISurveyModalProps) {
   if (!osi) return null;
 
   // For the clickable link in the modal, use current origin if on localhost to allow testing
+  // Check window only on client side to avoid hydration mismatch
+  const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
   const clickableUrl = currentOrigin.includes("localhost") 
     ? `${currentOrigin}/survey/${osi.id_osi}` 
     : `${baseUrl}/survey/${osi.id_osi}`;
     
-  const surveyUrlForQR = `${baseUrl}/survey/${osi.id_osi}`;
-
   const handleCopyLink = () => {
     navigator.clipboard.writeText(clickableUrl);
     setCopied(true);
@@ -139,7 +134,7 @@ export default function OSISurveyModal({ osi, onClose }: OSISurveyModalProps) {
             </div>
             {currentOrigin.includes("localhost") && (
                <p className="text-[10px] text-yellow-600 font-medium">
-                 💡 En localhost el QR apunta a producción, pero el botón "Abrir enlace" funciona localmente.
+                 💡 En localhost el QR apunta a producción, pero el botón &quot;Abrir enlace&quot; funciona localmente.
                </p>
             )}
           </div>

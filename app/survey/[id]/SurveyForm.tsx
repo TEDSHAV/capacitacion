@@ -68,7 +68,7 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
   const isFormValid = () => {
     // Check if all questions are answered
     for (let i = 1; i <= 10; i++) {
-      if ((formData as any)[`q${i}`] === 0) return false;
+      if (formData[`q${i}` as keyof SurveyFormData] === 0) return false;
     }
     // Check if at least one attendance reason is selected
     const { company_requirement, job_growth, personal_development } = formData.attendance_reasons;
@@ -88,7 +88,7 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
     setError(null);
 
     const reasons = Object.entries(formData.attendance_reasons)
-      .filter(([_, value]) => value)
+      .filter(([, value]) => value)
       .map(([key]) => {
         if (key === "company_requirement") return "Requerimiento de la empresa";
         if (key === "job_growth") return "Crecimiento laboral";
@@ -196,7 +196,7 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
                       onClick={() => handleRatingChange(q.id, s.value)}
                       className={`
                         w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all
-                        ${(formData as any)[`q${q.id}`] === s.value
+                        ${formData[`q${q.id}` as keyof SurveyFormData] === s.value
                           ? "bg-blue-600 border-blue-600 text-white scale-110 shadow-md"
                           : "bg-white border-gray-200 text-gray-400 hover:border-blue-300 hover:text-blue-500"
                         }

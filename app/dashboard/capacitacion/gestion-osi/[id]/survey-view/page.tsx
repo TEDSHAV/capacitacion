@@ -1,6 +1,6 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import { getOSIDataForSurvey, getSurveysByOSI, getSurveyById } from "@/app/actions/surveys";
+import { getOSIDataForSurvey, getSurveysByOSI } from "@/app/actions/surveys";
 import SurveyDocumentView from "./SurveyDocumentView";
 import Link from "next/link";
 import { ArrowLeft, User, Calendar } from "lucide-react";
