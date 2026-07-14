@@ -76,6 +76,7 @@ export class OCRService {
         data.markdown ||
         data.text ||
         "";
+      console.log("Full markdown received from Mistral:", fullMarkdown);
       console.log("Full markdown length:", fullMarkdown.length);
 
       // Parse the OCR result to extract participants
@@ -118,12 +119,14 @@ export class OCRService {
     const participants: ExtractedParticipant[] = [];
     const lines = text.split("\n").filter((line) => line.trim());
 
-    // Pattern for IDs: Optional V/E, followed by 6-9 digits with optional dots
-    const idPattern = /(?:([VE])[-\s]?)?(\d{1,2}(?:\.\d{3}){1,2}|\d{6,9})\b/i;
+    // Pattern for IDs: Optional V/E, followed by 6-9 digits with any separators
+    // Much more relaxed to handle OCR misreads like "18.992167" or "18 992 167"
+    const idPattern = /(?:([VE])[-\s]?)?(\d(?:[.\s\d]{5,12})\d)\b/i;
 
     // Pattern for names (fallback for non-table lines)
+    // More flexible: allows single names, names with accents, and multiple words
     const namePattern =
-      /([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+)/;
+      /([A-ZÁÉÍÓÚÑ][a-záéíóúñ'\-]*(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ'\-]*)+)/;
 
     // Check if Mistral found a formatted table in this document
     const hasTable = lines.some((line) => line.includes("|"));
@@ -147,14 +150,36 @@ export class OCRService {
       if (line.includes("|")) {
         const cells = line.split("|").map((c) => c.trim());
 
-        // Find ID cell index (ignoring first/last empty cells from split)
-        const idCellIndex = cells.findIndex((cell) => idPattern.test(cell));
+        // Find ID cell index - look for cells that contain ID patterns
+        // Prioritize cells with clear ID matches
+        let idCellIndex = -1;
+        let bestIdMatch = null;
+        for (let i = 0; i < cells.length; i++) {
+          const cell = cells[i].trim();
+          if (!cell) continue;
+
+          const match = cell.match(idPattern);
+          if (match && match[2]) {
+            // Check if it's likely an ID (mostly digits)
+            const digitsOnly = match[2].replace(/[.\s]/g, "");
+            if (digitsOnly.length >= 6 && digitsOnly.length <= 9) {
+              if (
+                !bestIdMatch ||
+                digitsOnly.length > bestIdMatch[2].replace(/[.\s]/g, "").length
+              ) {
+                idCellIndex = i;
+                bestIdMatch = match;
+              }
+            }
+          }
+        }
 
         if (idCellIndex >= 0) {
-          const idMatch = cells[idCellIndex].match(idPattern);
+          const idMatch = bestIdMatch;
           if (idMatch) {
             if (idMatch[1]) prefix = idMatch[1].toUpperCase();
-            idNumberValue = idMatch[2].replace(/\./g, "");
+            // Remove all dots and spaces from ID
+            idNumberValue = idMatch[2].replace(/[.\s]/g, "");
 
             // IMPROVED NAME DETECTION: Look for the most likely name column
             // Usually it's the longest non-numeric cell that isn't the ID itself
@@ -212,7 +237,8 @@ export class OCRService {
         const idMatch = line.match(idPattern);
         if (idMatch) {
           if (idMatch[1]) prefix = idMatch[1].toUpperCase();
-          idNumberValue = idMatch[2].replace(/\./g, "");
+          // Remove all dots and spaces from ID
+          idNumberValue = idMatch[2].replace(/[.\s]/g, "");
 
           const idIndex = line.indexOf(idMatch[0]);
           const textBeforeId = line.substring(0, idIndex).trim();
@@ -227,19 +253,26 @@ export class OCRService {
           const scoreMatch = textAfterId.match(/\b(\d{1,2}(?:[.,]\d)?)\b/);
           if (scoreMatch) {
             const scoreNum = parseFloat(scoreMatch[1].replace(",", "."));
+
+            // Valid scores are typically between 0 and 20
             if (!isNaN(scoreNum) && scoreNum >= 0 && scoreNum <= 20) {
               score = Math.round(scoreNum);
             }
           }
         }
       }
-
+      // Validate extracted data
       if (
         name &&
         name.length > 2 &&
+        !name.match(/^[0-9\s.,-]+$/) && // Reject if only numbers/symbols
         idNumberValue &&
-        idNumberValue.length >= 6
+        idNumberValue.length >= 6 &&
+        idNumberValue.length <= 9
       ) {
+        console.log(
+          `Successfully parsed participant: ${name}, ID: ${idNumberValue}, Score: ${score}`,
+        );
         participants.push({
           name: name,
           idNumber: idNumberValue,
@@ -247,6 +280,36 @@ export class OCRService {
           score: score,
           confidence: hasTable ? 0.9 : 0.8, // Boost confidence if structured
         });
+      } else {
+        // Fallback: If we have something that looks like a name and something that looks like an ID in the line
+        // even if they weren't in the "correct" columns or format
+        if (!name && idNumberValue && line.includes("|")) {
+          // Maybe the name is in any other cell?
+          const cells = line.split("|").map((c) => c.trim());
+          for (const cell of cells) {
+            if (
+              cell &&
+              cell.length > 5 &&
+              !cell.match(idPattern) &&
+              !/^\d+$/.test(cell.replace(/[.\s]/g, ""))
+            ) {
+              const cleaned = this.cleanName(cell);
+              if (cleaned.length > 5) {
+                console.log(
+                  `Fallback parsed participant: ${cleaned}, ID: ${idNumberValue}`,
+                );
+                participants.push({
+                  name: cleaned,
+                  idNumber: idNumberValue,
+                  nationality: prefix === "E" ? "extranjero" : "venezolano",
+                  score: score,
+                  confidence: 0.7,
+                });
+                break;
+              }
+            }
+          }
+        }
       }
     }
 
