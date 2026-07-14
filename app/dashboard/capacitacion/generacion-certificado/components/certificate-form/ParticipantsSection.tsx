@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
-import { CertificateParticipant, ParticipantsSectionProps } from "@/types";
+import { CertificateParticipant, ParticipantsSectionProps, OSIAttachment } from "@/types";
 import { useParticipants } from "./use-participants";
 import { ParticipantScannerModal } from "./ParticipantScannerModal";
 import { Button } from "@/components/ui/button";
-import { X, Camera, CheckCircle2, AlertCircle, Download, Loader2 } from "lucide-react";
-import { getOSIParticipants } from "@/app/actions/facilitador-portal";
+import { X, Camera, CheckCircle2, AlertCircle, Download, Loader2, FileSearch } from "lucide-react";
+import { getOSIParticipants, getOSIAttachments } from "@/app/actions/facilitador-portal";
 
 export const ParticipantsSection = ({
   participants,
@@ -18,6 +18,9 @@ export const ParticipantsSection = ({
 }: ParticipantsSectionProps) => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isFetchingAttachments, setIsFetchingAttachments] = useState(false);
+  const [portalAttachments, setPortalAttachments] = useState<OSIAttachment[]>([]);
+  const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -105,6 +108,47 @@ export const ParticipantsSection = ({
       setImportError("Error al importar desde el portal");
     } finally {
       setIsImporting(false);
+    }
+  };
+
+  const handleScanFromPortal = async () => {
+    if (!osiId) return;
+    
+    setIsFetchingAttachments(true);
+    setImportError(null);
+    
+    try {
+      const result = await getOSIAttachments(osiId);
+      if (result.error) {
+        setImportError(result.error);
+      } else if (result.data && result.data.length > 0) {
+        setPortalAttachments(result.data);
+        setShowAttachmentPicker(true);
+      } else {
+        setImportError("No hay listas físicas cargadas para esta OSI.");
+      }
+    } catch (e) {
+      setImportError("Error al obtener archivos del portal");
+    } finally {
+      setIsFetchingAttachments(false);
+    }
+  };
+
+  const [selectedPortalFile, setSelectedPortalFile] = useState<File | null>(null);
+
+  const handleSelectAttachment = async (attachment: OSIAttachment) => {
+    try {
+      if (!attachment.publicUrl) throw new Error("Public URL missing");
+      // Fetch the file and convert to a File object
+      const response = await fetch(attachment.publicUrl);
+      const blob = await response.blob();
+      const file = new File([blob], attachment.file_name, { type: attachment.file_type });
+      
+      setSelectedPortalFile(file);
+      setIsScannerOpen(true);
+      setShowAttachmentPicker(false);
+    } catch (e) {
+      setImportError("Error al procesar el archivo seleccionado");
     }
   };
   const getParticipantStatus = (participant: CertificateParticipant) => {
@@ -221,12 +265,56 @@ export const ParticipantsSection = ({
           </button>
           <button
             type="button"
-            onClick={() => setIsScannerOpen(true)}
+            onClick={() => {
+              setSelectedPortalFile(null);
+              setIsScannerOpen(true);
+            }}
             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors whitespace-nowrap flex items-center gap-2"
           >
             <Camera className="h-4 w-4" />
             Escanear Lista
           </button>
+          {osiId && (
+            <div className="relative">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleScanFromPortal}
+                disabled={isFetchingAttachments}
+                className="px-4 py-2 flex items-center gap-2 border-green-200 text-green-700 bg-green-50 hover:bg-green-100 whitespace-nowrap h-10"
+              >
+                {isFetchingAttachments ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileSearch className="w-4 h-4" />
+                )}
+                Escanear desde Portal
+              </Button>
+
+              {showAttachmentPicker && (
+                <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 z-[60] overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  <div className="p-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Listas Disponibles</span>
+                    <button onClick={() => setShowAttachmentPicker(false)} className="text-gray-400 hover:text-gray-600">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {portalAttachments.map((att) => (
+                      <button
+                        key={att.id}
+                        onClick={() => handleSelectAttachment(att)}
+                        className="w-full p-3 text-left hover:bg-blue-50 border-b border-gray-50 last:border-b-0 transition-colors flex flex-col gap-1"
+                      >
+                        <span className="text-xs font-medium text-gray-900 truncate">{att.file_name}</span>
+                        <span className="text-[10px] text-gray-500">Subido el {new Date(att.created_at).toLocaleDateString()}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {osiId && facilitadorId && (
             <Button
               type="button"
@@ -416,6 +504,7 @@ export const ParticipantsSection = ({
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onAddParticipants={handleAddScannedParticipants}
+        preselectedFile={selectedPortalFile}
       />
     </div>
   );

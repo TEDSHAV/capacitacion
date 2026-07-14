@@ -45,6 +45,40 @@ export async function optimizeSignatureImage(
 }
 
 /**
+ * Optimizes a document image (photo of a list) for storage and OCR.
+ * Compresses to JPEG with reasonable quality and resizes to a max dimension.
+ */
+export async function optimizeDocumentImage(
+  buffer: Buffer,
+  options: OptimizeOptions = {},
+): Promise<Buffer> {
+  const { maxWidth = 2000, maxHeight = 2000, quality = 80 } = options;
+
+  try {
+    const sharpInstance = sharp(buffer);
+
+    const pipeline = sharpInstance
+      .rotate() // Auto-rotate based on EXIF
+      .resize({
+        width: maxWidth,
+        height: maxHeight,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({
+        quality: quality,
+        progressive: true,
+        mozjpeg: true, // Use mozjpeg for better compression
+      });
+
+    return await pipeline.toBuffer();
+  } catch (error) {
+    console.error("Error optimizing document image:", error);
+    return buffer;
+  }
+}
+
+/**
  * Saves an optimized signature image as base64 for database storage.
  * This approach works reliably in containerized environments (Coolify, Docker, etc.)
  * without requiring filesystem access or volume mounts.

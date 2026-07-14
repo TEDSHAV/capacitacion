@@ -1034,6 +1034,19 @@ export interface OSIStatus {
   es_estado_final: boolean;
 }
 
+export interface OSIAttachment {
+  id: string;
+  osi_id: number;
+  facilitador_id: number | null;
+  storage_path: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  created_at: string;
+  updated_at: string;
+  publicUrl?: string;
+}
+
 export interface OSILifecycleProps {
   currentStatusId: number;
   statuses: OSIStatus[];

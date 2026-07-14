@@ -13,6 +13,7 @@ import {
   UserPlus
 } from "lucide-react";
 import { saveParticipants } from "@/app/actions/facilitador-portal";
+import { PhysicalListUpload } from "./physical-list-upload";
 
 interface Participant {
   nombre_apellido: string;
@@ -23,7 +24,7 @@ interface Participant {
 interface ParticipantFormProps {
   osiId: number;
   facilitadorId: number;
-  initialParticipants: any[];
+  initialParticipants: Participant[];
 }
 
 export const ParticipantForm = ({
@@ -217,6 +218,8 @@ export const ParticipantForm = ({
           </div>
         </div>
       </div>
+
+      <PhysicalListUpload osiId={osiId} facilitadorId={facilitadorId} />
     </div>
   );
 };

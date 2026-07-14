@@ -22,12 +22,14 @@ interface ParticipantScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddParticipants: (participants: CertificateParticipant[]) => void;
+  preselectedFile?: File | null;
 }
 
 export const ParticipantScannerModal = ({
   isOpen,
   onClose,
   onAddParticipants,
+  preselectedFile,
 }: ParticipantScannerModalProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [apiKey, setApiKey] = useState("");
@@ -75,6 +77,15 @@ export const ParticipantScannerModal = ({
       document.body.style.overflow = "unset";
     };
   }, [isOpen]);
+
+  // Handle preselected file from portal
+  useEffect(() => {
+    if (isOpen && preselectedFile) {
+      setFile(preselectedFile);
+      const url = URL.createObjectURL(preselectedFile);
+      setPreviewUrl(url);
+    }
+  }, [isOpen, preselectedFile]);
 
   // Auto-process file when selected and API key is available
   const handleProcess = useCallback(

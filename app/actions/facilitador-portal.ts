@@ -4,6 +4,8 @@ import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import crypto from "node:crypto";
+import { optimizeDocumentImage } from "@/lib/image-optimization.server";
+import { OSIAttachment } from "@/types";
 
 // Simple hash function using Node.js crypto
 function hashPassword(password: string): string {
@@ -166,7 +168,7 @@ export async function getAssignedOSIs(facilitadorId: number) {
   return { data };
 }
 
-export async function getOSIParticipants(osiId: number, facilitadorId?: number) {
+export async function getOSIParticipants(osiId: number, facilitadorId?: number): Promise<{ data?: any[]; error?: string }> {
   const supabase = await createAdminClient();
   
   console.log(`[getOSIParticipants] Searching for OSI: ${osiId}, Facilitador: ${facilitadorId || 'ANY'}`);
@@ -202,7 +204,7 @@ export async function getOSIParticipants(osiId: number, facilitadorId?: number) 
     }
   }
 
-  return { data };
+  return { data: data || [] };
 }
 
 export async function saveParticipants(
@@ -309,4 +311,128 @@ export async function getFacilitatorByOSI(osiId: number) {
   }
 
   return { data };
+}
+
+/**
+ * Upload an attachment (physical list) for an OSI from the facilitator portal
+ */
+export async function uploadOSIAttachment(
+  osiId: number,
+  facilitadorId: number,
+  formData: FormData
+): Promise<{ success?: boolean; data?: OSIAttachment; error?: string }> {
+  const supabase = await createAdminClient();
+  const file = formData.get("file") as File;
+
+  if (!file) return { error: "No se proporcionó ningún archivo" };
+
+  try {
+    const bytes = await file.arrayBuffer();
+    let buffer: Buffer = Buffer.from(bytes);
+    let finalFileType = file.type;
+
+    // Optimize images (not PDFs)
+    if (file.type.startsWith("image/")) {
+      buffer = await optimizeDocumentImage(buffer) as Buffer;
+      finalFileType = "image/jpeg"; // Always output optimized as JPEG
+    }
+
+    // Generate path: osi_id/facilitador_id/timestamp_filename
+    const timestamp = Date.now();
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const storagePath = `${osiId}/${facilitadorId}/${timestamp}_${sanitizedName}`;
+
+    // 1. Upload to Supabase Storage
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from("facilitador-uploads")
+      .upload(storagePath, buffer, {
+        contentType: finalFileType,
+        upsert: true,
+      });
+
+    if (storageError) throw storageError;
+
+    // 2. Insert into metadata table
+    const { data, error: dbError } = await supabase
+      .from("ejecucion_osi_asistencia")
+      .insert({
+        osi_id: osiId,
+        facilitador_id: facilitadorId,
+        storage_path: storagePath,
+        file_name: file.name,
+        file_type: finalFileType,
+        file_size: buffer.length,
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      // Cleanup storage if DB fails
+      await supabase.storage.from("facilitador-uploads").remove([storagePath]);
+      throw dbError;
+    }
+
+    return { success: true, data: data as OSIAttachment };
+  } catch (error) {
+    console.error("[uploadOSIAttachment] Error:", error);
+    return { error: error instanceof Error ? error.message : "Error al subir el archivo" };
+  }
+}
+
+/**
+ * Get all attachments for a specific OSI
+ */
+export async function getOSIAttachments(osiId: number): Promise<{ data?: OSIAttachment[]; error?: string }> {
+  const supabase = await createAdminClient();
+  
+  const { data, error } = await supabase
+    .from("ejecucion_osi_asistencia")
+    .select("*")
+    .eq("osi_id", osiId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[getOSIAttachments] Error:", error);
+    return { error: error.message };
+  }
+
+  // Get public URLs for each file
+  const attachmentsWithUrls = (data || []).map(att => {
+    const { data: { publicUrl } } = supabase.storage
+      .from("facilitador-uploads")
+      .getPublicUrl(att.storage_path);
+    
+    return { ...att, publicUrl } as OSIAttachment;
+  });
+
+  return { data: attachmentsWithUrls };
+}
+
+/**
+ * Delete an attachment from storage and DB
+ */
+export async function deleteOSIAttachment(id: string, storagePath: string): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createAdminClient();
+
+  try {
+    // 1. Delete from storage
+    const { error: storageError } = await supabase.storage
+      .from("facilitador-uploads")
+      .remove([storagePath]);
+
+    if (storageError) throw storageError;
+
+    // 2. Delete from database
+    const { error: dbError } = await supabase
+      .from("ejecucion_osi_asistencia")
+      .delete()
+      .eq("id", id);
+
+    if (dbError) throw dbError;
+
+    return { success: true };
+  } catch (error) {
+    console.error("[deleteOSIAttachment] Error:", error);
+    return { error: error instanceof Error ? error.message : "Error al eliminar el archivo" };
+  }
 }
