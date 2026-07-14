@@ -33,12 +33,48 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * Determine pagination strategy based on participant count
+ * @param participantCount Number of participants in the table
+ * @returns Object with pagination info
+ */
+function getPaginationStrategy(participantCount: number) {
+  // Thresholds based on typical page capacity
+  const SHORT_TABLE_THRESHOLD = 15;
+  const MEDIUM_TABLE_THRESHOLD = 22;
+
+  if (participantCount <= SHORT_TABLE_THRESHOLD) {
+    return {
+      pages: 1,
+      signaturePosition: "middle",
+      splitIndex: participantCount,
+    };
+  } else if (participantCount <= MEDIUM_TABLE_THRESHOLD) {
+    return {
+      pages: 1,
+      signaturePosition: "bottom",
+      splitIndex: participantCount,
+    };
+  } else {
+    // Split table at approximately 60% for first page
+    const splitIndex = Math.ceil(participantCount * 0.6);
+    return {
+      pages: 2,
+      signaturePosition: "bottom", // Always at bottom of last page
+      splitIndex,
+    };
+  }
+}
+
+/**
  * Build HTML for Certificación de Competencias document
  */
 export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
   const logoUri = getImageDataUri("logo.png");
   const footerUri = getImageDataUri("docs_footer.png");
   const watermarkUri = getImageDataUri("watermark.png");
+
+  const pagination = getPaginationStrategy(data.participantes.length);
+  const totalPages = pagination.pages;
 
   const tableRows = data.participantes
     .map(
@@ -54,6 +90,165 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
   `,
     )
     .join("");
+
+  // Split table rows if multi-page
+  const firstPageRows =
+    pagination.pages === 2
+      ? data.participantes
+          .slice(0, pagination.splitIndex)
+          .map(
+            (p) => `
+    <tr>
+      <td>${p.index}</td>
+      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
+      <td class="text-center">${escapeHtml(p.cedula)}</td>
+      <td>${p.puntuacion || ""}</td>
+      <td>${p.condicion || ""}</td>
+      <td class="text-center">${escapeHtml(p.numero_control)}</td>
+    </tr>
+  `,
+          )
+          .join("")
+      : tableRows;
+
+  const secondPageRows =
+    pagination.pages === 2
+      ? data.participantes
+          .slice(pagination.splitIndex)
+          .map(
+            (p) => `
+    <tr>
+      <td>${p.index}</td>
+      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
+      <td class="text-center">${escapeHtml(p.cedula)}</td>
+      <td>${p.puntuacion || ""}</td>
+      <td>${p.condicion || ""}</td>
+      <td class="text-center">${escapeHtml(p.numero_control)}</td>
+    </tr>
+  `,
+          )
+          .join("")
+      : "";
+
+  const signatureClass =
+    pagination.signaturePosition === "middle"
+      ? "position-middle"
+      : "position-bottom";
+
+  const generatePage = (
+    pageNumber: number,
+    content: string,
+    includeSignature: boolean = false,
+  ) => `
+  <div class="page">
+    <div class="header">
+      <div>
+        ${logoUri ? `<img src="${logoUri}" alt="Logo" class="logo">` : ""}
+      </div>
+      <div class="title">
+        CERTIFICACIÓN DE<br>COMPETENCIAS
+      </div>
+      <div class="code-box">
+        <div><span class="code-label">CÓDIGO:</span> <span>SHA-RG-CAP-006</span></div>
+        <div><span class="code-label">FECHA:</span> <span>01/04/2026</span></div>
+        <div><span class="code-label">REVISIÓN:</span> <span>00</span></div>
+        <div><span class="code-label">PÁGINA:</span> <span>${pageNumber} de ${totalPages}</span></div>
+      </div>
+    </div>
+
+    <div class="content">
+      ${content}
+      ${
+        includeSignature
+          ? `
+      <div class="signature-block ${signatureClass}">
+        <div class="signature-text">Atentamente,</div>
+        <div class="signature-name">REPRESENTANTE SHA</div>
+      </div>
+      `
+          : ""
+      }
+    </div>
+
+    ${footerUri ? `<div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>` : ""}
+  </div>
+`;
+
+  const introContent = `
+    <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha || "")}</div>
+
+    <div class="recipient">Sres. ${escapeHtml(data.nombre_cliente || "")}</div>
+
+    <div class="body-text">
+      SHA DE VENEZUELA, C.A. certifica las competencias de cada uno de los participantes descritos en el cuadro anexo, quienes asistieron al curso de ${escapeHtml(data.titulo_curso || "")}, realizado en ${escapeHtml(data.ciudad || "")} el ${escapeHtml(data.dia || "")} de ${escapeHtml(data.mes || "")} del ${escapeHtml(data.anio || "")} como parte del proceso de Capacitación bajo la Orden de Servicio Interna ${escapeHtml(data.nro_osi || "")}, en consideración de su desempeño y los resultados obtenidos en las evaluaciones efectuadas durante el mismo.
+    </div>
+
+    <div class="min-score">La nota mínima aprobatoria es de 14 puntos.</div>
+  `;
+
+  let pagesHtml = "";
+
+  if (pagination.pages === 1) {
+    // Single page
+    const tableContent = `
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>NOMBRE Y APELLIDO</th>
+            <th>CÉDULA</th>
+            <th>PUNTUACIÓN</th>
+            <th>CONDICIÓN</th>
+            <th>N° DE CONTROL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+    `;
+    pagesHtml = generatePage(1, introContent + tableContent, true);
+  } else {
+    // Two pages
+    const firstPageTable = `
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>NOMBRE Y APELLIDO</th>
+            <th>CÉDULA</th>
+            <th>PUNTUACIÓN</th>
+            <th>CONDICIÓN</th>
+            <th>N° DE CONTROL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${firstPageRows}
+        </tbody>
+      </table>
+    `;
+
+    const secondPageTable = `
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>NOMBRE Y APELLIDO</th>
+            <th>CÉDULA</th>
+            <th>PUNTUACIÓN</th>
+            <th>CONDICIÓN</th>
+            <th>N° DE CONTROL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${secondPageRows}
+        </tbody>
+      </table>
+    `;
+
+    pagesHtml = generatePage(1, introContent + firstPageTable, false);
+    pagesHtml += generatePage(2, secondPageTable, true);
+  }
 
   return `
 <!DOCTYPE html>
@@ -194,10 +389,17 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     }
 
     .signature-block {
-      margin-top: 20px;
       text-align: center;
       page-break-inside: avoid;
       margin-bottom: 30px;
+    }
+
+    .signature-block.position-middle {
+      margin-top: auto;
+    }
+
+    .signature-block.position-bottom {
+      margin-top: 20px;
     }
 
     .signature-text {
@@ -215,7 +417,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     .footer {
       page-break-inside: avoid;
       padding-top: 10px;
-      margin-top: 10px;
+      margin-top: auto;
       flex-shrink: 0;
     }
 
@@ -227,57 +429,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
   </style>
 </head>
 <body>
-  <div class="page">
-    <div class="header">
-      <div>
-        ${logoUri ? `<img src="${logoUri}" alt="Logo" class="logo">` : ""}
-      </div>
-      <div class="title">
-        CERTIFICACIÓN DE<br>COMPETENCIAS
-      </div>
-      <div class="code-box">
-        <div><span class="code-label">CÓDIGO:</span> <span>SHA-RG-CAP-006</span></div>
-        <div><span class="code-label">FECHA:</span> <span>01/04/2026</span></div>
-        <div><span class="code-label">REVISIÓN:</span> <span>00</span></div>
-        <div><span class="code-label">PÁGINA:</span> <span>1 de 1</span></div>
-      </div>
-    </div>
-
-    <div class="content">
-      <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha || "")}</div>
-
-      <div class="recipient">Sres. ${escapeHtml(data.nombre_cliente || "")}</div>
-
-      <div class="body-text">
-        SHA DE VENEZUELA, C.A. certifica las competencias de cada uno de los participantes descritos en el cuadro anexo, quienes asistieron al curso de ${escapeHtml(data.titulo_curso || "")}, realizado en ${escapeHtml(data.ciudad || "")} el ${escapeHtml(data.dia || "")} de ${escapeHtml(data.mes || "")} del ${escapeHtml(data.anio || "")} como parte del proceso de Capacitación bajo la Orden de Servicio Interna ${escapeHtml(data.nro_osi || "")}, en consideración de su desempeño y los resultados obtenidos en las evaluaciones efectuadas durante el mismo.
-      </div>
-
-      <div class="min-score">La nota mínima aprobatoria es de 14 puntos.</div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>N°</th>
-            <th>NOMBRE Y APELLIDO</th>
-            <th>CÉDULA</th>
-            <th>PUNTUACIÓN</th>
-            <th>CONDICIÓN</th>
-            <th>N° DE CONTROL</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-
-      <div class="signature-block">
-        <div class="signature-text">Atentamente,</div>
-        <div class="signature-name">REPRESENTANTE SHA</div>
-      </div>
-    </div>
-
-    ${footerUri ? `<div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>` : ""}
-  </div>
+  ${pagesHtml}
 </body>
 </html>
   `;
@@ -291,6 +443,9 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
   const footerUri = getImageDataUri("docs_footer.png");
   const watermarkUri = getImageDataUri("watermark.png");
 
+  const pagination = getPaginationStrategy(data.participantes.length);
+  const totalPages = pagination.pages;
+
   const tableRows = data.participantes
     .map(
       (p) => `
@@ -303,6 +458,163 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
   `,
     )
     .join("");
+
+  // Split table rows if multi-page
+  const firstPageRows =
+    pagination.pages === 2
+      ? data.participantes
+          .slice(0, pagination.splitIndex)
+          .map(
+            (p) => `
+    <tr>
+      <td>${p.index}</td>
+      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
+      <td class="text-center">${escapeHtml(p.cedula)}</td>
+      <td class="text-center">${escapeHtml(p.numero_control)}</td>
+    </tr>
+  `,
+          )
+          .join("")
+      : tableRows;
+
+  const secondPageRows =
+    pagination.pages === 2
+      ? data.participantes
+          .slice(pagination.splitIndex)
+          .map(
+            (p) => `
+    <tr>
+      <td>${p.index}</td>
+      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
+      <td class="text-center">${escapeHtml(p.cedula)}</td>
+      <td class="text-center">${escapeHtml(p.numero_control)}</td>
+    </tr>
+  `,
+          )
+          .join("")
+      : "";
+
+  const signatureClass =
+    pagination.signaturePosition === "middle"
+      ? "position-middle"
+      : "position-bottom";
+
+  const signatureContent = `
+      <div class="signature-block ${signatureClass}">
+        <div class="signature-text">Atentamente,</div>
+        <div class="signature-name">REPRESENTANTE SHA</div>
+
+        <div class="received-section">
+          <div class="received-label">Recibido por:</div>
+          <div style="margin-left: 40px;">
+            <div class="signature-line"></div>
+            <div class="seal-label">SELLO Y FIRMA DEL CLIENTE</div>
+            <div class="received-name">${escapeHtml(data.nombre_recibido || "[NOMBRE Y APELLIDO]")}</div>
+            <div class="received-cargo">${escapeHtml(data.cargo_recibido || "[CARGO]")}</div>
+          </div>
+        </div>
+
+        <div class="footnote">
+          (Devolver sellado y firmado para validar la recepción de los documentos descritos en el documento)
+        </div>
+      </div>
+  `;
+
+  const generatePage = (
+    pageNumber: number,
+    content: string,
+    includeSignature: boolean = false,
+  ) => `
+  <div class="page">
+    <div class="header">
+      <div>
+        ${logoUri ? `<img src="${logoUri}" alt="Logo" class="logo">` : ""}
+      </div>
+      <div class="title">NOTA DE ENTREGA</div>
+      <div class="code-box">
+        <div><span class="code-label">CÓDIGO:</span> <span>SHA-RG-CAP-006</span></div>
+        <div><span class="code-label">FECHA:</span> <span>01/04/2026</span></div>
+        <div><span class="code-label">REVISIÓN:</span> <span>00</span></div>
+        <div><span class="code-label">PÁGINA:</span> <span>${pageNumber} de ${totalPages}</span></div>
+      </div>
+    </div>
+
+    <div class="content">
+      ${content}
+      ${includeSignature ? signatureContent : ""}
+    </div>
+
+    ${footerUri ? `<div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>` : ""}
+  </div>
+`;
+
+  const introContent = `
+    <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha || "")}</div>
+
+    <div class="recipient">Sres. ${escapeHtml(data.nombre_cliente || "")}</div>
+
+    <div class="body-text">
+      Sirva la presente para hacer entrega de CERTIFICADOS correspondientes a la formación en materia de ${escapeHtml(data.titulo_curso || "")}, realizado en ${escapeHtml(data.ciudad || "")}, el día ${escapeHtml(data.dia || "")} de ${escapeHtml(data.mes || "")} del ${escapeHtml(data.anio || "")}, como parte del proceso de Capacitación bajo la Orden de Servicio Interna ${escapeHtml(data.nro_osi || "")}, siendo aprobados los siguientes participantes:
+    </div>
+  `;
+
+  let pagesHtml = "";
+
+  if (pagination.pages === 1) {
+    // Single page
+    const tableContent = `
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>NOMBRE Y APELLIDO</th>
+            <th>CÉDULA</th>
+            <th>N° DE CONTROL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+    `;
+    pagesHtml = generatePage(1, introContent + tableContent, true);
+  } else {
+    // Two pages
+    const firstPageTable = `
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>NOMBRE Y APELLIDO</th>
+            <th>CÉDULA</th>
+            <th>N° DE CONTROL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${firstPageRows}
+        </tbody>
+      </table>
+    `;
+
+    const secondPageTable = `
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>NOMBRE Y APELLIDO</th>
+            <th>CÉDULA</th>
+            <th>N° DE CONTROL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${secondPageRows}
+        </tbody>
+      </table>
+    `;
+
+    pagesHtml = generatePage(1, introContent + firstPageTable, false);
+    pagesHtml += generatePage(2, secondPageTable, true);
+  }
 
   return `
 <!DOCTYPE html>
@@ -438,8 +750,17 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     }
 
     .signature-block {
-      margin-top: auto;
+      text-align: center;
+      page-break-inside: avoid;
       margin-bottom: 30px;
+    }
+
+    .signature-block.position-middle {
+      margin-top: auto;
+    }
+
+    .signature-block.position-bottom {
+      margin-top: 20px;
     }
 
     .signature-text {
@@ -501,7 +822,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
     .footer {
       page-break-inside: avoid;
       padding-top: 10px;
-      margin-top: 10px;
+      margin-top: auto;
       flex-shrink: 0;
     }
 
@@ -513,65 +834,7 @@ export function buildNotaEntregaHtml(data: TemplateData): string {
   </style>
 </head>
 <body>
-  <div class="page">
-    <div class="header">
-      <div>
-        ${logoUri ? `<img src="${logoUri}" alt="Logo" class="logo">` : ""}
-      </div>
-      <div class="title">NOTA DE ENTREGA</div>
-      <div class="code-box">
-        <div><span class="code-label">CÓDIGO:</span> <span>SHA-RG-CAP-006</span></div>
-        <div><span class="code-label">FECHA:</span> <span>01/04/2026</span></div>
-        <div><span class="code-label">REVISIÓN:</span> <span>00</span></div>
-        <div><span class="code-label">PÁGINA:</span> <span>1 de 1</span></div>
-      </div>
-    </div>
-
-    <div class="content">
-      <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha || "")}</div>
-
-      <div class="recipient">Sres. ${escapeHtml(data.nombre_cliente || "")}</div>
-
-      <div class="body-text">
-        Sirva la presente para hacer entrega de CERTIFICADOS correspondientes a la formación en materia de ${escapeHtml(data.titulo_curso || "")}, realizado en ${escapeHtml(data.ciudad || "")}, el día ${escapeHtml(data.dia || "")} de ${escapeHtml(data.mes || "")} del ${escapeHtml(data.anio || "")}, como parte del proceso de Capacitación bajo la Orden de Servicio Interna ${escapeHtml(data.nro_osi || "")}, siendo aprobados los siguientes participantes:
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>N°</th>
-            <th>NOMBRE Y APELLIDO</th>
-            <th>CÉDULA</th>
-            <th>N° DE CONTROL</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-
-      <div class="signature-block">
-        <div class="signature-text">Atentamente,</div>
-        <div class="signature-name">REPRESENTANTE SHA</div>
-
-        <div class="received-section">
-          <div class="received-label">Recibido por:</div>
-          <div style="margin-left: 40px;">
-            <div class="signature-line"></div>
-            <div class="seal-label">SELLO Y FIRMA DEL CLIENTE</div>
-            <div class="received-name">${escapeHtml(data.nombre_recibido || "[NOMBRE Y APELLIDO]")}</div>
-            <div class="received-cargo">${escapeHtml(data.cargo_recibido || "[CARGO]")}</div>
-          </div>
-        </div>
-
-        <div class="footnote">
-          (Devolver sellado y firmado para validar la recepción de los documentos descritos en el documento)
-        </div>
-      </div>
-    </div>
-
-    ${footerUri ? `<div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>` : ""}
-  </div>
+  ${pagesHtml}
 </body>
 </html>
   `;
@@ -585,6 +848,9 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
   const footerUri = getImageDataUri("docs_footer.png");
   const watermarkUri = getImageDataUri("watermark.png");
 
+  const pagination = getPaginationStrategy(data.participantes.length);
+  const totalPages = pagination.pages;
+
   const tableRows = data.participantes
     .map(
       (p) => `
@@ -597,6 +863,157 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
   `,
     )
     .join("");
+
+  // Split table rows if multi-page
+  const firstPageRows =
+    pagination.pages === 2
+      ? data.participantes
+          .slice(0, pagination.splitIndex)
+          .map(
+            (p) => `
+    <tr>
+      <td>${p.index}</td>
+      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
+      <td class="text-center">${escapeHtml(p.cedula)}</td>
+      <td class="text-center">${escapeHtml(p.numero_control)}</td>
+    </tr>
+  `,
+          )
+          .join("")
+      : tableRows;
+
+  const secondPageRows =
+    pagination.pages === 2
+      ? data.participantes
+          .slice(pagination.splitIndex)
+          .map(
+            (p) => `
+    <tr>
+      <td>${p.index}</td>
+      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
+      <td class="text-center">${escapeHtml(p.cedula)}</td>
+      <td class="text-center">${escapeHtml(p.numero_control)}</td>
+    </tr>
+  `,
+          )
+          .join("")
+      : "";
+
+  const signatureClass =
+    pagination.signaturePosition === "middle"
+      ? "position-middle"
+      : "position-bottom";
+
+  const generatePage = (
+    pageNumber: number,
+    content: string,
+    includeSignature: boolean = false,
+  ) => `
+  <div class="page">
+    <div class="header">
+      <div>
+        ${logoUri ? `<img src="${logoUri}" alt="Logo" class="logo">` : ""}
+      </div>
+      <div class="title">VALIDACIÓN DE DATOS</div>
+      <div class="code-box">
+        <div><span class="code-label">CÓDIGO:</span> <span>SHA-RG-CAP-004</span></div>
+        <div><span class="code-label">FECHA:</span> <span>01/04/2026</span></div>
+        <div><span class="code-label">REVISIÓN:</span> <span>00</span></div>
+        <div><span class="code-label">PÁGINA:</span> <span>${pageNumber} de ${totalPages}</span></div>
+      </div>
+    </div>
+
+    <div class="content">
+      ${content}
+      ${
+        includeSignature
+          ? `
+      <div class="signature-block ${signatureClass}">
+        <div class="signature-text">Atentamente,</div>
+        <div class="signature-name">REPRESENTANTE SHA</div>
+      </div>
+      `
+          : ""
+      }
+    </div>
+
+    ${footerUri ? `<div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>` : ""}
+  </div>
+`;
+
+  const introContent = `
+    <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha || "")}</div>
+
+    <div class="recipient">
+      ${
+        data.localidad_cliente
+          ? `Sres. ${escapeHtml(data.nombre_cliente || "")} – ${escapeHtml(data.localidad_cliente)}`
+          : `Sres. ${escapeHtml(data.nombre_cliente || "")}`
+      }
+    </div>
+
+    <div class="body-text">
+      Sirva la presente para formalizar el proceso de Validación de Datos de los participantes que asistieron al curso de ${escapeHtml(data.titulo_curso || "")}, realizado en ${escapeHtml(data.localidad_cliente || data.ciudad || "")}, el (los) día (s) ${escapeHtml(data.fecha_ejecucion || data.fecha || "")}, como parte del proceso de Capacitación bajo la Orden de Servicio Interna ${escapeHtml(data.nro_osi || "")}. Recibir esta validación es indispensable para proceder a imprimir los certificados y carnet, según aplique. Este proceso es limitativo para la entrega formal y física de los mismos.
+    </div>
+  `;
+
+  let pagesHtml = "";
+
+  if (pagination.pages === 1) {
+    // Single page
+    const tableContent = `
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>NOMBRE Y APELLIDO</th>
+            <th>CÉDULA</th>
+            <th>N° DE CONTROL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+    `;
+    pagesHtml = generatePage(1, introContent + tableContent, true);
+  } else {
+    // Two pages
+    const firstPageTable = `
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>NOMBRE Y APELLIDO</th>
+            <th>CÉDULA</th>
+            <th>N° DE CONTROL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${firstPageRows}
+        </tbody>
+      </table>
+    `;
+
+    const secondPageTable = `
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>NOMBRE Y APELLIDO</th>
+            <th>CÉDULA</th>
+            <th>N° DE CONTROL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${secondPageRows}
+        </tbody>
+      </table>
+    `;
+
+    pagesHtml = generatePage(1, introContent + firstPageTable, false);
+    pagesHtml += generatePage(2, secondPageTable, true);
+  }
 
   return `
 <!DOCTYPE html>
@@ -732,10 +1149,17 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     }
 
     .signature-block {
-      margin-top: 20px;
       text-align: center;
       page-break-inside: avoid;
       margin-bottom: 30px;
+    }
+
+    .signature-block.position-middle {
+      margin-top: auto;
+    }
+
+    .signature-block.position-bottom {
+      margin-top: 20px;
     }
 
     .signature-text {
@@ -753,7 +1177,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
     .footer {
       page-break-inside: avoid;
       padding-top: 10px;
-      margin-top: 10px;
+      margin-top: auto;
       flex-shrink: 0;
     }
 
@@ -765,57 +1189,7 @@ export function buildValidacionDatosHtml(data: TemplateData): string {
   </style>
 </head>
 <body>
-  <div class="page">
-    <div class="header">
-      <div>
-        ${logoUri ? `<img src="${logoUri}" alt="Logo" class="logo">` : ""}
-      </div>
-      <div class="title">VALIDACIÓN DE DATOS</div>
-      <div class="code-box">
-        <div><span class="code-label">CÓDIGO:</span> <span>SHA-RG-CAP-004</span></div>
-        <div><span class="code-label">FECHA:</span> <span>01/04/2026</span></div>
-        <div><span class="code-label">REVISIÓN:</span> <span>00</span></div>
-        <div><span class="code-label">PÁGINA:</span> <span>1 de 1</span></div>
-      </div>
-    </div>
-
-    <div class="content">
-      <div class="date-right">Puerto La Cruz, ${escapeHtml(data.fecha || "")}</div>
-
-      <div class="recipient">
-        ${
-          data.localidad_cliente
-            ? `Sres. ${escapeHtml(data.nombre_cliente || "")} – ${escapeHtml(data.localidad_cliente)}`
-            : `Sres. ${escapeHtml(data.nombre_cliente || "")}`
-        }
-      </div>
-
-      <div class="body-text">
-        Sirva la presente para formalizar el proceso de Validación de Datos de los participantes que asistieron al curso de ${escapeHtml(data.titulo_curso || "")}, realizado en ${escapeHtml(data.localidad_cliente || data.ciudad || "")}, el (los) día (s) ${escapeHtml(data.fecha_ejecucion || data.fecha || "")}, como parte del proceso de Capacitación bajo la Orden de Servicio Interna ${escapeHtml(data.nro_osi || "")}. Recibir esta validación es indispensable para proceder a imprimir los certificados y carnet, según aplique. Este proceso es limitativo para la entrega formal y física de los mismos.
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>N°</th>
-            <th>NOMBRE Y APELLIDO</th>
-            <th>CÉDULA</th>
-            <th>N° DE CONTROL</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-
-      <div class="signature-block">
-        <div class="signature-text">Atentamente,</div>
-        <div class="signature-name">REPRESENTANTE SHA</div>
-      </div>
-    </div>
-
-    ${footerUri ? `<div class="footer"><img src="${footerUri}" alt="Footer" class="footer-image"></div>` : ""}
-  </div>
+  ${pagesHtml}
 </body>
 </html>
   `;
