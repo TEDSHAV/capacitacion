@@ -371,15 +371,7 @@ export class CertificatePage {
         signatureData = shaSignature[0];
       }
       
-      // Add SHA signature name
-      this.doc.setFont("helvetica", "normal");
-      this.doc.setFontSize(8);
-      this.doc.text(
-        signatureData.nombre?.toUpperCase() || signatureData.representante_sha?.toUpperCase() || '',
-        signatureConfig.rightX + 35,
-        100,
-        { align: "center" }
-      );
+      // SHA signature name removed - only showing signature image
       
       // Add SHA signature image if available
       if (signatureData.url_imagen) {
