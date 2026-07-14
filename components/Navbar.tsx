@@ -56,9 +56,9 @@ export default function Navbar() {
             <Image 
               src="/logo.png" 
               alt="Logo de la Empresa" 
-              width={150} 
-              height={150}
-              className="cursor-pointer hover:opacity-80 transition-opacity duration-200"
+              width={120} 
+              height={120}
+              className="cursor-pointer hover:opacity-80 transition-opacity duration-200 h-12 w-auto object-contain"
               onClick={() => router.push('/dashboard')}
             />
           </div>

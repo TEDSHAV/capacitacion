@@ -19,8 +19,67 @@ export default function DashboardClient({
 }: DashboardClientProps) {
   const router = useRouter();
 
+  // Color mapping for different departments
+  const departmentColors: { [key: string]: string } = {
+    'negocios': 'from-blue-500 to-blue-600',
+    'capacitacion': 'from-purple-500 to-purple-600',
+    'recursos': 'from-orange-500 to-orange-600',
+    'administracion': 'from-yellow-500 to-yellow-600',
+    'finanzas': 'from-indigo-500 to-indigo-600',
+    'operaciones': 'from-red-500 to-red-600',
+    'calidad': 'from-cyan-500 to-cyan-600'
+  };
 
+  // Light color gradients for minimalist theme
+  const lightGradients = [
+    'from-blue-400 to-blue-500',
+    'from-green-400 to-green-500', 
+    'from-purple-400 to-purple-500',
+    'from-orange-400 to-orange-500',
+    'from-indigo-400 to-indigo-500',
+    'from-pink-400 to-pink-500',
+    'from-cyan-400 to-cyan-500',
+    'from-amber-400 to-amber-500',
+    'from-rose-400 to-rose-500',
+    'from-teal-400 to-teal-500'
+  ];
+
+  // Function to get gradient for department (random if not specified)
+  const getDepartmentGradient = (departmentName: string, index: number) => {
+    const normalizedName = departmentName.toLowerCase();
+    if (departmentColors[normalizedName]) {
+      return departmentColors[normalizedName];
+    }
+    // Use index-based random assignment for consistency
+    return lightGradients[index % lightGradients.length];
+  };
+
+  // Function to render minimalist uniform cards
+  const renderCardDesign = (department: any, index: number) => {
+    const gradient = getDepartmentGradient(department.nombre, index);
     
+    return (
+      <div 
+        className="relative bg-white rounded-xl shadow-sm hover:shadow-md cursor-pointer transform transition-all duration-300 hover:scale-102 border border-gray-200 overflow-hidden h-full"
+        onClick={() => handleDepartmentClick(department.nombre)}
+      >
+        <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${gradient}`}></div>
+        <div className="p-6 flex flex-col items-center justify-center text-center h-full">
+          <div className="w-16 h-16 rounded-lg bg-gradient-to-br ${gradient} mb-4 flex items-center justify-center shadow-sm overflow-hidden">
+            <img 
+              src="/favicon.ico" 
+              alt="Favicon" 
+              className="w-12 h-12 object-contain"
+            />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            {department.nombre.toUpperCase()}
+          </h3>
+         
+        </div>
+      </div>
+    );
+  };
 
   const handleDepartmentClick = (nombreDepartamento: string) => {
     router.push(`/dashboard/${nombreDepartamento}`);
@@ -40,6 +99,14 @@ export default function DashboardClient({
     );
   }
 
+  // Simple uniform grid layout
+  const gridLayout = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: '1.5rem',
+    minHeight: '400px'
+  };
+
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
       <div className="px-4 py-6 sm:px-0">
@@ -52,24 +119,14 @@ export default function DashboardClient({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {departamentos.map((department) => {
-            return (
-              <div
-                key={department.id}
-                onClick={() => handleDepartmentClick(department.nombre)}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg cursor-pointer transform transition-all duration-200 hover:scale-105 h-64 flex flex-col w-full"
-              >
-                <div className="bg-blue-600 h-2 flex-shrink-0" style={{ backgroundColor: 'var(--primary-blue)' }}></div>
-                <div className="p-6 flex-1 flex flex-col justify-center items-center text-center">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 text-center capitalize">
-                    {department.nombre.toUpperCase()}
-                  </h3>
-                 
-                </div>
+        <div className="bg-gray-50 rounded-xl p-6">
+          <div style={gridLayout}>
+            {departamentos.map((department, index) => (
+              <div key={department.id}>
+                {renderCardDesign(department, index)}
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       </div>
     </div>
