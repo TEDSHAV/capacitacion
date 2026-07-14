@@ -42,11 +42,6 @@ export const ParticipantScannerModal = ({
 
   const [hasEnvApiKey, setHasEnvApiKey] = useState(false);
 
-  // SENIAT Verification State
-  const [seniatSessionId, setSeniatSessionId] = useState<string | null>(null);
-  const [initialCaptchaImage, setInitialCaptchaImage] = useState<string | null>(
-    null,
-  );
   const [activeVerificationIndex, setActiveVerificationIndex] = useState<
     number | null
   >(null);
@@ -122,17 +117,6 @@ export const ParticipantScannerModal = ({
 
         if (result.success && result.participants) {
           setExtractedParticipants(result.participants);
-
-          // Pre-warm SENIAT session once OCR is successful to speed up verification
-          if (result.participants.length > 0) {
-            startSeniatSession().catch((err) =>
-              console.error("Error pre-warming SENIAT:", err),
-            );
-          }
-
-          if (result.participants.length === 0) {
-            // If OCR returned nothing, we still want to show the empty table for manual entry
-          }
         } else {
           setError("No se pudieron extraer participantes de la imagen");
         }
@@ -219,45 +203,17 @@ export const ParticipantScannerModal = ({
   };
 
   const handleClose = async () => {
-    // Close SENIAT session if active
-    if (seniatSessionId) {
-      fetch("/api/seniat/session", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: seniatSessionId }),
-      }).catch((err) => console.error("Error closing SENIAT session:", err));
-    }
-
     setFile(null);
     setApiKey("");
     setExtractedParticipants([]);
     setError("");
     setPreviewUrl("");
-    setSeniatSessionId(null);
-    setInitialCaptchaImage(null);
     setActiveVerificationIndex(null);
     setVerificationResults(new Map());
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
     onClose();
-  };
-
-  const startSeniatSession = async () => {
-    try {
-      const response = await fetch("/api/seniat/session");
-      const data = await response.json();
-      if (data.success) {
-        setSeniatSessionId(data.sessionId);
-        setInitialCaptchaImage(data.captchaImage);
-        return { sessionId: data.sessionId, captchaImage: data.captchaImage };
-      } else {
-        throw new Error(data.error || "Error al iniciar sesión");
-      }
-    } catch (err) {
-      console.error("Error starting SENIAT session:", err);
-      throw err;
-    }
   };
 
   const handleVerifyClick = (index: number) => {
@@ -271,11 +227,6 @@ export const ParticipantScannerModal = ({
     updatedResults.set(result.rif, result);
     setVerificationResults(updatedResults);
     setActiveVerificationIndex(null);
-    // Refresh captcha for next verification
-    startSeniatSession().catch(() => {
-      setSeniatSessionId(null);
-      setInitialCaptchaImage(null);
-    });
   };
 
   return (
@@ -685,15 +636,10 @@ export const ParticipantScannerModal = ({
                               {activeVerificationIndex === index && (
                                 <SeniatVerificationPopover
                                   participant={participant}
-                                  sessionId={seniatSessionId}
-                                  initialCaptchaImage={
-                                    initialCaptchaImage || undefined
-                                  }
                                   onVerify={handleVerificationComplete}
                                   onClose={() =>
                                     setActiveVerificationIndex(null)
                                   }
-                                  onSessionRestart={startSeniatSession}
                                 />
                               )}
                             </td>

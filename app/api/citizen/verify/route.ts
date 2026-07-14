@@ -4,6 +4,7 @@ import { CitizenService } from "@/lib/citizen-service";
 export async function POST(request: NextRequest) {
   try {
     const { idNumber, sessionId, answer } = await request.json();
+    console.log(`[Citizen API] Verify request: ID=${idNumber}, sessionId=${sessionId}, answer=${answer}`);
 
     if (!idNumber) {
       return NextResponse.json(
@@ -13,21 +14,23 @@ export async function POST(request: NextRequest) {
     }
 
     let result;
-    if (sessionId && answer) {
-      // Session-based verification
-      result = await CitizenService.verifyWithSession(sessionId, idNumber, answer);
+    if (sessionId) {
+      // Session-based verification (uses the new API)
+      result = await CitizenService.verifyWithSession(sessionId, idNumber, answer || "API");
     } else {
-      // Legacy/Direct lookup (will auto-solve if possible)
+      // Direct lookup
       result = await CitizenService.lookupByID(idNumber);
     }
 
     if (!result.success) {
+      console.log(`[Citizen API] Verification failed: ${result.error}`);
       return NextResponse.json(
         { success: false, error: result.error || "No se encontró el ciudadano" },
         { status: 200 },
       );
     }
 
+    console.log(`[Citizen API] Verification success: ${result.name}`);
     return NextResponse.json({
       success: true,
       name: result.name,
