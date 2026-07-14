@@ -42,10 +42,12 @@ export interface CertificateLayoutConfig {
 
   // Content page configuration
   contentPage: {
-    upperHalfHeight: number;
-    margin: number;
-    tableCellHeight: number;
-    sealSize: number;
+    upperHalfHeight?: number;
+    margin?: number;
+    tableCellHeight?: number;
+    sealSize?: number;
+    sealX?: number; // Optional override for seal X position
+    sealY?: number; // Optional override for seal Y position
   };
 
   // Additional elements positioning
@@ -56,6 +58,7 @@ export interface CertificateLayoutConfig {
   durationY: number;
   durationOffsetX: number;
   qrY: number;
+  seal?: { x: number; y: number; size?: number };
 }
 
 export const CERTIFICATE_CONFIG: CertificateLayoutConfig = {
@@ -119,6 +122,7 @@ export const CERTIFICATE_CONFIG: CertificateLayoutConfig = {
     margin: 10,
     tableCellHeight: 8,
     sealSize: 30,
+    // sealX and sealY left undefined for dynamic calculation by default
   },
 
   facilitatorName: { x: 60, y: 100 },
@@ -128,6 +132,7 @@ export const CERTIFICATE_CONFIG: CertificateLayoutConfig = {
   durationY: 96.5,
   durationOffsetX: 10,
   qrY: 22.5,
+  seal: { x: 160, y: 45, size: 25 },
 };
 
 /**
@@ -152,8 +157,8 @@ export const TEMPLATE_COORD_MAP: Record<
   certificado_old: {
     centerPoint: 60,
     facilitatorName: { x: 50, y: 100 },
-    facilitatorSignature: { x: 28, y: 72 },
-    shaSignatureOffset: { x: 150, y: -45 },
+    facilitatorSignature: { x: 28, y: 80 },
+    shaSignatureOffset: { x: 150, y: -40 },
     dateY: 105,
     durationY: 96.5,
     durationOffsetX: 10,
@@ -162,6 +167,10 @@ export const TEMPLATE_COORD_MAP: Record<
       ...CERTIFICATE_CONFIG.signature,
       y: 118,
       leftX: 58,
+    },
+    seal: { x: 160, y: 95, size: 30 },
+    contentPage: {
+      sealX: 160,
     },
   },
 };
@@ -192,6 +201,14 @@ export const getDynamicConfig = (
     overrides.signature = {
       ...base.signature,
       ...overrides.signature,
+    };
+  }
+
+  // Deep merge for contentPage if it exists in overrides
+  if (overrides.contentPage) {
+    overrides.contentPage = {
+      ...base.contentPage,
+      ...overrides.contentPage,
     };
   }
 

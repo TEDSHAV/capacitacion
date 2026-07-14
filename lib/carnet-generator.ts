@@ -264,10 +264,10 @@ export class CarnetGenerator {
     pdf.setFontSize(6);
     pdf.setFont("helvetica", "bold");
 
-    // Determine ID label based on nationality
-    const idLabel =
-      participant.nationality === "extranjero" ? "Pasaporte" : "Cédula";
-    pdf.text(`${idLabel}: ${participant.idNumber}`, 28, nameY - 6);
+    // Determine ID label and prefix based on nationality
+    const idLabel = "cedula:";
+    const idPrefix = participant.nationality === "extranjero" ? "e-" : "V-";
+    pdf.text(`${idLabel} ${idPrefix}${participant.idNumber}`, 28, nameY - 6);
   }
 
   private async addCourseInfo(

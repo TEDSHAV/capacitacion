@@ -11,11 +11,16 @@ export class ContentPage {
   private pageWidth: number;
   private pageHeight: number;
 
-  constructor(doc: jsPDF, pageWidth: number, pageHeight: number) {
+  constructor(
+    doc: jsPDF,
+    pageWidth: number,
+    pageHeight: number,
+    templateKey?: string,
+  ) {
     this.doc = doc;
     this.pageWidth = pageWidth;
     this.pageHeight = pageHeight;
-    this.config = getDynamicConfig(pageWidth, pageHeight);
+    this.config = getDynamicConfig(pageWidth, pageHeight, templateKey);
     this.textRenderer = new TextRenderer(doc);
   }
 
@@ -31,7 +36,7 @@ export class ContentPage {
   ): Promise<void> {
     const { contentPage } = this.config;
 
-    // Define content area
+    // Define content area - use upper half for back of certificate
     const contentArea = {
       x: contentPage.margin,
       y: contentPage.margin,
@@ -169,56 +174,38 @@ export class ContentPage {
   ): void {
     if (!courseContent) return;
 
+    this.doc.saveGraphicsState();
+
     // Pre-process text
     const plainText = stripHtml(courseContent);
 
     // Default settings
-    const BASE_SIZE = 9;
-    const MIN_SIZE = 4; // Even smaller to ensure it fits the upper half
-    const BASE_LINE_HEIGHT = 4.2;
-    const WRAP_SAFETY = 10; // Increased safety margin to prevent bleeding
+    const BASE_SIZE = 8;
+    const MIN_SIZE = 6; // Allow a bit smaller but still readable
+    const BASE_LINE_HEIGHT = 4.0;
+    const WRAP_SAFETY = 5; // Reduced safety to allow more text width
 
     let fontSize = BASE_SIZE;
     let lineHeight = BASE_LINE_HEIGHT;
     let contentLines: string[] = [];
     const font = "helvetica";
 
-    // Set font state STRICTLY before any measurement
+    // Set font state before measurement
     this.doc.setFont(font, "normal");
-    this.doc.setCharSpace(0); // Reset: jsPDF 4.x state can carry non-zero charSpace from earlier ops
+    this.doc.setFontSize(fontSize);
+    this.doc.setTextColor(0, 0, 0);
+    this.doc.setCharSpace(0);
     this.doc.setLineHeightFactor(1.15);
 
-    if (maxY !== undefined) {
-      const availableHeight = maxY - currentY;
+    const availableHeight = (maxY ?? currentY + 100) - currentY;
 
-      // Reduce font size until it fits
-      while (fontSize >= MIN_SIZE) {
-        this.doc.setFontSize(fontSize);
-        lineHeight = BASE_LINE_HEIGHT * (fontSize / BASE_SIZE);
-
-        const paragraphs = plainText.split("\n").filter((p) => p.trim());
-        contentLines = [];
-        for (const para of paragraphs) {
-          // splitTextToSize uses current font settings
-          const wrapped = this.doc.splitTextToSize(
-            para.trim(),
-            columnWidth - WRAP_SAFETY,
-          );
-          contentLines.push(...wrapped);
-        }
-
-        if (contentLines.length * lineHeight <= availableHeight) break;
-        fontSize -= 0.5;
-      }
-
-      // Hard-cap lines to avoid bleeding out of bottom
-      const maxLines = Math.floor(availableHeight / lineHeight);
-      if (contentLines.length > maxLines) {
-        contentLines = contentLines.slice(0, maxLines);
-      }
-    } else {
+    // Build content lines, reducing font only down to MIN_SIZE
+    while (fontSize >= MIN_SIZE) {
       this.doc.setFontSize(fontSize);
+      lineHeight = (fontSize * 1.2) / 2.83465;
+
       const paragraphs = plainText.split("\n").filter((p) => p.trim());
+      contentLines = [];
       for (const para of paragraphs) {
         const wrapped = this.doc.splitTextToSize(
           para.trim(),
@@ -226,43 +213,29 @@ export class ContentPage {
         );
         contentLines.push(...wrapped);
       }
+
+      if (contentLines.length * lineHeight <= availableHeight) break;
+      fontSize -= 0.5;
     }
 
-    // FINAL RENDERING
-    this.doc.saveGraphicsState();
-
-    // Set up proper clipping path via jsPDF's built-in methods.
-    const clipHeight = (maxY || currentY + 200) - currentY + 5;
-
-    // CRITICAL: Ensure no border is drawn for the clipping region
-    this.doc.saveGraphicsState();
-    this.doc.setDrawColor(255, 255, 255); // White as fallback
-    this.doc.setLineWidth(0);
-    // Use 'n' (new path) style to define the rectangle for clipping
-    this.doc.rect(leftColumnX, currentY - 5, columnWidth - 1, clipHeight, "n");
-    this.doc.clip();
-
-    let y = currentY;
-    for (const line of contentLines) {
-      if (maxY !== undefined && y + lineHeight > maxY) break;
-
-      // Force state on every line to prevent leakage
-      this.doc.setFont(font, "normal");
-      this.doc.setFontSize(fontSize);
-      this.doc.setCharSpace(0);
-      this.doc.setTextColor(0, 0, 0);
-
-      // Manual wrap check for extra safety
-      let finalLine = line.trimEnd();
-      const actualWidth = this.doc.getTextWidth(finalLine);
-      if (actualWidth > columnWidth - 2) {
-        // If still too wide despite splitTextToSize, truncate it
-        const ratio = (columnWidth - 5) / actualWidth;
-        finalLine =
-          finalLine.substring(0, Math.floor(finalLine.length * ratio)) + "...";
+    // Hard-cap lines: truncate what doesn't fit
+    const maxLines = Math.floor(availableHeight / lineHeight);
+    if (contentLines.length > maxLines) {
+      contentLines = contentLines.slice(0, maxLines);
+      // Add ellipsis to last line if truncated
+      if (contentLines.length > 0) {
+        contentLines[contentLines.length - 1] += "...";
       }
+    }
 
-      this.doc.text(finalLine, leftColumnX, y, { align: "left" });
+    // Render lines
+    let y = currentY;
+    this.doc.setFontSize(fontSize);
+
+    for (const line of contentLines) {
+      if (maxY !== undefined && y + lineHeight > maxY + 2) break;
+
+      this.doc.text(line.trim(), leftColumnX, y, { align: "left" });
       y += lineHeight;
     }
 
@@ -450,11 +423,47 @@ export class ContentPage {
     tableWidth: number,
     cellHeight: number,
   ): Promise<void> {
-    const { contentPage } = this.config;
-    const sealY = tableY + cellHeight * 4 + 8;
-    const sealX = tableX + tableWidth / 2 - contentPage.sealSize / 2;
+    const { contentPage, seal } = this.config;
+
+    // Priority 1: Use specific contentPage overrides if they exist
+    // Priority 2: Use top-level seal config if it exists
+    // Priority 3: Fallback to dynamic calculation relative to the table
+    const sealY = contentPage.sealY ?? seal?.y ?? tableY + cellHeight * 4 + 8;
+    const sealX =
+      contentPage.sealX ??
+      seal?.x ??
+      tableX + tableWidth / 2 - (seal?.size ?? contentPage.sealSize) / 2;
+    const sealSize = seal?.size ?? contentPage.sealSize;
 
     try {
+      // Check if we're in a server environment
+      if (typeof window === "undefined") {
+        const fs = require("fs");
+        const path = require("path");
+
+        let imagePath = sealImage;
+        if (sealImage.startsWith("/")) {
+          imagePath = path.join(process.cwd(), "public", sealImage);
+        }
+
+        if (fs.existsSync(imagePath)) {
+          const imageBuffer = fs.readFileSync(imagePath);
+          const base64Image = imageBuffer.toString("base64");
+          this.doc.addImage(
+            `data:image/png;base64,${base64Image}`,
+            "PNG",
+            sealX,
+            sealY,
+            sealSize,
+            sealSize,
+            undefined,
+            "FAST",
+          );
+        }
+        return;
+      }
+
+      // Browser environment
       await new Promise<void>((resolve) => {
         const img = new Image();
         img.onload = () => {
@@ -463,8 +472,8 @@ export class ContentPage {
             "PNG",
             sealX,
             sealY,
-            contentPage.sealSize,
-            contentPage.sealSize,
+            sealSize,
+            sealSize,
             undefined,
             "FAST",
           );
@@ -472,12 +481,7 @@ export class ContentPage {
         };
         img.onerror = () => {
           this.doc.setDrawColor(200, 200, 200);
-          this.doc.rect(
-            sealX,
-            sealY,
-            contentPage.sealSize,
-            contentPage.sealSize,
-          );
+          this.doc.rect(sealX, sealY, sealSize, sealSize);
           resolve();
         };
         img.src = sealImage;

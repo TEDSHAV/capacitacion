@@ -101,9 +101,8 @@ export class TextRenderer {
     x: number,
     y: number,
   ) {
-    const idLabel =
-      participant.nationality === "extranjero" ? "PASAPORTE" : "CÉDULA";
-    const idPrefix = participant.nationality === "extranjero" ? "" : "V-";
+    const idLabel = "cedula:";
+    const idPrefix = participant.nationality === "extranjero" ? "e-" : "V-";
 
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8);

@@ -50,7 +50,12 @@ export class CertificateGenerator {
       preloadedAssets,
       templateKey,
     );
-    const contentPage = new ContentPage(doc, pageWidth, pageHeight);
+    const contentPage = new ContentPage(
+      doc,
+      pageWidth,
+      pageHeight,
+      templateKey,
+    );
 
     try {
       if (singlePage) {
@@ -104,7 +109,11 @@ export class CertificateGenerator {
   ): Promise<Blob> {
     // Page 1: Certificate (upper half)
     await certificatePage.addTemplate(templateImage);
-    await certificatePage.addCertificateContent(participant, certificateData);
+    await certificatePage.addCertificateContent(
+      participant,
+      certificateData,
+      sealImage,
+    );
 
     // Add QR code - either real or sample for preview
     if (!isPreview && controlNumbers && certificateId) {
@@ -125,7 +134,7 @@ export class CertificateGenerator {
     await contentPage.addContentPageSinglePage(
       participant,
       certificateData,
-      sealImage || "",
+      sealImage,
       controlNumbers,
       isPreview,
     );
@@ -156,7 +165,11 @@ export class CertificateGenerator {
   ): Promise<Blob> {
     // Page 1: Certificate
     await certificatePage.addTemplate(templateImage);
-    await certificatePage.addCertificateContent(participant, certificateData);
+    await certificatePage.addCertificateContent(
+      participant,
+      certificateData,
+      sealImage,
+    );
 
     // Add QR code - either real or sample for preview
     if (!isPreview && controlNumbers && certificateId) {

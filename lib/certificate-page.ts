@@ -191,6 +191,7 @@ export class CertificatePage {
   async addCertificateContent(
     participant: CertificateParticipant,
     certificateData: CertificateGeneration,
+    sealImage?: string,
   ): Promise<void> {
     const { name } = participant;
     const { certificate_title, certificate_subtitle, date } = certificateData;
@@ -280,6 +281,17 @@ export class CertificatePage {
 
       // Add signatures
       await this.addSignatures(certificateData);
+
+      // Add seal image if provided and configured for the front page
+      if (sealImage && this.config.seal) {
+        await this.addSignatureImage(
+          sealImage,
+          this.config.seal.x,
+          this.config.seal.y,
+          this.config.seal.size || 30,
+          this.config.seal.size || 30,
+        );
+      }
     }
   }
 

@@ -17,6 +17,7 @@ export interface TemplateParticipant {
   index: number;
   nombre_apellido: string;
   cedula: string;
+  nacionalidad?: "venezolano" | "extranjero";
   puntuacion?: string;
   condicion?: string;
   numero_control: string;

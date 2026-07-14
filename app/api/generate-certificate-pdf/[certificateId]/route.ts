@@ -193,8 +193,7 @@ export async function GET(
     }
 
     // Get seal image
-    let sealImage = "";
-    // You can add seal image logic here if needed
+    let sealImage = "/templates/sello.png";
 
     // Debug logging for control numbers
     const controlNumbersForGenerator = {
