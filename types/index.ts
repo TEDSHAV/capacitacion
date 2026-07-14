@@ -145,6 +145,14 @@ export interface LocationSearchProps {
   onChange: (value: string) => void;
 }
 
+export interface PlantillaCertificado {
+  id: number
+  nombre: string
+  archivo: string
+  created_at: string
+  is_active: boolean
+}
+
 export interface ParticipantsSectionProps {
   participants: CertificateParticipant[];
   onChange: (participants: CertificateParticipant[]) => void;

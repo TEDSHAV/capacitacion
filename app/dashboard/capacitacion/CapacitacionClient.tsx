@@ -36,6 +36,12 @@ export default function CapacitacionClient({
       color: 'bg-yellow-500'
     },
     {
+      id: 'plantillas-certificados',
+      title: 'Plantillas de Certificados',
+      description: 'Gestionar plantillas para generación de certificados',
+      color: 'bg-purple-500'
+    },
+    {
       id: 'gestion-certificados',
       title: 'Gestión de Certificados',
       description: 'Administrar certificados emitidos',
