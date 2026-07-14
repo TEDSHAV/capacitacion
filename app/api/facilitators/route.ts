@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, unlink } from 'fs/promises';
 import { join } from 'path';
 import { createClient } from '@/utils/supabase/server';
 
@@ -15,13 +15,14 @@ export async function POST(request: NextRequest) {
     const rif = formData.get('rif') as string;
     const email = formData.get('email') as string;
     const telefono = formData.get('telefono') as string;
+    const ciudad = formData.get('id_ciudad_base') as string; // City name from text input
     const direccion = formData.get('direccion') as string;
     const nivel_tecnico = formData.get('nivel_tecnico') as string;
     const formacion_docente_certificada = formData.get('formacion_docente_certificada') === 'true';
     const tipo_impacto = formData.get('tipo_impacto') as string;
     const notas_observaciones = formData.get('notas_observaciones') as string;
     const id_estado_base = formData.get('id_estado_base') ? parseInt(formData.get('id_estado_base') as string) : null;
-    const id_ciudad_base = formData.get('id_ciudad_base') ? parseInt(formData.get('id_ciudad_base') as string) : null;
+    const id_ciudad_base = null; // We'll store city name in direccion field
     const id_estado_geografico = formData.get('id_estado_geografico') ? parseInt(formData.get('id_estado_geografico') as string) : null;
     const id_estatus = formData.get('id_estatus') ? parseInt(formData.get('id_estatus') as string) : 1;
     const temas_cursos = JSON.parse(formData.get('temas_cursos') as string || '[]');
@@ -29,6 +30,10 @@ export async function POST(request: NextRequest) {
     const calificacion = formData.get('calificacion') ? parseFloat(formData.get('calificacion') as string) : null;
     const firma_id = formData.get('firma_id') ? parseInt(formData.get('firma_id') as string) : null;
     const resumeFile = formData.get('resume') as File | null;
+    const signatureFile = formData.get('signature') as File | null;
+
+    // Combine city and address in direccion field
+    const fullDireccion = ciudad ? (direccion ? `${ciudad}, ${direccion}` : ciudad) : direccion;
 
     // Validate required fields
     if (!nombre_apellido || !cedula || !email || !telefono) {
@@ -39,6 +44,8 @@ export async function POST(request: NextRequest) {
     }
 
     let url_curriculum = null;
+    let signatureUrl = null;
+    let signatureId = null;
     
     // Handle resume file upload if provided
     if (resumeFile) {
@@ -66,6 +73,56 @@ export async function POST(request: NextRequest) {
     // Save facilitator record to database
     const supabase = await createClient();
 
+    // Handle signature file upload if provided
+    if (signatureFile) {
+      // Create signatures directory if it doesn't exist
+      const signaturesDir = join(process.cwd(), 'public', 'signatures');
+      try {
+        await mkdir(signaturesDir, { recursive: true });
+      } catch (error) {
+        // Directory might already exist
+      }
+
+      // Generate unique filename
+      const timestamp = Date.now();
+      const filename = `signature_${timestamp}_${signatureFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const filepath = join(signaturesDir, filename);
+
+      // Save file to public/signatures directory
+      const bytes = await signatureFile.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      await writeFile(filepath, buffer);
+      
+      signatureUrl = `/signatures/${filename}`;
+
+      // Create signature record in database
+      const { data: signatureData, error: signatureError } = await supabase
+        .from('firmas')
+        .insert([
+          {
+            nombre: nombre_apellido,
+            imagen_url: signatureUrl,
+            tipo: 'facilitador',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ])
+        .select()
+        .single();
+
+      if (signatureError) {
+        // Clean up signature file if database insert fails
+        try {
+          await unlink(filepath);
+        } catch (cleanupError) {
+          console.error('Error cleaning up signature file:', cleanupError);
+        }
+        throw signatureError;
+      }
+
+      signatureId = signatureData.id;
+    }
+
     const { data, error } = await supabase
       .from('facilitadores')
       .insert([
@@ -77,20 +134,20 @@ export async function POST(request: NextRequest) {
           rif: rif || null,
           email,
           telefono,
-          direccion: direccion || null,
+          direccion: fullDireccion || null,
           nivel_tecnico: nivel_tecnico || null,
           formacion_docente_certificada,
           tipo_impacto: tipo_impacto || null,
           notas_observaciones: notas_observaciones || null,
           id_estado_base,
-          id_ciudad_base,
+          id_ciudad_base: null, // Not using foreign key anymore
           id_estado_geografico,
           id_estatus,
           temas_cursos,
           ficha_tecnica: ficha_tecnica || null,
           calificacion,
           url_curriculum: url_curriculum,
-          firma_id,
+          firma_id: signatureId,
           fecha_creacion: new Date().toISOString(),
           fecha_actualizacion: new Date().toISOString(),
         },
@@ -99,13 +156,21 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      // If database insert fails, clean up the uploaded file
+      // If database insert fails, clean up the uploaded files
       if (url_curriculum) {
         try {
           const fs = require('fs/promises');
           await fs.unlink(join(process.cwd(), 'public', url_curriculum));
         } catch (cleanupError) {
           console.error('Error cleaning up resume file:', cleanupError);
+        }
+      }
+      if (signatureUrl) {
+        try {
+          const fs = require('fs/promises');
+          await fs.unlink(join(process.cwd(), 'public', signatureUrl));
+        } catch (cleanupError) {
+          console.error('Error cleaning up signature file:', cleanupError);
         }
       }
       

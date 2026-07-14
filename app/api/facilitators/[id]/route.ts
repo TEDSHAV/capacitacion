@@ -13,7 +13,7 @@ export async function DELETE(
 
     // First, get the facilitator record to find the resume file
     const { data: facilitator, error: fetchError } = await supabase
-      .from('facilitators')
+      .from('facilitadores')
       .select('*')
       .eq('id', id)
       .single();
@@ -27,7 +27,7 @@ export async function DELETE(
 
     // Delete the facilitator record from database
     const { error: deleteError } = await supabase
-      .from('facilitators')
+      .from('facilitadores')
       .delete()
       .eq('id', id);
 
@@ -36,9 +36,9 @@ export async function DELETE(
     }
 
     // Delete the resume file from the filesystem if it exists
-    if (facilitator.resume_url) {
+    if (facilitator.url_curriculum) {
       try {
-        const filepath = join(process.cwd(), 'public', facilitator.resume_url);
+        const filepath = join(process.cwd(), 'public', facilitator.url_curriculum);
         await unlink(filepath);
       } catch (fileError) {
         // File might not exist, but we don't want to fail the operation

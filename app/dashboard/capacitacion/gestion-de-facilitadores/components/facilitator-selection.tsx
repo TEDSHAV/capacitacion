@@ -1,23 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Facilitator } from "@/types";
+import { Facilitador } from "@/types";
 
 interface FacilitatorSelectionProps {
-  selectedFacilitatorId?: string;
-  onFacilitatorChange: (id: string) => void;
+  selectedFacilitatorId?: number;
+  onFacilitatorChange: (id: number) => void;
 }
 
 export const FacilitatorSelection = ({
   selectedFacilitatorId,
   onFacilitatorChange,
 }: FacilitatorSelectionProps) => {
-  const [facilitators, setFacilitators] = useState<Facilitator[]>([]);
+  const [facilitators, setFacilitators] = useState<Facilitador[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadFacilitators();
   }, []);
+
 
   const loadFacilitators = async () => {
     try {
@@ -52,14 +53,14 @@ export const FacilitatorSelection = ({
       </label>
       <select
         id="facilitator"
-        value={selectedFacilitatorId || ""}
-        onChange={(e) => onFacilitatorChange(e.target.value)}
+        value={selectedFacilitatorId?.toString() || ""}
+        onChange={(e) => onFacilitatorChange(parseInt(e.target.value))}
         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
       >
         <option value="">Seleccionar facilitador...</option>
         {facilitators.map((facilitator) => (
           <option key={facilitator.id} value={facilitator.id}>
-            {facilitator.name} - {facilitator.city}
+            {facilitator.nombre_apellido} - {facilitator.direccion?.split(',')[0] || 'Ciudad no especificada'}
           </option>
         ))}
       </select>
@@ -73,8 +74,8 @@ export const FacilitatorSelection = ({
       )}
       {selectedFacilitatorId && (
         <div className="mt-2 text-xs text-gray-500">
-          {facilitators.find(f => f.id === selectedFacilitatorId)?.course_topics.slice(0, 3).join(', ')}
-          {(facilitators.find(f => f.id === selectedFacilitatorId)?.course_topics.length || 0) > 3 && '...'}
+          {facilitators.find(f => f.id === selectedFacilitatorId)?.temas_cursos?.slice(0, 3).join(', ')}
+          {(facilitators.find(f => f.id === selectedFacilitatorId)?.temas_cursos?.length || 0) > 3 && '...'}
         </div>
       )}
     </div>

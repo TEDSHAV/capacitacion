@@ -24,8 +24,8 @@ export default function CapacitacionClient({
       color: 'bg-green-500'
     },
     {
-      id: 'facilitadores',
-      title: 'Facilitadores',
+      id: 'gestion-de-facilitadores',
+      title: 'Gestión de Facilitadores',
       description: 'Administración de facilitadores e instructores',
       color: 'bg-blue-500'
     },

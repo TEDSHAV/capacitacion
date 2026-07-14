@@ -20,6 +20,7 @@ export const FacilitatorList = ({
     loadFacilitators();
   }, [refreshKey]);
 
+
   const loadFacilitators = async () => {
     try {
       setLoading(true);
@@ -158,9 +159,11 @@ export const FacilitatorList = ({
                     <div className="text-sm text-gray-500">{facilitator.email}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{facilitator.id_ciudad_base || "Sin ciudad"}</div>
+                    <div className="text-sm text-gray-900">
+                      {facilitator.direccion?.split(',')[0] || 'Ciudad no especificada'}
+                    </div>
                     <div className="text-sm text-gray-500 truncate max-w-xs">
-                      {facilitator.direccion || "Sin dirección"}
+                      {facilitator.direccion?.split(',')[1]?.trim() || "Sin dirección"}
                     </div>
                   </td>
                   <td className="px-6 py-4">

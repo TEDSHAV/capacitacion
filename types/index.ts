@@ -48,7 +48,84 @@ export interface Contacto {
   apellido: string;
   telefono: string;
   email: string;
-  email2: string;
+}
+
+// Facilitator Form Types
+export interface FacilitadorFormData {
+  fuente: string;
+  ano_ingreso: string;
+  nombre_apellido: string;
+  cedula: string;
+  rif: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  nivel_tecnico: string;
+  formacion_docente_certificada: boolean;
+  tipo_impacto: string;
+  notas_observaciones: string;
+  id_ciudad_base: string;
+  id_estado_geografico: string;
+  id_estatus: number;
+  temas_cursos: string[];
+  ficha_tecnica: string;
+  calificacion: number | undefined;
+  url_curriculum: string;
+}
+
+export interface State {
+  id: number;
+  nombre_estado: string;
+  capital_estado: string | null;
+}
+
+export interface CourseTopic {
+  id: string;
+  nombre: string;
+  name: string; // Alias for nombre for compatibility
+  description?: string;
+  contenido_curso?: string; // Course content from catalogo_servicios
+  cliente_asociado?: number; // Client ID associated with this course (number from DB)
+  created_at?: string;
+  nota_aprobatoria?: number; // Passing grade from cursos table
+  horas_estimadas?: number; // Estimated hours from cursos table
+}
+
+export interface PersonalInfoSectionProps {
+  formData: FacilitadorFormData;
+  handleInputChange: (field: keyof FacilitadorFormData, value: any) => void;
+}
+
+export interface ProfessionalInfoSectionProps {
+  formData: FacilitadorFormData;
+  handleInputChange: (field: keyof FacilitadorFormData, value: any) => void;
+  states: State[];
+  loadingStates: boolean;
+}
+
+export interface LocationSectionProps {
+  formData: FacilitadorFormData;
+  handleInputChange: (field: keyof FacilitadorFormData, value: any) => void;
+  states: State[];
+  loadingStates: boolean;
+}
+
+export interface CourseTopicsSectionProps {
+  formData: FacilitadorFormData;
+  handleInputChange: (field: keyof FacilitadorFormData, value: any) => void;
+  courseTopics: CourseTopic[];
+  loadingCourseTopics: boolean;
+}
+
+export interface AdditionalInfoSectionProps {
+  formData: FacilitadorFormData;
+  handleInputChange: (field: keyof FacilitadorFormData, value: any) => void;
+}
+
+export interface FileUploadSectionProps {
+  resumeFile: File | null;
+  signatureFile: File | null;
+  onFileSelect: (event: React.ChangeEvent<HTMLInputElement>, fileType: "resume" | "signature") => void;
 }
 
 export interface OSI {
@@ -112,17 +189,6 @@ export interface CertificateGeneration {
   horas_estimadas?: number;
   facilitator_id?: string; // ID of selected facilitator (includes signature)
   sha_signature_id?: string; // ID of SHA representative signature (separate from facilitator)
-}
-
-export interface CourseTopic {
-  id: string;
-  name: string;
-  description?: string;
-  contenido_curso?: string; // Course content from catalogo_servicios
-  cliente_asociado?: number; // Client ID associated with this course (number from DB)
-  created_at?: string;
-  nota_aprobatoria?: number; // Passing grade from cursos table
-  horas_estimadas?: number; // Estimated hours from cursos table
 }
 
 export interface CertificateParticipant {
