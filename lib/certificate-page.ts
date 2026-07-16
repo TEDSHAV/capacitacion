@@ -541,6 +541,39 @@ export class CertificatePage {
         return;
       }
 
+      // FALLBACK: Handle raw firmas object from untransformed DB row in snapshot
+      // (e.g. when facilitator_data was saved from getFacilitatorByOSI instead of getFacilitatorData)
+      if (!facilitator.signature_data && (facilitator as any).firmas) {
+        const firmasData = Array.isArray((facilitator as any).firmas)
+          ? (facilitator as any).firmas[0]
+          : (facilitator as any).firmas;
+
+        if (firmasData?.imagen_base64) {
+          this.doc.addImage(
+            `data:image/png;base64,${firmasData.imagen_base64}`,
+            "PNG",
+            this.config.facilitatorSignature.x,
+            this.config.facilitatorSignature.y,
+            signatureConfig.width,
+            signatureConfig.height,
+            undefined,
+            "FAST",
+          );
+          return;
+        }
+
+        if (firmasData?.url_imagen) {
+          await this.addSignatureImage(
+            firmasData.url_imagen,
+            this.config.facilitatorSignature.x,
+            this.config.facilitatorSignature.y,
+            signatureConfig.width,
+            signatureConfig.height,
+          );
+          return;
+        }
+      }
+
       // Get signature URL from multiple possible sources
       const signatureUrl =
         facilitator.signature_data?.firma ||

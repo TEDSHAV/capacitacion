@@ -21,6 +21,7 @@ import {
   getPreviousParticipantsByOSIAction,
 } from "@/app/actions/certificados";
 import { getFacilitatorByOSI } from "@/app/actions/facilitador-portal";
+import { normalizeFacilitatorData } from "@/lib/facilitator-utils";
 import { getCompaniesAndCities } from "@/app/actions/companies-cities";
 import { updateParticipant } from "@/app/actions/participants";
 import { generateDocumentsServer } from "@/lib/document-server-actions";
@@ -366,7 +367,9 @@ export default function GeneracionCertificadoClient({
         certificate_subtitle: selectedCourse?.subtitulo || prev.certificate_subtitle || "",
         // Pre-populate facilitator if found in database
         facilitator_id: facilitatorResult?.data?.id?.toString() || prev.facilitator_id,
-        facilitator_data: facilitatorResult?.data || prev.facilitator_data,
+        facilitator_data: facilitatorResult?.data
+          ? (normalizeFacilitatorData(facilitatorResult.data) as any)
+          : prev.facilitator_data,
         id_plantilla_certificado:
           selectedCourse?.id_plantilla_certificado ||
           prev.id_plantilla_certificado,
