@@ -92,7 +92,7 @@ export async function downloadBatchAction(
             snapshot.participante?.idType ||
             (snapshot.participante?.nacionalidad === "extranjero" ? "E-" : "V-"),
           nationality: snapshot.participante?.nacionalidad || cert.participantes_certificados?.nacionalidad || "venezolano",
-          score: snapshot.participante?.score || cert.calificacion || 0,
+          score: snapshot.participante?.score ?? cert.calificacion ?? 0,
         };
 
         const certData = {
@@ -141,11 +141,17 @@ export async function downloadBatchAction(
           filesAddedCount++;
         }
 
-        // Carnets (if applicable)
+        // Carnets (only for participants who passed and course emits carnet)
         const shouldEmiteCarnet = cert.catalogo_servicios?.emite_carnet || snapshot.curso?.emite_carnet;
+        const passingGrade = snapshot.certificado_detalles?.passing_grade
+          ?? snapshot.curso?.nota_aprobatoria
+          ?? cert.catalogo_servicios?.nota_aprobatoria
+          ?? 14;
+        const participantPassed = participant.score != null && participant.score >= passingGrade;
         if (
           (choice === "full" || choice === "carnets") &&
-          (cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet)
+          (cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet) &&
+          participantPassed
         ) {
           console.log(`[BatchDownload] Generating Carnet for ${participant.name}`);
           const { CarnetGenerator } = await import("./carnet-generator");

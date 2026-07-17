@@ -137,7 +137,7 @@ export async function GET(
             snapshot.participante?.idType ||
             (snapshot.participante?.nacionalidad === "extranjero" ? "E-" : "V-"),
           nationality: snapshot.participante?.nacionalidad || cert.participantes_certificados?.nacionalidad || "venezolano",
-          score: snapshot.participante?.score || cert.calificacion || 0,
+          score: snapshot.participante?.score ?? cert.calificacion ?? 0,
         };
 
         const certData = {
