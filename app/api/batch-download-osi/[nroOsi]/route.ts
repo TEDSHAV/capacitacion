@@ -243,9 +243,14 @@ export async function GET(
         certsFolder?.file(certFileName, certArrayBuffer);
         filesAdded++;
 
-        // Generate carnet if applicable
+        // Generate carnet if applicable (only for participants who passed)
         const shouldEmiteCarnet = cert.catalogo_servicios?.emite_carnet || snapshot.curso?.emite_carnet;
-        if (cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet) {
+        const passingGrade = snapshot.certificado_detalles?.passing_grade
+          ?? snapshot.curso?.nota_aprobatoria
+          ?? cert.catalogo_servicios?.nota_aprobatoria
+          ?? 14;
+        const participantPassed = participant.score != null && participant.score >= passingGrade;
+        if ((cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet) && participantPassed) {
           const { CarnetGenerator } = await import("@/lib/carnet-generator");
           const carnetGenerator = new CarnetGenerator();
 
