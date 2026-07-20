@@ -6,7 +6,7 @@ import {
 import { getOSIForControlServicios } from "@/app/actions/control-servicios";
 import { createAdminClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, ClipboardList, Info } from "lucide-react";
+import { ArrowLeft, ClipboardList, Info, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { PortalNavbar } from "@/components/PortalNavbar";
 import { ParticipantForm } from "./participant-form";
@@ -73,6 +73,31 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
           Sube la lista física, completa los datos de los participantes y revisa antes de enviar.
         </p>
       </header>
+
+      <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 sm:p-6 mb-6">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-2 text-sm">
+            <p className="font-bold text-amber-900">
+              AVISO IMPORTANTE: Obligatoriedad de Digitalización Post-Capacitación
+            </p>
+            <p className="text-amber-800">
+              Estimado(a) facilitador(a), le recordamos que la digitalización y automatización de toda la documentación al finalizar cada curso es un requerimiento técnico obligatorio.
+            </p>
+            <p className="text-amber-800">
+              Este proceso responde al cumplimiento de nuestro Sistema Integrado de Gestión (SIG) bajo la Norma ISO 14001, alineado con los siguientes controles operativos:
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-amber-800">
+              <li><strong>Impacto Ambiental (Cláusula 6.1.2):</strong> Reducción prioritaria de residuos de papel y consumibles de impresión.</li>
+              <li><strong>Control de la Información (Cláusula 7.5.3):</strong> Garantía de integridad, legibilidad y protección contra pérdida física del historial del curso.</li>
+              <li><strong>Control Operacional (Cláusula 8.1):</strong> Trazabilidad digital inmediata del flujo de entrega.</li>
+            </ul>
+            <p className="text-amber-800">
+              Agradecemos su compromiso con la sostenibilidad y la excelencia operativa de la organización.
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
         <ParticipantForm 
