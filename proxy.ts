@@ -19,9 +19,9 @@ export async function proxy(request: NextRequest) {
         name: "sb-shade-auth-token",
         ...(isProduction &&
           !isLocalhost && {
-            domain: ".shadevenezuela.com.ve",
+            domain: process.env.NEXT_PUBLIC_COOKIE_DOMAIN || ".shadevenezuela.com.ve",
             sameSite: "lax" as const,
-            secure: true,
+            secure: process.env.NEXT_PUBLIC_COOKIE_SECURE !== "false",
           }),
       },
       cookies: {
