@@ -42,9 +42,6 @@ export const CourseTemplateSection = ({
           ? template.contenido || ""
           : selectedCourseTopic?.contenido_curso || "",
       );
-      if (template?.descripcion) {
-        onDataChange("certificate_title", template.descripcion);
-      }
     } else {
       onDataChange(
         "course_content",

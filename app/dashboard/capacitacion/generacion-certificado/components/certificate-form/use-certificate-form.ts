@@ -144,7 +144,6 @@ export function useCertificateForm({
             if (companySpecificTemplate) {
               templateToSelect = companySpecificTemplate.id.toString();
               contentToUse = companySpecificTemplate.contenido || "";
-              titleToUse = companySpecificTemplate.descripcion || titleToUse;
             }
           }
 
