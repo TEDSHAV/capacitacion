@@ -113,7 +113,8 @@ export async function loginFacilitator(username: string, password: string) {
   const cookieStore = await cookies();
   cookieStore.set("facilitador_session", signSession(sessionData), {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NEXT_PUBLIC_COOKIE_SECURE !== "false",
+    sameSite: "lax",
     maxAge: 60 * 60 * 8, // 8 hours
     path: "/",
   });

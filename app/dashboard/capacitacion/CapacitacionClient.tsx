@@ -22,6 +22,7 @@ import {
   CalendarDays,
   Briefcase,
   Sparkles,
+  ClipboardList,
 } from "lucide-react";
 
 export default function CapacitacionClient({
@@ -117,6 +118,20 @@ export default function CapacitacionClient({
           id: "gestion-de-firmas",
           title: "Gestión de Firmas",
           icon: Signature,
+        },
+      ],
+    },
+    {
+      id: "diseno-servicio",
+      title: "Nuevos Servicios",
+      gradient: "from-indigo-500 to-blue-600",
+      icon: ClipboardList,
+      modules: [
+        {
+          id: "nuevo-servicio",
+          title: "Solicitudes de Diseño",
+          icon: ClipboardList,
+          href: `${process.env.NEXT_PUBLIC_SHELL_URL || ""}/nuevo-servicio`,
         },
       ],
     },
@@ -224,11 +239,26 @@ export default function CapacitacionClient({
                 <div className="space-y-3">
                   {cat.modules.map((mod) => {
                     const ModIcon = mod.icon;
+                    const linkClass = "flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors";
+                    if ("href" in mod && mod.href) {
+                      return (
+                        <a
+                          key={mod.id}
+                          href={mod.href}
+                          target="_parent"
+                          className={linkClass}
+                        >
+                          <ModIcon className="w-4 h-4" />
+                          {mod.title}
+                          <ChevronRight className="w-3 h-3 ml-auto opacity-50" />
+                        </a>
+                      );
+                    }
                     return (
                       <Link
                         key={mod.id}
                         href={`/dashboard/capacitacion/${mod.id}`}
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                        className={linkClass}
                       >
                         <ModIcon className="w-4 h-4" />
                         {mod.title}

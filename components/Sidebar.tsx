@@ -51,6 +51,7 @@ const submodules = {
     },
     { name: "Reportes", path: "/dashboard/capacitacion/reportes" },
     { name: "Credenciales de Clientes", path: "/dashboard/capacitacion" },
+    { name: "Nuevos Servicios", path: "/nuevo-servicio" },
   ],
   negocios: [
     { name: "Consulta de OSIs", path: "/dashboard/negocios/gestion-de-osis" },
@@ -281,7 +282,13 @@ const Sidebar = ({ departamentos }: SidebarProps) => {
                       {departmentSubmodules.map((submodule, index) => (
                         <button
                           key={index}
-                          onClick={() => router.push(submodule.path)}
+                          onClick={() => {
+                            if (submodule.path.startsWith("/dashboard")) {
+                              router.push(submodule.path);
+                            } else {
+                              window.parent.location.href = `${process.env.NEXT_PUBLIC_SHELL_URL || ""}${submodule.path}`;
+                            }
+                          }}
                           className={`sidebar-link w-full text-left px-4 py-2 rounded-md transition-all duration-300 cursor-pointer text-sm group ${
                             isActiveSubmodule(submodule.path)
                               ? "bg-gray-700 text-white shadow-md transform translate-x-1"

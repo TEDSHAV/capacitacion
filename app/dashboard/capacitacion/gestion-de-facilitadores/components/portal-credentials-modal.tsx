@@ -221,9 +221,25 @@ export const PortalCredentialsModal = ({
                     type="button"
                     onClick={async () => {
                       const text = `Usuario: ${username}\nContraseña: ${savedPassword}\nURL: https://capacitacion.shadevenezuela.com.ve/portal/facilitador/login`;
-                      await navigator.clipboard.writeText(text);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 2000);
+                      try {
+                        if (navigator.clipboard && window.isSecureContext) {
+                          await navigator.clipboard.writeText(text);
+                        } else {
+                          const textarea = document.createElement("textarea");
+                          textarea.value = text;
+                          textarea.style.position = "fixed";
+                          textarea.style.opacity = "0";
+                          document.body.appendChild(textarea);
+                          textarea.focus();
+                          textarea.select();
+                          document.execCommand("copy");
+                          document.body.removeChild(textarea);
+                        }
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      } catch (err) {
+                        console.error("Failed to copy credentials:", err);
+                      }
                     }}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
                   >
