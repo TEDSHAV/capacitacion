@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/app/.next/cache npm run build
 # stage runs sequentially after builder's node_modules copy/build, avoiding a
 # concurrent duplicate COPY of the large node_modules directory during the build.
 FROM builder AS deps-prod
-RUN npm prune --production
+RUN npm prune --omit=dev
 
 # Stage 3: Runner
 FROM node:22-bookworm-slim AS runner
