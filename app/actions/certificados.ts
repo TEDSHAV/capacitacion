@@ -1041,6 +1041,10 @@ function generateContentSnapshot(
 
       id_ciudad: updatedCertificateData.osi_data?.id_ciudad || null,
 
+      id_sede: updatedCertificateData.osi_data?.id_sede || null,
+
+      sede: updatedCertificateData.osi_data?.sede || null,
+
       direccion_ejecucion: updatedCertificateData.osi_data?.direccion_ejecucion,
     },
 
@@ -1883,6 +1887,7 @@ export async function updateCertificateAction(
           ? parseInt(certificateData.course_topic_data.id)
           : null,
         id_ciudad: certificateData.osi_data?.id_ciudad || null,
+        id_sede: certificateData.osi_data?.id_sede || null,
         fecha_emision: certificateData.date,
         fecha_vencimiento: certificateData.fecha_vencimiento || null,
         nro_osi: certificateData.osi_data?.nro_osi

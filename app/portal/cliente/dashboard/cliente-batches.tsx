@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Users, ChevronDown, ChevronRight, FileStack, Download, Loader2, Eye, Award, MapPin } from "lucide-react";
+import { Calendar, Users, ChevronDown, ChevronRight, FileStack, Download, Loader2, Eye, Award, MapPin, FileText } from "lucide-react";
 import { useState } from "react";
 import { ClienteBatchSummary, ClienteCertificateRow } from "@/types";
 
@@ -24,6 +24,7 @@ export function ClienteBatches({
   title = "Últimos Lotes Emitidos",
 }: ClienteBatchesProps) {
   const [downloadingOsi, setDownloadingOsi] = useState<number | null>(null);
+  const [downloadingDocs, setDownloadingDocs] = useState<number | null>(null);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
@@ -125,6 +126,23 @@ export function ClienteBatches({
                         <Download className="w-3.5 h-3.5" />
                       )}
                       Descargar Todo
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDownloadingDocs(batch.nro_osi);
+                        window.open(`/api/batch-download-documents/${batch.nro_osi}`, "_blank");
+                        setTimeout(() => setDownloadingDocs(null), 3000);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors"
+                      title="Descargar documentos adicionales (Certificación de Competencias, Nota de Entrega)"
+                    >
+                      {downloadingDocs === batch.nro_osi ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <FileText className="w-3.5 h-3.5" />
+                      )}
+                      Documentos
                     </button>
                     {isExpandMode ? (
                       <ChevronDown
