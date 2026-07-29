@@ -266,6 +266,7 @@ export async function getClienteCertificates(
          participantes_certificados!inner(nombre, cedula, nacionalidad),
          catalogo_servicios!left(id, nombre, emite_carnet),
          cat_estados_venezuela!left(id, nombre_estado),
+         cat_ciudades!left(id, nombre_ciudad),
          empresas!inner(razon_social)`,
         { count: "exact" },
       )
@@ -302,6 +303,7 @@ export async function getClienteCertificates(
       const participant = row.participantes_certificados as Record<string, string>;
       const course = row.catalogo_servicios as Record<string, unknown> | null;
       const state = row.cat_estados_venezuela as Record<string, unknown> | null;
+      const city = row.cat_ciudades as Record<string, unknown> | null;
       const company = row.empresas as Record<string, string>;
 
       // Fallback: extract course name from snapshot if catalogo_servicios is null
@@ -331,6 +333,7 @@ export async function getClienteCertificates(
         nro_osi: (row.nro_osi as number) || 0,
         state_nombre_estado: (state?.nombre_estado as string) || "",
         state_id: (state?.id as number) || 0,
+        city_nombre_ciudad: (city?.nombre_ciudad as string) || "",
         company_razon_social: (company?.razon_social as string) || "",
         calificacion: (row.calificacion as number) || 0,
         total_count: count || 0,
@@ -353,6 +356,7 @@ export async function getClienteCertificates(
          participantes_certificados!inner(nombre, cedula, nacionalidad),
          catalogo_servicios!left(id, nombre, emite_carnet),
          cat_estados_venezuela!left(id, nombre_estado),
+         cat_ciudades!left(id, nombre_ciudad),
          empresas!inner(razon_social)`,
         { count: "exact" },
       )
@@ -384,6 +388,7 @@ export async function getClienteCertificates(
       const participant = row.participantes_certificados as Record<string, string>;
       const course = row.catalogo_servicios as Record<string, unknown> | null;
       const state = row.cat_estados_venezuela as Record<string, unknown> | null;
+      const city = row.cat_ciudades as Record<string, unknown> | null;
       const company = row.empresas as Record<string, string>;
 
       let courseNombre = (course?.nombre as string) || "";
@@ -412,6 +417,7 @@ export async function getClienteCertificates(
         nro_osi: (row.nro_osi as number) || 0,
         state_nombre_estado: (state?.nombre_estado as string) || "",
         state_id: (state?.id as number) || 0,
+        city_nombre_ciudad: (city?.nombre_ciudad as string) || "",
         company_razon_social: (company?.razon_social as string) || "",
         calificacion: (row.calificacion as number) || 0,
         total_count: directCount || 0,
@@ -662,7 +668,10 @@ export async function getClienteRecentBatches(
   let batchQuery = supabase
     .from("certificados")
     .select(
-      `id, nro_osi, fecha_emision, id_curso, catalogo_servicios!inner(nombre)`,
+      `id, nro_osi, fecha_emision, id_curso, id_ciudad, id_sede,
+       catalogo_servicios!inner(nombre),
+       cat_ciudades!left(id, nombre_ciudad),
+       empresa_sedes!left(id, nombre_sede)`,
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
@@ -689,6 +698,9 @@ export async function getClienteRecentBatches(
     const nroOsi = row.nro_osi as number;
     if (!nroOsi) continue;
 
+    const cityInfo = row.cat_ciudades as unknown as { nombre_ciudad: string } | null;
+    const sedeInfo = row.empresa_sedes as unknown as { nombre_sede: string } | null;
+
     if (!batchMap.has(nroOsi)) {
       const courseInfo = row.catalogo_servicios as unknown as {
         nombre: string;
@@ -699,12 +711,20 @@ export async function getClienteRecentBatches(
         fecha_emision: row.fecha_emision || "",
         participant_count: 0,
         certificate_ids: [],
+        city_names: [],
+        sede_names: [],
       });
     }
 
     const batch = batchMap.get(nroOsi)!;
     batch.participant_count++;
     batch.certificate_ids.push(row.id);
+    if (cityInfo?.nombre_ciudad && !batch.city_names.includes(cityInfo.nombre_ciudad)) {
+      batch.city_names.push(cityInfo.nombre_ciudad);
+    }
+    if (sedeInfo?.nombre_sede && !batch.sede_names.includes(sedeInfo.nombre_sede)) {
+      batch.sede_names.push(sedeInfo.nombre_sede);
+    }
   }
 
   // Sort by fecha_emision desc and take top N
@@ -735,9 +755,11 @@ export async function getClienteBatchesFiltered(
   let query = supabase
     .from("certificados")
     .select(
-      `id, nro_osi, fecha_emision, id_curso, snapshot_contenido,
+      `id, nro_osi, fecha_emision, id_curso, snapshot_contenido, id_ciudad, id_sede,
        catalogo_servicios!inner(nombre),
-       participantes_certificados!inner(nombre, cedula, nacionalidad)`,
+       participantes_certificados!inner(nombre, cedula, nacionalidad),
+       cat_ciudades!left(id, nombre_ciudad),
+       empresa_sedes!left(id, nombre_sede)`,
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
@@ -779,6 +801,9 @@ export async function getClienteBatchesFiltered(
     const nroOsi = row.nro_osi as number;
     if (!nroOsi) continue;
 
+    const cityInfo = row.cat_ciudades as unknown as { nombre_ciudad: string } | null;
+    const sedeInfo = row.empresa_sedes as unknown as { nombre_sede: string } | null;
+
     if (!batchMap.has(nroOsi)) {
       const courseInfo = row.catalogo_servicios as unknown as { nombre: string };
       let courseNombre = courseInfo?.nombre || "";
@@ -798,12 +823,20 @@ export async function getClienteBatchesFiltered(
         fecha_emision: row.fecha_emision || "",
         participant_count: 0,
         certificate_ids: [],
+        city_names: [],
+        sede_names: [],
       });
     }
 
     const batch = batchMap.get(nroOsi)!;
     batch.participant_count++;
     batch.certificate_ids.push(row.id);
+    if (cityInfo?.nombre_ciudad && !batch.city_names.includes(cityInfo.nombre_ciudad)) {
+      batch.city_names.push(cityInfo.nombre_ciudad);
+    }
+    if (sedeInfo?.nombre_sede && !batch.sede_names.includes(sedeInfo.nombre_sede)) {
+      batch.sede_names.push(sedeInfo.nombre_sede);
+    }
   }
 
   // Sort by fecha_emision desc

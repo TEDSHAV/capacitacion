@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Users, ChevronDown, ChevronRight, FileStack, Download, Loader2, Eye, Award } from "lucide-react";
+import { Calendar, Users, ChevronDown, ChevronRight, FileStack, Download, Loader2, Eye, Award, MapPin } from "lucide-react";
 import { useState } from "react";
 import { ClienteBatchSummary, ClienteCertificateRow } from "@/types";
 
@@ -84,6 +84,28 @@ export function ClienteBatches({
                         <Users className="w-4 h-4 text-gray-400" />
                         <span>{batch.participant_count} participantes</span>
                       </div>
+                      {batch.sede_names.length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <span>
+                            {batch.sede_names.length === 1
+                              ? `${batch.city_names[0] || ""}${batch.city_names[0] ? " — " : ""}${batch.sede_names[0]}`
+                              : "Múltiples ubicaciones"}
+                          </span>
+                        </div>
+                      )}
+                      {batch.sede_names.length === 0 && batch.city_names.length === 1 && (
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <span>{batch.city_names[0]}</span>
+                        </div>
+                      )}
+                      {batch.sede_names.length === 0 && batch.city_names.length > 1 && (
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <span>Múltiples ubicaciones</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -133,6 +155,7 @@ export function ClienteBatches({
                             <th className="px-4 py-3 text-left font-semibold">Curso</th>
                             <th className="px-4 py-3 text-left font-semibold">Fecha</th>
                             <th className="px-4 py-3 text-left font-semibold">Estado</th>
+                            <th className="px-4 py-3 text-left font-semibold">Ciudad</th>
                             <th className="px-4 py-3 text-center font-semibold">Ver</th>
                             <th className="px-4 py-3 text-center font-semibold">PDF</th>
                           </tr>
@@ -155,6 +178,9 @@ export function ClienteBatches({
                               </td>
                               <td className="px-4 py-3 text-gray-600">
                                 {cert.state_nombre_estado || "N/A"}
+                              </td>
+                              <td className="px-4 py-3 text-gray-600">
+                                {cert.city_nombre_ciudad || "N/A"}
                               </td>
                               <td className="px-4 py-3 text-center">
                                 <a

@@ -1725,6 +1725,8 @@ export interface ClienteBatchSummary {
   fecha_emision: string;
   participant_count: number;
   certificate_ids: number[];
+  city_names: string[];
+  sede_names: string[];
 }
 
 export interface ClienteCertificateRow {
@@ -1741,6 +1743,7 @@ export interface ClienteCertificateRow {
   nro_osi: number;
   state_nombre_estado: string;
   state_id: number;
+  city_nombre_ciudad?: string;
   company_razon_social: string;
   calificacion: number;
   total_count: number;
