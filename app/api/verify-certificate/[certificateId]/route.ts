@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyCertificate, getCertificateById } from '@/app/actions/certificados';
 import { QRService } from '@/lib/qr-service';
 
+// Public base URL of this capacitacion module, used to build verification URLs
+// embedded in QR codes. Prefer NEXT_PUBLIC_APP_URL (this app's own domain);
+// fall back to NEXT_PUBLIC_SHELL_URL for backward compatibility.
+const APP_BASE_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.NEXT_PUBLIC_SHELL_URL ||
+  'http://localhost:3000';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ certificateId: string }> }
@@ -32,7 +40,7 @@ export async function GET(
     return NextResponse.json({
       isValid: true,
       certificate: verification.certificate,
-      verificationUrl: `${process.env.NEXT_PUBLIC_SHELL_URL}/verify-certificate/${certificateId}`
+      verificationUrl: `${APP_BASE_URL}/verify-certificate/${certificateId}`
     });
 
   } catch (error) {
@@ -113,7 +121,7 @@ export async function POST(
       isValid: true,
       certificate: verification.certificate,
       details: certificateDetails,
-      verificationUrl: `${process.env.NEXT_PUBLIC_SHELL_URL}/verify-certificate/${certificateId}`,
+      verificationUrl: `${APP_BASE_URL}/verify-certificate/${certificateId}`,
       verifiedAt: new Date().toISOString()
     });
 

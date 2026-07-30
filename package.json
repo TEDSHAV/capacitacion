@@ -22,7 +22,9 @@
 
     "lint": "eslint",
 
-    "update-types": "npx supabase gen types typescript --project-id oboslhhemuvzvjnbqeih > types/supabase.ts"
+    "update-types": "npx supabase gen types typescript --project-id oboslhhemuvzvjnbqeih > types/supabase.ts",
+
+    "regenerate-qr": "node --experimental-strip-types --env-file=.env scripts/regenerate-qr-codes.ts"
 
   },
 
