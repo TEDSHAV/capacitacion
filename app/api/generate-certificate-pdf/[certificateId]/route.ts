@@ -7,7 +7,6 @@ import {
   getCertificateTemplateServer,
 } from "@/app/actions/certificate-data";
 import { CertificateGeneration } from "@/types";
-import { requireApiAuth } from "@/utils/api-auth";
 import { registerCustomCoordinates } from "@/lib/custom-certificate-generator";
 
 export async function GET(
@@ -15,11 +14,6 @@ export async function GET(
   { params }: { params: Promise<{ certificateId: string }> },
 ) {
   try {
-    const auth = await requireApiAuth(request);
-    if ("unauthorized" in auth) {
-      return auth.unauthorized;
-    }
-
     const resolvedParams = await params;
     const certificateId = parseInt(resolvedParams.certificateId);
 
@@ -31,6 +25,9 @@ export async function GET(
     }
 
     // Get certificate data from database
+    // Public endpoint — no auth required (used by QR verification page).
+    // getCertificateById already filters by is_active = true, so only
+    // valid, active certificates are returned.
     const certificate = await getCertificateById(certificateId);
 
     if (!certificate) {
@@ -38,17 +35,6 @@ export async function GET(
         { error: "Certificate not found or inactive" },
         { status: 404 },
       );
-    }
-
-    // If accessed via cliente portal, verify ownership
-    if (auth.type === "cliente") {
-      const empresaId = (auth.session as { empresa_id?: number }).empresa_id;
-      if (certificate.id_empresa !== empresaId) {
-        return NextResponse.json(
-          { error: "Forbidden" },
-          { status: 403 },
-        );
-      }
     }
 
     // Parse snapshot to reconstruct certificate data
