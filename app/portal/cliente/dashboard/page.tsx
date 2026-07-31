@@ -1,8 +1,8 @@
-import { getClienteSession, getClienteMetrics, getClienteBatchesFiltered, getClienteFilterOptions, logoutCliente } from "@/app/actions/cliente-portal";
+import { getClienteSession, getClienteMetrics, getClienteBatchesFiltered, getClienteFilterOptions, getClienteHiddenBatches, logoutCliente } from "@/app/actions/cliente-portal";
 import { redirect } from "next/navigation";
 import { PortalNavbar } from "@/components/PortalNavbar";
 import { ClienteDashboardClient } from "./cliente-dashboard-client";
-import type { ClienteMetrics, ClienteBatchSummary, ClienteFilterOptions } from "@/types";
+import type { ClienteMetrics, ClienteBatchSummary, ClienteFilterOptions, HiddenBatchSummary } from "@/types";
 import { createClient } from "@/utils/supabase/server";
 import Image from "next/image";
 import { Building2 } from "lucide-react";
@@ -30,12 +30,23 @@ export default async function ClienteDashboardPage() {
 
   const batches: ClienteBatchSummary[] = batchesResult.data || [];
   const initialTotalCount: number = batchesResult.totalCount || 0;
+  console.log(`[DashboardPage] initialBatches nro_osi values:`, batches.map(b => b.nro_osi));
   const filterOptions: ClienteFilterOptions = filterOptionsResult.data || {
     courses: [],
     states: [],
     cities: [],
     sedes: [],
   };
+
+  // Fetch hidden batches separately so a failure here doesn't crash the
+  // entire dashboard page.
+  let initialHiddenBatches: HiddenBatchSummary[] = [];
+  try {
+    const hiddenBatchesResult = await getClienteHiddenBatches(session.empresa_id);
+    initialHiddenBatches = hiddenBatchesResult.data || [];
+  } catch (err) {
+    console.error("Error fetching hidden batches (non-fatal):", err);
+  }
 
   let sedeName: string | null = null;
   if (session.id_ciudad) {
@@ -93,6 +104,7 @@ export default async function ClienteDashboardPage() {
         filterOptions={filterOptions}
         showSedeFilter={!session.id_sede || (session.id_sede?.length ?? 0) > 1}
         showCiudadFilter={!session.id_sede}
+        initialHiddenBatches={initialHiddenBatches}
       />
     </div>
     </div>

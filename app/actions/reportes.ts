@@ -100,7 +100,7 @@ export async function getOverviewMetrics(
         .from("catalogo_servicios")
         .select("id, nombre, carga_horaria_std"),
       supabase
-        .from("v_osi_formato_completo")
+        .from("v_osi_lista")
         .select("id_osi, nro_osi, horas_academicas_ejecucion")
         .limit(5000),
       supabase
@@ -387,7 +387,7 @@ export async function getCursosReport(
         .from("catalogo_servicios")
         .select("id, nombre, carga_horaria_std"),
       supabase
-        .from("v_osi_formato_completo")
+        .from("v_osi_lista")
         .select("id_osi, nro_osi, horas_academicas_ejecucion")
         .limit(5000),
     ]);
@@ -569,7 +569,7 @@ export async function getFacilitadoresReport(
 
         (async () => {
           let q = supabase
-            .from("v_osi_formato_completo")
+            .from("v_osi_lista")
             .select(`id_osi, nro_osi, horas_academicas_ejecucion, sesiones_ejecucion, id_estatus`)
             .not("id_osi", "is", null)
             .limit(5000);
@@ -987,7 +987,7 @@ export async function getSurveysReport(
   try {
     // 1. First, fetch OSI data with date/state filters applied
     let osiQuery = supabase
-      .from("v_osi_formato_completo")
+      .from("v_osi_lista")
       .select(`
         id_osi,
         nro_osi,

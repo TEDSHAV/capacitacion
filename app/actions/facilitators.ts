@@ -290,7 +290,7 @@ export async function getFacilitatorRatings() {
     if (certMapping) {
       // We also need a way to link nro_osi to id_osi if we only have nro_osi
       const { data: osis } = await supabase
-        .from("v_osi_formato_completo")
+        .from("v_osi_lista")
         .select("id_osi, nro_osi");
       
       const nroOsiToIdOsi = new Map<number, number>();

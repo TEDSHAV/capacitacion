@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { ClienteMetrics, ClienteBatchSummary, ClienteFilterOptions, ClienteCertificateFilters, ClienteCertificateRow } from "@/types";
-import { getClienteCertificates, getClienteMetrics, getClienteBatchesFiltered } from "@/app/actions/cliente-portal";
+import { ClienteMetrics, ClienteBatchSummary, ClienteFilterOptions, ClienteCertificateFilters, ClienteCertificateRow, HiddenBatchSummary } from "@/types";
+import { getClienteCertificates, getClienteMetrics, getClienteBatchesFiltered, getClienteHiddenBatches } from "@/app/actions/cliente-portal";
 import { ClienteMetricsCards } from "./cliente-metrics";
 import { ClienteFilters } from "./cliente-filters";
 import { ClienteBatches } from "./cliente-batches";
 import { ClientePagination } from "./cliente-pagination";
+import { ClientePendingBatches } from "./cliente-pending-batches";
 import { Loader2, FileSearch } from "lucide-react";
 
 interface ClienteDashboardClientProps {
@@ -17,6 +18,7 @@ interface ClienteDashboardClientProps {
   filterOptions: ClienteFilterOptions;
   showSedeFilter?: boolean;
   showCiudadFilter?: boolean;
+  initialHiddenBatches?: HiddenBatchSummary[];
 }
 
 const DEFAULT_FILTERS: ClienteCertificateFilters = {
@@ -31,11 +33,13 @@ export function ClienteDashboardClient({
   filterOptions,
   showSedeFilter = false,
   showCiudadFilter = false,
+  initialHiddenBatches = [],
 }: ClienteDashboardClientProps) {
   const [filters, setFilters] = useState<ClienteCertificateFilters>(DEFAULT_FILTERS);
   const [metrics, setMetrics] = useState<ClienteMetrics>(initialMetrics);
   const [batches, setBatches] = useState<ClienteBatchSummary[]>(initialBatches);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
+  const [hiddenBatches, setHiddenBatches] = useState<HiddenBatchSummary[]>(initialHiddenBatches);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [expandedOsi, setExpandedOsi] = useState<number | null>(null);
@@ -55,14 +59,18 @@ export function ClienteDashboardClient({
   const loadBatches = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, totalCount: count } = await getClienteBatchesFiltered(
-        empresaId,
-        filters,
-        currentPage,
-        itemsPerPage,
-      );
-      setBatches(data || []);
-      setTotalCount(count || 0);
+      const [batchRes, hiddenRes] = await Promise.all([
+        getClienteBatchesFiltered(
+          empresaId,
+          filters,
+          currentPage,
+          itemsPerPage,
+        ),
+        getClienteHiddenBatches(empresaId),
+      ]);
+      setBatches(batchRes.data || []);
+      setTotalCount(batchRes.totalCount || 0);
+      setHiddenBatches(hiddenRes.data || []);
     } catch (err) {
       console.error("Error loading batches:", err);
     } finally {
@@ -107,16 +115,20 @@ export function ClienteDashboardClient({
     setCurrentPage(1);
     setExpandedOsi(null);
     setExpandedCertificates([]);
-    const { data: metricsData } = await getClienteMetrics(empresaId);
-    if (metricsData) setMetrics(metricsData);
-    const { data, totalCount: count } = await getClienteBatchesFiltered(
-      empresaId,
-      DEFAULT_FILTERS,
-      1,
-      itemsPerPage,
-    );
-    setBatches(data || []);
-    setTotalCount(count || 0);
+    const [metricsRes, batchRes, hiddenRes] = await Promise.all([
+      getClienteMetrics(empresaId),
+      getClienteBatchesFiltered(
+        empresaId,
+        DEFAULT_FILTERS,
+        1,
+        itemsPerPage,
+      ),
+      getClienteHiddenBatches(empresaId),
+    ]);
+    if (metricsRes.data) setMetrics(metricsRes.data);
+    setBatches(batchRes.data || []);
+    setTotalCount(batchRes.totalCount || 0);
+    setHiddenBatches(hiddenRes.data || []);
   };
 
   const handleToggleExpand = (nroOsi: number) => {
@@ -133,6 +145,10 @@ export function ClienteDashboardClient({
   return (
     <div className="space-y-8">
       <ClienteMetricsCards metrics={metrics} />
+
+      {hiddenBatches.length > 0 && (
+        <ClientePendingBatches batches={hiddenBatches} />
+      )}
 
       <ClienteFilters
         filters={filters}

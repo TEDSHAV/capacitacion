@@ -7,6 +7,7 @@ import type { OSIStatus } from "@/types";
 interface OSITableV2Props {
   osis: OSIManagement[];
   loading: boolean;
+  fetching?: boolean;
   statuses: OSIStatus[];
   onViewDetails: (osi: OSIManagement, section?: "info" | "documents") => void;
   onSurvey: (osi: OSIManagement) => void;
@@ -16,6 +17,7 @@ interface OSITableV2Props {
 export default function OSITableV2({
   osis,
   loading,
+  fetching = false,
   statuses,
   onViewDetails,
   onSurvey,
@@ -30,7 +32,7 @@ export default function OSITableV2({
     });
   };
 
-  if (loading) {
+  if (loading && (!osis || osis.length === 0)) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
         <div className="flex items-center justify-center">
@@ -63,7 +65,12 @@ export default function OSITableV2({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative">
+      {fetching && (
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-100 overflow-hidden z-10">
+          <div className="h-full bg-blue-600 animate-pulse" style={{ width: "40%" }} />
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">

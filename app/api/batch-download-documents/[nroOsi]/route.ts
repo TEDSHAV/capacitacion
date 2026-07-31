@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import { getCertificatesByOSIAction } from "@/app/actions/certificados";
 import { generateDocumentsServer } from "@/lib/document-server-actions";
 import { requireApiAuth } from "@/utils/api-auth";
+import { isOsiHiddenForCliente } from "@/app/actions/cliente-portal";
 
 export async function GET(
   request: NextRequest,
@@ -22,6 +23,18 @@ export async function GET(
         { error: "Invalid OSI number" },
         { status: 400 },
       );
+    }
+
+    // Block cliente portal access to OSIs hidden from clients
+    // (e.g. until payment clears). Internal dashboard users are unaffected.
+    if (auth.type === "cliente") {
+      const hidden = await isOsiHiddenForCliente(nroOsi);
+      if (hidden) {
+        return NextResponse.json(
+          { error: "Este lote está pendiente de autorización." },
+          { status: 403 },
+        );
+      }
     }
 
     const certResult = await getCertificatesByOSIAction(nroOsi);

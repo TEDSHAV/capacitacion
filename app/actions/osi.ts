@@ -323,30 +323,10 @@ export async function getOSIsForManagement(
     const offset = (page - 1) * limit;
     query = query.range(offset, offset + limit - 1);
 
-    // Run main query and aggregate RPC in parallel
-    const [
-      { data, error, count },
-      { data: aggData },
-    ] = await Promise.all([
-      query.order("fecha_emision", { ascending: false }),
-      supabase.rpc("get_osi_aggregate_metrics", {
-        p_tipo_servicio: filters.tipoServicio ?? null,
-        p_company_name: filters.companyName ?? null,
-        p_nro_osi: filters.nroOsi ?? null,
-        p_status: filters.status ? parseInt(filters.status) : null,
-        p_date_service_from: filters.dateServiceFrom ?? null,
-        p_date_service_to: filters.dateServiceTo ?? null,
-        p_date_issued_from: filters.dateIssuedFrom ?? null,
-        p_date_issued_to: filters.dateIssuedTo ?? null,
-        p_num_sesiones_min: filters.numSesionesMin ?? null,
-        p_num_sesiones_max: filters.numSesionesMax ?? null,
-        p_num_hours_min: filters.numHoursMin ?? null,
-        p_num_hours_max: filters.numHoursMax ?? null,
-        p_location: filters.location ?? null,
-        p_ejecutivo: filters.ejecutivo ?? null,
-        p_month_issued: filters.monthIssued ?? null,
-      }),
-    ]);
+    // Run main query
+    const { data, error, count } = await query.order("fecha_emision", {
+      ascending: false,
+    });
 
     if (error) {
       console.error("Error fetching OSIs for management:", error);
@@ -388,18 +368,9 @@ export async function getOSIsForManagement(
       } as OSIManagement;
     });
 
-    // Use aggregate metrics from RPC (3 numbers instead of fetching all rows)
-    const aggRow = aggData?.[0];
-    const metrics = {
-      total_hours: aggRow?.total_hours ?? 0,
-      total_sesiones: aggRow?.total_sesiones ?? 0,
-      unique_companies: aggRow?.unique_companies ?? 0,
-    };
-
     return {
       osis: enrichedOSIs,
       totalCount: count || 0,
-      metrics,
     };
   } catch (err) {
     console.error("Unexpected error in getOSIsForManagement:", err);

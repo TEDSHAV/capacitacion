@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import CertificateMetricsComponent from "./components/certificate-metrics";
 import CertificateFiltersComponent from "./components/certificate-filters";
 import CertificateTableComponent from "./components/certificate-table";
 import CertificatePaginationComponent from "./components/certificate-pagination";
@@ -25,7 +24,6 @@ export default function GestionCertificadosPage() {
   const [loading, setLoading] = useState(true);
   const [certificates, setCertificates] = useState<CertificateManagement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [metrics, setMetrics] = useState<any>(null);
   const [filters, setFilters] = useState<CertificateFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -82,7 +80,6 @@ export default function GestionCertificadosPage() {
 
       setCertificates(result.certificates);
       setTotalCount(result.totalCount);
-      setMetrics(result.metrics);
     } catch (error) {
       console.error("Error loading certificates:", error);
     } finally {
@@ -179,12 +176,6 @@ export default function GestionCertificadosPage() {
           Administra los certificados emitidos y su historial
         </p>
       </div>
-
-      {/* Metrics Dashboard */}
-      <CertificateMetricsComponent
-        metrics={metrics || {}}
-        loading={loading && !metrics}
-      />
 
       {/* Filters */}
       <CertificateFiltersComponent

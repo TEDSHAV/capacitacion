@@ -1250,7 +1250,7 @@ export interface CertificateFilters {
 export interface CertificateSearchResult {
   certificates: CertificateManagement[];
   totalCount: number;
-  metrics: CertificateMetrics;
+  metrics?: CertificateMetrics;
 }
 
 // Carnet System Types
@@ -1725,6 +1725,18 @@ export interface ClienteBatchSummary {
   fecha_emision: string;
   participant_count: number;
   certificate_ids: number[];
+  city_names: string[];
+  sede_names: string[];
+}
+
+// Minimal subset of ClienteBatchSummary for OSIs hidden from the cliente portal
+// ("Pendiente de pago" cards). Deliberately omits certificate_ids so no
+// downloadable cert ids leak to the client.
+export interface HiddenBatchSummary {
+  nro_osi: number;
+  course_name: string;
+  fecha_emision: string;
+  participant_count: number;
   city_names: string[];
   sede_names: string[];
 }

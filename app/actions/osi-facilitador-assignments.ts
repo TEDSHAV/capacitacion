@@ -199,7 +199,7 @@ export async function getAllOSIsForAssignment() {
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from("v_osi_formato_completo")
+    .from("v_osi_lista")
     .select("id_osi, nro_osi, nombre_empresa, servicio, tipo_servicio, fecha_emision")
     .order("id_osi", { ascending: false });
 

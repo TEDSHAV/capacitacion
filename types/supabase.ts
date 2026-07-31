@@ -2839,6 +2839,38 @@ export type Database = {
           },
         ]
       }
+      osi_visibilidad_cliente: {
+        Row: {
+          id: number
+          osi_id: number
+          oculto: boolean
+          updated_at: string
+          updated_by: number | null
+        }
+        Insert: {
+          id?: number
+          osi_id: number
+          oculto?: boolean
+          updated_at?: string
+          updated_by?: number | null
+        }
+        Update: {
+          id?: number
+          osi_id?: number
+          oculto?: boolean
+          updated_at?: string
+          updated_by?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "osi_visibilidad_cliente_osi_id_fkey"
+            columns: ["osi_id"]
+            isOneToOne: false
+            referencedRelation: "ejecucion_osi"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ejecucion_osi_asistencia: {
         Row: {
           created_at: string | null

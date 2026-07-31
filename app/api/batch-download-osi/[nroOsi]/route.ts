@@ -11,6 +11,7 @@ import {
   getSignatureDataServer,
   getCarnetTemplateServer,
 } from "@/app/actions/certificate-data";
+import { isOsiHiddenForCliente } from "@/app/actions/cliente-portal";
 
 export async function GET(
   request: NextRequest,
@@ -30,6 +31,18 @@ export async function GET(
         { error: "Invalid OSI number" },
         { status: 400 },
       );
+    }
+
+    // Block cliente portal access to OSIs hidden from clients
+    // (e.g. until payment clears). Internal dashboard users are unaffected.
+    if (auth.type === "cliente") {
+      const hidden = await isOsiHiddenForCliente(nroOsi);
+      if (hidden) {
+        return NextResponse.json(
+          { error: "Este lote está pendiente de autorización." },
+          { status: 403 },
+        );
+      }
     }
 
     // Fetch all certificates for this OSI

@@ -59,7 +59,6 @@ export function ClienteResults({
                 <th className="px-4 py-3 text-left font-semibold">Cédula</th>
                 <th className="px-4 py-3 text-left font-semibold">Curso</th>
                 <th className="px-4 py-3 text-left font-semibold">Fecha</th>
-                <th className="px-4 py-3 text-left font-semibold">Estado</th>
                 <th className="px-4 py-3 text-left font-semibold">Ciudad</th>
                 <th className="px-4 py-3 text-center font-semibold">Ver</th>
                 <th className="px-4 py-3 text-center font-semibold">PDF</th>
@@ -80,9 +79,6 @@ export function ClienteResults({
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {formatDate(cert.fecha_emision)}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {cert.state_nombre_estado || "N/A"}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {cert.city_nombre_ciudad || "N/A"}

@@ -13,7 +13,7 @@ export async function getOSIDataForSurvey(osiId: number): Promise<SurveyOSIData 
     
     // Get basic OSI data from the view
     const { data, error } = await supabase
-      .from("v_osi_formato_completo")
+      .from("v_osi_lista")
       .select(`
         id_osi,
         nro_osi,

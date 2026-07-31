@@ -8,7 +8,6 @@ import {
   CertificateParticipant,
   CertificateFilters,
   CertificateSearchResult,
-  CertificateMetrics,
   BatchUpdateData,
   BatchUpdateResult,
 } from "@/types";
@@ -2195,7 +2194,6 @@ export async function getCertificatesForManagement(
       return {
         certificates: [],
         totalCount: 0,
-        metrics: getEmptyMetrics(),
       };
     }
 
@@ -2221,298 +2219,17 @@ export async function getCertificatesForManagement(
       });
     }
 
-    // Calculate metrics
-    const metrics = await calculateCertificateMetrics(filters);
-
     return {
       certificates,
       totalCount,
-      metrics,
     };
   } catch (error) {
     console.error("Error in getCertificatesForManagement:", error);
     return {
       certificates: [],
       totalCount: 0,
-      metrics: getEmptyMetrics(),
     };
   }
-}
-
-/**
- * Calculate comprehensive certificate metrics
- */
-
-async function calculateCertificateMetrics(
-  filters: CertificateFilters = {},
-): Promise<CertificateMetrics> {
-  try {
-    const supabase = await createClient();
-
-    // 1. ALWAYS perform a live query for accuracy.
-    // We join the tables to allow filtering by search term and to get names for charts.
-    // We use !inner joins to ensure we only get certificates with valid references and to allow filtering
-    let query = supabase.from("certificados").select(
-      `
-        id, 
-        is_active, 
-        fecha_emision,
-        fecha_vencimiento, 
-        calificacion, 
-        id_empresa, 
-        id_curso, 
-        id_participante,
-        id_plantilla_carnet,
-        participantes_certificados!inner(nombre, cedula),
-        catalogo_servicios!inner(nombre),
-        empresas!inner(razon_social)
-      `,
-      { count: "exact" },
-    );
-
-    // Apply the same filters as search_certificates RPC
-    if (filters.companyId) {
-      const companyId = Number(filters.companyId);
-      if (!isNaN(companyId)) {
-        query = query.eq("empresas.id", companyId);
-      }
-    }
-    if (filters.courseId) {
-      const courseId = Number(filters.courseId);
-      if (!isNaN(courseId)) {
-        query = query.eq("catalogo_servicios.id", courseId);
-      }
-    }
-    if (filters.facilitatorId)
-      query = query.eq("id_facilitador", filters.facilitatorId);
-    if (filters.stateId) query = query.eq("id_estado", filters.stateId);
-
-    // Default to only active certificates if not specified,
-    // or respect the filter if provided
-    if (filters.isActive !== undefined) {
-      query = query.eq("is_active", filters.isActive);
-    }
-
-    if (filters.dateFrom) query = query.gte("fecha_emision", filters.dateFrom);
-    if (filters.dateTo) query = query.lte("fecha_emision", filters.dateTo);
-
-    // Apply search term if present
-    if (filters.searchTerm?.trim()) {
-      const term = filters.searchTerm.trim();
-      const ilikeTerm = `%${term}%`;
-
-      // If it's a number, we can search by nro_osi exactly
-      // Otherwise we use a general search on the snapshot content which contains all fields
-      if (/^\d+$/.test(term)) {
-        const nroOsi = parseInt(term);
-        query = query.or(
-          `nro_osi.eq.${nroOsi},snapshot_contenido.ilike.${ilikeTerm}`,
-        );
-      } else {
-        query = query.ilike("snapshot_contenido", ilikeTerm);
-      }
-    }
-
-    // Fetch the live data for aggregation
-    // We order by emission date descending to get the most recent ones for the metrics sample
-    // Safe limit for management dashboard - increased to 5000 for better accuracy
-    const {
-      data: filteredData,
-      count: totalCount,
-      error: liveError,
-    } = await query.order("fecha_emision", { ascending: false }).limit(5000);
-
-    if (liveError) {
-      console.error("Error fetching live metrics:", liveError);
-      return getEmptyMetrics();
-    }
-
-    // Debug: Log first few certificates to inspect data structure
-    if (filteredData && filteredData.length > 0) {
-      console.log("[METRICS DEBUG] First 3 certificates structure:");
-      filteredData.slice(0, 3).forEach((cert: any, idx: number) => {
-        console.log(`Certificate ${idx}:`, {
-          id: cert.id,
-          id_curso: cert.id_curso,
-          catalogo_servicios: cert.catalogo_servicios,
-          isArray: Array.isArray(cert.catalogo_servicios),
-        });
-      });
-    }
-
-    // 2. Aggregate metrics from the actual data returned
-    const now = new Date();
-
-    // Get current month and year for robust comparison
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    let activeCount = 0;
-    let expiredCount = 0;
-    let totalScore = 0;
-    let certificatesThisMonth = 0;
-    let certificatesThisYear = 0;
-    const uniqueCompanies = new Set();
-    const uniqueCourses = new Set();
-    const uniqueParticipants = new Set();
-
-    // Aggregation maps for charts
-    const companyStats: Record<number, { name: string; count: number }> = {};
-    const courseStats: Record<number, { name: string; count: number }> = {};
-
-    filteredData?.forEach((cert: any) => {
-      // Certificate state - if Carnet is available, state refers to the Carnet validity
-      if (cert.is_active) activeCount++;
-
-      // Expirados: only when available Carnets (id_plantilla_carnet is present)
-      if (cert.id_plantilla_carnet && cert.fecha_vencimiento) {
-        const expiryDate = new Date(cert.fecha_vencimiento + "T12:00:00");
-        if (expiryDate < now) expiredCount++;
-      }
-
-      // Este mes: count certificates emitted in the current month
-      if (cert.fecha_emision) {
-        // Robust month/year check to avoid timezone shift issues with YYYY-MM-DD strings
-        const emissionDate = new Date(cert.fecha_emision + "T12:00:00");
-        if (
-          emissionDate.getMonth() === currentMonth &&
-          emissionDate.getFullYear() === currentYear
-        ) {
-          certificatesThisMonth++;
-        }
-
-        if (emissionDate.getFullYear() === currentYear) {
-          certificatesThisYear++;
-        }
-      }
-
-      totalScore += cert.calificacion || 0;
-
-      if (cert.id_empresa) {
-        uniqueCompanies.add(cert.id_empresa);
-        // Handle both object and array response from Supabase join
-        const companyData = Array.isArray(cert.empresas)
-          ? cert.empresas[0]
-          : cert.empresas;
-        if (companyData?.razon_social) {
-          if (!companyStats[cert.id_empresa]) {
-            companyStats[cert.id_empresa] = {
-              name: companyData.razon_social,
-              count: 0,
-            };
-          }
-          companyStats[cert.id_empresa].count++;
-        }
-      }
-
-      if (cert.id_curso) {
-        uniqueCourses.add(cert.id_curso);
-        // Handle both object and array response from Supabase join
-        const courseData = Array.isArray(cert.catalogo_servicios)
-          ? cert.catalogo_servicios[0]
-          : cert.catalogo_servicios;
-        if (courseData?.nombre) {
-          if (!courseStats[cert.id_curso]) {
-            courseStats[cert.id_curso] = {
-              name: courseData.nombre,
-              count: 0,
-            };
-          }
-          courseStats[cert.id_curso].count++;
-        } else {
-          // Debug: log when course data is missing
-          console.warn(
-            `[METRICS DEBUG] Certificate ${cert.id} has id_curso=${cert.id_curso} but courseData is missing:`,
-            {
-              courseData,
-              catalogo_servicios: cert.catalogo_servicios,
-              isArray: Array.isArray(cert.catalogo_servicios),
-            },
-          );
-        }
-      }
-
-      if (cert.id_participante) uniqueParticipants.add(cert.id_participante);
-    });
-
-    const averageScore = totalCount ? totalScore / totalCount : 0;
-
-    // Convert stats maps to arrays for the charts
-    const certificatesByCompany = Object.entries(companyStats)
-      .map(([id, stats]) => ({
-        companyId: parseInt(id),
-        companyName: stats.name,
-        count: stats.count,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-
-    const certificatesByCourse = Object.entries(courseStats)
-      .map(([id, stats]) => ({
-        courseId: parseInt(id),
-        courseName: stats.name,
-        count: stats.count,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-
-    // Debug: Log final course stats
-    console.log(
-      "[METRICS DEBUG] Final certificatesByCourse:",
-      certificatesByCourse,
-    );
-    console.log("[METRICS DEBUG] All courseStats:", courseStats);
-
-    return {
-      totalCertificates: totalCount || 0,
-      activeCertificates: activeCount,
-      expiredCertificates: expiredCount,
-      certificatesThisMonth,
-      certificatesThisYear,
-      totalCompanies: uniqueCompanies.size,
-      totalCourses: uniqueCourses.size,
-      totalParticipants: uniqueParticipants.size,
-      averageScore: Math.round(averageScore * 100) / 100,
-      certificatesByCompany,
-      certificatesByCourse,
-      certificatesByMonth: [], // Monthly trend is usually global only
-    };
-  } catch (error) {
-    console.error("Error calculating metrics:", error);
-    return getEmptyMetrics();
-  }
-}
-
-/**
- * Get empty metrics structure
- */
-
-function getEmptyMetrics(): CertificateMetrics {
-  return {
-    totalCertificates: 0,
-
-    activeCertificates: 0,
-
-    expiredCertificates: 0,
-
-    certificatesThisMonth: 0,
-
-    certificatesThisYear: 0,
-
-    totalCompanies: 0,
-
-    totalCourses: 0,
-
-    totalParticipants: 0,
-
-    averageScore: 0,
-
-    certificatesByCompany: [],
-
-    certificatesByCourse: [],
-
-    certificatesByMonth: [],
-  };
 }
 
 /**

@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import crypto from "node:crypto";
 import { signSession, verifySession } from "@/lib/session-signing";
@@ -15,6 +16,7 @@ import type {
   ClienteCarnetRow,
   ClienteFilterOptions,
   EmpresaLogo,
+  HiddenBatchSummary,
 } from "@/types";
 
 // ─── Auth Helpers ───
@@ -241,6 +243,49 @@ async function getSessionSedeIds(): Promise<number[] | null> {
   return session?.id_sede ?? null;
 }
 
+// ─── OSI visibility ("Ocultar para cliente") ───
+
+// Cached per request: the set of nro_osi_secuencial values that are explicitly
+// marked VISIBLE for the cliente portal. With the inverted logic, OSIs are
+// hidden by default (no row = hidden); staff must explicitly toggle them to
+// visible (oculto=false) for clients to see them.
+// Uses the admin client to bypass any RLS on the control table.
+const getVisibleOsiIds = cache(async (): Promise<Set<number>> => {
+  try {
+    const supabase = await createAdminClient();
+    // Join with ejecucion_osi to get nro_osi_secuencial, which is what
+    // certificados.nro_osi and carnets.id_osi actually reference.
+    const { data, error } = await supabase
+      .from("osi_visibilidad_cliente")
+      .select("osi_id, ejecucion_osi(nro_osi_secuencial)")
+      .eq("oculto", false);
+    if (error) {
+      console.error("[getVisibleOsiIds] Error:", JSON.stringify(error));
+      return new Set();
+    }
+    const ids = new Set<number>();
+    for (const r of data || []) {
+      const osiRow = r.ejecucion_osi as unknown as { nro_osi_secuencial: string } | null;
+      if (osiRow?.nro_osi_secuencial) {
+        const nro = parseInt(osiRow.nro_osi_secuencial, 10);
+        if (!isNaN(nro)) ids.add(nro);
+      }
+    }
+    return ids;
+  } catch (err) {
+    console.error("[getVisibleOsiIds] Unexpected error:", err);
+    return new Set();
+  }
+});
+
+// Single-OSI check used by the batch-download API routes.
+// With inverted logic: hidden by default, visible only if explicitly marked.
+export async function isOsiHiddenForCliente(osiId: number): Promise<boolean> {
+  if (!Number.isFinite(osiId) || osiId <= 0) return true;
+  const visible = await getVisibleOsiIds();
+  return !visible.has(osiId);
+}
+
 export async function getClienteCertificates(
   empresaId: number,
   filters: ClienteCertificateFilters,
@@ -253,6 +298,9 @@ export async function getClienteCertificates(
   const sessionCityId = await getSessionCityId();
   const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
+  const visibleOsiIds = await getVisibleOsiIds();
+  const visibleArr = [...visibleOsiIds];
+  if (visibleArr.length === 0) return { data: [], totalCount: 0 };
 
   // When filtering by OSI number, query directly since the RPC doesn't support nro_osi
   if (filters.nroOsi) {
@@ -273,6 +321,9 @@ export async function getClienteCertificates(
       .eq("id_empresa", empresaId)
       .eq("is_active", true)
       .eq("nro_osi", filters.nroOsi);
+
+    // Only include OSIs visible to the cliente portal
+    if (visibleArr.length > 0) query = query.in("nro_osi", visibleArr);
 
     if (sessionSedeIds && sessionSedeIds.length > 0) query = query.in("id_sede", sessionSedeIds);
     else if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
@@ -364,6 +415,9 @@ export async function getClienteCertificates(
       .eq("is_active", true)
       .in("id_sede", sessionSedeIds);
 
+    // Only include OSIs visible to the cliente portal
+    if (visibleArr.length > 0) query = query.in("nro_osi", visibleArr);
+
     if (filters.searchTerm) {
       query = query.or(
         `nombre.ilike.%${filters.searchTerm}%,cedula.ilike.%${filters.searchTerm}%`,
@@ -427,34 +481,92 @@ export async function getClienteCertificates(
     return { data: directRows, totalCount: directCount || 0 };
   }
 
-  // Default: use the search_certificates RPC
-  const rpcParams: Record<string, unknown> = {
-    p_company_id: empresaId,
-    p_is_active: true,
-    p_page: page,
-    p_limit: itemsPerPage,
-  };
+  // Direct query path: always filter to visible OSIs only (the RPC can't
+  // restrict to a specific set of nro_osi values, so we use a direct query).
+  const from = (page - 1) * itemsPerPage;
+  const to = from + itemsPerPage - 1;
 
-  if (filters.sedeId) rpcParams.p_sede_id = filters.sedeId;
-  else if (sessionSedeIds && sessionSedeIds.length === 1) rpcParams.p_sede_id = sessionSedeIds[0];
-  else if (sessionCityId) rpcParams.p_city_id = sessionCityId;
-  if (filters.searchTerm) rpcParams.p_search_term = filters.searchTerm;
-  if (filters.courseId) rpcParams.p_course_id = filters.courseId;
-  if (filters.stateId) rpcParams.p_state_id = filters.stateId;
-  if (filters.dateFrom) rpcParams.p_date_from = filters.dateFrom;
-  if (filters.dateTo) rpcParams.p_date_to = filters.dateTo;
+  let query = supabase
+    .from("certificados")
+    .select(
+      `id, fecha_emision, fecha_vencimiento, is_active, calificacion, nro_osi, snapshot_contenido,
+       participantes_certificados!inner(nombre, cedula, nacionalidad),
+       catalogo_servicios!left(id, nombre, emite_carnet),
+       cat_estados_venezuela!left(id, nombre_estado),
+       cat_ciudades!left(id, nombre_ciudad),
+       empresas!inner(razon_social)`,
+      { count: "exact" },
+    )
+    .eq("id_empresa", empresaId)
+    .eq("is_active", true)
+    .in("nro_osi", visibleArr);
 
-  const { data, error } = await supabase.rpc("search_certificates", rpcParams);
+  if (filters.sedeId) query = query.eq("id_sede", filters.sedeId);
+  else if (sessionSedeIds && sessionSedeIds.length === 1) query = query.eq("id_sede", sessionSedeIds[0]);
+  else if (sessionSedeIds && sessionSedeIds.length > 1) query = query.in("id_sede", sessionSedeIds);
+  else if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
 
-  if (error) {
-    console.error("Error fetching cliente certificates:", error);
-    return { error: error.message };
+  if (filters.searchTerm) {
+    query = query.or(
+      `nombre.ilike.%${filters.searchTerm}%,cedula.ilike.%${filters.searchTerm}%`,
+      { referencedTable: "participantes_certificados" },
+    );
+  }
+  if (filters.courseId) query = query.eq("id_curso", filters.courseId);
+  if (filters.stateId) query = query.eq("id_estado", filters.stateId);
+  if (filters.dateFrom) query = query.gte("fecha_emision", filters.dateFrom);
+  if (filters.dateTo) query = query.lte("fecha_emision", filters.dateTo);
+
+  query = query.order("fecha_emision", { ascending: false }).range(from, to);
+
+  const { data: directData, error: directError, count: directCount } = await query;
+
+  if (directError) {
+    console.error("Error fetching cliente certificates (visible-only):", directError);
+    return { error: directError.message };
   }
 
-  const rows = (data as ClienteCertificateRow[]) || [];
-  const totalCount = rows.length > 0 ? rows[0].total_count : 0;
+  const directRows: ClienteCertificateRow[] = (directData || []).map((row: Record<string, unknown>) => {
+    const participant = row.participantes_certificados as Record<string, string>;
+    const course = row.catalogo_servicios as Record<string, unknown> | null;
+    const state = row.cat_estados_venezuela as Record<string, unknown> | null;
+    const city = row.cat_ciudades as Record<string, unknown> | null;
+    const company = row.empresas as Record<string, string>;
 
-  return { data: rows, totalCount };
+    let courseNombre = (course?.nombre as string) || "";
+    if (!courseNombre && row.snapshot_contenido) {
+      try {
+        const snapshot = typeof row.snapshot_contenido === "string"
+          ? JSON.parse(row.snapshot_contenido)
+          : row.snapshot_contenido;
+        courseNombre = snapshot?.certificado_detalles?.title || snapshot?.curso?.name || "";
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    return {
+      id: row.id as number,
+      participant_nombre: participant?.nombre || "",
+      participant_cedula: participant?.cedula || "",
+      participant_nacionalidad: participant?.nacionalidad || "V",
+      course_nombre: courseNombre,
+      course_id: (course?.id as number) || 0,
+      course_emite_carnet: (course?.emite_carnet as boolean) || false,
+      fecha_emision: (row.fecha_emision as string) || "",
+      fecha_vencimiento: (row.fecha_vencimiento as string) || "",
+      is_active: (row.is_active as boolean) || false,
+      nro_osi: (row.nro_osi as number) || 0,
+      state_nombre_estado: (state?.nombre_estado as string) || "",
+      state_id: (state?.id as number) || 0,
+      city_nombre_ciudad: (city?.nombre_ciudad as string) || "",
+      company_razon_social: (company?.razon_social as string) || "",
+      calificacion: (row.calificacion as number) || 0,
+      total_count: directCount || 0,
+    };
+  });
+
+  return { data: directRows, totalCount: directCount || 0 };
 }
 
 export async function getClienteCarnets(
@@ -469,6 +581,9 @@ export async function getClienteCarnets(
   const sessionCityId = await getSessionCityId();
   const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
+  const visibleOsiIds = await getVisibleOsiIds();
+  const visibleArr = [...visibleOsiIds];
+  if (visibleArr.length === 0) return { data: [], totalCount: 0 };
 
   const from = (page - 1) * itemsPerPage;
   const to = from + itemsPerPage - 1;
@@ -484,6 +599,9 @@ export async function getClienteCarnets(
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+
+  // Only include OSIs visible to the cliente portal
+  if (visibleArr.length > 0) query = query.in("id_osi", visibleArr);
 
   if (sessionSedeIds && sessionSedeIds.length > 0) {
     query = query.in("certificados.id_sede", sessionSedeIds);
@@ -532,6 +650,9 @@ export async function getClienteMetrics(
   const sessionCityId = await getSessionCityId();
   const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
+  const visibleOsiIds = await getVisibleOsiIds();
+  const visibleArr = [...visibleOsiIds];
+  if (visibleArr.length === 0) return { data: { totalCertificates: 0, totalCarnets: 0, totalParticipants: 0, courseWithMostParticipants: null, certificatesByCourse: [] } };
 
   // Count total certificates for this company
   let certCountQuery = supabase
@@ -539,6 +660,7 @@ export async function getClienteMetrics(
     .select("id", { count: "exact", head: true })
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+  if (visibleArr.length > 0) certCountQuery = certCountQuery.in("nro_osi", visibleArr);
   if (sessionSedeIds && sessionSedeIds.length > 0) certCountQuery = certCountQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) certCountQuery = certCountQuery.eq("id_ciudad", sessionCityId);
   const { count: certCount, error: certError } = await certCountQuery;
@@ -558,6 +680,7 @@ export async function getClienteMetrics(
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+  if (visibleArr.length > 0) carnetCountQuery = carnetCountQuery.in("id_osi", visibleArr);
   if (sessionSedeIds && sessionSedeIds.length > 0) {
     carnetCountQuery = carnetCountQuery.in("certificados.id_sede", sessionSedeIds);
   } else if (sessionCityId) {
@@ -575,6 +698,7 @@ export async function getClienteMetrics(
     .select("id_participante", { count: "exact", head: true })
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+  if (visibleArr.length > 0) participantCountQuery = participantCountQuery.in("nro_osi", visibleArr);
   if (sessionSedeIds && sessionSedeIds.length > 0) participantCountQuery = participantCountQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) participantCountQuery = participantCountQuery.eq("id_ciudad", sessionCityId);
   const { count: participantCount, error: participantError } =
@@ -592,6 +716,7 @@ export async function getClienteMetrics(
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+  if (visibleArr.length > 0) byCourseQuery = byCourseQuery.in("nro_osi", visibleArr);
   if (sessionSedeIds && sessionSedeIds.length > 0) byCourseQuery = byCourseQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) byCourseQuery = byCourseQuery.eq("id_ciudad", sessionCityId);
   const { data: byCourseData, error: byCourseError } = await byCourseQuery;
@@ -663,6 +788,9 @@ export async function getClienteRecentBatches(
   const sessionCityId = await getSessionCityId();
   const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
+  const visibleOsiIds = await getVisibleOsiIds();
+  const visibleArr = [...visibleOsiIds];
+  if (visibleArr.length === 0) return { data: [] };
 
   // Fetch certificates grouped by nro_osi — get all for this company first
   let batchQuery = supabase
@@ -676,6 +804,7 @@ export async function getClienteRecentBatches(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("nro_osi", "is", null);
+  if (visibleArr.length > 0) batchQuery = batchQuery.in("nro_osi", visibleArr);
   if (sessionSedeIds && sessionSedeIds.length > 0) batchQuery = batchQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) batchQuery = batchQuery.eq("id_ciudad", sessionCityId);
   const { data, error } = await batchQuery
@@ -751,6 +880,9 @@ export async function getClienteBatchesFiltered(
   const sessionCityId = await getSessionCityId();
   const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
+  const visibleOsiIds = await getVisibleOsiIds();
+  const visibleArr = [...visibleOsiIds];
+  if (visibleArr.length === 0) return { data: [], totalCount: 0 };
 
   let query = supabase
     .from("certificados")
@@ -764,6 +896,11 @@ export async function getClienteBatchesFiltered(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("nro_osi", "is", null);
+
+  // Only include OSIs visible to the cliente portal
+  if (visibleArr.length > 0) {
+    query = query.in("nro_osi", visibleArr);
+  }
 
   if (sessionSedeIds && sessionSedeIds.length > 0) query = query.in("id_sede", sessionSedeIds);
   else if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
@@ -786,7 +923,7 @@ export async function getClienteBatchesFiltered(
   const { data, error } = await query;
 
   if (error) {
-    console.error("Error fetching filtered batches:", error);
+    console.error("Error fetching cliente batches filtered:", error);
     return { error: error.message };
   }
 
@@ -862,6 +999,9 @@ export async function getClienteFilterOptions(
   const sessionCityId = await getSessionCityId();
   const sessionSedeIds = await getSessionSedeIds();
   const supabase = await createClient();
+  const visibleOsiIds = await getVisibleOsiIds();
+  const visibleArr = [...visibleOsiIds];
+  if (visibleArr.length === 0) return { data: { courses: [], states: [], cities: [], sedes: [] } };
 
   // Get distinct courses for this company's certificates
   let certDataQuery = supabase
@@ -870,6 +1010,7 @@ export async function getClienteFilterOptions(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("id_curso", "is", null);
+  if (visibleArr.length > 0) certDataQuery = certDataQuery.in("nro_osi", visibleArr);
   if (sessionSedeIds && sessionSedeIds.length > 0) certDataQuery = certDataQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) certDataQuery = certDataQuery.eq("id_ciudad", sessionCityId);
   const { data: certData, error: certError } = await certDataQuery;
@@ -899,6 +1040,7 @@ export async function getClienteFilterOptions(
     .eq("id_empresa", empresaId)
     .eq("is_active", true)
     .not("id_ciudad", "is", null);
+  if (visibleArr.length > 0) cityDataQuery = cityDataQuery.in("nro_osi", visibleArr);
   if (sessionSedeIds && sessionSedeIds.length > 0) cityDataQuery = cityDataQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) cityDataQuery = cityDataQuery.eq("id_ciudad", sessionCityId);
   const { data: cityData, error: cityError } = await cityDataQuery;
@@ -948,6 +1090,7 @@ export async function getClienteFilterOptions(
       .eq("id_empresa", empresaId)
       .eq("is_active", true)
       .not("id_sede", "is", null);
+    if (visibleArr.length > 0) sedeDataQuery = sedeDataQuery.in("nro_osi", visibleArr);
     if (sessionCityId) sedeDataQuery = sedeDataQuery.eq("id_ciudad", sessionCityId);
     const { data: sedeData, error: sedeError } = await sedeDataQuery;
 
@@ -1147,4 +1290,107 @@ export async function removeEmpresaLogoAction(
           : "Unknown error removing logo",
     };
   }
+}
+
+// ─── Hidden OSIs ("Pendiente de pago" cards) ───
+
+// Returns minimal batch metadata for OSIs hidden from the cliente portal that
+// belong to the given empresa (and the session's sede/ciudad scope). Deliberately
+// omits certificate_ids and per-participant data so nothing downloadable leaks.
+export async function getClienteHiddenBatches(
+  empresaId: number,
+): Promise<{ data?: HiddenBatchSummary[]; totalCount?: number; error?: string }> {
+  if (!(await verifyClienteEmpresa(empresaId))) {
+    return { error: "No autorizado" };
+  }
+  const visibleOsiIds = await getVisibleOsiIds();
+  const visibleArr = [...visibleOsiIds];
+  const sessionCityId = await getSessionCityId();
+  const sessionSedeIds = await getSessionSedeIds();
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("certificados")
+    .select(
+      `id, nro_osi, fecha_emision, id_curso, snapshot_contenido, id_ciudad, id_sede,
+       catalogo_servicios!inner(nombre),
+       cat_ciudades!left(id, nombre_ciudad),
+       empresa_sedes!left(id, nombre_sede)`,
+    )
+    .eq("id_empresa", empresaId)
+    .eq("is_active", true)
+    .not("nro_osi", "is", null);
+
+  // Show batches that are NOT visible (hidden). When visibleOsiIds is empty,
+  // all OSIs are hidden, so no filter is needed (show all as pending).
+  if (visibleArr.length > 0) {
+    query = query.not("nro_osi", "in", `(${visibleArr.join(",")})`);
+  }
+
+  if (sessionSedeIds && sessionSedeIds.length > 0) query = query.in("id_sede", sessionSedeIds);
+  else if (sessionCityId) query = query.eq("id_ciudad", sessionCityId);
+
+  query = query.order("fecha_emision", { ascending: false }).limit(10000);
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching cliente hidden batches:", error);
+    return { error: error.message };
+  }
+
+  if (!data || data.length === 0) {
+    return { data: [], totalCount: 0 };
+  }
+
+  // Group by nro_osi (no certificate_ids leaked)
+  const batchMap = new Map<number, HiddenBatchSummary>();
+
+  for (const row of data) {
+    const nroOsi = row.nro_osi as number;
+    if (!nroOsi) continue;
+
+    const cityInfo = row.cat_ciudades as unknown as { nombre_ciudad: string } | null;
+    const sedeInfo = row.empresa_sedes as unknown as { nombre_sede: string } | null;
+
+    if (!batchMap.has(nroOsi)) {
+      const courseInfo = row.catalogo_servicios as unknown as { nombre: string };
+      let courseNombre = courseInfo?.nombre || "";
+      if (!courseNombre && row.snapshot_contenido) {
+        try {
+          const snapshot = typeof row.snapshot_contenido === "string"
+            ? JSON.parse(row.snapshot_contenido)
+            : row.snapshot_contenido;
+          courseNombre = snapshot?.certificado_detalles?.title || snapshot?.curso?.name || "N/A";
+        } catch {
+          // ignore parse errors
+        }
+      }
+      batchMap.set(nroOsi, {
+        nro_osi: nroOsi,
+        course_name: courseNombre || "N/A",
+        fecha_emision: row.fecha_emision || "",
+        participant_count: 0,
+        city_names: [],
+        sede_names: [],
+      });
+    }
+
+    const batch = batchMap.get(nroOsi)!;
+    batch.participant_count++;
+    if (cityInfo?.nombre_ciudad && !batch.city_names.includes(cityInfo.nombre_ciudad)) {
+      batch.city_names.push(cityInfo.nombre_ciudad);
+    }
+    if (sedeInfo?.nombre_sede && !batch.sede_names.includes(sedeInfo.nombre_sede)) {
+      batch.sede_names.push(sedeInfo.nombre_sede);
+    }
+  }
+
+  const allBatches = Array.from(batchMap.values()).sort(
+    (a, b) =>
+      new Date(b.fecha_emision).getTime() -
+      new Date(a.fecha_emision).getTime(),
+  );
+
+  return { data: allBatches, totalCount: allBatches.length };
 }
