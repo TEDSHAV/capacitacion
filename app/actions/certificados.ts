@@ -1986,6 +1986,88 @@ export async function updateCertificateAction(
 }
 
 /**
+ * Lightweight inline update of a certificate's score (calificacion).
+ * Updates both the `certificados.calificacion` DB column and the score
+ * fields stored inside `snapshot_contenido` JSON (`certificado.calificacion`
+ * and `participante.score`). Grading scale is 0-20.
+ */
+export async function updateCertificateScoreAction(
+  certificateId: number,
+  newScore: number,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    if (
+      !Number.isFinite(newScore) ||
+      newScore < 0 ||
+      newScore > 20
+    ) {
+      return {
+        success: false,
+        message: "La calificación debe estar entre 0 y 20.",
+      };
+    }
+
+    const supabase = await createClient();
+
+    // 1. Fetch existing snapshot to patch score fields
+    const { data: existingCert, error: getError } = await supabase
+      .from("certificados")
+      .select("snapshot_contenido")
+      .eq("id", certificateId)
+      .single();
+
+    if (getError || !existingCert) {
+      throw new Error("Certificate not found");
+    }
+
+    const roundedScore = Math.round(newScore * 10) / 10;
+
+    // 2. Patch snapshot JSON score fields (defensive, like batchUpdateCertificatesAction)
+    let finalSnapshot = existingCert.snapshot_contenido;
+    if (existingCert.snapshot_contenido) {
+      try {
+        const snapshotObj = JSON.parse(existingCert.snapshot_contenido);
+        if (snapshotObj.certificado) {
+          snapshotObj.certificado.calificacion = roundedScore;
+        }
+        if (snapshotObj.participante) {
+          snapshotObj.participante.score = roundedScore;
+        }
+        finalSnapshot = JSON.stringify(snapshotObj, null, 2);
+      } catch (e) {
+        console.warn(
+          `Failed to patch snapshot score for cert ${certificateId}`,
+        );
+      }
+    }
+
+    // 3. Update the DB record
+    const { error: updateError } = await supabase
+      .from("certificados")
+      .update({
+        calificacion: roundedScore,
+        ...(finalSnapshot !== existingCert.snapshot_contenido
+          ? { snapshot_contenido: finalSnapshot }
+          : {}),
+      })
+      .eq("id", certificateId);
+
+    if (updateError) throw updateError;
+
+    return {
+      success: true,
+      message: "Calificación actualizada correctamente.",
+    };
+  } catch (error) {
+    console.error("Error in updateCertificateScoreAction:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Error desconocido",
+    };
+  }
+}
+
+/**
  * Get certificates with comprehensive data for management interface
  */
 export async function getCertificatesForManagement(

@@ -1,9 +1,10 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState, useEffect, useRef } from "react";
 import { toTitleCase } from "@/utils/string-utils";
 import { CertificateManagement } from "@/types";
 import { Button } from "@/components/ui/button";
+import { Loader2, Pencil } from "lucide-react";
 
 interface CertificateTableProps {
   certificates: CertificateManagement[];
@@ -12,6 +13,10 @@ interface CertificateTableProps {
   onDownloadCertificate?: (certificate: CertificateManagement) => void;
   onVerifyCertificate?: (certificate: CertificateManagement) => void;
   onEditCertificate?: (certificate: CertificateManagement) => void;
+  onScoreUpdate?: (
+    certificateId: number,
+    newScore: number,
+  ) => Promise<{ success: boolean; message: string }>;
   headerActions?: React.ReactNode;
 }
 
@@ -22,8 +27,95 @@ function CertificateTableComponent({
   onDownloadCertificate,
   onVerifyCertificate,
   onEditCertificate,
+  onScoreUpdate,
   headerActions,
 }: CertificateTableProps) {
+  // Inline score editing state
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [savingId, setSavingId] = useState<number | null>(null);
+  // Optimistic local overrides for displayed score (cleared on refetch via parent)
+  const [scoreOverrides, setScoreOverrides] = useState<Record<number, number>>(
+    {},
+  );
+  const editInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Focus the input when editing starts
+  useEffect(() => {
+    if (editingId !== null && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingId]);
+
+  // Clear optimistic overrides whenever the certificates list changes (refetch)
+  useEffect(() => {
+    setScoreOverrides({});
+  }, [certificates]);
+
+  const startEdit = (certificate: CertificateManagement) => {
+    if (!onScoreUpdate) return;
+    setEditingId(certificate.id);
+    setEditValue(String(certificate.calificacion));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditValue("");
+  };
+
+  const commitEdit = async (certificate: CertificateManagement) => {
+    const parsed = parseFloat(editValue);
+    if (!Number.isFinite(parsed)) {
+      alert("Ingrese una calificación válida.");
+      cancelEdit();
+      return;
+    }
+    if (parsed < 0 || parsed > 20) {
+      alert("La calificación debe estar entre 0 y 20.");
+      cancelEdit();
+      return;
+    }
+
+    // No change → just close
+    if (parsed === certificate.calificacion) {
+      cancelEdit();
+      return;
+    }
+
+    if (!onScoreUpdate) {
+      cancelEdit();
+      return;
+    }
+
+    setSavingId(certificate.id);
+    // Optimistic local update
+    setScoreOverrides((prev) => ({ ...prev, [certificate.id]: parsed }));
+
+    try {
+      const result = await onScoreUpdate(certificate.id, parsed);
+      if (!result.success) {
+        // Revert optimistic update
+        setScoreOverrides((prev) => {
+          const next = { ...prev };
+          delete next[certificate.id];
+          return next;
+        });
+        alert(`Error: ${result.message}`);
+      }
+    } catch (err) {
+      setScoreOverrides((prev) => {
+        const next = { ...prev };
+        delete next[certificate.id];
+        return next;
+      });
+      alert("Ocurrió un error al actualizar la calificación.");
+    } finally {
+      setSavingId(null);
+      setEditingId(null);
+      setEditValue("");
+    }
+  };
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
     // Adding T12:00:00 to avoid timezone shift for YYYY-MM-DD strings
@@ -96,9 +188,10 @@ function CertificateTableComponent({
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 90) return "text-green-600 font-medium";
-    if (score >= 80) return "text-blue-600 font-medium";
-    if (score >= 70) return "text-yellow-600 font-medium";
+    // Grading scale is 0-20
+    if (score >= 18) return "text-green-600 font-medium";
+    if (score >= 16) return "text-blue-600 font-medium";
+    if (score >= 14) return "text-yellow-600 font-medium";
     return "text-red-600 font-medium";
   };
 
@@ -273,11 +366,45 @@ function CertificateTableComponent({
                 </td>
 
                 <td className="px-3 py-3 whitespace-nowrap">
-                  <div
-                    className={`text-sm font-medium ${getScoreColor(certificate.calificacion)}`}
-                  >
-                    {certificate.calificacion.toFixed(1)}
-                  </div>
+                  {editingId === certificate.id ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        ref={editInputRef}
+                        type="number"
+                        min={0}
+                        max={20}
+                        step={0.1}
+                        value={editValue}
+                        disabled={savingId === certificate.id}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            commitEdit(certificate);
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            cancelEdit();
+                          }
+                        }}
+                        onBlur={() => commitEdit(certificate)}
+                        className="w-16 px-1.5 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+                      />
+                      {savingId === certificate.id && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      className={`group inline-flex items-center gap-1 text-sm font-medium ${getScoreColor(scoreOverrides[certificate.id] ?? certificate.calificacion)} ${onScoreUpdate ? "cursor-pointer hover:bg-blue-50 rounded px-1 -mx-1" : ""}`}
+                      title={onScoreUpdate ? "Click para editar" : undefined}
+                      onClick={() => startEdit(certificate)}
+                    >
+                      {(scoreOverrides[certificate.id] ?? certificate.calificacion).toFixed(1)}
+                      {onScoreUpdate && (
+                        <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                      )}
+                    </div>
+                  )}
                 </td>
 
                 <td className="px-3 py-3">

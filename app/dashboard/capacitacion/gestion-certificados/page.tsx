@@ -13,6 +13,7 @@ import {
   getCoursesForFilters,
   getFacilitatorsForFilters,
   getVenezuelanStates,
+  updateCertificateScoreAction,
 } from "@/app/actions/certificados";
 import {
   CertificateManagement,
@@ -159,6 +160,13 @@ export default function GestionCertificadosPage() {
     [],
   );
 
+  const handleScoreUpdate = useCallback(
+    async (certificateId: number, newScore: number) => {
+      return await updateCertificateScoreAction(certificateId, newScore);
+    },
+    [],
+  );
+
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
@@ -197,6 +205,7 @@ export default function GestionCertificadosPage() {
         onDownloadCertificate={handleDownloadCertificate}
         onVerifyCertificate={handleVerifyCertificate}
         onEditCertificate={handleEditCertificate}
+        onScoreUpdate={handleScoreUpdate}
         headerActions={
           <Button
             onClick={() => setIsBatchEditOpen(true)}
