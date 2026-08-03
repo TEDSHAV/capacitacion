@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react'
-import { CourseTopic } from '@/types'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { CourseTopic, City } from '@/types'
 
 const venezuelanLocations = [
   { state: "Amazonas", cities: ["Puerto Ayacucho", "El Atajo", "San Fernando de Atabapo"] },
@@ -27,9 +27,13 @@ const venezuelanLocations = [
   { state: "Zulia", cities: ["Maracaibo", "Cabimas", "Machiques", "Ciudad Ojeda"] }
 ]
 
-const allLocations = venezuelanLocations.flatMap(loc => loc.cities);
+const fallbackLocations = venezuelanLocations.flatMap(loc => loc.cities);
 
-export const useLocationSearch = (onLocationChange: (location: string) => void, initialValue: string = '') => {
+export const useLocationSearch = (
+  onLocationChange: (location: string) => void,
+  initialValue: string = '',
+  cities?: City[],
+) => {
   const [locationInput, setLocationInput] = useState(initialValue)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -40,6 +44,16 @@ export const useLocationSearch = (onLocationChange: (location: string) => void, 
       setLocationInput(initialValue)
     }
   }, [initialValue])
+
+  // Use DB-backed cat_ciudades when available; fall back to the hardcoded
+  // venezuelanLocations array so the field keeps working if the fetch fails
+  // or returns empty.
+  const allLocations = useMemo(() => {
+    if (cities && cities.length > 0) {
+      return cities.map((c) => c.nombre_ciudad)
+    }
+    return fallbackLocations
+  }, [cities])
 
   const filteredLocations = allLocations.filter(location =>
     location.toLowerCase().includes(locationInput.toLowerCase())

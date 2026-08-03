@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { 
-  ClipboardList, 
-  Search, 
-  Building2, 
-  MapPin, 
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  ClipboardList,
+  Building2,
+  MapPin,
   Calendar,
   ChevronRight,
+  ChevronLeft,
   Star,
-  Download
+  Download,
+  Filter,
+  X,
 } from "lucide-react";
 import { getSurveysReport } from "@/app/actions/reportes";
 import { exportSurveysReport } from "@/lib/csv-export";
@@ -39,22 +41,27 @@ interface SurveysReportProps {
   selectedState?: string;
 }
 
-export default function SurveysReport({ 
-  dateFrom, 
-  dateTo, 
-  selectedState 
+const GROUPS_PER_PAGE = 6;
+
+export default function SurveysReport({
+  dateFrom,
+  dateTo,
+  selectedState
 }: SurveysReportProps) {
   const [loading, setLoading] = useState(true);
   const [summaries, setSummaries] = useState<SurveySummary[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [filterOsi, setFilterOsi] = useState("");
+  const [filterEmpresa, setFilterEmpresa] = useState("");
+  const [filterCurso, setFilterCurso] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     async function fetchSurveyData() {
       setLoading(true);
-      
+
       try {
         const result = await getSurveysReport(dateFrom, dateTo, selectedState);
-        
+
         if (result.error) {
           console.error("Error fetching survey report data:", result.error);
           setSummaries([]);
@@ -72,11 +79,71 @@ export default function SurveysReport({
     fetchSurveyData();
   }, [dateFrom, dateTo, selectedState]);
 
-  const filteredSummaries = summaries.filter(s => 
-    s.nro_osi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.nombre_empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.servicio.toLowerCase().includes(searchTerm.toLowerCase())
+  // Reset to first page whenever any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterOsi, filterEmpresa, filterCurso]);
+
+  // Unique filter options derived from the loaded summaries
+  const uniqueOsis = useMemo(
+    () => Array.from(new Set(summaries.map(s => s.nro_osi).filter(Boolean))).sort(),
+    [summaries]
   );
+  const uniqueEmpresas = useMemo(
+    () => Array.from(new Set(summaries.map(s => s.nombre_empresa).filter(Boolean))).sort(),
+    [summaries]
+  );
+  const uniqueCursos = useMemo(
+    () => Array.from(new Set(summaries.map(s => s.servicio).filter(Boolean))).sort(),
+    [summaries]
+  );
+
+  const filteredSummaries = summaries.filter(s =>
+    (!filterOsi || s.nro_osi === filterOsi) &&
+    (!filterEmpresa || s.nombre_empresa === filterEmpresa) &&
+    (!filterCurso || s.servicio === filterCurso)
+  );
+
+  // Group filtered summaries by nro_osi so OSIs sharing the same number
+  // appear visually together. Preserve overall recency sort (most recent first).
+  const groupedByNroOsi = useMemo(() => {
+    const map = new Map<string, SurveySummary[]>();
+    for (const s of filteredSummaries) {
+      const key = s.nro_osi || "—";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    }
+    // Sort each group's OSIs by most recent fecha_inicio_real
+    map.forEach(list => list.sort(
+      (a, b) => new Date(b.fecha_inicio_real).getTime() - new Date(a.fecha_inicio_real).getTime()
+    ));
+    // Sort groups by the most recent OSI inside each group
+    return Array.from(map.entries()).sort(([, aList], [, bList]) =>
+      new Date(bList[0].fecha_inicio_real).getTime() - new Date(aList[0].fecha_inicio_real).getTime()
+    );
+  }, [filteredSummaries]);
+
+  // Pagination over OSI groups
+  const totalGroups = groupedByNroOsi.length;
+  const totalPages = Math.max(1, Math.ceil(totalGroups / GROUPS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * GROUPS_PER_PAGE;
+  const pageEnd = Math.min(pageStart + GROUPS_PER_PAGE, totalGroups);
+  const pagedGroups = groupedByNroOsi.slice(pageStart, pageEnd);
+
+  const hasActiveFilters = !!(filterOsi || filterEmpresa || filterCurso);
+
+  const clearFilters = () => {
+    setFilterOsi("");
+    setFilterEmpresa("");
+    setFilterCurso("");
+  };
+
+  // Summary stats computed from the filtered set
+  const totalResponses = filteredSummaries.reduce((acc, s) => acc + s.survey_count, 0);
+  const globalAvg = totalResponses > 0
+    ? filteredSummaries.reduce((acc, s) => acc + s.avg_score * s.survey_count, 0) / totalResponses
+    : 0;
 
   const getScoreColor = (score: number) => {
     if (score >= 4.5) return "text-green-600";
@@ -112,71 +179,259 @@ export default function SurveysReport({
 
   return (
     <div className="space-y-6">
-      {/* Search and Summary */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por OSI, empresa o curso..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-sky-500 outline-none"
-          />
-        </div>
-        <div className="flex gap-4">
-          <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center gap-3">
-            <div className="bg-sky-100 p-2 rounded-lg">
-              <ClipboardList className="w-5 h-5 text-sky-600" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">OSIs Evaluadas</p>
-              <p className="text-xl font-bold text-gray-900">{summaries.length}</p>
-            </div>
+      {/* Summary stat cards (computed from filtered set) */}
+      <div className="flex flex-wrap gap-4">
+        <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center gap-3">
+          <div className="bg-sky-100 p-2 rounded-lg">
+            <ClipboardList className="w-5 h-5 text-sky-600" />
           </div>
-          <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center gap-3">
-            <div className="bg-yellow-100 p-2 rounded-lg">
-              <Star className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Promedio Global</p>
-              <p className="text-xl font-bold text-gray-900">
-                {summaries.length > 0 
-                  ? (summaries.reduce((acc, s) => acc + (s.avg_score * s.survey_count), 0) / summaries.reduce((acc, s) => acc + s.survey_count, 0)).toFixed(1)
-                  : "0.0"
-                }
-              </p>
-            </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">OSIs Evaluadas</p>
+            <p className="text-xl font-bold text-gray-900">{filteredSummaries.length}</p>
+          </div>
+        </div>
+        <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center gap-3">
+          <div className="bg-sky-100 p-2 rounded-lg">
+            <ClipboardList className="w-5 h-5 text-sky-600" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Respuestas</p>
+            <p className="text-xl font-bold text-gray-900">{totalResponses}</p>
+          </div>
+        </div>
+        <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center gap-3">
+          <div className="bg-yellow-100 p-2 rounded-lg">
+            <Star className="w-5 h-5 text-yellow-600" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Promedio Global</p>
+            <p className="text-xl font-bold text-gray-900">{globalAvg.toFixed(1)}</p>
           </div>
         </div>
       </div>
 
-      {/* Export button */}
-      {summaries.length > 0 && (
-        <div className="flex justify-end">
+      {/* Filter bar + Export */}
+      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider">
+            <Filter className="w-3.5 h-3.5" />
+            <span>Filtros</span>
+          </div>
+          {/* OSI filter */}
+          <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-sm text-gray-600">
+            <span className="text-[11px] font-bold text-gray-400 uppercase">OSI</span>
+            <select
+              value={filterOsi}
+              onChange={(e) => setFilterOsi(e.target.value)}
+              className="text-xs text-gray-700 bg-transparent outline-none max-w-[160px]"
+            >
+              <option value="">Todas</option>
+              {uniqueOsis.map(o => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </div>
+          {/* Empresa filter */}
+          <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-sm text-gray-600">
+            <Building2 className="w-3.5 h-3.5 text-gray-400" />
+            <select
+              value={filterEmpresa}
+              onChange={(e) => setFilterEmpresa(e.target.value)}
+              className="text-xs text-gray-700 bg-transparent outline-none max-w-[180px]"
+            >
+              <option value="">Todas</option>
+              {uniqueEmpresas.map(e => (
+                <option key={e} value={e}>{e}</option>
+              ))}
+            </select>
+          </div>
+          {/* Curso filter */}
+          <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-sm text-gray-600">
+            <ClipboardList className="w-3.5 h-3.5 text-gray-400" />
+            <select
+              value={filterCurso}
+              onChange={(e) => setFilterCurso(e.target.value)}
+              className="text-xs text-gray-700 bg-transparent outline-none max-w-[200px]"
+            >
+              <option value="">Todos</option>
+              {uniqueCursos.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+              Limpiar
+            </button>
+          )}
+        </div>
+
+        {filteredSummaries.length > 0 && (
           <button
             onClick={() => exportSurveysReport(filteredSummaries)}
-            className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors self-start md:self-auto"
           >
             <Download className="w-4 h-4" />
             Exportar Excel
           </button>
+        )}
+      </div>
+
+      {/* OSI grouped section (paginated) */}
+      {filteredSummaries.length === 0 ? (
+        <div className="text-center py-20 bg-white border border-dashed rounded-3xl">
+          <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-gray-900">No se encontraron encuestas</h3>
+          <p className="text-gray-500">Intente ajustar los filtros.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {pagedGroups.map(([nroOsi, groupSummaries]) => {
+            const groupResponses = groupSummaries.reduce((acc, s) => acc + s.survey_count, 0);
+            const weightedAvg = groupResponses > 0
+              ? groupSummaries.reduce((acc, s) => acc + s.avg_score * s.survey_count, 0) / groupResponses
+              : 0;
+            const empresaLabel = groupSummaries[0]?.nombre_empresa || "—";
+
+            return (
+              <div key={nroOsi} className="space-y-3">
+                {/* Group header */}
+                <div className="flex flex-wrap items-center gap-3 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3">
+                  <div className="bg-sky-600 text-white text-xs font-black uppercase tracking-widest px-2.5 py-1 rounded-lg">
+                    OSI {nroOsi}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <Building2 className="w-4 h-4 text-gray-400" />
+                    <span className="truncate font-medium">{empresaLabel}</span>
+                  </div>
+                  <div className="ml-auto flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-sky-100">
+                      <ClipboardList className="w-3.5 h-3.5 text-sky-600" />
+                      <span className="text-xs font-bold text-gray-700">
+                        {groupSummaries.length} curso{groupSummaries.length > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-sky-100">
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Respuestas</span>
+                      <span className="text-xs font-black text-gray-900">{groupResponses}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-yellow-50 px-2.5 py-1 rounded-lg border border-yellow-100">
+                      <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
+                      <span className={`text-xs font-black ${getScoreColor(weightedAvg)}`}>
+                        {weightedAvg.toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cards within the group */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {groupSummaries.map((summary) => (
+                    <Link
+                      key={summary.id_osi}
+                      href={`/dashboard/capacitacion/gestion-osi/${summary.id_osi}/survey-view`}
+                      className="group bg-white border border-gray-200 rounded-2xl p-5 hover:border-sky-500 hover:shadow-lg transition-all flex flex-col"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <span className="text-xs font-black text-sky-600 uppercase tracking-widest">OSI {summary.nro_osi}</span>
+                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-sky-700 transition-colors leading-tight mt-1">
+                            {summary.servicio}
+                          </h3>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
+                            <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
+                            <span className={`text-sm font-black ${getScoreColor(summary.avg_score)}`}>
+                              {summary.avg_score.toFixed(1)}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase mt-1">
+                            {summary.survey_count} respuestas
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 mt-auto">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Building2 className="w-4 h-4 text-gray-400" />
+                          <span className="truncate">{summary.nombre_empresa}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <span className="truncate">{summary.direccion_ejecucion || "No especificada"}</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-3 border-t">
+                          <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span suppressHydrationWarning>
+                              {new Date(summary.fecha_inicio_real).toISOString().split('T')[0]}
+                            </span>
+                          </div>
+                          <span className="text-xs font-bold text-sky-600 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                            Ver Detalles <ChevronRight className="w-3 h-3" />
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-3">
+              <p className="text-sm text-gray-600">
+                Mostrando {pageStart + 1}–{pageEnd} de {totalGroups} OSIs
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                  className="p-2 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-sm font-medium text-gray-700 px-2">
+                  {safePage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={safePage === totalPages}
+                  className="p-2 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Rich Analytics Section */}
-      {summaries.length > 0 && (
+      {/* Rich Analytics Section (aggregated across all filtered OSIs) */}
+      {filteredSummaries.length > 0 && (
         <div className="space-y-6">
+          <p className="text-xs text-gray-500 italic">
+            Análisis basado en {filteredSummaries.length} OSI{filteredSummaries.length > 1 ? "s" : ""} filtrada{filteredSummaries.length > 1 ? "s" : ""} ({totalResponses} respuestas).
+          </p>
+
           {/* Question Breakdown */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Análisis por Pregunta</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 10 }, (_, i) => i + 1).map(qNum => {
                 const qKey = `q${qNum}`;
-                const avgScore = summaries.reduce((acc, s) => acc + (s.question_averages[qKey] || 0) * s.survey_count, 0) / 
-                              summaries.reduce((acc, s) => acc + s.survey_count, 0);
+                const avgScore = totalResponses > 0
+                  ? filteredSummaries.reduce((acc, s) => acc + (s.question_averages[qKey] || 0) * s.survey_count, 0) / totalResponses
+                  : 0;
                 const scoreColor = getScoreColor(avgScore);
-                
+
                 return (
                   <div key={qKey} className="border border-gray-100 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
@@ -187,15 +442,14 @@ export default function SurveysReport({
                     </div>
                     <div className="space-y-1">
                       {[5, 4, 3, 2, 1].map(score => {
-                        const count = summaries.reduce((acc, s) => acc + (s.question_distributions[qKey]?.[score] || 0), 0);
-                        const total = summaries.reduce((acc, s) => acc + s.survey_count, 0);
-                        const pct = total > 0 ? (count / total) * 100 : 0;
-                        
+                        const count = filteredSummaries.reduce((acc, s) => acc + (s.question_distributions[qKey]?.[score] || 0), 0);
+                        const pct = totalResponses > 0 ? (count / totalResponses) * 100 : 0;
+
                         return (
                           <div key={score} className="flex items-center gap-2">
                             <span className="text-xs text-gray-500 w-3">{score}</span>
                             <div className="flex-1 bg-gray-100 rounded-full h-2">
-                              <div 
+                              <div
                                 className={`h-2 rounded-full ${
                                   score >= 4 ? 'bg-green-500' : score >= 3 ? 'bg-yellow-500' : 'bg-red-500'
                                 }`}
@@ -217,105 +471,39 @@ export default function SurveysReport({
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Razones de Asistencia</h3>
             <div className="space-y-2">
-              {Object.entries(
-                summaries.reduce((acc, s) => {
+              {(() => {
+                const reasonsAgg = filteredSummaries.reduce((acc, s) => {
                   Object.entries(s.attendance_reasons).forEach(([reason, count]) => {
                     acc[reason] = (acc[reason] || 0) + count;
                   });
                   return acc;
-                }, {} as { [reason: string]: number })
-              )
-                .sort(([, a], [, b]) => b - a)
-                .slice(0, 10)
-                .map(([reason, count]) => {
-                  const total = Object.values(
-                    summaries.reduce((acc, s) => {
-                      Object.entries(s.attendance_reasons).forEach(([r, c]) => {
-                        acc[r] = (acc[r] || 0) + c;
-                      });
-                      return acc;
-                    }, {} as { [reason: string]: number })
-                  ).reduce((sum, c) => sum + c, 0);
-                  const pct = total > 0 ? (count / total) * 100 : 0;
-                  
-                  return (
-                    <div key={reason} className="flex items-center gap-3">
-                      <span className="text-sm text-gray-700 min-w-0 flex-1 truncate">{reason}</span>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <div className="w-24 bg-gray-100 rounded-full h-2">
-                          <div 
-                            className="bg-sky-500 h-2 rounded-full"
-                            style={{ width: `${pct}%` }}
-                          />
+                }, {} as { [reason: string]: number });
+                const reasonsTotal = Object.values(reasonsAgg).reduce((sum, c) => sum + c, 0);
+
+                return Object.entries(reasonsAgg)
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, 10)
+                  .map(([reason, count]) => {
+                    const pct = reasonsTotal > 0 ? (count / reasonsTotal) * 100 : 0;
+
+                    return (
+                      <div key={reason} className="flex items-center gap-3">
+                        <span className="text-sm text-gray-700 min-w-0 flex-1 truncate">{reason}</span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="w-24 bg-gray-100 rounded-full h-2">
+                            <div
+                              className="bg-sky-500 h-2 rounded-full"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-gray-500 w-8 text-right">{count}</span>
                         </div>
-                        <span className="text-xs text-gray-500 w-8 text-right">{count}</span>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  });
+              })()}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Grid of OSIs with Surveys */}
-      {filteredSummaries.length === 0 ? (
-        <div className="text-center py-20 bg-white border border-dashed rounded-3xl">
-          <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-gray-900">No se encontraron encuestas</h3>
-          <p className="text-gray-500">Intente ajustar los filtros o los términos de búsqueda.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filteredSummaries.map((summary) => (
-            <Link 
-              key={summary.id_osi}
-              href={`/dashboard/capacitacion/gestion-osi/${summary.id_osi}/survey-view`}
-              className="group bg-white border border-gray-200 rounded-2xl p-5 hover:border-sky-500 hover:shadow-lg transition-all flex flex-col"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <span className="text-xs font-black text-sky-600 uppercase tracking-widest">OSI {summary.nro_osi}</span>
-                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-sky-700 transition-colors leading-tight mt-1">
-                    {summary.servicio}
-                  </h3>
-                </div>
-                <div className="flex flex-col items-end">
-                  <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
-                    <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
-                    <span className={`text-sm font-black ${getScoreColor(summary.avg_score)}`}>
-                      {summary.avg_score.toFixed(1)}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase mt-1">
-                    {summary.survey_count} respuestas
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2 mt-auto">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Building2 className="w-4 h-4 text-gray-400" />
-                  <span className="truncate">{summary.nombre_empresa}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4 text-gray-400" />
-                  <span className="truncate">{summary.direccion_ejecucion || "No especificada"}</span>
-                </div>
-                <div className="flex items-center justify-between pt-3 border-t">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span suppressHydrationWarning>
-                      {new Date(summary.fecha_inicio_real).toISOString().split('T')[0]}
-                    </span>
-                  </div>
-                  <span className="text-xs font-bold text-sky-600 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                    Ver Detalles <ChevronRight className="w-3 h-3" />
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
         </div>
       )}
     </div>

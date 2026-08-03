@@ -487,12 +487,14 @@ export interface CertificateFormProps {
   onParticipantsChange: (participants: CertificateParticipant[]) => void;
   onGenerate: () => void;
   onPreview?: () => Promise<boolean>;
+  cities?: City[];
 }
 
 export interface LocationSearchProps {
   value: string;
   onChange: (value: string) => void;
   highlight?: boolean;
+  cities?: City[];
 }
 
 export interface PlantillaCertificado {

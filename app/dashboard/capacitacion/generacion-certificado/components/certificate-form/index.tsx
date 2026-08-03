@@ -29,6 +29,7 @@ export const CertificateForm = ({
   onParticipantsChange,
   onGenerate,
   onPreview,
+  cities,
 }: CertificateFormProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isPassingGradeLocked, setIsPassingGradeLocked] = useState(true);
@@ -402,6 +403,7 @@ export const CertificateForm = ({
           value={certificateData.location || ""}
           onChange={(val) => onDataChange("location", val)}
           highlight={!!selectedOSI && !certificateData.location}
+          cities={cities}
         />
         {hasAttemptedSubmission && !certificateData.location && (
           <p className="text-xs text-amber-700 font-medium -mt-3 mb-4 flex items-center gap-1">

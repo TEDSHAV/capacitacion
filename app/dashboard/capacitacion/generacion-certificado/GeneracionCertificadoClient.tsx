@@ -1792,6 +1792,7 @@ export default function GeneracionCertificadoClient({
           onParticipantsChange={handleParticipantsChange}
           onGenerate={handleGenerateCertificate}
           onPreview={handlePreview}
+          cities={cities}
         />
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { LocationSearchProps } from '@/types'
 import { useLocationSearch } from './use-location-search'
 
-export const LocationSearch = ({ value, onChange, highlight }: LocationSearchProps) => {
+export const LocationSearch = ({ value, onChange, highlight, cities }: LocationSearchProps) => {
   const {
     locationInput,
     isDropdownOpen,
@@ -12,7 +12,7 @@ export const LocationSearch = ({ value, onChange, highlight }: LocationSearchPro
     handleKeyDown,
     handleClear,
     setIsDropdownOpen
-  } = useLocationSearch(onChange, value)
+  } = useLocationSearch(onChange, value, cities)
 
   return (
     <div className="mb-4">
