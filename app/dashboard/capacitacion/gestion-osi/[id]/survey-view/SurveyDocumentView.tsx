@@ -2,9 +2,11 @@
 
 import React from "react";
 import { CourseSatisfactionSurvey, SurveyOSIData } from "@/types";
-import { Printer, ArrowLeft } from "lucide-react";
+import { Download, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas-pro";
 
 interface SurveyDocumentViewProps {
   osiData: SurveyOSIData;
@@ -26,6 +28,8 @@ const QUESTIONS = [
 
 export default function SurveyDocumentView({ osiData, survey }: SurveyDocumentViewProps) {
   const [mounted, setMounted] = React.useState(false);
+  const [downloading, setDownloading] = React.useState(false);
+  const documentRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     setMounted(true);
@@ -45,8 +49,32 @@ export default function SurveyDocumentView({ osiData, survey }: SurveyDocumentVi
     return `${day}/${month}/${year}`;
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownload = async () => {
+    if (!documentRef.current || downloading) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(documentRef.current, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [canvas.width, canvas.height],
+        compress: true,
+      });
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+      const fileName = `encuesta-osi-${osiData.nro_osi || osiData.id_osi}-${new Date()
+        .toISOString()
+        .split("T")[0]}.pdf`;
+      pdf.save(fileName);
+    } catch (err) {
+      console.error("Error generating survey PDF:", err);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -61,16 +89,20 @@ export default function SurveyDocumentView({ osiData, survey }: SurveyDocumentVi
           Volver a Gestión OSI
         </Link>
         <button
-          onClick={handlePrint}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+          onClick={handleDownload}
+          disabled={downloading}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <Printer className="w-4 h-4" />
-          Imprimir Documento
+          <Download className="w-4 h-4" />
+          {downloading ? "Generando PDF..." : "Descargar PDF"}
         </button>
       </div>
 
       {/* Document Content */}
-      <div className="max-w-[850px] mx-auto bg-white shadow-2xl p-8 border border-gray-200 print:shadow-none print:border-none print:p-0 min-h-[1050px] flex flex-col">
+      <div
+        ref={documentRef}
+        className="max-w-[850px] mx-auto bg-white shadow-2xl p-8 border border-gray-200 print:shadow-none print:border-none print:p-0 min-h-[1050px] flex flex-col"
+      >
         {/* Header Grid Matrix */}
         <div className="grid grid-cols-[1fr_2fr_1fr] border-2 border-black mb-4">
           <div className="border-r-2 border-black p-2 flex flex-col items-center justify-center">
