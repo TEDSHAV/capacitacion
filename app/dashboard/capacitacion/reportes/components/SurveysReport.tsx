@@ -12,6 +12,7 @@ import {
   Download,
   Filter,
   X,
+  Search,
 } from "lucide-react";
 import { getSurveysReport } from "@/app/actions/reportes";
 import { exportSurveysReport } from "@/lib/csv-export";
@@ -85,10 +86,6 @@ export default function SurveysReport({
   }, [filterOsi, filterEmpresa, filterCurso]);
 
   // Unique filter options derived from the loaded summaries
-  const uniqueOsis = useMemo(
-    () => Array.from(new Set(summaries.map(s => s.nro_osi).filter(Boolean))).sort(),
-    [summaries]
-  );
   const uniqueEmpresas = useMemo(
     () => Array.from(new Set(summaries.map(s => s.nombre_empresa).filter(Boolean))).sort(),
     [summaries]
@@ -219,17 +216,16 @@ export default function SurveysReport({
           </div>
           {/* OSI filter */}
           <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-sm text-gray-600">
+            <Search className="w-3.5 h-3.5 text-gray-400" />
             <span className="text-[11px] font-bold text-gray-400 uppercase">OSI</span>
-            <select
+            <input
+              type="text"
+              inputMode="numeric"
               value={filterOsi}
-              onChange={(e) => setFilterOsi(e.target.value)}
-              className="text-xs text-gray-700 bg-transparent outline-none max-w-[160px]"
-            >
-              <option value="">Todas</option>
-              {uniqueOsis.map(o => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
+              onChange={(e) => setFilterOsi(e.target.value.trim())}
+              placeholder="Buscar..."
+              className="text-xs text-gray-700 bg-transparent outline-none w-[140px] placeholder:text-gray-300"
+            />
           </div>
           {/* Empresa filter */}
           <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-sm text-gray-600">
