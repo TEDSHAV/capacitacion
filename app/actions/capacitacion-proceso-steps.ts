@@ -298,8 +298,9 @@ export async function toggleProcesoStep(
 
 /**
  * Auto-advance ejecucion steps for a batch of OSIs, per-session:
- *   - Ensure "pendiente" is marked completed (initial state)
- *   - If today >= session's fecha, mark "en_proceso" as completed
+ *   - Ensure all step rows exist (seeds rows for old OSIs predating the steps system)
+ *   - If session fecha is today or past, mark "en_proceso" as completed
+ *   - If session fecha is strictly past, also mark "ejecutado" as completed
  *
  * Uses admin client to avoid RLS issues on bulk operations.
  */
@@ -338,12 +339,11 @@ export async function autoAdvanceEjecucionSteps(
       console.error("Error fetching osi_sesion for auto-advance:", e);
     }
 
-    // Fetch existing step rows for all OSIs in ejecucion phase
+    // Fetch existing step rows for all OSIs (both phases)
     const { data: existingSteps } = await admin
       .from("capacitacion_proceso_steps")
       .select("*")
-      .in("osi_id", osiIds)
-      .eq("phase", "ejecucion");
+      .in("osi_id", osiIds);
 
     // Build lookup: osiId → nroSesion → stepKey → record
     const stepsLookup = new Map<number, Map<number, Map<string, ProcesoStepRecord>>>();
@@ -374,27 +374,39 @@ export async function autoAdvanceEjecucionSteps(
       const sessions = resolveSessions(osi, osiSesionByOsi.get(osi.id_osi));
       const osiStepsMap = stepsLookup.get(osi.id_osi) || new Map();
 
+      // Ensure all step rows exist for each session (seeds rows for old OSIs)
+      for (const session of sessions) {
+        const existingSessionSteps = osiStepsMap.get(session.nro_sesion);
+        const hasPlanificacion = existingSessionSteps?.["requisicion_enviada_admin"];
+        if (!hasPlanificacion) {
+          await ensureProcesoStepsExist(osi.id_osi, "planificacion", session.nro_sesion);
+        }
+        const hasEjecucion = existingSessionSteps?.["en_proceso"] || existingSessionSteps?.["ejecutado"];
+        if (!hasEjecucion) {
+          await ensureProcesoStepsExist(osi.id_osi, "ejecucion", session.nro_sesion);
+        }
+      }
+
       for (const session of sessions) {
         const nroSesion = session.nro_sesion;
         const sessionSteps = osiStepsMap.get(nroSesion) || new Map();
 
-        // Determine if this session's date has been reached
-        let hasReachedDate = false;
+        // Determine if this session's date is today/past or strictly past (date-only comparison)
+        let isTodayOrPast = false;
+        let isPast = false;
         if (session.fecha) {
-          const sessionDate = new Date(session.fecha);
-          if (!isNaN(sessionDate.getTime()) && sessionDate <= now) {
-            hasReachedDate = true;
-          }
+          const sessionDateStr = session.fecha.split("T")[0];
+          if (sessionDateStr <= todayStr) isTodayOrPast = true;
+          if (sessionDateStr < todayStr) isPast = true;
         } else if (nroSesion === 1 && osi.fecha_inicio_real) {
           // Fallback to fecha_inicio_real for session 1 if session fecha is null
-          const startDate = new Date(osi.fecha_inicio_real);
-          if (!isNaN(startDate.getTime()) && startDate <= now) {
-            hasReachedDate = true;
-          }
+          const startDateStr = osi.fecha_inicio_real.split("T")[0];
+          if (startDateStr <= todayStr) isTodayOrPast = true;
+          if (startDateStr < todayStr) isPast = true;
         }
 
-        // Auto-complete "en_proceso" if date reached
-        if (hasReachedDate) {
+        // Auto-complete "en_proceso" if date is today or past
+        if (isTodayOrPast) {
           const enProceso = sessionSteps.get("en_proceso");
           if (!enProceso || !enProceso.completed) {
             upserts.push({
@@ -408,8 +420,8 @@ export async function autoAdvanceEjecucionSteps(
           }
         }
 
-        // Auto-complete "ejecutado" if date reached (autoUnmarkable: auto-marked but can be manually unmarked)
-        if (hasReachedDate) {
+        // Auto-complete "ejecutado" only if date is strictly past (autoUnmarkable: can be manually unmarked)
+        if (isPast) {
           const ejecutado = sessionSteps.get("ejecutado");
           if (!ejecutado || !ejecutado.completed) {
             upserts.push({
@@ -774,15 +786,15 @@ export async function bulkCompleteStepsForFinishedOsis(): Promise<{
       const sessions = resolveSessions(osi, osiSesionByOsi.get(osi.id_osi));
       const allPast = sessions.every((s) => {
         if (s.fecha) {
-          const d = new Date(s.fecha);
-          return !isNaN(d.getTime()) && d < now;
+          const sessionDateStr = s.fecha.split("T")[0];
+          return sessionDateStr <= todayStr;
         }
         return false;
       });
       // Also accept OSIs with fecha_inicio_real in the past and no session dates
       if (!allPast && sessions.length === 1 && !sessions[0].fecha && osi.fecha_inicio_real) {
-        const d = new Date(osi.fecha_inicio_real);
-        if (!isNaN(d.getTime()) && d < now) {
+        const startDateStr = osi.fecha_inicio_real.split("T")[0];
+        if (startDateStr <= todayStr) {
           finishedOsiIds.push(osi.id_osi);
           continue;
         }

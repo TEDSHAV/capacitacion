@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { CapacitacionClientProps } from "@/types";
 import {
@@ -20,7 +19,7 @@ import {
   Briefcase,
   Sparkles,
   ClipboardList,
-  ChevronDown,
+  Users,
 } from "lucide-react";
 
 type LucideIcon = typeof BookOpen;
@@ -35,11 +34,18 @@ interface MainCard {
   external?: boolean;
 }
 
-interface OtherModule {
+interface SubModule {
   id: string;
   title: string;
   icon: LucideIcon;
-  href?: string;
+}
+
+interface Category {
+  id: string;
+  title: string;
+  gradient: string;
+  icon: LucideIcon;
+  modules: SubModule[];
 }
 
 export default function CapacitacionClient({
@@ -48,8 +54,6 @@ export default function CapacitacionClient({
 }: CapacitacionClientProps) {
   void _user;
   void _stats;
-
-  const [otrosExpanded, setOtrosExpanded] = useState(true);
 
   const mainCards: MainCard[] = [
     {
@@ -79,21 +83,69 @@ export default function CapacitacionClient({
     },
   ];
 
-  const otherModules: OtherModule[] = [
-    { id: "gestion-osi", title: "Gestión de OSI", icon: Briefcase },
-    { id: "gestion-cursos", title: "Gestión de Cursos", icon: BookOpen },
-    { id: "gestion-plantillas-cursos", title: "Plantillas de Cursos", icon: AlignLeft },
-    { id: "consulta-participantes", title: "Consulta de Participantes", icon: Search },
-    { id: "generacion-certificado", title: "Generación de Certificados", icon: Award },
-    { id: "gestion-certificados", title: "Gestión de Certificados", icon: FileStack },
-    { id: "plantillas-certificados", title: "Plantillas de Certificados", icon: FileCheck },
-    { id: "plantillas-carnets", title: "Plantillas de Carnets", icon: LayoutGrid },
-    { id: "configuracion/secuencias-control", title: "Control de Secuencia", icon: Calculator },
-    { id: "gestion-de-facilitadores", title: "Gestión de Facilitadores", icon: UserCheck },
-    { id: "gestion-de-firmas", title: "Gestión de Firmas", icon: Signature },
-    ...(process.env.NODE_ENV === "development"
-      ? [{ id: "generacion-personalizada", title: "Generación Personalizada (Dev)", icon: Sparkles }]
-      : []),
+  const categories: Category[] = [
+    {
+      id: "cursos",
+      title: "Cursos",
+      gradient: "from-emerald-500 to-teal-600",
+      icon: BookOpen,
+      modules: [
+        { id: "gestion-cursos", title: "Gestión de Cursos", icon: BookOpen },
+        { id: "gestion-plantillas-cursos", title: "Plantillas", icon: AlignLeft },
+      ],
+    },
+    {
+      id: "participantes",
+      title: "Participantes",
+      gradient: "from-blue-500 to-indigo-600",
+      icon: Users,
+      modules: [
+        { id: "consulta-participantes", title: "Consulta", icon: Search },
+      ],
+    },
+    {
+      id: "certificados",
+      title: "Certificados",
+      gradient: "from-amber-500 to-orange-600",
+      icon: Award,
+      modules: [
+        { id: "generacion-certificado", title: "Generación", icon: Award },
+        { id: "gestion-certificados", title: "Gestión", icon: FileStack },
+        { id: "configuracion/secuencias-control", title: "Control Secuencia", icon: Calculator },
+        ...(process.env.NODE_ENV === "development"
+          ? [{ id: "generacion-personalizada", title: "Gen. Personalizada", icon: Sparkles }]
+          : []),
+      ],
+    },
+    {
+      id: "plantillas",
+      title: "Plantillas",
+      gradient: "from-cyan-500 to-teal-600",
+      icon: LayoutGrid,
+      modules: [
+        { id: "plantillas-certificados", title: "Certificados", icon: FileCheck },
+        { id: "plantillas-carnets", title: "Carnets", icon: LayoutGrid },
+      ],
+    },
+    {
+      id: "facilitadores",
+      title: "Facilitadores",
+      gradient: "from-violet-500 to-purple-600",
+      icon: UserCheck,
+      modules: [
+        { id: "gestion-de-facilitadores", title: "Gestión", icon: UserCheck },
+        { id: "gestion-de-firmas", title: "Firmas", icon: Signature },
+      ],
+    },
+    {
+      id: "gestion",
+      title: "Gestión",
+      gradient: "from-slate-500 to-gray-600",
+      icon: Briefcase,
+      modules: [
+        { id: "gestion-osi", title: "Gestión de OSI", icon: Briefcase },
+      ],
+    },
   ];
 
   return (
@@ -157,66 +209,44 @@ export default function CapacitacionClient({
           })}
         </div>
 
-        {/* Otros card — expandable with sub-links */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <button
-            onClick={() => setOtrosExpanded(!otrosExpanded)}
-            className="w-full p-6 flex items-center gap-4 hover:bg-gray-50/50 transition-colors"
-          >
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-500 to-gray-600 flex items-center justify-center flex-shrink-0">
-              <LayoutGrid className="text-white w-6 h-6" />
-            </div>
-            <div className="flex-1 text-left">
-              <h3 className="text-xl font-bold text-gray-900">
-                Otros
-              </h3>
-              <p className="text-sm text-gray-500">
-                Gestión de OSI, cursos, participantes, certificados, facilitadores y más
-              </p>
-            </div>
-            <ChevronDown
-              className={`w-5 h-5 text-gray-400 transition-transform ${
-                otrosExpanded ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-
-          {otrosExpanded && (
-            <div className="px-6 pb-6 pt-2 border-t border-gray-100">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {otherModules.map((mod) => {
-                  const ModIcon = mod.icon;
-                  const linkClass =
-                    "flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors border border-gray-100";
-                  if (mod.href) {
+        {/* Category cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          {categories.map((cat) => {
+            const Icon = cat.icon;
+            return (
+              <div
+                key={cat.id}
+                className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div
+                    className={`w-10 h-10 rounded-lg bg-gradient-to-br ${cat.gradient} flex items-center justify-center flex-shrink-0`}
+                  >
+                    <Icon className="text-white w-5 h-5" />
+                  </div>
+                  <h3 className="text-base font-bold text-gray-900">
+                    {cat.title}
+                  </h3>
+                </div>
+                <div className="space-y-1">
+                  {cat.modules.map((mod) => {
+                    const ModIcon = mod.icon;
                     return (
-                      <a
+                      <Link
                         key={mod.id}
-                        href={mod.href}
-                        target="_parent"
-                        className={linkClass}
+                        href={`/dashboard/capacitacion/${mod.id}`}
+                        className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-gray-50 text-[13px] text-gray-600 hover:text-gray-900 font-medium transition-colors"
                       >
-                        <ModIcon className="w-4 h-4 flex-shrink-0" />
+                        <ModIcon className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />
                         <span className="flex-1 truncate">{mod.title}</span>
-                        <ChevronRight className="w-3 h-3 opacity-50 flex-shrink-0" />
-                      </a>
+                        <ChevronRight className="w-3 h-3 opacity-40 flex-shrink-0" />
+                      </Link>
                     );
-                  }
-                  return (
-                    <Link
-                      key={mod.id}
-                      href={`/dashboard/capacitacion/${mod.id}`}
-                      className={linkClass}
-                    >
-                      <ModIcon className="w-4 h-4 flex-shrink-0" />
-                      <span className="flex-1 truncate">{mod.title}</span>
-                      <ChevronRight className="w-3 h-3 opacity-50 flex-shrink-0" />
-                    </Link>
-                  );
-                })}
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })}
         </div>
       </div>
     </div>
