@@ -314,6 +314,10 @@ export async function getOSIsForManagement(
       query = query.ilike("ejecutivo_negocios", `%${filters.ejecutivo}%`);
     }
 
+    if (filters.servicio) {
+      query = query.ilike("servicio", `%${filters.servicio}%`);
+    }
+
     if (filters.monthIssued) {
       // Filter by month issued (YYYY-MM format)
       query = query.like("fecha_emision", `${filters.monthIssued}%`);
@@ -323,10 +327,10 @@ export async function getOSIsForManagement(
     const offset = (page - 1) * limit;
     query = query.range(offset, offset + limit - 1);
 
-    // Run main query
-    const { data, error, count } = await query.order("fecha_emision", {
-      ascending: false,
-    });
+    // Run main query — sort by fecha_emision desc, then id_osi desc as fallback for nulls
+    const { data, error, count } = await query
+      .order("fecha_emision", { ascending: false, nullsFirst: false })
+      .order("id_osi", { ascending: false });
 
     if (error) {
       console.error("Error fetching OSIs for management:", error);

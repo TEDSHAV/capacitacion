@@ -17,7 +17,7 @@ import {
   ClipboardCheck
 } from "lucide-react";
 import { saveParticipants } from "@/app/actions/facilitador-portal";
-import { PhysicalListUpload } from "./physical-list-upload";
+import { AttachmentUploadSection } from "./attachment-upload-section";
 import { SeniatVerificationPopover } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/SeniatVerificationPopover";
 import { ParticipantScannerModal } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/ParticipantScannerModal";
 import { ParticipantVerificationResult, ExtractedParticipant, CertificateParticipant, OSIAttachment } from "@/types";
@@ -369,13 +369,20 @@ export const ParticipantForm = ({
           <span className="hidden sm:inline">Tour</span>
         </Button>
       </div>
-      <PhysicalListUpload 
-        osiId={osiId} 
-        facilitadorId={facilitadorId} 
+      <AttachmentUploadSection
+        osiId={osiId}
+        facilitadorId={facilitadorId}
+        category="lista_asistencia"
+        title="Cargar Listas Físicas"
+        description="Sube fotos o PDFs de las listas de asistencia firmadas. Las imágenes se comprimen automáticamente."
+        badge="Requerido"
+        badgeColor="red"
         onAttachmentCountChange={setAttachmentCount}
         onScanAttachment={handleSelectAttachment}
         onFileReadyToScan={handleFileReadyToScan}
         onStatusChange={setUploadStatus}
+        showScanButton
+        tourId="tour-upload-button"
       />
 
       {uploadStatus && (
@@ -586,6 +593,35 @@ export const ParticipantForm = ({
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Additional upload sections: photos & grading sheet */}
+      <div className="flex items-center gap-2 mb-2 pt-4 border-t border-gray-100">
+        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">+</span>
+        <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Documentos Adicionales</h2>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <AttachmentUploadSection
+          osiId={osiId}
+          facilitadorId={facilitadorId}
+          category="material_fotografico"
+          title="Registro Fotográfico"
+          description="Sube fotos de la actividad (imágenes se comprimen automáticamente)."
+          badge="Opcional"
+          badgeColor="blue"
+          accept="image/*"
+          imageOnly
+        />
+        <AttachmentUploadSection
+          osiId={osiId}
+          facilitadorId={facilitadorId}
+          category="hoja_calificacion"
+          title="Hoja de Calificación"
+          description="Sube fotos o PDFs de las hojas de calificación firmadas."
+          badge="Opcional"
+          badgeColor="blue"
+        />
       </div>
 
       {/* Step 2: Review & Submit */}

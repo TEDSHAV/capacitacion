@@ -956,6 +956,7 @@ export interface OSIFilters {
   companyName?: string;
   nroOsi?: string;
   tipoServicio?: string;
+  servicio?: string;
   status?: string;
   dateServiceFrom?: string;
   dateServiceTo?: string;
@@ -1016,6 +1017,7 @@ export interface OSIManagement {
   pop_incluido?: boolean | null;
   traslado_externo?: number | null;
   sesiones_programadas?: unknown[] | null;
+  desglose_recursos_sesiones?: OSISesion[] | null;
   // Computed fields
   status_name?: string;
   status_color?: string;
@@ -1023,6 +1025,21 @@ export interface OSIManagement {
   num_participants?: number;
   is_manual_batch?: boolean;
   has_acknowledgment?: boolean;
+}
+
+// Per-session data from v_osi_formato_completo.desglose_recursos_sesiones
+export interface OSISesion {
+  id: number;
+  id_sesion: number;
+  nro_sesion: number | null;
+  fecha: string | null;
+  hora_inicio: string | null;
+  hora_fin: string | null;
+  costo_traslado: number | null;
+  costo_impresion_material: number | null;
+  horas_honorarios_instructor: number | null;
+  tarifa_hora_honorarios: number | null;
+  costo_honorarios_instructor: number | null;
 }
 
 export interface OSISearchResult {
@@ -1058,6 +1075,7 @@ export interface OSIAttachment {
   file_name: string;
   file_type: string;
   file_size: number;
+  category?: string | null;
   created_at: string;
   updated_at: string;
   publicUrl?: string;

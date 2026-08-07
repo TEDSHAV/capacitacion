@@ -3338,9 +3338,54 @@ export type Database = {
           },
         ]
       }
+      capacitacion_proceso_steps: {
+        Row: {
+          id: number
+          osi_id: number
+          nro_sesion: number
+          phase: string
+          step_key: string
+          completed: boolean
+          completed_at: string | null
+          completed_by: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: never
+          osi_id: number
+          nro_sesion?: number
+          phase: string
+          step_key: string
+          completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: never
+          osi_id?: number
+          nro_sesion?: number
+          phase?: string
+          step_key?: string
+          completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       facilitador_osi_assignments: {
         Row: {
           assigned_by: string | null
+          attachment_received: boolean | null
+          attachment_received_at: string | null
+          attachment_received_by: string | null
           created_at: string | null
           facilitador_id: number
           id: number
@@ -3351,6 +3396,9 @@ export type Database = {
         }
         Insert: {
           assigned_by?: string | null
+          attachment_received?: boolean | null
+          attachment_received_at?: string | null
+          attachment_received_by?: string | null
           created_at?: string | null
           facilitador_id: number
           id?: never
@@ -3361,6 +3409,9 @@ export type Database = {
         }
         Update: {
           assigned_by?: string | null
+          attachment_received?: boolean | null
+          attachment_received_at?: string | null
+          attachment_received_by?: string | null
           created_at?: string | null
           facilitador_id?: number
           id?: never
@@ -6105,6 +6156,7 @@ export type Database = {
           costo_logistica_comida: number | null
           costo_otros: number | null
           costo_pop: number | null
+          desglose_recursos_sesiones: Json | null
           costo_traslado: number | null
           dias_hospedaje_facilitador: number | null
           dias_logistica_facilitador: number | null

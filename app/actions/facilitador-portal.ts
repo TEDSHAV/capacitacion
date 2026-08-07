@@ -438,9 +438,10 @@ export async function getFacilitatorByOSI(osiId: number) {
 export async function uploadOSIAttachment(
   osiId: number,
   facilitadorId: number,
-  formData: FormData
+  formData: FormData,
+  category: string = "lista_asistencia"
 ): Promise<{ success?: boolean; data?: OSIAttachment; error?: string }> {
-  console.log("[uploadOSIAttachment] ENTRY", { osiId, facilitadorId });
+  console.log("[uploadOSIAttachment] ENTRY", { osiId, facilitadorId, category });
 
   const session = await getFacilitatorSession();
   console.log("[uploadOSIAttachment] Session:", session ? { id: session.id, facilitador_id: session.facilitador_id, nombre: session.nombre } : "NULL");
@@ -497,6 +498,7 @@ export async function uploadOSIAttachment(
         file_name: file.name,
         file_type: finalFileType,
         file_size: buffer.length,
+        category,
       })
       .select()
       .single();
@@ -521,8 +523,8 @@ export async function uploadOSIAttachment(
 /**
  * Get all attachments for a specific OSI
  */
-export async function getOSIAttachments(osiId: number, facilitadorId?: number): Promise<{ data?: OSIAttachment[]; error?: string }> {
-  console.log("[getOSIAttachments] ENTRY", { osiId, facilitadorId });
+export async function getOSIAttachments(osiId: number, facilitadorId?: number, category?: string): Promise<{ data?: OSIAttachment[]; error?: string }> {
+  console.log("[getOSIAttachments] ENTRY", { osiId, facilitadorId, category });
 
   const supabase = await createAdminClient();
   
@@ -533,6 +535,10 @@ export async function getOSIAttachments(osiId: number, facilitadorId?: number): 
   
   if (facilitadorId) {
     query = query.eq("facilitador_id", facilitadorId);
+  }
+
+  if (category) {
+    query = query.eq("category", category);
   }
   
   const { data, error } = await query.order("created_at", { ascending: false });
