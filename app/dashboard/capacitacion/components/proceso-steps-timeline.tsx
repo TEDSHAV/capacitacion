@@ -8,6 +8,7 @@ import {
   Eye,
   Lock,
   X,
+  ExternalLink,
 } from "lucide-react";
 import type { StepDef } from "@/lib/proceso-steps";
 import type { ProcesoStepRecord } from "@/app/actions/capacitacion-proceso-steps";
@@ -18,6 +19,7 @@ interface ProcesoStepsTimelineProps {
   completedSteps: Record<string, ProcesoStepRecord>;
   canEdit: boolean;
   onToggle: (stepKey: string, notes?: string) => Promise<void>;
+  onBulkToggle?: (stepKeys: string[]) => Promise<void>;
   onPreviewListaAsistencia?: (osiId: number) => void;
   onPreviewCalificacion?: (osiId: number) => void;
   onPreviewMaterialFotografico?: (osiId: number) => void;
@@ -30,12 +32,14 @@ export default function ProcesoStepsTimeline({
   completedSteps,
   canEdit,
   onToggle,
+  onBulkToggle,
   onPreviewListaAsistencia,
   onPreviewCalificacion,
   onPreviewMaterialFotografico,
   compact = false,
 }: ProcesoStepsTimelineProps) {
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
+  const [bulkToggling, setBulkToggling] = useState(false);
   const [inputStepKey, setInputStepKey] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [inputPos, setInputPos] = useState<{ top: number; left: number } | null>(null);
@@ -114,6 +118,21 @@ export default function ProcesoStepsTimeline({
     setInputStepKey(null);
     setInputPos(null);
     setInputValue("");
+  };
+
+  const handleBulkToggle = async (subSteps: StepDef[]) => {
+    if (!canEdit || !onBulkToggle || bulkToggling) return;
+    const allCompleted = subSteps.every((s) => completedSteps[s.key]?.completed);
+    const keysToToggle = allCompleted
+      ? subSteps.map((s) => s.key)
+      : subSteps.filter((s) => !completedSteps[s.key]?.completed).map((s) => s.key);
+    if (keysToToggle.length === 0) return;
+    setBulkToggling(true);
+    try {
+      await onBulkToggle(keysToToggle);
+    } finally {
+      setBulkToggling(false);
+    }
   };
 
   if (compact) {
@@ -272,17 +291,33 @@ export default function ProcesoStepsTimeline({
         {/* Label + badges for standalone steps (below circle) */}
         {!isSubStep && (
           <>
-            <span
-              className={`text-[10px] font-medium text-center mt-1.5 leading-tight ${
-                isCompleted
-                  ? "text-gray-900"
-                  : isCurrent
-                    ? "text-blue-700"
-                    : "text-gray-400"
-              }`}
-            >
-              {step.label}
-            </span>
+            {step.key === "requisicion_enviada_admin" ? (
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.parent?.postMessage({ type: "SHELL_NAVIGATE", href: "/requisiciones/create" }, "*");
+                }}
+                className="text-[10px] font-medium text-center mt-1.5 leading-tight text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-0.5"
+                title="Crear requisición en el shell"
+              >
+                {step.label}
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            ) : (
+              <span
+                className={`text-[10px] font-medium text-center mt-1.5 leading-tight ${
+                  isCompleted
+                    ? "text-gray-900"
+                    : isCurrent
+                      ? "text-blue-700"
+                      : "text-gray-400"
+                }`}
+              >
+                {step.label}
+              </span>
+            )}
             {isAuto && (
               <span className="text-[8px] font-bold uppercase tracking-wide bg-gray-100 text-gray-500 px-1 py-0.5 rounded mt-0.5">
                 {isAutoUnmarkable ? "Auto*" : "Auto"}
@@ -371,19 +406,31 @@ export default function ProcesoStepsTimeline({
             return (
               <div key={item.groupKey} className="flex items-start flex-shrink-0">
                 <div className="flex flex-col items-center w-40 px-1">
-                  {/* Parent circle on the main line */}
-                  <div
+                  {/* Parent circle on the main line — clickable for bulk toggle */}
+                  <button
+                    type="button"
+                    disabled={!canEdit || bulkToggling}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBulkToggle(subSteps);
+                    }}
                     className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0 ${
                       groupCompleted
                         ? "bg-green-500 text-white scale-105 shadow-md"
                         : groupPartial
                           ? "bg-blue-500 text-white scale-110 shadow-lg ring-4 ring-blue-100"
                           : "bg-gray-100 text-gray-400 scale-95"
-                    }`}
-                    title="Post-servicio"
+                    } ${canEdit ? "cursor-pointer hover:scale-110" : "cursor-default"}`}
+                    title={canEdit ? "Marcar/desmarcar todos los sub-pasos" : "Post-servicio"}
                   >
-                    {groupCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                  </div>
+                    {bulkToggling ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : groupCompleted ? (
+                      <CheckCircle2 className="w-5 h-5" />
+                    ) : (
+                      <Circle className="w-5 h-5" />
+                    )}
+                  </button>
                   <span
                     className={`text-[10px] font-medium text-center mt-1 leading-tight ${
                       groupCompleted ? "text-gray-900" : groupPartial ? "text-blue-700" : "text-gray-400"
@@ -391,11 +438,11 @@ export default function ProcesoStepsTimeline({
                   >
                     Post-servicio
                   </span>
-                  {/* Vertical drop line */}
-                  <div className="w-0.5 h-3 bg-gray-200 mt-0.5" />
+                  {/* Vertical drop line — increased height to prevent overlap */}
+                  <div className="w-0.5 h-6 bg-gray-200 mt-0.5" />
 
-                  {/* Horizontal sub-row of small circles */}
-                  <div className="flex items-start gap-0 mt-1">
+                  {/* Horizontal sub-row of small circles — extra margin to clear main branch text */}
+                  <div className="flex items-start gap-0 mt-2">
                     {subSteps.map((subStep, subIdx) => {
                       const realIdx = startIdx + subIdx;
                       const rec = completedSteps[subStep.key];

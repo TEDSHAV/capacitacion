@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { CourseSatisfactionSurvey, SurveyOSIData } from "@/types";
 import { revalidatePath } from "next/cache";
 
@@ -116,7 +116,29 @@ export async function submitSurvey(survey: CourseSatisfactionSurvey) {
       return { success: false, error: error.message };
     }
 
+    // Auto-mark the encuestas_satisfaccion_tabulacion process step as completed
+    try {
+      const admin = await createAdminClient();
+      await admin
+        .from("capacitacion_proceso_steps")
+        .upsert(
+          {
+            osi_id: survey.id_osi,
+            nro_sesion: 1,
+            phase: "ejecucion",
+            step_key: "encuestas_satisfaccion_tabulacion",
+            completed: true,
+            completed_at: new Date().toISOString(),
+            completed_by: "survey_submission",
+          },
+          { onConflict: "osi_id,nro_sesion,phase,step_key" },
+        );
+    } catch (stepErr) {
+      console.error("Failed to auto-mark encuestas step:", stepErr);
+    }
+
     revalidatePath(`/dashboard/capacitacion/gestion-osi/${survey.id_osi}/survey-view`);
+    revalidatePath(`/dashboard/capacitacion/seguimiento-servicios`);
     return { success: true };
   } catch (error) {
     console.error("Exception submitting survey:", error);

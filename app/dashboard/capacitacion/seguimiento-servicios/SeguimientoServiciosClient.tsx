@@ -257,6 +257,15 @@ export default function SeguimientoServiciosClient({
     [],
   );
 
+  const handleBulkToggle = useCallback(
+    async (osiId: number, nroSesion: number, stepKeys: string[]) => {
+      for (const key of stepKeys) {
+        await handleToggleStep(osiId, nroSesion, key);
+      }
+    },
+    [handleToggleStep],
+  );
+
   const handleExpand = useCallback(
     async (osiId: number) => {
       if (expandedOsi === osiId) {
@@ -652,6 +661,9 @@ export default function SeguimientoServiciosClient({
                           canEdit={true}
                           onToggle={(stepKey, notes) =>
                             handleToggleStep(osi.id_osi, currentNroSesion, stepKey, notes)
+                          }
+                          onBulkToggle={(stepKeys) =>
+                            handleBulkToggle(osi.id_osi, currentNroSesion, stepKeys)
                           }
                           onPreviewListaAsistencia={(id) =>
                             setPreviewOsi({ osiId: id, nroOsi: osi.nro_osi || "", nroSesion: currentNroSesion })
