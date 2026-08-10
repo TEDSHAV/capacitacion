@@ -8,36 +8,46 @@ import Link from "next/link";
 
 interface OSISurveyModalProps {
   osi: OSIManagement | null;
+  /** Number of sessions for this OSI. If >1, shows a session selector with one QR per session. */
+  sessionCount?: number;
   onClose: () => void;
 }
 
-export default function OSISurveyModal({ osi, onClose }: OSISurveyModalProps) {
+export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISurveyModalProps) {
   const [qrUrl, setQrUrl] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<number>(1);
 
   // Use production domain for QR code even in localhost, or environment variable if set
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prisma.shadevenezuela.com.ve";
+  const hasMultipleSessions = sessionCount > 1;
+
+  // Build the survey URL for the selected session
+  const buildSurveyUrl = (origin: string, nroSesion: number) => {
+    const base = origin.includes("localhost") ? origin : baseUrl;
+    return hasMultipleSessions
+      ? `${base}/survey/${osi?.id_osi}?sesion=${nroSesion}`
+      : `${base}/survey/${osi?.id_osi}`;
+  };
 
   useEffect(() => {
     if (osi) {
       // The QR code ALWAYS points to production (as per requirements)
-      const url = `${baseUrl}/survey/${osi.id_osi}`;
+      const url = buildSurveyUrl("", selectedSession);
       QRCode.toDataURL(url, { width: 300, margin: 2 }, (err, url) => {
         if (err) console.error(err);
         else setQrUrl(url);
       });
     }
-  }, [osi, baseUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [osi, selectedSession, baseUrl, hasMultipleSessions]);
 
   if (!osi) return null;
 
   // For the clickable link in the modal, use current origin if on localhost to allow testing
-  // Check window only on client side to avoid hydration mismatch
   const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
-  const clickableUrl = currentOrigin.includes("localhost") 
-    ? `${currentOrigin}/survey/${osi.id_osi}` 
-    : `${baseUrl}/survey/${osi.id_osi}`;
-    
+  const clickableUrl = buildSurveyUrl(currentOrigin, selectedSession);
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(clickableUrl);
     setCopied(true);
@@ -47,7 +57,9 @@ export default function OSISurveyModal({ osi, onClose }: OSISurveyModalProps) {
   const handleDownloadQR = () => {
     const link = document.createElement("a");
     link.href = qrUrl;
-    link.download = `QR_Encuesta_OSI_${osi.nro_osi}.png`;
+    link.download = hasMultipleSessions
+      ? `QR_Encuesta_OSI_${osi.nro_osi}_Sesion${selectedSession}.png`
+      : `QR_Encuesta_OSI_${osi.nro_osi}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -72,6 +84,30 @@ export default function OSISurveyModal({ osi, onClose }: OSISurveyModalProps) {
 
         {/* Content */}
         <div className="p-8 space-y-8">
+          {/* Session selector for multi-session OSIs */}
+          {hasMultipleSessions && (
+            <div className="flex flex-col items-center gap-2">
+              <label className="text-xs font-black text-gray-400 uppercase tracking-widest">
+                Selecciona la sesión
+              </label>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {Array.from({ length: sessionCount }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setSelectedSession(n)}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                      selectedSession === n
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    Sesión {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* QR Code Section */}
           <div className="flex flex-col items-center gap-6">
             <div className="p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-inner relative group">
@@ -83,7 +119,7 @@ export default function OSISurveyModal({ osi, onClose }: OSISurveyModalProps) {
                 </div>
               )}
             </div>
-            
+
             <div className="flex gap-4">
               <button
                 onClick={handleDownloadQR}
@@ -113,8 +149,8 @@ export default function OSISurveyModal({ osi, onClose }: OSISurveyModalProps) {
                 onClick={handleCopyLink}
                 className={`
                   p-3 rounded-xl transition-all border flex items-center justify-center min-w-[48px]
-                  ${copied 
-                    ? "bg-green-50 border-green-200 text-green-600" 
+                  ${copied
+                    ? "bg-green-50 border-green-200 text-green-600"
                     : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                   }
                 `}
@@ -156,16 +192,16 @@ export default function OSISurveyModal({ osi, onClose }: OSISurveyModalProps) {
 
 function Check({ className }: { className?: string }) {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
     >
       <polyline points="20 6 9 17 4 12" />

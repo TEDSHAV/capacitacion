@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, UserPlus, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, UserPlus, Trash2, AlertCircle, CheckCircle2, Layers } from "lucide-react";
 import {
   getAssignmentByOSI,
   getActiveFacilitatorsForDropdown,
@@ -21,6 +21,8 @@ interface AssignFacilitadorModalProps {
   osiId: number;
   osiNumber: string;
   osiCompany: string;
+  /** Number of sessions for this OSI (used for per-session assignment). If <=1, hides the session selector. */
+  sessionCount?: number;
   onClose: () => void;
 }
 
@@ -28,15 +30,19 @@ export default function AssignFacilitadorModal({
   osiId,
   osiNumber,
   osiCompany,
+  sessionCount = 1,
   onClose,
 }: AssignFacilitadorModalProps) {
   const [loading, setLoading] = useState(true);
-  const [currentAssignment, setCurrentAssignment] = useState<any>(null);
+  const [currentAssignments, setCurrentAssignments] = useState<any[]>([]);
   const [facilitators, setFacilitators] = useState<any[]>([]);
   const [selectedFacilitadorId, setSelectedFacilitadorId] = useState<string>("");
+  const [selectedSession, setSelectedSession] = useState<string>("all");
   const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const hasMultipleSessions = sessionCount > 1;
 
   const loadData = async () => {
     setLoading(true);
@@ -50,7 +56,8 @@ export default function AssignFacilitadorModal({
       if (assignRes.error) {
         setError(assignRes.error);
       } else {
-        setCurrentAssignment(assignRes.data);
+        // getAssignmentByOSI now returns an array (multiple facilitadores possible)
+        setCurrentAssignments(Array.isArray(assignRes.data) ? assignRes.data : (assignRes.data ? [assignRes.data] : []));
       }
       setFacilitators(facilitatorsData || []);
     } catch (err) {
@@ -73,10 +80,12 @@ export default function AssignFacilitadorModal({
     setError(null);
     setSuccess(null);
 
+    const nroSesion = selectedSession === "all" ? null : parseInt(selectedSession);
     const result = await assignOSIToFacilitador(
       osiId,
       parseInt(selectedFacilitadorId),
-      "direct"
+      "direct",
+      nroSesion,
     );
     if (result.error) {
       setError(result.error);
@@ -96,10 +105,12 @@ export default function AssignFacilitadorModal({
     if (result.error) {
       setError(result.error);
     } else {
-      setCurrentAssignment(null);
       await loadData();
     }
   };
+
+  const sessionLabel = (nroSesion: number | null) =>
+    nroSesion === null ? "Todas las sesiones" : `Sesión ${nroSesion}`;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] animate-in fade-in duration-200">
@@ -128,31 +139,36 @@ export default function AssignFacilitadorModal({
           </div>
         ) : (
           <div className="space-y-5">
-            {/* Current Assignment */}
+            {/* Current Assignments (now a list — multiple facilitadores possible) */}
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-3">
-                Facilitador Actual
+                Facilitador(es) Actual(es)
               </h4>
-              {currentAssignment ? (
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-gray-900">
-                      {currentAssignment.facilitadores?.nombre_apellido}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      Cédula: {currentAssignment.facilitadores?.cedula || "N/A"}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      Email: {currentAssignment.facilitadores?.email || "N/A"}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleUnassign(currentAssignment.id)}
-                    className="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 transition-colors"
-                    title="Desasignar facilitador"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+              {currentAssignments.length > 0 ? (
+                <div className="space-y-2">
+                  {currentAssignments.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900">
+                          {a.facilitadores?.nombre_apellido}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          Cédula: {a.facilitadores?.cedula || "N/A"}
+                        </span>
+                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <Layers className="w-3 h-3" />
+                          {sessionLabel(a.nro_sesion)}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleUnassign(a.id)}
+                        className="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 transition-colors"
+                        title="Desasignar facilitador"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <p className="text-sm text-gray-400 italic py-3">
@@ -164,7 +180,7 @@ export default function AssignFacilitadorModal({
             {/* Assign New Facilitador */}
             <div className="border-t border-gray-200 pt-4">
               <h4 className="text-sm font-semibold text-gray-700 mb-3">
-                {currentAssignment ? "Reemplazar Facilitador" : "Asignar Facilitador"}
+                Asignar Nuevo Facilitador
               </h4>
 
               <Select
@@ -183,6 +199,31 @@ export default function AssignFacilitadorModal({
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Session selector — only shown when OSI has multiple sessions */}
+              {hasMultipleSessions && (
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Sesión
+                  </label>
+                  <Select
+                    value={selectedSession}
+                    onValueChange={setSelectedSession}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleccionar sesión..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las sesiones</SelectItem>
+                      {Array.from({ length: sessionCount }, (_, i) => i + 1).map((n) => (
+                        <SelectItem key={n} value={n.toString()}>
+                          Sesión {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {error && (
                 <div className="p-3 bg-red-50 border border-red-100 rounded-md flex items-start gap-2 text-red-700 text-sm mt-3">
@@ -211,7 +252,7 @@ export default function AssignFacilitadorModal({
                 ) : (
                   <>
                     <UserPlus className="w-4 h-4 mr-2" />
-                    {currentAssignment ? "Reemplazar" : "Asignar"}
+                    Asignar
                   </>
                 )}
               </Button>

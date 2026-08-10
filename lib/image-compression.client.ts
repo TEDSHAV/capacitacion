@@ -28,8 +28,8 @@ export async function compressImage(
     return file;
   }
 
-  // Skip small files (< 500KB) that are already likely fine
-  if (file.size < 500 * 1024) {
+  // Skip small files (< 200KB) that are already likely fine
+  if (file.size < 200 * 1024) {
     return file;
   }
 

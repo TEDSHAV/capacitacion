@@ -26,6 +26,7 @@ interface AttachmentUploadSectionProps {
   osiId: number;
   facilitadorId: number;
   category: string;
+  nroSesion?: number;
   title: string;
   description: string;
   badge?: string;
@@ -44,6 +45,7 @@ export const AttachmentUploadSection = ({
   osiId,
   facilitadorId,
   category,
+  nroSesion,
   title,
   description,
   badge,
@@ -72,7 +74,7 @@ export const AttachmentUploadSection = ({
 
   const fetchAttachments = useCallback(async () => {
     setLoading(true);
-    const result = await getOSIAttachments(osiId, facilitadorId, category);
+    const result = await getOSIAttachments(osiId, facilitadorId, category, nroSesion);
     if (result.data) {
       setAttachments(result.data as OSIAttachment[]);
       onAttachmentCountChange?.(result.data.length);
@@ -80,7 +82,7 @@ export const AttachmentUploadSection = ({
       onAttachmentCountChange?.(0);
     }
     setLoading(false);
-  }, [osiId, facilitadorId, category, onAttachmentCountChange]);
+  }, [osiId, facilitadorId, category, nroSesion, onAttachmentCountChange]);
 
   useEffect(() => {
     fetchAttachments();
@@ -97,6 +99,16 @@ export const AttachmentUploadSection = ({
 
     const fileArray = Array.from(files);
     e.target.value = "";
+
+    // Client-side file size guard: reject files > 15MB before any network round-trip
+    const CLIENT_MAX_FILE_SIZE = 15 * 1024 * 1024;
+    const oversized = fileArray.filter((f) => f.size > CLIENT_MAX_FILE_SIZE);
+    if (oversized.length > 0) {
+      setError(`Archivo(s) demasiado grande(s): ${oversized.map((f) => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)}MB)`).join(", ")}. Máximo 15MB.`);
+      setUploading(false);
+      onStatusChange?.(null);
+      return;
+    }
 
     let allSuccess = true;
     let lastUploadedAttachment: OSIAttachment | null = null;
@@ -115,7 +127,7 @@ export const AttachmentUploadSection = ({
         formData.append("file", compressedFile);
 
         onStatusChange?.("Subiendo al servidor...");
-        const result = await uploadOSIAttachment(osiId, facilitadorId, formData, category);
+        const result = await uploadOSIAttachment(osiId, facilitadorId, formData, category, nroSesion);
         if (result.error) {
           setError(result.error);
           onStatusChange?.(null);
@@ -147,7 +159,7 @@ export const AttachmentUploadSection = ({
         onStatusChange?.(null);
       }
 
-      getOSIAttachments(osiId, facilitadorId, category)
+      getOSIAttachments(osiId, facilitadorId, category, nroSesion)
         .then((fetchResult) => {
           if (fetchResult.data) {
             setAttachments(fetchResult.data as OSIAttachment[]);
@@ -184,12 +196,17 @@ export const AttachmentUploadSection = ({
     <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
       <div className="p-3 sm:p-4 bg-gray-50/50 border-b border-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 flex-wrap">
             <ImageIcon className="w-4 h-4 text-blue-600" />
             {title}
             {badge && (
               <span className={`text-[10px] font-bold uppercase ${badgeClasses[badgeColor]} px-1.5 py-0.5 rounded ml-1`}>
                 {badge}
+              </span>
+            )}
+            {nroSesion != null && (
+              <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                Sesión {nroSesion}
               </span>
             )}
           </h3>

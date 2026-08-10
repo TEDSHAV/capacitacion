@@ -10,6 +10,7 @@ import { ArrowLeft, ClipboardList, Info, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { PortalNavbar } from "@/components/PortalNavbar";
 import { ParticipantForm } from "./participant-form";
+import { getSessionCount } from "@/lib/osi-utils";
 
 interface OSIPageProps {
   params: Promise<{ id: string }>;
@@ -31,20 +32,47 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
   if (!osi) notFound();
 
   // Security check: Is this OSI assigned to this facilitator?
+  // Also fetch nro_sesion to know which session(s) they're assigned to.
   const supabase = await createAdminClient();
-  const { data: assignmentCheck } = await supabase
+  const { data: assignments } = await supabase
     .from("facilitador_osi_assignments")
-    .select("id")
+    .select("id, nro_sesion")
     .eq("osi_id", osiId)
     .eq("facilitador_id", session.facilitador_id)
-    .eq("is_active", true)
-    .limit(1);
+    .eq("is_active", true);
 
-  const isAssigned = assignmentCheck && assignmentCheck.length > 0;
+  const isAssigned = assignments && assignments.length > 0;
 
   if (!isAssigned) {
     redirect("/portal/facilitador/dashboard");
   }
+
+  // Determine session context for the facilitador:
+  // - If they have a session-specific assignment (nro_sesion != null), use that.
+  // - If they only have an all-sessions assignment (nro_sesion = null), they need to pick.
+  // - If they have both, prefer the specific session(s).
+  const sessionAssignments = (assignments || []).map((a) => a.nro_sesion);
+  const specificSessions = sessionAssignments.filter((s) => s !== null) as number[];
+  const hasAllSessionsAssignment = sessionAssignments.some((s) => s === null);
+
+  // assignedSession: a specific session if exactly one specific session assigned; otherwise null (needs picker)
+  const assignedSession: number | null = specificSessions.length === 1 ? specificSessions[0] : null;
+  // needsSessionPicker: true if facilitador is assigned to all sessions (or multiple sessions) and must choose
+  const needsSessionPicker = assignedSession === null;
+
+  // Total session count for this OSI (for the session picker dropdown)
+  const sessionCount: number = getSessionCount(osi);
+
+  console.log("[FacilitadorOSIPage] Session context:", {
+    sessionCount,
+    specificSessions,
+    hasAllSessionsAssignment,
+    assignedSession,
+    needsSessionPicker,
+    osiSesionesEjecucion: osi.sesiones_ejecucion,
+    osiDesglose: Array.isArray(osi.desglose_recursos_sesiones) ? `array[${osi.desglose_recursos_sesiones.length}]` : osi.desglose_recursos_sesiones,
+    osiSesionesProgramadas: Array.isArray(osi.sesiones_programadas) ? `array[${osi.sesiones_programadas.length}]` : osi.sesiones_programadas,
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -72,6 +100,34 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
           <Info className="w-4 h-4" />
           Sube la lista física, completa los datos de los participantes y revisa antes de enviar.
         </p>
+
+        {/* Session assignment info banner */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Asignado a:</span>
+          {sessionCount === 1 ? (
+            // Single-session OSI: always show "Sesión 1" regardless of assignment type
+            <span className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
+              Sesión 1
+            </span>
+          ) : hasAllSessionsAssignment && specificSessions.length === 0 ? (
+            // Multi-session OSI, assigned to all sessions
+            <span className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
+              Todas las sesiones
+            </span>
+          ) : (
+            // Multi-session OSI, assigned to specific sessions
+            specificSessions.sort((a, b) => a - b).map((s) => (
+              <span key={s} className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                Sesión {s}
+              </span>
+            ))
+          )}
+          {sessionCount > 1 && hasAllSessionsAssignment && specificSessions.length > 0 && (
+            <span className="inline-flex items-center text-xs font-semibold bg-purple-50 text-purple-600 px-2 py-1 rounded border border-purple-200">
+              + Todas las sesiones
+            </span>
+          )}
+        </div>
       </header>
 
       <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 sm:p-6 mb-6">
@@ -100,10 +156,15 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <ParticipantForm 
-          osiId={osiId} 
+        <ParticipantForm
+          osiId={osiId}
           facilitadorId={session.facilitador_id}
           initialParticipants={participants.data || []}
+          assignedSession={assignedSession}
+          needsSessionPicker={needsSessionPicker}
+          sessionCount={sessionCount}
+          assignedSessions={specificSessions}
+          hasAllSessionsAssignment={hasAllSessionsAssignment}
         />
       </div>
     </div>

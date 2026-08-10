@@ -7,10 +7,10 @@ import { revalidatePath } from "next/cache";
 /**
  * Fetch OSI details for the survey form
  */
-export async function getOSIDataForSurvey(osiId: number): Promise<SurveyOSIData | null> {
+export async function getOSIDataForSurvey(osiId: number, nroSesion?: number): Promise<SurveyOSIData | null> {
   try {
     const supabase = await createClient();
-    
+
     // Get basic OSI data from the view
     const { data, error } = await supabase
       .from("v_osi_lista")
@@ -29,34 +29,45 @@ export async function getOSIDataForSurvey(osiId: number): Promise<SurveyOSIData 
       return null;
     }
 
+    const sessionNum = nroSesion ?? 1;
     let facilitador_nombre = "";
-    
-    // Attempt to fetch facilitator from facilitador_osi_assignments
-    const { data: assignmentData } = await supabase
+
+    // Fetch all active assignments for this OSI, then pick the right one for the session
+    const { data: assignments } = await supabase
       .from("facilitador_osi_assignments")
       .select(`
+        nro_sesion,
         facilitadores (
           nombre_apellido
         )
       `)
       .eq("osi_id", osiId)
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
+      .eq("is_active", true);
 
-    const facilitadorRelation = assignmentData?.facilitadores;
-    const facilitadorObj = Array.isArray(facilitadorRelation)
-      ? facilitadorRelation[0]
-      : facilitadorRelation;
+    if (assignments && assignments.length > 0) {
+      // Prefer an assignment matching the specific session
+      let match = assignments.find((a: any) => a.nro_sesion === sessionNum);
+      // Fall back to an all-sessions assignment (nro_sesion = null)
+      if (!match) match = assignments.find((a: any) => a.nro_sesion === null);
+      // Fall back to the first assignment
+      if (!match) match = assignments[0];
 
-    if (facilitadorObj?.nombre_apellido) {
-      facilitador_nombre = facilitadorObj.nombre_apellido;
-    } else {
-      // Fallback: search in certificates for this OSI
+      const facilitadorRelation = match?.facilitadores;
+      const facilitadorObj = Array.isArray(facilitadorRelation)
+        ? facilitadorRelation[0]
+        : facilitadorRelation;
+
+      if (facilitadorObj?.nombre_apellido) {
+        facilitador_nombre = facilitadorObj.nombre_apellido;
+      }
+    }
+
+    // Fallback: search in certificates for this OSI
+    if (!facilitador_nombre) {
       const { data: certData } = await supabase
         .from("certificados")
         .select("id_facilitador")
-        .eq("nro_osi", parseInt(data.nro_osi.replace(/[^\d]/g, ""))) // Use numeric part of OSI
+        .eq("nro_osi", parseInt(data.nro_osi.replace(/[^\d]/g, "")))
         .limit(1)
         .maybeSingle();
 
@@ -66,7 +77,7 @@ export async function getOSIDataForSurvey(osiId: number): Promise<SurveyOSIData 
           .select("nombre_apellido")
           .eq("id", certData.id_facilitador)
           .single();
-          
+
         if (facilitatorData) {
           facilitador_nombre = facilitatorData.nombre_apellido;
         }
@@ -79,7 +90,8 @@ export async function getOSIDataForSurvey(osiId: number): Promise<SurveyOSIData 
       nombre_empresa: data.nombre_empresa,
       servicio: data.servicio,
       fecha_inicio_real: data.fecha_inicio_real,
-      facilitador_nombre
+      facilitador_nombre,
+      nro_sesion: sessionNum,
     };
   } catch (error) {
     console.error("Exception fetching OSI data for survey:", error);
@@ -94,10 +106,13 @@ export async function submitSurvey(survey: CourseSatisfactionSurvey) {
   try {
     const supabase = await createClient();
     
+    const sessionNum = survey.nro_sesion ?? 1;
+
     const { error } = await supabase
       .from("course_satisfaction_surveys")
       .insert({
         id_osi: survey.id_osi,
+        nro_sesion: sessionNum,
         q1: survey.q1,
         q2: survey.q2,
         q3: survey.q3,
@@ -117,6 +132,8 @@ export async function submitSurvey(survey: CourseSatisfactionSurvey) {
     }
 
     // Auto-mark the encuestas_satisfaccion_tabulacion process step as completed
+    // for the specific session only. completed_by is null because the column is UUID type
+    // (using a string like "survey_submission" causes a silent PostgreSQL error).
     try {
       const admin = await createAdminClient();
       await admin
@@ -124,12 +141,12 @@ export async function submitSurvey(survey: CourseSatisfactionSurvey) {
         .upsert(
           {
             osi_id: survey.id_osi,
-            nro_sesion: 1,
+            nro_sesion: sessionNum,
             phase: "ejecucion",
             step_key: "encuestas_satisfaccion_tabulacion",
             completed: true,
             completed_at: new Date().toISOString(),
-            completed_by: "survey_submission",
+            completed_by: null,
           },
           { onConflict: "osi_id,nro_sesion,phase,step_key" },
         );
@@ -149,15 +166,20 @@ export async function submitSurvey(survey: CourseSatisfactionSurvey) {
 /**
  * Get all surveys for a specific OSI
  */
-export async function getSurveysByOSI(osiId: number): Promise<CourseSatisfactionSurvey[]> {
+export async function getSurveysByOSI(osiId: number, nroSesion?: number): Promise<CourseSatisfactionSurvey[]> {
   try {
     const supabase = await createClient();
-    
-    const { data, error } = await supabase
+
+    let query = supabase
       .from("course_satisfaction_surveys")
       .select("*")
-      .eq("id_osi", osiId)
-      .order("created_at", { ascending: false });
+      .eq("id_osi", osiId);
+
+    if (nroSesion !== undefined) {
+      query = query.eq("nro_sesion", nroSesion);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching surveys for OSI:", error);

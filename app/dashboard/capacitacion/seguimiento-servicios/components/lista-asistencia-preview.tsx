@@ -21,6 +21,7 @@ import type { OSIAttachment } from "@/types";
 interface AttachmentPreviewModalProps {
   osiId: number;
   nroOsi?: string;
+  nroSesion?: number;
   isOpen: boolean;
   onClose: () => void;
   onAttachmentToggled?: (received: boolean) => void;
@@ -32,6 +33,7 @@ interface AttachmentPreviewModalProps {
 export default function AttachmentPreviewModal({
   osiId,
   nroOsi,
+  nroSesion,
   isOpen,
   onClose,
   onAttachmentToggled,
@@ -48,10 +50,10 @@ export default function AttachmentPreviewModal({
   const fetchInfo = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const result = await getListaAsistenciaInfo(osiId, category);
+    const result = await getListaAsistenciaInfo(osiId, category, nroSesion);
     setInfo(result);
     setLoading(false);
-  }, [osiId]);
+  }, [osiId, category, nroSesion]);
 
   useEffect(() => {
     if (isOpen) {
@@ -74,7 +76,7 @@ export default function AttachmentPreviewModal({
   const handleToggle = async () => {
     setToggling(true);
     try {
-      const result = await toggleAttachmentReceived(osiId);
+      const result = await toggleAttachmentReceived(osiId, nroSesion);
       if (result.success && result.attachment_received !== undefined) {
         setInfo((prev) =>
           prev

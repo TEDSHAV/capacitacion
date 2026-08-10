@@ -154,11 +154,17 @@ export default function SurveyDocumentView({ osiData, survey }: SurveyDocumentVi
             <div className="grid grid-cols-[140px_1fr] gap-2">
               <span className="font-bold">Fecha del curso:</span>
               <span className="border-b border-gray-400 pb-px">
-                {mounted && osiData.fecha_inicio_real 
-                  ? formatDate(osiData.fecha_inicio_real) 
+                {mounted && osiData.fecha_inicio_real
+                  ? formatDate(osiData.fecha_inicio_real)
                   : "______________________________________________________"}
               </span>
             </div>
+            {osiData.nro_sesion && osiData.nro_sesion > 1 && (
+              <div className="grid grid-cols-[140px_1fr] gap-2">
+                <span className="font-bold">Sesión:</span>
+                <span className="border-b border-gray-400 pb-px">Sesión {osiData.nro_sesion}</span>
+              </div>
+            )}
           </div>
         </div>
 

@@ -62,10 +62,29 @@ export default async function FacilitadorDashboardPage() {
                         {osi.servicio || "Servicio General"}
                       </span>
                     </div>
-                    
+
                     <h3 className="text-lg sm:text-xl font-bold text-gray-900">
                       {osi.nombre_empresa}
                     </h3>
+
+                    {/* Session assignment badges */}
+                    {osi.session_count === 1 ? (
+                      <span className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                        Sesión 1
+                      </span>
+                    ) : osi.assigned_all_sessions ? (
+                      <span className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                        Todas las sesiones
+                      </span>
+                    ) : osi.assigned_sessions && osi.assigned_sessions.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {osi.assigned_sessions.sort((a: number, b: number) => a - b).map((s: number) => (
+                          <span key={s} className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                            Sesión {s}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
 
                     <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                       <div className="flex items-center gap-1.5">

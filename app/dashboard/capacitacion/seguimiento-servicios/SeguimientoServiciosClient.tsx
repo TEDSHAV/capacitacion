@@ -694,6 +694,7 @@ export default function SeguimientoServiciosClient({
         <ListaAsistenciaPreview
           osiId={previewOsi.osiId}
           nroOsi={previewOsi.nroOsi}
+          nroSesion={previewOsi.nroSesion}
           isOpen={!!previewOsi}
           onClose={() => setPreviewOsi(null)}
           category={previewOsi.category}

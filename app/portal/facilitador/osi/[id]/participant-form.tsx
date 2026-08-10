@@ -37,6 +37,16 @@ interface ParticipantFormProps {
   osiId: number;
   facilitadorId: number;
   initialParticipants: Participant[];
+  /** Specific session assigned to this facilitador, or null if they need to pick */
+  assignedSession?: number | null;
+  /** True if facilitador is assigned to all/multiple sessions and must choose per upload */
+  needsSessionPicker?: boolean;
+  /** Total number of sessions for this OSI */
+  sessionCount?: number;
+  /** List of specific session numbers the facilitador is assigned to (empty if all-sessions only) */
+  assignedSessions?: number[];
+  /** True if facilitador has an all-sessions (NULL nro_sesion) assignment */
+  hasAllSessionsAssignment?: boolean;
 }
 
 const DISCLAIMER_TEXT = "Declaro bajo mi responsabilidad que he revisado exhaustivamente las calificaciones y datos de los participantes, y que la información aquí suministrada es veraz y ha sido contrastada con la lista de asistencia firmada.";
@@ -99,6 +109,11 @@ export const ParticipantForm = ({
   osiId,
   facilitadorId,
   initialParticipants,
+  assignedSession = null,
+  needsSessionPicker = false,
+  sessionCount = 1,
+  assignedSessions = [],
+  hasAllSessionsAssignment = false,
 }: ParticipantFormProps) => {
   const [participants, setParticipants] = useState<Participant[]>(
     initialParticipants.length > 0 
@@ -115,6 +130,9 @@ export const ParticipantForm = ({
   const [success, setSuccess] = useState<string | null>(null);
   const [attachmentCount, setAttachmentCount] = useState(0);
   const [activeVerificationIndex, setActiveVerificationIndex] = useState<number | null>(null);
+  // Session context: if needsSessionPicker, the facilitador selects which session they're uploading for.
+  // Default to session 1. If assignedSession is set, use that (no picker needed).
+  const [selectedSession, setSelectedSession] = useState<number>(assignedSession ?? 1);
   const [showAttachmentWarning, setShowAttachmentWarning] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [selectedPortalFile, setSelectedPortalFile] = useState<File | null>(null);
@@ -369,10 +387,67 @@ export const ParticipantForm = ({
           <span className="hidden sm:inline">Tour</span>
         </Button>
       </div>
+
+      {/* Session picker — shown whenever the OSI has more than 1 session.
+          If the facilitador is assigned to a single specific session, the picker is read-only
+          (only their assigned session is highlighted, others are disabled).
+          If assigned to all/multiple sessions, they can select which session to upload for. */}
+      {sessionCount > 1 && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <label className="block text-xs font-bold text-blue-900 mb-2 uppercase tracking-wide">
+            Sesión a cargar
+          </label>
+          <p className="text-xs text-blue-700 mb-2">
+            {assignedSession !== null
+              ? `Estás asignado a la Sesión ${assignedSession}. Los documentos se cargarán para esa sesión.`
+              : hasAllSessionsAssignment && assignedSessions.length === 0
+                ? "Estás asignado a todas las sesiones. Selecciona para qué sesión estás subiendo los documentos."
+                : assignedSessions.length > 1
+                  ? "Estás asignado a múltiples sesiones. Selecciona para qué sesión estás subiendo los documentos."
+                  : "Selecciona para qué sesión estás subiendo los documentos."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {/* Determine which sessions to show and which are selectable */}
+            {(() => {
+              // Sessions the facilitador can upload to:
+              // - If assigned to all sessions (and no specific ones): all sessions
+              // - If assigned to specific sessions: only those
+              // - If assigned to a single specific session: only that one (read-only)
+              const selectableSessions = assignedSession !== null
+                ? [assignedSession]
+                : (hasAllSessionsAssignment && assignedSessions.length === 0)
+                  ? Array.from({ length: sessionCount }, (_, i) => i + 1)
+                  : [...assignedSessions].sort((a, b) => a - b);
+
+              const isReadOnly = assignedSession !== null;
+
+              return selectableSessions.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => !isReadOnly && setSelectedSession(n)}
+                  disabled={isReadOnly}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                    selectedSession === n
+                      ? "bg-blue-600 text-white"
+                      : isReadOnly
+                        ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                        : "bg-white text-blue-700 border border-blue-200 hover:bg-blue-100"
+                  }`}
+                >
+                  Sesión {n}
+                </button>
+              ));
+            })()}
+          </div>
+        </div>
+      )}
+
       <AttachmentUploadSection
         osiId={osiId}
         facilitadorId={facilitadorId}
         category="lista_asistencia"
+        nroSesion={selectedSession}
         title="Cargar Listas Físicas"
         description="Sube fotos o PDFs de las listas de asistencia firmadas. Las imágenes se comprimen automáticamente."
         badge="Requerido"
@@ -606,6 +681,7 @@ export const ParticipantForm = ({
           osiId={osiId}
           facilitadorId={facilitadorId}
           category="material_fotografico"
+          nroSesion={selectedSession}
           title="Registro Fotográfico"
           description="Sube fotos de la actividad (imágenes se comprimen automáticamente)."
           badge="Opcional"
@@ -617,6 +693,7 @@ export const ParticipantForm = ({
           osiId={osiId}
           facilitadorId={facilitadorId}
           category="hoja_calificacion"
+          nroSesion={selectedSession}
           title="Hoja de Calificación"
           description="Sube fotos o PDFs de las hojas de calificación firmadas."
           badge="Opcional"

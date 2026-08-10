@@ -6,21 +6,32 @@ import { revalidatePath } from "next/cache";
 export async function assignOSIToFacilitador(
   osiId: number,
   facilitadorId: number,
-  source: "direct" | "requisicion" = "direct"
+  source: "direct" | "requisicion" = "direct",
+  nroSesion?: number | null,
 ) {
   const supabase = await createClient();
   const userResponse = await supabase.auth.getUser();
   const assignedBy = userResponse.data.user?.id || null;
 
-  // Find the currently active assignment to get the previous facilitador
-  const { data: prevAssignment } = await supabase
-    .from("facilitador_osi_assignments")
-    .select("facilitador_id")
-    .eq("osi_id", osiId)
-    .eq("is_active", true)
-    .maybeSingle();
+  // nroSesion: null/undefined = all sessions; a specific number = that session only
+  const sessionValue = nroSesion ?? null;
 
-  // If reassigning to a different facilitador, clean up the old one's data
+  // Find the currently active assignment for THIS session slot (not all assignments)
+  let prevQuery = supabase
+    .from("facilitador_osi_assignments")
+    .select("id, facilitador_id, nro_sesion")
+    .eq("osi_id", osiId)
+    .eq("is_active", true);
+
+  if (sessionValue === null) {
+    prevQuery = prevQuery.is("nro_sesion", null);
+  } else {
+    prevQuery = prevQuery.eq("nro_sesion", sessionValue);
+  }
+
+  const { data: prevAssignment } = await prevQuery.maybeSingle();
+
+  // If reassigning to a different facilitador for this slot, clean up the old one's data
   if (prevAssignment?.facilitador_id && prevAssignment.facilitador_id !== facilitadorId) {
     const oldFacilitadorId = prevAssignment.facilitador_id;
     await supabase
@@ -35,12 +46,20 @@ export async function assignOSIToFacilitador(
       .eq("facilitador_id", oldFacilitadorId);
   }
 
-  // Deactivate any existing active assignment for this OSI
-  const { error: deactivateError } = await supabase
+  // Deactivate only the existing active assignment for this session slot
+  let deactivateQuery = supabase
     .from("facilitador_osi_assignments")
     .update({ is_active: false, updated_at: new Date().toISOString() })
     .eq("osi_id", osiId)
     .eq("is_active", true);
+
+  if (sessionValue === null) {
+    deactivateQuery = deactivateQuery.is("nro_sesion", null);
+  } else {
+    deactivateQuery = deactivateQuery.eq("nro_sesion", sessionValue);
+  }
+
+  const { error: deactivateError } = await deactivateQuery;
 
   if (deactivateError) {
     console.error("Error deactivating previous assignment:", deactivateError);
@@ -56,6 +75,7 @@ export async function assignOSIToFacilitador(
       assigned_by: assignedBy,
       source,
       is_active: true,
+      nro_sesion: sessionValue,
     })
     .select()
     .single();
@@ -122,6 +142,7 @@ export async function getAssignmentsByFacilitador(facilitadorId: number) {
       id,
       osi_id,
       facilitador_id,
+      nro_sesion,
       source,
       is_active,
       created_at
@@ -172,6 +193,7 @@ export async function getAssignmentByOSI(osiId: number) {
       id,
       osi_id,
       facilitador_id,
+      nro_sesion,
       source,
       is_active,
       created_at,
@@ -185,14 +207,80 @@ export async function getAssignmentByOSI(osiId: number) {
     `)
     .eq("osi_id", osiId)
     .eq("is_active", true)
-    .maybeSingle();
+    .order("nro_sesion", { ascending: true, nullsFirst: true });
 
   if (error) {
-    console.error("Error fetching assignment by OSI:", error);
+    console.error("Error fetching assignments by OSI:", error);
     return { error: error.message };
   }
 
-  return { data };
+  // Return array (multiple facilitadores possible — one per session)
+  return { data: data || [] };
+}
+
+/**
+ * Get the active assignment for a specific session of an OSI.
+ * Falls back to the NULL (all-sessions) assignment if no session-specific one exists.
+ */
+export async function getAssignmentByOSIAndSession(osiId: number, nroSesion: number) {
+  const supabase = await createClient();
+
+  // 1. Try session-specific assignment
+  const { data: sessionAssignment } = await supabase
+    .from("facilitador_osi_assignments")
+    .select(`
+      id,
+      osi_id,
+      facilitador_id,
+      nro_sesion,
+      source,
+      is_active,
+      created_at,
+      facilitadores (
+        id,
+        nombre_apellido,
+        cedula,
+        email,
+        telefono
+      )
+    `)
+    .eq("osi_id", osiId)
+    .eq("nro_sesion", nroSesion)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (sessionAssignment) return { data: sessionAssignment };
+
+  // 2. Fall back to all-sessions assignment (nro_sesion IS NULL)
+  const { data: allSessionsAssignment, error } = await supabase
+    .from("facilitador_osi_assignments")
+    .select(`
+      id,
+      osi_id,
+      facilitador_id,
+      nro_sesion,
+      source,
+      is_active,
+      created_at,
+      facilitadores (
+        id,
+        nombre_apellido,
+        cedula,
+        email,
+        telefono
+      )
+    `)
+    .eq("osi_id", osiId)
+    .is("nro_sesion", null)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching assignment by OSI and session:", error);
+    return { error: error.message };
+  }
+
+  return { data: allSessionsAssignment };
 }
 
 export async function getAllOSIsForAssignment() {
@@ -200,7 +288,7 @@ export async function getAllOSIsForAssignment() {
 
   const { data, error } = await supabase
     .from("v_osi_lista")
-    .select("id_osi, nro_osi, nombre_empresa, servicio, tipo_servicio, fecha_emision")
+    .select("id_osi, nro_osi, nombre_empresa, servicio, tipo_servicio, fecha_emision, sesiones_ejecucion")
     .order("id_osi", { ascending: false });
 
   if (error) {

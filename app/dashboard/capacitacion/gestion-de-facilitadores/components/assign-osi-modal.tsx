@@ -2,13 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Loader2, Plus, Trash2, AlertCircle, CheckCircle2, Search } from "lucide-react";
+import { X, Loader2, Plus, Trash2, AlertCircle, CheckCircle2, Search, Layers } from "lucide-react";
+import { getSessionCount } from "@/lib/osi-utils";
 import {
   getAssignmentsByFacilitador,
   getAllOSIsForAssignment,
   assignOSIToFacilitador,
   unassignOSIToFacilitador,
 } from "@/app/actions/osi-facilitador-assignments";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AssignOSIModalProps {
   facilitadorId: number;
@@ -26,6 +34,7 @@ export default function AssignOSIModal({
   const [allOsis, setAllOsis] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOsiId, setSelectedOsiId] = useState<number | null>(null);
+  const [selectedSession, setSelectedSession] = useState<string>("all");
   const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -75,12 +84,14 @@ export default function AssignOSIModal({
     setError(null);
     setSuccess(null);
 
-    const result = await assignOSIToFacilitador(selectedOsiId, facilitadorId, "direct");
+    const nroSesion = selectedSession === "all" ? null : parseInt(selectedSession);
+    const result = await assignOSIToFacilitador(selectedOsiId, facilitadorId, "direct", nroSesion);
     if (result.error) {
       setError(result.error);
     } else {
       setSuccess("OSI asignada exitosamente");
       setSelectedOsiId(null);
+      setSelectedSession("all");
       setSearchTerm("");
       await loadData();
       setTimeout(() => setSuccess(null), 3000);
@@ -149,6 +160,10 @@ export default function AssignOSIModal({
                         <span className="text-xs text-gray-500">
                           {a.osi?.nombre_empresa} — {a.osi?.servicio}
                         </span>
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <Layers className="w-3 h-3" />
+                          {a.nro_sesion === null || a.nro_sesion === undefined ? "Todas las sesiones" : `Sesión ${a.nro_sesion}`}
+                        </span>
                       </div>
                       <button
                         onClick={() => handleUnassign(a.id)}
@@ -215,12 +230,44 @@ export default function AssignOSIModal({
               )}
 
               {selectedOsiId && (
-                <div className="flex items-center gap-2 mb-3 p-2 bg-blue-50 rounded-md">
-                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm text-blue-700">
-                    OSI seleccionada. Click &quot;Asignar&quot; para confirmar.
-                  </span>
-                </div>
+                <>
+                  <div className="flex items-center gap-2 mb-3 p-2 bg-blue-50 rounded-md">
+                    <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-blue-700">
+                      OSI seleccionada. Click &quot;Asignar&quot; para confirmar.
+                    </span>
+                  </div>
+
+                  {/* Session selector — show when selected OSI has >1 session */}
+                  {(() => {
+                    const selectedOsi = allOsis.find((o) => o.id_osi === selectedOsiId);
+                    const sessionCount = selectedOsi ? getSessionCount(selectedOsi) : 1;
+                    if (sessionCount <= 1) return null;
+                    return (
+                      <div className="mb-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Sesión
+                        </label>
+                        <Select
+                          value={selectedSession}
+                          onValueChange={setSelectedSession}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Seleccionar sesión..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todas las sesiones</SelectItem>
+                            {Array.from({ length: sessionCount }, (_, i) => i + 1).map((n) => (
+                              <SelectItem key={n} value={n.toString()}>
+                                Sesión {n}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })()}
+                </>
               )}
 
               {error && (

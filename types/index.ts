@@ -1077,6 +1077,7 @@ export interface OSIAttachment {
   file_type: string;
   file_size: number;
   category?: string | null;
+  nro_sesion?: number | null;
   created_at: string;
   updated_at: string;
   publicUrl?: string;
@@ -1479,6 +1480,7 @@ export interface TendenciasData {
 export interface CourseSatisfactionSurvey {
   id?: string;
   id_osi: number;
+  nro_sesion?: number;
   q1: number;
   q2: number;
   q3: number;
@@ -1518,6 +1520,7 @@ export interface SurveyOSIData {
   servicio: string;
   fecha_inicio_real: string;
   facilitador_nombre?: string;
+  nro_sesion?: number;
 }
 
 // Carnets Metrics Types

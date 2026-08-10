@@ -116,3 +116,41 @@ export async function saveOptimizedSignature(
     imagen_base64: base64String,
   };
 }
+
+/**
+ * Rasterize a PDF to a JPEG image using sharp.
+ * This is a best-effort optimization — if sharp can't process the PDF
+ * (e.g. missing ghostscript/libvips delegates in the container), it returns null
+ * and the caller should fall back to storing the original PDF.
+ *
+ * @param buffer PDF file buffer
+ * @param options maxWidth/maxHeight/quality for the output JPEG
+ * @returns JPEG buffer, or null if rasterization failed
+ */
+export async function optimizePdfToImage(
+  buffer: Buffer,
+  options: OptimizeOptions = {},
+): Promise<Buffer | null> {
+  const { maxWidth = 1500, maxHeight = 2000, quality = 70 } = options;
+
+  try {
+    const result = await sharp(buffer, { density: 150 })
+      .resize({
+        width: maxWidth,
+        height: maxHeight,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({
+        quality,
+        progressive: true,
+        mozjpeg: true,
+      })
+      .toBuffer();
+
+    return result;
+  } catch (error) {
+    console.error("[optimizePdfToImage] CATCH (PDF rasterization not available):", error instanceof Error ? error.message : String(error));
+    return null;
+  }
+}

@@ -5,20 +5,23 @@ import SurveyForm from "./SurveyForm";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ sesion?: string }>;
 }
 
-export default async function SurveyPage({ params }: PageProps) {
+export default async function SurveyPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const { sesion } = await searchParams;
   const osiId = parseInt(id);
+  const nroSesion = sesion ? parseInt(sesion) : 1;
 
-  console.log(`[SurveyPage] Accessing survey for OSI ID: ${id} (parsed: ${osiId})`);
+  console.log(`[SurveyPage] Accessing survey for OSI ID: ${id} (parsed: ${osiId}), session: ${nroSesion}`);
 
   if (isNaN(osiId)) {
     console.warn(`[SurveyPage] Invalid OSI ID provided: ${id}`);
     return notFound();
   }
 
-  const osiData = await getOSIDataForSurvey(osiId);
+  const osiData = await getOSIDataForSurvey(osiId, nroSesion);
 
   if (!osiData) {
     console.warn(`[SurveyPage] No OSI data found for ID: ${osiId}`);

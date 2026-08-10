@@ -582,6 +582,30 @@ export async function autoAdvanceEjecucionSteps(
       }
     }
 
+    // Re-fetch all steps AFTER seeding and auto-advance to ensure the return map
+    // reflects the actual DB state (handles race conditions where facilitador uploads
+    // auto-marked a step while this function was running).
+    const { data: refreshedSteps } = await admin
+      .from("capacitacion_proceso_steps")
+      .select("*")
+      .in("osi_id", osiIds);
+
+    // Rebuild stepsLookup from the fresh fetch
+    const freshLookup = new Map<number, Map<number, Map<string, ProcesoStepRecord>>>();
+    for (const row of (refreshedSteps || []) as ProcesoStepRecord[]) {
+      let osiMap = freshLookup.get(row.osi_id);
+      if (!osiMap) {
+        osiMap = new Map();
+        freshLookup.set(row.osi_id, osiMap);
+      }
+      let sessionMap = osiMap.get(row.nro_sesion);
+      if (!sessionMap) {
+        sessionMap = new Map();
+        osiMap.set(row.nro_sesion, sessionMap);
+      }
+      sessionMap.set(row.step_key, row);
+    }
+
     // Build the returned steps map reflecting post-upsert state:
     // for each OSI/session, seed all step keys as incomplete defaults, overlay existing
     // DB rows (real ids + state), then overlay auto-advanced upserts.
@@ -590,7 +614,7 @@ export async function autoAdvanceEjecucionSteps(
     for (const osi of osis) {
       const osiId = osi.id_osi;
       const osiMap = new Map<number, Record<string, ProcesoStepRecord>>();
-      const existingOsiMap = stepsLookup.get(osiId);
+      const existingOsiMap = freshLookup.get(osiId);
       const sessions = resolveSessions(osi, osiSesionByOsi.get(osiId));
 
       for (const session of sessions) {
@@ -677,6 +701,7 @@ export async function autoAdvanceEjecucionSteps(
 export async function getListaAsistenciaInfo(
   osiId: number,
   category?: string,
+  nroSesion?: number,
 ): Promise<ListaAsistenciaInfo> {
   if (!Number.isFinite(osiId) || osiId <= 0) {
     return { attachment_received: false, attachment_received_at: null, attachments: [] };
@@ -685,12 +710,33 @@ export async function getListaAsistenciaInfo(
   try {
     const admin = await createAdminClient();
 
-    const { data: assignment } = await admin
+    // Find the assignment for this session (or the all-sessions fallback)
+    let assignmentQuery = admin
       .from("facilitador_osi_assignments")
-      .select("attachment_received, attachment_received_at")
+      .select("attachment_received, attachment_received_at, nro_sesion")
       .eq("osi_id", osiId)
-      .eq("is_active", true)
-      .maybeSingle();
+      .eq("is_active", true);
+
+    if (nroSesion != null) {
+      assignmentQuery = assignmentQuery.eq("nro_sesion", nroSesion);
+    }
+
+    // Use limit(1) + take first to avoid maybeSingle() error when multiple rows exist
+    const { data: assignmentRows } = await assignmentQuery.limit(1);
+    const assignment = assignmentRows?.[0];
+
+    // If no session-specific assignment, try the all-sessions (NULL) one
+    let assignmentData = assignment;
+    if (!assignmentData && nroSesion != null) {
+      const { data: fallback } = await admin
+        .from("facilitador_osi_assignments")
+        .select("attachment_received, attachment_received_at, nro_sesion")
+        .eq("osi_id", osiId)
+        .eq("is_active", true)
+        .is("nro_sesion", null)
+        .maybeSingle();
+      assignmentData = fallback ?? undefined;
+    }
 
     let filesQuery = admin
       .from("ejecucion_osi_asistencia")
@@ -699,6 +745,10 @@ export async function getListaAsistenciaInfo(
 
     if (category) {
       filesQuery = filesQuery.eq("category", category);
+    }
+
+    if (nroSesion != null) {
+      filesQuery = filesQuery.eq("nro_sesion", nroSesion);
     }
 
     const { data: files, error: filesError } = await filesQuery.order("created_at", { ascending: false });
@@ -726,8 +776,8 @@ export async function getListaAsistenciaInfo(
     });
 
     return {
-      attachment_received: !!assignment?.attachment_received,
-      attachment_received_at: assignment?.attachment_received_at ?? null,
+      attachment_received: !!assignmentData?.attachment_received,
+      attachment_received_at: assignmentData?.attachment_received_at ?? null,
       attachments,
     };
   } catch (err) {
@@ -742,6 +792,7 @@ export async function getListaAsistenciaInfo(
  */
 export async function toggleAttachmentReceived(
   osiId: number,
+  nroSesion?: number | null,
 ): Promise<{ success: boolean; attachment_received?: boolean; error?: string }> {
   if (!Number.isFinite(osiId) || osiId <= 0) {
     return { success: false, error: "OSI inválido" };
@@ -753,12 +804,33 @@ export async function toggleAttachmentReceived(
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
 
-    const { data: assignment, error: findError } = await admin
+    // Find the active assignment for this OSI (and optionally a specific session)
+    let findQuery = admin
       .from("facilitador_osi_assignments")
-      .select("id, attachment_received")
+      .select("id, attachment_received, nro_sesion")
       .eq("osi_id", osiId)
-      .eq("is_active", true)
-      .maybeSingle();
+      .eq("is_active", true);
+
+    if (nroSesion != null) {
+      // Try session-specific first, then fall back to all-sessions (NULL)
+      findQuery = findQuery.eq("nro_sesion", nroSesion);
+    }
+
+    const { data: assignments, error: findError } = await findQuery.order("nro_sesion", { ascending: true, nullsFirst: false }).limit(1);
+
+    let assignment = assignments?.[0];
+
+    // If no session-specific assignment found, try the all-sessions (NULL) one
+    if (!assignment && nroSesion != null) {
+      const { data: fallback } = await admin
+        .from("facilitador_osi_assignments")
+        .select("id, attachment_received, nro_sesion")
+        .eq("osi_id", osiId)
+        .eq("is_active", true)
+        .is("nro_sesion", null)
+        .maybeSingle();
+      assignment = fallback ?? undefined;
+    }
 
     if (findError) {
       console.error("Error finding assignment for attachment toggle:", findError);

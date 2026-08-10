@@ -120,6 +120,7 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
 
     const surveyData = {
       id_osi: osiData.id_osi,
+      nro_sesion: osiData.nro_sesion ?? 1,
       q1: formData.q1,
       q2: formData.q2,
       q3: formData.q3,
@@ -193,6 +194,12 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
             {mounted && osiData.fecha_inicio_real ? formatDate(osiData.fecha_inicio_real) : "..."}
           </p>
         </div>
+        {osiData.nro_sesion && osiData.nro_sesion > 1 && (
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Sesión</label>
+            <p className="font-medium text-gray-700">Sesión {osiData.nro_sesion}</p>
+          </div>
+        )}
       </div>
 
       <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800">

@@ -4,9 +4,10 @@ import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import crypto from "node:crypto";
-import { optimizeDocumentImage } from "@/lib/image-optimization.server";
+import { optimizeDocumentImage, optimizePdfToImage } from "@/lib/image-optimization.server";
 import { OSIAttachment } from "@/types";
 import { signSession, verifySession } from "@/lib/session-signing";
+import { getSessionCount } from "@/lib/osi-utils";
 
 // Simple hash function using Node.js crypto
 function hashPassword(password: string): string {
@@ -149,9 +150,10 @@ export async function getAssignedOSIs(facilitadorId: number) {
   const supabase = await createAdminClient();
 
   // Query the facilitador_osi_assignments table (sole source of truth)
+  // Include nro_sesion so the dashboard can show which session(s) the facilitador is assigned to
   const { data: assignments, error: assignError } = await supabase
     .from("facilitador_osi_assignments")
-    .select("osi_id")
+    .select("osi_id, nro_sesion")
     .eq("facilitador_id", facilitadorId)
     .eq("is_active", true);
 
@@ -164,6 +166,18 @@ export async function getAssignedOSIs(facilitadorId: number) {
 
   if (allOsiIds.length === 0) {
     return { data: [] };
+  }
+
+  // Build a map: osi_id → { specificSessions: number[], hasAllSessions: boolean }
+  const sessionsByOsi = new Map<number, { specificSessions: number[]; hasAllSessions: boolean }>();
+  for (const a of assignments || []) {
+    const entry = sessionsByOsi.get(a.osi_id) || { specificSessions: [], hasAllSessions: false };
+    if (a.nro_sesion === null) {
+      entry.hasAllSessions = true;
+    } else {
+      entry.specificSessions.push(a.nro_sesion);
+    }
+    sessionsByOsi.set(a.osi_id, entry);
   }
 
   // Get the details from v_osi_formato_completo
@@ -197,11 +211,28 @@ export async function getAssignedOSIs(facilitadorId: number) {
         }
       }
     }
-    enrichedData = enrichedData.map((osi: any) => ({
-      ...osi,
-      participant_status: osiStatusMap.get(osi.id_osi) || null,
-    }));
+    enrichedData = enrichedData.map((osi: any) => {
+      const sessionInfo = sessionsByOsi.get(osi.id_osi);
+      return {
+        ...osi,
+        participant_status: osiStatusMap.get(osi.id_osi) || null,
+        assigned_sessions: sessionInfo?.specificSessions || [],
+        assigned_all_sessions: sessionInfo?.hasAllSessions || false,
+        session_count: getSessionCount(osi),
+      };
+    });
   }
+
+  console.log("[getAssignedOSIs] Enriched data sample:", JSON.stringify((enrichedData as any[])?.slice(0, 2).map(o => ({
+    id_osi: o.id_osi,
+    nro_osi: o.nro_osi,
+    assigned_sessions: o.assigned_sessions,
+    assigned_all_sessions: o.assigned_all_sessions,
+    session_count: o.session_count,
+    sesiones_ejecucion: o.sesiones_ejecucion,
+    desglose_recursos_sesiones: Array.isArray(o.desglose_recursos_sesiones) ? `array[${o.desglose_recursos_sesiones.length}]` : o.desglose_recursos_sesiones,
+    sesiones_programadas: Array.isArray(o.sesiones_programadas) ? `array[${o.sesiones_programadas.length}]` : o.sesiones_programadas,
+  })), null, 2));
 
   return { data: enrichedData };
 }
@@ -372,6 +403,7 @@ export async function saveParticipants(
   }
 
   revalidatePath("/portal/facilitador/dashboard");
+  revalidatePath("/dashboard/capacitacion/seguimiento-servicios");
   return { success: true };
 }
 
@@ -439,9 +471,10 @@ export async function uploadOSIAttachment(
   osiId: number,
   facilitadorId: number,
   formData: FormData,
-  category: string = "lista_asistencia"
+  category: string = "lista_asistencia",
+  nroSesion?: number,
 ): Promise<{ success?: boolean; data?: OSIAttachment; error?: string }> {
-  console.log("[uploadOSIAttachment] ENTRY", { osiId, facilitadorId, category });
+  console.log("[uploadOSIAttachment] ENTRY", { osiId, facilitadorId, category, nroSesion });
 
   const session = await getFacilitatorSession();
   console.log("[uploadOSIAttachment] Session:", session ? { id: session.id, facilitador_id: session.facilitador_id, nombre: session.nombre } : "NULL");
@@ -456,32 +489,62 @@ export async function uploadOSIAttachment(
 
   if (!file) return { error: "No se proporcionó ningún archivo" };
 
+  // Max file size: 10MB — reject before any processing to save storage and bandwidth
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  if (file.size > MAX_FILE_SIZE) {
+    return { error: `El archivo excede el tamaño máximo de 10MB (tamaño actual: ${(file.size / 1024 / 1024).toFixed(1)}MB)` };
+  }
+
   try {
     const bytes = await file.arrayBuffer();
     let buffer: Buffer = Buffer.from(bytes);
     let finalFileType = file.type;
     console.log("[uploadOSIAttachment] Buffer created, size:", buffer.length, "type:", finalFileType);
 
+    // Category-aware optimization: documents need higher resolution for legibility,
+    // photos (material_fotografico) can be smaller to save storage.
+    const isPhotoCategory = category === "material_fotografico";
+    const imageOpts = isPhotoCategory
+      ? { maxWidth: 1200, maxHeight: 1200, quality: 70 }
+      : { maxWidth: 2000, maxHeight: 2000, quality: 80 };
+
     // Optimize images (not PDFs)
     if (file.type.startsWith("image/")) {
       const originalSize = buffer.length;
-      buffer = await optimizeDocumentImage(buffer) as Buffer;
+      buffer = await optimizeDocumentImage(buffer, imageOpts) as Buffer;
       finalFileType = "image/jpeg"; // Always output optimized as JPEG
-      console.log("[uploadOSIAttachment] After optimizeDocumentImage:", { originalSize, optimizedSize: buffer.length, type: finalFileType });
+      console.log("[uploadOSIAttachment] After optimizeDocumentImage:", { originalSize, optimizedSize: buffer.length, type: finalFileType, category });
     }
 
-    // Generate path: osi_id/facilitador_id/timestamp_filename
+    // Rasterize PDFs to JPEG to save storage (best-effort — falls back to original if sharp can't process)
+    if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+      const originalSize = buffer.length;
+      const pdfImage = await optimizePdfToImage(buffer, { maxWidth: 1500, maxHeight: 2000, quality: 70 });
+      if (pdfImage) {
+        buffer = pdfImage;
+        finalFileType = "image/jpeg";
+        console.log("[uploadOSIAttachment] PDF rasterized to JPEG:", { originalSize, optimizedSize: buffer.length });
+      } else {
+        console.log("[uploadOSIAttachment] PDF rasterization unavailable, storing original PDF");
+      }
+    }
+
+    // Generate path: osi_id/facilitador_id/timestamp_random_filename
+    // Use random suffix to avoid path collisions (upsert: false means collisions error)
     const timestamp = Date.now();
+    const randomSuffix = crypto.randomBytes(4).toString("hex");
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const storagePath = `${osiId}/${facilitadorId}/${timestamp}_${sanitizedName}`;
+    const ext = finalFileType === "image/jpeg" ? ".jpg" : "";
+    const baseName = sanitizedName.replace(/\.[^.]+$/, "");
+    const storagePath = `${osiId}/${facilitadorId}/${timestamp}_${randomSuffix}_${baseName}${ext}`;
     console.log("[uploadOSIAttachment] Storage path:", storagePath);
 
-    // 1. Upload to Supabase Storage
+    // 1. Upload to Supabase Storage (upsert: false — don't silently overwrite existing files)
     const { data: storageData, error: storageError } = await supabase.storage
       .from("facilitador-uploads")
       .upload(storagePath, buffer, {
         contentType: finalFileType,
-        upsert: true,
+        upsert: false,
       });
 
     console.log("[uploadOSIAttachment] Storage upload result:", { error: storageError ? { message: storageError.message, name: storageError.name } : "none", data: storageData ? { path: storageData.path, id: storageData.id } : "null" });
@@ -489,19 +552,44 @@ export async function uploadOSIAttachment(
     if (storageError) throw storageError;
 
     // 2. Insert into metadata table
-    const { data, error: dbError } = await supabase
+    // Try with nro_sesion first; if the column doesn't exist yet (migration not applied),
+    // retry without it so uploads still work.
+    const insertPayload: Record<string, unknown> = {
+      osi_id: osiId,
+      facilitador_id: facilitadorId,
+      storage_path: storagePath,
+      file_name: file.name,
+      file_type: finalFileType,
+      file_size: buffer.length,
+      category,
+      nro_sesion: nroSesion ?? 1,
+    };
+
+    let { data, error: dbError } = await supabase
       .from("ejecucion_osi_asistencia")
-      .insert({
-        osi_id: osiId,
-        facilitador_id: facilitadorId,
-        storage_path: storagePath,
-        file_name: file.name,
-        file_type: finalFileType,
-        file_size: buffer.length,
-        category,
-      })
+      .insert(insertPayload)
       .select()
       .single();
+
+    // If the nro_sesion column doesn't exist, retry without it (backwards compatible)
+    if (dbError && (dbError.message?.includes("nro_sesion") || dbError.message?.includes("Could not find the column"))) {
+      console.warn("[uploadOSIAttachment] nro_sesion column missing, retrying without it:", dbError.message);
+      const { data: retryData, error: retryError } = await supabase
+        .from("ejecucion_osi_asistencia")
+        .insert({
+          osi_id: osiId,
+          facilitador_id: facilitadorId,
+          storage_path: storagePath,
+          file_name: file.name,
+          file_type: finalFileType,
+          file_size: buffer.length,
+          category,
+        })
+        .select()
+        .single();
+      data = retryData;
+      dbError = retryError;
+    }
 
     console.log("[uploadOSIAttachment] DB insert result:", { error: dbError ? { message: dbError.message, code: dbError.code, details: dbError.details } : "none", data: data ? { id: data.id, file_name: data.file_name, storage_path: data.storage_path } : "NULL" });
 
@@ -510,6 +598,46 @@ export async function uploadOSIAttachment(
       await supabase.storage.from("facilitador-uploads").remove([storagePath]);
       throw dbError;
     }
+
+    // Auto-mark the corresponding ejecucion process step as completed
+    // Maps upload category → process step key
+    const CATEGORY_TO_STEP: Record<string, string> = {
+      lista_asistencia: "lista_asistencia",
+      hoja_calificacion: "calificacion",
+      material_fotografico: "material_fotografico",
+    };
+    const stepKey = CATEGORY_TO_STEP[category];
+    const sessionForStep = nroSesion ?? 1;
+    console.log("[uploadOSIAttachment] Auto-mark check:", { category, stepKey, sessionForStep, nroSesion });
+    if (stepKey) {
+      try {
+        const { error: stepError } = await supabase
+          .from("capacitacion_proceso_steps")
+          .upsert(
+            {
+              osi_id: osiId,
+              nro_sesion: sessionForStep,
+              phase: "ejecucion",
+              step_key: stepKey,
+              completed: true,
+              completed_at: new Date().toISOString(),
+              completed_by: null, // system auto-mark (null distinguishes from user toggles)
+            },
+            { onConflict: "osi_id,nro_sesion,phase,step_key" },
+          );
+        if (stepError) {
+          console.error("[uploadOSIAttachment] Step upsert error:", stepError);
+        } else {
+          console.log("[uploadOSIAttachment] ✅ Auto-marked step:", { stepKey, sessionForStep, osiId });
+        }
+      } catch (stepErr) {
+        // Non-fatal: the upload succeeded, step marking is a bonus
+        console.error("[uploadOSIAttachment] Failed to auto-mark step:", stepErr);
+      }
+    }
+
+    // Always revalidate the seguimiento-servicios page so any auto-marked step is visible
+    revalidatePath("/dashboard/capacitacion/seguimiento-servicios");
 
     const returnValue = { success: true, data: data as OSIAttachment };
     console.log("[uploadOSIAttachment] Returning success:", { hasData: !!returnValue.data, dataId: returnValue.data?.id });
@@ -523,22 +651,26 @@ export async function uploadOSIAttachment(
 /**
  * Get all attachments for a specific OSI
  */
-export async function getOSIAttachments(osiId: number, facilitadorId?: number, category?: string): Promise<{ data?: OSIAttachment[]; error?: string }> {
-  console.log("[getOSIAttachments] ENTRY", { osiId, facilitadorId, category });
+export async function getOSIAttachments(osiId: number, facilitadorId?: number, category?: string, nroSesion?: number): Promise<{ data?: OSIAttachment[]; error?: string }> {
+  console.log("[getOSIAttachments] ENTRY", { osiId, facilitadorId, category, nroSesion });
 
   const supabase = await createAdminClient();
-  
+
   let query = supabase
     .from("ejecucion_osi_asistencia")
     .select("*")
     .eq("osi_id", osiId);
-  
+
   if (facilitadorId) {
     query = query.eq("facilitador_id", facilitadorId);
   }
 
   if (category) {
     query = query.eq("category", category);
+  }
+
+  if (nroSesion != null) {
+    query = query.eq("nro_sesion", nroSesion);
   }
   
   const { data, error } = await query.order("created_at", { ascending: false });

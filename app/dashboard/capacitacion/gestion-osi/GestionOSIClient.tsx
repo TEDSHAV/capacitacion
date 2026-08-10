@@ -9,6 +9,7 @@ import OSIPagination from "./components/osi-pagination";
 import OSIDetailsModalV2 from "./components/osi-details-modal-v2";
 import OSISurveyModal from "./components/osi-survey-modal";
 import AssignFacilitadorModal from "./components/assign-facilitador-modal";
+import { getSessionCount } from "@/lib/osi-utils";
 
 interface GestionOSIClientProps {
   user: any;
@@ -358,6 +359,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
       {showSurveyModal && (
         <OSISurveyModal
           osi={surveyOSI}
+          sessionCount={surveyOSI ? getSessionCount(surveyOSI) : 1}
           onClose={handleCloseSurveyModal}
         />
       )}
@@ -368,6 +370,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
           osiId={assignFacilitadorOSI.id_osi}
           osiNumber={assignFacilitadorOSI.nro_osi}
           osiCompany={assignFacilitadorOSI.nombre_empresa}
+          sessionCount={getSessionCount(assignFacilitadorOSI)}
           onClose={handleCloseAssignFacilitadorModal}
         />
       )}

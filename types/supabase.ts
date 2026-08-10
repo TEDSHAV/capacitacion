@@ -1350,6 +1350,7 @@ export type Database = {
           created_at: string | null
           id: string
           id_osi: number
+          nro_sesion: number
           q1: number
           q10: number
           q2: number
@@ -1366,6 +1367,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           id_osi: number
+          nro_sesion?: number
           q1: number
           q10: number
           q2: number
@@ -1382,6 +1384,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           id_osi?: number
+          nro_sesion?: number
           q1?: number
           q10?: number
           q2?: number
@@ -2882,6 +2885,8 @@ export type Database = {
           osi_id: number | null
           storage_path: string
           updated_at: string | null
+          category: string | null
+          nro_sesion: number | null
         }
         Insert: {
           created_at?: string | null
@@ -2893,6 +2898,8 @@ export type Database = {
           osi_id?: number | null
           storage_path: string
           updated_at?: string | null
+          category?: string | null
+          nro_sesion?: number | null
         }
         Update: {
           created_at?: string | null
@@ -2904,6 +2911,8 @@ export type Database = {
           osi_id?: number | null
           storage_path?: string
           updated_at?: string | null
+          category?: string | null
+          nro_sesion?: number | null
         }
         Relationships: [
           {
@@ -3391,6 +3400,7 @@ export type Database = {
           id: number
           is_active: boolean | null
           osi_id: number
+          nro_sesion: number | null
           source: string | null
           updated_at: string | null
         }
@@ -3404,6 +3414,7 @@ export type Database = {
           id?: never
           is_active?: boolean | null
           osi_id: number
+          nro_sesion?: number | null
           source?: string | null
           updated_at?: string | null
         }
@@ -3417,6 +3428,7 @@ export type Database = {
           id?: never
           is_active?: boolean | null
           osi_id?: number
+          nro_sesion?: number | null
           source?: string | null
           updated_at?: string | null
         }
