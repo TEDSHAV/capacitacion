@@ -93,6 +93,7 @@ export default function SeguimientoServiciosClient({
   const [osis, setOsis] = useState<OSIManagement[]>(initialOsis);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
   const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<OSIFilters>({});
   const [stepFilter, setStepFilter] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,32 +115,25 @@ export default function SeguimientoServiciosClient({
   // Cache of all fetched OSIs for instant client-side search
   const cachedOsisRef = useRef<OSIManagement[]>(initialOsis);
 
-  // Client-side filtered OSIs from cache (instant search + step filter)
-  // When no search/step filter, show the server-returned page. When searching, filter the full cache.
+  // Debounce search input → searchQuery (sent to server)
+  useEffect(() => {
+    const t = setTimeout(() => setSearchQuery(searchInput), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // Client-side filtered OSIs: search is now server-side, so only the step filter
+  // (which depends on the loaded steps data) is applied here on top of the server page.
   const filteredOsis = useMemo(() => {
-    let result = !searchInput.trim() ? osis : (() => {
-      const q = searchInput.toLowerCase();
-      return cachedOsisRef.current.filter(
-        (o) =>
-          o.nro_osi?.toLowerCase().includes(q) ||
-          o.nombre_empresa?.toLowerCase().includes(q),
-      );
-    })();
-
-    // Client-side step filter: show OSIs where the selected step is completed (in any session)
-    if (stepFilter) {
-      result = result.filter((o) => {
-        const osiMap = stepsByOsi.get(o.id_osi);
-        if (!osiMap) return false;
-        for (const sessionSteps of osiMap.values()) {
-          if (sessionSteps[stepFilter]?.completed) return true;
-        }
-        return false;
-      });
-    }
-
-    return result;
-  }, [searchInput, osis, stepFilter, stepsByOsi]);
+    if (!stepFilter) return osis;
+    return osis.filter((o) => {
+      const osiMap = stepsByOsi.get(o.id_osi);
+      if (!osiMap) return false;
+      for (const sessionSteps of osiMap.values()) {
+        if (sessionSteps[stepFilter]?.completed) return true;
+      }
+      return false;
+    });
+  }, [osis, stepFilter, stepsByOsi]);
 
   // Derive unique course/servicio options from cached OSIs
   const courseOptions = useMemo(() => {
@@ -153,9 +147,9 @@ export default function SeguimientoServiciosClient({
   const fetchOSIs = useCallback(async () => {
     setLoading(true);
     try {
-      // Search is handled client-side; only send filters to server
+      // Search is now server-side; include the debounced search query in the filters
       const result = await getOSIsForManagement(
-        filters,
+        { ...filters, search: searchQuery.trim() || undefined },
         currentPage,
         itemsPerPage,
       );
@@ -191,17 +185,18 @@ export default function SeguimientoServiciosClient({
     } finally {
       setLoading(false);
     }
-  }, [filters, currentPage, itemsPerPage]);
+  }, [filters, searchQuery, currentPage, itemsPerPage]);
 
-  // Re-fetch when filters or page changes (skip first render — server already loaded)
-  // Search is NOT in deps — it's handled client-side via filteredOsis
+  // Re-fetch when filters, search, or page changes (skip first render — server already loaded)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
+    // Reset to page 1 when search changes (avoids landing on an out-of-range page)
+    if (searchQuery) setCurrentPage(1);
     fetchOSIs();
-  }, [fetchOSIs, filters, currentPage]);
+  }, [fetchOSIs, filters, searchQuery, currentPage]);
 
   const handleToggleStep = useCallback(
     async (osiId: number, nroSesion: number, stepKey: string, notes?: string) => {
@@ -330,8 +325,8 @@ export default function SeguimientoServiciosClient({
                 Seguimiento de OSIs
               </h3>
               <span className="text-xs text-gray-500">
-                {searchInput.trim()
-                  ? `(${filteredOsis.length} de ${cachedOsisRef.current.length} cargados)`
+                {searchQuery.trim()
+                  ? `(${totalCount} resultados)`
                   : `(${totalCount} OSIs)`}
               </span>
             </div>
@@ -516,7 +511,7 @@ export default function SeguimientoServiciosClient({
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
           </div>
-        ) : osis.length === 0 ? (
+        ) : filteredOsis.length === 0 ? (
           <div className="text-center py-16">
             <Briefcase className="w-10 h-10 text-gray-300 mx-auto" />
             <p className="mt-2 text-sm text-gray-500">No se encontraron OSIs</p>
@@ -668,8 +663,8 @@ export default function SeguimientoServiciosClient({
           </div>
         )}
 
-        {/* Pagination — hidden when searching or step-filtering (uses client-side cache) */}
-        {!searchInput.trim() && !stepFilter && totalPages > 1 && (
+        {/* Pagination — hidden when step-filtering (client-side filter within page); visible when searching (server-side) */}
+        {!stepFilter && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50/50">
             <span className="text-xs text-gray-500">
               Página {currentPage} de {totalPages}

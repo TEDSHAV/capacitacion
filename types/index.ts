@@ -955,6 +955,7 @@ export interface OSIFilters {
   monthIssued?: string;
   companyName?: string;
   nroOsi?: string;
+  search?: string;
   tipoServicio?: string;
   servicio?: string;
   status?: string;

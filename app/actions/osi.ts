@@ -270,6 +270,11 @@ export async function getOSIsForManagement(
       query = query.ilike("nro_osi", `%${filters.nroOsi}%`);
     }
 
+    if (filters.search && filters.search.trim()) {
+      const q = filters.search.trim();
+      query = query.or(`nro_osi.ilike.%${q}%,nombre_empresa.ilike.%${q}%`);
+    }
+
     if (filters.status) {
       query = query.eq("id_estatus", parseInt(filters.status));
     }
