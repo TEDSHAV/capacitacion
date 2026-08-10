@@ -24,6 +24,7 @@ export interface ProcesoStepRecord {
   completed_at: string | null;
   completed_by: string | null;
   notes: string | null;
+  step_metadata?: Record<string, unknown> | null;
 }
 
 export interface ListaAsistenciaInfo {
@@ -322,6 +323,10 @@ export async function toggleProcesoStep(
 
     // Clear notes when unmarking
     const finalNotes = newCompleted ? (notes ?? null) : null;
+    // Store structured metadata for input-based steps (e.g. sobre_enviado_zoom → { guia: "..." })
+    const finalMetadata = newCompleted && notes?.trim()
+      ? { guia: notes.trim() }
+      : {};
 
     if (existing) {
       const { error: updateError } = await supabase
@@ -331,6 +336,7 @@ export async function toggleProcesoStep(
           completed_at: newCompleted ? now : null,
           completed_by: newCompleted ? userId : null,
           notes: finalNotes,
+          step_metadata: finalMetadata,
         })
         .eq("id", existing.id);
 
@@ -350,6 +356,7 @@ export async function toggleProcesoStep(
           completed_at: newCompleted ? now : null,
           completed_by: newCompleted ? userId : null,
           notes: finalNotes,
+          step_metadata: finalMetadata,
         });
 
       if (insertError) {

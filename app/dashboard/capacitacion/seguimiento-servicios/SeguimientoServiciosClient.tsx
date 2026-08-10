@@ -220,6 +220,7 @@ export default function SeguimientoServiciosClient({
               completed_at: result.completed ? new Date().toISOString() : null,
               completed_by: existing?.completed_by ?? null,
               notes: result.completed ? (notes ?? existing?.notes ?? null) : null,
+              step_metadata: result.completed && notes?.trim() ? { guia: notes.trim() } : existing?.step_metadata ?? null,
             },
           });
           newMap.set(osiId, osiMap);

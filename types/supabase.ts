@@ -3358,6 +3358,7 @@ export type Database = {
           completed_at: string | null
           completed_by: string | null
           notes: string | null
+          step_metadata: Json
           created_at: string
           updated_at: string
         }
@@ -3371,6 +3372,7 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           notes?: string | null
+          step_metadata?: Json
           created_at?: string
           updated_at?: string
         }
@@ -3384,6 +3386,7 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           notes?: string | null
+          step_metadata?: Json
           created_at?: string
           updated_at?: string
         }

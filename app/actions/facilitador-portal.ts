@@ -552,8 +552,6 @@ export async function uploadOSIAttachment(
     if (storageError) throw storageError;
 
     // 2. Insert into metadata table
-    // Try with nro_sesion first; if the column doesn't exist yet (migration not applied),
-    // retry without it so uploads still work.
     const insertPayload: Record<string, unknown> = {
       osi_id: osiId,
       facilitador_id: facilitadorId,
@@ -565,31 +563,11 @@ export async function uploadOSIAttachment(
       nro_sesion: nroSesion ?? 1,
     };
 
-    let { data, error: dbError } = await supabase
+    const { data, error: dbError } = await supabase
       .from("ejecucion_osi_asistencia")
       .insert(insertPayload)
       .select()
       .single();
-
-    // If the nro_sesion column doesn't exist, retry without it (backwards compatible)
-    if (dbError && (dbError.message?.includes("nro_sesion") || dbError.message?.includes("Could not find the column"))) {
-      console.warn("[uploadOSIAttachment] nro_sesion column missing, retrying without it:", dbError.message);
-      const { data: retryData, error: retryError } = await supabase
-        .from("ejecucion_osi_asistencia")
-        .insert({
-          osi_id: osiId,
-          facilitador_id: facilitadorId,
-          storage_path: storagePath,
-          file_name: file.name,
-          file_type: finalFileType,
-          file_size: buffer.length,
-          category,
-        })
-        .select()
-        .single();
-      data = retryData;
-      dbError = retryError;
-    }
 
     console.log("[uploadOSIAttachment] DB insert result:", { error: dbError ? { message: dbError.message, code: dbError.code, details: dbError.details } : "none", data: data ? { id: data.id, file_name: data.file_name, storage_path: data.storage_path } : "NULL" });
 

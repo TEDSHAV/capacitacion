@@ -264,9 +264,9 @@ export default function ProcesoStepsTimeline({
                     {new Date(rec.completed_at).toLocaleDateString("es-VE", { day: "2-digit", month: "short" })}
                   </span>
                 )}
-                {isCompleted && requiresInput && rec?.notes && (
+                {isCompleted && requiresInput && ((rec?.step_metadata?.guia as string) || rec?.notes) && (
                   <span className="text-[9px] text-blue-600 font-medium">
-                    Guía: {rec.notes}
+                    Guía: {(rec?.step_metadata?.guia as string) || rec.notes}
                   </span>
                 )}
               </div>
@@ -336,9 +336,9 @@ export default function ProcesoStepsTimeline({
                 })}
               </span>
             )}
-            {isCompleted && requiresInput && rec?.notes && (
+            {isCompleted && requiresInput && ((rec?.step_metadata?.guia as string) || rec?.notes) && (
               <span className="text-[9px] text-blue-600 font-medium mt-0.5">
-                Guía: {rec.notes}
+                Guía: {(rec?.step_metadata?.guia as string) || rec.notes}
               </span>
             )}
             {isListaAsistencia && onPreviewListaAsistencia && (
@@ -496,9 +496,9 @@ export default function ProcesoStepsTimeline({
                                 {new Date(rec.completed_at).toLocaleDateString("es-VE", { day: "2-digit", month: "short" })}
                               </span>
                             )}
-                            {isCompleted && requiresInput && rec?.notes && (
+                            {isCompleted && requiresInput && ((rec?.step_metadata?.guia as string) || rec?.notes) && (
                               <span className="text-[8px] text-blue-600 font-medium mt-0.5">
-                                Guía: {rec.notes}
+                                Guía: {(rec?.step_metadata?.guia as string) || rec.notes}
                               </span>
                             )}
                             {hasPreview && previewHandler && (
