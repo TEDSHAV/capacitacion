@@ -2,60 +2,43 @@ import { Briefcase } from "lucide-react";
 import { getOSIsForManagement, getOSIFilterOptions, getOSIStatuses } from "@/app/actions/osi";
 import {
   autoAdvanceEjecucionSteps,
-  getAllProcesoStepsBatch,
-  getOSISessions,
   type ProcesoStepRecord,
 } from "@/app/actions/capacitacion-proceso-steps";
 import SeguimientoServiciosClient from "./SeguimientoServiciosClient";
-import type { OSIManagement, OSISesion, OSIFilters, OSIStatus } from "@/types";
+import type { OSIManagement, OSISesion, OSIStatus } from "@/types";
 
 export const dynamic = "force-dynamic";
-
-// Serializable versions of the maps for client props
-type StepsByOsiMap = Map<number, Map<number, Record<string, ProcesoStepRecord>>>;
-type SessionsByOsiMap = Map<number, OSISesion[]>;
 
 export default async function SeguimientoServiciosPage() {
   // Fetch initial OSIs (first page)
   const result = await getOSIsForManagement({}, 1, 20);
   const osis = result.osis as OSIManagement[];
-  const osiIds = osis.map((o) => o.id_osi);
 
-  // Auto-advance ejecucion steps based on dates (per-session)
-  await autoAdvanceEjecucionSteps(
-    osis.map((o) => ({
-      id_osi: o.id_osi,
-      fecha_inicio_real: o.fecha_inicio_real ?? null,
-      desglose_recursos_sesiones: o.desglose_recursos_sesiones ?? null,
-      sesiones_programadas: o.sesiones_programadas ?? null,
-    })),
-  );
-
-  // Fetch all steps (both phases, all sessions) in parallel with sessions and filter options
-  const [stepsMap, sessionsResult, filterOptions, statuses] = await Promise.all([
-    osiIds.length > 0 ? getAllProcesoStepsBatch(osiIds) : Promise.resolve(new Map() as StepsByOsiMap),
-    Promise.all(
-      osis.map(async (osi) => {
-        const sessions = await getOSISessions(osi.id_osi, {
-          desglose_recursos_sesiones: osi.desglose_recursos_sesiones,
-          sesiones_programadas: osi.sesiones_programadas,
-        });
-        return { osiId: osi.id_osi, sessions };
-      }),
-    ),
+  // Auto-advance ejecucion steps based on dates (per-session) AND fetch filter options / statuses
+  // in parallel. autoAdvanceEjecucionSteps now batches all seeding into a single upsert and
+  // returns the steps + sessions maps it builds internally, so we no longer need separate
+  // getAllProcesoStepsBatch / per-OSI getOSISessions calls afterwards.
+  const [autoResult, filterOptions, statuses] = await Promise.all([
+    osis.length > 0
+      ? autoAdvanceEjecucionSteps(
+          osis.map((o) => ({
+            id_osi: o.id_osi,
+            fecha_inicio_real: o.fecha_inicio_real ?? null,
+            desglose_recursos_sesiones: o.desglose_recursos_sesiones ?? null,
+            sesiones_programadas: o.sesiones_programadas ?? null,
+          })),
+        )
+      : Promise.resolve({
+          stepsByOsi: new Map<number, Map<number, Record<string, ProcesoStepRecord>>>(),
+          sessionsByOsi: new Map<number, OSISesion[]>(),
+        }),
     getOSIFilterOptions(),
     getOSIStatuses(),
   ]);
 
-  // Build sessions map
-  const sessionsByOsi = new Map<number, OSISesion[]>();
-  for (const { osiId, sessions } of sessionsResult) {
-    sessionsByOsi.set(osiId, sessions);
-  }
-
   // Convert Maps to plain objects for client component serialization
   const stepsPlain: Record<string, Record<string, Record<string, ProcesoStepRecord>>> = {};
-  for (const [osiId, sessionMap] of stepsMap.entries()) {
+  for (const [osiId, sessionMap] of autoResult.stepsByOsi.entries()) {
     const sessionObj: Record<string, Record<string, ProcesoStepRecord>> = {};
     for (const [nroSesion, steps] of sessionMap.entries()) {
       sessionObj[String(nroSesion)] = steps;
@@ -64,7 +47,7 @@ export default async function SeguimientoServiciosPage() {
   }
 
   const sessionsPlain: Record<string, OSISesion[]> = {};
-  for (const [osiId, sessions] of sessionsByOsi.entries()) {
+  for (const [osiId, sessions] of autoResult.sessionsByOsi.entries()) {
     sessionsPlain[String(osiId)] = sessions;
   }
 
@@ -97,6 +80,3 @@ export default async function SeguimientoServiciosPage() {
     </div>
   );
 }
-
-// Re-export types for client component
-export type { StepsByOsiMap, SessionsByOsiMap, OSIFilters };

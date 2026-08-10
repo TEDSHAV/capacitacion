@@ -22,7 +22,6 @@ import {
   toggleUnifiedStep,
   ensureAllProcesoStepsExist,
   autoAdvanceEjecucionSteps,
-  getOSISessions,
   toggleAttachmentReceived,
   type ProcesoStepRecord,
 } from "@/app/actions/capacitacion-proceso-steps";
@@ -171,37 +170,21 @@ export default function SeguimientoServiciosClient({
       }
 
       if (result.osis.length > 0) {
-        const osiIds = result.osis.map((o) => o.id_osi);
-
-        // Run auto-advance, steps fetch, and sessions fetch all in parallel
-        const [, stepsMap, sessionsResult] = await Promise.all([
-          autoAdvanceEjecucionSteps(
-            result.osis.map((o) => ({
-              id_osi: o.id_osi,
-              fecha_inicio_real: o.fecha_inicio_real ?? null,
-              desglose_recursos_sesiones: o.desglose_recursos_sesiones ?? null,
-              sesiones_programadas: o.sesiones_programadas ?? null,
-            })),
-          ),
-          getAllProcesoStepsBatch(osiIds),
-          Promise.all(
-            result.osis.map(async (osi) => {
-              const sessions = await getOSISessions(osi.id_osi, {
-                desglose_recursos_sesiones: osi.desglose_recursos_sesiones,
-                sesiones_programadas: osi.sesiones_programadas,
-              });
-              return { osiId: osi.id_osi, sessions } as const;
-            }),
-          ),
-        ]);
+        // autoAdvanceEjecucionSteps now batches seeding into a single upsert and returns the
+        // steps + sessions maps it builds internally, so we no longer need separate
+        // getAllProcesoStepsBatch / per-OSI getOSISessions calls. This also fixes a latent
+        // race where steps were read before auto-advance's upserts landed.
+        const { stepsByOsi: stepsMap, sessionsByOsi: sessionsMap } = await autoAdvanceEjecucionSteps(
+          result.osis.map((o) => ({
+            id_osi: o.id_osi,
+            fecha_inicio_real: o.fecha_inicio_real ?? null,
+            desglose_recursos_sesiones: o.desglose_recursos_sesiones ?? null,
+            sesiones_programadas: o.sesiones_programadas ?? null,
+          })),
+        );
 
         setStepsByOsi(stepsMap);
-
-        const newSessionsMap = new Map<number, OSISesion[]>();
-        for (const { osiId, sessions } of sessionsResult) {
-          newSessionsMap.set(osiId, sessions);
-        }
-        setSessionsByOsi(newSessionsMap);
+        setSessionsByOsi(sessionsMap);
       }
     } catch (err) {
       console.error("Error fetching OSIs for seguimiento:", err);

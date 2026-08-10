@@ -90,6 +90,77 @@ function resolveSessions(
   return [{ nro_sesion: 1, fecha: null, hora_inicio: null, hora_fin: null }];
 }
 
+/**
+ * Build an OSISesion[] for an OSI using the same priority chain as getOSISessions,
+ * but reusing pre-fetched osi_sesion rows instead of issuing a new query.
+ */
+function toOSISessions(
+  osi: {
+    desglose_recursos_sesiones?: OSISesion[] | unknown[] | null;
+    sesiones_programadas?: unknown[] | null;
+  },
+  osiSesionRows?: { id: number; nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[],
+): OSISesion[] {
+  // 1. desglose_recursos_sesiones (already full OSISesion[] shape from the view)
+  const desglose = osi.desglose_recursos_sesiones;
+  if (Array.isArray(desglose) && desglose.length > 0) {
+    return desglose as OSISesion[];
+  }
+
+  // 2. sesiones_programadas
+  const programadas = osi.sesiones_programadas;
+  if (Array.isArray(programadas) && programadas.length > 0) {
+    return programadas.map((s, i) => {
+      const row = s as Record<string, unknown>;
+      return {
+        id: i,
+        id_sesion: i + 1,
+        nro_sesion: (row.nro_sesion as number) ?? i + 1,
+        fecha: (row.fecha as string) ?? null,
+        hora_inicio: (row.hora_inicio as string) ?? null,
+        hora_fin: (row.hora_fin as string) ?? null,
+        costo_traslado: null,
+        costo_impresion_material: null,
+        horas_honorarios_instructor: null,
+        tarifa_hora_honorarios: null,
+        costo_honorarios_instructor: null,
+      };
+    });
+  }
+
+  // 3. osi_sesion table rows
+  if (osiSesionRows && osiSesionRows.length > 0) {
+    return osiSesionRows.map((s) => ({
+      id: s.id,
+      id_sesion: s.id,
+      nro_sesion: s.nro_sesion,
+      fecha: s.fecha,
+      hora_inicio: s.hora_inicio,
+      hora_fin: s.hora_fin,
+      costo_traslado: null,
+      costo_impresion_material: null,
+      horas_honorarios_instructor: null,
+      tarifa_hora_honorarios: null,
+      costo_honorarios_instructor: null,
+    }));
+  }
+
+  // Fallback: single session
+  return [{
+    id: 0,
+    id_sesion: 1,
+    nro_sesion: 1,
+    fecha: null,
+    hora_inicio: null,
+    hora_fin: null,
+    costo_traslado: null,
+    costo_impresion_material: null,
+    horas_honorarios_instructor: null,
+    tarifa_hora_honorarios: null,
+    costo_honorarios_instructor: null,
+  }];
+}
+
 // ─── Step CRUD ───────────────────────────────────────────────────────────────
 
 /**
@@ -297,10 +368,26 @@ export async function toggleProcesoStep(
 // ─── Auto-advance for Ejecucion ──────────────────────────────────────────────
 
 /**
+ * Result of auto-advancing ejecucion steps for a batch of OSIs.
+ * - stepsByOsi: osiId → nroSesion → stepKey → record (reflects post-upsert state,
+ *   including seeded rows and auto-completed en_proceso/ejecutado).
+ * - sessionsByOsi: osiId → sessions[] (resolved via the same priority chain as
+ *   getOSISessions, reusing the osi_sesion rows already fetched here).
+ */
+export interface AutoAdvanceResult {
+  stepsByOsi: Map<number, Map<number, Record<string, ProcesoStepRecord>>>;
+  sessionsByOsi: Map<number, OSISesion[]>;
+}
+
+/**
  * Auto-advance ejecucion steps for a batch of OSIs, per-session:
  *   - Ensure all step rows exist (seeds rows for old OSIs predating the steps system)
  *   - If session fecha is today or past, mark "en_proceso" as completed
  *   - If session fecha is strictly past, also mark "ejecutado" as completed
+ *
+ * Seeding is done in a SINGLE batch upsert (ignoreDuplicates) instead of one
+ * round-trip per session/phase, and the function returns the steps + sessions
+ * maps it already builds internally so callers don't need to re-fetch them.
  *
  * Uses admin client to avoid RLS issues on bulk operations.
  */
@@ -311,8 +398,12 @@ export async function autoAdvanceEjecucionSteps(
     desglose_recursos_sesiones?: OSISesion[] | unknown[] | null;
     sesiones_programadas?: unknown[] | null;
   }[],
-): Promise<void> {
-  if (!osis.length) return;
+): Promise<AutoAdvanceResult> {
+  const emptyResult: AutoAdvanceResult = {
+    stepsByOsi: new Map(),
+    sessionsByOsi: new Map(),
+  };
+  if (!osis.length) return emptyResult;
 
   try {
     const admin = await createAdminClient();
@@ -321,17 +412,17 @@ export async function autoAdvanceEjecucionSteps(
 
     // Fetch osi_sesion rows as fallback for session dates
     const osiIds = osis.map((o) => o.id_osi);
-    const osiSesionByOsi = new Map<number, { nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[]>();
+    const osiSesionByOsi = new Map<number, { id: number; nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[]>();
     try {
       const { data: sesionRows } = await admin
         .from("osi_sesion")
-        .select("id_osi, nro_sesion, fecha, hora_inicio, hora_fin")
+        .select("id, id_osi, nro_sesion, fecha, hora_inicio, hora_fin")
         .in("id_osi", osiIds)
         .order("nro_sesion", { ascending: true });
       if (sesionRows) {
-        for (const row of sesionRows as { id_osi: number; nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[]) {
+        for (const row of sesionRows as { id: number; id_osi: number; nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[]) {
           const list = osiSesionByOsi.get(row.id_osi) || [];
-          list.push({ nro_sesion: row.nro_sesion, fecha: row.fecha, hora_inicio: row.hora_inicio, hora_fin: row.hora_fin });
+          list.push({ id: row.id, nro_sesion: row.nro_sesion, fecha: row.fecha, hora_inicio: row.hora_inicio, hora_fin: row.hora_fin });
           osiSesionByOsi.set(row.id_osi, list);
         }
       }
@@ -361,6 +452,16 @@ export async function autoAdvanceEjecucionSteps(
       sessionMap.set(row.step_key, row);
     }
 
+    // Collect ALL missing step rows across OSIs/sessions/phases for a single batch upsert.
+    const seedRows: {
+      osi_id: number;
+      nro_sesion: number;
+      phase: string;
+      step_key: string;
+      completed: boolean;
+    }[] = [];
+
+    // Auto-advance upserts (en_proceso / ejecutado)
     const upserts: {
       osi_id: number;
       nro_sesion: number;
@@ -370,20 +471,43 @@ export async function autoAdvanceEjecucionSteps(
       completed_at: string | null;
     }[] = [];
 
+    // Sessions map (osiId → OSISesion[]), built from the same resolution chain
+    const sessionsByOsi = new Map<number, OSISesion[]>();
+
     for (const osi of osis) {
-      const sessions = resolveSessions(osi, osiSesionByOsi.get(osi.id_osi));
+      const osiSesionRows = osiSesionByOsi.get(osi.id_osi);
+      const sessions = resolveSessions(osi, osiSesionRows);
+      // Build OSISesion[] mirroring getOSISessions priority logic
+      sessionsByOsi.set(osi.id_osi, toOSISessions(osi, osiSesionRows));
+
       const osiStepsMap = stepsLookup.get(osi.id_osi) || new Map();
 
-      // Ensure all step rows exist for each session (seeds rows for old OSIs)
+      // Collect missing step rows for batch seeding (replaces sequential ensureProcesoStepsExist calls)
       for (const session of sessions) {
         const existingSessionSteps = osiStepsMap.get(session.nro_sesion);
         const hasPlanificacion = existingSessionSteps?.["requisicion_enviada_admin"];
         if (!hasPlanificacion) {
-          await ensureProcesoStepsExist(osi.id_osi, "planificacion", session.nro_sesion);
+          for (const key of getStepKeys("planificacion")) {
+            seedRows.push({
+              osi_id: osi.id_osi,
+              nro_sesion: session.nro_sesion,
+              phase: "planificacion",
+              step_key: key,
+              completed: false,
+            });
+          }
         }
         const hasEjecucion = existingSessionSteps?.["en_proceso"] || existingSessionSteps?.["ejecutado"];
         if (!hasEjecucion) {
-          await ensureProcesoStepsExist(osi.id_osi, "ejecucion", session.nro_sesion);
+          for (const key of getStepKeys("ejecucion")) {
+            seedRows.push({
+              osi_id: osi.id_osi,
+              nro_sesion: session.nro_sesion,
+              phase: "ejecucion",
+              step_key: key,
+              completed: false,
+            });
+          }
         }
       }
 
@@ -437,6 +561,17 @@ export async function autoAdvanceEjecucionSteps(
       }
     }
 
+    // Single batch upsert for seeding (ignoreDuplicates → only inserts missing rows)
+    if (seedRows.length > 0) {
+      const { error: seedError } = await admin
+        .from("capacitacion_proceso_steps")
+        .upsert(seedRows, { onConflict: "osi_id,nro_sesion,phase,step_key", ignoreDuplicates: true });
+
+      if (seedError) {
+        console.error("Error seeding proceso steps (batch):", JSON.stringify(seedError, null, 2));
+      }
+    }
+
     if (upserts.length > 0) {
       const { error: upsertError } = await admin
         .from("capacitacion_proceso_steps")
@@ -446,8 +581,89 @@ export async function autoAdvanceEjecucionSteps(
         console.error("Error auto-advancing ejecucion steps:", JSON.stringify(upsertError, null, 2));
       }
     }
+
+    // Build the returned steps map reflecting post-upsert state:
+    // for each OSI/session, seed all step keys as incomplete defaults, overlay existing
+    // DB rows (real ids + state), then overlay auto-advanced upserts.
+    const stepsByOsi = new Map<number, Map<number, Record<string, ProcesoStepRecord>>>();
+
+    for (const osi of osis) {
+      const osiId = osi.id_osi;
+      const osiMap = new Map<number, Record<string, ProcesoStepRecord>>();
+      const existingOsiMap = stepsLookup.get(osiId);
+      const sessions = resolveSessions(osi, osiSesionByOsi.get(osiId));
+
+      for (const session of sessions) {
+        const nroSesion = session.nro_sesion;
+        const sessionRec: Record<string, ProcesoStepRecord> = {};
+
+        // Seed all step keys as incomplete defaults (id: 0 placeholder)
+        for (const key of getStepKeys("planificacion")) {
+          sessionRec[key] = {
+            id: 0,
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: "planificacion",
+            step_key: key,
+            completed: false,
+            completed_at: null,
+            completed_by: null,
+            notes: null,
+          };
+        }
+        for (const key of getStepKeys("ejecucion")) {
+          sessionRec[key] = {
+            id: 0,
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: "ejecucion",
+            step_key: key,
+            completed: false,
+            completed_at: null,
+            completed_by: null,
+            notes: null,
+          };
+        }
+
+        // Overlay existing DB rows (real ids + state)
+        const existingSession = existingOsiMap?.get(nroSesion);
+        if (existingSession) {
+          for (const [stepKey, record] of existingSession.entries()) {
+            sessionRec[stepKey] = record;
+          }
+        }
+        osiMap.set(nroSesion, sessionRec);
+      }
+
+      // Overlay auto-advanced upserts for this OSI
+      for (const u of upserts) {
+        if (u.osi_id !== osiId) continue;
+        let sessionRec = osiMap.get(u.nro_sesion);
+        if (!sessionRec) {
+          sessionRec = {};
+          osiMap.set(u.nro_sesion, sessionRec);
+        }
+        const prev = sessionRec[u.step_key];
+        sessionRec[u.step_key] = {
+          id: prev?.id ?? 0,
+          osi_id: osiId,
+          nro_sesion: u.nro_sesion,
+          phase: u.phase,
+          step_key: u.step_key,
+          completed: u.completed,
+          completed_at: u.completed_at,
+          completed_by: prev?.completed_by ?? null,
+          notes: prev?.notes ?? null,
+        };
+      }
+
+      stepsByOsi.set(osiId, osiMap);
+    }
+
+    return { stepsByOsi, sessionsByOsi };
   } catch (err) {
     console.error("Unexpected error in autoAdvanceEjecucionSteps:", err);
+    return emptyResult;
   }
 }
 
