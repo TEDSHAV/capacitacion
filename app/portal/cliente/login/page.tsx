@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,25 +15,35 @@ export default function ClienteLoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isSubmitting = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting.current) return;
     if (!username || !password) {
       setError("Usuario y contraseña son requeridos");
       return;
     }
 
+    isSubmitting.current = true;
     setLoading(true);
     setError(null);
 
-    const result = await loginCliente(username, password);
+    try {
+      const result = await loginCliente(username, password);
 
-    if (result.success) {
-      router.push("/portal/cliente/dashboard");
-    } else {
-      setError(result.error || "Error al iniciar sesión");
+      if (result.success) {
+        router.push("/portal/cliente/dashboard");
+      } else {
+        setError(result.error || "Error al iniciar sesión");
+        isSubmitting.current = false;
+        setLoading(false);
+      }
+    } catch (err) {
+      setError("Error inesperado al iniciar sesión");
+      isSubmitting.current = false;
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -67,6 +77,7 @@ export default function ClienteLoginPage() {
                 className="pl-10"
                 placeholder="usuario.empresa"
                 autoComplete="username"
+                disabled={loading}
               />
             </div>
           </div>
@@ -83,6 +94,7 @@ export default function ClienteLoginPage() {
                 className="pl-10"
                 placeholder="••••••••"
                 autoComplete="current-password"
+                disabled={loading}
               />
             </div>
           </div>

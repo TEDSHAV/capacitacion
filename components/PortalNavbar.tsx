@@ -11,22 +11,30 @@ interface PortalNavbarProps {
 
 export function PortalNavbar({ title, logoutAction, loginPath }: PortalNavbarProps) {
   return (
-    <nav className="bg-white shadow-md z-50 sticky top-0">
+    <nav className="bg-white shadow-md z-50 sticky top-0 border-b border-gray-100">
       <div className="max-w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 sm:h-28">
-          <div className="flex-1" />
-
-          <div className="flex flex-col items-center">
+        <div className="flex items-center justify-between h-16 sm:h-20">
+          {/* Left - Logo */}
+          <div className="flex items-center gap-3 flex-shrink-0">
             <Image
               src="/logo.png"
               alt="SHA de Venezuela"
-              width={120}
-              height={120}
-              className="object-contain w-20 h-20 sm:w-28 sm:h-28"
+              width={160}
+              height={50}
+              className="object-contain h-10 sm:h-12 w-auto"
+              priority
             />
           </div>
 
-          <div className="flex-1 flex justify-end">
+          {/* Center - Portal title */}
+          <div className="hidden md:block flex-1 text-center">
+            <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+              {title}
+            </span>
+          </div>
+
+          {/* Right - Logout */}
+          <div className="flex-shrink-0">
             <form
               action={async () => {
                 "use server";

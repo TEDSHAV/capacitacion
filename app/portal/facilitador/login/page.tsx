@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,25 +15,38 @@ export default function FacilitadorLoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Ref guard prevents concurrent submissions even before React re-renders with disabled state
+  const isSubmitting = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting.current) return;
     if (!username || !password) {
       setError("Usuario y contraseña son requeridos");
       return;
     }
 
+    isSubmitting.current = true;
     setLoading(true);
     setError(null);
 
-    const result = await loginFacilitator(username, password);
+    try {
+      const result = await loginFacilitator(username, password);
 
-    if (result.success) {
-      router.push("/portal/facilitador/dashboard");
-    } else {
-      setError(result.error || "Error al iniciar sesión");
+      if (result.success) {
+        router.push("/portal/facilitador/dashboard");
+        // Don't reset loading — the component will unmount on navigation.
+        // Resetting state after router.push can cause React warnings.
+      } else {
+        setError(result.error || "Error al iniciar sesión");
+        isSubmitting.current = false;
+        setLoading(false);
+      }
+    } catch (err) {
+      setError("Error inesperado al iniciar sesión");
+      isSubmitting.current = false;
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -65,6 +78,7 @@ export default function FacilitadorLoginPage() {
                 className="pl-10"
                 placeholder="nombre.apellido"
                 autoComplete="username"
+                disabled={loading}
               />
             </div>
           </div>
@@ -81,6 +95,7 @@ export default function FacilitadorLoginPage() {
                 className="pl-10"
                 placeholder="••••••••"
                 autoComplete="current-password"
+                disabled={loading}
               />
             </div>
           </div>

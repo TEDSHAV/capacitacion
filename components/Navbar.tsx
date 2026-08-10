@@ -43,50 +43,55 @@ const Navbar = () => {
   }, []);
 
   return (
-    <nav className="bg-white shadow-md z-50">
-      <div className="max-w-full px-2 sm:px-4 lg:px-8">
-        <div className="flex items-center justify-between h-20 gap-2 sm:gap-4">
-          {/* Left side - Spacer for symmetry */}
-          <div className="flex items-center w-8 sm:w-12 flex-shrink-0">
-            {/* Back button removed - now in sidebar */}
-          </div>
-
-          {/* Center - Logo */}
-          <div className="flex-1 flex items-center justify-center min-w-0">
+    <nav className="bg-white shadow-md z-50 border-b border-gray-100">
+      <div className="max-w-full px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 sm:h-20 gap-4">
+          {/* Left - Logo + company name */}
+          <div
+            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity duration-200 flex-shrink-0"
+            onClick={() => router.push("/dashboard")}
+          >
             <Image
               src="/logo.png"
-              alt="Logo de la Empresa"
-              width={120}
-              height={120}
-              className="object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200 w-24 sm:w-32 h-auto"
-              onClick={() => router.push("/dashboard")}
+              alt="SHA de Venezuela"
+              width={160}
+              height={50}
+              className="object-contain h-10 sm:h-12 w-auto"
+              priority
             />
           </div>
 
-          {/* Right side - User menu */}
-          <div className="flex items-center gap-2 sm:gap-6 flex-shrink-0 flex-wrap sm:flex-nowrap justify-end">
+          {/* Right - User menu */}
+          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
             {user ? (
               <>
-                <span className="hidden sm:block text-xs sm:text-sm text-gray-700 truncate max-w-[150px]">
-                  Bienvenido, {user?.user_metadata?.name || user?.email}
-                </span>
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200">
+                  <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                    {(user?.user_metadata?.name || user?.email || "?").charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm text-gray-700 truncate max-w-[140px]">
+                    {user?.user_metadata?.name || user?.email}
+                  </span>
+                </div>
                 <button
                   onClick={handleLogout}
-                  className="bg-red-600 text-white px-2 sm:px-4 py-2 rounded-md hover:bg-red-700 transition-colors duration-200 shadow-md text-xs sm:text-sm whitespace-nowrap"
-                  style={{ backgroundColor: "#dc2626", color: "white" }}
+                  className="flex items-center gap-1.5 bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-red-700 transition-colors duration-200 shadow-sm text-xs sm:text-sm font-medium whitespace-nowrap"
                 >
-                  Cerrar sesión
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sm:hidden">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                  <span className="hidden sm:inline">Cerrar sesión</span>
                 </button>
               </>
             ) : (
-              <>
-                <button
-                  onClick={handleLoginClick}
-                  className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 px-2 sm:px-3 py-2 rounded-md hover:bg-blue-50 transition-colors duration-200 whitespace-nowrap"
-                >
-                  Iniciar sesión
-                </button>
-              </>
+              <button
+                onClick={handleLoginClick}
+                className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors duration-200 font-medium whitespace-nowrap"
+              >
+                Iniciar sesión
+              </button>
             )}
           </div>
         </div>
