@@ -748,7 +748,8 @@ export async function getListaAsistenciaInfo(
     }
 
     if (nroSesion != null) {
-      filesQuery = filesQuery.eq("nro_sesion", nroSesion);
+      // Include uploads for the specific session AND legacy uploads where nro_sesion is null
+      filesQuery = filesQuery.or(`nro_sesion.eq.${nroSesion},nro_sesion.is.null`);
     }
 
     const { data: files, error: filesError } = await filesQuery.order("created_at", { ascending: false });

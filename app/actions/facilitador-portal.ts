@@ -670,7 +670,8 @@ export async function getOSIAttachments(osiId: number, facilitadorId?: number, c
   }
 
   if (nroSesion != null) {
-    query = query.eq("nro_sesion", nroSesion);
+    // Include uploads for the specific session AND legacy uploads where nro_sesion is null
+    query = query.or(`nro_sesion.eq.${nroSesion},nro_sesion.is.null`);
   }
   
   const { data, error } = await query.order("created_at", { ascending: false });
