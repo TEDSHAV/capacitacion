@@ -11,6 +11,10 @@ FROM node:22-bookworm-slim AS builder
 ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
+# Install libvips — sharp needs the native library at build time too
+# (Next.js imports route modules during "Collecting page data" phase)
+RUN apt-get update && apt-get install -y --no-install-recommends libvips && rm -rf /var/lib/apt/lists/*
+
 # Add build arguments for Next.js environment variables (needed during build time)
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
