@@ -241,9 +241,9 @@ export default function SurveyDocumentView({ osiData, survey }: SurveyDocumentVi
         </div>
 
         {/* Footer */}
-        <div className="mt-auto pt-8 flex flex-col items-center">
-          <div className="w-full h-[2px] bg-gradient-to-r from-blue-600 via-red-600 to-green-600 mb-2"></div>
-          <Image src="/docs_footer.png" alt="Footer Icons" width={450} height={40} className="mb-2" />
+        <div className="mt-auto pt-12 pb-6 flex flex-col items-center">
+          <div className="w-full h-[3px] bg-gradient-to-r from-blue-600 via-red-600 to-green-600 mb-3"></div>
+          <Image src="/docs_footer.png" alt="Footer Icons" width={786} height={30} className="w-full h-auto mb-3" />
           <div className="flex justify-between w-full text-[8px] font-bold text-gray-500 uppercase px-4">
             <span>REGISTRADOS: [SNC] [INCES] [MINPPTRASS] [FONACIT]</span>
             <span>CERTIFICADOS: [ISO 9001]</span>

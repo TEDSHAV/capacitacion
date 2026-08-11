@@ -317,8 +317,8 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
       </div>
 
       <div className="mt-12 pt-8 border-t flex flex-col items-center">
-        <Image src="/docs_footer.png" alt="Footer Icons" width={400} height={50} className="grayscale opacity-50 mb-4" />
-        <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">SHA DE VENEZUELA, C.A.</p>
+        <Image src="/docs_footer.png" alt="Footer Icons" width={700} height={26} className="w-full h-auto mb-4" />
+        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">SHA DE VENEZUELA, C.A.</p>
       </div>
     </form>
   );
