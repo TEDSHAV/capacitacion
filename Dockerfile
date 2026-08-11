@@ -29,7 +29,8 @@ COPY package.json package-lock.json* ./
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production NODE_OPTIONS="--max-old-space-size=4096" TURBOPACK_DISABLED=1
-RUN --mount=type=cache,target=/app/.next/cache npm run build
+# Clear any stale cache from previous (possibly failed) builds before rebuilding
+RUN --mount=type=cache,target=/app/.next/cache rm -rf /app/.next/cache/* && npm run build
 
 # Stage 2b: Prune to production-only dependencies for runner image.
 # Chained FROM builder (instead of a fresh base + separate COPY from deps) so this
