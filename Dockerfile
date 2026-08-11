@@ -4,11 +4,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json* ./
-# Install all deps, then add the linux-x64 sharp prebuilt binary.
-# The lockfile was generated on Windows and only contains @img/sharp-win32-*;
-# npm ci on Linux skips the missing linux platform optional dependency.
-RUN --mount=type=cache,target=/root/.npm npm ci && \
-    npm install --no-save --os=linux --cpu=x64 @img/sharp-linux-x64
+# Use npm install (not npm ci) so platform-specific optional dependencies
+# resolve for Linux. The lockfile was generated on Windows and only contains
+# @img/sharp-win32-*; npm ci would skip the missing linux binary.
+RUN --mount=type=cache,target=/root/.npm npm install --no-audit --no-fund
 
 # Stage 2: Build Next.js
 FROM node:22-bookworm-slim AS builder
@@ -29,8 +28,7 @@ COPY package.json package-lock.json* ./
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production NODE_OPTIONS="--max-old-space-size=4096" TURBOPACK_DISABLED=1
-# Clear any stale cache from previous (possibly failed) builds before rebuilding
-RUN --mount=type=cache,target=/app/.next/cache rm -rf /app/.next/cache/* && npm run build
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
 # Stage 2b: Prune to production-only dependencies for runner image.
 # Chained FROM builder (instead of a fresh base + separate COPY from deps) so this
