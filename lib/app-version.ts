@@ -17,9 +17,16 @@ export function getBuildDate(): string {
   return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
 }
 
-/** Compact build identifier for UI display, e.g. "v1.5.0 · 11/08/2026". */
+/** Compact build identifier for UI display, e.g. "v1.5.0 · 11/08/2026".
+ *
+ * Uses the clean tag (e.g. "v1.5.0") rather than the full `git describe` output
+ * (which includes "-N-gSHA" suffixes for commits past the tag). The detailed
+ * commit info is still available via `getBuildDetail()` in the element's title
+ * tooltip for debugging.
+ */
 export function getBuildId(): string {
-  return [APP_VERSION.version, getBuildDate()].filter(Boolean).join(" · ");
+  const label = APP_VERSION.tag || APP_VERSION.version;
+  return [label, getBuildDate()].filter(Boolean).join(" · ");
 }
 
 /** Verbose build detail, intended for a `title` tooltip. */
