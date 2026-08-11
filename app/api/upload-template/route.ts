@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { existsSync } from "fs";
+import { requireDashboardAuth } from "@/utils/api-auth";
 
 export async function POST(request: NextRequest) {
+  const auth = await requireDashboardAuth(request);
+  if ('unauthorized' in auth) {
+    return auth.unauthorized;
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;

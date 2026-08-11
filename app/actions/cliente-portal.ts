@@ -6,6 +6,13 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import crypto from "node:crypto";
 import { signSession, verifySession } from "@/lib/session-signing";
+import {
+  getClientIp,
+  checkLoginRateLimit,
+  recordLoginFailure,
+  clearLoginFailures,
+} from "@/lib/login-rate-limiter";
+import { hashPassword, verifyPassword, isBcryptHash } from "@/lib/password-hashing";
 import type {
   ClienteCredential,
   ClienteSession,
@@ -21,7 +28,8 @@ import type {
 
 // ─── Auth Helpers ───
 
-function hashPassword(password: string): string {
+// Legacy SHA-256 hash for verifying old (unmigrated) credentials
+function legacySha256Hash(password: string): string {
   return crypto.createHash("sha256").update(password).digest("hex");
 }
 
@@ -36,7 +44,7 @@ export async function createClienteCredentials(
   sedeIds?: number[] | null,
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createAdminClient();
-  const passwordHash = hashPassword(password);
+  const passwordHash = await hashPassword(password);
 
   const { data, error } = await supabase
     .from("cliente_credenciales")
@@ -103,7 +111,7 @@ export async function updateClienteCredentials(
     updateData.display_name = updates.display_name;
   if (updates.is_active !== undefined) updateData.is_active = updates.is_active;
   if (updates.password) {
-    updateData.password_hash = hashPassword(updates.password);
+    updateData.password_hash = await hashPassword(updates.password);
   }
   if (updates.sedeIds !== undefined) {
     updateData.id_sede = updates.sedeIds && updates.sedeIds.length > 0 ? updates.sedeIds : null;
@@ -172,13 +180,22 @@ export async function loginCliente(
   password: string,
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createAdminClient();
-  const passwordHash = hashPassword(password);
 
+  // Rate limiting: check before hitting the DB
+  const ip = await getClientIp();
+  const rateLimit = await checkLoginRateLimit(ip, username);
+  if (!rateLimit.allowed) {
+    const minutes = Math.ceil(rateLimit.retryAfterMs / 60000);
+    return {
+      error: `Demasiados intentos fallidos. Intenta de nuevo en ${minutes} minuto(s).`,
+    };
+  }
+
+  // Fetch credentials by username only (bcrypt hashes are non-deterministic)
   const { data: creds, error: credError } = await supabase
     .from("cliente_credenciales")
     .select("*, empresas(razon_social, empresa_logos(logo_url))")
     .eq("username", username)
-    .eq("password_hash", passwordHash)
     .eq("is_active", true)
     .maybeSingle();
 
@@ -188,8 +205,36 @@ export async function loginCliente(
   }
 
   if (!creds) {
+    await recordLoginFailure(ip, username);
     return { error: "Credenciales inválidas o cuenta inactiva" };
   }
+
+  // Verify password: support both legacy SHA-256 and bcrypt hashes
+  const storedHash: string = creds.password_hash;
+  let passwordValid = false;
+
+  if (isBcryptHash(storedHash)) {
+    passwordValid = await verifyPassword(password, storedHash);
+  } else {
+    // Legacy SHA-256 path — verify, then transparently migrate to bcrypt
+    passwordValid = legacySha256Hash(password) === storedHash;
+    if (passwordValid) {
+      const newBcryptHash = await hashPassword(password);
+      await supabase
+        .from("cliente_credenciales")
+        .update({ password_hash: newBcryptHash, updated_at: new Date().toISOString() })
+        .eq("id", creds.id)
+        .eq("password_hash", storedHash);
+    }
+  }
+
+  if (!passwordValid) {
+    await recordLoginFailure(ip, username);
+    return { error: "Credenciales inválidas o cuenta inactiva" };
+  }
+
+  // Clear rate-limit counter on successful login
+  await clearLoginFailures(ip, username);
 
   const sessionData: ClienteSession = {
     id: creds.id,
@@ -205,7 +250,8 @@ export async function loginCliente(
   const cookieStore = await cookies();
   cookieStore.set("cliente_session", signSession(sessionData), {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NEXT_PUBLIC_COOKIE_SECURE !== "false",
+    sameSite: "lax",
     maxAge: 60 * 60 * 8, // 8 hours
     path: "/",
   });

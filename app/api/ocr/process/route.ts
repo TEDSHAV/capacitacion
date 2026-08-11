@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OCRService } from '@/lib/ocr-service';
+import { requireDashboardAuth } from '@/utils/api-auth';
 
 // Increase max duration for OCR processing (Mistral OCR + AI fallback chat call
 // can take longer than the default serverless timeout, especially on larger images)
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
+  // Auth: only authenticated dashboard users can use OCR
+  const auth = await requireDashboardAuth(request);
+  if ('unauthorized' in auth) {
+    return auth.unauthorized;
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const apiKey = formData.get('apiKey') as string;
     const mode = (formData.get('mode') as string) || 'certificate';
 
     if (!file) {
@@ -19,10 +25,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Read API key from server-side env var (never from the client)
+    const apiKey = process.env.MISTRAL_API_KEY || process.env.NEXT_PUBLIC_MISTRAL_API_KEY || '';
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'No API key provided' },
-        { status: 400 }
+        { error: 'OCR API key is not configured on the server. Contact the administrator.' },
+        { status: 503 }
       );
     }
 
@@ -49,8 +57,6 @@ export async function POST(request: NextRequest) {
       fileName: file?.name,
       fileType: file?.type,
       fileSize: file?.size,
-      hasApiKey: !!apiKey,
-      apiKeyLength: apiKey?.length,
       mode,
     });
     console.log('Processing OCR for file:', file.name, 'type:', file.type, 'size:', file.size);

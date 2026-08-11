@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TemplateBasedPdfGenerator } from "@/lib/template-based-pdf-generator";
 import { DocumentTemplateProcessor } from "@/lib/document-templates-new";
+import { requireDashboardAuth } from "@/utils/api-auth";
 
 export async function POST(request: NextRequest) {
+  const auth = await requireDashboardAuth(request);
+  if ('unauthorized' in auth) {
+    return auth.unauthorized;
+  }
+
   try {
     const { certificates, osiData, firmanteData, recibidoData, documentType } =
       await request.json();

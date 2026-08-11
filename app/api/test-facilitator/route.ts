@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { certificateService } from '@/lib/certificate-service';
 
 export async function GET() {
+  // Only available in development — never expose debug endpoints in production
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
     // Test facilitator data fetching
     const facilitator = await certificateService.getFacilitatorData('7');

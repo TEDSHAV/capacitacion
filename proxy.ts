@@ -1,7 +1,25 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { checkApiRateLimit } from "@/lib/api-rate-limiter";
 
 export async function proxy(request: NextRequest) {
+  // ─── API rate limiting (runs before any Supabase overhead) ───
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    const pathname = request.nextUrl.pathname;
+    let group: "ocr" | "upload" | "citizen" | "default" = "default";
+    if (pathname.startsWith("/api/ocr/")) {
+      group = "ocr";
+    } else if (pathname.startsWith("/api/upload-template") || pathname.startsWith("/api/signatures/upload")) {
+      group = "upload";
+    } else if (pathname.startsWith("/api/citizen/")) {
+      group = "citizen";
+    }
+    const limited = checkApiRateLimit(request, group);
+    if (limited) return limited;
+    // API routes handle their own auth — don't run the Supabase session logic
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -183,5 +201,7 @@ export const config = {
      * - api                 (API routes handle auth themselves)
      */
     "/((?!_next/static|_next/image|favicon\\.ico|verify-certificate|survey|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)",
+    // API routes — rate limiting only (auth handled per-route)
+    "/api/(.*)",
   ],
 };

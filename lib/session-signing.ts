@@ -1,6 +1,34 @@
 import crypto from "node:crypto";
 
-const SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY || "fallback-dev-secret";
+/**
+ * Secret used to sign/verify portal sessions.
+ *
+ * Prefer a dedicated SESSION_SIGNING_SECRET env var. For backward
+ * compatibility, fall back to SUPABASE_SERVICE_ROLE_KEY if the dedicated
+ * secret is not set. In production, fail hard if neither is available.
+ */
+const SECRET = (() => {
+  const dedicated = process.env.SESSION_SIGNING_SECRET;
+  if (dedicated) return dedicated;
+
+  const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (fallback) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        "[session-signing] SESSION_SIGNING_SECRET is not set — falling back to SUPABASE_SERVICE_ROLE_KEY. " +
+          "Set a dedicated secret for better security.",
+      );
+    }
+    return fallback;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "SESSION_SIGNING_SECRET (or SUPABASE_SERVICE_ROLE_KEY) must be set in production.",
+    );
+  }
+  return "fallback-dev-secret";
+})();
 
 /**
  * Sign a JSON-serializable payload with HMAC-SHA256.

@@ -41,7 +41,6 @@ export const ParticipantScannerModal = ({
     onDebug?.(msg);
   };
   const [file, setFile] = useState<File | null>(null);
-  const [apiKey, setApiKey] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedParticipants, setExtractedParticipants] = useState<
     ExtractedParticipant[]
@@ -50,8 +49,6 @@ export const ParticipantScannerModal = ({
   const [previewUrl, setPreviewUrl] = useState("");
   const [hasProcessed, setHasProcessed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [hasEnvApiKey, setHasEnvApiKey] = useState(false);
 
   const [activeVerificationIndex, setActiveVerificationIndex] = useState<
     number | null
@@ -63,24 +60,13 @@ export const ParticipantScannerModal = ({
   const [isZoomed, setIsZoomed] = useState(false);
   const [isDocCollapsed, setIsDocCollapsed] = useState(false);
 
-  // Initialize modal when opened: load API key and handle preselected file in one effect
-  // This prevents race conditions where file is set before API key is available
+  // Initialize modal when opened: handle preselected file
+  // API key is now read server-side — no client-side key management needed
   useEffect(() => {
     if (isOpen) {
       dbg(`Modal opened. preselectedFile=${preselectedFile ? preselectedFile.name : "none"}`);
       // Prevent background scrolling
       document.body.style.overflow = "hidden";
-
-      // Load API key from environment variable
-      const envApiKey = process.env.NEXT_PUBLIC_MISTRAL_API_KEY || "";
-      if (envApiKey) {
-        setApiKey(envApiKey);
-        setHasEnvApiKey(true);
-        dbg("API key loaded from env");
-      } else {
-        setHasEnvApiKey(false);
-        dbg("No env API key found");
-      }
 
       // Handle preselected file from portal (auto-scan flow)
       if (preselectedFile) {
@@ -99,19 +85,12 @@ export const ParticipantScannerModal = ({
     };
   }, [isOpen, preselectedFile]);
 
-  // Auto-process file when selected and API key is available
+  // Auto-process file when selected
   const handleProcess = useCallback(
     async (fileToProcess: File) => {
       if (!fileToProcess) {
         console.log("[ScannerModal] handleProcess: no file, bailing");
         setError("Por favor selecciona un archivo");
-        return;
-      }
-
-      const effectiveApiKey = apiKey || process.env.NEXT_PUBLIC_MISTRAL_API_KEY || "";
-      if (!effectiveApiKey && !hasEnvApiKey) {
-        console.log("[ScannerModal] handleProcess: no API key, bailing");
-        setError("Por favor proporciona la API key de Mistral");
         return;
       }
 
@@ -127,7 +106,6 @@ export const ParticipantScannerModal = ({
       try {
         const formData = new FormData();
         formData.append("file", fileToProcess);
-        formData.append("apiKey", effectiveApiKey);
         formData.append("mode", mode);
 
         const response = await fetch("/api/ocr/process", {
@@ -173,18 +151,16 @@ export const ParticipantScannerModal = ({
         setIsProcessing(false);
       }
     },
-    [apiKey, hasEnvApiKey, mode],
+    [mode],
   );
 
-  // Trigger processing only when file is set, API key is available, and not already processing/done
+  // Trigger processing only when file is set and not already processing/done
   useEffect(() => {
-    if (file && (apiKey || hasEnvApiKey) && !isProcessing && !hasProcessed) {
-      dbg(`Auto-process effect firing: file=${file.name}, hasApiKey=${!!apiKey}, hasEnvApiKey=${hasEnvApiKey}`);
+    if (file && !isProcessing && !hasProcessed) {
+      dbg(`Auto-process effect firing: file=${file.name}`);
       handleProcess(file);
-    } else if (file && !apiKey && !hasEnvApiKey) {
-      dbg(`Auto-process skipped: no API key (file=${file.name})`);
     }
-  }, [file, handleProcess, apiKey, hasEnvApiKey, isProcessing, hasProcessed]);
+  }, [file, handleProcess, isProcessing, hasProcessed]);
 
   const toTitleCase = (str: string) => {
     return str
@@ -251,8 +227,6 @@ export const ParticipantScannerModal = ({
 
   const handleClose = async () => {
     setFile(null);
-    setApiKey("");
-    setHasEnvApiKey(false);
     setHasProcessed(false);
     setIsProcessing(false);
     setExtractedParticipants([]);
@@ -312,39 +286,6 @@ export const ParticipantScannerModal = ({
         >
           {!hasProcessed && !error ? (
             <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8 py-4 sm:py-8 w-full">
-              {/* API Key Input - Only show if not set in environment */}
-              {!hasEnvApiKey && (
-                <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
-                  <div className="flex items-center gap-2 text-blue-600 mb-1">
-                    <RefreshCw className="h-4 w-4" />
-                    <span className="text-sm font-semibold uppercase tracking-wider">
-                      Configuración
-                    </span>
-                  </div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    API Key de Mistral OCR *
-                  </label>
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Ingresa tu API key de Mistral"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Obtén tu API key en{" "}
-                    <a
-                      href="https://console.mistral.ai/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline font-medium"
-                    >
-                      console.mistral.ai
-                    </a>
-                  </p>
-                </div>
-              )}
-
               {/* File Upload */}
               <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 text-blue-600 mb-1">

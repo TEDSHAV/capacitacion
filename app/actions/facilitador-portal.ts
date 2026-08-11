@@ -8,9 +8,16 @@ import { optimizeDocumentImage, optimizePdfToImage } from "@/lib/image-optimizat
 import { OSIAttachment } from "@/types";
 import { signSession, verifySession } from "@/lib/session-signing";
 import { getSessionCount } from "@/lib/osi-utils";
+import {
+  getClientIp,
+  checkLoginRateLimit,
+  recordLoginFailure,
+  clearLoginFailures,
+} from "@/lib/login-rate-limiter";
+import { hashPassword, verifyPassword, isBcryptHash } from "@/lib/password-hashing";
 
-// Simple hash function using Node.js crypto
-function hashPassword(password: string): string {
+// Legacy SHA-256 hash for verifying old (unmigrated) credentials
+function legacySha256Hash(password: string): string {
   return crypto.createHash("sha256").update(password).digest("hex");
 }
 
@@ -20,7 +27,7 @@ export async function createFacilitatorCredentials(
   password: string
 ) {
   const supabase = await createAdminClient();
-  const passwordHash = hashPassword(password);
+  const passwordHash = await hashPassword(password);
 
   const { data, error } = await supabase
     .from("facilitador_credenciales")
@@ -81,15 +88,23 @@ export async function deleteFacilitatorCredentials(facilitadorId: number) {
 
 export async function loginFacilitator(username: string, password: string) {
   const supabase = await createAdminClient();
-  const passwordHash = hashPassword(password);
 
-  console.log(`[Portal Login] Attempting login for user: ${username}`);
+  // Rate limiting: check before hitting the DB
+  const ip = await getClientIp();
+  const rateLimit = await checkLoginRateLimit(ip, username);
+  if (!rateLimit.allowed) {
+    const minutes = Math.ceil(rateLimit.retryAfterMs / 60000);
+    return {
+      error: `Demasiados intentos fallidos. Intenta de nuevo en ${minutes} minuto(s).`,
+    };
+  }
 
+  // Fetch credentials by username only (bcrypt hashes are non-deterministic,
+  // so we can't query WHERE password_hash = ? like the old SHA-256 flow)
   const { data: creds, error: credError } = await supabase
     .from("facilitador_credenciales")
     .select("*, facilitadores(nombre_apellido)")
     .eq("username", username)
-    .eq("password_hash", passwordHash)
     .eq("is_active", true)
     .maybeSingle();
 
@@ -99,9 +114,38 @@ export async function loginFacilitator(username: string, password: string) {
   }
 
   if (!creds) {
-    console.warn(`[Portal Login] No active account found for username: ${username}`);
+    await recordLoginFailure(ip, username);
     return { error: "Credenciales inválidas o cuenta inactiva" };
   }
+
+  // Verify password: support both legacy SHA-256 and bcrypt hashes
+  const storedHash: string = creds.password_hash;
+  let passwordValid = false;
+
+  if (isBcryptHash(storedHash)) {
+    passwordValid = await verifyPassword(password, storedHash);
+  } else {
+    // Legacy SHA-256 path — verify, then transparently migrate to bcrypt
+    passwordValid = legacySha256Hash(password) === storedHash;
+    if (passwordValid) {
+      const newBcryptHash = await hashPassword(password);
+      // Optimistic update: only re-hash if the stored hash hasn't already
+      // been migrated by a concurrent login (race-safe).
+      await supabase
+        .from("facilitador_credenciales")
+        .update({ password_hash: newBcryptHash, updated_at: new Date().toISOString() })
+        .eq("id", creds.id)
+        .eq("password_hash", storedHash);
+    }
+  }
+
+  if (!passwordValid) {
+    await recordLoginFailure(ip, username);
+    return { error: "Credenciales inválidas o cuenta inactiva" };
+  }
+
+  // Clear rate-limit counter on successful login
+  await clearLoginFailures(ip, username);
 
   // Set a session cookie (simplified for this custom auth)
   const sessionData = {

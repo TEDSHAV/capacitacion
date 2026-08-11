@@ -5,6 +5,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ certificateId: string }> }
 ) {
+  // Only available in development — never expose debug endpoints in production
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
     const resolvedParams = await params;
     const certificateId = parseInt(resolvedParams.certificateId);
