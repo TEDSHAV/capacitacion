@@ -14,6 +14,15 @@ FROM node:22-bookworm-slim AS builder
 ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
+# git is used by the `prebuild` step (scripts/generate-version.mjs) to stamp the build
+# with its tag/commit for display in the app footer. The slim base does not ship git.
+#
+# This step is deliberately best-effort (`|| true`). The version generator treats git as
+# optional and falls back to the package.json version, so a transient apt/network failure
+# degrades the footer from "v1.5.0-3-gabc1234" to "v1.5.0" instead of breaking the deploy.
+RUN (apt-get update && apt-get install -y --no-install-recommends git \
+     && rm -rf /var/lib/apt/lists/*) || true
+
 # Add build arguments for Next.js environment variables (needed during build time)
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY

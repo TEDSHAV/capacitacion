@@ -14,13 +14,19 @@
 
   "scripts": {
 
+    "predev": "node scripts/generate-version.mjs",
+
     "dev": "next dev",
+
+    "prebuild": "node scripts/generate-version.mjs",
 
     "build": "next build",
 
     "start": "next start",
 
     "lint": "eslint",
+
+    "release": "commit-and-tag-version",
 
     "update-types": "npx supabase gen types typescript --project-id oboslhhemuvzvjnbqeih > types/supabase.ts",
 
@@ -97,6 +103,8 @@
     "@types/react": "^19",
 
     "@types/react-dom": "^19",
+
+    "commit-and-tag-version": "^13.1.2",
 
     "eslint": "^9",
 
