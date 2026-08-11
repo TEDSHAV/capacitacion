@@ -1,22 +1,11 @@
 import Link from "next/link";
-import APP_VERSION from "@/lib/version.generated";
+import { getBuildDetail, getBuildId } from "@/lib/app-version";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear()
 
-  // Build a compact, human-readable build id from the generated version info.
-  // e.g. "v1.5.0 · 11/08/2026" or "v1.5.0-3-g6238fcf · 11/08/2026"
-  const buildDate = APP_VERSION.date
-    ? new Date(APP_VERSION.date).toLocaleDateString("es-VE", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      })
-    : "";
-
-  const buildId = [APP_VERSION.version, buildDate]
-    .filter(Boolean)
-    .join(" · ");
+  // Compact build id, e.g. "v1.5.0 · 11/08/2026"
+  const buildId = getBuildId();
 
   return (
     <footer className="bg-transparent border-t border-blue-100/50">
@@ -29,7 +18,7 @@ const Footer = () => {
             {buildId && (
               <span
                 className="text-xs text-gray-400 font-mono tabular-nums"
-                title={`Commit ${APP_VERSION.commit} · ${APP_VERSION.commitCount} commits · branch ${APP_VERSION.branch}${APP_VERSION.tag ? ` · tag ${APP_VERSION.tag}` : ""}`}
+                title={getBuildDetail()}
               >
                 {buildId}
               </span>

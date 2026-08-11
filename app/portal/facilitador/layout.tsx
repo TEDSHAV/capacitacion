@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import PortalFooter from "@/components/PortalFooter";
 
 export const metadata: Metadata = {
   title: "Portal de Facilitadores",
@@ -17,8 +18,9 @@ export default async function FacilitadorPortalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex min-h-screen flex-col bg-gray-50">
       {children}
+      <PortalFooter />
     </div>
   );
 }
