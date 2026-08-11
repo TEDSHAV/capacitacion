@@ -20,7 +20,7 @@ export default function VersionBadge() {
     <div
       aria-hidden="true"
       title={getBuildDetail()}
-      className="pointer-events-none fixed bottom-2 right-2 z-30 select-none rounded border border-gray-200/60 bg-white/70 px-1.5 py-0.5 font-mono text-[10px] leading-none tracking-tight text-gray-400 tabular-nums shadow-sm backdrop-blur-sm print:hidden"
+      className="pointer-events-none fixed bottom-2 right-2 z-30 select-none rounded border border-gray-300/70 bg-white/90 px-2 py-0.5 font-mono text-[11px] leading-tight tracking-tight text-gray-500 tabular-nums shadow-sm backdrop-blur-sm print:hidden"
     >
       {buildId}
     </div>
