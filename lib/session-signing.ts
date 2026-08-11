@@ -6,10 +6,21 @@ import crypto from "node:crypto";
  * Prefer a dedicated SESSION_SIGNING_SECRET env var. For backward
  * compatibility, fall back to SUPABASE_SERVICE_ROLE_KEY if the dedicated
  * secret is not set. In production, fail hard if neither is available.
+ *
+ * Computed lazily (on first use) so that the module can be imported during
+ * `next build` without throwing — secret env vars are not available at build
+ * time in Docker, only at runtime.
  */
-const SECRET = (() => {
+let cachedSecret: string | null = null;
+
+function getSecret(): string {
+  if (cachedSecret !== null) return cachedSecret;
+
   const dedicated = process.env.SESSION_SIGNING_SECRET;
-  if (dedicated) return dedicated;
+  if (dedicated) {
+    cachedSecret = dedicated;
+    return cachedSecret;
+  }
 
   const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (fallback) {
@@ -19,7 +30,8 @@ const SECRET = (() => {
           "Set a dedicated secret for better security.",
       );
     }
-    return fallback;
+    cachedSecret = fallback;
+    return cachedSecret;
   }
 
   if (process.env.NODE_ENV === "production") {
@@ -27,14 +39,16 @@ const SECRET = (() => {
       "SESSION_SIGNING_SECRET (or SUPABASE_SERVICE_ROLE_KEY) must be set in production.",
     );
   }
-  return "fallback-dev-secret";
-})();
+  cachedSecret = "fallback-dev-secret";
+  return cachedSecret;
+}
 
 /**
  * Sign a JSON-serializable payload with HMAC-SHA256.
  * Returns "payload.hmac" where both parts are base64url-encoded.
  */
 export function signSession(payload: Record<string, unknown> | object): string {
+  const SECRET = getSecret();
   const json = JSON.stringify(payload);
   const payloadB64 = Buffer.from(json, "utf-8").toString("base64url");
   const hmac = crypto.createHmac("sha256", SECRET).update(payloadB64).digest("base64url");
@@ -47,6 +61,7 @@ export function signSession(payload: Record<string, unknown> | object): string {
  */
 export function verifySession<T = Record<string, unknown>>(signed: string): T | null {
   try {
+    const SECRET = getSecret();
     const [payloadB64, hmac] = signed.split(".");
     if (!payloadB64 || !hmac) return null;
 
