@@ -226,7 +226,7 @@ export const AttachmentUploadSection = ({
             variant="outline"
             size="sm"
             disabled={uploading}
-            className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50 h-8 text-xs w-full sm:w-auto"
+            className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50 h-11 text-sm w-full sm:w-auto"
           >
             {uploading ? (
               <>
@@ -326,17 +326,17 @@ export const AttachmentUploadSection = ({
                   {showScanButton && onScanAttachment && (
                     <button
                       onClick={() => onScanAttachment(att)}
-                      className="flex items-center gap-1 px-2 py-1.5 text-[10px] font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-md transition-colors whitespace-nowrap"
+                      className="flex items-center gap-1 px-3 py-2.5 h-10 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-md transition-colors whitespace-nowrap"
                     >
-                      <ScanLine className="w-3.5 h-3.5" />
+                      <ScanLine className="w-4 h-4" />
                       Escanear
                     </button>
                   )}
                   <button
                     onClick={() => handleDelete(att.id, att.storage_path)}
-                    className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100"
+                    className="p-2.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>

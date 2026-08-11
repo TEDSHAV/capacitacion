@@ -61,6 +61,7 @@ export const ParticipantScannerModal = ({
   >(new Map());
 
   const [isZoomed, setIsZoomed] = useState(false);
+  const [isDocCollapsed, setIsDocCollapsed] = useState(false);
 
   // Initialize modal when opened: load API key and handle preselected file in one effect
   // This prevents race conditions where file is set before API key is available
@@ -299,7 +300,7 @@ export const ParticipantScannerModal = ({
             variant="ghost"
             size="icon"
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            className="h-11 w-11 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
           >
             <X className="h-5 w-5 sm:h-6 sm:w-6" />
           </Button>
@@ -457,13 +458,12 @@ export const ParticipantScannerModal = ({
                 </div>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => {
                     setExtractedParticipants([]);
                     setHasProcessed(false);
                     setFile(null);
                   }}
-                  className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 shadow-sm transition-all"
+                  className="h-11 bg-white hover:bg-gray-50 text-gray-700 border-gray-200 shadow-sm transition-all"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Escanear otro archivo
@@ -473,7 +473,7 @@ export const ParticipantScannerModal = ({
               {/* Side-by-side layout */}
               <div className="flex-1 flex flex-col lg:flex-row gap-4 sm:gap-6 min-h-0">
                 {/* Left: Original Viewer - Even narrower */}
-                <div className="flex-[3] flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[250px] sm:min-h-[400px] lg:min-h-0">
+                <div className="flex-[2] lg:flex-[3] flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[300px] sm:min-h-[400px] lg:min-h-0">
                   <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">
@@ -490,35 +490,45 @@ export const ParticipantScannerModal = ({
                         </span>
                       )}
                     </div>
-                    {file?.type.startsWith("image/") && (
+                    <div className="flex items-center gap-2">
+                      {file?.type.startsWith("image/") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsZoomed(!isZoomed)}
+                          className="h-10 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold hidden lg:inline-flex"
+                        >
+                          {isZoomed ? "Ajustar ancho" : "Ver tamaño real"}
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setIsZoomed(!isZoomed)}
-                        className="h-8 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold"
+                        onClick={() => setIsDocCollapsed(!isDocCollapsed)}
+                        className="h-10 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold lg:hidden"
                       >
-                        {isZoomed ? "Ajustar ancho" : "Ver tamaño real"}
+                        {isDocCollapsed ? "Mostrar" : "Ocultar"}
                       </Button>
-                    )}
-                    <p className="text-[10px] text-gray-400 font-medium">
-                      Control + Scroll para zoom
-                    </p>
+                      <p className="text-[10px] text-gray-400 font-medium hidden lg:block">
+                        Control + Scroll para zoom
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 overflow-auto bg-gray-200/30 p-4 relative group">
+                  <div className={`flex-1 overflow-auto bg-gray-200/30 p-2 sm:p-4 relative group ${isDocCollapsed ? "hidden lg:block" : ""}`}>
                     {previewUrl ? (
                       file?.type === "application/pdf" ? (
                         <iframe
                           src={`${previewUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`}
-                          className="w-full h-full min-h-[600px] bg-white shadow-lg rounded"
+                          className="w-full h-full bg-white shadow-lg rounded"
                           title="PDF Preview"
                         />
                       ) : (
-                        <div className="flex justify-center min-h-full">
+                        <div className="flex justify-center items-center h-full">
                           <img
                             src={previewUrl}
                             alt="Original document"
                             className={`transition-all duration-300 shadow-xl rounded ${
-                              isZoomed ? "max-w-none" : "w-full h-auto"
+                              isZoomed ? "max-w-none" : "w-full h-full object-contain"
                             }`}
                           />
                         </div>
@@ -549,13 +559,120 @@ export const ParticipantScannerModal = ({
                           { name: "", idNumber: "", nationality: "venezolano" },
                         ])
                       }
-                      className="h-8 text-xs font-semibold text-blue-600 border-blue-100 bg-blue-50 hover:bg-blue-100 transition-colors"
+                      className="h-10 text-sm font-semibold text-blue-600 border-blue-100 bg-blue-50 hover:bg-blue-100 transition-colors"
                     >
                       + Agregar Fila
                     </Button>
                   </div>
 
                   <div className="flex-1 overflow-auto">
+                    {/* Mobile card layout */}
+                    <div className="lg:hidden p-3 space-y-3">
+                      {extractedParticipants.map((participant, index) => (
+                        <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                          <input
+                            type="text"
+                            value={participant.name}
+                            onChange={(e) => handleParticipantChange(index, "name", e.target.value)}
+                            placeholder="Nombre completo"
+                            className="w-full h-11 px-3 mb-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="flex gap-2 mb-2">
+                            <select
+                              value={participant.nationality || "venezolano"}
+                              onChange={(e) => handleParticipantChange(index, "nationality", e.target.value)}
+                              className="w-16 h-11 px-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="venezolano">V</option>
+                              <option value="extranjero">E</option>
+                            </select>
+                            <input
+                              type="text"
+                              value={participant.idNumber}
+                              onChange={(e) => handleParticipantChange(index, "idNumber", e.target.value)}
+                              placeholder="Cédula"
+                              className="flex-1 h-11 px-3 border border-gray-200 rounded-lg bg-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            {mode !== "portal" && (
+                              <input
+                                type="number"
+                                value={participant.score || ""}
+                                onChange={(e) => {
+                                  const newScore = parseInt(e.target.value);
+                                  if (newScore > 20) return;
+                                  handleParticipantChange(index, "score", e.target.value);
+                                }}
+                                placeholder="0-20"
+                                min="0"
+                                max="20"
+                                className="w-20 h-11 px-2 border border-gray-200 rounded-lg bg-white text-sm text-center font-bold text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              {verificationResults.has(participant.idNumber) ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleVerifyClick(index)}
+                                  className="h-11 min-w-[100px] text-xs font-bold text-blue-600 hover:bg-blue-50 border border-blue-100 rounded-lg"
+                                  disabled={activeVerificationIndex !== null}
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-1 text-green-500" />
+                                  Re-validar
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleVerifyClick(index)}
+                                  className="h-11 min-w-[100px] text-xs font-bold text-blue-600 hover:bg-blue-50 border border-blue-100 rounded-lg"
+                                  disabled={activeVerificationIndex !== null}
+                                >
+                                  <Search className="h-4 w-4 mr-1" />
+                                  Verificar
+                                </Button>
+                              )}
+                              {activeVerificationIndex === index && (
+                                <SeniatVerificationPopover
+                                  participant={participant}
+                                  onVerify={handleVerificationComplete}
+                                  onClose={() => setActiveVerificationIndex(null)}
+                                  useFixedPosition
+                                />
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveParticipant(index)}
+                              className="h-11 w-11 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors shrink-0 ml-auto"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          {verificationResults.has(participant.idNumber) && (
+                            <div className="mt-2">
+                              <span
+                                className={`text-xs px-2 py-1 rounded border block font-medium ${
+                                  verificationResults.get(participant.idNumber)?.status === "verified"
+                                    ? "bg-green-50 border-green-200 text-green-800"
+                                    : "bg-gray-50 border-gray-200 text-gray-500"
+                                }`}
+                                title={verificationResults.get(participant.idNumber)?.seniatName}
+                              >
+                                {verificationResults.get(participant.idNumber)?.seniatName
+                                  ? toTitleCase(verificationResults.get(participant.idNumber)!.seniatName!)
+                                  : "-"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {/* Desktop table */}
+                    <div className="hidden lg:block">
                     <table className="w-full text-sm border-separate border-spacing-0 min-w-[600px]">
                       <thead className="sticky top-0 z-10 bg-gray-50">
                         <tr>
@@ -669,7 +786,7 @@ export const ParticipantScannerModal = ({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleVerifyClick(index)}
-                                    className="h-7 text-[9px] px-2 text-blue-600 hover:bg-blue-50 font-bold border border-blue-100 rounded-lg mt-1 uppercase"
+                                    className="h-9 text-xs px-2 text-blue-600 hover:bg-blue-50 font-bold border border-blue-100 rounded-lg mt-1 uppercase"
                                     disabled={activeVerificationIndex !== null}
                                   >
                                     Re-validar
@@ -680,7 +797,7 @@ export const ParticipantScannerModal = ({
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleVerifyClick(index)}
-                                  className="h-8 text-[10px] px-2 text-blue-600 hover:bg-blue-50 font-bold border border-blue-100 rounded-lg"
+                                  className="h-9 min-w-[80px] text-xs px-2 text-blue-600 hover:bg-blue-50 font-bold border border-blue-100 rounded-lg"
                                   disabled={activeVerificationIndex !== null}
                                 >
                                   <Search className="h-3 w-3 mr-1" />
@@ -732,15 +849,16 @@ export const ParticipantScannerModal = ({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleRemoveParticipant(index)}
-                                className="h-7 w-7 text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all rounded-full"
+                                className="h-9 w-9 text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all rounded-full"
                               >
-                                <X className="h-3 w-3" />
+                                <X className="h-4 w-4" />
                               </Button>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -788,14 +906,14 @@ export const ParticipantScannerModal = ({
               <Button
                 variant="outline"
                 onClick={handleClose}
-                className="flex-1 sm:flex-none px-4 sm:px-6 h-10 sm:h-11 font-semibold border-gray-300 text-gray-700 hover:bg-white hover:shadow-sm"
+                className="flex-1 sm:flex-none px-4 sm:px-6 h-12 font-semibold border-gray-300 text-gray-700 hover:bg-white hover:shadow-sm"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleAddAll}
                 disabled={extractedParticipants.length === 0}
-                className="flex-1 sm:flex-none px-4 sm:px-8 h-10 sm:h-11 font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 text-xs sm:text-sm"
+                className="flex-1 sm:flex-none px-4 sm:px-8 h-12 font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 text-sm"
               >
                 Importar
               </Button>

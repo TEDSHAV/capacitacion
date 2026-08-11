@@ -494,9 +494,8 @@ export const ParticipantForm = ({
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={addParticipant}
-              className="text-blue-600 border-blue-200 hover:bg-blue-50 flex-1 sm:flex-none"
+              className="h-11 px-4 text-blue-600 border-blue-200 hover:bg-blue-50 flex-1 sm:flex-none"
             >
               <Plus className="w-4 h-4 mr-2" />
               Agregar Participante
@@ -504,10 +503,9 @@ export const ParticipantForm = ({
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => setShowClearConfirm(true)}
               disabled={hasOnlyEmptyRow}
-              className="text-red-600 border-red-200 hover:bg-red-50 flex-1 sm:flex-none"
+              className="h-11 px-4 text-red-600 border-red-200 hover:bg-red-50 flex-1 sm:flex-none"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Limpiar Todo
@@ -626,7 +624,7 @@ export const ParticipantForm = ({
                 id={index === 0 ? "tour-score-input" : undefined}
               />
             </div>
-            <div className="flex items-end gap-1 pb-1 flex-wrap">
+            <div className="flex items-end gap-2 pb-2 sm:flex-wrap">
               <div className="relative">
                 <Button 
                   type="button" 
@@ -634,10 +632,10 @@ export const ParticipantForm = ({
                   size="sm"
                   onClick={() => setActiveVerificationIndex(index)}
                   disabled={activeVerificationIndex !== null}
-                  className="text-blue-600 hover:bg-blue-50 border border-blue-100 rounded-lg h-9 px-2 text-[10px] font-bold whitespace-nowrap w-full sm:w-auto"
+                  className="text-blue-600 hover:bg-blue-50 border border-blue-100 rounded-lg h-11 px-3 text-xs font-bold whitespace-nowrap w-full sm:w-auto min-w-[100px]"
                   id={index === 0 ? "tour-verify-button" : undefined}
                 >
-                  <Search className="w-3.5 h-3.5 mr-1" />
+                  <Search className="w-4 h-4 mr-1" />
                   {p.seniatVerification ? "Re-validar" : "Verificar"}
                 </Button>
                 {activeVerificationIndex === index && (
@@ -660,7 +658,7 @@ export const ParticipantForm = ({
                 variant="ghost" 
                 size="icon" 
                 onClick={() => removeParticipant(index)}
-                className="text-red-400 hover:text-red-600 hover:bg-red-50"
+                className="h-11 w-11 text-red-400 hover:text-red-600 hover:bg-red-50"
                 disabled={participants.length === 1}
               >
                 <Trash2 className="w-4 h-4" />
@@ -805,7 +803,7 @@ export const ParticipantForm = ({
               variant="outline" 
               onClick={() => handleSave("draft")}
               disabled={saving}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto h-12"
             >
               {saving ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -818,7 +816,7 @@ export const ParticipantForm = ({
               id="tour-submit-button"
               onClick={() => handleSave("final")}
               disabled={saving || !hasAcknowledged || !hasValidParticipants}
-              className={`w-full sm:w-auto transition-colors ${
+              className={`w-full sm:w-auto h-12 transition-colors ${
                 hasAcknowledged && hasValidParticipants
                   ? "bg-blue-600 hover:bg-blue-700" 
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
