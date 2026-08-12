@@ -130,8 +130,6 @@ export const ParticipantScannerModal = ({
           throw new Error(result.error || "Error procesando la imagen");
         }
 
-        setHasProcessed(true);
-
         if (result.success && result.participants) {
           dbg(`OCR success: ${result.participants.length} participants extracted`);
           setExtractedParticipants(result.participants);
@@ -148,6 +146,11 @@ export const ParticipantScannerModal = ({
           setError(err instanceof Error ? err.message : "Error desconocido");
         }
       } finally {
+        // Mark as processed in BOTH success and error paths. Without this, the
+        // auto-process effect below would re-fire indefinitely on error (since
+        // isProcessing flips back to false but hasProcessed stayed false),
+        // causing the modal to loop forever and OCR to never settle.
+        setHasProcessed(true);
         setIsProcessing(false);
       }
     },
@@ -380,7 +383,7 @@ export const ParticipantScannerModal = ({
                 </div>
               )}
             </div>
-          ) : hasProcessed ? (
+          ) : hasProcessed && !error ? (
             <div className="h-full flex flex-col gap-4 sm:gap-6">
               {/* Header inside body */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 bg-white p-3 sm:p-4 rounded-xl border border-gray-200 shadow-sm shrink-0">
@@ -834,7 +837,7 @@ export const ParticipantScannerModal = ({
         </div>
 
         {/* Footer - Sticky */}
-        {hasProcessed && (
+        {hasProcessed && !error && (
           <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />

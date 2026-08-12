@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OCRService } from '@/lib/ocr-service';
-import { requireDashboardAuth } from '@/utils/api-auth';
+import { requireApiAuth } from '@/utils/api-auth';
 
 // Increase max duration for OCR processing (Mistral OCR + AI fallback chat call
 // can take longer than the default serverless timeout, especially on larger images)
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
-  // Auth: only authenticated dashboard users can use OCR
-  const auth = await requireDashboardAuth(request);
+  // Auth: accept dashboard (Supabase), cliente portal, and facilitador portal
+  // sessions. The facilitador portal uses a cookie-based session, not Supabase
+  // auth, so requireDashboardAuth would reject it with a 401.
+  const auth = await requireApiAuth(request);
   if ('unauthorized' in auth) {
     return auth.unauthorized;
   }
