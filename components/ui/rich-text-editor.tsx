@@ -62,6 +62,7 @@ interface RichTextEditorProps {
   placeholder?: string;
   className?: string;
   rows?: number;
+  highlightOverflow?: boolean;
 }
 
 export default function RichTextEditor({
@@ -70,12 +71,17 @@ export default function RichTextEditor({
   placeholder,
   className,
   rows = 8,
+  highlightOverflow = true,
 }: RichTextEditorProps) {
   const minHeight = `${rows * 1.75}rem`;
 
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [StarterKit, HighlightLongLines, Underline],
+    extensions: [
+      StarterKit,
+      ...(highlightOverflow ? [HighlightLongLines] : []),
+      Underline,
+    ],
     content: value || "",
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();

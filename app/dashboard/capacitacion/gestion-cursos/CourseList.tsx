@@ -73,10 +73,10 @@ export default function CourseList({
       {/* List Header */}
       <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
         <div className="grid grid-cols-12 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
-          <div className="col-span-4">Información del Curso</div>
+          <div className="col-span-3">Información del Curso</div>
           <div className="col-span-2">Duración</div>
           <div className="col-span-2">Creado</div>
-          <div className="col-span-4 text-right">Acciones</div>
+          <div className="col-span-5 text-right">Acciones</div>
         </div>
       </div>
 

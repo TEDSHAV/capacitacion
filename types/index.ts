@@ -77,6 +77,10 @@ export interface Curso {
   nota_aprobatoria: number | null;
   emite_carnet: boolean | null;
   subtitulo: string | null;
+  para_quien: string | null;
+  modalidad: string | null;
+  objetivo_general: string | null;
+  objetivo_especifico: string | null;
   empresas?: { razon_social: string; rif?: string | null } | null;
 }
 

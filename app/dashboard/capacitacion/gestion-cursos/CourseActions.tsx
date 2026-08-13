@@ -1,8 +1,18 @@
 import { Curso, CourseActionsProps } from '@/types';
+import { FileText } from 'lucide-react';
 
 export default function CourseActions({ curso, onEdit, onDelete, onDuplicate }: CourseActionsProps) {
   return (
     <div className="flex space-x-2">
+      <a
+        href={`/api/generate-ficha-tecnica-pdf?id=${curso.id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center justify-center p-1.5 text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+        title="Descargar Ficha Técnica"
+      >
+        <FileText className="w-4 h-4" />
+      </a>
       <button 
         onClick={() => onEdit(curso)}
         className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 transition-colors"

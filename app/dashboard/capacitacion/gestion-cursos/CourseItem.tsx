@@ -50,7 +50,7 @@ export default function CourseItem({
     >
       <div className="grid grid-cols-12 gap-4 items-center">
         {/* Course Information */}
-        <div className="col-span-4">
+        <div className="col-span-3">
           <div className="space-y-1">
             <div className="text-sm font-medium text-gray-900 truncate">
               {curso.nombre.toUpperCase()}
@@ -82,7 +82,7 @@ export default function CourseItem({
 
         {/* Actions */}
         <div
-          className="col-span-4 flex justify-end"
+          className="col-span-5 flex justify-end flex-wrap gap-2"
           onClick={(e) => e.stopPropagation()}
         >
           <CourseActions
