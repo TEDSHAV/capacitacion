@@ -31,7 +31,7 @@ async function generateFichaPdf(fichaData: FichaTecnicaData): Promise<Buffer> {
     headerTemplate,
     footerTemplate,
     marginTop: "2.5cm",
-    marginBottom: "2cm",
+    marginBottom: "2.3cm",
     marginLeft: "2cm",
     marginRight: "2cm",
   });

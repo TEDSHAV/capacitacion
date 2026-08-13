@@ -26,7 +26,7 @@ export interface FichaTecnicaData {
   cursoId: number | null;
 }
 
-const PRIMARY_BLUE = "#0c3f69";
+const BLACK = "#000000";
 
 function escapeHtml(text: string): string {
   return text
@@ -127,27 +127,28 @@ export function buildFichaTecnicaHeaderTemplate(data: FichaTecnicaData): string 
   const logoDataUri = loadImageDataUri("logo.png");
 
   const logoHtml = logoDataUri
-    ? `<img src="${logoDataUri}" style="height: 1.6cm; width: auto; object-fit: contain;" />`
+    ? `<img src="${logoDataUri}" style="height: 1.1cm; width: auto; object-fit: contain;" />`
     : "";
 
   return `
     <div style="
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       width: 100%;
-      height: 2.2cm;
-      padding: 0.3cm 2cm 0 2cm;
+      height: 1.8cm;
+      padding: 0.2cm 2cm 0 2cm;
       font-family: Arial, Helvetica, sans-serif;
       box-sizing: border-box;
     ">
-      <div style="display: flex; align-items: center;">
+      <div style="display: flex; align-items: flex-start;">
         ${logoHtml}
       </div>
-      <div style="text-align: right; font-size: 9pt; color: #6b7280; line-height: 1.5;">
-        <div style="font-weight: bold; color: ${PRIMARY_BLUE}; font-size: 10pt;">${escapeHtml(courseCode)}</div>
+      <div style="text-align: right; font-size: 9pt; color: ${BLACK}; line-height: 1.5;">
+        <div style="font-weight: bold; color: ${BLACK}; font-size: 10pt;">${escapeHtml(courseCode)}</div>
         <div>Rev. 1</div>
         <div>Fecha: ${escapeHtml(fecha)}</div>
+        <div>Página <span class="pageNumber"></span> de <span class="totalPages"></span></div>
       </div>
     </div>
   `;
@@ -155,33 +156,28 @@ export function buildFichaTecnicaHeaderTemplate(data: FichaTecnicaData): string 
 
 /**
  * Build the footer template for puppeteer's displayHeaderFooter.
- * Renders on every page. Uses <span class="pageNumber"></span> and
- * <span class="totalPages"></span> which puppeteer replaces automatically.
+ * Renders on every page. Full-width centered footer image.
  */
 export function buildFichaTecnicaFooterTemplate(): string {
   const footerDataUri = loadImageDataUri("footer-ficha-tecnica.jpg");
 
   const footerImgHtml = footerDataUri
-    ? `<img src="${footerDataUri}" style="height: 1.2cm; width: auto; object-fit: contain;" />`
+    ? `<img src="${footerDataUri}" style="width: 100%; height: auto; object-fit: contain;" />`
     : "";
 
   return `
     <div style="
       display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
       width: 100%;
-      height: 1.7cm;
-      padding: 0 2cm 0.3cm 2cm;
+      height: 2cm;
+      padding: 0.3cm 2cm 0.2cm 2cm;
       font-family: Arial, Helvetica, sans-serif;
       box-sizing: border-box;
     ">
-      <div style="display: flex; align-items: center;">
-        ${footerImgHtml}
-      </div>
-      <div style="font-size: 9pt; color: #6b7280;">
-        Página <span class="pageNumber"></span> de <span class="totalPages"></span>
-      </div>
+      ${footerImgHtml}
     </div>
   `;
 }
@@ -205,59 +201,62 @@ export function buildFichaTecnicaHtml(data: FichaTecnicaData): string {
     * { box-sizing: border-box; }
     body {
       font-family: Arial, Helvetica, sans-serif;
-      font-size: 11pt;
-      color: #1f2937;
-      line-height: 1.6;
+      font-size: 10.5pt;
+      color: ${BLACK};
+      line-height: 1.5;
       margin: 0;
       padding: 0;
     }
     .title-block {
-      border-bottom: 3px solid ${PRIMARY_BLUE};
-      padding-bottom: 10px;
-      margin-bottom: 16px;
+      padding-bottom: 8px;
+      margin-top: 20px;
+      margin-bottom: 12px;
+      text-align: center;
     }
     h1.course-title {
-      font-size: 16pt;
+      font-size: 15pt;
       font-weight: bold;
-      color: ${PRIMARY_BLUE};
+      color: ${BLACK};
       margin: 0;
       text-transform: uppercase;
       line-height: 1.3;
+      text-align: center;
     }
     .course-subtitle {
-      font-size: 11pt;
-      color: #4b5563;
+      font-size: 10.5pt;
+      color: #333333;
       margin-top: 4px;
+      text-align: center;
     }
     .section {
-      margin-bottom: 18px;
+      margin-bottom: 12px;
       page-break-inside: avoid;
     }
     .section h2 {
-      font-size: 11pt;
+      font-size: 10.5pt;
       font-weight: bold;
       text-transform: uppercase;
-      color: ${PRIMARY_BLUE};
-      margin: 0 0 6px 0;
-      padding-bottom: 4px;
+      color: ${BLACK};
+      margin: 0 0 4px 0;
+      padding-bottom: 3px;
       border-bottom: 1px solid #d1d5db;
       letter-spacing: 0.5px;
     }
     .section-content {
-      font-size: 11pt;
-      line-height: 1.65;
+      font-size: 10.5pt;
+      line-height: 1.5;
       text-align: justify;
     }
     .section-content p {
-      margin: 0 0 8px 0;
+      margin: 0 0 6px 0;
     }
     .section-content ul,
     .section-content ol {
-      margin: 0 0 8px 0;
-      padding-left: 22px;
+      margin: 0 0 6px 0;
+      padding-left: 20px;
     }
     .section-content li {
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .section-content strong { font-weight: bold; }
     .section-content em { font-style: italic; }
