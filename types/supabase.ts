@@ -4459,6 +4459,7 @@ export type Database = {
           id_curso: number | null
           id_empresa: number | null
           is_active: boolean | null
+          titulo_certificado: string | null
         }
         Insert: {
           contenido?: string | null
@@ -4468,6 +4469,7 @@ export type Database = {
           id_curso?: number | null
           id_empresa?: number | null
           is_active?: boolean | null
+          titulo_certificado?: string | null
         }
         Update: {
           contenido?: string | null
@@ -4477,6 +4479,7 @@ export type Database = {
           id_curso?: number | null
           id_empresa?: number | null
           is_active?: boolean | null
+          titulo_certificado?: string | null
         }
         Relationships: [
           {

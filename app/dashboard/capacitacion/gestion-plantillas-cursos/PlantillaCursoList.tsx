@@ -52,13 +52,13 @@ export function PlantillaCursoList({
 
       {/* Table */}
       <div className="overflow-x-auto w-full">
-        <table className="min-w-full divide-y divide-gray-200 table-fixed">
+        <table className="w-full divide-y divide-gray-200 table-fixed">
           <thead className="bg-gray-50">
             <tr>
-              <th className="w-[30%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[32%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Descripción
               </th>
-              <th className="w-[20%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[18%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Curso
               </th>
               <th className="w-[15%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -67,10 +67,10 @@ export function PlantillaCursoList({
               <th className="w-[10%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Estado
               </th>
-              <th className="w-[10%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[12%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Creado
               </th>
-              <th className="w-[15%] px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="w-[13%] px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Acciones
               </th>
             </tr>
@@ -123,23 +123,23 @@ export function PlantillaCursoList({
                         )
                       : "N/A"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-1">
                       <button
                         onClick={() => onEdit(plantilla)}
-                        className="bg-blue-600 text-white px-2 py-1.5 rounded-md hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-1 text-xs"
+                        className="bg-blue-600 text-white p-1.5 rounded-md hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center text-xs"
                         title="Editar"
+                        aria-label="Editar"
                       >
-                        <Edit className="w-3 h-3" />
-                        Editar
+                        <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => onDelete(plantilla.id)}
-                        className="bg-red-600 text-white px-2 py-1.5 rounded-md hover:bg-red-700 transition-colors shadow-sm flex items-center gap-1 text-xs"
+                        className="bg-red-600 text-white p-1.5 rounded-md hover:bg-red-700 transition-colors shadow-sm flex items-center justify-center text-xs"
                         title="Eliminar"
+                        aria-label="Eliminar"
                       >
-                        <Trash2 className="w-3 h-3" />
-                        Eliminar
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>

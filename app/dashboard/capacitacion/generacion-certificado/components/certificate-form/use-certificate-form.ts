@@ -144,6 +144,13 @@ export function useCertificateForm({
             if (companySpecificTemplate) {
               templateToSelect = companySpecificTemplate.id.toString();
               contentToUse = companySpecificTemplate.contenido || "";
+              // Prefer the plantilla's certificate title; fall back to the
+              // original course name for backwards compatibility (existing
+              // plantillas with titulo_certificado = NULL).
+              titleToUse =
+                companySpecificTemplate.titulo_certificado ||
+                selectedCourseTopic?.nombre ||
+                "";
             }
           }
 

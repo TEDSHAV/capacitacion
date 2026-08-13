@@ -8,4 +8,5 @@ export interface PlantillaCurso {
   created_at?: string;
   curso_nombre?: string;
   empresa_nombre?: string;
+  titulo_certificado?: string | null;
 }

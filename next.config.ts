@@ -49,7 +49,7 @@ const nextConfig: NextConfig = {
   // Experimental features
   experimental: {
     optimizeCss: false,
-    optimizePackageImports: ["@supabase/supabase-js", "lucide-react", "jspdf"],
+    optimizePackageImports: ["@supabase/supabase-js", "lucide-react", "jspdf", "recharts"],
     // Server Actions body size limit - allows mobile camera photo uploads
     // Images are compressed client-side before upload, but this is a safety net
     serverActions: {

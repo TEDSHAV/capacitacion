@@ -1804,3 +1804,109 @@ export interface ClienteFilterOptions {
   cities: { id: number; nombre_ciudad: string }[];
   sedes: { id: number; nombre_sede: string }[];
 }
+
+// ============================================================================
+// Indicadores de Certificados 72h
+// Measures whether certificate issuance (certificados.created_at, with
+// fecha_emision fallback) happens within 72h of the last session execution
+// date (MAX(osi_sesion.fecha), with fecha_fin_real fallback).
+// ============================================================================
+
+export type IndicadorEstado = "dentro" | "fuera" | "pendiente" | "no_aplica";
+
+export type IndicadorFuente = "created_at" | "fecha_emision";
+
+export type IndicadorFuenteEjecucion = "sesiones" | "fecha_fin_real";
+
+export interface IndicadorOsiRow {
+  osiId: number;
+  nroOsi: string;
+  empresa: string;
+  servicio: string;
+  fechaEjecucion: string | null;
+  fuenteEjecucion: IndicadorFuenteEjecucion | null;
+  fechaEmision: string | null;
+  fuenteEmision: IndicadorFuente | null;
+  horas: number | null;
+  estado: IndicadorEstado;
+  brechaHoras: number | null;
+  facilitadorNombre: string | null;
+  sesiones: number | null;
+  sospechoso: boolean;
+}
+
+export interface DistribucionBucket {
+  bucket: string;
+  label: string;
+  count: number;
+  dentro: boolean;
+}
+
+export interface TendenciaMensual {
+  mes: string;
+  label: string;
+  dentro: number;
+  fuera: number;
+  total: number;
+  pct: number | null;
+}
+
+export interface PorDimensionItem {
+  key: string;
+  label: string;
+  count: number;
+  dentro: number;
+  fuera: number;
+  pendientes: number;
+  avgHoras: number | null;
+  pct: number | null;
+}
+
+export interface IndicadoresAggregates {
+  totalEvaluadas: number;
+  dentro72: number;
+  fuera72: number;
+  pendientes: number;
+  noAplica: number;
+  pctCumplimiento: number | null;
+  avgHoras: number | null;
+  medianaHoras: number | null;
+  maxHoras: number | null;
+  maxHorasOsi: string | null;
+  minHoras: number | null;
+  enRiesgoPendientes: number;
+  distribucion: DistribucionBucket[];
+  tendenciaMensual: TendenciaMensual[];
+  porEmpresa: PorDimensionItem[];
+  porFacilitador: PorDimensionItem[];
+  backlog: IndicadorOsiRow[];
+}
+
+export interface IndicadoresResponse {
+  rows: IndicadorOsiRow[];
+  aggregates: IndicadoresAggregates;
+}
+
+export interface IndicadoresFilters {
+  osiIds?: number[];
+  fechaFrom?: string;
+  fechaTo?: string;
+  empresaId?: string;
+  facilitadorId?: string;
+  estadoId?: string;
+  soloIncumplimientos?: boolean;
+}
+
+export interface IndicadorOsiOption {
+  id: number;
+  nro_osi: string;
+  nombre_empresa: string | null;
+  servicio: string | null;
+}
+
+export interface IndicadoresFilterOptions {
+  osis: IndicadorOsiOption[];
+  empresas: { id: number; razon_social: string }[];
+  facilitadores: { id: number; nombre_apellido: string }[];
+  estados: State[];
+}

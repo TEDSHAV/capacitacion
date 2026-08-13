@@ -20,6 +20,7 @@ import {
   Sparkles,
   ClipboardList,
   Users,
+  Gauge,
 } from "lucide-react";
 
 type LucideIcon = typeof BookOpen;
@@ -80,6 +81,14 @@ export default function CapacitacionClient({
       gradient: "from-rose-500 to-pink-600",
       icon: BarChart3,
       href: "/dashboard/capacitacion/reportes",
+    },
+    {
+      id: "indicadores",
+      title: "Indicadores 72h",
+      description: "Cumplimiento de emisión de certificados en 72h",
+      gradient: "from-emerald-500 to-cyan-600",
+      icon: Gauge,
+      href: "/dashboard/capacitacion/indicadores",
     },
   ];
 

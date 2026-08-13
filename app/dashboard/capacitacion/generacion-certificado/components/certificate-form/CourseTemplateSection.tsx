@@ -42,6 +42,15 @@ export const CourseTemplateSection = ({
           ? template.contenido || ""
           : selectedCourseTopic?.contenido_curso || "",
       );
+      // Use the plantilla's certificate title when set; fall back to the
+      // original course name for backwards compatibility (existing plantillas
+      // created before this field was added have titulo_certificado = NULL).
+      onDataChange(
+        "certificate_title",
+        template?.titulo_certificado ||
+          selectedCourseTopic?.nombre ||
+          "",
+      );
     } else {
       onDataChange(
         "course_content",
