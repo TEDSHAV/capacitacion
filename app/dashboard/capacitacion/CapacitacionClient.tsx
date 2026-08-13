@@ -33,6 +33,15 @@ interface MainCard {
   icon: LucideIcon;
   href: string;
   external?: boolean;
+  subCards?: SubCard[];
+}
+
+interface SubCard {
+  id: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  href: string;
 }
 
 interface SubModule {
@@ -81,14 +90,22 @@ export default function CapacitacionClient({
       gradient: "from-rose-500 to-pink-600",
       icon: BarChart3,
       href: "/dashboard/capacitacion/reportes",
-    },
-    {
-      id: "indicadores",
-      title: "Indicadores 72h",
-      description: "Cumplimiento de emisión de certificados en 72h",
-      gradient: "from-emerald-500 to-cyan-600",
-      icon: Gauge,
-      href: "/dashboard/capacitacion/indicadores",
+      subCards: [
+        {
+          id: "kpi",
+          title: "KPI",
+          description: "KPIs y reportes de capacitación",
+          icon: BarChart3,
+          href: "/dashboard/capacitacion/reportes",
+        },
+        {
+          id: "indicadores",
+          title: "Indicadores",
+          description: "Cumplimiento de certificados en 72h",
+          icon: Gauge,
+          href: "/dashboard/capacitacion/indicadores",
+        },
+      ],
     },
   ];
 
@@ -169,10 +186,56 @@ export default function CapacitacionClient({
           </p>
         </div>
 
-        {/* Main process cards — 4 primary */}
+        {/* Main process cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {mainCards.map((card) => {
             const Icon = card.icon;
+
+            // Card with subcards: container is not a link, each subcard is.
+            if (card.subCards && card.subCards.length > 0) {
+              return (
+                <div
+                  key={card.id}
+                  className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full group"
+                >
+                  <div
+                    className={`w-14 h-14 rounded-xl bg-gradient-to-br ${card.gradient} mb-4 flex items-center justify-center group-hover:scale-105 transition-transform`}
+                  >
+                    <Icon className="text-white w-7 h-7" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    {card.title}
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    {card.description}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-auto">
+                    {card.subCards.map((sub) => {
+                      const SubIcon = sub.icon;
+                      return (
+                        <Link
+                          key={sub.id}
+                          href={sub.href}
+                          className="flex flex-col gap-2 p-3 rounded-xl border border-gray-200 hover:border-rose-300 hover:bg-rose-50/40 transition-all group/sub"
+                        >
+                          <div className="flex items-center gap-2">
+                            <SubIcon className="w-4 h-4 text-rose-500 flex-shrink-0" />
+                            <span className="text-sm font-semibold text-gray-900">
+                              {sub.title}
+                            </span>
+                            <ChevronRight className="w-3.5 h-3.5 ml-auto text-gray-400 group-hover/sub:translate-x-0.5 group-hover/sub:text-rose-500 transition-transform" />
+                          </div>
+                          <p className="text-xs text-gray-500 leading-snug">
+                            {sub.description}
+                          </p>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
             const content = (
               <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full group cursor-pointer">
                 <div

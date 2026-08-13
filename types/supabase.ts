@@ -66,6 +66,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "actividad_maestra_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "actividad_maestra_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "actividad_maestra_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
@@ -77,6 +91,13 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "actividad_maestra_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_empresa"]
           },
           {
@@ -154,6 +175,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "adjuntos_contexto_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "adjuntos_contexto_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "adjuntos_contexto_tarea_id_fkey"
             columns: ["tarea_id"]
             isOneToOne: false
@@ -161,6 +196,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      capacitacion_proceso_steps: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: number
+          notes: string | null
+          nro_sesion: number
+          osi_id: number
+          phase: string
+          step_key: string
+          step_metadata: Json | null
+          updated_at: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: never
+          notes?: string | null
+          nro_sesion?: number
+          osi_id: number
+          phase: string
+          step_key: string
+          step_metadata?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: never
+          notes?: string | null
+          nro_sesion?: number
+          osi_id?: number
+          phase?: string
+          step_key?: string
+          step_metadata?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       carnets: {
         Row: {
@@ -254,6 +334,13 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "carnets_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_empresa"]
           },
           {
@@ -370,6 +457,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cat_origenes_id_empleado_fkey"
+            columns: ["id_empleado_asignado"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "cat_origenes_id_empleado_fkey"
+            columns: ["id_empleado_asignado"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -558,6 +659,13 @@ export type Database = {
             referencedColumns: ["id_empresa"]
           },
           {
+            foreignKeyName: "certificados_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
+            referencedColumns: ["id_empresa"]
+          },
+          {
             foreignKeyName: "certificados_id_estado_fkey"
             columns: ["id_estado"]
             isOneToOne: false
@@ -658,6 +766,13 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "cliente_credenciales_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_empresa"]
           },
           {
@@ -813,6 +928,20 @@ export type Database = {
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "comentario_menciones_mentioned_user_id_fkey"
+            columns: ["mentioned_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "comentario_menciones_mentioned_user_id_fkey"
+            columns: ["mentioned_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
         ]
       }
       comentarios_contexto: {
@@ -820,8 +949,8 @@ export type Database = {
           author_user_id: number
           comment_kind: string
           contenido: string
-          context_id: number
-          context_type: string
+          context_id: number | null
+          context_type: string | null
           created_at: string
           edited_at: string | null
           id: number
@@ -837,8 +966,8 @@ export type Database = {
           author_user_id: number
           comment_kind?: string
           contenido: string
-          context_id: number
-          context_type: string
+          context_id?: number | null
+          context_type?: string | null
           created_at?: string
           edited_at?: string | null
           id?: number
@@ -854,8 +983,8 @@ export type Database = {
           author_user_id?: number
           comment_kind?: string
           contenido?: string
-          context_id?: number
-          context_type?: string
+          context_id?: number | null
+          context_type?: string | null
           created_at?: string
           edited_at?: string | null
           id?: number
@@ -874,6 +1003,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comentarios_contexto_author_user_id_fkey"
+            columns: ["author_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "comentarios_contexto_author_user_id_fkey"
+            columns: ["author_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -1097,6 +1240,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "contactos_id_ejecutivo_owner_fkey"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "contactos_id_ejecutivo_owner_fkey"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "contactos_id_empresa_fkey"
             columns: ["id_empresa"]
             isOneToOne: false
@@ -1108,6 +1265,13 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "contactos_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_empresa"]
           },
           {
@@ -1322,6 +1486,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "control_servicios_ejecutados_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "control_servicios_ejecutados_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "control_servicios_ejecutados_id_osi_fkey"
             columns: ["id_osi"]
             isOneToOne: false
@@ -1336,11 +1514,32 @@ export type Database = {
             referencedColumns: ["id_osi"]
           },
           {
+            foreignKeyName: "control_servicios_ejecutados_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
+            referencedColumns: ["id_osi"]
+          },
+          {
             foreignKeyName: "control_servicios_ejecutados_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_servicios_ejecutados_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "control_servicios_ejecutados_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -1411,6 +1610,13 @@ export type Database = {
             referencedRelation: "v_osi_formato_completo"
             referencedColumns: ["id_osi"]
           },
+          {
+            foreignKeyName: "course_satisfaction_surveys_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
+            referencedColumns: ["id_osi"]
+          },
         ]
       }
       crm_eventos_importantes: {
@@ -1453,6 +1659,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "crm_eventos_importantes_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "crm_eventos_importantes_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "crm_eventos_importantes_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
@@ -1464,6 +1684,13 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "crm_eventos_importantes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_empresa"]
           },
         ]
@@ -1508,6 +1735,8 @@ export type Database = {
           dia_cierre_semanal: number
           factor_meta_presupuesto: number
           factor_meta_venta: number
+          freeze_app_base_url: string | null
+          freeze_cron_secret: string | null
           hora_cierre_anual: string
           hora_cierre_mensual: string
           hora_cierre_semanal: string
@@ -1515,6 +1744,9 @@ export type Database = {
           hora_cierre_trimestral: string
           id: number
           porcentaje_aprobacion_meta: number
+          proyeccion_alcance_periodo: string
+          proyeccion_max_reproyecciones: number
+          proyeccion_vigencia_periodo: string
           updated_at: string
           zona_horaria: string
         }
@@ -1524,6 +1756,8 @@ export type Database = {
           dia_cierre_semanal?: number
           factor_meta_presupuesto?: number
           factor_meta_venta?: number
+          freeze_app_base_url?: string | null
+          freeze_cron_secret?: string | null
           hora_cierre_anual?: string
           hora_cierre_mensual?: string
           hora_cierre_semanal?: string
@@ -1531,6 +1765,9 @@ export type Database = {
           hora_cierre_trimestral?: string
           id?: number
           porcentaje_aprobacion_meta?: number
+          proyeccion_alcance_periodo?: string
+          proyeccion_max_reproyecciones?: number
+          proyeccion_vigencia_periodo?: string
           updated_at?: string
           zona_horaria?: string
         }
@@ -1540,6 +1777,8 @@ export type Database = {
           dia_cierre_semanal?: number
           factor_meta_presupuesto?: number
           factor_meta_venta?: number
+          freeze_app_base_url?: string | null
+          freeze_cron_secret?: string | null
           hora_cierre_anual?: string
           hora_cierre_mensual?: string
           hora_cierre_semanal?: string
@@ -1547,6 +1786,9 @@ export type Database = {
           hora_cierre_trimestral?: string
           id?: number
           porcentaje_aprobacion_meta?: number
+          proyeccion_alcance_periodo?: string
+          proyeccion_max_reproyecciones?: number
+          proyeccion_vigencia_periodo?: string
           updated_at?: string
           zona_horaria?: string
         }
@@ -1699,6 +1941,7 @@ export type Database = {
           fecha_fin_programada: string
           fecha_inicio: string
           id: number
+          snapshot_frozen_at: string | null
           tipo: string
           updated_at: string
           version: number
@@ -1715,6 +1958,7 @@ export type Database = {
           fecha_fin_programada: string
           fecha_inicio: string
           id?: number
+          snapshot_frozen_at?: string | null
           tipo: string
           updated_at?: string
           version?: number
@@ -1731,6 +1975,7 @@ export type Database = {
           fecha_fin_programada?: string
           fecha_inicio?: string
           id?: number
+          snapshot_frozen_at?: string | null
           tipo?: string
           updated_at?: string
           version?: number
@@ -1857,6 +2102,7 @@ export type Database = {
           aprobacion_acum: number
           cantidad_aprobados_acum: number
           cantidad_presupuestos_validos_acum: number
+          cantidad_ventas_acum: number
           ejecutivo_id: number
           fecha_fin_bucket: string
           label: string
@@ -1864,6 +2110,7 @@ export type Database = {
           meta_venta_acum: number
           monto_aprobado_acum: number
           monto_presupuestado_acum: number
+          monto_venta_acum: number
           periodo_id: number
           scope: string
         }
@@ -1871,6 +2118,7 @@ export type Database = {
           aprobacion_acum?: number
           cantidad_aprobados_acum?: number
           cantidad_presupuestos_validos_acum?: number
+          cantidad_ventas_acum?: number
           ejecutivo_id?: number
           fecha_fin_bucket: string
           label: string
@@ -1878,6 +2126,7 @@ export type Database = {
           meta_venta_acum?: number
           monto_aprobado_acum?: number
           monto_presupuestado_acum?: number
+          monto_venta_acum?: number
           periodo_id: number
           scope: string
         }
@@ -1885,6 +2134,7 @@ export type Database = {
           aprobacion_acum?: number
           cantidad_aprobados_acum?: number
           cantidad_presupuestos_validos_acum?: number
+          cantidad_ventas_acum?: number
           ejecutivo_id?: number
           fecha_fin_bucket?: string
           label?: string
@@ -1892,6 +2142,7 @@ export type Database = {
           meta_venta_acum?: number
           monto_aprobado_acum?: number
           monto_presupuestado_acum?: number
+          monto_venta_acum?: number
           periodo_id?: number
           scope?: string
         }
@@ -1957,6 +2208,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "datos_bancarios_id_empleado_fkey"
+            columns: ["id_empleado"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "datos_bancarios_id_empleado_fkey"
+            columns: ["id_empleado"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "datos_bancarios_id_empresa_fkey"
             columns: ["id_empresa"]
             isOneToOne: false
@@ -1968,6 +2233,13 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "datos_bancarios_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_empresa"]
           },
           {
@@ -1988,24 +2260,59 @@ export type Database = {
       }
       departamentos: {
         Row: {
+          coordinador: number | null
           descripcion: string | null
           esta_activo: boolean | null
+          gerencia: string | null
           id: number
           nombre: string
         }
         Insert: {
+          coordinador?: number | null
           descripcion?: string | null
           esta_activo?: boolean | null
+          gerencia?: string | null
           id?: number
           nombre: string
         }
         Update: {
+          coordinador?: number | null
           descripcion?: string | null
           esta_activo?: boolean | null
+          gerencia?: string | null
           id?: number
           nombre?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "departamentos_coordinador_fkey"
+            columns: ["coordinador"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departamentos_coordinador_fkey"
+            columns: ["coordinador"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "departamentos_coordinador_fkey"
+            columns: ["coordinador"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "departamentos_gerencia_fkey"
+            columns: ["gerencia"]
+            isOneToOne: false
+            referencedRelation: "gerencias"
+            referencedColumns: ["nombre"]
+          },
+        ]
       }
       direcciones_cliente: {
         Row: {
@@ -2079,6 +2386,13 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "fk_direcciones_empresa"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_empresa"]
           },
         ]
@@ -2368,6 +2682,7 @@ export type Database = {
           id_direccion_ejecucion_solped: number | null
           id_direccion_envio_solped: number | null
           id_ecc_consolidada: number | null
+          id_ecc_origen_clon: number | null
           id_estatus: number | null
           id_modalidad: number | null
           id_presupuesto_aprobado: number | null
@@ -2407,6 +2722,7 @@ export type Database = {
           id_direccion_ejecucion_solped?: number | null
           id_direccion_envio_solped?: number | null
           id_ecc_consolidada?: number | null
+          id_ecc_origen_clon?: number | null
           id_estatus?: number | null
           id_modalidad?: number | null
           id_presupuesto_aprobado?: number | null
@@ -2446,6 +2762,7 @@ export type Database = {
           id_direccion_ejecucion_solped?: number | null
           id_direccion_envio_solped?: number | null
           id_ecc_consolidada?: number | null
+          id_ecc_origen_clon?: number | null
           id_estatus?: number | null
           id_modalidad?: number | null
           id_presupuesto_aprobado?: number | null
@@ -2509,6 +2826,34 @@ export type Database = {
             referencedColumns: ["ecc_id"]
           },
           {
+            foreignKeyName: "ecc_encabezado_id_ecc_origen_clon_fkey"
+            columns: ["id_ecc_origen_clon"]
+            isOneToOne: false
+            referencedRelation: "ecc_encabezado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecc_encabezado_id_ecc_origen_clon_fkey"
+            columns: ["id_ecc_origen_clon"]
+            isOneToOne: false
+            referencedRelation: "v_ecc_preview_context"
+            referencedColumns: ["ecc_id"]
+          },
+          {
+            foreignKeyName: "ecc_encabezado_id_ecc_origen_clon_fkey"
+            columns: ["id_ecc_origen_clon"]
+            isOneToOne: false
+            referencedRelation: "v_ecc_resumen"
+            referencedColumns: ["id_ecc"]
+          },
+          {
+            foreignKeyName: "ecc_encabezado_id_ecc_origen_clon_fkey"
+            columns: ["id_ecc_origen_clon"]
+            isOneToOne: false
+            referencedRelation: "v_funnel_comercial_detallado"
+            referencedColumns: ["ecc_id"]
+          },
+          {
             foreignKeyName: "ecc_encabezado_id_estatus_fkey"
             columns: ["id_estatus"]
             isOneToOne: false
@@ -2528,13 +2873,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "presupuestos"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ecc_encabezado_id_presupuesto_aprobado_fkey"
-            columns: ["id_presupuesto_aprobado"]
-            isOneToOne: false
-            referencedRelation: "vw_kpi_presupuestos_base"
-            referencedColumns: ["id_presupuesto"]
           },
           {
             foreignKeyName: "ecc_encabezado_id_servicio_fkey"
@@ -2578,6 +2916,20 @@ export type Database = {
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ecc_encabezado_id_usuario_revision_financiera_fkey"
+            columns: ["id_usuario_revision_financiera"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "ecc_encabezado_id_usuario_revision_financiera_fkey"
+            columns: ["id_usuario_revision_financiera"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
         ]
       }
       ecc_totales: {
@@ -2594,6 +2946,7 @@ export type Database = {
           monto_iva: number | null
           monto_utilidad: number | null
           precio_por_persona: number | null
+          redondear_total_entero: boolean
           subtotal_costos_directos: number | null
           total_general: number | null
         }
@@ -2610,6 +2963,7 @@ export type Database = {
           monto_iva?: number | null
           monto_utilidad?: number | null
           precio_por_persona?: number | null
+          redondear_total_entero?: boolean
           subtotal_costos_directos?: number | null
           total_general?: number | null
         }
@@ -2626,6 +2980,7 @@ export type Database = {
           monto_iva?: number | null
           monto_utilidad?: number | null
           precio_por_persona?: number | null
+          redondear_total_entero?: boolean
           subtotal_costos_directos?: number | null
           total_general?: number | null
         }
@@ -2666,6 +3021,7 @@ export type Database = {
           carnet_impreso: boolean
           certificado_impreso: boolean
           created_at: string
+          entrega_certificado: string | null
           fecha_emision: string | null
           fecha_fin_real: string | null
           fecha_firma_administracion: string | null
@@ -2702,6 +3058,7 @@ export type Database = {
           carnet_impreso?: boolean
           certificado_impreso?: boolean
           created_at?: string
+          entrega_certificado?: string | null
           fecha_emision?: string | null
           fecha_fin_real?: string | null
           fecha_firma_administracion?: string | null
@@ -2738,6 +3095,7 @@ export type Database = {
           carnet_impreso?: boolean
           certificado_impreso?: boolean
           created_at?: string
+          entrega_certificado?: string | null
           fecha_emision?: string | null
           fecha_fin_real?: string | null
           fecha_firma_administracion?: string | null
@@ -2827,92 +3185,67 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ejecucion_osi_id_presupuesto_fkey"
-            columns: ["id_presupuesto"]
-            isOneToOne: false
-            referencedRelation: "vw_kpi_presupuestos_base"
-            referencedColumns: ["id_presupuesto"]
-          },
-          {
             foreignKeyName: "ejecucion_osi_id_responsable_recepcion_fkey"
             columns: ["id_responsable_recepcion"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      osi_visibilidad_cliente: {
-        Row: {
-          id: number
-          osi_id: number
-          oculto: boolean
-          updated_at: string
-          updated_by: number | null
-        }
-        Insert: {
-          id?: number
-          osi_id: number
-          oculto?: boolean
-          updated_at?: string
-          updated_by?: number | null
-        }
-        Update: {
-          id?: number
-          osi_id?: number
-          oculto?: boolean
-          updated_at?: string
-          updated_by?: number | null
-        }
-        Relationships: [
           {
-            foreignKeyName: "osi_visibilidad_cliente_osi_id_fkey"
-            columns: ["osi_id"]
+            foreignKeyName: "ejecucion_osi_id_responsable_recepcion_fkey"
+            columns: ["id_responsable_recepcion"]
             isOneToOne: false
-            referencedRelation: "ejecucion_osi"
-            referencedColumns: ["id"]
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_id_responsable_recepcion_fkey"
+            columns: ["id_responsable_recepcion"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
       ejecucion_osi_asistencia: {
         Row: {
+          category: string | null
           created_at: string | null
           facilitador_id: number | null
           file_name: string
           file_size: number | null
           file_type: string
           id: string
+          nro_sesion: number
           osi_id: number | null
           storage_path: string
           updated_at: string | null
-          category: string | null
-          nro_sesion: number | null
         }
         Insert: {
+          category?: string | null
           created_at?: string | null
           facilitador_id?: number | null
           file_name: string
           file_size?: number | null
           file_type: string
           id?: string
+          nro_sesion?: number
           osi_id?: number | null
           storage_path: string
           updated_at?: string | null
-          category?: string | null
-          nro_sesion?: number | null
         }
         Update: {
+          category?: string | null
           created_at?: string | null
           facilitador_id?: number | null
           file_name?: string
           file_size?: number | null
           file_type?: string
           id?: string
+          nro_sesion?: number
           osi_id?: number | null
           storage_path?: string
           updated_at?: string | null
-          category?: string | null
-          nro_sesion?: number | null
         }
         Relationships: [
           {
@@ -2934,6 +3267,13 @@ export type Database = {
             columns: ["osi_id"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_osi"]
+          },
+          {
+            foreignKeyName: "ejecucion_osi_asistencia_osi_id_fkey"
+            columns: ["osi_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_osi"]
           },
         ]
@@ -2994,6 +3334,13 @@ export type Database = {
             referencedRelation: "v_osi_formato_completo"
             referencedColumns: ["id_osi"]
           },
+          {
+            foreignKeyName: "ejecucion_osi_participantes_osi_id_fkey"
+            columns: ["osi_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
+            referencedColumns: ["id_osi"]
+          },
         ]
       }
       empresa_logos: {
@@ -3031,6 +3378,13 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: true
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "empresa_logos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_empresa"]
           },
         ]
@@ -3076,6 +3430,13 @@ export type Database = {
             referencedColumns: ["id_empresa"]
           },
           {
+            foreignKeyName: "empresa_sedes_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
+            referencedColumns: ["id_empresa"]
+          },
+          {
             foreignKeyName: "empresa_sedes_id_estado_fkey"
             columns: ["id_estado"]
             isOneToOne: false
@@ -3093,6 +3454,7 @@ export type Database = {
           fecha_creacion: string | null
           id: number
           id_ciudad_ubicacion: number | null
+          id_cuenta_bancaria_defecto: number | null
           id_ejecutivo_owner: number | null
           id_estado_ubicacion: number | null
           observaciones: string | null
@@ -3109,6 +3471,7 @@ export type Database = {
           fecha_creacion?: string | null
           id?: number
           id_ciudad_ubicacion?: number | null
+          id_cuenta_bancaria_defecto?: number | null
           id_ejecutivo_owner?: number | null
           id_estado_ubicacion?: number | null
           observaciones?: string | null
@@ -3125,6 +3488,7 @@ export type Database = {
           fecha_creacion?: string | null
           id?: number
           id_ciudad_ubicacion?: number | null
+          id_cuenta_bancaria_defecto?: number | null
           id_ejecutivo_owner?: number | null
           id_estado_ubicacion?: number | null
           observaciones?: string | null
@@ -3142,11 +3506,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "empresas_id_cuenta_bancaria_defecto_fkey"
+            columns: ["id_cuenta_bancaria_defecto"]
+            isOneToOne: false
+            referencedRelation: "datos_bancarios"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "empresas_id_ejecutivo_owner_fkey"
             columns: ["id_ejecutivo_owner"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "empresas_id_ejecutivo_owner_fkey"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "empresas_id_ejecutivo_owner_fkey"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
           {
             foreignKeyName: "empresas_id_estado_ubicacion_fkey"
@@ -3263,6 +3648,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "evaluaciones_rendimiento_id_empleado_supervisor_fkey"
+            columns: ["id_empleado_supervisor"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_rendimiento_id_empleado_supervisor_fkey"
+            columns: ["id_empleado_supervisor"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "evaluaciones_rendimiento_id_estatus_evaluacion_fkey"
             columns: ["id_estatus_evaluacion"]
             isOneToOne: false
@@ -3347,51 +3746,6 @@ export type Database = {
           },
         ]
       }
-      capacitacion_proceso_steps: {
-        Row: {
-          id: number
-          osi_id: number
-          nro_sesion: number
-          phase: string
-          step_key: string
-          completed: boolean
-          completed_at: string | null
-          completed_by: string | null
-          notes: string | null
-          step_metadata: Json
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: never
-          osi_id: number
-          nro_sesion?: number
-          phase: string
-          step_key: string
-          completed?: boolean
-          completed_at?: string | null
-          completed_by?: string | null
-          notes?: string | null
-          step_metadata?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: never
-          osi_id?: number
-          nro_sesion?: number
-          phase?: string
-          step_key?: string
-          completed?: boolean
-          completed_at?: string | null
-          completed_by?: string | null
-          notes?: string | null
-          step_metadata?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       facilitador_osi_assignments: {
         Row: {
           assigned_by: string | null
@@ -3402,8 +3756,8 @@ export type Database = {
           facilitador_id: number
           id: number
           is_active: boolean | null
-          osi_id: number
           nro_sesion: number | null
+          osi_id: number
           source: string | null
           updated_at: string | null
         }
@@ -3416,8 +3770,8 @@ export type Database = {
           facilitador_id: number
           id?: never
           is_active?: boolean | null
-          osi_id: number
           nro_sesion?: number | null
+          osi_id: number
           source?: string | null
           updated_at?: string | null
         }
@@ -3430,8 +3784,8 @@ export type Database = {
           facilitador_id?: number
           id?: never
           is_active?: boolean | null
-          osi_id?: number
           nro_sesion?: number | null
+          osi_id?: number
           source?: string | null
           updated_at?: string | null
         }
@@ -3455,6 +3809,13 @@ export type Database = {
             columns: ["osi_id"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_osi"]
+          },
+          {
+            foreignKeyName: "fk_osi"
+            columns: ["osi_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_osi"]
           },
         ]
@@ -3645,6 +4006,13 @@ export type Database = {
             referencedColumns: ["id_osi"]
           },
           {
+            foreignKeyName: "fin_egresos_pagos_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
+            referencedColumns: ["id_osi"]
+          },
+          {
             foreignKeyName: "fin_egresos_pagos_id_proveedor_fkey"
             columns: ["id_proveedor"]
             isOneToOne: false
@@ -3706,13 +4074,6 @@ export type Database = {
             referencedRelation: "presupuestos"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "fin_ingresos_clientes_id_presupuesto_fkey"
-            columns: ["id_presupuesto"]
-            isOneToOne: false
-            referencedRelation: "vw_kpi_presupuestos_base"
-            referencedColumns: ["id_presupuesto"]
-          },
         ]
       }
       firmas: {
@@ -3756,6 +4117,49 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "facilitadores"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      gerencias: {
+        Row: {
+          created_at: string
+          id: number
+          lider: number | null
+          nombre: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          lider?: number | null
+          nombre?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          lider?: number | null
+          nombre?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gerencias_lider_fkey"
+            columns: ["lider"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gerencias_lider_fkey"
+            columns: ["lider"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "gerencias_lider_fkey"
+            columns: ["lider"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -3847,6 +4251,20 @@ export type Database = {
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "historial_cambios_estado_id_usuario_cambio_fkey"
+            columns: ["id_usuario_cambio"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "historial_cambios_estado_id_usuario_cambio_fkey"
+            columns: ["id_usuario_cambio"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
         ]
       }
       inventario: {
@@ -3929,7 +4347,9 @@ export type Database = {
       marketing_leads: {
         Row: {
           created_at: string
+          es_recontacto: boolean
           fecha_ingreso: string | null
+          fecha_ultimo_recontacto: string | null
           id: number
           id_ciudad_ubicacion: number | null
           id_contacto: number | null
@@ -3940,6 +4360,7 @@ export type Database = {
           id_estatus: number | null
           id_origen: number | null
           id_servicio_interes: number | null
+          intereses_recontacto: Json
           is_duplicate: boolean | null
           notas_adicionales: string | null
           raw_email: string | null
@@ -3953,7 +4374,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          es_recontacto?: boolean
           fecha_ingreso?: string | null
+          fecha_ultimo_recontacto?: string | null
           id?: number
           id_ciudad_ubicacion?: number | null
           id_contacto?: number | null
@@ -3964,6 +4387,7 @@ export type Database = {
           id_estatus?: number | null
           id_origen?: number | null
           id_servicio_interes?: number | null
+          intereses_recontacto?: Json
           is_duplicate?: boolean | null
           notas_adicionales?: string | null
           raw_email?: string | null
@@ -3977,7 +4401,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          es_recontacto?: boolean
           fecha_ingreso?: string | null
+          fecha_ultimo_recontacto?: string | null
           id?: number
           id_ciudad_ubicacion?: number | null
           id_contacto?: number | null
@@ -3988,6 +4414,7 @@ export type Database = {
           id_estatus?: number | null
           id_origen?: number | null
           id_servicio_interes?: number | null
+          intereses_recontacto?: Json
           is_duplicate?: boolean | null
           notas_adicionales?: string | null
           raw_email?: string | null
@@ -4029,11 +4456,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "marketing_leads_id_ejecutivo_owner_fkey1"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_ejecutivo_owner_fkey1"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "marketing_leads_id_ejecutivo_recibe_fkey1"
             columns: ["id_ejecutivo_recibe"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_ejecutivo_recibe_fkey1"
+            columns: ["id_ejecutivo_recibe"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_ejecutivo_recibe_fkey1"
+            columns: ["id_ejecutivo_recibe"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
           {
             foreignKeyName: "marketing_leads_id_estado_ubicacion_fkey"
@@ -4150,11 +4605,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "marketing_leads_id_ejecutivo_owner_fkey"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_ejecutivo_owner_fkey"
+            columns: ["id_ejecutivo_owner"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "marketing_leads_id_ejecutivo_recibe_fkey"
             columns: ["id_ejecutivo_recibe"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_ejecutivo_recibe_fkey"
+            columns: ["id_ejecutivo_recibe"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_id_ejecutivo_recibe_fkey"
+            columns: ["id_ejecutivo_recibe"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
           {
             foreignKeyName: "marketing_leads_id_estatus_fkey"
@@ -4201,6 +4684,42 @@ export type Database = {
         }
         Relationships: []
       }
+      osi_cost_visibility_config: {
+        Row: {
+          allowed_departamento_ids: Json
+          allowed_role_slugs: Json
+          allowed_user_ids: Json
+          default_hide_monetary: boolean
+          default_public_cost_mask: Json
+          default_st_garantia_dias: number
+          denied_user_ids: Json
+          formato: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_departamento_ids?: Json
+          allowed_role_slugs?: Json
+          allowed_user_ids?: Json
+          default_hide_monetary?: boolean
+          default_public_cost_mask?: Json
+          default_st_garantia_dias?: number
+          denied_user_ids?: Json
+          formato: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_departamento_ids?: Json
+          allowed_role_slugs?: Json
+          allowed_user_ids?: Json
+          default_hide_monetary?: boolean
+          default_public_cost_mask?: Json
+          default_st_garantia_dias?: number
+          denied_user_ids?: Json
+          formato?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       osi_recursos_estimados: {
         Row: {
           bateria_incluida: boolean | null
@@ -4220,15 +4739,20 @@ export type Database = {
           horas_honorarios_instructor: number | null
           id: number
           id_osi: number
+          id_sesion: number | null
           impresion_material_incluida: boolean | null
+          incluye_refrigerio: boolean
           pop_incluido: boolean | null
           public_cost_mask: Json
           st_analistas: number | null
           st_dias_campo: number | null
           st_dias_informe: number | null
+          st_dias_revision: number | null
           st_envio_factura: number | null
           st_envio_materiales: number | null
           st_logistica_recursos: number | null
+          st_otros_texto: string | null
+          st_seguimiento_garantia: string | null
           st_traslados: Json | null
           tarifa_hora_honorarios: number | null
           traslado_externo: number | null
@@ -4251,15 +4775,20 @@ export type Database = {
           horas_honorarios_instructor?: number | null
           id?: number
           id_osi: number
+          id_sesion?: number | null
           impresion_material_incluida?: boolean | null
+          incluye_refrigerio?: boolean
           pop_incluido?: boolean | null
           public_cost_mask?: Json
           st_analistas?: number | null
           st_dias_campo?: number | null
           st_dias_informe?: number | null
+          st_dias_revision?: number | null
           st_envio_factura?: number | null
           st_envio_materiales?: number | null
           st_logistica_recursos?: number | null
+          st_otros_texto?: string | null
+          st_seguimiento_garantia?: string | null
           st_traslados?: Json | null
           tarifa_hora_honorarios?: number | null
           traslado_externo?: number | null
@@ -4282,15 +4811,20 @@ export type Database = {
           horas_honorarios_instructor?: number | null
           id?: number
           id_osi?: number
+          id_sesion?: number | null
           impresion_material_incluida?: boolean | null
+          incluye_refrigerio?: boolean
           pop_incluido?: boolean | null
           public_cost_mask?: Json
           st_analistas?: number | null
           st_dias_campo?: number | null
           st_dias_informe?: number | null
+          st_dias_revision?: number | null
           st_envio_factura?: number | null
           st_envio_materiales?: number | null
           st_logistica_recursos?: number | null
+          st_otros_texto?: string | null
+          st_seguimiento_garantia?: string | null
           st_traslados?: Json | null
           tarifa_hora_honorarios?: number | null
           traslado_externo?: number | null
@@ -4310,12 +4844,29 @@ export type Database = {
             referencedRelation: "v_osi_formato_completo"
             referencedColumns: ["id_osi"]
           },
+          {
+            foreignKeyName: "osi_recursos_estimados_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
+            referencedColumns: ["id_osi"]
+          },
+          {
+            foreignKeyName: "osi_recursos_estimados_id_sesion_fkey"
+            columns: ["id_sesion"]
+            isOneToOne: false
+            referencedRelation: "osi_sesion"
+            referencedColumns: ["id"]
+          },
         ]
       }
       osi_sesion: {
         Row: {
           created_at: string
+          ejecutada_en_fecha_planificada: boolean | null
           fecha: string
+          fecha_ejecutada: string | null
+          hora_ejecutada: string | null
           hora_fin: string | null
           hora_inicio: string | null
           id: number
@@ -4324,7 +4875,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          ejecutada_en_fecha_planificada?: boolean | null
           fecha: string
+          fecha_ejecutada?: string | null
+          hora_ejecutada?: string | null
           hora_fin?: string | null
           hora_inicio?: string | null
           id?: number
@@ -4333,7 +4887,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          ejecutada_en_fecha_planificada?: boolean | null
           fecha?: string
+          fecha_ejecutada?: string | null
+          hora_ejecutada?: string | null
           hora_fin?: string | null
           hora_inicio?: string | null
           id?: number
@@ -4353,6 +4910,59 @@ export type Database = {
             columns: ["id_osi"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_osi"]
+          },
+          {
+            foreignKeyName: "osi_sesion_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
+            referencedColumns: ["id_osi"]
+          },
+        ]
+      }
+      osi_visibilidad_cliente: {
+        Row: {
+          id: number
+          oculto: boolean
+          osi_id: number
+          updated_at: string
+          updated_by: number | null
+        }
+        Insert: {
+          id?: number
+          oculto?: boolean
+          osi_id: number
+          updated_at?: string
+          updated_by?: number | null
+        }
+        Update: {
+          id?: number
+          oculto?: boolean
+          osi_id?: number
+          updated_at?: string
+          updated_by?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "osi_visibilidad_cliente_osi_id_fkey"
+            columns: ["osi_id"]
+            isOneToOne: true
+            referencedRelation: "ejecucion_osi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "osi_visibilidad_cliente_osi_id_fkey"
+            columns: ["osi_id"]
+            isOneToOne: true
+            referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_osi"]
+          },
+          {
+            foreignKeyName: "osi_visibilidad_cliente_osi_id_fkey"
+            columns: ["osi_id"]
+            isOneToOne: true
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_osi"]
           },
         ]
@@ -4510,13 +5120,24 @@ export type Database = {
             referencedRelation: "v_osi_formato_completo"
             referencedColumns: ["id_empresa"]
           },
+          {
+            foreignKeyName: "plantillas_cursos_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
+            referencedColumns: ["id_empresa"]
+          },
         ]
       }
       presupuesto_comprobaciones: {
         Row: {
           fecha_comprobante: string
           id: number
+          id_ecc: number | null
           id_presupuesto: number
+          id_sesion: number | null
+          monto_usd: number | null
+          nro_sesion: number | null
           numero_comprobante: string
           registrado_at: string
           registrado_por: number | null
@@ -4525,7 +5146,11 @@ export type Database = {
         Insert: {
           fecha_comprobante: string
           id?: number
+          id_ecc?: number | null
           id_presupuesto: number
+          id_sesion?: number | null
+          monto_usd?: number | null
+          nro_sesion?: number | null
           numero_comprobante: string
           registrado_at?: string
           registrado_por?: number | null
@@ -4534,13 +5159,45 @@ export type Database = {
         Update: {
           fecha_comprobante?: string
           id?: number
+          id_ecc?: number | null
           id_presupuesto?: number
+          id_sesion?: number | null
+          monto_usd?: number | null
+          nro_sesion?: number | null
           numero_comprobante?: string
           registrado_at?: string
           registrado_por?: number | null
           tipo_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "presupuesto_comprobaciones_id_ecc_fkey"
+            columns: ["id_ecc"]
+            isOneToOne: false
+            referencedRelation: "ecc_encabezado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_comprobaciones_id_ecc_fkey"
+            columns: ["id_ecc"]
+            isOneToOne: false
+            referencedRelation: "v_ecc_preview_context"
+            referencedColumns: ["ecc_id"]
+          },
+          {
+            foreignKeyName: "presupuesto_comprobaciones_id_ecc_fkey"
+            columns: ["id_ecc"]
+            isOneToOne: false
+            referencedRelation: "v_ecc_resumen"
+            referencedColumns: ["id_ecc"]
+          },
+          {
+            foreignKeyName: "presupuesto_comprobaciones_id_ecc_fkey"
+            columns: ["id_ecc"]
+            isOneToOne: false
+            referencedRelation: "v_funnel_comercial_detallado"
+            referencedColumns: ["ecc_id"]
+          },
           {
             foreignKeyName: "presupuesto_comprobaciones_id_presupuesto_fkey"
             columns: ["id_presupuesto"]
@@ -4549,11 +5206,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "presupuesto_comprobaciones_id_presupuesto_fkey"
-            columns: ["id_presupuesto"]
+            foreignKeyName: "presupuesto_comprobaciones_id_sesion_fkey"
+            columns: ["id_sesion"]
             isOneToOne: false
-            referencedRelation: "vw_kpi_presupuestos_base"
-            referencedColumns: ["id_presupuesto"]
+            referencedRelation: "osi_sesion"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "presupuesto_comprobaciones_registrado_por_fkey"
@@ -4561,6 +5218,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuesto_comprobaciones_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "presupuesto_comprobaciones_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
           {
             foreignKeyName: "presupuesto_comprobaciones_tipo_id_fkey"
@@ -4609,9 +5280,13 @@ export type Database = {
           cantidad: number | null
           codigo_servicio: string | null
           descripcion_comercial: string | null
+          fecha_aprobacion_contable: string | null
+          fecha_facturacion_contable: string | null
           id: number
           id_ecc: number
+          id_estatus: number | null
           id_presupuesto: number
+          monto_decision_usd: number | null
           monto_iva: number | null
           precio_unitario: number | null
           total_item: number | null
@@ -4620,9 +5295,13 @@ export type Database = {
           cantidad?: number | null
           codigo_servicio?: string | null
           descripcion_comercial?: string | null
+          fecha_aprobacion_contable?: string | null
+          fecha_facturacion_contable?: string | null
           id?: number
           id_ecc: number
+          id_estatus?: number | null
           id_presupuesto: number
+          monto_decision_usd?: number | null
           monto_iva?: number | null
           precio_unitario?: number | null
           total_item?: number | null
@@ -4631,9 +5310,13 @@ export type Database = {
           cantidad?: number | null
           codigo_servicio?: string | null
           descripcion_comercial?: string | null
+          fecha_aprobacion_contable?: string | null
+          fecha_facturacion_contable?: string | null
           id?: number
           id_ecc?: number
+          id_estatus?: number | null
           id_presupuesto?: number
+          monto_decision_usd?: number | null
           monto_iva?: number | null
           precio_unitario?: number | null
           total_item?: number | null
@@ -4675,11 +5358,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fk_pres_maestro"
-            columns: ["id_presupuesto"]
+            foreignKeyName: "presupuesto_detalles_id_estatus_fkey"
+            columns: ["id_estatus"]
             isOneToOne: false
-            referencedRelation: "vw_kpi_presupuestos_base"
-            referencedColumns: ["id_presupuesto"]
+            referencedRelation: "conf_estatus"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -4713,13 +5396,6 @@ export type Database = {
             referencedRelation: "presupuestos"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "presupuesto_terminos_id_presupuesto_fkey"
-            columns: ["id_presupuesto"]
-            isOneToOne: false
-            referencedRelation: "vw_kpi_presupuestos_base"
-            referencedColumns: ["id_presupuesto"]
-          },
         ]
       }
       presupuestos: {
@@ -4733,10 +5409,15 @@ export type Database = {
           id: number
           id_datos_bancarios: number | null
           id_estatus: number | null
+          id_presupuesto_origen_clon: number | null
           id_trato: number | null
           metodo_pago_divisa: string
+          motivo_rechazo: string | null
+          nro_actualizaciones: number
           nro_presupuesto: number | null
           otros_gastos_cliente: number | null
+          proyeccion_expira_en: string | null
+          proyeccion_reintentos: number
           status_changed_at: string | null
           tiempo_vigencia: string | null
           updated_at: string
@@ -4752,10 +5433,15 @@ export type Database = {
           id?: number
           id_datos_bancarios?: number | null
           id_estatus?: number | null
+          id_presupuesto_origen_clon?: number | null
           id_trato?: number | null
           metodo_pago_divisa?: string
+          motivo_rechazo?: string | null
+          nro_actualizaciones?: number
           nro_presupuesto?: number | null
           otros_gastos_cliente?: number | null
+          proyeccion_expira_en?: string | null
+          proyeccion_reintentos?: number
           status_changed_at?: string | null
           tiempo_vigencia?: string | null
           updated_at?: string
@@ -4771,10 +5457,15 @@ export type Database = {
           id?: number
           id_datos_bancarios?: number | null
           id_estatus?: number | null
+          id_presupuesto_origen_clon?: number | null
           id_trato?: number | null
           metodo_pago_divisa?: string
+          motivo_rechazo?: string | null
+          nro_actualizaciones?: number
           nro_presupuesto?: number | null
           otros_gastos_cliente?: number | null
+          proyeccion_expira_en?: string | null
+          proyeccion_reintentos?: number
           status_changed_at?: string | null
           tiempo_vigencia?: string | null
           updated_at?: string
@@ -4815,6 +5506,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_funnel_comercial_detallado"
             referencedColumns: ["trato_id"]
+          },
+          {
+            foreignKeyName: "presupuestos_id_presupuesto_origen_clon_fkey"
+            columns: ["id_presupuesto_origen_clon"]
+            isOneToOne: false
+            referencedRelation: "presupuestos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -4931,22 +5629,48 @@ export type Database = {
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "puestos_empleados_id_empleado_fkey"
+            columns: ["id_empleado"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "puestos_empleados_id_empleado_fkey"
+            columns: ["id_empleado"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
         ]
       }
       requisiciones: {
         Row: {
+          acuse_recibido: boolean | null
+          acuse_recibido_at: string | null
+          acuse_recibido_por: string | null
           additional_items: Json | null
+          aprobador_edito: boolean | null
+          aprobador_edito_at: string | null
+          aprobador_edito_por: number | null
           banco: string | null
           cant_honorarios: number | null
           cant_impresion: number | null
           cant_informe_final: number | null
           cant_traslado: number | null
           cantidad: number | null
+          cedula_facilitador: string | null
           cod_facilitador: number | null
+          coordinador_at: string | null
+          coordinador_estatus: string | null
+          coordinador_por: string | null
           corresponde_a: string | null
           costo_traslado: number | null
           created_at: string | null
           created_by: string | null
+          deleted_at: string | null
+          departamento: string | null
           dias_traslado: number | null
           estatus_admin: string | null
           facilitador: string | null
@@ -4957,33 +5681,58 @@ export type Database = {
           id_estatus: number | null
           id_osi: number | null
           id_proveedor_sugerido: number | null
+          id_sesion: number | null
           impresion_total: number | null
           informe_final_total: number | null
           item_solicitado: string | null
+          lider_at: string | null
+          lider_estatus: string | null
+          lider_por: number | null
+          motivo_rechazo: string | null
+          motivo_rechazo_coordinador: string | null
+          motivo_rechazo_lider: string | null
           nro_correlativo: string | null
           nro_cuenta: string | null
           observaciones_compras: string | null
+          original_snapshot: Json | null
+          osi_fixed_items: Json | null
           prioridad: string | null
           procesada_at: string | null
           procesada_por: string | null
+          rif_facilitador: string | null
           solicitante: string | null
+          tasa_cambio: number | null
+          tasa_cambio_at: string | null
+          telefono_facilitador: string | null
           tipo_servicio: string | null
           tipo_solicitud: string | null
           updated_by: string | null
         }
         Insert: {
+          acuse_recibido?: boolean | null
+          acuse_recibido_at?: string | null
+          acuse_recibido_por?: string | null
           additional_items?: Json | null
+          aprobador_edito?: boolean | null
+          aprobador_edito_at?: string | null
+          aprobador_edito_por?: number | null
           banco?: string | null
           cant_honorarios?: number | null
           cant_impresion?: number | null
           cant_informe_final?: number | null
           cant_traslado?: number | null
           cantidad?: number | null
+          cedula_facilitador?: string | null
           cod_facilitador?: number | null
+          coordinador_at?: string | null
+          coordinador_estatus?: string | null
+          coordinador_por?: string | null
           corresponde_a?: string | null
           costo_traslado?: number | null
           created_at?: string | null
           created_by?: string | null
+          deleted_at?: string | null
+          departamento?: string | null
           dias_traslado?: number | null
           estatus_admin?: string | null
           facilitador?: string | null
@@ -4994,33 +5743,58 @@ export type Database = {
           id_estatus?: number | null
           id_osi?: number | null
           id_proveedor_sugerido?: number | null
+          id_sesion?: number | null
           impresion_total?: number | null
           informe_final_total?: number | null
           item_solicitado?: string | null
+          lider_at?: string | null
+          lider_estatus?: string | null
+          lider_por?: number | null
+          motivo_rechazo?: string | null
+          motivo_rechazo_coordinador?: string | null
+          motivo_rechazo_lider?: string | null
           nro_correlativo?: string | null
           nro_cuenta?: string | null
           observaciones_compras?: string | null
+          original_snapshot?: Json | null
+          osi_fixed_items?: Json | null
           prioridad?: string | null
           procesada_at?: string | null
           procesada_por?: string | null
+          rif_facilitador?: string | null
           solicitante?: string | null
+          tasa_cambio?: number | null
+          tasa_cambio_at?: string | null
+          telefono_facilitador?: string | null
           tipo_servicio?: string | null
           tipo_solicitud?: string | null
           updated_by?: string | null
         }
         Update: {
+          acuse_recibido?: boolean | null
+          acuse_recibido_at?: string | null
+          acuse_recibido_por?: string | null
           additional_items?: Json | null
+          aprobador_edito?: boolean | null
+          aprobador_edito_at?: string | null
+          aprobador_edito_por?: number | null
           banco?: string | null
           cant_honorarios?: number | null
           cant_impresion?: number | null
           cant_informe_final?: number | null
           cant_traslado?: number | null
           cantidad?: number | null
+          cedula_facilitador?: string | null
           cod_facilitador?: number | null
+          coordinador_at?: string | null
+          coordinador_estatus?: string | null
+          coordinador_por?: string | null
           corresponde_a?: string | null
           costo_traslado?: number | null
           created_at?: string | null
           created_by?: string | null
+          deleted_at?: string | null
+          departamento?: string | null
           dias_traslado?: number | null
           estatus_admin?: string | null
           facilitador?: string | null
@@ -5031,21 +5805,55 @@ export type Database = {
           id_estatus?: number | null
           id_osi?: number | null
           id_proveedor_sugerido?: number | null
+          id_sesion?: number | null
           impresion_total?: number | null
           informe_final_total?: number | null
           item_solicitado?: string | null
+          lider_at?: string | null
+          lider_estatus?: string | null
+          lider_por?: number | null
+          motivo_rechazo?: string | null
+          motivo_rechazo_coordinador?: string | null
+          motivo_rechazo_lider?: string | null
           nro_correlativo?: string | null
           nro_cuenta?: string | null
           observaciones_compras?: string | null
+          original_snapshot?: Json | null
+          osi_fixed_items?: Json | null
           prioridad?: string | null
           procesada_at?: string | null
           procesada_por?: string | null
+          rif_facilitador?: string | null
           solicitante?: string | null
+          tasa_cambio?: number | null
+          tasa_cambio_at?: string | null
+          telefono_facilitador?: string | null
           tipo_servicio?: string | null
           tipo_solicitud?: string | null
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "requisiciones_aprobador_edito_por_fkey"
+            columns: ["aprobador_edito_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisiciones_aprobador_edito_por_fkey"
+            columns: ["aprobador_edito_por"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "requisiciones_aprobador_edito_por_fkey"
+            columns: ["aprobador_edito_por"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
           {
             foreignKeyName: "requisiciones_cod_facilitador_fkey"
             columns: ["cod_facilitador"]
@@ -5072,6 +5880,13 @@ export type Database = {
             columns: ["id_osi"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_osi"]
+          },
+          {
+            foreignKeyName: "requisiciones_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_osi"]
           },
           {
@@ -5141,6 +5956,20 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rr_ejecutivos_pool_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "rr_ejecutivos_pool_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -5217,11 +6046,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "scheduled_notifications_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "scheduled_notifications_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "scheduled_notifications_recipient_user_id_fkey"
             columns: ["recipient_user_id"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_notifications_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "scheduled_notifications_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -5350,11 +6207,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "solicitudes_diseno_servicio_id_solicitante_fkey"
+            columns: ["id_solicitante"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_diseno_servicio_id_solicitante_fkey"
+            columns: ["id_solicitante"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "solicitudes_diseno_servicio_id_usuario_aprobador_fkey"
             columns: ["id_usuario_aprobador"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_diseno_servicio_id_usuario_aprobador_fkey"
+            columns: ["id_usuario_aprobador"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_diseno_servicio_id_usuario_aprobador_fkey"
+            columns: ["id_usuario_aprobador"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -5398,11 +6283,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "suplencias_ejecutivos_created_by_usuario_id_fkey"
+            columns: ["created_by_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "suplencias_ejecutivos_created_by_usuario_id_fkey"
+            columns: ["created_by_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "suplencias_ejecutivos_id_ejecutivo_suplente_fkey"
             columns: ["id_ejecutivo_suplente"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suplencias_ejecutivos_id_ejecutivo_suplente_fkey"
+            columns: ["id_ejecutivo_suplente"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "suplencias_ejecutivos_id_ejecutivo_suplente_fkey"
+            columns: ["id_ejecutivo_suplente"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
           {
             foreignKeyName: "suplencias_ejecutivos_id_ejecutivo_titular_fkey"
@@ -5411,15 +6324,31 @@ export type Database = {
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "suplencias_ejecutivos_id_ejecutivo_titular_fkey"
+            columns: ["id_ejecutivo_titular"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "suplencias_ejecutivos_id_ejecutivo_titular_fkey"
+            columns: ["id_ejecutivo_titular"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
         ]
       }
       tareas_contexto: {
         Row: {
           assigned_user_id: number | null
+          batch_meta: Json
+          categoria: string
           completed_at: string | null
           completed_by_user_id: number | null
-          context_id: number
-          context_type: string
+          context_id: number | null
+          context_type: string | null
           created_at: string
           created_by_user_id: number
           descripcion: string | null
@@ -5431,15 +6360,18 @@ export type Database = {
           related_entity_type: string | null
           related_service_id: number | null
           status: string
+          system_kind: string | null
           titulo: string
           updated_at: string
         }
         Insert: {
           assigned_user_id?: number | null
+          batch_meta?: Json
+          categoria?: string
           completed_at?: string | null
           completed_by_user_id?: number | null
-          context_id: number
-          context_type: string
+          context_id?: number | null
+          context_type?: string | null
           created_at?: string
           created_by_user_id: number
           descripcion?: string | null
@@ -5451,15 +6383,18 @@ export type Database = {
           related_entity_type?: string | null
           related_service_id?: number | null
           status?: string
+          system_kind?: string | null
           titulo: string
           updated_at?: string
         }
         Update: {
           assigned_user_id?: number | null
+          batch_meta?: Json
+          categoria?: string
           completed_at?: string | null
           completed_by_user_id?: number | null
-          context_id?: number
-          context_type?: string
+          context_id?: number | null
+          context_type?: string | null
           created_at?: string
           created_by_user_id?: number
           descripcion?: string | null
@@ -5471,6 +6406,7 @@ export type Database = {
           related_entity_type?: string | null
           related_service_id?: number | null
           status?: string
+          system_kind?: string | null
           titulo?: string
           updated_at?: string
         }
@@ -5483,8 +6419,43 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tareas_contexto_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "tareas_contexto_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "tareas_contexto_completed_by_user_id_fkey"
             columns: ["completed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tareas_contexto_completed_by_user_id_fkey"
+            columns: ["completed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "tareas_contexto_completed_by_user_id_fkey"
+            columns: ["completed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "tareas_contexto_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
@@ -5493,8 +6464,243 @@ export type Database = {
             foreignKeyName: "tareas_contexto_created_by_user_id_fkey"
             columns: ["created_by_user_id"]
             isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "tareas_contexto_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+        ]
+      }
+      tareas_sistema_queue: {
+        Row: {
+          assigned_user_id: number | null
+          categoria: string
+          created_at: string
+          dedupe_key: string
+          description: string | null
+          due_date: string | null
+          error_message: string | null
+          id: number
+          payload: Json
+          presupuesto_id: number | null
+          processed_at: string | null
+          related_trato_id: number | null
+          run_at: string
+          status: string
+          system_kind: string
+          title: string
+          trigger_type: string
+        }
+        Insert: {
+          assigned_user_id?: number | null
+          categoria: string
+          created_at?: string
+          dedupe_key: string
+          description?: string | null
+          due_date?: string | null
+          error_message?: string | null
+          id?: number
+          payload?: Json
+          presupuesto_id?: number | null
+          processed_at?: string | null
+          related_trato_id?: number | null
+          run_at: string
+          status?: string
+          system_kind?: string
+          title: string
+          trigger_type: string
+        }
+        Update: {
+          assigned_user_id?: number | null
+          categoria?: string
+          created_at?: string
+          dedupe_key?: string
+          description?: string | null
+          due_date?: string | null
+          error_message?: string | null
+          id?: number
+          payload?: Json
+          presupuesto_id?: number | null
+          processed_at?: string | null
+          related_trato_id?: number | null
+          run_at?: string
+          status?: string
+          system_kind?: string
+          title?: string
+          trigger_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tareas_sistema_queue_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tareas_sistema_queue_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "tareas_sistema_queue_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "tareas_sistema_queue_presupuesto_id_fkey"
+            columns: ["presupuesto_id"]
+            isOneToOne: false
+            referencedRelation: "presupuestos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tareas_sistema_queue_related_trato_id_fkey"
+            columns: ["related_trato_id"]
+            isOneToOne: false
+            referencedRelation: "tratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tareas_sistema_queue_related_trato_id_fkey"
+            columns: ["related_trato_id"]
+            isOneToOne: false
+            referencedRelation: "v_ecc_preview_context"
+            referencedColumns: ["trato_table_id"]
+          },
+          {
+            foreignKeyName: "tareas_sistema_queue_related_trato_id_fkey"
+            columns: ["related_trato_id"]
+            isOneToOne: false
+            referencedRelation: "v_funnel_comercial_detallado"
+            referencedColumns: ["trato_id"]
+          },
+        ]
+      }
+      tareas_sistema_reglas: {
+        Row: {
+          assignee_role_slugs: string[]
+          assignee_strategy: string
+          assignee_user_id: number | null
+          assignee_user_ids: number[]
+          created_at: string
+          created_by_user_id: number | null
+          default_priority: string
+          default_status: string
+          delay_days: number
+          id: number
+          is_active: boolean
+          link_trigger_entity: boolean
+          notify_offset_minutes: number
+          offset_mode: string
+          rule_name: string
+          schedule_time: string | null
+          schedule_weekday: number | null
+          task_description: string | null
+          task_title: string
+          trigger_entity: string
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_role_slugs?: string[]
+          assignee_strategy?: string
+          assignee_user_id?: number | null
+          assignee_user_ids?: number[]
+          created_at?: string
+          created_by_user_id?: number | null
+          default_priority?: string
+          default_status?: string
+          delay_days?: number
+          id?: number
+          is_active?: boolean
+          link_trigger_entity?: boolean
+          notify_offset_minutes?: number
+          offset_mode?: string
+          rule_name: string
+          schedule_time?: string | null
+          schedule_weekday?: number | null
+          task_description?: string | null
+          task_title: string
+          trigger_entity: string
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_role_slugs?: string[]
+          assignee_strategy?: string
+          assignee_user_id?: number | null
+          assignee_user_ids?: number[]
+          created_at?: string
+          created_by_user_id?: number | null
+          default_priority?: string
+          default_status?: string
+          delay_days?: number
+          id?: number
+          is_active?: boolean
+          link_trigger_entity?: boolean
+          notify_offset_minutes?: number
+          offset_mode?: string
+          rule_name?: string
+          schedule_time?: string | null
+          schedule_weekday?: number | null
+          task_description?: string | null
+          task_title?: string
+          trigger_entity?: string
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tareas_sistema_reglas_assignee_user_id_fkey"
+            columns: ["assignee_user_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tareas_sistema_reglas_assignee_user_id_fkey"
+            columns: ["assignee_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "tareas_sistema_reglas_assignee_user_id_fkey"
+            columns: ["assignee_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "tareas_sistema_reglas_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tareas_sistema_reglas_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "tareas_sistema_reglas_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -5578,6 +6784,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tratos_id_empleado_atiende_fkey"
+            columns: ["id_ejecutivo_responsable"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "tratos_id_empleado_atiende_fkey"
+            columns: ["id_ejecutivo_responsable"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "tratos_id_empresa_fkey"
             columns: ["id_empresa"]
             isOneToOne: false
@@ -5589,6 +6809,13 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "tratos_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_empresa"]
           },
           {
@@ -5728,6 +6955,20 @@ export type Database = {
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_usuarios_unidades_usuario"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "fk_usuarios_unidades_usuario"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
         ]
       }
       viaticos_detalles: {
@@ -5768,6 +7009,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "viaticos_detalles_id_empleado_gasto_fkey"
+            columns: ["id_empleado_gasto"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "viaticos_detalles_id_empleado_gasto_fkey"
+            columns: ["id_empleado_gasto"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
           {
             foreignKeyName: "viaticos_detalles_id_viatico_enc_fkey"
@@ -5839,6 +7094,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "viaticos_encabezado_id_autorizado_por_fkey"
+            columns: ["id_autorizado_por"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "viaticos_encabezado_id_autorizado_por_fkey"
+            columns: ["id_autorizado_por"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "viaticos_encabezado_id_departamento_fkey"
             columns: ["id_departamento"]
             isOneToOne: false
@@ -5851,6 +7120,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "viaticos_encabezado_id_elaborado_por_fkey"
+            columns: ["id_elaborado_por"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "viaticos_encabezado_id_elaborado_por_fkey"
+            columns: ["id_elaborado_por"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
           {
             foreignKeyName: "viaticos_encabezado_id_estatus_fkey"
@@ -5874,11 +7157,32 @@ export type Database = {
             referencedColumns: ["id_osi"]
           },
           {
+            foreignKeyName: "viaticos_encabezado_id_osi_fkey"
+            columns: ["id_osi"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
+            referencedColumns: ["id_osi"]
+          },
+          {
             foreignKeyName: "viaticos_encabezado_id_responsable_pago_fkey"
             columns: ["id_responsable_pago"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "viaticos_encabezado_id_responsable_pago_fkey"
+            columns: ["id_responsable_pago"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "viaticos_encabezado_id_responsable_pago_fkey"
+            columns: ["id_responsable_pago"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
         ]
       }
@@ -5902,6 +7206,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "viaticos_participantes_id_empleado_fkey"
+            columns: ["id_empleado"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "viaticos_participantes_id_empleado_fkey"
+            columns: ["id_empleado"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
           },
           {
             foreignKeyName: "viaticos_participantes_id_viatico_enc_fkey"
@@ -6098,6 +7416,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tratos_id_empleado_atiende_fkey"
+            columns: ["trato_ejecutivo_id"]
+            isOneToOne: false
+            referencedRelation: "v_notify_permission_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
+            foreignKeyName: "tratos_id_empleado_atiende_fkey"
+            columns: ["trato_ejecutivo_id"]
+            isOneToOne: false
+            referencedRelation: "v_osi_app_role_members"
+            referencedColumns: ["usuario_id"]
+          },
+          {
             foreignKeyName: "tratos_id_empresa_fkey"
             columns: ["id_empresa"]
             isOneToOne: false
@@ -6109,6 +7441,13 @@ export type Database = {
             columns: ["id_empresa"]
             isOneToOne: false
             referencedRelation: "v_osi_formato_completo"
+            referencedColumns: ["id_empresa"]
+          },
+          {
+            foreignKeyName: "tratos_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "v_osi_lista"
             referencedColumns: ["id_empresa"]
           },
         ]
@@ -6151,12 +7490,77 @@ export type Database = {
         }
         Relationships: []
       }
+      v_notify_permission_members: {
+        Row: {
+          app_slug: string | null
+          cargo: string | null
+          departamento_id: number | null
+          email_corporativo: string | null
+          nombre_apellido: string | null
+          permission_slug: string | null
+          usuario_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuarios_departamento_fkey"
+            columns: ["departamento_id"]
+            isOneToOne: false
+            referencedRelation: "departamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_notify_permissions_catalog: {
+        Row: {
+          descripcion: string | null
+          slug: string | null
+        }
+        Insert: {
+          descripcion?: string | null
+          slug?: string | null
+        }
+        Update: {
+          descripcion?: string | null
+          slug?: string | null
+        }
+        Relationships: []
+      }
+      v_osi_app_role_members: {
+        Row: {
+          app_slug: string | null
+          cargo: string | null
+          departamento_id: number | null
+          email_corporativo: string | null
+          nombre_apellido: string | null
+          role_slug: string | null
+          usuario_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuarios_departamento_fkey"
+            columns: ["departamento_id"]
+            isOneToOne: false
+            referencedRelation: "departamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_osi_app_roles_catalog: {
+        Row: {
+          app_nombre: string | null
+          app_slug: string | null
+          role_nombre: string | null
+          role_slug: string | null
+        }
+        Relationships: []
+      }
       v_osi_formato_completo: {
         Row: {
           bateria_incluida: boolean | null
           cantidad_analistas: number | null
           cantidad_dias_campo: number | null
           cantidad_dias_informe: number | null
+          cantidad_dias_revision_interna: number | null
           carnet_impreso: boolean | null
           certificado_impreso: boolean | null
           clase_ecc: string | null
@@ -6174,8 +7578,8 @@ export type Database = {
           costo_logistica_comida: number | null
           costo_otros: number | null
           costo_pop: number | null
-          desglose_recursos_sesiones: Json | null
           costo_traslado: number | null
+          desglose_recursos_sesiones: Json | null
           dias_hospedaje_facilitador: number | null
           dias_logistica_facilitador: number | null
           direccion_ejecucion: string | null
@@ -6183,6 +7587,7 @@ export type Database = {
           direccion_envio: string | null
           direccion_fiscal: string | null
           ejecutivo_negocios: string | null
+          entrega_certificado: string | null
           fecha_emision: string | null
           fecha_emision_presupuesto: string | null
           fecha_fin_real: string | null
@@ -6215,7 +7620,9 @@ export type Database = {
           impacto_ecc_pendiente: boolean | null
           impacto_ecc_resuelto_por: string | null
           impresion_material_incluida: boolean | null
+          incluye_refrigerio: boolean | null
           nombre_empresa: string | null
+          nro_orden_compra: string | null
           nro_osi: string | null
           nro_presupuesto: number | null
           numero_areas: number | null
@@ -6237,9 +7644,12 @@ export type Database = {
           st_analistas: number | null
           st_dias_campo: number | null
           st_dias_informe: number | null
+          st_dias_revision: number | null
           st_envio_factura: number | null
           st_envio_materiales: number | null
           st_logistica_recursos: number | null
+          st_otros_texto: string | null
+          st_seguimiento_garantia: string | null
           st_traslados: Json | null
           tarifa_hora_honorarios: number | null
           tipo_servicio: string | null
@@ -6332,10 +7742,43 @@ export type Database = {
           },
         ]
       }
+      v_osi_lista: {
+        Row: {
+          codigo_cliente: number | null
+          direccion_ejecucion: string | null
+          ejecutivo_negocios: string | null
+          fecha_emision: string | null
+          fecha_fin_real: string | null
+          fecha_inicio_real: string | null
+          horas_academicas_ejecucion: number | null
+          id_ciudad_direccion_ejecucion_efectiva: number | null
+          id_empresa: number | null
+          id_estado_direccion_ejecucion_efectiva: number | null
+          id_estatus: number | null
+          id_osi: number | null
+          nombre_empresa: string | null
+          nro_osi: string | null
+          participantes_ejecucion: number | null
+          participantes_max_solped: number | null
+          servicio: string | null
+          sesiones_ejecucion: number | null
+          tipo_servicio: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ejecucion_osi_id_estatus_fkey"
+            columns: ["id_estatus"]
+            isOneToOne: false
+            referencedRelation: "conf_estatus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_kpi_presupuestos_base: {
         Row: {
           aprobado_contable_fecha: string | null
           aprobado_flag: boolean | null
+          aprobado_por_detalle: boolean | null
           aprobado_por_estatus: boolean | null
           aprobado_por_osi: boolean | null
           comprobante_cuenta_como_venta: boolean | null
@@ -6354,72 +7797,20 @@ export type Database = {
           id_estatus: number | null
           id_presupuesto: number | null
           id_trato: number | null
+          modo_facturacion: string | null
+          monto_linea_completa: number | null
           monto_presupuesto: number | null
+          monto_suma_explicacion: string | null
+          nro_sesion: number | null
           numero_comprobante: string | null
           proyectado_flag: boolean | null
+          sesiones_total: number | null
           tipo_contabilizacion: string | null
           unidad_indicador: string | null
           venta_contable_fecha: string | null
           venta_flag: boolean | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_pres_ecc"
-            columns: ["id_ecc"]
-            isOneToOne: false
-            referencedRelation: "ecc_encabezado"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_pres_ecc"
-            columns: ["id_ecc"]
-            isOneToOne: false
-            referencedRelation: "v_ecc_preview_context"
-            referencedColumns: ["ecc_id"]
-          },
-          {
-            foreignKeyName: "fk_pres_ecc"
-            columns: ["id_ecc"]
-            isOneToOne: false
-            referencedRelation: "v_ecc_resumen"
-            referencedColumns: ["id_ecc"]
-          },
-          {
-            foreignKeyName: "fk_pres_ecc"
-            columns: ["id_ecc"]
-            isOneToOne: false
-            referencedRelation: "v_funnel_comercial_detallado"
-            referencedColumns: ["ecc_id"]
-          },
-          {
-            foreignKeyName: "presupuestos_id_estatus_fkey"
-            columns: ["id_estatus"]
-            isOneToOne: false
-            referencedRelation: "conf_estatus"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "presupuestos_id_negocio_fkey"
-            columns: ["id_trato"]
-            isOneToOne: false
-            referencedRelation: "tratos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "presupuestos_id_negocio_fkey"
-            columns: ["id_trato"]
-            isOneToOne: false
-            referencedRelation: "v_ecc_preview_context"
-            referencedColumns: ["trato_table_id"]
-          },
-          {
-            foreignKeyName: "presupuestos_id_negocio_fkey"
-            columns: ["id_trato"]
-            isOneToOne: false
-            referencedRelation: "v_funnel_comercial_detallado"
-            referencedColumns: ["trato_id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {
@@ -6492,6 +7883,14 @@ export type Database = {
         Returns: boolean
       }
       can_mutate_trato: { Args: { p_trato_id: number }; Returns: boolean }
+      can_read_comentario_thread: {
+        Args: { p_comentario_id: number }
+        Returns: boolean
+      }
+      can_register_marketing_lead_recontacto: {
+        Args: { p_lead_id: number }
+        Returns: boolean
+      }
       create_user_reminder: {
         Args: {
           p_body: string
@@ -6556,6 +7955,10 @@ export type Database = {
           meta_venta_mensual: number
         }[]
       }
+      fn_cerrar_presupuesto_detalles_pendientes: {
+        Args: { p_fecha_cierre?: string }
+        Returns: number
+      }
       fn_dashboard_bucket_ends: {
         Args: {
           p_fecha_corte?: string
@@ -6613,9 +8016,65 @@ export type Database = {
             Returns: number
           }
       fn_get_next_lead_owner_round_robin: { Args: never; Returns: number }
+      fn_kpi_inspection_rows: {
+        Args: { p_fin: string; p_inicio: string }
+        Returns: {
+          aprobado_contable_fecha: string
+          aprobado_flag: boolean
+          ejecutivo_id: number
+          ejecutivo_nombre: string
+          emitido_base_fecha: string
+          empresa_nombre: string
+          en_listado: boolean
+          excluido_por_ecc: boolean
+          fecha_emision: string
+          fecha_proyectado: string
+          id_ecc: number
+          id_ecc_madre: number
+          id_presupuesto: number
+          modo_facturacion: string
+          monto_linea_completa: number
+          monto_presupuesto: number
+          monto_suma_explicacion: string
+          nro_sesion: number
+          proyectado_flag: boolean
+          sede_nombre: string
+          servicio_nombre: string
+          sesiones_total: number
+          unidad_indicador: string
+          venta_contable_fecha: string
+          venta_flag: boolean
+        }[]
+      }
       fn_mark_cliente_from_trato: {
         Args: { p_trato_id: number }
         Returns: undefined
+      }
+      fn_marketing_register_recontacto: {
+        Args: {
+          p_id_servicio_interes?: number
+          p_lead_id: number
+          p_marcar_caliente?: boolean
+          p_nota?: string
+        }
+        Returns: Json
+      }
+      fn_normalize_presupuesto_estatus_id: {
+        Args: { p_id_estatus: number }
+        Returns: number
+      }
+      fn_osi_list_app_roles: {
+        Args: never
+        Returns: {
+          app_nombre: string
+          app_slug: string
+          role_nombre: string
+          role_slug: string
+        }[]
+      }
+      fn_periodo_ref_desde_rango: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string }
+        Returns: string
       }
       fn_procesar_ecc:
         | {
@@ -6661,6 +8120,10 @@ export type Database = {
               tipo_registro: string
             }[]
           }
+      fn_rechazar_presupuestos_sin_proyeccion_en_periodo: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string }
+        Returns: number
+      }
       fn_resolver_meta_periodo: {
         Args: {
           p_ejecutivo_id?: number
@@ -6705,6 +8168,207 @@ export type Database = {
         Args: { p_id_osi: number }
         Returns: undefined
       }
+      fn_tareas_active_rule_id_for_trigger: {
+        Args: { p_trigger_type: string }
+        Returns: number
+      }
+      fn_tareas_batch_due_friday_17: {
+        Args: { p_reference?: string }
+        Returns: string
+      }
+      fn_tareas_batch_due_from_week_key: {
+        Args: { p_week_key: string }
+        Returns: string
+      }
+      fn_tareas_build_decision_batch_semana: {
+        Args: { p_reference?: string; p_rule_id?: number }
+        Returns: number
+      }
+      fn_tareas_build_facturacion_batch: {
+        Args: { p_reference?: string; p_rule_id?: number }
+        Returns: number
+      }
+      fn_tareas_build_seguimiento_batch: {
+        Args: { p_reference?: string; p_rule_id?: number }
+        Returns: number
+      }
+      fn_tareas_build_solped_batch_semana: {
+        Args: { p_reference?: string; p_rule_id?: number }
+        Returns: number
+      }
+      fn_tareas_cancel_solicitud_facturas_on_presupuesto: {
+        Args: { p_presupuesto_id: number }
+        Returns: number
+      }
+      fn_tareas_create_seguimiento_presupuesto_comentario: {
+        Args: {
+          p_author_user_id: number
+          p_contenido: string
+          p_nro_presupuesto?: string
+          p_presupuesto_id: number
+          p_trato_id: number
+        }
+        Returns: number
+      }
+      fn_tareas_decision_done_reason: {
+        Args: {
+          p_header_status_id: number
+          p_header_status_label: string
+          p_presupuesto_id: number
+        }
+        Returns: string
+      }
+      fn_tareas_dispatch_facturacion_batches: {
+        Args: { p_reference?: string }
+        Returns: number
+      }
+      fn_tareas_dispatch_scheduled_batches: {
+        Args: { p_reference?: string }
+        Returns: number
+      }
+      fn_tareas_dispatch_seguimiento_batches: {
+        Args: { p_reference?: string }
+        Returns: number
+      }
+      fn_tareas_find_analista_ricardo_id: { Args: never; Returns: number }
+      fn_tareas_insert_system_task: {
+        Args: {
+          p_assigned_user_id: number
+          p_batch_meta?: Json
+          p_categoria: string
+          p_context_id: number
+          p_context_type: string
+          p_created_by_user_id: number
+          p_descripcion: string
+          p_due_date: string
+          p_related_entity_id: number
+          p_related_entity_type: string
+          p_system_kind: string
+          p_titulo: string
+        }
+        Returns: number
+      }
+      fn_tareas_is_presupuesto_batch_decidido: {
+        Args: { p_presupuesto_id: number }
+        Returns: boolean
+      }
+      fn_tareas_is_presupuesto_decidido_100: {
+        Args: { p_presupuesto_id: number }
+        Returns: boolean
+      }
+      fn_tareas_list_sgestion_roles: {
+        Args: never
+        Returns: {
+          nombre: string
+          slug: string
+        }[]
+      }
+      fn_tareas_mark_batch_tasks_vencidas: {
+        Args: { p_reference?: string }
+        Returns: number
+      }
+      fn_tareas_maybe_create_solicitud_facturas: {
+        Args: { p_actor_user_id?: number; p_presupuesto_id: number }
+        Returns: number
+      }
+      fn_tareas_notify_system_task: {
+        Args: {
+          p_assigned_user_id: number
+          p_body?: string
+          p_context_id?: number
+          p_context_type?: string
+          p_meta?: Json
+          p_notify_at?: string
+          p_task_id: number
+          p_titulo: string
+        }
+        Returns: undefined
+      }
+      fn_tareas_presupuesto_tiene_osi_ejecutada: {
+        Args: { p_presupuesto_id: number }
+        Returns: boolean
+      }
+      fn_tareas_process_system_queue: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
+      fn_tareas_queue_followups_lead_recontacto: {
+        Args: { p_actor_user_id?: number; p_lead_id: number; p_nota?: string }
+        Returns: number
+      }
+      fn_tareas_queue_followups_presupuesto_emitido: {
+        Args: { p_actor_user_id?: number; p_presupuesto_id: number }
+        Returns: number
+      }
+      fn_tareas_recalc_seguimiento_batch_meta: {
+        Args: { p_items: Json }
+        Returns: Json
+      }
+      fn_tareas_refresh_decision_batch_progress: {
+        Args: { p_presupuesto_id: number }
+        Returns: number
+      }
+      fn_tareas_refresh_facturacion_batch_on_presupuesto: {
+        Args: { p_presupuesto_id: number; p_status_id?: number }
+        Returns: number
+      }
+      fn_tareas_refresh_seguimiento_batch_on_presupuesto: {
+        Args: { p_presupuesto_id: number; p_status_id?: number }
+        Returns: number
+      }
+      fn_tareas_refresh_solped_batch_progress: {
+        Args: { p_ecc_id: number }
+        Returns: number
+      }
+      fn_tareas_resolve_assignees_for_rule: {
+        Args: { p_lead_id?: number; p_rule_id: number; p_trato_id?: number }
+        Returns: number[]
+      }
+      fn_tareas_resolve_rule_assignee_ids: {
+        Args: { p_rule_id: number }
+        Returns: number[]
+      }
+      fn_tareas_run_rule_now: {
+        Args: { p_reference?: string; p_rule_id: number }
+        Returns: number
+      }
+      fn_tareas_solicitar_factura_a_finanzas: {
+        Args: {
+          p_descripcion: string
+          p_presupuesto_id: number
+          p_task_id: number
+        }
+        Returns: Json
+      }
+      fn_tareas_solped_has_presupuesto_emitido: {
+        Args: { p_ecc_id: number }
+        Returns: boolean
+      }
+      fn_tareas_task_link_path: {
+        Args: {
+          p_context_id?: number
+          p_context_type?: string
+          p_task_id: number
+        }
+        Returns: string
+      }
+      fn_tareas_toggle_seguimiento_item: {
+        Args: {
+          p_done: boolean
+          p_presupuesto_id: number
+          p_resultado_notas?: string
+          p_task_id: number
+        }
+        Returns: Json
+      }
+      fn_tareas_trato_condicion_es_contado: {
+        Args: { p_condicion_pago: string }
+        Returns: boolean
+      }
+      fn_tareas_usuarios_by_role_slugs: {
+        Args: { p_role_slugs: string[] }
+        Returns: number[]
+      }
       get_capacitacion_dashboard_counts: {
         Args: { p_first_day_of_month: string }
         Returns: {
@@ -6738,6 +8402,56 @@ export type Database = {
           p_search_term?: string
         }
         Returns: Json
+      }
+      get_comentario_menciones_batch: {
+        Args: { p_comment_ids: number[] }
+        Returns: {
+          comentario_id: number
+          mentioned_user_id: number
+        }[]
+      }
+      get_comentario_vinculos_batch: {
+        Args: { p_comment_ids: number[] }
+        Returns: {
+          comentario_id: number
+          entity_id: number
+          entity_type: string
+          service_id: number
+          service_name: string
+          subtitle: string
+        }[]
+      }
+      get_comentarios_acl_feed: {
+        Args: { p_limit?: number }
+        Returns: {
+          author_user_id: number
+          comment_kind: string
+          contenido: string
+          context_id: number
+          context_type: string
+          created_at: string
+          edited_at: string
+          id: number
+          related_entity_id: number
+          related_entity_type: string
+          related_service_id: number
+        }[]
+      }
+      get_comentarios_by_context_acl: {
+        Args: { p_context_id: number; p_context_type: string; p_limit?: number }
+        Returns: {
+          author_user_id: number
+          comment_kind: string
+          contenido: string
+          context_id: number
+          context_type: string
+          created_at: string
+          edited_at: string
+          id: number
+          related_entity_id: number
+          related_entity_type: string
+          related_service_id: number
+        }[]
       }
       get_comentarios_for_empresa_hub: {
         Args: { p_empresa_id: number; p_limit?: number }
@@ -6908,6 +8622,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      notify_shell_osi_status_changed: {
+        Args: {
+          p_ejecutivo_negocios?: string
+          p_new_status_id: number
+          p_new_status_name: string
+          p_nro_osi: string
+          p_osi_id: number
+        }
+        Returns: number
+      }
       notify_solped_cancelled: {
         Args: { p_dedupe_key?: string; p_id_ecc: number; p_source?: string }
         Returns: undefined
@@ -7013,6 +8737,10 @@ export type Database = {
         Returns: undefined
       }
       sp_cerrar_periodos_vencidos: { Args: { p_max?: number }; Returns: number }
+      sp_cerrar_periodos_vencidos_con_freeze: {
+        Args: { p_max?: number }
+        Returns: number
+      }
       sp_dashboard_presupuesto_ejecutivos: {
         Args: {
           p_fecha_fin?: string
@@ -7077,6 +8805,7 @@ export type Database = {
         Returns: number
       }
       sp_register_dashboard_close_jobs: { Args: never; Returns: undefined }
+      sp_request_dashboard_freeze_snapshots: { Args: never; Returns: number }
       sp_set_cierre_programado_periodo: {
         Args: { p_activo: boolean; p_periodo_id: number; p_usuario_id?: number }
         Returns: undefined
@@ -7128,6 +8857,7 @@ export type Database = {
         }
         Returns: number
       }
+      user_can_access_negocios_comments: { Args: never; Returns: boolean }
       user_can_read_finance_review_content: { Args: never; Returns: boolean }
     }
     Enums: {
