@@ -60,24 +60,12 @@ function padCourseCode(id: number | null): string {
 function buildCertificacionText(data: FichaTecnicaData): string {
   const isParticipacion =
     data.nota_aprobatoria === 0 || data.nota_aprobatoria === null;
-  let text: string;
 
   if (isParticipacion) {
-    text =
-      "El curso conduce a una certificación de participación. " +
-      "Todos los participantes que asistan recibirán su certificado.";
-  } else {
-    text =
-      `El curso conduce a una certificación de aprobación. ` +
-      `Nota aprobatoria: ${data.nota_aprobatoria}/20. ` +
-      `Los participantes deben aprobar el examen para obtener el certificado.`;
+    return "El curso conduce a una certificación de participación.";
   }
 
-  if (data.emite_carnet) {
-    text += " El curso emite carnet además del certificado.";
-  }
-
-  return text;
+  return "El curso conduce a una certificación de aprobación.";
 }
 
 function section(heading: string, contentHtml: string): string {
