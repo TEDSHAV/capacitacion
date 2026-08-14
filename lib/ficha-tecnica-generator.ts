@@ -37,7 +37,7 @@ const CONTENT_W = PAGE_W - MARGIN_X * 2;
 const HEADER_Y = 12;
 const HEADER_BOTTOM = 30;
 const TITLE_Y = 42;
-const SECTION_GAP = 8;
+const SECTION_GAP = 14;
 const FONT_SIZE_PT = 10;
 const HEADING_PT = 10;
 const TITLE_PT = 15;
@@ -211,7 +211,7 @@ function wrapParagraph(
   // Detect list item: 4 spaces + "- " or "N. "
   const listMatch = para.match(/^    (- \s*|\d+\.\s*)(.*)$/);
   if (listMatch) {
-    const marker = listMatch[1].trimEnd(); // "- " or "1. "
+    const marker = listMatch[1]; // Keep trailing space: "1. " or "- "
     const text = listMatch[2].trim();
     const indentMm = 8; // indent for list items
     const markerW = doc.getTextWidth(marker);
