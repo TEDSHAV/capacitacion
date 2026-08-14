@@ -90,7 +90,7 @@ export default function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm font-sans max-w-none px-3 pt-3 pb-2.5 focus:outline-none",
+          "prose prose-sm font-sans max-w-none px-3 py-2 focus:outline-none",
         style: `min-height: ${minHeight}`,
         "data-placeholder": placeholder || "Escribe aquí...",
       },

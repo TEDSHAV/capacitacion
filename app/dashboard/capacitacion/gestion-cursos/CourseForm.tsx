@@ -353,7 +353,7 @@ export default function CourseForm({
           <div className="space-y-4">
             {/* Objetivo General */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Objetivo General
               </label>
               <RichTextEditor
@@ -375,7 +375,7 @@ export default function CourseForm({
 
             {/* Objetivos Específicos */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Objetivos Específicos
               </label>
               <RichTextEditor
@@ -433,7 +433,7 @@ export default function CourseForm({
 
             {/* Content */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Contenido del Curso <span className="text-red-500">*</span>
               </label>
               <RichTextEditor
