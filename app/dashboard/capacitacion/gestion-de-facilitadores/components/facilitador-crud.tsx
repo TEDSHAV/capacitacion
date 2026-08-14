@@ -9,7 +9,6 @@ import { Edit, Minus, Check, Star, StarHalf, Key, ClipboardList, FileText } from
 import { toTitleCase } from "@/utils/string-utils";
 import { createClient } from "@/utils/supabase/client";
 import { getFacilitatorRatings } from "@/app/actions/facilitators";
-import { getFacilitatorByIdAction } from "@/app/actions/facilitators-crud";
 import { PortalCredentialsModal } from "./portal-credentials-modal";
 import AssignOSIModal from "./assign-osi-modal";
 
@@ -31,22 +30,10 @@ export const FacilitadorCrud = ({
   const [loading, setLoading] = useState(true);
   const [loadingStates, setLoadingStates] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedFacilitador, setSelectedFacilitador] =
-    useState<Facilitador | null>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showPortalModal, setShowPortalModal] = useState(false);
   const [facilitadorForPortal, setFacilitadorForPortal] = useState<Facilitador | null>(null);
   const [showAssignOSIModal, setShowAssignOSIModal] = useState(false);
   const [facilitadorForAssignment, setFacilitadorForAssignment] = useState<Facilitador | null>(null);
-
-  useEffect(() => {
-    if (showDetailsModal) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
-    }
-  }, [showDetailsModal]);
 
   // Client-side only: Check if we're in the browser
   const isClient = typeof window !== "undefined";
@@ -162,20 +149,6 @@ export const FacilitadorCrud = ({
       router.push(
         "/dashboard/capacitacion/gestion-de-facilitadores?create=true",
       );
-    }
-  };
-
-  // Show facilitador details
-  const handleShowDetails = async (facilitador: Facilitador) => {
-    setSelectedFacilitador(facilitador);
-    setShowDetailsModal(true);
-    try {
-      const result = await getFacilitatorByIdAction(facilitador.id.toString());
-      if (result.data) {
-        setSelectedFacilitador(result.data as Facilitador);
-      }
-    } catch (error) {
-      console.error("Error loading facilitator details:", error);
     }
   };
 
@@ -364,7 +337,7 @@ export const FacilitadorCrud = ({
               <tr
                 key={facilitador.id}
                 className="hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => handleShowDetails(facilitador)}
+                onClick={() => handleEdit(facilitador)}
               >
                 <td className="px-3 py-4 whitespace-nowrap">
                   <div className="flex flex-col">
@@ -510,227 +483,6 @@ export const FacilitadorCrud = ({
             setFacilitadorForPortal(null);
           }}
         />
-      )}
-      {/* Facilitador Details Modal */}
-      {showDetailsModal && selectedFacilitador && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-xl font-semibold text-gray-900">
-                Detalles del Facilitador
-              </h3>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setShowDetailsModal(false);
-                  setSelectedFacilitador(null);
-                }}
-              >
-                ✕
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre y Apellido
-                  </label>
-                  <div className="flex flex-col">
-                    <p className="text-sm text-gray-900">
-                      {toTitleCase(selectedFacilitador.nombre_apellido || "")}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {selectedFacilitador.tiene_curriculum && (
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                          CV
-                        </span>
-                      )}
-                      {selectedFacilitador.tiene_certificaciones && (
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
-                          Cert
-                        </span>
-                      )}
-                      {selectedFacilitador.tiene_foto_perfil && (
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                          Foto
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cédula
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {selectedFacilitador.cedula || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Rating (Promedio de Encuestas)
-                  </label>
-                  <div className="mt-1">
-                    {renderStars(ratings[selectedFacilitador.id])}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {selectedFacilitador.email || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Teléfono
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {selectedFacilitador.telefono || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    RIF
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {selectedFacilitador.rif || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Estado
-                  </label>
-                  <p className="text-sm text-gray-900">
-                    {getStateName(selectedFacilitador.id_estado_geografico)}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Dirección
-                </label>
-                <p className="text-sm text-gray-900">
-                  {selectedFacilitador.direccion || "N/A"}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nivel de Educación
-                </label>
-                <p className="text-sm text-gray-900">
-                  {selectedFacilitador.nivel_tecnico || "N/A"}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Alcance
-                </label>
-                <p className="text-sm text-gray-900">
-                  {selectedFacilitador.alcance || "N/A"}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notas y Observaciones
-                </label>
-                <p className="text-sm text-gray-900 whitespace-pre-wrap">
-                  {selectedFacilitador.notas_observaciones ||
-                    "No hay notas u observaciones"}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Temas de Cursos
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {selectedFacilitador.temas_cursos &&
-                  selectedFacilitador.temas_cursos.length > 0 ? (
-                    selectedFacilitador.temas_cursos.map((topic, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full"
-                      >
-                        {topic}
-                      </span>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-900">
-                      No hay temas asignados
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Banking Details */}
-              <div className="pt-3 border-t border-gray-100">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                  Datos Bancarios
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Banco
-                    </label>
-                    <p className="text-sm text-gray-900">
-                      {selectedFacilitador.banco || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tipo de Cuenta
-                    </label>
-                    <p className="text-sm text-gray-900">
-                      {selectedFacilitador.tipo_cuenta || "N/A"}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Número de Cuenta
-                    </label>
-                    <p className="text-sm text-gray-900 font-mono">
-                      {selectedFacilitador.nro_cuenta || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Pago Móvil
-                    </label>
-                    <p className="text-sm text-gray-900">
-                      {selectedFacilitador.telefono_pago_movil || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Titular (C.I./RIF)
-                    </label>
-                    <p className="text-sm text-gray-900">
-                      {selectedFacilitador.cedula_titular || "N/A"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => {
-                    setShowDetailsModal(false);
-                    setSelectedFacilitador(null);
-                  }}
-                >
-                  Cerrar
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
