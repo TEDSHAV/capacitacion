@@ -196,6 +196,41 @@ function drawSectionHeading(pdf: jsPDF, heading: string, y: number): number {
 }
 
 /**
+ * Wrap a paragraph for PDF rendering, preserving list indentation.
+ * Detects lines starting with "    - " (bullet) or "    N. " (numbered)
+ * from stripHtml and converts them to a proper indent (mm) + hanging wrap.
+ *
+ * Returns the wrapped lines (with marker prefix on first line) and the
+ * indent offset in mm to use for the X position.
+ */
+function wrapParagraph(
+  doc: jsPDF,
+  para: string,
+  maxWidth: number,
+): { lines: string[]; indent: number } {
+  // Detect list item: 4 spaces + "- " or "N. "
+  const listMatch = para.match(/^    (- \s*|\d+\.\s*)(.*)$/);
+  if (listMatch) {
+    const marker = listMatch[1].trimEnd(); // "- " or "1. "
+    const text = listMatch[2].trim();
+    const indentMm = 8; // indent for list items
+    const markerW = doc.getTextWidth(marker);
+    const wrapW = maxWidth - indentMm - markerW;
+
+    const wrapped = doc.splitTextToSize(text, wrapW);
+    const lines = wrapped.map((l: string, i: number) =>
+      i === 0 ? `${marker}${l}` : `${" ".repeat(marker.length)}${l}`,
+    );
+    return { lines, indent: indentMm };
+  }
+
+  // Normal paragraph — no indent
+  const trimmed = para.trim();
+  const lines = doc.splitTextToSize(trimmed, maxWidth);
+  return { lines, indent: 0 };
+}
+
+/**
  * Generate the Ficha Técnica PDF and return it as a Blob.
  */
 export async function generateFichaTecnicaPdf(data: FichaTecnicaData): Promise<Blob> {
@@ -272,8 +307,8 @@ export async function generateFichaTecnicaPdf(data: FichaTecnicaData): Promise<B
     const paraTexts = sec.content.split("\n").filter((p) => p.trim());
     let estimatedHeight = 5; // heading
     for (const para of paraTexts) {
-      const lines = doc.splitTextToSize(para.trim(), CONTENT_W);
-      estimatedHeight += lines.length * LINE_HEIGHT + 1.5;
+      const { lines: wrapped } = wrapParagraph(doc, para, CONTENT_W);
+      estimatedHeight += wrapped.length * LINE_HEIGHT + 1.5;
     }
 
     // If section won't fit and we're not at the top of a page, break
@@ -295,9 +330,11 @@ export async function generateFichaTecnicaPdf(data: FichaTecnicaData): Promise<B
     doc.setTextColor(0, 0, 0);
 
     for (const para of paraTexts) {
-      const lines = doc.splitTextToSize(para.trim(), CONTENT_W);
+      const { lines: wrapped, indent } = wrapParagraph(doc, para, CONTENT_W);
+      const textX = MARGIN_X + indent;
+      const wrapW = CONTENT_W - indent;
 
-      for (const line of lines) {
+      for (const line of wrapped) {
         if (y > contentBottomY) {
           doc.addPage();
           currentPage++;
@@ -310,7 +347,7 @@ export async function generateFichaTecnicaPdf(data: FichaTecnicaData): Promise<B
           doc.setFontSize(FONT_SIZE_PT);
           doc.setTextColor(0, 0, 0);
         }
-        doc.text(line, MARGIN_X, y);
+        doc.text(line, textX, y);
         y += LINE_HEIGHT;
       }
       y += 1.5; // paragraph spacing
