@@ -375,7 +375,7 @@ export default function CourseForm({
 
             {/* Objetivos Específicos */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700">
                 Objetivos Específicos
               </label>
               <RichTextEditor
