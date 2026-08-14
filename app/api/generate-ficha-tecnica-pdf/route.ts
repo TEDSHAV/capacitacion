@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { requireApiAuth } from "@/utils/api-auth";
-import { generatePdfWithHeaderFooter } from "@/lib/pdf-service";
 import {
-  buildFichaTecnicaHtml,
-  buildFichaTecnicaHeaderTemplate,
-  buildFichaTecnicaFooterTemplate,
+  generateFichaTecnicaPdf,
   FichaTecnicaData,
 } from "@/lib/ficha-tecnica-generator";
 
@@ -17,24 +14,6 @@ function sanitizeFilename(name: string): string {
       .replace(/^_+|_+$/g, "")
       .substring(0, 60) || "ficha_tecnica"
   );
-}
-
-/**
- * Shared helper — builds HTML + header/footer templates and generates the PDF.
- */
-async function generateFichaPdf(fichaData: FichaTecnicaData): Promise<Buffer> {
-  const html = buildFichaTecnicaHtml(fichaData);
-  const headerTemplate = buildFichaTecnicaHeaderTemplate(fichaData);
-  const footerTemplate = buildFichaTecnicaFooterTemplate();
-
-  return generatePdfWithHeaderFooter(html, {
-    headerTemplate,
-    footerTemplate,
-    marginTop: "2.5cm",
-    marginBottom: "2.3cm",
-    marginLeft: "2cm",
-    marginRight: "2cm",
-  });
 }
 
 /**
@@ -88,9 +67,9 @@ export async function GET(request: NextRequest) {
       cursoId: course.id,
     };
 
-    const pdfBuffer = await generateFichaPdf(fichaData);
+    const pdfBlob = await generateFichaTecnicaPdf(fichaData);
 
-    return new NextResponse(new Uint8Array(pdfBuffer), {
+    return new NextResponse(pdfBlob, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="ficha_tecnica_${sanitizeFilename(course.nombre)}.pdf"`,
@@ -139,9 +118,9 @@ export async function POST(request: NextRequest) {
       cursoId: body.cursoId ?? body.id ?? null,
     };
 
-    const pdfBuffer = await generateFichaPdf(fichaData);
+    const pdfBlob = await generateFichaTecnicaPdf(fichaData);
 
-    return new NextResponse(new Uint8Array(pdfBuffer), {
+    return new NextResponse(pdfBlob, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="ficha_tecnica_${sanitizeFilename(fichaData.nombre)}.pdf"`,

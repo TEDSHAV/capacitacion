@@ -51,7 +51,7 @@ FROM node:22-bookworm-slim AS runner
 ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
-# 1. Install system libraries needed for Puppeteer/jsPDF canvas operations and sharp
+# 1. Install system libraries needed for sharp and jsPDF canvas operations
 # Use runtime libvips (not -dev) to reduce image size
 RUN apt-get update && apt-get install -y \
     fonts-liberation \
@@ -71,15 +71,14 @@ RUN apt-get update && apt-get install -y \
 # 2. Setup user and permissions properly
 RUN groupadd --system --gid 1001 nodejs && \
     useradd --system --uid 1001 nextjs && \
-    mkdir -p /home/nextjs/.cache/puppeteer && \
+    mkdir -p /home/nextjs && \
     chown -R nextjs:nodejs /home/nextjs
 
 # 3. Copy production-only node_modules (devDependencies pruned)
 COPY --chown=nextjs:nodejs --from=deps-prod /app/node_modules ./node_modules
 
 # 4. Environment variables
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    NODE_ENV=production \
+ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME="0.0.0.0"
