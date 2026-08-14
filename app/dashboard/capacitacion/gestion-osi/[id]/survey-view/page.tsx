@@ -4,6 +4,7 @@ import { getOSIDataForSurvey, getSurveysByOSI } from "@/app/actions/surveys";
 import { getSessionCount } from "@/lib/osi-utils";
 import { createAdminClient } from "@/utils/supabase/server";
 import SurveyDocumentView from "./SurveyDocumentView";
+import GenerateTabulacionButton from "./GenerateTabulacionButton";
 import Link from "next/link";
 import { ArrowLeft, User, Calendar, Layers } from "lucide-react";
 
@@ -132,9 +133,14 @@ export default async function SurveyViewPage({ params, searchParams }: PageProps
         </Link>
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className="bg-blue-600 p-6 text-white">
-            <h1 className="text-2xl font-bold">Encuestas de Satisfacción</h1>
-            <p className="opacity-90">OSI: {osiData.nro_osi} | {osiData.servicio}</p>
+          <div className="bg-blue-600 p-6 text-white flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold">Encuestas de Satisfacción</h1>
+              <p className="opacity-90">OSI: {osiData.nro_osi} | {osiData.servicio}</p>
+            </div>
+            {surveys.length > 0 && (
+              <GenerateTabulacionButton osiId={osiId} />
+            )}
           </div>
 
           <div className="p-6">

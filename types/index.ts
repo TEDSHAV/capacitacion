@@ -1552,6 +1552,36 @@ export interface SurveyOSIData {
   nro_sesion?: number;
 }
 
+// Survey Tabulation Report ("Resultado de la Actividad") data structure.
+// Aggregates all course_satisfaction_surveys for an OSI into the weighted
+// section breakdown used by the printable PDF report.
+export interface SurveyTabulacionSection {
+  label: string;
+  weight: number; // e.g. 0.60, 0.40, 0.05
+  question_ids: number[]; // q numbers that belong to this section
+  distributions: { [level: number]: number }; // {5: 68, 4: 2, 3: 0, 2: 0, 1: 0}
+  total: number; // total responses counted in this section
+}
+
+export interface SurveyTabulacionData {
+  id_osi: number;
+  nro_osi: string;
+  nombre_empresa: string;
+  servicio: string;
+  facilitador_nombre: string;
+  ejecutivo_negocios: string;
+  fecha_inicio_real: string;
+  total_participantes: number; // from v_osi_lista.participantes_ejecucion
+  total_encuestas: number; // number of survey responses received
+  sections: {
+    facilitador: SurveyTabulacionSection;
+    capacitacion: SurveyTabulacionSection;
+    entorno: SurveyTabulacionSection;
+  };
+  resultados_servicio: { [level: number]: number }; // weighted % per level (sections 1+2)
+  attendance_reasons: { [reason: string]: number };
+}
+
 // Carnets Metrics Types
 export interface CarnetsMetrics {
   totalCarnets: number;
