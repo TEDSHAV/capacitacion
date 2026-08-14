@@ -22,14 +22,6 @@ const submodules = {
       path: "/dashboard/capacitacion/gestion-cursos",
     },
     {
-      name: "Gestión de Participantes",
-      path: "/dashboard/capacitacion/participantes",
-    },
-    {
-      name: "Consulta de Participantes",
-      path: "/dashboard/capacitacion/consulta-participantes",
-    },
-    {
       name: "Gestión de Facilitadores",
       path: "/dashboard/capacitacion/gestion-de-facilitadores",
     },
@@ -44,10 +36,6 @@ const submodules = {
     {
       name: "Gestión de Firmas",
       path: "/dashboard/capacitacion/gestion-de-firmas",
-    },
-    {
-      name: "Control de Secuencia",
-      path: "/dashboard/capacitacion/configuracion",
     },
     { name: "Reportes", path: "/dashboard/capacitacion/reportes" },
     { name: "Credenciales de Clientes", path: "/dashboard/capacitacion" },
