@@ -3832,8 +3832,10 @@ export type Database = {
           fecha_creacion: string | null
           fecha_ingreso: string | null
           firma_id: number | null
+          formacion_academica: string | null
           formacion_docente_certificada: boolean | null
           fuente: string | null
+          foto_perfil_url: string | null
           id: number
           id_ciudad: number | null
           id_estado_geografico: number | null
@@ -3847,6 +3849,9 @@ export type Database = {
           tiene_certificaciones: boolean | null
           tiene_curriculum: boolean | null
           tiene_foto_perfil: boolean | null
+          titulo_profesional: string | null
+          experiencia_laboral: string | null
+          competencias_habilidades: string | null
         }
         Insert: {
           alcance?: string | null
@@ -3859,8 +3864,10 @@ export type Database = {
           fecha_creacion?: string | null
           fecha_ingreso?: string | null
           firma_id?: number | null
+          formacion_academica?: string | null
           formacion_docente_certificada?: boolean | null
           fuente?: string | null
+          foto_perfil_url?: string | null
           id?: number
           id_ciudad?: number | null
           id_estado_geografico?: number | null
@@ -3874,6 +3881,9 @@ export type Database = {
           tiene_certificaciones?: boolean | null
           tiene_curriculum?: boolean | null
           tiene_foto_perfil?: boolean | null
+          titulo_profesional?: string | null
+          experiencia_laboral?: string | null
+          competencias_habilidades?: string | null
         }
         Update: {
           alcance?: string | null
@@ -3886,8 +3896,10 @@ export type Database = {
           fecha_creacion?: string | null
           fecha_ingreso?: string | null
           firma_id?: number | null
+          formacion_academica?: string | null
           formacion_docente_certificada?: boolean | null
           fuente?: string | null
+          foto_perfil_url?: string | null
           id?: number
           id_ciudad?: number | null
           id_estado_geografico?: number | null
@@ -3901,6 +3913,9 @@ export type Database = {
           tiene_certificaciones?: boolean | null
           tiene_curriculum?: boolean | null
           tiene_foto_perfil?: boolean | null
+          titulo_profesional?: string | null
+          experiencia_laboral?: string | null
+          competencias_habilidades?: string | null
         }
         Relationships: [
           {

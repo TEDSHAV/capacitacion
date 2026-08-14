@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Facilitador, State } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Edit, Minus, Check, Star, StarHalf, Key, ClipboardList } from "lucide-react";
+import { Edit, Minus, Check, Star, StarHalf, Key, ClipboardList, FileText } from "lucide-react";
 import { toTitleCase } from "@/utils/string-utils";
 import { createClient } from "@/utils/supabase/client";
 import { getFacilitatorRatings } from "@/app/actions/facilitators";
@@ -427,6 +427,16 @@ export const FacilitadorCrud = ({
                     >
                       <Edit className="w-4 h-4" />
                     </button>
+                    <a
+                      href={`/api/generate-ficha-tecnica-facilitador-pdf?id=${facilitador.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center justify-center text-blue-600 bg-blue-50 border border-blue-200 p-2 rounded-md hover:bg-blue-100 transition-colors shadow-sm"
+                      title="Descargar Ficha Técnica"
+                    >
+                      <FileText className="w-4 h-4" />
+                    </a>
                     <button
                       onClick={() => handleShowAssignOSI(facilitador)}
                       className="bg-teal-600 text-white p-2 rounded-md hover:bg-teal-700 transition-colors shadow-sm"

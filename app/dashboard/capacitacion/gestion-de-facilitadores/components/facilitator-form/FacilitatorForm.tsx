@@ -10,6 +10,7 @@ import { CourseTopicsSection } from "./sections/CourseTopicsSection";
 import { FileUploadSection } from "./sections/FileUploadSection";
 import { AdditionalInfoSection } from "./sections/AdditionalInfoSection";
 import { BankDetailsSection } from "./sections/BankDetailsSection";
+import { FichaTecnicaFacilitadorSection } from "./sections/FichaTecnicaFacilitadorSection";
 import { FormActions } from "./sections/FormActions";
 import {
   getFacilitatorByIdAction,
@@ -53,6 +54,12 @@ export const FacilitatorForm = ({
     tiene_certificaciones: false,
     tiene_foto_perfil: false,
     ano_ingreso: null,
+    // Ficha Técnica de Facilitador
+    formacion_academica: "",
+    experiencia_laboral: "",
+    competencias_habilidades: "",
+    titulo_profesional: "",
+    foto_perfil_url: null,
     // Banking information
     banco: "",
     nro_cuenta: "",
@@ -61,6 +68,8 @@ export const FacilitatorForm = ({
     cedula_titular: "",
   });
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [generandoPdf, setGenerandoPdf] = useState(false);
   const [loading, setLoading] = useState(false);
   const [states, setStates] = useState<State[]>([]);
   const [loadingStates, setLoadingStates] = useState(true);
@@ -116,6 +125,12 @@ export const FacilitatorForm = ({
             tiene_certificaciones: facilitator.tiene_certificaciones || false,
             tiene_foto_perfil: facilitator.tiene_foto_perfil || false,
             ano_ingreso: facilitator.ano_ingreso,
+            // Ficha Técnica de Facilitador
+            formacion_academica: facilitator.formacion_academica || "",
+            experiencia_laboral: facilitator.experiencia_laboral || "",
+            competencias_habilidades: facilitator.competencias_habilidades || "",
+            titulo_profesional: facilitator.titulo_profesional || "",
+            foto_perfil_url: facilitator.foto_perfil_url || null,
             // Banking information
             banco: facilitator.banco || "",
             nro_cuenta: facilitator.nro_cuenta || "",
@@ -260,6 +275,96 @@ export const FacilitatorForm = ({
     }
   };
 
+  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
+      if (!allowedTypes.includes(file.type)) {
+        alert("Por favor selecciona un archivo PNG o JPG");
+        return;
+      }
+
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert("El archivo es demasiado grande. Tamaño máximo: 5MB");
+        return;
+      }
+
+      setPhotoFile(file);
+    }
+  };
+
+  const fileToBase64DataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleDescargarFicha = async () => {
+    if (!formData.nombre_apellido.trim()) {
+      alert(
+        "El nombre del facilitador es requerido para generar la ficha técnica.",
+      );
+      return;
+    }
+
+    setGenerandoPdf(true);
+    try {
+      // If a new photo was selected, send it inline as base64 for the preview.
+      // Otherwise fall back to the stored URL (edit mode).
+      let foto_base64: string | null = null;
+      if (photoFile) {
+        foto_base64 = await fileToBase64DataUrl(photoFile);
+      }
+
+      const response = await fetch(
+        "/api/generate-ficha-tecnica-facilitador-pdf",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nombre_apellido: formData.nombre_apellido,
+            cedula: formData.cedula,
+            titulo_profesional: formData.titulo_profesional,
+            formacion_academica: formData.formacion_academica,
+            experiencia_laboral: formData.experiencia_laboral,
+            competencias_habilidades: formData.competencias_habilidades,
+            foto_perfil_url: formData.foto_perfil_url,
+            foto_base64,
+            facilitadorId: editId ? Number(editId) : null,
+          }),
+        },
+      );
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = `ficha_tecnica_facilitador_${formData.nombre_apellido
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        const errData = await response.json().catch(() => null);
+        alert(
+          errData?.error ||
+            "Error al generar la ficha técnica. Intenta nuevamente.",
+        );
+      }
+    } catch (err) {
+      alert("Error al generar la ficha técnica. Intenta nuevamente.");
+    } finally {
+      setGenerandoPdf(false);
+    }
+  };
+
   const { confirm: confirmUnsaved, dialog: confirmDialog } = useConfirmDialog();
 
   const handleCancel = () => {
@@ -340,6 +445,9 @@ export const FacilitatorForm = ({
       // Add files if selected
       if (signatureFile) {
         formDataToSend.append("signature", signatureFile);
+      }
+      if (photoFile) {
+        formDataToSend.append("photo", photoFile);
       }
 
       let result;
@@ -428,6 +536,16 @@ export const FacilitatorForm = ({
           banks={banks}
           loadingBanks={loadingBanks}
           onAddBank={handleAddBank}
+        />
+
+        <FichaTecnicaFacilitadorSection
+          formData={formData}
+          handleInputChange={handleInputChange}
+          photoFile={photoFile}
+          onPhotoSelect={handlePhotoSelect}
+          onDownloadFicha={handleDescargarFicha}
+          generandoPdf={generandoPdf}
+          isEdit={!!editId}
         />
 
         <FileUploadSection

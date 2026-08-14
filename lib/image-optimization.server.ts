@@ -118,6 +118,45 @@ export async function saveOptimizedSignature(
 }
 
 /**
+ * Optimizes a facilitator profile photo for storage and PDF embedding.
+ * Converts to JPEG (mozjpeg, progressive) — jsPDF natively embeds JPEG, which
+ * is more reliable than WebP/PNG for the ficha técnica PDF.
+ * Resizes to a square-ish max dimension and strips metadata to keep storage
+ * small (~30–80KB per photo).
+ */
+export async function optimizeProfilePhoto(
+  buffer: Buffer,
+  options: OptimizeOptions = {},
+): Promise<Buffer> {
+  const { maxWidth = 600, maxHeight = 600, quality = 80 } = options;
+
+  try {
+    const sharpInstance = sharp(buffer);
+
+    const pipeline = sharpInstance
+      .rotate() // Auto-rotate based on EXIF
+      .resize({
+        width: maxWidth,
+        height: maxHeight,
+        fit: "cover",
+        position: "centre",
+        withoutEnlargement: true,
+      })
+      .jpeg({
+        quality,
+        progressive: true,
+        mozjpeg: true,
+      });
+
+    return await pipeline.toBuffer();
+  } catch (error) {
+    console.error("Error optimizing profile photo:", error);
+    // If optimization fails, return original buffer as fallback
+    return buffer;
+  }
+}
+
+/**
  * Rasterize a PDF to a JPEG image using sharp.
  * This is a best-effort optimization — if sharp can't process the PDF
  * (e.g. missing ghostscript/libvips delegates in the container), it returns null

@@ -154,6 +154,12 @@ export interface FacilitadorFormData {
   tiene_certificaciones: boolean;
   tiene_foto_perfil: boolean;
   ano_ingreso: number | null;
+  // Ficha Técnica de Facilitador
+  formacion_academica: string;
+  experiencia_laboral: string;
+  competencias_habilidades: string;
+  titulo_profesional: string;
+  foto_perfil_url: string | null;
   // Banking information
   banco: string;
   nro_cuenta: string;
@@ -265,6 +271,19 @@ export interface FileUploadSectionProps {
     event: React.ChangeEvent<HTMLInputElement>,
     fileType: "signature",
   ) => void;
+}
+
+export interface FichaTecnicaFacilitadorSectionProps {
+  formData: FacilitadorFormData;
+  handleInputChange: (
+    field: keyof FacilitadorFormData,
+    value: FacilitadorFormData[keyof FacilitadorFormData],
+  ) => void;
+  photoFile: File | null;
+  onPhotoSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onDownloadFicha: () => Promise<void>;
+  generandoPdf: boolean;
+  isEdit: boolean;
 }
 
 export interface OSI {
@@ -436,6 +455,12 @@ export interface Facilitador {
   tiene_curriculum: boolean | null;
   tiene_certificaciones: boolean | null;
   tiene_foto_perfil: boolean | null;
+  // Ficha Técnica de Facilitador
+  formacion_academica?: string | null;
+  experiencia_laboral?: string | null;
+  competencias_habilidades?: string | null;
+  titulo_profesional?: string | null;
+  foto_perfil_url?: string | null;
   // Banking information
   banco?: string;
   nro_cuenta?: string;

@@ -1,10 +1,13 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { cache } from "react";
 import { revalidatePath } from "next/cache";
 import { toLowerCase } from "@/utils/string-utils";
-import { saveOptimizedSignature } from "@/lib/image-optimization.server";
+import {
+  saveOptimizedSignature,
+  optimizeProfilePhoto,
+} from "@/lib/image-optimization.server";
 
 // Helper to handle signature upload and linking
 async function handleFacilitatorSignature(
@@ -61,6 +64,95 @@ async function handleFacilitatorSignature(
     return {
       error:
         uploadError instanceof Error ? uploadError.message : "Upload error",
+    };
+  }
+}
+
+// Helper to handle facilitator profile photo upload to Supabase Storage.
+// Optimizes the image with sharp, uploads to the public "facilitador-fotos"
+// bucket, removes any previous photo object, and updates foto_perfil_url +
+// tiene_foto_perfil on the facilitador record.
+async function handleFacilitatorPhoto(
+  facilitadorId: number,
+  photoFile: File,
+): Promise<{ url: string | null; error: string | null }> {
+  try {
+    const admin = await createAdminClient();
+
+    // Ensure the storage bucket exists (public, matches empresa-logos pattern)
+    const { data: buckets } = await admin.storage.listBuckets();
+    const bucketExists = buckets?.some((b) => b.name === "facilitador-fotos");
+    if (!bucketExists) {
+      const { error: bucketError } = await admin.storage.createBucket(
+        "facilitador-fotos",
+        { public: true },
+      );
+      if (bucketError) {
+        console.error("Error creating facilitador-fotos bucket:", bucketError);
+        return { url: null, error: `Error creating storage bucket: ${bucketError.message}` };
+      }
+    }
+
+    // Read + optimize the photo
+    const bytes = await photoFile.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const optimizedBuffer = await optimizeProfilePhoto(buffer);
+
+    // Remove previous photo object if one exists
+    const { data: current } = await admin
+      .from("facilitadores")
+      .select("foto_perfil_url")
+      .eq("id", facilitadorId)
+      .single();
+    const previousUrl = current?.foto_perfil_url;
+    if (previousUrl) {
+      const oldPath = previousUrl.split("/facilitador-fotos/")[1];
+      if (oldPath) {
+        await admin.storage.from("facilitador-fotos").remove([oldPath]);
+      }
+    }
+
+    // Upload the new photo
+    const timestamp = Date.now();
+    const storagePath = `facilitador-${facilitadorId}-${timestamp}.jpg`;
+    const { error: uploadError } = await admin.storage
+      .from("facilitador-fotos")
+      .upload(storagePath, optimizedBuffer, {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Error uploading facilitador photo:", uploadError);
+      return { url: null, error: uploadError.message };
+    }
+
+    const { data: publicUrlData } = admin.storage
+      .from("facilitador-fotos")
+      .getPublicUrl(storagePath);
+    const photoUrl = publicUrlData.publicUrl;
+
+    // Link the photo URL to the facilitador
+    const { error: updateError } = await admin
+      .from("facilitadores")
+      .update({
+        foto_perfil_url: photoUrl,
+        tiene_foto_perfil: true,
+        fecha_actualizacion: new Date().toISOString(),
+      })
+      .eq("id", facilitadorId);
+
+    if (updateError) {
+      console.error("Error linking photo to facilitador:", updateError);
+      return { url: null, error: updateError.message };
+    }
+
+    return { url: photoUrl, error: null };
+  } catch (err) {
+    console.error("Error in handleFacilitatorPhoto:", err);
+    return {
+      url: null,
+      error: err instanceof Error ? err.message : "Upload error",
     };
   }
 }
@@ -160,6 +252,11 @@ const createFacilitator = cache(async (formData: FormData) => {
     const ano_ingreso = formData.get("ano_ingreso")
       ? parseInt(formData.get("ano_ingreso") as string)
       : null;
+    const formacion_academica = (formData.get("formacion_academica") as string) || null;
+    const experiencia_laboral = (formData.get("experiencia_laboral") as string) || null;
+    const competencias_habilidades =
+      (formData.get("competencias_habilidades") as string) || null;
+    const titulo_profesional = (formData.get("titulo_profesional") as string) || null;
 
     // Convert empty strings to null for all optional fields to avoid unique constraint issues
     const fecha_ingreso_to_save = fecha_ingreso || null;
@@ -195,6 +292,10 @@ const createFacilitator = cache(async (formData: FormData) => {
           tiene_certificaciones,
           tiene_foto_perfil,
           ano_ingreso,
+          formacion_academica,
+          experiencia_laboral,
+          competencias_habilidades,
+          titulo_profesional,
         },
       ])
       .select()
@@ -238,6 +339,19 @@ const createFacilitator = cache(async (formData: FormData) => {
     const signatureFile = formData.get("signature") as File | null;
     if (signatureFile && signatureFile.size > 0) {
       await handleFacilitatorSignature(supabase, facilitador, signatureFile);
+    }
+
+    // Handle profile photo if provided
+    const photoFile = formData.get("photo") as File | null;
+    if (photoFile && photoFile.size > 0) {
+      const { error: photoError } = await handleFacilitatorPhoto(
+        facilitador.id,
+        photoFile,
+      );
+      if (photoError) {
+        console.error("Error saving facilitador photo:", photoError);
+        // Don't fail the whole save — the facilitador was already created
+      }
     }
 
     revalidatePath("/dashboard/capacitacion");
@@ -289,6 +403,11 @@ const updateFacilitator = cache(async (id: string, formData: FormData) => {
     const ano_ingreso = formData.get("ano_ingreso")
       ? parseInt(formData.get("ano_ingreso") as string)
       : null;
+    const formacion_academica = (formData.get("formacion_academica") as string) || null;
+    const experiencia_laboral = (formData.get("experiencia_laboral") as string) || null;
+    const competencias_habilidades =
+      (formData.get("competencias_habilidades") as string) || null;
+    const titulo_profesional = (formData.get("titulo_profesional") as string) || null;
 
     // Convert empty strings to null for all optional fields to avoid unique constraint issues
     const fecha_ingreso_to_save = fecha_ingreso || null;
@@ -321,6 +440,10 @@ const updateFacilitator = cache(async (id: string, formData: FormData) => {
       tiene_certificaciones,
       tiene_foto_perfil,
       ano_ingreso,
+      formacion_academica,
+      experiencia_laboral,
+      competencias_habilidades,
+      titulo_profesional,
       fecha_actualizacion: new Date().toISOString(),
     };
 
@@ -377,6 +500,19 @@ const updateFacilitator = cache(async (id: string, formData: FormData) => {
     const signatureFile = formData.get("signature") as File | null;
     if (signatureFile && signatureFile.size > 0) {
       await handleFacilitatorSignature(supabase, facilitador, signatureFile);
+    }
+
+    // Handle profile photo if provided
+    const photoFile = formData.get("photo") as File | null;
+    if (photoFile && photoFile.size > 0) {
+      const { error: photoError } = await handleFacilitatorPhoto(
+        facilitador.id,
+        photoFile,
+      );
+      if (photoError) {
+        console.error("Error updating facilitador photo:", photoError);
+        // Don't fail the whole save — the facilitador was already updated
+      }
     }
 
     revalidatePath("/dashboard/capacitacion");
