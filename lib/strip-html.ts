@@ -116,7 +116,8 @@ export function stripHtml(html: string): string {
     // This prevents jsPDF 4.x from corrupting its encoding state on unknown glyphs
     .replace(/[^\x00-\xFF]/g, "")
     .replace(/\n{3,}/g, "\n\n")
-    .trim();
+    .replace(/^\n+/, "") // trim leading newlines only (preserve list indent spaces)
+    .replace(/\s+$/, ""); // trim trailing whitespace
 
   return result;
 }
