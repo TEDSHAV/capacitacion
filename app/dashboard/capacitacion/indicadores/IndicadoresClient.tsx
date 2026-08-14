@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, AlertCircle, Info } from "lucide-react";
+import Link from "next/link";
+import { Loader2, AlertCircle, Info, Settings } from "lucide-react";
 import type {
   IndicadoresFilterOptions,
   IndicadoresResponse,
@@ -63,9 +64,10 @@ function exportCsv(rows: IndicadorOsiRow[]) {
     "Fuente ejecucion",
     "Fecha emision",
     "Fuente emision",
-    "Horas",
-    "Brecha (h)",
-    "Facilitador",
+    "Dias habiles",
+    "Brecha (dias)",
+    "Facilitador emisor",
+    "Facilitador sesion",
     "Estado",
     "Sospechoso",
   ];
@@ -85,9 +87,10 @@ function exportCsv(rows: IndicadorOsiRow[]) {
         r.fuenteEjecucion,
         r.fechaEmision,
         r.fuenteEmision,
-        r.horas,
-        r.brechaHoras,
+        r.diasHabiles,
+        r.brechaDias,
         r.facilitadorNombre,
+        r.facilitadorSesionNombre,
         r.estado,
         r.sospechoso ? "SI" : "No",
       ]
@@ -101,7 +104,7 @@ function exportCsv(rows: IndicadorOsiRow[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `indicadores-72h-${new Date().toISOString().split("T")[0]}.csv`;
+  link.download = `indicadores-dias-habiles-${new Date().toISOString().split("T")[0]}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -199,29 +202,45 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
       <main className="flex-1 p-6 overflow-auto">
         {/* Title + assumption note */}
         <div className="mb-5">
-          <h1 className="text-xl font-bold text-gray-900">
-            Indicadores de Certificados · SLA 72h
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Mide si la emisión de certificados ocurre dentro de 72h tras la
-            última fecha de ejecución (
-            <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-              MAX(osi_sesion.fecha)
-            </code>
-            , con respaldo en{" "}
-            <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-              fecha_fin_real
-            </code>
-            ). Emisión medida por{" "}
-            <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-              certificados.created_at
-            </code>{" "}
-            (timestamp real de BD), con respaldo en{" "}
-            <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-              fecha_emision
-            </code>
-            .
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">
+                Indicadores de Certificados · SLA 3 días hábiles
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Mide si la emisión de certificados ocurre dentro de 3 días
+                hábiles (excluyendo fines de semana y feriados venezolanos)
+                tras la última fecha de ejecución real (
+                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+                  MAX(osi_sesion.fecha_ejecutada)
+                </code>
+                , con respaldo en{" "}
+                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+                  fecha
+                </code>{" "}
+                planificada y{" "}
+                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+                  fecha_fin_real
+                </code>
+                ). Emisión medida por{" "}
+                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+                  certificados.created_at
+                </code>{" "}
+                (timestamp real de BD), con respaldo en{" "}
+                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+                  fecha_emision
+                </code>
+                . El día de ejecución cuenta como día 1.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/capacitacion/configuracion/feriados"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors whitespace-nowrap flex-shrink-0"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Configurar feriados
+            </Link>
+          </div>
         </div>
 
         {error && (
@@ -277,15 +296,21 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <DimensionBarChart
                 data={aggregates.porEmpresa}
-                title="Promedio de horas por empresa"
-                subtitle="Top 10 empresas por volumen (línea roja = 72h)"
+                title="Promedio de días por empresa"
+                subtitle="Top 10 empresas por volumen (línea roja = 3 días)"
               />
               <DimensionBarChart
                 data={aggregates.porFacilitador}
-                title="Promedio de horas por facilitador"
-                subtitle="Top 10 facilitadores por volumen (línea roja = 72h)"
+                title="Promedio de días por facilitador emisor"
+                subtitle="Top 10 facilitadores que emiten certificados (línea roja = 3 días)"
               />
             </div>
+
+            <DimensionBarChart
+              data={aggregates.porFacilitadorSesion}
+              title="Promedio de días por facilitador de sesión"
+              subtitle="Top 10 facilitadores asignados a las sesiones (línea roja = 3 días)"
+            />
 
             <IndicadoresTable rows={rows} />
           </div>

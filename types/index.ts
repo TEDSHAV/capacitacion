@@ -1835,17 +1835,22 @@ export interface ClienteFilterOptions {
 }
 
 // ============================================================================
-// Indicadores de Certificados 72h
+// Indicadores de Certificados — SLA 3 días hábiles
 // Measures whether certificate issuance (certificados.created_at, with
-// fecha_emision fallback) happens within 72h of the last session execution
-// date (MAX(osi_sesion.fecha), with fecha_fin_real fallback).
+// fecha_emision fallback) happens within 3 business days (inclusive) of the
+// last session execution date (MAX(osi_sesion.fecha_ejecutada), with fecha
+// fallback, then fecha_fin_real). Business days exclude weekends and
+// Venezuelan national holidays (cat_feriados_venezuela).
 // ============================================================================
 
 export type IndicadorEstado = "dentro" | "fuera" | "pendiente" | "no_aplica";
 
 export type IndicadorFuente = "created_at" | "fecha_emision";
 
-export type IndicadorFuenteEjecucion = "sesiones" | "fecha_fin_real";
+export type IndicadorFuenteEjecucion =
+  | "fecha_ejecutada"
+  | "sesiones"
+  | "fecha_fin_real";
 
 export interface IndicadorOsiRow {
   osiId: number;
@@ -1856,10 +1861,11 @@ export interface IndicadorOsiRow {
   fuenteEjecucion: IndicadorFuenteEjecucion | null;
   fechaEmision: string | null;
   fuenteEmision: IndicadorFuente | null;
-  horas: number | null;
+  diasHabiles: number | null;
   estado: IndicadorEstado;
-  brechaHoras: number | null;
+  brechaDias: number | null;
   facilitadorNombre: string | null;
+  facilitadorSesionNombre: string | null;
   sesiones: number | null;
   sospechoso: boolean;
 }
@@ -1887,7 +1893,7 @@ export interface PorDimensionItem {
   dentro: number;
   fuera: number;
   pendientes: number;
-  avgHoras: number | null;
+  avgDias: number | null;
   pct: number | null;
 }
 
@@ -1898,16 +1904,17 @@ export interface IndicadoresAggregates {
   pendientes: number;
   noAplica: number;
   pctCumplimiento: number | null;
-  avgHoras: number | null;
-  medianaHoras: number | null;
-  maxHoras: number | null;
-  maxHorasOsi: string | null;
-  minHoras: number | null;
+  avgDias: number | null;
+  medianaDias: number | null;
+  maxDias: number | null;
+  maxDiasOsi: string | null;
+  minDias: number | null;
   enRiesgoPendientes: number;
   distribucion: DistribucionBucket[];
   tendenciaMensual: TendenciaMensual[];
   porEmpresa: PorDimensionItem[];
   porFacilitador: PorDimensionItem[];
+  porFacilitadorSesion: PorDimensionItem[];
   backlog: IndicadorOsiRow[];
 }
 

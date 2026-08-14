@@ -26,20 +26,29 @@ const DATE_PRESETS = [
   { label: "Todo", value: "all" },
 ];
 
+// Format a Date as "YYYY-MM-DD" in local time (avoids UTC offset issues
+// that occur with toISOString(), which can shift the date by 1 day in UTC-4).
+function toLocalDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function getDateRange(preset: string): { from?: string; to?: string } {
   const now = new Date();
-  const to = now.toISOString().split("T")[0];
+  const to = toLocalDateStr(now);
   if (preset === "1m") {
     const from = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-    return { from: from.toISOString().split("T")[0], to };
+    return { from: toLocalDateStr(from), to };
   }
   if (preset === "3m") {
     const from = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-    return { from: from.toISOString().split("T")[0], to };
+    return { from: toLocalDateStr(from), to };
   }
   if (preset === "6m") {
     const from = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
-    return { from: from.toISOString().split("T")[0], to };
+    return { from: toLocalDateStr(from), to };
   }
   if (preset === "year") {
     return { from: `${now.getFullYear()}-01-01`, to };
@@ -74,6 +83,11 @@ export default function FilterBar({
   const [osiDropdownOpen, setOsiDropdownOpen] = useState(false);
   const [osiSearch, setOsiSearch] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
+  // Local draft state for custom date inputs — only propagated to the parent
+  // (which triggers a fetch) when the user clicks "Aplicar". This prevents
+  // intermediate fetches while the user is still selecting the date range.
+  const [draftFrom, setDraftFrom] = useState(state.customFrom);
+  const [draftTo, setDraftTo] = useState(state.customTo);
   const osiRef = useRef<HTMLDivElement>(null);
 
   // Close OSI dropdown on outside click
@@ -111,6 +125,11 @@ export default function FilterBar({
 
   function applyDatePreset(value: string) {
     if (value === "custom") {
+      // Sync draft state from the parent when opening the picker
+      if (!showDatePicker) {
+        setDraftFrom(state.customFrom);
+        setDraftTo(state.customTo);
+      }
       setShowDatePicker(!showDatePicker);
       return;
     }
@@ -245,10 +264,8 @@ export default function FilterBar({
                 </label>
                 <input
                   type="date"
-                  value={state.customFrom}
-                  onChange={(e) =>
-                    onChange({ ...state, customFrom: e.target.value })
-                  }
+                  value={draftFrom}
+                  onChange={(e) => setDraftFrom(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
                 />
               </div>
@@ -258,21 +275,24 @@ export default function FilterBar({
                 </label>
                 <input
                   type="date"
-                  value={state.customTo}
-                  onChange={(e) =>
-                    onChange({ ...state, customTo: e.target.value })
-                  }
+                  value={draftTo}
+                  onChange={(e) => setDraftTo(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
                 />
               </div>
               <button
                 onClick={() => {
-                  if (state.customFrom && state.customTo) {
-                    onChange({ ...state, datePreset: "custom" });
+                  if (draftFrom && draftTo) {
+                    onChange({
+                      ...state,
+                      customFrom: draftFrom,
+                      customTo: draftTo,
+                      datePreset: "custom",
+                    });
                     setShowDatePicker(false);
                   }
                 }}
-                disabled={!state.customFrom || !state.customTo}
+                disabled={!draftFrom || !draftTo}
                 className="w-full px-3 py-2 bg-sky-600 text-white text-sm font-medium rounded-md hover:bg-sky-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
                 Aplicar

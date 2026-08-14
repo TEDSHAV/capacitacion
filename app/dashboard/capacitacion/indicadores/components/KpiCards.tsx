@@ -84,7 +84,7 @@ export default function KpiCards({ aggregates }: Props) {
       {/* Headline: % Cumplimiento */}
       <KpiCard
         icon={Gauge}
-        label="% Cumplimiento 72h"
+        label="% Cumplimiento 3 días hábiles"
         value={pctLabel}
         sub={pctSub}
         color={complianceColor(pct)}
@@ -92,7 +92,7 @@ export default function KpiCards({ aggregates }: Props) {
       />
       <KpiCard
         icon={CheckCircle2}
-        label="Dentro de 72h"
+        label="Dentro de SLA"
         value={aggregates.dentro72}
         sub={`de ${aggregates.totalEvaluadas} evaluadas`}
         color="bg-emerald-100 text-emerald-700"
@@ -100,7 +100,7 @@ export default function KpiCards({ aggregates }: Props) {
       />
       <KpiCard
         icon={XCircle}
-        label="Fuera de 72h"
+        label="Fuera de SLA"
         value={aggregates.fuera72}
         sub={
           aggregates.fuera72 > 0 ? "Requieren atención" : "Sin incumplimientos"
@@ -114,7 +114,7 @@ export default function KpiCards({ aggregates }: Props) {
         value={aggregates.pendientes}
         sub={
           aggregates.enRiesgoPendientes > 0
-            ? `${aggregates.enRiesgoPendientes} en riesgo (>72h)`
+            ? `${aggregates.enRiesgoPendientes} en riesgo (>3 días hábiles)`
             : "Ninguna en riesgo"
         }
         color="bg-amber-100 text-amber-700"
@@ -122,17 +122,17 @@ export default function KpiCards({ aggregates }: Props) {
       />
       <KpiCard
         icon={Clock}
-        label="Horas promedio"
-        value={aggregates.avgHoras != null ? `${aggregates.avgHoras}h` : "—"}
-        sub="Tiempo medio de emisión"
+        label="Días promedio"
+        value={aggregates.avgDias != null ? `${aggregates.avgDias}d` : "—"}
+        sub="Tiempo medio de emisión (días hábiles)"
         color="bg-sky-100 text-sky-700"
       />
       <KpiCard
         icon={Timer}
-        label="Horas mediana"
+        label="Días mediana"
         value={
-          aggregates.medianaHoras != null
-            ? `${aggregates.medianaHoras}h`
+          aggregates.medianaDias != null
+            ? `${aggregates.medianaDias}d`
             : "—"
         }
         sub="Robusto a valores atípicos"
@@ -141,8 +141,8 @@ export default function KpiCards({ aggregates }: Props) {
       <KpiCard
         icon={TrendingUp}
         label="Peor caso"
-        value={aggregates.maxHoras != null ? `${aggregates.maxHoras}h` : "—"}
-        sub={aggregates.maxHorasOsi ? `OSI ${aggregates.maxHorasOsi}` : undefined}
+        value={aggregates.maxDias != null ? `${aggregates.maxDias}d` : "—"}
+        sub={aggregates.maxDiasOsi ? `OSI ${aggregates.maxDiasOsi}` : undefined}
         color="bg-orange-100 text-orange-700"
         valueColor="text-orange-600"
       />

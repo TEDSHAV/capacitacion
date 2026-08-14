@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { IndicadorOsiRow } from "@/types";
+import { parseDate } from "@/lib/business-days";
 
 interface Props {
   rows: IndicadorOsiRow[];
@@ -14,9 +15,10 @@ type SortKey =
   | "servicio"
   | "fechaEjecucion"
   | "fechaEmision"
-  | "horas"
-  | "brechaHoras"
+  | "diasHabiles"
+  | "brechaDias"
   | "facilitadorNombre"
+  | "facilitadorSesionNombre"
   | "estado";
 
 const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
@@ -39,7 +41,8 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 const FUENTE_EJECUCION_LABEL: Record<string, string> = {
-  sesiones: "Sesiones",
+  fecha_ejecutada: "Fecha ejecutada",
+  sesiones: "Sesiones (planif.)",
   fecha_fin_real: "fecha_fin_real",
 };
 
@@ -50,8 +53,18 @@ const FUENTE_EMISION_LABEL: Record<string, string> = {
 
 function formatDate(s: string | null): string {
   if (!s) return "—";
-  const d = new Date(s);
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const d = parseDate(s);
   if (isNaN(d.getTime())) return s;
+  if (isDateOnly) {
+    // Date-only field (fecha_emision, fecha_ejecucion) — show as DD/MM/YYYY
+    return d.toLocaleDateString("es-VE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  }
+  // Timestamp (created_at fallback) — show date + time in local timezone
   return d.toLocaleString("es-VE", {
     day: "2-digit",
     month: "2-digit",
@@ -62,7 +75,7 @@ function formatDate(s: string | null): string {
 }
 
 export default function IndicadoresTable({ rows }: Props) {
-  const [sortKey, setSortKey] = useState<SortKey>("horas");
+  const [sortKey, setSortKey] = useState<SortKey>("diasHabiles");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   function toggleSort(key: SortKey) {
@@ -97,9 +110,10 @@ export default function IndicadoresTable({ rows }: Props) {
     { key: "servicio", label: "Servicio" },
     { key: "fechaEjecucion", label: "Fecha ejecución" },
     { key: "fechaEmision", label: "Fecha emisión" },
-    { key: "horas", label: "Horas", className: "text-right" },
-    { key: "brechaHoras", label: "Brecha (h)", className: "text-right" },
-    { key: "facilitadorNombre", label: "Facilitador" },
+    { key: "diasHabiles", label: "Días hábiles", className: "text-right" },
+    { key: "brechaDias", label: "Brecha (días)", className: "text-right" },
+    { key: "facilitadorNombre", label: "Facilitador emisor" },
+    { key: "facilitadorSesionNombre", label: "Facilitador sesión" },
     { key: "estado", label: "Estado" },
   ];
 
@@ -196,19 +210,22 @@ export default function IndicadoresTable({ rows }: Props) {
                       {formatDate(r.fechaEmision)}
                     </td>
                     <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap">
-                      {r.horas != null ? `${r.horas}h` : "—"}
+                      {r.diasHabiles != null ? `${r.diasHabiles}d` : "—"}
                     </td>
                     <td
                       className={`px-3 py-2.5 text-right font-medium whitespace-nowrap ${
-                        r.brechaHoras != null && r.brechaHoras > 0
+                        r.brechaDias != null && r.brechaDias > 0
                           ? "text-red-600"
                           : "text-gray-400"
                       }`}
                     >
-                      {r.brechaHoras != null ? `${r.brechaHoras}h` : "—"}
+                      {r.brechaDias != null ? `${r.brechaDias}d` : "—"}
                     </td>
                     <td className="px-3 py-2.5 text-gray-700 max-w-[140px] truncate">
                       {r.facilitadorNombre || "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-700 max-w-[140px] truncate">
+                      {r.facilitadorSesionNombre || "—"}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <span

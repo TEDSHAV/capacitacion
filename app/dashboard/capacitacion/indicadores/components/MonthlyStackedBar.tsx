@@ -27,7 +27,7 @@ export default function MonthlyStackedBar({ data }: Props) {
             Volumen mensual
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            OSIs dentro vs fuera de 72h (últimos 12 meses)
+            OSIs dentro vs fuera de 3 días hábiles (últimos 12 meses)
           </p>
         </div>
       </div>
@@ -72,14 +72,14 @@ export default function MonthlyStackedBar({ data }: Props) {
                 dataKey="dentro"
                 stackId="a"
                 fill="#10b981"
-                name="Dentro 72h"
+                name="Dentro"
                 radius={[0, 0, 0, 0]}
               />
               <Bar
                 dataKey="fuera"
                 stackId="a"
                 fill="#ef4444"
-                name="Fuera 72h"
+                name="Fuera"
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>

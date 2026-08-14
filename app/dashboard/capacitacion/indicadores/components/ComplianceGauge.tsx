@@ -13,8 +13,8 @@ export default function ComplianceGauge({ aggregates }: Props) {
   const pct = aggregates.pctCumplimiento;
 
   const data = [
-    { name: "Dentro 72h", value: dentro72, color: "#10b981" },
-    { name: "Fuera 72h", value: fuera72, color: "#ef4444" },
+    { name: "Dentro", value: dentro72, color: "#10b981" },
+    { name: "Fuera", value: fuera72, color: "#ef4444" },
     { name: "Pendientes", value: pendientes, color: "#f59e0b" },
   ].filter((d) => d.value > 0);
 
@@ -32,7 +32,7 @@ export default function ComplianceGauge({ aggregates }: Props) {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">
-            Cumplimiento 72h
+            Cumplimiento 3 días hábiles
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
             Distribución de OSIs por estado

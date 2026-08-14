@@ -32,7 +32,7 @@ export default function DimensionBarChart({
     .map((d) => ({
       label: d.label.length > 22 ? d.label.slice(0, 20) + "…" : d.label,
       fullLabel: d.label,
-      avgHoras: d.avgHoras ?? 0,
+      avgDias: d.avgDias ?? 0,
       count: d.count,
       pct: d.pct,
     }));
@@ -67,7 +67,7 @@ export default function DimensionBarChart({
                 tick={{ fontSize: 10, fill: "#9ca3af" }}
                 tickLine={false}
                 axisLine={{ stroke: "#e5e7eb" }}
-                tickFormatter={(v) => `${v}h`}
+                tickFormatter={(v) => `${v}d`}
               />
               <YAxis
                 type="category"
@@ -78,7 +78,7 @@ export default function DimensionBarChart({
                 width={120}
               />
               <Tooltip
-                formatter={(value) => [`${value}h`, "Promedio"]}
+                formatter={(value) => [`${value}d`, "Promedio"]}
                 labelFormatter={(_label, payload) => {
                   const p = payload?.[0]?.payload as
                     | { fullLabel?: string; count?: number; pct?: number | null }
@@ -93,13 +93,13 @@ export default function DimensionBarChart({
                   border: "1px solid #e5e7eb",
                 }}
               />
-              <ReferenceLine x={72} stroke="#ef4444" strokeDasharray="4 4" />
-              <Bar dataKey="avgHoras" radius={[0, 4, 4, 0]}>
+              <ReferenceLine x={3} stroke="#ef4444" strokeDasharray="4 4" />
+              <Bar dataKey="avgDias" radius={[0, 4, 4, 0]}>
                 {chartData.map((entry, i) => (
                   <Cell
                     key={i}
                     fill={
-                      entry.avgHoras <= 72 ? "#0ea5e9" : "#f97316"
+                      entry.avgDias <= 3 ? "#0ea5e9" : "#f97316"
                     }
                   />
                 ))}

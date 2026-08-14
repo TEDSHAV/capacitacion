@@ -15,23 +15,23 @@ import type { IndicadorOsiRow } from "@/types";
 
 interface Props {
   rows: IndicadorOsiRow[];
-  slaHours?: number;
+  slaDays?: number;
   maxItems?: number;
 }
 
 export default function OsiBarChart({
   rows,
-  slaHours = 72,
+  slaDays = 3,
   maxItems = 20,
 }: Props) {
-  // Only evaluadas (have horas), sorted by horas desc, top N
+  // Only evaluadas (have diasHabiles), sorted by diasHabiles desc, top N
   const data = rows
-    .filter((r) => r.horas != null)
-    .sort((a, b) => (b.horas ?? 0) - (a.horas ?? 0))
+    .filter((r) => r.diasHabiles != null)
+    .sort((a, b) => (b.diasHabiles ?? 0) - (a.diasHabiles ?? 0))
     .slice(0, maxItems)
     .map((r) => ({
       label: r.nroOsi,
-      horas: r.horas ?? 0,
+      diasHabiles: r.diasHabiles ?? 0,
       estado: r.estado,
       empresa: r.empresa,
     }));
@@ -43,10 +43,10 @@ export default function OsiBarChart({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">
-            Horas por OSI (top {maxItems})
+            Días hábiles por OSI (top {maxItems})
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            Línea roja = SLA 72h · barras rojas = incumplimiento
+            Línea roja = SLA 3 días · barras rojas = incumplimiento
           </p>
         </div>
       </div>
@@ -68,7 +68,7 @@ export default function OsiBarChart({
                 tick={{ fontSize: 10, fill: "#9ca3af" }}
                 tickLine={false}
                 axisLine={{ stroke: "#e5e7eb" }}
-                tickFormatter={(v) => `${v}h`}
+                tickFormatter={(v) => `${v}d`}
               />
               <YAxis
                 type="category"
@@ -79,7 +79,7 @@ export default function OsiBarChart({
                 width={90}
               />
               <Tooltip
-                formatter={(value) => [`${value}h`, "Horas"]}
+                formatter={(value) => [`${value}d`, "Días hábiles"]}
                 labelFormatter={(_label, payload) => {
                   const p = payload?.[0]?.payload as
                     | { label?: string; empresa?: string }
@@ -93,11 +93,11 @@ export default function OsiBarChart({
                 }}
               />
               <ReferenceLine
-                x={slaHours}
+                x={slaDays}
                 stroke="#ef4444"
                 strokeDasharray="4 4"
               />
-              <Bar dataKey="horas" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="diasHabiles" radius={[0, 4, 4, 0]}>
                 {data.map((entry, i) => (
                   <Cell
                     key={i}

@@ -18,6 +18,7 @@ import {
   Sparkles,
   ClipboardList,
   Gauge,
+  Calendar,
 } from "lucide-react";
 
 type LucideIcon = typeof BookOpen;
@@ -140,9 +141,16 @@ export default function CapacitacionClient({
         {
           id: "indicadores",
           title: "Indicadores",
-          description: "Cumplimiento de certificados en 72h",
+          description: "Cumplimiento de certificados en 3 días hábiles",
           icon: Gauge,
           href: "/dashboard/capacitacion/indicadores",
+        },
+        {
+          id: "feriados",
+          title: "Feriados",
+          description: "Calendario de feriados para el cálculo de días hábiles",
+          icon: Calendar,
+          href: "/dashboard/capacitacion/configuracion/feriados",
         },
       ],
     },

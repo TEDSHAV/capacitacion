@@ -27,7 +27,7 @@ export default function DistributionHistogram({ data }: Props) {
             Distribución de tiempos
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            OSIs por rango de horas hasta emisión
+            OSIs por rango de días hábiles hasta emisión
           </p>
         </div>
       </div>
