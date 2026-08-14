@@ -267,25 +267,25 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
-    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
+    <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8 bg-white">
       <div className="mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Consulta de OSIs</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Consulta de OSIs</h1>
           <p className="mt-1 text-sm text-gray-600">
             Visualiza y monitorea las Órdenes de Servicio Interna
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="mt-6 flex justify-start">
-          <div className="inline-flex p-1 bg-gray-100 rounded-xl">
+        <div className="mt-4 sm:mt-6 flex justify-start">
+          <div className="inline-flex p-1 bg-gray-100 rounded-xl overflow-x-auto max-w-full">
             <button
               onClick={() => {
                 setActiveTab("automatic");
                 setCurrentPage(1);
               }}
               className={`
-                whitespace-nowrap py-2 px-6 rounded-lg font-medium text-sm transition-all duration-200
+                whitespace-nowrap py-2 px-4 sm:px-6 rounded-lg font-medium text-sm transition-all duration-200
                 ${activeTab === "automatic"
                   ? "bg-blue-600 text-white shadow-md shadow-blue-200"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}
@@ -299,13 +299,14 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
                 setCurrentPage(1);
               }}
               className={`
-                whitespace-nowrap mx-2 py-2 px-6 rounded-lg font-medium text-sm transition-all duration-200
+                whitespace-nowrap mx-1 sm:mx-2 py-2 px-4 sm:px-6 rounded-lg font-medium text-sm transition-all duration-200
                 ${activeTab === "manual"
                   ? "bg-blue-600 text-white shadow-md shadow-blue-200"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}
               `}
             >
-              OSIs Ingresadas Manualmente
+              <span className="sm:hidden">Manuales</span>
+              <span className="hidden sm:inline">OSIs Ingresadas Manualmente</span>
             </button>
           </div>
         </div>

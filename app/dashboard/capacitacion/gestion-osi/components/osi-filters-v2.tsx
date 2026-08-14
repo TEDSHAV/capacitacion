@@ -21,7 +21,9 @@ export default function OSIFiltersV2({
   statuses,
   loading = false,
 }: OSIFiltersV2Props) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(
+    typeof window !== "undefined" ? window.innerWidth >= 640 : true
+  );
   const [localNroOsi, setLocalNroOsi] = useState(filters.nroOsi || "");
 
   useEffect(() => {

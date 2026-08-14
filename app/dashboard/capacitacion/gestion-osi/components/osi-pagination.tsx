@@ -58,24 +58,31 @@ export default function OSIPagination({
   };
 
   return (
-    <div className="flex items-center justify-between bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
-      <div className="flex items-center justify-between flex-1 sm:hidden">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1 || loading}
-          className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Anterior
-        </button>
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages || loading}
-          className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Siguiente
-        </button>
+    <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+      {/* Mobile: compact prev/next with count */}
+      <div className="flex items-center justify-between sm:hidden">
+        <span className="text-xs text-gray-500">
+          {startItem}-{endItem} de {totalCount}
+        </span>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1 || loading}
+            className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Anterior
+          </button>
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages || loading}
+            className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Siguiente
+          </button>
+        </div>
       </div>
-      <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+      {/* Desktop: full pagination */}
+      <div className="hidden sm:flex sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-gray-700">
             Mostrando <span className="font-medium">{startItem}</span> a{" "}

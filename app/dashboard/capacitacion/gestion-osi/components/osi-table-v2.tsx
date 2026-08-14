@@ -71,7 +71,89 @@ export default function OSITableV2({
           <div className="h-full bg-blue-600 animate-pulse" style={{ width: "40%" }} />
         </div>
       )}
-      <div className="overflow-x-auto">
+
+      {/* Mobile: Card layout */}
+      <div className="block sm:hidden divide-y divide-gray-100">
+        {osis.map((osi, index) => (
+          <div
+            key={`${osi.id_osi}-${osi.nro_osi}-${osi.id_servicio}-${index}`}
+            className="p-4 hover:bg-blue-50 transition-colors cursor-pointer active:bg-blue-100"
+            onClick={() => onViewDetails(osi)}
+          >
+            {/* Top row: OSI number + date */}
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-sm font-semibold text-gray-900 truncate">
+                  {osi.nro_osi}
+                </span>
+                {osi.has_acknowledgment && (
+                  <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                )}
+                {osi.nro_presupuesto && (
+                  <span className="text-[10px] text-gray-500 truncate">
+                    {osi.nro_presupuesto}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
+                <Calendar className="w-3 h-3 text-gray-400" />
+                <span>{formatDate(osi.fecha_inicio_real)}</span>
+              </div>
+            </div>
+            {/* Company */}
+            <div className="flex items-center gap-1.5 mb-1">
+              <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              <span className="text-sm text-gray-700 truncate">{osi.nombre_empresa}</span>
+            </div>
+            {/* Service */}
+            <div className="mb-3">
+              <span className="text-sm text-gray-900 font-medium block truncate">{osi.servicio}</span>
+              {osi.tipo_servicio && (
+                <span className="text-[10px] text-gray-500 truncate block">{osi.tipo_servicio}</span>
+              )}
+            </div>
+            {/* Actions */}
+            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAssignFacilitador(osi);
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-1 py-2 border border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white rounded-md transition-colors text-xs font-medium"
+                title="Asignar Facilitador"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Facilitador</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSurvey(osi);
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-1 py-2 border border-green-600 text-green-600 hover:bg-green-600 hover:text-white rounded-md transition-colors text-xs font-medium"
+                title="Generar/Ver Encuesta de Satisfacción"
+              >
+                <ClipboardList className="w-3.5 h-3.5" />
+                <span>Encuesta</span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewDetails(osi, "documents");
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-1 py-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-md transition-colors text-xs font-medium"
+                title="Ver documentos generados"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Docs</span>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: Table layout */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>

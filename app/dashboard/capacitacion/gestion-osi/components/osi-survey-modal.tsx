@@ -65,81 +65,99 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
     document.body.removeChild(link);
   };
 
+  // Pills for a small number of sessions; dropdown for many (prevents row explosion on mobile)
+  const usePills = sessionCount <= 8;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b bg-gray-50">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Encuesta de Satisfacción</h2>
-            <p className="text-sm text-gray-500">OSI: {osi.nro_osi}</p>
+        <div className="flex items-center justify-between p-5 border-b bg-gray-50 flex-none">
+          <div className="min-w-0 pr-2">
+            <h2 className="text-lg font-bold text-gray-900 truncate">Encuesta de Satisfacción</h2>
+            <p className="text-sm text-gray-500 truncate">OSI: {osi.nro_osi}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-500"
+            className="flex-none p-2.5 bg-gray-200 hover:bg-gray-300 rounded-full transition-colors text-gray-700"
+            aria-label="Cerrar"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-8 space-y-8">
+        <div className="p-6 space-y-6 flex-1 overflow-y-auto">
           {/* Session selector for multi-session OSIs */}
           {hasMultipleSessions && (
             <div className="flex flex-col items-center gap-2">
               <label className="text-xs font-black text-gray-400 uppercase tracking-widest">
                 Selecciona la sesión
               </label>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {Array.from({ length: sessionCount }, (_, i) => i + 1).map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setSelectedSession(n)}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                      selectedSession === n
-                        ? "bg-blue-600 text-white shadow-md"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    Sesión {n}
-                  </button>
-                ))}
-              </div>
+              {usePills ? (
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {Array.from({ length: sessionCount }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setSelectedSession(n)}
+                      className={`w-9 h-9 rounded-lg text-sm font-bold transition-all ${
+                        selectedSession === n
+                          ? "bg-blue-600 text-white shadow-md"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <select
+                  value={selectedSession}
+                  onChange={(e) => setSelectedSession(Number(e.target.value))}
+                  className="px-4 py-2 rounded-lg text-sm font-bold bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {Array.from({ length: sessionCount }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      Sesión {n}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
 
           {/* QR Code Section */}
-          <div className="flex flex-col items-center gap-6">
-            <div className="p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-inner relative group">
+          <div className="flex flex-col items-center gap-5">
+            <div className="p-3 bg-white border-2 border-gray-100 rounded-2xl shadow-inner">
               {qrUrl ? (
-                <img src={qrUrl} alt="QR Survey" className="w-48 h-48" />
+                <img src={qrUrl} alt="QR Survey" className="w-40 h-40" />
               ) : (
-                <div className="w-48 h-48 flex items-center justify-center bg-gray-50 rounded-xl">
-                  <QrCode className="w-12 h-12 text-gray-300 animate-pulse" />
+                <div className="w-40 h-40 flex items-center justify-center bg-gray-50 rounded-xl">
+                  <QrCode className="w-10 h-10 text-gray-300 animate-pulse" />
                 </div>
               )}
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
               <button
                 onClick={handleDownloadQR}
-                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-700 transition-all shadow-md active:scale-95"
+                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-bold hover:bg-blue-700 transition-all shadow-md active:scale-95 w-full sm:flex-1"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-3.5 h-3.5" />
                 Descargar QR
               </button>
               <Link
                 href={`/dashboard/capacitacion/gestion-osi/${osi.id_osi}/survey-view`}
-                className="flex items-center gap-2 px-6 py-2.5 border-2 border-blue-600 text-blue-600 rounded-full font-bold hover:bg-blue-50 transition-all active:scale-95"
+                className="flex items-center justify-center gap-1.5 px-4 py-2 border-2 border-blue-600 text-blue-600 rounded-full text-sm font-bold hover:bg-blue-50 transition-all active:scale-95 w-full sm:flex-1"
               >
-                <FileText className="w-4 h-4" />
+                <FileText className="w-3.5 h-3.5" />
                 Ver Resultados
               </Link>
             </div>
           </div>
 
           {/* Link Section */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Enlace de la Encuesta</label>
             <div className="flex gap-2">
               <div className="flex-grow p-3 bg-gray-50 border rounded-xl text-sm font-mono text-gray-600 truncate">
@@ -148,7 +166,7 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
               <button
                 onClick={handleCopyLink}
                 className={`
-                  p-3 rounded-xl transition-all border flex items-center justify-center min-w-[48px]
+                  p-3 rounded-xl transition-all border flex items-center justify-center min-w-[44px] flex-none
                   ${copied
                     ? "bg-green-50 border-green-200 text-green-600"
                     : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
@@ -162,7 +180,7 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
                 href={clickableUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-3 bg-white border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-all flex items-center justify-center min-w-[48px]"
+                className="p-3 bg-white border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-all flex items-center justify-center min-w-[44px] flex-none"
                 title="Abrir enlace"
               >
                 <ExternalLink className="w-5 h-5" />
@@ -174,16 +192,6 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
                </p>
             )}
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-6 bg-gray-50 border-t flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-bold hover:bg-gray-100 transition-colors"
-          >
-            Cerrar
-          </button>
         </div>
       </div>
     </div>
