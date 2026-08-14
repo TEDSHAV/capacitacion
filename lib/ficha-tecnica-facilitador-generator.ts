@@ -49,11 +49,11 @@ const PAGE_W = 215.9;
 const PAGE_H = 279.4;
 const MARGIN_X = 20;
 const CONTENT_W = PAGE_W - MARGIN_X * 2;
-const SECTION_GAP = 8;
+const SECTION_GAP = 5;
 const FONT_SIZE_PT = 10;
 const HEADING_PT = 10;
 const NAME_PT = 15;
-const LINE_HEIGHT = 5.2;
+const LINE_HEIGHT = 4.8;
 
 // Header banner — full page width, computed height from aspect ratio
 const HEADER_FILE = "header-ficha-tecnica-facilitador.jpg";
@@ -395,7 +395,7 @@ export async function generateFichaTecnicaFacilitadorPdf(
   const nameLines = doc.splitTextToSize(nombre, nameAreaW);
   for (const line of nameLines) {
     doc.text(line, NAME_X, nameY);
-    nameY += 7;
+    nameY += 6;
   }
 
   if (cedula) {
@@ -403,7 +403,7 @@ export async function generateFichaTecnicaFacilitadorPdf(
     doc.setFontSize(FONT_SIZE_PT);
     doc.setTextColor(0, 0, 0);
     doc.text(cedula, NAME_X, nameY);
-    nameY += 5;
+    nameY += 4.5;
   }
 
   if (titulo) {
@@ -413,7 +413,7 @@ export async function generateFichaTecnicaFacilitadorPdf(
     const tituloLines = doc.splitTextToSize(titulo, nameAreaW);
     for (const line of tituloLines) {
       doc.text(line, NAME_X, nameY);
-      nameY += 5;
+      nameY += 4.5;
     }
   }
 
@@ -441,8 +441,8 @@ export async function generateFichaTecnicaFacilitadorPdf(
 
   // Ensure y is below both the name block and the photo, with extra margin
   // before the first section so it's not too close to the profile pic.
-  const belowPhoto = photoY + PHOTO_SIZE + 10;
-  const belowName = nameY + 6;
+  const belowPhoto = photoY + PHOTO_SIZE + 6;
+  const belowName = nameY + 4;
   y = Math.max(belowName, belowPhoto);
 
   // --- Sections ---
@@ -496,7 +496,7 @@ export async function generateFichaTecnicaFacilitadorPdf(
         doc.text(line, textX, y);
         y += LINE_HEIGHT;
       }
-      y += 1.5; // paragraph spacing
+      y += 1; // paragraph spacing
     }
 
     y += SECTION_GAP;

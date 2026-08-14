@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { SectionCard } from "./SectionCard";
+import { Upload } from "lucide-react";
 
 interface FileUploadSectionProps {
   signatureFile: File | null;
@@ -17,13 +19,11 @@ export const FileUploadSection = ({
   isEdit = false,
 }: FileUploadSectionProps) => {
   return (
-    <div className="space-y-4">
-      <h3 className="text-md font-medium text-gray-900">Archivos Adjuntos</h3>
-
-      <div className="grid grid-cols-1 gap-4">
+    <SectionCard title="Archivos Adjuntos" icon={<Upload className="w-4 h-4" />}>
+      <div className="grid grid-cols-1 gap-3">
         {/* Signature Upload */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Firma Digital
           </label>
           <input
@@ -48,6 +48,6 @@ export const FileUploadSection = ({
           )}
         </div>
       </div>
-    </div>
+    </SectionCard>
   );
 };

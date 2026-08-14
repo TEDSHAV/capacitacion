@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { BankDetailsSectionProps } from "@/types";
+import { SectionCard } from "./SectionCard";
+import { CreditCard } from "lucide-react";
 
 export const BankDetailsSection = ({
   formData,
@@ -64,13 +66,11 @@ export const BankDetailsSection = ({
   };
 
   return (
-    <div className="space-y-4 pt-4 border-t border-gray-100">
-      <h3 className="text-md font-medium text-gray-900">Datos Bancarios</h3>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <SectionCard title="Datos Bancarios" icon={<CreditCard className="w-4 h-4" />}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Bank Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Banco
           </label>
           {loadingBanks ? (
@@ -132,7 +132,7 @@ export const BankDetailsSection = ({
         </div>
         {/* Titular ID */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Cédula/RIF del Titular
           </label>
           <input
@@ -146,7 +146,7 @@ export const BankDetailsSection = ({
 
         {/* Account Number */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Número de Cuenta (20 dígitos)
           </label>
           <input
@@ -161,7 +161,7 @@ export const BankDetailsSection = ({
 
         {/* Account Type */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Tipo de Cuenta
           </label>
           <select
@@ -177,7 +177,7 @@ export const BankDetailsSection = ({
 
         {/* Pago Móvil Phone */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Teléfono Pago Móvil
           </label>
           <input
@@ -190,6 +190,6 @@ export const BankDetailsSection = ({
         </div>
 
       </div>
-    </div>
+    </SectionCard>
   );
 };

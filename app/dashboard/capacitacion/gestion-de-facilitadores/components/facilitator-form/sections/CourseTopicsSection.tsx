@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { CourseTopicsSectionProps } from "@/types";
+import { SectionCard } from "./SectionCard";
+import { BookOpen } from "lucide-react";
 
 export const CourseTopicsSection = ({ formData, handleInputChange, courseTopics, loadingCourseTopics }: CourseTopicsSectionProps) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,11 +21,9 @@ export const CourseTopicsSection = ({ formData, handleInputChange, courseTopics,
   };
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-md font-medium text-gray-900">Temas de Curso</h3>
-      
+    <SectionCard title="Temas de Curso" icon={<BookOpen className="w-4 h-4" />}>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
           Selecciona los temas que puede dictar el facilitador
         </label>
         
@@ -72,6 +72,6 @@ export const CourseTopicsSection = ({ formData, handleInputChange, courseTopics,
           Selecciona todos los temas aplicables. El facilitador podrá dictar estos cursos.
         </p>
       </div>
-    </div>
+    </SectionCard>
   );
 };

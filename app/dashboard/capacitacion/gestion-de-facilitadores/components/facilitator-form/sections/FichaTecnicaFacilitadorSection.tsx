@@ -3,7 +3,8 @@
 import React from "react";
 import dynamic from "next/dynamic";
 import { FichaTecnicaFacilitadorSectionProps } from "@/types";
-import { FileDown, Loader2 } from "lucide-react";
+import { FileDown, FileText, Loader2 } from "lucide-react";
+import { SectionCard } from "./SectionCard";
 
 const RichTextEditor = dynamic(
   () => import("@/components/ui/rich-text-editor"),
@@ -20,16 +21,15 @@ export const FichaTecnicaFacilitadorSection = ({
   isEdit,
 }: FichaTecnicaFacilitadorSectionProps) => {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-md font-medium text-gray-900">
-          Ficha Técnica de Facilitador
-        </h3>
+    <SectionCard
+      title="Ficha Técnica de Facilitador"
+      icon={<FileText className="w-4 h-4" />}
+      action={
         <button
           type="button"
           onClick={onDownloadFicha}
           disabled={generandoPdf}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-md font-medium border-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:bg-blue-50"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md font-medium border-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:bg-blue-50"
           style={{
             borderColor: "rgb(12, 63, 105)",
             color: "rgb(12, 63, 105)",
@@ -48,8 +48,8 @@ export const FichaTecnicaFacilitadorSection = ({
             </>
           )}
         </button>
-      </div>
-
+      }
+    >
       <p className="text-xs text-gray-500">
         Esta información se incluye en el PDF de la ficha técnica del
         facilitador. Los campos son opcionales; las secciones vacías no se
@@ -123,7 +123,7 @@ export const FichaTecnicaFacilitadorSection = ({
       </div>
 
       {/* Rich-text sections */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
             Formación Académica
@@ -169,6 +169,6 @@ export const FichaTecnicaFacilitadorSection = ({
           />
         </div>
       </div>
-    </div>
+    </SectionCard>
   );
 };

@@ -1,17 +1,15 @@
 import { AdditionalInfoSectionProps } from "@/types";
+import { SectionCard } from "./SectionCard";
+import { StickyNote } from "lucide-react";
 
 export const AdditionalInfoSection = ({
   formData,
   handleInputChange,
 }: AdditionalInfoSectionProps) => {
   return (
-    <div className="space-y-4">
-      <h3 className="text-md font-medium text-gray-900">
-        Información Adicional
-      </h3>
-
+    <SectionCard title="Información Adicional" icon={<StickyNote className="w-4 h-4" />}>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
           Notas y Observaciones
         </label>
         <textarea
@@ -24,6 +22,6 @@ export const AdditionalInfoSection = ({
           placeholder="Notas adicionales sobre el facilitador..."
         />
       </div>
-    </div>
+    </SectionCard>
   );
 };

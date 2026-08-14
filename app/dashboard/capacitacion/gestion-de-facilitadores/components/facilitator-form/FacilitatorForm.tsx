@@ -495,7 +495,7 @@ export const FacilitatorForm = ({
         cancelText="Cancelar"
       />
 
-      <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
         <PersonalInfoSection
           formData={formData}
           handleInputChange={handleInputChange}
@@ -525,19 +525,6 @@ export const FacilitatorForm = ({
           loadingCourseTopics={loadingCourseTopics}
         />
 
-        <AdditionalInfoSection
-          formData={formData}
-          handleInputChange={handleInputChange}
-        />
-
-        <BankDetailsSection
-          formData={formData}
-          handleInputChange={handleInputChange}
-          banks={banks}
-          loadingBanks={loadingBanks}
-          onAddBank={handleAddBank}
-        />
-
         <FichaTecnicaFacilitadorSection
           formData={formData}
           handleInputChange={handleInputChange}
@@ -548,10 +535,23 @@ export const FacilitatorForm = ({
           isEdit={!!editId}
         />
 
+        <AdditionalInfoSection
+          formData={formData}
+          handleInputChange={handleInputChange}
+        />
+
         <FileUploadSection
           signatureFile={signatureFile}
           onFileSelect={handleFileSelect}
           isEdit={!!editId}
+        />
+
+        <BankDetailsSection
+          formData={formData}
+          handleInputChange={handleInputChange}
+          banks={banks}
+          loadingBanks={loadingBanks}
+          onAddBank={handleAddBank}
         />
 
         {/* Bottom Actions */}

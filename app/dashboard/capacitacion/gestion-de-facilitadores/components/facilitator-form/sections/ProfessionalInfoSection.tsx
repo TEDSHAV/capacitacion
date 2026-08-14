@@ -2,6 +2,8 @@
 
 import React from "react";
 import { ProfessionalInfoSectionProps } from "@/types";
+import { SectionCard } from "./SectionCard";
+import { Briefcase } from "lucide-react";
 
 export const ProfessionalInfoSection = ({
   formData,
@@ -10,14 +12,10 @@ export const ProfessionalInfoSection = ({
   loadingStates,
 }: ProfessionalInfoSectionProps) => {
   return (
-    <div className="space-y-4">
-      <h3 className="text-md font-medium text-gray-900">
-        Información Profesional
-      </h3>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <SectionCard title="Información Profesional" icon={<Briefcase className="w-4 h-4" />}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Nivel de Educación
           </label>
           <select
@@ -37,7 +35,7 @@ export const ProfessionalInfoSection = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Alcance
           </label>
           <select
@@ -121,6 +119,6 @@ export const ProfessionalInfoSection = ({
           </label>
         </div>
       </div>
-    </div>
+    </SectionCard>
   );
 };

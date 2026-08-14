@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { PersonalInfoSectionProps } from "@/types";
 import { toTitleCase } from "@/utils/string-utils";
+import { SectionCard } from "./SectionCard";
+import { User } from "lucide-react";
 
 export const PersonalInfoSection = ({
   formData,
@@ -70,14 +72,10 @@ export const PersonalInfoSection = ({
   };
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-md font-medium text-gray-900">
-        Información Personal
-      </h3>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <SectionCard title="Información Personal" icon={<User className="w-4 h-4" />}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Nombre y Apellido *
           </label>
           <input
@@ -96,7 +94,7 @@ export const PersonalInfoSection = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Cédula *
           </label>
           <div className="flex gap-2">
@@ -120,7 +118,7 @@ export const PersonalInfoSection = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             RIF
           </label>
           <div className="flex gap-2">
@@ -145,7 +143,7 @@ export const PersonalInfoSection = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Teléfono
           </label>
           <input
@@ -160,7 +158,7 @@ export const PersonalInfoSection = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Correo Electrónico
           </label>
           <input
@@ -173,7 +171,7 @@ export const PersonalInfoSection = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Fecha de Ingreso
           </label>
           <input
@@ -186,7 +184,7 @@ export const PersonalInfoSection = ({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
           Fuente
         </label>
         <select
@@ -203,6 +201,6 @@ export const PersonalInfoSection = ({
           <option value="otro">Otro</option>
         </select>
       </div>
-    </div>
+    </SectionCard>
   );
 };
