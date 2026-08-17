@@ -6,7 +6,7 @@
  * (lib/survey-tabulacion-generator.ts).
  *
  * Layout (Legal portrait, single page):
- *  - Header band: logo left, title center, meta right (Anexo / Rev.01 / Fecha)
+ *  - Header band: logo left, title center, meta right (Anexo / Rev.00 / Fecha)
  *  - OSI info card (Facilitador, OSI, Curso, Cliente, Ejecutivo, Fecha)
  *  - ISO 9001:2015 intro paragraph
  *  - KPI strip: Total Participantes | Total Encuestas | % Excelencia
@@ -754,7 +754,7 @@ export default function SurveyTabulacionPdfDocument({
           </View>
           <View style={styles.headerMeta}>
             <Text>Anexo</Text>
-            <Text style={styles.headerMetaStrong}>Rev.01</Text>
+            <Text style={styles.headerMetaStrong}>Rev.00</Text>
             <Text>Fecha: 17-08-2026</Text>
           </View>
         </View>
