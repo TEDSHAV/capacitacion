@@ -2165,14 +2165,29 @@ export async function getCertificatesForManagement(
       const term = filters.searchTerm.trim();
       const ilikeTerm = `%${term}%`;
 
-      // If it's a number, we can search by nro_osi exactly
-      // Otherwise we use a general search on the snapshot content which contains all fields
-      if (/^\d+$/.test(term)) {
-        const nroOsi = parseInt(term);
-        query = query.or(
-          `nro_osi.eq.${nroOsi},snapshot_contenido.ilike.${ilikeTerm}`,
-        );
+      // certificados.nro_osi stores the raw sequential integer
+      // (ejecucion_osi.nro_osi_secuencial), while the OSI number users see
+      // and type is a formatted string (e.g. "OSI-2024-001"). Extract the
+      // digits from anywhere in the input — same convention already used by
+      // getCertificatesByOSIAction/checkOSIHasAnyCertificatesAction — so a
+      // search by OSI number matches regardless of formatting.
+      //
+      // A digit-only term is treated purely as an OSI number lookup (exact
+      // match only). We deliberately do NOT OR this with a broad ilike over
+      // snapshot_contenido (or with a joined-table condition): that opaque
+      // text blob contains the whole certificate's rendered content (dates,
+      // control numbers, other cédulas, etc.), so a digit search against it
+      // spuriously matched unrelated certificates whose blob just happened
+      // to contain that digit sequence somewhere — and combining a
+      // base-table condition with a joined-table condition in one `.or()`
+      // against an `!inner` join proved unreliable. Keeping this path to an
+      // exact nro_osi match only is simple and correct.
+      const digitsOnly = term.replace(/[^\d]/g, "");
+      if (digitsOnly) {
+        const nroOsi = parseInt(digitsOnly, 10);
+        query = query.eq("nro_osi", nroOsi);
       } else {
+        // Non-numeric term: name/empresa/curso search via the snapshot blob.
         query = query.ilike("snapshot_contenido", ilikeTerm);
       }
 

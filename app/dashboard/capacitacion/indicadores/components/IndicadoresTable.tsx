@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { IndicadorOsiRow } from "@/types";
 import { parseDate } from "@/lib/business-days";
 
 interface Props {
   rows: IndicadorOsiRow[];
+  // When true, default the sort to "most overdue first" (brechaDias desc) —
+  // used when the table is drilled down to the pendientes backlog.
+  defaultSortByBrecha?: boolean;
 }
 
 type SortKey =
@@ -33,6 +36,10 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
   pendiente: {
     label: "Pendiente",
     cls: "bg-amber-50 text-amber-700 border-amber-200",
+  },
+  programada: {
+    label: "Programada",
+    cls: "bg-indigo-50 text-indigo-700 border-indigo-200",
   },
   no_aplica: {
     label: "N/A",
@@ -74,9 +81,18 @@ function formatDate(s: string | null): string {
   });
 }
 
-export default function IndicadoresTable({ rows }: Props) {
+export default function IndicadoresTable({ rows, defaultSortByBrecha }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("diasHabiles");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // When the drill-down switches to pendientes, default-sort by brecha
+  // (most overdue first) so the worst-off backlog items surface immediately.
+  useEffect(() => {
+    if (defaultSortByBrecha) {
+      setSortKey("brechaDias");
+      setSortDir("desc");
+    }
+  }, [defaultSortByBrecha]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -104,6 +120,19 @@ export default function IndicadoresTable({ rows }: Props) {
     return arr;
   }, [rows, sortKey, sortDir]);
 
+  // Breakdown by estado so the footer reconciles with the KPI cards above
+  // (this table shows all estados, not just evaluated OSIs).
+  const breakdown = useMemo(() => {
+    let evaluadas = 0, pendientes = 0, programadas = 0, noAplica = 0;
+    for (const r of rows) {
+      if (r.estado === "dentro" || r.estado === "fuera") evaluadas += 1;
+      else if (r.estado === "pendiente") pendientes += 1;
+      else if (r.estado === "programada") programadas += 1;
+      else if (r.estado === "no_aplica") noAplica += 1;
+    }
+    return { evaluadas, pendientes, programadas, noAplica };
+  }, [rows]);
+
   const columns: { key: SortKey; label: string; className?: string }[] = [
     { key: "nroOsi", label: "OSI" },
     { key: "empresa", label: "Empresa" },
@@ -125,7 +154,9 @@ export default function IndicadoresTable({ rows }: Props) {
             Detalle por OSI
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            {sorted.length} OSI(s) · clic en encabezado para ordenar
+            {sorted.length} OSI(s) · {breakdown.evaluadas} evaluadas ·{" "}
+            {breakdown.pendientes} pendientes · {breakdown.programadas} programadas
+            · {breakdown.noAplica} no aplica · clic en encabezado para ordenar
           </p>
         </div>
       </div>
@@ -222,10 +253,10 @@ export default function IndicadoresTable({ rows }: Props) {
                       {r.brechaDias != null ? `${r.brechaDias}d` : "—"}
                     </td>
                     <td className="px-3 py-2.5 text-gray-700 max-w-[140px] truncate">
-                      {r.facilitadorNombre || "—"}
+                      {r.facilitadorNombre?.toUpperCase() || "—"}
                     </td>
                     <td className="px-3 py-2.5 text-gray-700 max-w-[140px] truncate">
-                      {r.facilitadorSesionNombre || "—"}
+                      {r.facilitadorSesionNombre?.toUpperCase() || "—"}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <span

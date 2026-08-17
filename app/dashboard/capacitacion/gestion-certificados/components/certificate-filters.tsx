@@ -237,7 +237,7 @@ function CertificateFiltersComponent({
           <div className="relative">
             <input
               type="text"
-              placeholder="Nombre, cédula, empresa, N° OSI..."
+              placeholder="Nombre, empresa, N° OSI..."
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"

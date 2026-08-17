@@ -29,23 +29,17 @@ const SLA_BUSINESS_DAYS = 3;
 // 90 business days ≈ ~180 calendar days.
 const SOSPECHOSO_DIAS = 90;
 
-function median(nums: number[]): number | null {
-  if (!nums.length) return null;
-  const s = [...nums].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-}
-
 function emptyAggregates(): IndicadoresAggregates {
   return {
+    totalOsis: 0,
     totalEvaluadas: 0,
     dentro72: 0,
     fuera72: 0,
     pendientes: 0,
+    programadas: 0,
     noAplica: 0,
     pctCumplimiento: null,
     avgDias: null,
-    medianaDias: null,
     maxDias: null,
     maxDiasOsi: null,
     minDias: null,
@@ -55,7 +49,6 @@ function emptyAggregates(): IndicadoresAggregates {
     porEmpresa: [],
     porFacilitador: [],
     porFacilitadorSesion: [],
-    backlog: [],
   };
 }
 
@@ -207,31 +200,39 @@ function computePorDimension(
   getLabel: (r: IndicadorOsiRow) => string,
   topN: number,
 ): PorDimensionItem[] {
-  const map = new Map<string, { label: string; count: number; dentro: number; fuera: number; pendientes: number; diasSum: number; diasCount: number }>();
+  const map = new Map<string, { label: string; dentro: number; fuera: number; pendientes: number; noAplica: number; programadas: number; diasSum: number; diasCount: number }>();
   for (const r of rows) {
     const key = getKey(r);
     if (key == null) continue;
     const entry = map.get(key) ?? {
       label: getLabel(r),
-      count: 0, dentro: 0, fuera: 0, pendientes: 0, diasSum: 0, diasCount: 0,
+      dentro: 0, fuera: 0, pendientes: 0, noAplica: 0, programadas: 0, diasSum: 0, diasCount: 0,
     };
-    entry.count += 1;
     if (r.estado === "dentro") entry.dentro += 1;
     else if (r.estado === "fuera") entry.fuera += 1;
     else if (r.estado === "pendiente") entry.pendientes += 1;
+    else if (r.estado === "no_aplica") entry.noAplica += 1;
+    else if (r.estado === "programada") entry.programadas += 1;
     if (r.diasHabiles != null) {
       entry.diasSum += r.diasHabiles;
       entry.diasCount += 1;
     }
     map.set(key, entry);
   }
+  // "count" reflects only evaluated (dentro+fuera) rows — the same
+  // population avgDias/pct are computed from — so ranking and the tooltip's
+  // headline OSI count stay consistent with each other. pendientes/noAplica/
+  // programadas are tracked separately so they can still be surfaced without
+  // inflating the evaluated count.
   const items: PorDimensionItem[] = Array.from(map.entries()).map(([key, e]) => ({
     key,
     label: e.label,
-    count: e.count,
+    count: e.dentro + e.fuera,
     dentro: e.dentro,
     fuera: e.fuera,
     pendientes: e.pendientes,
+    noAplica: e.noAplica,
+    programadas: e.programadas,
     avgDias: e.diasCount > 0 ? Math.round((e.diasSum / e.diasCount) * 10) / 10 : null,
     pct: e.dentro + e.fuera > 0 ? Math.round((e.dentro / (e.dentro + e.fuera)) * 1000) / 10 : null,
   }));
@@ -243,6 +244,8 @@ type OsiViewRow = {
   id_osi: number | null;
   nro_osi: string | null;
   nombre_empresa: string | null;
+  sede: string | null;
+  id_sede: number | null;
   servicio: string | null;
   fecha_fin_real: string | null;
   fecha_emision: string | null;
@@ -274,7 +277,7 @@ export async function getIndicadoresCertificados72h(
     let q = supabase
       .from("v_osi_formato_completo")
       .select(
-        "id_osi, nro_osi, nombre_empresa, servicio, fecha_fin_real, fecha_emision, id_empresa, id_estatus, sesiones_ejecucion, tipo_servicio, id_estado_direccion_ejecucion_efectiva",
+        "id_osi, nro_osi, nombre_empresa, sede, id_sede, servicio, fecha_fin_real, fecha_emision, id_empresa, id_estatus, sesiones_ejecucion, tipo_servicio, id_estado_direccion_ejecucion_efectiva",
       )
       .ilike("tipo_servicio", "%capacitacion%")
       .not("nro_osi", "ilike", "%PEN-%");
@@ -374,6 +377,7 @@ export async function getIndicadoresCertificados72h(
         minFechaEmision: string | null;
         minCreatedAt: string | null;
         facilitadorId: number | null;
+        sedeId: number | null;
       }
     >();
     const facilitadorNames = new Map<number, string>();
@@ -389,6 +393,7 @@ export async function getIndicadoresCertificados72h(
         fecha_emision: string | null;
         created_at: string | null;
         id_facilitador: number | null;
+        id_sede: number | null;
         facilitadores: unknown;
       }> = [];
       let fetchError: string | null = null;
@@ -397,7 +402,7 @@ export async function getIndicadoresCertificados72h(
         const { data: pageData, error: pageErr } = await supabase
           .from("certificados")
           .select(
-            "nro_osi, fecha_emision, created_at, id_facilitador, facilitadores!inner(nombre_apellido)",
+            "nro_osi, fecha_emision, created_at, id_facilitador, id_sede, facilitadores!inner(nombre_apellido)",
           )
           .in("nro_osi", numericOsis)
           .range(pageStart, pageStart + PAGE_SIZE - 1);
@@ -424,6 +429,7 @@ export async function getIndicadoresCertificados72h(
             minFechaEmision: fe,
             minCreatedAt: ca,
             facilitadorId: c.id_facilitador ?? null,
+            sedeId: c.id_sede ?? null,
           });
         } else {
           // MIN(fecha_emision): earliest actual emission date (primary)
@@ -436,6 +442,9 @@ export async function getIndicadoresCertificados72h(
           }
           if (existing.facilitadorId == null && c.id_facilitador != null) {
             existing.facilitadorId = c.id_facilitador;
+          }
+          if (existing.sedeId == null && c.id_sede != null) {
+            existing.sedeId = c.id_sede;
           }
         }
         if (c.id_facilitador != null) {
@@ -479,8 +488,35 @@ export async function getIndicadoresCertificados72h(
       }
     }
 
+    // 3c. Batch fetch sede names from empresa_sedes. The sede is stored on
+    //     certificados.id_sede (set when certificates are issued), not
+    //     reliably on the OSI view. We collect id_sede from both the view
+    //     and the certificados fetch above, then resolve names via
+    //     empresa_sedes.nombre_sede.
+    const sedeNameById = new Map<number, string>();
+    const sedeIdsFromView = (osis as OsiViewRow[])
+      .map((o) => o.id_sede)
+      .filter((v): v is number => v != null);
+    const sedeIdsFromCerts = Array.from(certByNumericOsi.values())
+      .map((c) => c.sedeId)
+      .filter((v): v is number => v != null);
+    const sedeIds = Array.from(new Set([...sedeIdsFromView, ...sedeIdsFromCerts]));
+    if (sedeIds.length) {
+      const { data: sedeRows, error: sedeErr } = await supabase
+        .from("empresa_sedes")
+        .select("id, nombre_sede")
+        .in("id", sedeIds);
+      if (sedeErr) {
+        console.error("Error fetching empresa_sedes for indicadores:", sedeErr);
+      }
+      for (const s of (sedeRows || []) as { id: number; nombre_sede: string }[]) {
+        sedeNameById.set(s.id, s.nombre_sede);
+      }
+    }
+
     // 4. Build per-OSI rows
     const facilitadorIdByOsi = new Map<number, number | null>();
+    const nowDate = new Date();
     const allRows: IndicadorOsiRow[] = (osis as OsiViewRow[]).map((o) => {
       const osiId = o.id_osi ?? 0;
       const fechaFinReal = o.fecha_fin_real ?? null;
@@ -507,6 +543,7 @@ export async function getIndicadoresCertificados72h(
       const minFechaEmision = cert?.minFechaEmision ?? null;
       const minCreatedAt = cert?.minCreatedAt ?? null;
       const facilitadorId = cert?.facilitadorId ?? null;
+      const certSedeId = cert?.sedeId ?? null;
       facilitadorIdByOsi.set(osiId, facilitadorId);
 
       let fechaEmision: string | null = null;
@@ -526,28 +563,43 @@ export async function getIndicadoresCertificados72h(
 
       if (!fechaEjecucion) {
         estado = "no_aplica";
-      } else if (!fechaEmision) {
-        estado = "pendiente";
       } else {
         const execDate = parseDate(fechaEjecucion);
-        const certDate = parseDate(fechaEmision);
-        diasHabiles = businessDaysInclusive(execDate, certDate, holidays);
-
-        // Pre-generated cert (created before execution): flag as sospechoso
-        if (certDate < execDate) {
-          diasHabiles = 0;
-          estado = "dentro";
-          sospechoso = true;
-        } else if (diasHabiles <= SLA_BUSINESS_DAYS) {
-          estado = "dentro";
+        // "programada": execution date is in the future — the SLA clock
+        // hasn't started yet. These OSIs are NOT pending cert issuance
+        // (they haven't been executed), so they must be classified
+        // separately from "pendiente" to avoid inflating the pending
+        // count and the "en riesgo" metric.
+        if (execDate > nowDate) {
+          estado = "programada";
+        } else if (!fechaEmision) {
+          estado = "pendiente";
+          // Business days elapsed since execution, relative to today, minus
+          // the SLA. Positive = already past the 3-day SLA and still
+          // waiting on a certificate (useful for sorting the pending
+          // backlog worst-first); can be negative/zero if still within SLA.
+          brechaDias =
+            businessDaysInclusive(execDate, nowDate, holidays) - SLA_BUSINESS_DAYS;
         } else {
-          estado = "fuera";
-          brechaDias = diasHabiles - SLA_BUSINESS_DAYS;
-        }
+          const certDate = parseDate(fechaEmision);
+          diasHabiles = businessDaysInclusive(execDate, certDate, holidays);
 
-        // Flag extreme values as sospechoso for auditor review
-        if (diasHabiles > SOSPECHOSO_DIAS) {
-          sospechoso = true;
+          // Pre-generated cert (created before execution): flag as sospechoso
+          if (certDate < execDate) {
+            diasHabiles = 0;
+            estado = "dentro";
+            sospechoso = true;
+          } else if (diasHabiles <= SLA_BUSINESS_DAYS) {
+            estado = "dentro";
+          } else {
+            estado = "fuera";
+            brechaDias = diasHabiles - SLA_BUSINESS_DAYS;
+          }
+
+          // Flag extreme values as sospechoso for auditor review
+          if (diasHabiles > SOSPECHOSO_DIAS) {
+            sospechoso = true;
+          }
         }
       }
 
@@ -560,6 +612,17 @@ export async function getIndicadoresCertificados72h(
         osiId,
         nroOsi: o.nro_osi ?? "",
         empresa: o.nombre_empresa ?? "",
+        // Resolve sede name in priority order:
+        // 1. certificados.id_sede → empresa_sedes.nombre_sede (most reliable,
+        //    set when certificates are issued)
+        // 2. v_osi_formato_completo.id_sede → empresa_sedes.nombre_sede
+        //    (fallback if OSI view has it but certs don't)
+        // 3. v_osi_formato_completo.sede (manual text field, last resort)
+        sede:
+          (certSedeId != null ? sedeNameById.get(certSedeId) : null) ??
+          (o.id_sede != null ? sedeNameById.get(o.id_sede) : null) ??
+          o.sede ??
+          null,
         servicio: o.servicio ?? "",
         fechaEjecucion,
         fuenteEjecucion,
@@ -581,10 +644,16 @@ export async function getIndicadoresCertificados72h(
     // Date filters on fechaEjecucion (computed, not a DB column on the view).
     // Use parseDate for consistent timezone handling — fechaEjecucion is
     // always a date-only string, and parseDate handles it as local midnight.
+    //
+    // "no_aplica" rows have fechaEjecucion === null by definition (they have
+    // no session/execution date at all), so they can never fall inside or
+    // outside a date range — they're left untouched by these filters instead
+    // of being dropped, so aggregates.noAplica stays stable regardless of
+    // which date preset is selected.
     if (filters.fechaFrom) {
       const fromStart = parseDate(filters.fechaFrom);
       rows = rows.filter(
-        (r) => r.fechaEjecucion != null && parseDate(r.fechaEjecucion) >= fromStart,
+        (r) => r.fechaEjecucion == null || parseDate(r.fechaEjecucion) >= fromStart,
       );
     }
     if (filters.fechaTo) {
@@ -592,7 +661,7 @@ export async function getIndicadoresCertificados72h(
       const toEnd = parseDate(filters.fechaTo);
       toEnd.setHours(23, 59, 59, 999);
       rows = rows.filter(
-        (r) => r.fechaEjecucion != null && parseDate(r.fechaEjecucion) <= toEnd,
+        (r) => r.fechaEjecucion == null || parseDate(r.fechaEjecucion) <= toEnd,
       );
     }
 
@@ -609,6 +678,7 @@ export async function getIndicadoresCertificados72h(
     const dentro = evaluadas.filter((r) => r.estado === "dentro").length;
     const fuera = evaluadas.filter((r) => r.estado === "fuera").length;
     const pendientes = rows.filter((r) => r.estado === "pendiente");
+    const programadas = rows.filter((r) => r.estado === "programada").length;
     const noAplica = rows.filter((r) => r.estado === "no_aplica").length;
     const diasVals = evaluadas
       .map((r) => r.diasHabiles)
@@ -616,7 +686,6 @@ export async function getIndicadoresCertificados72h(
     const avgDias = diasVals.length
       ? Math.round((diasVals.reduce((a, b) => a + b, 0) / diasVals.length) * 10) / 10
       : null;
-    const medDias = median(diasVals);
     const maxDias = diasVals.length ? Math.max(...diasVals) : null;
     const minDias = diasVals.length ? Math.min(...diasVals) : null;
     const maxRow = evaluadas.find((r) => r.diasHabiles === maxDias);
@@ -625,44 +694,40 @@ export async function getIndicadoresCertificados72h(
         ? Math.round((dentro / evaluadas.length) * 1000) / 10
         : null;
 
-    // Pending in risk: fechaEjecucion more than SLA business days ago and still not issued
-    const nowDate = new Date();
-    const enRiesgo = pendientes.filter((r) => {
-      if (!r.fechaEjecucion) return false;
-      const elapsed = businessDaysInclusive(parseDate(r.fechaEjecucion), nowDate, holidays);
-      return elapsed > SLA_BUSINESS_DAYS;
-    }).length;
-
-    const backlog = pendientes
-      .map((r) => ({
-        ...r,
-        brechaDias:
-          r.fechaEjecucion != null
-            ? businessDaysInclusive(parseDate(r.fechaEjecucion), nowDate, holidays) - SLA_BUSINESS_DAYS
-            : null,
-      }))
-      .sort((a, b) => (b.brechaDias ?? -Infinity) - (a.brechaDias ?? -Infinity))
-      .slice(0, 20);
+    // Pending in risk: already past the SLA and still not issued. Each
+    // pendiente row now carries its own brechaDias (computed at row-build
+    // time above), so we just count the ones already over SLA instead of
+    // recomputing it here.
+    const enRiesgo = pendientes.filter((r) => (r.brechaDias ?? -Infinity) > 0).length;
 
     const aggregates: IndicadoresAggregates = {
+      totalOsis: evaluadas.length + pendientes.length + programadas + noAplica,
       totalEvaluadas: evaluadas.length,
       dentro72: dentro,
       fuera72: fuera,
       pendientes: pendientes.length,
+      programadas,
       noAplica,
       pctCumplimiento: pct,
       avgDias,
-      medianaDias: medDias != null ? Math.round(medDias * 10) / 10 : null,
       maxDias,
       maxDiasOsi: maxRow?.nroOsi ?? null,
       minDias,
       enRiesgoPendientes: enRiesgo,
       distribucion: computeDistribucion(rows),
       tendenciaMensual: computeTendencia(rows, filters.fechaFrom, filters.fechaTo),
+      // "por empresa" is broken down by empresa + sede + servicio because a
+      // company can have multiple offices (sedes) and different services,
+      // each with distinct SLA metrics. Aggregating at the empresa level
+      // alone would hide per-office/per-service variability.
       porEmpresa: computePorDimension(
         rows,
-        (r) => r.empresa || null,
-        (r) => r.empresa || "Sin empresa",
+        (r) =>
+          r.empresa
+            ? `${r.empresa}|${r.sede ?? "Sin sede"}|${r.servicio ?? "Sin servicio"}`
+            : null,
+        (r) =>
+          `${r.empresa || "Sin empresa"} · ${r.sede ?? "Sin sede"} · ${r.servicio ?? "Sin servicio"}`,
         10,
       ),
       porFacilitador: computePorDimension(
@@ -677,7 +742,6 @@ export async function getIndicadoresCertificados72h(
         (r) => r.facilitadorSesionNombre || "Sin facilitador",
         10,
       ),
-      backlog,
     };
 
     return { data: { rows, aggregates }, error: null };

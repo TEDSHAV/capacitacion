@@ -19,6 +19,9 @@ interface Props {
   subtitle?: string;
   slaHours?: number;
   maxItems?: number;
+  // When true, the Y-axis label is uppercased before truncation. Used for
+  // facilitador charts where names should be displayed in ALL CAPS.
+  uppercaseLabel?: boolean;
 }
 
 export default function DimensionBarChart({
@@ -26,16 +29,35 @@ export default function DimensionBarChart({
   title,
   subtitle,
   maxItems = 10,
+  uppercaseLabel = false,
 }: Props) {
   const chartData = data
     .slice(0, maxItems)
-    .map((d) => ({
-      label: d.label.length > 22 ? d.label.slice(0, 20) + "…" : d.label,
-      fullLabel: d.label,
-      avgDias: d.avgDias ?? 0,
-      count: d.count,
-      pct: d.pct,
-    }));
+    .map((d) => {
+      const rawLabel = uppercaseLabel ? d.label.toUpperCase() : d.label;
+      // For multi-part labels like "empresa · sede · servicio", split into
+      // a primary label (empresa) and a sublabel (sede · servicio) so the
+      // Y-axis can render them on two lines. This makes it clear why the
+      // same company appears multiple times (different sede/servicio).
+      const parts = rawLabel.split(" · ");
+      const primary = parts[0] ?? rawLabel;
+      const sublabel = parts.length > 1 ? parts.slice(1).join(" · ") : undefined;
+      const truncLabel = primary.length > 22 ? primary.slice(0, 20) + "…" : primary;
+      const truncSub = sublabel
+        ? sublabel.length > 28 ? sublabel.slice(0, 26) + "…" : sublabel
+        : undefined;
+      return {
+        label: truncLabel,
+        sublabel: truncSub,
+        fullLabel: rawLabel,
+        avgDias: d.avgDias ?? 0,
+        count: d.count,
+        pendientes: d.pendientes,
+        noAplica: d.noAplica,
+        programadas: d.programadas,
+        pct: d.pct,
+      };
+    });
 
   const hasData = chartData.length > 0;
 
@@ -49,7 +71,7 @@ export default function DimensionBarChart({
           )}
         </div>
       </div>
-      <div style={{ height: `${Math.max(220, chartData.length * 26)}px` }}>
+      <div style={{ height: `${Math.max(260, chartData.length * 36)}px` }}>
         {!hasData ? (
           <div className="flex items-center justify-center h-full text-sm text-gray-400">
             Sin datos
@@ -72,20 +94,31 @@ export default function DimensionBarChart({
               <YAxis
                 type="category"
                 dataKey="label"
-                tick={{ fontSize: 10, fill: "#6b7280" }}
+                tick={<CustomYAxisTick />}
                 tickLine={false}
                 axisLine={{ stroke: "#e5e7eb" }}
-                width={120}
+                width={180}
               />
               <Tooltip
                 formatter={(value) => [`${value}d`, "Promedio"]}
                 labelFormatter={(_label, payload) => {
                   const p = payload?.[0]?.payload as
-                    | { fullLabel?: string; count?: number; pct?: number | null }
+                    | {
+                        fullLabel?: string;
+                        count?: number;
+                        pendientes?: number;
+                        noAplica?: number;
+                        programadas?: number;
+                        pct?: number | null;
+                      }
                     | undefined;
-                  return p
-                    ? `${p.fullLabel} · ${p.count} OSIs · ${p.pct ?? "—"}%`
-                    : "";
+                  if (!p) return "";
+                  const extra: string[] = [];
+                  if (p.pendientes) extra.push(`${p.pendientes} pend.`);
+                  if (p.programadas) extra.push(`${p.programadas} prog.`);
+                  if (p.noAplica) extra.push(`${p.noAplica} N/A`);
+                  const extraStr = extra.length ? ` (+ ${extra.join(", ")})` : "";
+                  return `${p.fullLabel} · ${p.count} OSIs evaluadas${extraStr} · ${p.pct ?? "—"}%`;
                 }}
                 contentStyle={{
                   fontSize: "12px",
@@ -109,5 +142,50 @@ export default function DimensionBarChart({
         )}
       </div>
     </div>
+  );
+}
+
+// Custom Y-axis tick that renders the primary label (e.g. empresa name) on
+// the first line and the sublabel (e.g. "sede · servicio") on a second
+// smaller gray line below it. This makes it clear why the same company
+// appears as multiple bars — each bar is a different sede/servicio combo.
+function CustomYAxisTick({
+  x,
+  y,
+  payload,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value: string; payload?: { sublabel?: string } };
+}) {
+  const px = x ?? 0;
+  const py = y ?? 0;
+  const sublabel = payload?.payload?.sublabel;
+  return (
+    <g transform={`translate(${px},${py})`}>
+      <text
+        x={-6}
+        y={sublabel ? -4 : 0}
+        textAnchor="end"
+        dominantBaseline="middle"
+        fontSize={10}
+        fill="#374151"
+        fontWeight={500}
+      >
+        {payload?.value}
+      </text>
+      {sublabel && (
+        <text
+          x={-6}
+          y={8}
+          textAnchor="end"
+          dominantBaseline="middle"
+          fontSize={9}
+          fill="#9ca3af"
+        >
+          {sublabel}
+        </text>
+      )}
+    </g>
   );
 }

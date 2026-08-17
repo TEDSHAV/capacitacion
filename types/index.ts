@@ -1873,7 +1873,12 @@ export interface ClienteFilterOptions {
 // Venezuelan national holidays (cat_feriados_venezuela).
 // ============================================================================
 
-export type IndicadorEstado = "dentro" | "fuera" | "pendiente" | "no_aplica";
+export type IndicadorEstado =
+  | "dentro"
+  | "fuera"
+  | "pendiente"
+  | "no_aplica"
+  | "programada";
 
 export type IndicadorFuente = "created_at" | "fecha_emision";
 
@@ -1886,6 +1891,7 @@ export interface IndicadorOsiRow {
   osiId: number;
   nroOsi: string;
   empresa: string;
+  sede: string | null;
   servicio: string;
   fechaEjecucion: string | null;
   fuenteEjecucion: IndicadorFuenteEjecucion | null;
@@ -1919,23 +1925,32 @@ export interface TendenciaMensual {
 export interface PorDimensionItem {
   key: string;
   label: string;
+  // Number of evaluated (dentro+fuera) rows for this entity — the same
+  // population backing avgDias/pct below. Used for ranking/sorting and as
+  // the headline "OSIs" count shown in tooltips.
   count: number;
   dentro: number;
   fuera: number;
   pendientes: number;
+  noAplica: number;
+  programadas: number;
   avgDias: number | null;
   pct: number | null;
 }
 
 export interface IndicadoresAggregates {
+  // Canonical grand total across all estados (evaluadas + pendientes +
+  // programadas + noAplica). Every card/table should derive its displayed
+  // "total" from this field so numbers reconcile across the page.
+  totalOsis: number;
   totalEvaluadas: number;
   dentro72: number;
   fuera72: number;
   pendientes: number;
+  programadas: number;
   noAplica: number;
   pctCumplimiento: number | null;
   avgDias: number | null;
-  medianaDias: number | null;
   maxDias: number | null;
   maxDiasOsi: string | null;
   minDias: number | null;
@@ -1945,7 +1960,6 @@ export interface IndicadoresAggregates {
   porEmpresa: PorDimensionItem[];
   porFacilitador: PorDimensionItem[];
   porFacilitadorSesion: PorDimensionItem[];
-  backlog: IndicadorOsiRow[];
 }
 
 export interface IndicadoresResponse {
