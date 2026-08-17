@@ -344,7 +344,9 @@ export async function getSurveyTabulacionData(
       },
     };
 
-    // 6. Resultados del servicio = weighted % per level for sections 1+2.
+    // 6. Resultados del servicio = weighted % per level for sections 1+2
+    //    (Facilitador 60% + Capacitación 40% = 100%). Entorno (5%) is shown
+    //    separately and does not factor into the overall result.
     //    Total (%) = (count * weight) / section_total_responses, summed
     //    across the two sections per level.
     const resultados_servicio: { [level: number]: number } = {};

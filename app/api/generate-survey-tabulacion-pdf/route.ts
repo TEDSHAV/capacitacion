@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiAuth } from "@/utils/api-auth";
 import { getSurveyTabulacionData } from "@/app/actions/surveys";
-import { generateSurveyTabulacionPdf } from "@/lib/survey-tabulacion-generator";
+import { generateSurveyTabulacionPdf } from "@/lib/survey-tabulacion-renderer";
 
 function sanitizeFilename(name: string): string {
   return (
@@ -45,11 +45,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const pdfBlob = await generateSurveyTabulacionPdf(data);
+    const pdfBuffer = await generateSurveyTabulacionPdf(data);
 
     const filename = `resultado_actividad_osi_${sanitizeFilename(data.nro_osi)}.pdf`;
 
-    return new NextResponse(pdfBlob, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${filename}"`,
