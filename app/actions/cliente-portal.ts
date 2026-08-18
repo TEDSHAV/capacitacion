@@ -252,7 +252,7 @@ export async function loginCliente(
     httpOnly: true,
     secure: process.env.NEXT_PUBLIC_COOKIE_SECURE !== "false",
     sameSite: "lax",
-    maxAge: 60 * 60 * 8, // 8 hours
+    maxAge: 60 * 60 * 24 * 30, // 30 days — persist until explicit logout
     path: "/",
   });
 
