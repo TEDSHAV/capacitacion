@@ -82,8 +82,8 @@ export function ClienteBatches({
                 onClick={() => handleCardClick(batch)}
                 className="block p-6 hover:shadow-md transition-shadow text-left w-full group cursor-pointer"
               >
-                <div className="flex justify-between items-start">
-                  <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                  <div className="space-y-3 min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-600 px-2 py-1 rounded">
                         OSI #{batch.nro_osi}
@@ -127,7 +127,7 @@ export function ClienteBatches({
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:shrink-0">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -135,7 +135,7 @@ export function ClienteBatches({
                         window.open(`/api/batch-download-osi/${batch.nro_osi}`, "_blank");
                         setTimeout(() => setDownloadingOsi(null), 3000);
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex-1 sm:flex-initial"
                       title="Descargar todos los certificados y carnets de este lote"
                     >
                       {downloadingOsi === batch.nro_osi ? (
@@ -152,7 +152,7 @@ export function ClienteBatches({
                         window.open(`/api/batch-download-documents/${batch.nro_osi}`, "_blank");
                         setTimeout(() => setDownloadingDocs(null), 3000);
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors flex-1 sm:flex-initial"
                       title="Descargar documentos adicionales (Certificación de Competencias, Nota de Entrega)"
                     >
                       {downloadingDocs === batch.nro_osi ? (
@@ -165,7 +165,7 @@ export function ClienteBatches({
                     <button
                       onClick={(e) => handleSaveOffline(e, batch)}
                       disabled={offlineCaching === batch.nro_osi}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 transition-colors disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 transition-colors disabled:opacity-50 flex-1 sm:flex-initial"
                       title="Guardar lote para acceso sin conexión"
                     >
                       {offlineCaching === batch.nro_osi ? (

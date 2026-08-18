@@ -62,8 +62,8 @@ export default async function ClienteDashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <PortalNavbar title="Portal de Clientes" logoutAction={logoutCliente} loginPath="/portal/cliente/login" />
-      <div className="max-w-6xl mx-auto py-10 px-4">
-      <header className="mb-10">
+      <div className="max-w-6xl mx-auto py-6 sm:py-10 px-4">
+      <header className="mb-6 sm:mb-10">
         <div className="flex items-center gap-4">
           {session.logo_url ? (
             <Image
@@ -71,23 +71,23 @@ export default async function ClienteDashboardPage() {
               alt={session.empresa_nombre}
               width={48}
               height={48}
-              className="w-12 h-12 rounded-lg object-contain ring-1 ring-gray-200 bg-white p-1 shadow-sm"
+              className="w-12 h-12 rounded-lg object-contain ring-1 ring-gray-200 bg-white p-1 shadow-sm shrink-0"
             />
           ) : (
-            <div className="w-12 h-12 rounded-lg bg-gray-100 ring-1 ring-gray-200 flex items-center justify-center shadow-sm">
+            <div className="w-12 h-12 rounded-lg bg-gray-100 ring-1 ring-gray-200 flex items-center justify-center shadow-sm shrink-0">
               <Building2 className="w-6 h-6 text-gray-400" />
             </div>
           )}
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900 truncate">
               {session.empresa_nombre}
               {sedeName && (
-                <span className="text-lg font-medium text-gray-500 ml-2">
+                <span className="text-sm sm:text-lg font-medium text-gray-500 ml-2">
                   — Sede: {sedeName}
                 </span>
               )}
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm sm:text-base">
               {session.display_name
                 ? `Bienvenido, ${session.display_name}`
                 : "Consulta de certificados y carnets"}
