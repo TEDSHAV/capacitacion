@@ -738,21 +738,32 @@ export async function getClienteMetrics(
     console.error("Error counting carnets:", carnetError);
   }
 
-  // Count unique participants from certificates
-  let participantCountQuery = supabase
+  // Count unique participants from certificates. We must fetch the rows and
+  // dedupe id_participante ourselves: a head:true count would return the number
+  // of certificate rows (one per certificate), not distinct participants, which
+  // made totalParticipants always equal totalCertificates. Matches the pattern
+  // used in reportes.ts (uniqueParticipants Set).
+  let participantQuery = supabase
     .from("certificados")
-    .select("id_participante", { count: "exact", head: true })
+    .select("id_participante")
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
-  if (visibleArr.length > 0) participantCountQuery = participantCountQuery.in("nro_osi", visibleArr);
-  if (sessionSedeIds && sessionSedeIds.length > 0) participantCountQuery = participantCountQuery.in("id_sede", sessionSedeIds);
-  else if (sessionCityId) participantCountQuery = participantCountQuery.eq("id_ciudad", sessionCityId);
-  const { count: participantCount, error: participantError } =
-    await participantCountQuery;
+  if (visibleArr.length > 0) participantQuery = participantQuery.in("nro_osi", visibleArr);
+  if (sessionSedeIds && sessionSedeIds.length > 0) participantQuery = participantQuery.in("id_sede", sessionSedeIds);
+  else if (sessionCityId) participantQuery = participantQuery.eq("id_ciudad", sessionCityId);
+  const { data: participantData, error: participantError } =
+    await participantQuery;
 
   if (participantError) {
     console.error("Error counting participants:", participantError);
   }
+
+  const uniqueParticipants = new Set<number>();
+  for (const row of participantData || []) {
+    const pid = row.id_participante;
+    if (pid != null) uniqueParticipants.add(pid as number);
+  }
+  const participantCount = uniqueParticipants.size;
 
   // Get certificates by course for "course with most participants"
   let byCourseQuery = supabase
