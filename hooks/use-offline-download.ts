@@ -55,6 +55,8 @@ export function useOfflineDownload({
       const result = await cacheDocument(url, { type, id, label });
       if (result.success) {
         setIsCached(true);
+        // Notify the OfflineIndicator to refresh its badge count
+        window.dispatchEvent(new Event("offline-docs-changed"));
       } else {
         setError(result.error || "Error al descargar");
       }
@@ -66,6 +68,7 @@ export function useOfflineDownload({
   const removeFromOffline = useCallback(async (url: string) => {
     await removeCachedDocument(url);
     setIsCached(false);
+    window.dispatchEvent(new Event("offline-docs-changed"));
   }, []);
 
   return {

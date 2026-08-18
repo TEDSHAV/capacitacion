@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ClipboardList, Building2, ArrowRight } from "lucide-react";
+import { ClipboardList, Building2, ArrowRight, CheckCircle2 } from "lucide-react";
+import { getFacilitatorSession } from "@/app/actions/facilitador-portal";
+import { getClienteSession } from "@/app/actions/cliente-portal";
 
 export const metadata: Metadata = {
   title: "Portales SHA",
@@ -10,7 +12,20 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
-export default function PortalLandingPage() {
+export default async function PortalLandingPage() {
+  // Check for active sessions — if logged in, link directly to dashboard
+  const [facilitadorSession, clienteSession] = await Promise.all([
+    getFacilitatorSession(),
+    getClienteSession(),
+  ]);
+
+  const facilitadorHref = facilitadorSession
+    ? "/portal/facilitador/dashboard"
+    : "/portal/facilitador/login";
+  const clienteHref = clienteSession
+    ? "/portal/cliente/dashboard"
+    : "/portal/cliente/login";
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
       <div className="max-w-2xl w-full">
@@ -33,7 +48,7 @@ export default function PortalLandingPage() {
         <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
           {/* Facilitadores */}
           <Link
-            href="/portal/facilitador/login"
+            href={facilitadorHref}
             className="group bg-white rounded-xl shadow-lg border border-gray-100 p-6 sm:p-8 hover:shadow-xl hover:border-blue-200 transition-all"
           >
             <div className="flex flex-col items-center text-center">
@@ -47,16 +62,24 @@ export default function PortalLandingPage() {
                 Gestiona tus servicios asignados, listas de participantes y
                 certificados.
               </p>
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 group-hover:gap-2.5 transition-all">
-                Ingresar
-                <ArrowRight className="w-4 h-4" />
-              </span>
+              {facilitadorSession ? (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Sesión activa — Continuar
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 group-hover:gap-2.5 transition-all">
+                  Ingresar
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              )}
             </div>
           </Link>
 
           {/* Clientes */}
           <Link
-            href="/portal/cliente/login"
+            href={clienteHref}
             className="group bg-white rounded-xl shadow-lg border border-gray-100 p-6 sm:p-8 hover:shadow-xl hover:border-blue-200 transition-all"
           >
             <div className="flex flex-col items-center text-center">
@@ -69,10 +92,18 @@ export default function PortalLandingPage() {
               <p className="text-gray-600 text-sm mb-4">
                 Consulta tus certificados, carnets y documentos emitidos.
               </p>
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 group-hover:gap-2.5 transition-all">
-                Ingresar
-                <ArrowRight className="w-4 h-4" />
-              </span>
+              {clienteSession ? (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Sesión activa — Continuar
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 group-hover:gap-2.5 transition-all">
+                  Ingresar
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              )}
             </div>
           </Link>
         </div>

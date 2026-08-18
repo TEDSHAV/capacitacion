@@ -60,6 +60,7 @@ export function ClienteBatches({
     });
     if (result.success) {
       setOfflineCached((prev) => new Set(prev).add(batch.nro_osi));
+      window.dispatchEvent(new Event("offline-docs-changed"));
     }
     setOfflineCaching(null);
   };
@@ -290,7 +291,10 @@ function CertificateOfflineButton({ cert }: { cert: ClienteCertificateRow }) {
       id: cert.id,
       label: `Certificado — ${cert.participant_nombre} (V-${cert.participant_cedula})`,
     });
-    if (result.success) setCached(true);
+    if (result.success) {
+      setCached(true);
+      window.dispatchEvent(new Event("offline-docs-changed"));
+    }
     setCaching(false);
   };
 
