@@ -12,6 +12,11 @@ This project follows [Semantic Versioning](https://semver.org/) and
 > (an author-email change) and do not reflect when that work was actually done.
 > Only commits following the Conventional Commits format appear in the entries below.
 
+## [1.7.3](https://github.com/TEDSHAV/capacitacion/compare/v1.7.2...v1.7.3) (2026-08-18)
+
+### Bug Fixes
+
+* pass server action directly to LogoutButton ea5d5c4
 ## [1.7.2](https://github.com/TEDSHAV/capacitacion/compare/v1.7.1...v1.7.2) (2026-08-18)
 
 ### Bug Fixes
