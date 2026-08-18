@@ -2,19 +2,20 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { cache } from "react";
-import type {
-  DistribucionBucket,
-  IndicadorEstado,
-  IndicadorFuente,
-  IndicadorFuenteEjecucion,
-  IndicadorOsiOption,
-  IndicadorOsiRow,
-  IndicadoresAggregates,
-  IndicadoresFilterOptions,
-  IndicadoresFilters,
-  IndicadoresResponse,
-  PorDimensionItem,
-  TendenciaMensual,
+import {
+  SIN_DATO_KEY,
+  type DistribucionBucket,
+  type IndicadorEstado,
+  type IndicadorFuente,
+  type IndicadorFuenteEjecucion,
+  type IndicadorOsiOption,
+  type IndicadorOsiRow,
+  type IndicadoresAggregates,
+  type IndicadoresFilterOptions,
+  type IndicadoresFilters,
+  type IndicadoresResponse,
+  type PorDimensionItem,
+  type TendenciaMensual,
 } from "@/types";
 import { getFeriadosSet } from "@/app/actions/feriados";
 import { businessDaysInclusive, parseDate } from "@/lib/business-days";
@@ -194,31 +195,37 @@ function computeTendencia(
   });
 }
 
-function computePorDimension(
-  rows: IndicadorOsiRow[],
-  getKey: (r: IndicadorOsiRow) => string | null,
-  getLabel: (r: IndicadorOsiRow) => string,
+type DimensionBucket = {
+  label: string;
+  dentro: number;
+  fuera: number;
+  pendientes: number;
+  noAplica: number;
+  programadas: number;
+  diasSum: number;
+  diasCount: number;
+};
+
+function newDimensionBucket(label: string): DimensionBucket {
+  return { label, dentro: 0, fuera: 0, pendientes: 0, noAplica: 0, programadas: 0, diasSum: 0, diasCount: 0 };
+}
+
+function creditDimensionBucket(entry: DimensionBucket, r: IndicadorOsiRow) {
+  if (r.estado === "dentro") entry.dentro += 1;
+  else if (r.estado === "fuera") entry.fuera += 1;
+  else if (r.estado === "pendiente") entry.pendientes += 1;
+  else if (r.estado === "no_aplica") entry.noAplica += 1;
+  else if (r.estado === "programada") entry.programadas += 1;
+  if (r.diasHabiles != null) {
+    entry.diasSum += r.diasHabiles;
+    entry.diasCount += 1;
+  }
+}
+
+function dimensionBucketsToItems(
+  map: Map<string, DimensionBucket>,
   topN: number,
 ): PorDimensionItem[] {
-  const map = new Map<string, { label: string; dentro: number; fuera: number; pendientes: number; noAplica: number; programadas: number; diasSum: number; diasCount: number }>();
-  for (const r of rows) {
-    const key = getKey(r);
-    if (key == null) continue;
-    const entry = map.get(key) ?? {
-      label: getLabel(r),
-      dentro: 0, fuera: 0, pendientes: 0, noAplica: 0, programadas: 0, diasSum: 0, diasCount: 0,
-    };
-    if (r.estado === "dentro") entry.dentro += 1;
-    else if (r.estado === "fuera") entry.fuera += 1;
-    else if (r.estado === "pendiente") entry.pendientes += 1;
-    else if (r.estado === "no_aplica") entry.noAplica += 1;
-    else if (r.estado === "programada") entry.programadas += 1;
-    if (r.diasHabiles != null) {
-      entry.diasSum += r.diasHabiles;
-      entry.diasCount += 1;
-    }
-    map.set(key, entry);
-  }
   // "count" reflects only evaluated (dentro+fuera) rows — the same
   // population avgDias/pct are computed from — so ranking and the tooltip's
   // headline OSI count stay consistent with each other. pendientes/noAplica/
@@ -240,6 +247,47 @@ function computePorDimension(
   return items.slice(0, topN);
 }
 
+function computePorDimension(
+  rows: IndicadorOsiRow[],
+  getKey: (r: IndicadorOsiRow) => string | null,
+  getLabel: (r: IndicadorOsiRow) => string,
+  topN: number,
+): PorDimensionItem[] {
+  const map = new Map<string, DimensionBucket>();
+  for (const r of rows) {
+    const key = getKey(r) ?? SIN_DATO_KEY;
+    const entry = map.get(key) ?? newDimensionBucket(getLabel(r));
+    creditDimensionBucket(entry, r);
+    map.set(key, entry);
+  }
+  return dimensionBucketsToItems(map, topN);
+}
+
+// Like computePorDimension, but a row can be credited to 0..N buckets (e.g.
+// an OSI with multiple sessions taught by different facilitadores counts
+// toward each of them). Rows with no resolvable keys fall into the
+// "Sin dato" sentinel bucket. Because a row can count toward more than one
+// bucket, the sum of bar counts can exceed the total evaluated population —
+// this is expected and should be called out in the UI.
+function computePorDimensionMulti(
+  rows: IndicadorOsiRow[],
+  getKeys: (r: IndicadorOsiRow) => string[],
+  getLabel: (key: string) => string,
+  topN: number,
+): PorDimensionItem[] {
+  const map = new Map<string, DimensionBucket>();
+  for (const r of rows) {
+    const keys = Array.from(new Set(getKeys(r)));
+    const effectiveKeys = keys.length ? keys : [SIN_DATO_KEY];
+    for (const key of effectiveKeys) {
+      const entry = map.get(key) ?? newDimensionBucket(getLabel(key));
+      creditDimensionBucket(entry, r);
+      map.set(key, entry);
+    }
+  }
+  return dimensionBucketsToItems(map, topN);
+}
+
 type OsiViewRow = {
   id_osi: number | null;
   nro_osi: string | null;
@@ -258,9 +306,78 @@ type OsiViewRow = {
 
 type SesionRow = {
   id_osi: number;
+  nro_sesion: number;
   fecha: string;
   fecha_ejecutada: string | null;
 };
+
+type AssignmentRow = {
+  osi_id: number;
+  facilitador_id: number;
+  nro_sesion: number | null;
+  is_active: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+  facilitadores: unknown;
+};
+
+/**
+ * Resolve, per OSI, the distinct facilitador(es) who actually taught its
+ * sessions — reconstructed historically from the full assignment log rather
+ * than the current `is_active` state. This matters because reassigning or
+ * unassigning a facilitador only soft-deactivates the old row
+ * (facilitador_osi_assignments is never hard-deleted), so filtering on
+ * `is_active = true` at report time reflects *today's* assignment, not who
+ * taught the session when it happened — and retroactively rewrites history
+ * every time an assignment changes.
+ *
+ * For each session, we pick whichever assignment (session-specific, or the
+ * `nro_sesion IS NULL` "all sessions" one as fallback) was in effect on the
+ * session's execution date: created_at <= sessionDate AND
+ * (is_active OR updated_at > sessionDate). An OSI with multiple sessions
+ * taught by different facilitadores is credited to all of them (deduped),
+ * not just one.
+ */
+function resolveHistoricalFacilitadoresPorOsi(
+  sessionsByOsi: Map<number, { nroSesion: number; sessionDate: string }[]>,
+  assignmentsByOsi: Map<number, AssignmentRow[]>,
+): Map<number, string[]> {
+  const result = new Map<number, string[]>();
+  for (const [osiId, sessions] of sessionsByOsi.entries()) {
+    const assignments = assignmentsByOsi.get(osiId) ?? [];
+    if (!assignments.length || !sessions.length) continue;
+    const names = new Set<string>();
+    for (const session of sessions) {
+      const isValidAt = (a: AssignmentRow) =>
+        (!a.created_at || a.created_at <= session.sessionDate) &&
+        (a.is_active || (!!a.updated_at && a.updated_at > session.sessionDate));
+      // Prefer a session-specific assignment; fall back to the "all
+      // sessions" (nro_sesion IS NULL) one, mirroring
+      // getAssignmentByOSIAndSession's existing fallback behavior.
+      let candidates = assignments.filter(
+        (a) => a.nro_sesion === session.nroSesion && isValidAt(a),
+      );
+      if (!candidates.length) {
+        candidates = assignments.filter(
+          (a) => a.nro_sesion == null && isValidAt(a),
+        );
+      }
+      if (!candidates.length) continue;
+      // Most recently created candidate that was valid on the session date.
+      const winner = candidates.reduce((best, cur) =>
+        (cur.created_at ?? "") > (best.created_at ?? "") ? cur : best,
+      );
+      const facArr = winner.facilitadores as unknown as
+        | { nombre_apellido: string | null }
+        | { nombre_apellido: string | null }[]
+        | null;
+      const fac = Array.isArray(facArr) ? facArr[0] : facArr;
+      if (fac?.nombre_apellido) names.add(fac.nombre_apellido);
+    }
+    if (names.size) result.set(osiId, Array.from(names));
+  }
+  return result;
+}
 
 export async function getIndicadoresCertificados72h(
   filters: IndicadoresFilters,
@@ -340,10 +457,13 @@ export async function getIndicadoresCertificados72h(
     //    Final fallback: fecha_fin_real from the OSI view.
     const maxSesionFechaByOsi = new Map<number, string>();
     const usedFechaEjecutadaByOsi = new Set<number>();
+    // Per-session dates (nro_sesion + effective date), used below to
+    // historically resolve which facilitador taught each session.
+    const sessionsByOsi = new Map<number, { nroSesion: number; sessionDate: string }[]>();
     if (osiIds.length) {
       const { data: sesionRows, error: sesionErr } = await supabase
         .from("osi_sesion")
-        .select("id_osi, fecha, fecha_ejecutada")
+        .select("id_osi, nro_sesion, fecha, fecha_ejecutada")
         .in("id_osi", osiIds);
       if (sesionErr) {
         console.error("Error fetching osi_sesion for indicadores:", sesionErr);
@@ -362,6 +482,9 @@ export async function getIndicadoresCertificados72h(
             usedFechaEjecutadaByOsi.delete(s.id_osi);
           }
         }
+        const list = sessionsByOsi.get(s.id_osi) ?? [];
+        list.push({ nroSesion: s.nro_sesion, sessionDate });
+        sessionsByOsi.set(s.id_osi, list);
       }
     }
 
@@ -460,33 +583,33 @@ export async function getIndicadoresCertificados72h(
       }
     }
 
-    // 3b. Batch fetch session facilitador assignments (facilitador_osi_assignments)
-    //     for the "por facilitador de sesión" dimension.
-    const sessionFacilitadorByOsi = new Map<number, string | null>();
+    // 3b. Batch fetch ALL facilitador_osi_assignments rows (not just
+    //     is_active=true) for the "por facilitador de sesión" dimension, so
+    //     we can reconstruct who was actually assigned at each session's
+    //     execution time rather than who is currently assigned. Rows are
+    //     never hard-deleted (reassignment/unassignment only flips
+    //     is_active), so the full history is available.
+    const assignmentsByOsi = new Map<number, AssignmentRow[]>();
     if (osiIds.length) {
       const { data: assignRows, error: assignErr } = await supabase
         .from("facilitador_osi_assignments")
         .select(
-          "osi_id, facilitador_id, is_active, facilitadores!inner(nombre_apellido)",
+          "osi_id, facilitador_id, nro_sesion, is_active, created_at, updated_at, facilitadores!inner(nombre_apellido)",
         )
-        .in("osi_id", osiIds)
-        .eq("is_active", true);
+        .in("osi_id", osiIds);
       if (assignErr) {
         console.error("Error fetching facilitador assignments for indicadores:", assignErr);
       }
-      for (const a of assignRows || []) {
-        const facArr = a.facilitadores as unknown as
-          | { nombre_apellido: string | null }
-          | { nombre_apellido: string | null }[]
-          | null;
-        const fac = Array.isArray(facArr) ? facArr[0] : facArr;
-        const name = fac?.nombre_apellido ?? null;
-        // Only set if not already set (first active assignment wins)
-        if (!sessionFacilitadorByOsi.has(a.osi_id)) {
-          sessionFacilitadorByOsi.set(a.osi_id, name);
-        }
+      for (const a of (assignRows || []) as AssignmentRow[]) {
+        const list = assignmentsByOsi.get(a.osi_id) ?? [];
+        list.push(a);
+        assignmentsByOsi.set(a.osi_id, list);
       }
     }
+    const sessionFacilitadorNamesByOsi = resolveHistoricalFacilitadoresPorOsi(
+      sessionsByOsi,
+      assignmentsByOsi,
+    );
 
     // 3c. Batch fetch sede names from empresa_sedes. The sede is stored on
     //     certificados.id_sede (set when certificates are issued), not
@@ -605,8 +728,14 @@ export async function getIndicadoresCertificados72h(
 
       const facilitadorNombre =
         facilitadorId != null ? facilitadorNames.get(facilitadorId) ?? null : null;
+      // Historically-resolved facilitador(es) who taught this OSI's
+      // sessions (may be more than one if sessions had different
+      // facilitadores). facilitadorSesionNombre is a joined display string;
+      // facilitadorSesionNombres is the underlying list used to credit each
+      // distinct facilitador in the "por facilitador de sesión" chart.
+      const facilitadorSesionNombres = sessionFacilitadorNamesByOsi.get(osiId) ?? [];
       const facilitadorSesionNombre =
-        sessionFacilitadorByOsi.get(osiId) ?? null;
+        facilitadorSesionNombres.length ? facilitadorSesionNombres.join(", ") : null;
 
       return {
         osiId,
@@ -633,6 +762,7 @@ export async function getIndicadoresCertificados72h(
         brechaDias,
         facilitadorNombre,
         facilitadorSesionNombre,
+        facilitadorSesionNombres,
         sesiones: o.sesiones_ejecucion ?? null,
         sospechoso,
       };
@@ -736,10 +866,14 @@ export async function getIndicadoresCertificados72h(
         (r) => r.facilitadorNombre || "Sin facilitador",
         10,
       ),
-      porFacilitadorSesion: computePorDimension(
+      // An OSI with multiple sessions taught by different facilitadores is
+      // credited to each of them (deduped within the OSI), so bar counts
+      // here can exceed the total evaluated population — see
+      // computePorDimensionMulti and resolveHistoricalFacilitadoresPorOsi.
+      porFacilitadorSesion: computePorDimensionMulti(
         rows,
-        (r) => r.facilitadorSesionNombre || null,
-        (r) => r.facilitadorSesionNombre || "Sin facilitador",
+        (r) => r.facilitadorSesionNombres,
+        (key) => (key === SIN_DATO_KEY ? "Sin facilitador" : key),
         10,
       ),
     };

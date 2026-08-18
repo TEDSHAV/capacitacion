@@ -11,7 +11,7 @@ import {
   Cell,
   ReferenceLine,
 } from "recharts";
-import type { PorDimensionItem } from "@/types";
+import { SIN_DATO_KEY, type PorDimensionItem } from "@/types";
 
 interface Props {
   data: PorDimensionItem[];
@@ -56,6 +56,10 @@ export default function DimensionBarChart({
         noAplica: d.noAplica,
         programadas: d.programadas,
         pct: d.pct,
+        // "Sin dato" bucket (no facilitador/empresa resolvable for these
+        // rows) is rendered in neutral gray instead of the SLA color scale,
+        // since it isn't a real compliance data point.
+        isSinDato: d.key === SIN_DATO_KEY,
       };
     });
 
@@ -132,7 +136,11 @@ export default function DimensionBarChart({
                   <Cell
                     key={i}
                     fill={
-                      entry.avgDias <= 3 ? "#0ea5e9" : "#f97316"
+                      entry.isSinDato
+                        ? "#9ca3af"
+                        : entry.avgDias <= 3
+                        ? "#0ea5e9"
+                        : "#f97316"
                     }
                   />
                 ))}

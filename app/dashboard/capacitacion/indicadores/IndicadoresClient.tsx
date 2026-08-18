@@ -398,7 +398,7 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
             <DimensionBarChart
               data={aggregates.porFacilitadorSesion}
               title="Promedio de días por facilitador de sesión"
-              subtitle="Top 10 facilitadores asignados a las sesiones (línea roja = 3 días)"
+              subtitle="Top 10 · quién dictó cada sesión históricamente (una OSI con varios facilitadores cuenta en cada uno · línea roja = 3 días)"
               uppercaseLabel
             />
 

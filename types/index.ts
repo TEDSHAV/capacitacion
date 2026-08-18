@@ -1901,7 +1901,14 @@ export interface IndicadorOsiRow {
   estado: IndicadorEstado;
   brechaDias: number | null;
   facilitadorNombre: string | null;
+  // Display string: historically-resolved facilitador(es) who taught this
+  // OSI's sessions, joined with ", " when there's more than one (e.g. the
+  // OSI had multiple sessions taught by different facilitadores).
   facilitadorSesionNombre: string | null;
+  // Underlying list backing facilitadorSesionNombre, used to credit each
+  // distinct facilitador separately in the "por facilitador de sesión"
+  // breakdown (an OSI can count toward more than one facilitador's bar).
+  facilitadorSesionNombres: string[];
   sesiones: number | null;
   sospechoso: boolean;
 }
@@ -1921,6 +1928,13 @@ export interface TendenciaMensual {
   total: number;
   pct: number | null;
 }
+
+// Sentinel key used by the "por dimensión" breakdowns (empresa, facilitador,
+// facilitador de sesión) when a row has no resolvable value for that
+// dimension, so it can be bucketed under a visible "Sin dato" bar instead of
+// being silently dropped. Shared between the server aggregation logic and
+// the client chart so the UI can style this bucket distinctly.
+export const SIN_DATO_KEY = "__sin_dato__";
 
 export interface PorDimensionItem {
   key: string;
