@@ -35,15 +35,32 @@ export interface OfflineBlob {
   createdAt: number;
 }
 
+export interface PortalDataCache {
+  /** Unique key, e.g. `cliente_batches_page_1` or `cliente_certs_osi_123` */
+  key: string;
+  /** Type of cached data for namespace queries */
+  type: "cliente_batches" | "cliente_certs" | "facilitador_osis" | "facilitador_participants";
+  /** JSON-serialized data */
+  data: string;
+  /** Timestamp of when the data was cached */
+  cachedAt: number;
+}
+
 export class OfflineDB extends Dexie {
   syncOps!: Table<SyncOp, number>;
   blobs!: Table<OfflineBlob, number>;
+  portalData!: Table<PortalDataCache, string>;
 
   constructor() {
     super("capacitacion-offline");
     this.version(1).stores({
       syncOps: "++id, type, groupKey, status, createdAt",
       blobs: "++id, groupKey, createdAt",
+    });
+    this.version(2).stores({
+      syncOps: "++id, type, groupKey, status, createdAt",
+      blobs: "++id, groupKey, createdAt",
+      portalData: "key, type, cachedAt",
     });
   }
 }

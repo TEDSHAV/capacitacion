@@ -264,7 +264,11 @@ export function ClienteBatches({
                   ) : (
                     <div className="flex flex-col items-center py-10">
                       <Award className="w-8 h-8 text-gray-200 mb-2" />
-                      <p className="text-sm text-gray-500">No se encontraron participantes.</p>
+                      <p className="text-sm text-gray-500">
+                        {typeof navigator !== "undefined" && !navigator.onLine
+                          ? "No hay datos en caché para este lote. Vuelve a estar en línea y expándelo para guardarlo."
+                          : "No se encontraron participantes."}
+                      </p>
                     </div>
                   )}
                 </div>

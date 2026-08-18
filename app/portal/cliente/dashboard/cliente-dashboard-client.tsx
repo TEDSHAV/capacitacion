@@ -3,12 +3,13 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { ClienteMetrics, ClienteBatchSummary, ClienteFilterOptions, ClienteCertificateFilters, ClienteCertificateRow, HiddenBatchSummary } from "@/types";
 import { getClienteCertificates, getClienteMetrics, getClienteBatchesFiltered, getClienteHiddenBatches } from "@/app/actions/cliente-portal";
+import { cachePortalData, getCachedPortalData } from "@/lib/offline/portal-data-cache";
 import { ClienteMetricsCards } from "./cliente-metrics";
 import { ClienteFilters } from "./cliente-filters";
 import { ClienteBatches } from "./cliente-batches";
 import { ClientePagination } from "./cliente-pagination";
 import { ClientePendingBatches } from "./cliente-pending-batches";
-import { Loader2, FileSearch } from "lucide-react";
+import { Loader2, FileSearch, WifiOff } from "lucide-react";
 
 interface ClienteDashboardClientProps {
   empresaId: number;
@@ -45,8 +46,22 @@ export function ClienteDashboardClient({
   const [expandedOsi, setExpandedOsi] = useState<number | null>(null);
   const [expandedCertificates, setExpandedCertificates] = useState<ClienteCertificateRow[]>([]);
   const [expandedLoading, setExpandedLoading] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [usingCachedBatches, setUsingCachedBatches] = useState(false);
   const itemsPerPage = 10;
   const hasInitialized = useRef(false);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
 
   const hasActiveFilters =
     !!filters.searchTerm ||
@@ -58,6 +73,7 @@ export function ClienteDashboardClient({
 
   const loadBatches = useCallback(async () => {
     setLoading(true);
+    setUsingCachedBatches(false);
     try {
       const [batchRes, hiddenRes] = await Promise.all([
         getClienteBatchesFiltered(
@@ -71,8 +87,31 @@ export function ClienteDashboardClient({
       setBatches(batchRes.data || []);
       setTotalCount(batchRes.totalCount || 0);
       setHiddenBatches(hiddenRes.data || []);
+
+      // Cache the batch list for offline use
+      const cacheKey = `cliente_batches_${empresaId}_p${currentPage}`;
+      await cachePortalData(cacheKey, "cliente_batches", {
+        batches: batchRes.data || [],
+        totalCount: batchRes.totalCount || 0,
+        hiddenBatches: hiddenRes.data || [],
+        filters,
+      });
     } catch (err) {
       console.error("Error loading batches:", err);
+      // Fall back to cached data if available
+      const cacheKey = `cliente_batches_${empresaId}_p${currentPage}`;
+      const cached = await getCachedPortalData<{
+        batches: ClienteBatchSummary[];
+        totalCount: number;
+        hiddenBatches: HiddenBatchSummary[];
+        filters: ClienteCertificateFilters;
+      }>(cacheKey);
+      if (cached) {
+        setBatches(cached.data.batches);
+        setTotalCount(cached.data.totalCount);
+        setHiddenBatches(cached.data.hiddenBatches);
+        setUsingCachedBatches(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -80,6 +119,7 @@ export function ClienteDashboardClient({
 
   const loadExpandedCertificates = useCallback(async (nroOsi: number) => {
     setExpandedLoading(true);
+    const cacheKey = `cliente_certs_${empresaId}_osi_${nroOsi}`;
     try {
       const { data } = await getClienteCertificates(
         empresaId,
@@ -88,8 +128,20 @@ export function ClienteDashboardClient({
         999,
       );
       setExpandedCertificates(data || []);
+
+      // Cache the certificates for offline use
+      if (data && data.length > 0) {
+        await cachePortalData(cacheKey, "cliente_certs", data);
+      }
     } catch (err) {
       console.error("Error loading expanded certificates:", err);
+      // Fall back to cached certificates
+      const cached = await getCachedPortalData<ClienteCertificateRow[]>(cacheKey);
+      if (cached) {
+        setExpandedCertificates(cached.data);
+      } else {
+        setExpandedCertificates([]);
+      }
     } finally {
       setExpandedLoading(false);
     }
@@ -98,10 +150,18 @@ export function ClienteDashboardClient({
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true;
+      // Cache the initial server-rendered data so it's available offline
+      const cacheKey = `cliente_batches_${empresaId}_p1`;
+      cachePortalData(cacheKey, "cliente_batches", {
+        batches: initialBatches,
+        totalCount: initialTotalCount,
+        hiddenBatches: initialHiddenBatches,
+        filters: DEFAULT_FILTERS,
+      });
       return;
     }
     loadBatches();
-  }, [hasActiveFilters, loadBatches, currentPage]);
+  }, [hasActiveFilters, loadBatches, currentPage, empresaId, initialBatches, initialTotalCount, initialHiddenBatches]);
 
   const handleFilterChange = (newFilters: ClienteCertificateFilters) => {
     setFilters({ ...newFilters, nroOsi: undefined });
@@ -115,20 +175,36 @@ export function ClienteDashboardClient({
     setCurrentPage(1);
     setExpandedOsi(null);
     setExpandedCertificates([]);
-    const [metricsRes, batchRes, hiddenRes] = await Promise.all([
-      getClienteMetrics(empresaId),
-      getClienteBatchesFiltered(
-        empresaId,
-        DEFAULT_FILTERS,
-        1,
-        itemsPerPage,
-      ),
-      getClienteHiddenBatches(empresaId),
-    ]);
-    if (metricsRes.data) setMetrics(metricsRes.data);
-    setBatches(batchRes.data || []);
-    setTotalCount(batchRes.totalCount || 0);
-    setHiddenBatches(hiddenRes.data || []);
+    try {
+      const [metricsRes, batchRes, hiddenRes] = await Promise.all([
+        getClienteMetrics(empresaId),
+        getClienteBatchesFiltered(
+          empresaId,
+          DEFAULT_FILTERS,
+          1,
+          itemsPerPage,
+        ),
+        getClienteHiddenBatches(empresaId),
+      ]);
+      if (metricsRes.data) setMetrics(metricsRes.data);
+      setBatches(batchRes.data || []);
+      setTotalCount(batchRes.totalCount || 0);
+      setHiddenBatches(hiddenRes.data || []);
+      setUsingCachedBatches(false);
+    } catch (err) {
+      // Offline — fall back to cached page 1
+      const cached = await getCachedPortalData<{
+        batches: ClienteBatchSummary[];
+        totalCount: number;
+        hiddenBatches: HiddenBatchSummary[];
+      }>(`cliente_batches_${empresaId}_p1`);
+      if (cached) {
+        setBatches(cached.data.batches);
+        setTotalCount(cached.data.totalCount);
+        setHiddenBatches(cached.data.hiddenBatches);
+        setUsingCachedBatches(true);
+      }
+    }
   };
 
   const handleToggleExpand = (nroOsi: number) => {
@@ -145,6 +221,17 @@ export function ClienteDashboardClient({
   return (
     <div className="space-y-8">
       <ClienteMetricsCards metrics={metrics} />
+
+      {(!isOnline || usingCachedBatches) && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+          <WifiOff className="w-4 h-4 shrink-0" />
+          <span>
+            {isOnline
+              ? "Mostrando datos en caché — algunas funciones pueden no estar disponibles."
+              : "Sin conexión — mostrando datos guardados. Los documentos descargados siguen disponibles."}
+          </span>
+        </div>
+      )}
 
       {hiddenBatches.length > 0 && (
         <ClientePendingBatches batches={hiddenBatches} />
