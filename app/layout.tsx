@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { SerwistProvider } from "@serwist/turbopack/react";
 import QueryProvider from "@/components/providers/QueryProvider";
 import ShellAuthProvider from "@/components/providers/ShellAuthProvider";
 import URLSync from "@/components/utils/URLSync";
@@ -71,9 +72,14 @@ export const metadata: Metadata = {
       { url: "/favicon.ico", sizes: "any" },
       { url: "/logo.png", type: "image/png" },
     ],
-    apple: [{ url: "/logo.png" }],
+    apple: [{ url: "/icons/icon-192.png" }],
   },
   manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SHA Capacitación",
+  },
   robots: {
     index: true,
     follow: true,
@@ -82,6 +88,12 @@ export const metadata: Metadata = {
       follow: true,
     },
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#C30DFF",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -95,14 +107,16 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen overflow-x-hidden`}
         suppressHydrationWarning
       >
-        <QueryProvider>
-          <ShellAuthProvider>
-            <Suspense fallback={null}>
-              <URLSync />
-            </Suspense>
-            {children}
-          </ShellAuthProvider>
-        </QueryProvider>
+        <SerwistProvider swUrl="/serwist/sw.js">
+          <QueryProvider>
+            <ShellAuthProvider>
+              <Suspense fallback={null}>
+                <URLSync />
+              </Suspense>
+              {children}
+            </ShellAuthProvider>
+          </QueryProvider>
+        </SerwistProvider>
       </body>
     </html>
   );
