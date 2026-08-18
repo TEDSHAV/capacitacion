@@ -263,19 +263,7 @@ export async function getClienteSession(): Promise<ClienteSession | null> {
   const cookieStore = await cookies();
   const session = cookieStore.get("cliente_session");
   if (!session) return null;
-  const verified = verifySession<ClienteSession>(session.value);
-  // Sliding refresh: re-set the cookie with a fresh maxAge on each
-  // successful session check so active users never get logged out.
-  if (verified) {
-    cookieStore.set("cliente_session", session.value, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_COOKIE_SECURE !== "false",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 30, // 30 days from now
-      path: "/",
-    });
-  }
-  return verified;
+  return verifySession<ClienteSession>(session.value);
 }
 
 export async function logoutCliente(): Promise<{ success: boolean }> {

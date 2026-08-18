@@ -176,24 +176,12 @@ export async function getFacilitatorSession(): Promise<{
   const cookieStore = await cookies();
   const session = cookieStore.get("facilitador_session");
   if (!session) return null;
-  const verified = verifySession<{
+  return verifySession<{
     id: number;
     facilitador_id: number;
     nombre: string;
     username: string;
   }>(session.value);
-  // Sliding refresh: re-set the cookie with a fresh maxAge on each
-  // successful session check so active users never get logged out.
-  if (verified) {
-    cookieStore.set("facilitador_session", session.value, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_COOKIE_SECURE !== "false",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 30, // 30 days from now
-      path: "/",
-    });
-  }
-  return verified;
 }
 
 export async function logoutFacilitator() {
