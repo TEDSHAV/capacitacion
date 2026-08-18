@@ -1,7 +1,5 @@
 import Image from "next/image";
-import { LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { redirect } from "next/navigation";
+import { LogoutButton } from "@/components/LogoutButton";
 
 interface PortalNavbarProps {
   title: string;
@@ -35,23 +33,10 @@ export function PortalNavbar({ title, logoutAction, loginPath }: PortalNavbarPro
 
           {/* Right - Logout */}
           <div className="flex-shrink-0">
-            <form
-              action={async () => {
-                "use server";
-                await logoutAction();
-                redirect(loginPath);
-              }}
-            >
-              <Button
-                variant="outline"
-                type="submit"
-                size="sm"
-                className="text-red-600 border-red-200 hover:bg-red-50"
-              >
-                <LogOut className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Cerrar Sesión</span>
-              </Button>
-            </form>
+            <LogoutButton
+              logoutAction={async () => { await logoutAction(); }}
+              loginPath={loginPath}
+            />
           </div>
         </div>
       </div>

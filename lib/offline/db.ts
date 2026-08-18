@@ -46,10 +46,25 @@ export interface PortalDataCache {
   cachedAt: number;
 }
 
+export interface ClientSession {
+  id?: number;
+  /** Which portal this session belongs to */
+  portal: "facilitador" | "cliente";
+  /** User ID from the server session */
+  userId: number;
+  /** Display name for the user */
+  nombre: string;
+  /** Timestamp of login */
+  loggedInAt: number;
+  /** Expiry timestamp (matches cookie maxAge: 30 days) */
+  expiresAt: number;
+}
+
 export class OfflineDB extends Dexie {
   syncOps!: Table<SyncOp, number>;
   blobs!: Table<OfflineBlob, number>;
   portalData!: Table<PortalDataCache, string>;
+  clientSession!: Table<ClientSession, number>;
 
   constructor() {
     super("capacitacion-offline");
@@ -61,6 +76,12 @@ export class OfflineDB extends Dexie {
       syncOps: "++id, type, groupKey, status, createdAt",
       blobs: "++id, groupKey, createdAt",
       portalData: "key, type, cachedAt",
+    });
+    this.version(3).stores({
+      syncOps: "++id, type, groupKey, status, createdAt",
+      blobs: "++id, groupKey, createdAt",
+      portalData: "key, type, cachedAt",
+      clientSession: "++id, portal, expiresAt",
     });
   }
 }

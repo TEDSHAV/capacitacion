@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ClipboardList, Building2, ArrowRight, CheckCircle2 } from "lucide-react";
 import { getFacilitatorSession } from "@/app/actions/facilitador-portal";
 import { getClienteSession } from "@/app/actions/cliente-portal";
@@ -18,6 +19,15 @@ export default async function PortalLandingPage() {
     getFacilitatorSession(),
     getClienteSession(),
   ]);
+
+  // Auto-redirect to dashboard if exactly one session is active.
+  // If both are active (rare), show the selection page so the user can pick.
+  if (facilitadorSession && !clienteSession) {
+    redirect("/portal/facilitador/dashboard");
+  }
+  if (clienteSession && !facilitadorSession) {
+    redirect("/portal/cliente/dashboard");
+  }
 
   const facilitadorHref = facilitadorSession
     ? "/portal/facilitador/dashboard"

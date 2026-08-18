@@ -120,6 +120,34 @@ const serwist = new Serwist({
   ],
   fallbacks: {
     entries: [
+      // For portal facilitador pages not in cache, try the dashboard first
+      // (it has the user's data and navigation), then fall back to offline page
+      {
+        url: "/portal/facilitador/dashboard",
+        matcher({ request }) {
+          if (request.destination !== "document") return false;
+          try {
+            const url = new URL(request.url);
+            return url.pathname.startsWith("/portal/facilitador");
+          } catch {
+            return false;
+          }
+        },
+      },
+      // Same for cliente portal
+      {
+        url: "/portal/cliente/dashboard",
+        matcher({ request }) {
+          if (request.destination !== "document") return false;
+          try {
+            const url = new URL(request.url);
+            return url.pathname.startsWith("/portal/cliente");
+          } catch {
+            return false;
+          }
+        },
+      },
+      // Generic offline fallback for everything else
       {
         url: "/~offline",
         matcher({ request }) {
