@@ -1,12 +1,14 @@
-# Stage 1: Build all dependencies (including devDependencies for build stage)
+# Stage 1: Install all dependencies (including devDependencies needed to build)
 FROM node:22-bookworm-slim AS deps
-ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json* ./
 # Use npm install (not npm ci) so platform-specific optional dependencies
 # resolve for Linux. The lockfile was generated on Windows and only contains
 # @img/sharp-win32-*; npm ci would skip the missing linux binary.
+#
+# No build toolchain (python3/make/g++) is installed: nothing in this project
+# compiles from source. sharp ships prebuilt binaries with its own bundled
+# libvips, and every other dependency is pure JavaScript.
 RUN --mount=type=cache,target=/root/.npm npm install --no-audit --no-fund
 
 # Stage 2: Build Next.js
@@ -27,7 +29,7 @@ RUN (apt-get update && apt-get install -y --no-install-recommends git \
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-# Copy pre-built node_modules from deps stage (no need to reinstall build tools)
+# Copy pre-built node_modules from deps stage (no need to reinstall)
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy package files first for better layer caching
@@ -39,54 +41,35 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production NODE_OPTIONS="--max-old-space-size=4096" TURBOPACK_DISABLED=1
 RUN --mount=type=cache,target=/app/.next/cache npm run build
 
-# Stage 2b: Prune to production-only dependencies for runner image.
-# Chained FROM builder (instead of a fresh base + separate COPY from deps) so this
-# stage runs sequentially after builder's node_modules copy/build, avoiding a
-# concurrent duplicate COPY of the large node_modules directory during the build.
-FROM builder AS deps-prod
-RUN npm prune --omit=dev
-
 # Stage 3: Runner
+#
+# No apt packages are installed here. The previous Chromium/GTK library set
+# (libnss3, libgtk-3-0, libasound2, libgbm1, libcups2, libxss1, libatk*,
+# libpangocairo, fonts-liberation) was only needed by puppeteer, which was
+# replaced by jsPDF/@react-pdf/renderer — both pure JS. System libvips is not
+# used either: prebuilt sharp bundles its own copy inside node_modules.
 FROM node:22-bookworm-slim AS runner
-ARG DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
-# 1. Install system libraries needed for sharp and jsPDF canvas operations
-# Use runtime libvips (not -dev) to reduce image size
-RUN apt-get update && apt-get install -y \
-    fonts-liberation \
-    libnss3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libgbm1 \
-    libasound2 \
-    libpangocairo-1.0-0 \
-    libxss1 \
-    libgtk-3-0 \
-    libvips \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
-
-# 2. Setup user and permissions properly
+# Setup user and permissions properly
 RUN groupadd --system --gid 1001 nodejs && \
     useradd --system --uid 1001 nextjs && \
     mkdir -p /home/nextjs && \
     chown -R nextjs:nodejs /home/nextjs
 
-# 3. Copy production-only node_modules (devDependencies pruned)
-COPY --chown=nextjs:nodejs --from=deps-prod /app/node_modules ./node_modules
-
-# 4. Environment variables
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME="0.0.0.0"
 
-# 5. Copy build artifacts
+# Copy build artifacts. `output: "standalone"` already traces every runtime
+# dependency (sharp, jspdf, @react-pdf/renderer, docxtemplater, pizzip, qrcode,
+# xlsx, supabase, ...) into .next/standalone/node_modules, so no separate
+# node_modules copy is needed — that duplicate was the bulk of the image size.
 COPY --chown=nextjs:nodejs --from=builder /app/public ./public
 COPY --chown=nextjs:nodejs --from=builder /app/.next/standalone ./
 COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
+
 USER nextjs
 
 EXPOSE 3000
