@@ -5,6 +5,7 @@ import { SerwistProvider } from "@serwist/turbopack/react";
 import QueryProvider from "@/components/providers/QueryProvider";
 import ShellAuthProvider from "@/components/providers/ShellAuthProvider";
 import URLSync from "@/components/utils/URLSync";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { Suspense } from "react";
 
 const geistSans = Geist({
@@ -114,6 +115,7 @@ export default function RootLayout({
                 <URLSync />
               </Suspense>
               {children}
+              <InstallPrompt />
             </ShellAuthProvider>
           </QueryProvider>
         </SerwistProvider>
