@@ -8,6 +8,8 @@
     "scripts": {
         "predev": "node scripts/generate-version.mjs",
         "dev": "next dev",
+        "dev:https": "next dev --experimental-https",
+        "dev:https-mobile": "next dev --experimental-https -H 0.0.0.0",
         "prebuild": "node scripts/generate-version.mjs",
         "build": "next build",
         "start": "next start",

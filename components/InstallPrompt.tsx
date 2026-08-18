@@ -47,6 +47,10 @@ export function InstallPrompt() {
     const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(ua);
     setIsIOS(ios && isSafari);
 
+    // Check if we're in a secure context (HTTPS or localhost).
+    // beforeinstallprompt only fires in secure contexts.
+    const isSecureContext = window.isSecureContext;
+
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -58,6 +62,17 @@ export function InstallPrompt() {
     // For iOS, show the banner after a short delay (no beforeinstallprompt event)
     if (ios && isSafari) {
       const timer = setTimeout(() => setShowBanner(true), 2000);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener("beforeinstallprompt", handler);
+      };
+    }
+
+    // For non-iOS, non-secure contexts (e.g. HTTP over LAN IP on mobile),
+    // beforeinstallprompt will never fire. Show a hint after a delay so the
+    // user knows the app is installable but needs HTTPS.
+    if (!isSecureContext && !ios) {
+      const timer = setTimeout(() => setShowBanner(true), 3000);
       return () => {
         clearTimeout(timer);
         window.removeEventListener("beforeinstallprompt", handler);
@@ -178,6 +193,10 @@ export function InstallPrompt() {
   }
 
   // Android / Desktop: use beforeinstallprompt
+  // If deferredPrompt is null (non-secure context, e.g. HTTP over LAN),
+  // show a message explaining HTTPS is needed to install.
+  const canInstall = !!deferredPrompt;
+
   return (
     <div className="fixed bottom-4 left-4 right-4 sm:left-4 sm:right-auto z-30 sm:max-w-sm">
       <div className="bg-white rounded-xl shadow-2xl border border-gray-200 p-4 flex items-center gap-3">
@@ -189,15 +208,21 @@ export function InstallPrompt() {
             Instalar aplicación
           </p>
           <p className="text-xs text-gray-500">
-            Acceso rápido y uso sin conexión
+            {canInstall
+              ? "Acceso rápido y uso sin conexión"
+              : "Requiere conexión HTTPS para instalar"}
           </p>
         </div>
-        <button
-          onClick={handleInstall}
-          className="px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors shrink-0"
-        >
-          Instalar
-        </button>
+        {canInstall ? (
+          <button
+            onClick={handleInstall}
+            className="px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors shrink-0"
+          >
+            Instalar
+          </button>
+        ) : (
+          <span className="text-xs text-gray-400 shrink-0">HTTPS</span>
+        )}
         <button
           onClick={handleDismiss}
           className="p-1 rounded-md hover:bg-gray-100 transition-colors shrink-0"
