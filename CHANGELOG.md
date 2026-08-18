@@ -12,6 +12,11 @@ This project follows [Semantic Versioning](https://semver.org/) and
 > (an author-email change) and do not reflect when that work was actually done.
 > Only commits following the Conventional Commits format appear in the entries below.
 
+## [1.7.1](https://github.com/TEDSHAV/capacitacion/compare/v1.7.0...v1.7.1) (2026-08-18)
+
+### Bug Fixes
+
+* session persistence — cookie secure flag, auto-redirect, sliding refresh, offline access 74d8541
 ## [1.7.0](https://github.com/TEDSHAV/capacitacion/compare/v1.6.0...v1.7.0) (2026-08-18)
 
 ### Features
