@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import PortalFooter from "@/components/PortalFooter";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { SyncBadge } from "@/components/SyncBadge";
 
 export const metadata: Metadata = {
   title: "Portal de Facilitadores",
@@ -23,6 +24,7 @@ export default async function FacilitadorPortalLayout({
       {children}
       <PortalFooter />
       <OfflineIndicator />
+      <SyncBadge />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   ClipboardCheck
 } from "lucide-react";
 import { saveParticipants } from "@/app/actions/facilitador-portal";
+import { enqueueOp } from "@/lib/offline/sync-queue";
 import { AttachmentUploadSection } from "./attachment-upload-section";
 import { SeniatVerificationPopover } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/SeniatVerificationPopover";
 import { ParticipantScannerModal } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/ParticipantScannerModal";
@@ -142,6 +143,20 @@ export const ParticipantForm = ({
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const disclaimerRef = useRef<HTMLDivElement>(null);
   const [isTourReady, setIsTourReady] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  const [pendingSync, setPendingSync] = useState(false);
+
+  useEffect(() => {
+    setIsOffline(!navigator.onLine);
+    const goOnline = () => { setIsOffline(false); setPendingSync(false); };
+    const goOffline = () => setIsOffline(true);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
 
   useEffect(() => {
     setIsTourReady(true);
@@ -250,22 +265,52 @@ export const ParticipantForm = ({
       ? participants.filter(p => p.nombre_apellido && p.cedula)
       : participants;
 
+    const mappedParticipants = participantsToSave.map(p => ({
+      nombre_apellido: p.nombre_apellido,
+      cedula: p.cedula,
+      score: p.score === "" ? null : Number(p.score),
+    }));
+
+    // Offline path: enqueue the save for later sync
+    if (!navigator.onLine) {
+      try {
+        await enqueueOp(
+          "saveParticipants",
+          `osi_${osiId}_participants`,
+          {
+            osiId,
+            facilitadorId,
+            participants: mappedParticipants,
+            status,
+            acknowledged: status === "final" ? hasAcknowledged : false,
+            disclaimerText: status === "final" ? DISCLAIMER_TEXT : undefined,
+          },
+        );
+        setPendingSync(true);
+        setSuccess(status === "final"
+          ? "Listado finalizado — pendiente de sincronización"
+          : "Borrador guardado — pendiente de sincronización"
+        );
+      } catch (err) {
+        setError("Error al guardar offline: " + (err as Error).message);
+      }
+      setSaving(false);
+      return;
+    }
+
+    // Online path: use server action as before
     const result = await saveParticipants(
       osiId,
       facilitadorId,
-      participantsToSave.map(p => ({
-        nombre_apellido: p.nombre_apellido,
-        cedula: p.cedula,
-        score: p.score === "" ? null : Number(p.score),
-      })),
+      mappedParticipants,
       status,
       status === "final" ? hasAcknowledged : false,
       status === "final" ? DISCLAIMER_TEXT : undefined
     );
 
     if (result.success) {
-      setSuccess(status === "final" 
-        ? "Listado finalizado y enviado exitosamente" 
+      setSuccess(status === "final"
+        ? "Listado finalizado y enviado exitosamente"
         : "Borrador guardado correctamente"
       );
     } else {
@@ -751,6 +796,30 @@ export const ParticipantForm = ({
             </div>
           </div>
         </div>
+
+        {isOffline && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-amber-800 text-sm">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Sin conexión — modo offline</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Tus cambios se guardarán localmente y se sincronizarán automáticamente cuando vuelva la conexión.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {pendingSync && !isOffline && (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3 text-blue-800 text-sm">
+            <Loader2 className="w-5 h-5 shrink-0 mt-0.5 animate-spin" />
+            <div>
+              <p className="font-semibold">Sincronizando cambios...</p>
+              <p className="text-xs text-blue-700 mt-0.5">
+                Enviando los datos guardados offline al servidor.
+              </p>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="p-4 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3 text-red-700 text-sm">
