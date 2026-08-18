@@ -34,7 +34,7 @@ export function PortalNavbar({ title, logoutAction, loginPath }: PortalNavbarPro
           {/* Right - Logout */}
           <div className="flex-shrink-0">
             <LogoutButton
-              logoutAction={async () => { await logoutAction(); }}
+              logoutAction={logoutAction}
               loginPath={loginPath}
             />
           </div>

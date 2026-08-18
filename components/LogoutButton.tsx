@@ -6,7 +6,7 @@ import { clearAllClientSessions } from "@/lib/offline/client-session";
 
 interface LogoutButtonProps {
   /** Server action that clears the cookie and redirects */
-  logoutAction: () => Promise<void>;
+  logoutAction: () => Promise<unknown>;
   /** Path to redirect to after logout (login page) */
   loginPath: string;
 }
