@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { ClienteMetrics, ClienteBatchSummary, ClienteFilterOptions, ClienteCertificateFilters, ClienteCertificateRow, HiddenBatchSummary } from "@/types";
 import { getClienteCertificates, getClienteMetrics, getClienteBatchesFiltered, getClienteHiddenBatches } from "@/app/actions/cliente-portal";
-import { cachePortalData, getCachedPortalData } from "@/lib/offline/portal-data-cache";
+import { cachePortalData, getCachedPortalData, isCacheFresh } from "@/lib/offline/portal-data-cache";
 import { ClienteMetricsCards } from "./cliente-metrics";
 import { ClienteFilters } from "./cliente-filters";
 import { ClienteBatches } from "./cliente-batches";
@@ -162,6 +162,61 @@ export function ClienteDashboardClient({
     }
     loadBatches();
   }, [hasActiveFilters, loadBatches, currentPage, empresaId, initialBatches, initialTotalCount, initialHiddenBatches]);
+
+  // Background prefetch: cache participant lists for visible batches so
+  // they can be expanded offline without prior interaction.
+  // Uses requestIdleCallback to avoid blocking the UI, fetches sequentially
+  // to avoid overwhelming the server, and skips already-cached batches.
+  useEffect(() => {
+    if (!isOnline || batches.length === 0) return;
+
+    let cancelled = false;
+
+    const prefetchBatch = async (nroOsi: number) => {
+      if (cancelled) return;
+      const cacheKey = `cliente_certs_${empresaId}_osi_${nroOsi}`;
+      // Skip if already cached (fresh within 1 hour)
+      const fresh = await isCacheFresh(cacheKey, 60 * 60 * 1000);
+      if (fresh || cancelled) return;
+      try {
+        const { data } = await getClienteCertificates(
+          empresaId,
+          { ...filters, nroOsi },
+          1,
+          999,
+        );
+        if (data && data.length > 0 && !cancelled) {
+          await cachePortalData(cacheKey, "cliente_certs", data);
+        }
+      } catch {
+        // Non-fatal — prefetch is best-effort
+      }
+    };
+
+    const runPrefetch = async () => {
+      for (const batch of batches) {
+        if (cancelled) break;
+        await prefetchBatch(batch.nro_osi);
+      }
+    };
+
+    // Use requestIdleCallback if available, otherwise setTimeout
+    const scheduleRun = () => {
+      if ("requestIdleCallback" in window) {
+        (window as any).requestIdleCallback(() => {
+          runPrefetch();
+        }, { timeout: 5000 });
+      } else {
+        setTimeout(runPrefetch, 2000);
+      }
+    };
+
+    scheduleRun();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOnline, batches, empresaId, filters]);
 
   const handleFilterChange = (newFilters: ClienteCertificateFilters) => {
     setFilters({ ...newFilters, nroOsi: undefined });

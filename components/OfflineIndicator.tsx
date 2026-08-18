@@ -143,18 +143,18 @@ export function OfflineIndicator() {
       {(cachedDocs.length > 0 || !isOnline) && (
         <button
           onClick={handleOpenDownloads}
-          className="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2 bg-white rounded-full shadow-lg border border-gray-200 pl-3 pr-4 py-2.5 hover:shadow-xl hover:border-blue-300 transition-all"
+          className="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2 bg-blue-700 rounded-full shadow-lg pl-3 pr-4 py-2.5 hover:bg-blue-800 hover:shadow-xl transition-all"
           title="Documentos guardados offline"
         >
           <div className="relative">
-            <FolderOpen className="w-5 h-5 text-blue-700" />
+            <FolderOpen className="w-5 h-5 text-white" />
             {cachedDocs.length > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-blue-700 text-white text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 bg-white text-blue-700 text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
                 {cachedDocs.length}
               </span>
             )}
           </div>
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-sm font-medium text-white">
             Offline
           </span>
         </button>

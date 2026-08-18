@@ -136,7 +136,7 @@ export function ClienteBatches({
                         window.open(`/api/batch-download-osi/${batch.nro_osi}`, "_blank");
                         setTimeout(() => setDownloadingOsi(null), 3000);
                       }}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex-1 sm:flex-initial"
+                      className="h-9 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-medium rounded-md bg-gray-700 hover:bg-gray-800 text-white transition-colors flex-1 sm:flex-initial"
                       title="Descargar todos los certificados y carnets de este lote"
                     >
                       {downloadingOsi === batch.nro_osi ? (
@@ -153,7 +153,7 @@ export function ClienteBatches({
                         window.open(`/api/batch-download-documents/${batch.nro_osi}`, "_blank");
                         setTimeout(() => setDownloadingDocs(null), 3000);
                       }}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors flex-1 sm:flex-initial"
+                      className="h-9 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-medium rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors flex-1 sm:flex-initial"
                       title="Descargar documentos adicionales (Certificación de Competencias, Nota de Entrega)"
                     >
                       {downloadingDocs === batch.nro_osi ? (
@@ -166,7 +166,7 @@ export function ClienteBatches({
                     <button
                       onClick={(e) => handleSaveOffline(e, batch)}
                       disabled={offlineCaching === batch.nro_osi}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors disabled:opacity-50 flex-1 sm:flex-initial"
+                      className="h-9 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-medium rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 flex-1 sm:flex-initial"
                       title="Guardar lote para acceso sin conexión"
                     >
                       {offlineCaching === batch.nro_osi ? (
@@ -180,10 +180,10 @@ export function ClienteBatches({
                     </button>
                     {isExpandMode ? (
                       <ChevronDown
-                        className={`w-6 h-6 text-gray-300 group-hover:text-gray-900 transition-all ${isExpanded ? "rotate-180" : ""}`}
+                        className={`w-5 h-5 text-gray-300 group-hover:text-gray-900 transition-all ${isExpanded ? "rotate-180" : ""}`}
                       />
                     ) : (
-                      <ChevronRight className="w-6 h-6 text-gray-300 group-hover:text-gray-900 transition-colors" />
+                      <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-900 transition-colors" />
                     )}
                   </div>
                 </div>
