@@ -12,6 +12,27 @@ This project follows [Semantic Versioning](https://semver.org/) and
 > (an author-email change) and do not reflect when that work was actually done.
 > Only commits following the Conventional Commits format appear in the entries below.
 
+## [1.7.0](https://github.com/TEDSHAV/capacitacion/compare/v1.6.0...v1.7.0) (2026-08-18)
+
+### Features
+
+* cache participant lists offline for better UX 26ec964
+* cliente portal offline document downloads (Phase 2) 29c951d
+* custom PWA install prompt for mobile and desktop 758f6ce
+* facilitador portal offline writes with sync queue (Phase 4) 92bdbe3
+* indicadores drill-down, programada state, sede resolution, cert search fix 4a7ec14
+* prefetch participant lists + fix button heights and offline pill contrast ef49588
+* PWA installable shell with offline support (Phase 1) 757a750
+* store certificate/carnet templates in Supabase storage instead of ephemeral disk b5a6cd1
+
+### Bug Fixes
+
+* cliente dashboard mobile responsive layout 61aeec7
+* historical facilitador-de-sesion attribution in indicadores d95e176
+* persist sessions across navigation and improve offline downloads UI adf378c
+* PWA install prompt works over HTTPS for mobile testing 00fb799
+* replace purple with SHA brand blue ([#0c3f69](///issues/0c3f69)) 38e13d2, references #C30DFF
+* robust offline navigation and persistent sessions 30af049
 ## [1.6.0](https://github.com/TEDSHAV/capacitacion/compare/v1.5.0...v1.6.0) (2026-08-17)
 
 ### Features
