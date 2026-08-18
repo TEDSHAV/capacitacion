@@ -134,26 +134,16 @@ export class CarnetGenerator {
 
       // Check if we're in a server environment
       if (typeof window === "undefined") {
-        // Server environment - use fs to read image file
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const fs = require("fs");
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const path = require("path");
+        // Server environment - read the template from disk (bundled defaults)
+        // or from Supabase Storage (templates uploaded at runtime)
+        const { loadTemplateImage } = await import("./template-storage.server");
 
-        // Convert URL to file path
-        let imagePath = templatePath;
-        if (templatePath.startsWith("/")) {
-          imagePath = path.join(process.cwd(), "public", templatePath);
-        }
-
-        // Check if file exists
-        if (fs.existsSync(imagePath)) {
-          // Read file as base64 and compress to JPEG for smaller PDF
-          let cachedDataUrl: string;
-          if (_serverCarnetCache.has(imagePath)) {
-            cachedDataUrl = _serverCarnetCache.get(imagePath)!;
-          } else {
-            const imageBuffer = fs.readFileSync(imagePath);
+        // Read file as base64 and compress to JPEG for smaller PDF
+        let cachedDataUrl: string | undefined =
+          _serverCarnetCache.get(templatePath);
+        if (!cachedDataUrl) {
+          const imageBuffer = await loadTemplateImage(templatePath);
+          if (imageBuffer) {
             const base64Png = imageBuffer.toString("base64");
             const { compressServerImageToJpeg } =
               await import("./image-compress");
@@ -165,9 +155,11 @@ export class CarnetGenerator {
             const mime =
               compressed.format === "JPEG" ? "image/jpeg" : "image/png";
             cachedDataUrl = `data:${mime};base64,${compressed.base64}`;
-            _serverCarnetCache.set(imagePath, cachedDataUrl);
+            _serverCarnetCache.set(templatePath, cachedDataUrl);
           }
+        }
 
+        if (cachedDataUrl) {
           const format = cachedDataUrl.startsWith("data:image/jpeg")
             ? "JPEG"
             : "PNG";

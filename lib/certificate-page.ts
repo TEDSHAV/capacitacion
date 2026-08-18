@@ -81,26 +81,16 @@ export class CertificatePage {
     try {
       // Check if we're in a server environment
       if (typeof window === "undefined") {
-        // Server environment - use fs to read image file
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const fs = require("fs");
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const path = require("path");
+        // Server environment - read the template from disk (bundled defaults)
+        // or from Supabase Storage (templates uploaded at runtime)
+        const { loadTemplateImage } = await import("./template-storage.server");
 
-        // Convert URL to file path
-        let imagePath = imageUrl;
-        if (imageUrl.startsWith("/")) {
-          imagePath = path.join(process.cwd(), "public", imageUrl);
-        }
-
-        // Check if file exists
-        if (fs.existsSync(imagePath)) {
-          // Read file as base64 — cache to avoid repeated disk reads
-          let cachedDataUrl: string;
-          if (_serverTemplateCache.has(imagePath)) {
-            cachedDataUrl = _serverTemplateCache.get(imagePath)!;
-          } else {
-            const imageBuffer = await fs.promises.readFile(imagePath);
+        // Read file as base64 — cache to avoid repeated disk/storage reads
+        let cachedDataUrl: string | undefined =
+          _serverTemplateCache.get(imageUrl);
+        if (!cachedDataUrl) {
+          const imageBuffer = await loadTemplateImage(imageUrl);
+          if (imageBuffer) {
             const base64Png = imageBuffer.toString("base64");
             const compressed = await compressServerImageToJpeg(
               base64Png,
@@ -110,9 +100,11 @@ export class CertificatePage {
             const mime =
               compressed.format === "JPEG" ? "image/jpeg" : "image/png";
             cachedDataUrl = `data:${mime};base64,${compressed.base64}`;
-            _serverTemplateCache.set(imagePath, cachedDataUrl);
+            _serverTemplateCache.set(imageUrl, cachedDataUrl);
           }
+        }
 
+        if (cachedDataUrl) {
           const format = cachedDataUrl.startsWith("data:image/jpeg")
             ? "JPEG"
             : "PNG";

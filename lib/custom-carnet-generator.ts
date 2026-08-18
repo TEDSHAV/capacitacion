@@ -63,16 +63,14 @@ export class CustomCarnetGenerator {
       }
 
       if (typeof window === "undefined") {
-        const fs = require("fs");
-        const path = require("path");
-        let imagePath = templatePath;
-        if (templatePath.startsWith("/")) {
-          imagePath = path.join(process.cwd(), "public", templatePath);
-        }
-        if (fs.existsSync(imagePath)) {
-          const imageBuffer = fs.readFileSync(imagePath);
+        // Server environment - read the template from disk (bundled defaults)
+        // or from Supabase Storage (templates uploaded at runtime)
+        const { loadTemplateImage } = await import("./template-storage.server");
+        const imageBuffer = await loadTemplateImage(templatePath);
+        if (imageBuffer) {
           const base64 = imageBuffer.toString("base64");
-          const format = imagePath.toLowerCase().endsWith(".jpg") || imagePath.toLowerCase().endsWith(".jpeg") ? "JPEG" : "PNG";
+          const lowerPath = templatePath.toLowerCase();
+          const format = lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg") ? "JPEG" : "PNG";
           pdf.addImage(base64, format, 0, 0, this.pageWidth, this.pageHeight, undefined, "FAST");
           return;
         }

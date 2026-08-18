@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { existsSync } from "fs";
 import { requireDashboardAuth } from "@/utils/api-auth";
+import { createAdminClient } from "@/utils/supabase/server";
+import {
+  TEMPLATES_BUCKET,
+  TEMPLATES_URL_PREFIX,
+  ensureTemplatesBucket,
+} from "@/lib/template-storage.server";
 
 export async function POST(request: NextRequest) {
   const auth = await requireDashboardAuth(request);
@@ -18,12 +21,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Ensure templates directory exists
-    const templatesDir = join(process.cwd(), "public", "templates");
-    if (!existsSync(templatesDir)) {
-      await mkdir(templatesDir, { recursive: true });
-    }
-
     // Determine prefix from 'type' field (defaults to 'carnet' for backward compat)
     const templateType = (formData.get("type") as string) || "carnet";
     const prefix = templateType === "certificate" ? "cert" : "carnet";
@@ -32,18 +29,38 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
     const fileName = `${prefix}_${timestamp}_${originalName}`;
-    const filePath = join(templatesDir, fileName);
 
-    // Convert file to buffer and save
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Store in Supabase Storage instead of the container's local disk: the
+    // filesystem is ephemeral, so previously uploaded templates were lost on
+    // every redeploy.
+    const admin = await createAdminClient();
+    const { error: bucketError } = await ensureTemplatesBucket(admin);
+    if (bucketError) {
+      return NextResponse.json(
+        { error: `Error preparing storage: ${bucketError}` },
+        { status: 500 },
+      );
+    }
 
-    await writeFile(filePath, buffer);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { error: uploadError } = await admin.storage
+      .from(TEMPLATES_BUCKET)
+      .upload(fileName, buffer, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
 
+    if (uploadError) {
+      console.error("Error uploading template:", uploadError);
+      return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    }
+
+    // The returned URL is served by app/templates/[fileName]/route.ts, keeping
+    // the exact same public path contract as when templates lived on disk.
     return NextResponse.json({
       success: true,
       fileName,
-      url: `/templates/${fileName}`,
+      url: `${TEMPLATES_URL_PREFIX}${fileName}`,
     });
   } catch (error) {
     console.error("Upload error:", error);
