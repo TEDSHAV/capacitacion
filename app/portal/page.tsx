@@ -34,11 +34,11 @@ export default function PortalLandingPage() {
           {/* Facilitadores */}
           <Link
             href="/portal/facilitador/login"
-            className="group bg-white rounded-xl shadow-lg border border-gray-100 p-6 sm:p-8 hover:shadow-xl hover:border-purple-200 transition-all"
+            className="group bg-white rounded-xl shadow-lg border border-gray-100 p-6 sm:p-8 hover:shadow-xl hover:border-blue-200 transition-all"
           >
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center mb-4 group-hover:bg-purple-200 transition-colors">
-                <ClipboardList className="w-8 h-8 text-purple-600" />
+              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
+                <ClipboardList className="w-8 h-8 text-blue-700" />
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">
                 Portal de Facilitadores
@@ -47,7 +47,7 @@ export default function PortalLandingPage() {
                 Gestiona tus servicios asignados, listas de participantes y
                 certificados.
               </p>
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-purple-600 group-hover:gap-2.5 transition-all">
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 group-hover:gap-2.5 transition-all">
                 Ingresar
                 <ArrowRight className="w-4 h-4" />
               </span>

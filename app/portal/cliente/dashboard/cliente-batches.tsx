@@ -165,7 +165,7 @@ export function ClienteBatches({
                     <button
                       onClick={(e) => handleSaveOffline(e, batch)}
                       disabled={offlineCaching === batch.nro_osi}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 transition-colors disabled:opacity-50 flex-1 sm:flex-initial"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors disabled:opacity-50 flex-1 sm:flex-initial"
                       title="Guardar lote para acceso sin conexión"
                     >
                       {offlineCaching === batch.nro_osi ? (
@@ -298,7 +298,7 @@ function CertificateOfflineButton({ cert }: { cert: ClienteCertificateRow }) {
     <button
       onClick={handleSave}
       disabled={caching}
-      className="inline-flex items-center justify-center p-2 rounded-md text-purple-600 hover:bg-purple-50 transition-colors disabled:opacity-50"
+      className="inline-flex items-center justify-center p-2 rounded-md text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-50"
       title={cached ? "Guardado para offline" : "Guardar para offline"}
     >
       {caching ? (

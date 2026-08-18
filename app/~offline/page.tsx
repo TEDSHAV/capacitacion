@@ -81,7 +81,7 @@ export default function OfflinePage() {
         <div className="space-y-3">
           <button
             onClick={() => window.location.reload()}
-            className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#C30DFF] text-white rounded-lg font-medium hover:bg-[#a80bd4] transition-colors"
+            className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#0c3f69] text-white rounded-lg font-medium hover:bg-[#0a344f] transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
             Reintentar
@@ -129,7 +129,7 @@ export default function OfflinePage() {
         <div className="mt-6 pt-6 border-t border-gray-100">
           <Link
             href="/portal"
-            className="inline-flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+            className="inline-flex items-center gap-2 text-sm text-blue-700 hover:text-blue-800 font-medium"
           >
             <Home className="w-4 h-4" />
             Ir a selección de portal

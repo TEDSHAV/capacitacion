@@ -76,7 +76,7 @@ export function OfflineIndicator() {
       case "batch-docs":
         return <FileText className="w-4 h-4 text-blue-600" />;
       case "carnet":
-        return <FileText className="w-4 h-4 text-purple-600" />;
+        return <FileText className="w-4 h-4 text-blue-700" />;
       default:
         return <FileText className="w-4 h-4 text-gray-600" />;
     }
@@ -105,7 +105,7 @@ export function OfflineIndicator() {
         <div className="relative">
           <Download className="w-5 h-5 text-gray-700" />
           {cachedDocs.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 bg-blue-700 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
               {cachedDocs.length}
             </span>
           )}
