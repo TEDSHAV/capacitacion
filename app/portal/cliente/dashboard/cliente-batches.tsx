@@ -1,8 +1,9 @@
 "use client";
 
-import { Calendar, Users, ChevronDown, ChevronRight, FileStack, Download, Loader2, Eye, Award, MapPin, FileText } from "lucide-react";
+import { Calendar, Users, ChevronDown, ChevronRight, FileStack, Download, Loader2, Eye, Award, MapPin, FileText, CloudDownload, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { ClienteBatchSummary, ClienteCertificateRow } from "@/types";
+import { cacheDocument, isDocumentCached } from "@/lib/offline/offline-documents";
 
 interface ClienteBatchesProps {
   batches: ClienteBatchSummary[];
@@ -25,6 +26,8 @@ export function ClienteBatches({
 }: ClienteBatchesProps) {
   const [downloadingOsi, setDownloadingOsi] = useState<number | null>(null);
   const [downloadingDocs, setDownloadingDocs] = useState<number | null>(null);
+  const [offlineCaching, setOfflineCaching] = useState<number | null>(null);
+  const [offlineCached, setOfflineCached] = useState<Set<number>>(new Set());
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
@@ -44,6 +47,21 @@ export function ClienteBatches({
     } else {
       onBatchClick?.(batch);
     }
+  };
+
+  const handleSaveOffline = async (e: React.MouseEvent, batch: ClienteBatchSummary) => {
+    e.stopPropagation();
+    setOfflineCaching(batch.nro_osi);
+    const url = `/api/batch-download-osi/${batch.nro_osi}`;
+    const result = await cacheDocument(url, {
+      type: "batch-osi",
+      id: batch.nro_osi,
+      label: `Lote OSI #${batch.nro_osi} — ${batch.course_name || "Certificados"}`,
+    });
+    if (result.success) {
+      setOfflineCached((prev) => new Set(prev).add(batch.nro_osi));
+    }
+    setOfflineCaching(null);
   };
 
   return (
@@ -144,6 +162,21 @@ export function ClienteBatches({
                       )}
                       Documentos
                     </button>
+                    <button
+                      onClick={(e) => handleSaveOffline(e, batch)}
+                      disabled={offlineCaching === batch.nro_osi}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 transition-colors disabled:opacity-50"
+                      title="Guardar lote para acceso sin conexión"
+                    >
+                      {offlineCaching === batch.nro_osi ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : offlineCached.has(batch.nro_osi) ? (
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      ) : (
+                        <CloudDownload className="w-3.5 h-3.5" />
+                      )}
+                      {offlineCached.has(batch.nro_osi) ? "Offline" : "Guardar"}
+                    </button>
                     {isExpandMode ? (
                       <ChevronDown
                         className={`w-6 h-6 text-gray-300 group-hover:text-gray-900 transition-all ${isExpanded ? "rotate-180" : ""}`}
@@ -175,6 +208,7 @@ export function ClienteBatches({
                             <th className="px-4 py-3 text-left font-semibold">Ciudad</th>
                             <th className="px-4 py-3 text-center font-semibold">Ver</th>
                             <th className="px-4 py-3 text-center font-semibold">PDF</th>
+                            <th className="px-4 py-3 text-center font-semibold">Offline</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -218,6 +252,9 @@ export function ClienteBatches({
                                   <Download className="w-4 h-4" />
                                 </a>
                               </td>
+                              <td className="px-4 py-3 text-center">
+                                <CertificateOfflineButton cert={cert} />
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -236,5 +273,41 @@ export function ClienteBatches({
         })}
       </div>
     </div>
+  );
+}
+
+function CertificateOfflineButton({ cert }: { cert: ClienteCertificateRow }) {
+  const [caching, setCaching] = useState(false);
+  const [cached, setCached] = useState(false);
+
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setCaching(true);
+    const url = `/api/generate-certificate-pdf/${cert.id}`;
+    const result = await cacheDocument(url, {
+      type: "certificate",
+      id: cert.id,
+      label: `Certificado — ${cert.participant_nombre} (V-${cert.participant_cedula})`,
+    });
+    if (result.success) setCached(true);
+    setCaching(false);
+  };
+
+  return (
+    <button
+      onClick={handleSave}
+      disabled={caching}
+      className="inline-flex items-center justify-center p-2 rounded-md text-purple-600 hover:bg-purple-50 transition-colors disabled:opacity-50"
+      title={cached ? "Guardado para offline" : "Guardar para offline"}
+    >
+      {caching ? (
+        <Loader2 className="w-4 h-4 animate-spin" />
+      ) : cached ? (
+        <CheckCircle2 className="w-4 h-4" />
+      ) : (
+        <CloudDownload className="w-4 h-4" />
+      )}
+    </button>
   );
 }

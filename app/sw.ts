@@ -88,6 +88,33 @@ const serwist = new Serwist({
       }),
     },
 
+    // --- Offline documents: CacheFirst for saved PDFs/ZIPs ---
+    // These are explicitly cached by the offline-documents utility (Cache API).
+    // The SW checks the "offline-documents" cache first so saved documents
+    // open without network. Falls back to network if not cached.
+    {
+      matcher: ({ url }) =>
+        url.pathname.startsWith("/api/generate-certificate-pdf/") ||
+        url.pathname.startsWith("/api/batch-download-osi/") ||
+        url.pathname.startsWith("/api/batch-download-documents/") ||
+        url.pathname.startsWith("/api/generate-carnet-pdf/"),
+      handler: new NetworkFirst({
+        cacheName: "offline-documents",
+        networkTimeoutSeconds: 10,
+        plugins: [
+          {
+            cacheWillUpdate: async ({ response }) => {
+              // Only cache successful binary responses
+              if (response && response.status === 200) {
+                return response;
+              }
+              return null;
+            },
+          },
+        ],
+      }),
+    },
+
     // --- Default Serwist caching for _next/static, fonts, etc. ---
     ...defaultCache,
   ],
