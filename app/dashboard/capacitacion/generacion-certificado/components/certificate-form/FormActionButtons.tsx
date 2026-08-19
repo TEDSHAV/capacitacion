@@ -13,6 +13,9 @@ interface FormActionButtonsProps {
   generationProgress?: GenerationProgress;
   onPreview: () => void;
   onGenerate: () => void;
+  onSaveDraft?: () => void;
+  canSaveDraft?: boolean;
+  justSavedDraft?: boolean;
 }
 
 export const FormActionButtons = ({
@@ -21,11 +24,49 @@ export const FormActionButtons = ({
   generationProgress,
   onPreview,
   onGenerate,
+  onSaveDraft,
+  canSaveDraft = false,
+  justSavedDraft = false,
 }: FormActionButtonsProps) => {
   return (
     <>
       {/* Action Buttons */}
       <div className="flex space-x-3 mb-4 mt-6">
+        {/* Save Draft Button - hidden in edit mode */}
+        {!isEditMode && onSaveDraft && (
+          <button
+            type="button"
+            onClick={onSaveDraft}
+            disabled={!canSaveDraft || isGenerating}
+            className={`px-4 py-2 rounded-md transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed border ${
+              justSavedDraft
+                ? "bg-green-50 text-green-700 border-green-300"
+                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+            }`}
+          >
+            {justSavedDraft ? (
+              <span className="flex items-center gap-1.5">
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                Borrador guardado
+              </span>
+            ) : (
+              "Guardar Borrador"
+            )}
+          </button>
+        )}
+
         {/* Preview Button */}
         <button
           type="button"

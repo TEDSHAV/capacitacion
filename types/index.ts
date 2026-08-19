@@ -517,6 +517,10 @@ export interface CertificateFormProps {
   onGenerate: () => void;
   onPreview?: () => Promise<boolean>;
   cities?: City[];
+  onSaveDraft?: () => void;
+  canSaveDraft?: boolean;
+  justSavedDraft?: boolean;
+  isRestoringDraftRef?: React.MutableRefObject<boolean>;
 }
 
 export interface LocationSearchProps {

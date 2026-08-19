@@ -30,6 +30,10 @@ export const CertificateForm = ({
   onGenerate,
   onPreview,
   cities,
+  onSaveDraft,
+  canSaveDraft = false,
+  justSavedDraft = false,
+  isRestoringDraftRef,
 }: CertificateFormProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isPassingGradeLocked, setIsPassingGradeLocked] = useState(true);
@@ -42,6 +46,7 @@ export const CertificateForm = ({
     isEditMode,
     initialSignatures,
     onDataChange,
+    isRestoringDraftRef,
   });
 
   const isBaseFormValid =
@@ -640,6 +645,9 @@ export const CertificateForm = ({
         generationProgress={generationProgress}
         onPreview={handlePreview}
         onGenerate={handleGenerateCertificate}
+        onSaveDraft={onSaveDraft}
+        canSaveDraft={canSaveDraft}
+        justSavedDraft={justSavedDraft}
       />
 
       {/* Certificate Preview Modal */}

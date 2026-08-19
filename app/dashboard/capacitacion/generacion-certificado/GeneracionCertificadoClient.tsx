@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   CourseTopic,
@@ -15,6 +15,8 @@ import {
 import OSISearch from "./components/osi-search";
 import { CertificateForm } from "./components/certificate-form";
 import { ManualOSIInput as ManualOSIInputComponent } from "./components/manual-osi-input";
+import { useCertificateDraft, CertificateDraft } from "./components/certificate-form/use-certificate-draft";
+import { DraftRestoreBanner } from "./components/certificate-form/DraftRestoreBanner";
 import {
   saveCertificatesToDatabase,
   updateCertificateAction,
@@ -102,6 +104,13 @@ export default function GeneracionCertificadoClient({
       paperSize: "half-letter-custom", // New default format
     },
   );
+
+  // Draft restore safeguard: prevents auto-selection effects from clobbering
+  // restored draft values (template, course_content, certificate_title, fecha_vencimiento)
+  const isRestoringDraftRef = useRef(false);
+  // Race condition safeguard: prevents draft restore while handleOSISelect's
+  // async facilitator fetch is still in flight
+  const [isOSILoading, setIsOSILoading] = useState(false);
 
   // Use initial data from server component
   const osis = initialData.osis || [];
@@ -283,6 +292,8 @@ export default function GeneracionCertificadoClient({
 
   // Effect to sync course content when selectedCourseTopic changes
   useEffect(() => {
+    // Skip when restoring a draft — the draft's course_content/title should be preserved
+    if (isRestoringDraftRef.current) return;
     if (selectedCourseTopic && !editData) {
       setCertificateData((prev) => ({
         ...prev,
@@ -304,6 +315,8 @@ export default function GeneracionCertificadoClient({
     setSelectedOSI(osi);
 
     if (osi) {
+      setIsOSILoading(true);
+      try {
       // 1. Determine default date from OSI
       const osiDate =
         osi.fecha_servicio ||
@@ -376,6 +389,9 @@ export default function GeneracionCertificadoClient({
       }));
 
       setSelectedCourseTopic(selectedCourse);
+      } finally {
+        setIsOSILoading(false);
+      }
     } else {
       setCertificateData((prev) => ({
         ...prev,
@@ -449,6 +465,47 @@ export default function GeneracionCertificadoClient({
       participants,
     }));
   };
+
+  // Draft restore handler — overlays the draft's certificateData onto the form
+  // while keeping the live OSI object and clearing sha_signature_data so the
+  // existing effect in use-certificate-form.ts re-resolves it from the ID.
+  const handleRestoreDraft = (d: CertificateDraft) => {
+    if (isOSILoading) return; // Safeguard: don't restore during OSI load
+    isRestoringDraftRef.current = true; // Safeguard: prevent effect clobbering
+    const data = d.certificateData;
+    setCertificateData({
+      ...data,
+      osi_id: certificateData.osi_id, // keep live OSI ref
+      osi_data: certificateData.osi_data, // keep live OSI object
+      sha_signature_data: undefined, // re-resolved by effect in use-certificate-form.ts
+    });
+    if (data.course_topic_id) {
+      const course = courses.find((c: CourseTopic) => c.id === data.course_topic_id);
+      if (course) setSelectedCourseTopic(course);
+    }
+    if (d.osiInputMode === "manual" && d.manualOSIData) {
+      setManualOSIData(d.manualOSIData);
+    }
+  };
+
+  // Draft save/restore hook — per-OSI localStorage drafts
+  const osiNumber = selectedOSI?.nro_osi || manualOSIData?.osi_number || null;
+  const {
+    draft,
+    saveDraft,
+    restoreDraft,
+    dismissDraft,
+    clearDraft,
+    justSaved,
+  } = useCertificateDraft({
+    userId: user?.sub || user?.id || "anonymous",
+    osiNumber,
+    enabled: !editData,
+    certificateData,
+    manualOSIData,
+    osiInputMode,
+    onRestore: handleRestoreDraft,
+  });
 
   // Helper function to build mock OSI object from manual inputs
   const buildMockOSI = (manualData: ManualOSIInput): CertificateOSI => {
@@ -746,6 +803,7 @@ export default function GeneracionCertificadoClient({
         }
 
         alert("¡Certificado actualizado exitosamente!");
+        clearDraft();
         router.push("/dashboard/capacitacion/gestion-certificados");
         return;
       } else {
@@ -1591,6 +1649,9 @@ export default function GeneracionCertificadoClient({
         return;
       }
 
+      // Wipe the draft for this OSI now that certificates are generated
+      clearDraft();
+
       // Reset form
       setCertificateData({
         osi_id: "",
@@ -1674,6 +1735,15 @@ export default function GeneracionCertificadoClient({
       </div>
 
       <div className="space-y-6">
+        {/* Draft Restore Banner - only show when not loading OSI and not in edit mode */}
+        {draft && !isOSILoading && !editData && (
+          <DraftRestoreBanner
+            draft={draft}
+            onRestore={restoreDraft}
+            onDismiss={dismissDraft}
+          />
+        )}
+
         {/* Mode Toggle - Only show if not in edit mode */}
         {!editData && (
           <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -1793,6 +1863,10 @@ export default function GeneracionCertificadoClient({
           onGenerate={handleGenerateCertificate}
           onPreview={handlePreview}
           cities={cities}
+          onSaveDraft={saveDraft}
+          canSaveDraft={!!osiNumber && !editData}
+          justSavedDraft={justSaved}
+          isRestoringDraftRef={isRestoringDraftRef}
         />
       </div>
     </div>

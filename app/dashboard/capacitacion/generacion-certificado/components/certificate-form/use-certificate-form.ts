@@ -16,6 +16,7 @@ interface UseCertificateFormProps {
   isEditMode: boolean;
   initialSignatures?: any[];
   onDataChange: (field: keyof CertificateGeneration, value: any) => void;
+  isRestoringDraftRef?: React.MutableRefObject<boolean>;
 }
 
 export function useCertificateForm({
@@ -25,6 +26,7 @@ export function useCertificateForm({
   isEditMode,
   initialSignatures,
   onDataChange,
+  isRestoringDraftRef,
 }: UseCertificateFormProps) {
   const [shaSignatures, setShaSignatures] = useState<Signature[]>(
     initialSignatures
@@ -157,8 +159,12 @@ export function useCertificateForm({
           // Set templates and selection atomically to avoid mismatched state
           setCourseTemplates(allOptions);
 
-          // In Edit Mode, if it's the initial load, we don't want to overwrite the loaded state
-          if (isEditMode && isInitialLoad.current) {
+          // When restoring a draft, populate the templates list but don't
+          // overwrite the draft's selection/content/title.
+          if (isRestoringDraftRef?.current) {
+            isRestoringDraftRef.current = false;
+          } else if (isEditMode && isInitialLoad.current) {
+            // In Edit Mode, if it's the initial load, we don't want to overwrite the loaded state
             isInitialLoad.current = false;
             // Just update the templates list, don't change selection or content
           } else {
@@ -177,6 +183,10 @@ export function useCertificateForm({
 
     return () => {
       cancelled = true; // Cancel stale request on cleanup
+      // Reset the restoring flag if the effect is cleaned up before completing
+      if (isRestoringDraftRef?.current) {
+        isRestoringDraftRef.current = false;
+      }
     };
   }, [
     selectedCourseTopic?.id,
@@ -194,6 +204,8 @@ export function useCertificateForm({
 
   // Effect to default expiration date to 2 years when emission date changes
   useEffect(() => {
+    // Skip when restoring a draft — the draft's fecha_vencimiento should be preserved
+    if (isRestoringDraftRef?.current) return;
     if (selectedCourseTopic?.emite_carnet && certificateData.date) {
       const base = new Date(certificateData.date + "T12:00:00Z");
       const exp = new Date(base);
