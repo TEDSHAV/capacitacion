@@ -12,6 +12,15 @@ This project follows [Semantic Versioning](https://semver.org/) and
 > (an author-email change) and do not reflect when that work was actually done.
 > Only commits following the Conventional Commits format appear in the entries below.
 
+## [1.8.0](https://github.com/TEDSHAV/capacitacion/compare/v1.7.3...v1.8.0) (2026-08-19)
+
+### Features
+
+* save and restore certificate form drafts per OSI via localStorage 0ef0943
+
+### Bug Fixes
+
+* count distinct participants in cliente portal metrics 0dfbc8f
 ## [1.7.3](https://github.com/TEDSHAV/capacitacion/compare/v1.7.2...v1.7.3) (2026-08-18)
 
 ### Bug Fixes
