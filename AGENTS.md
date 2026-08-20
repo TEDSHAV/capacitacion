@@ -102,6 +102,46 @@ The navigation system provides:
 - **Mobile**: Hamburger menu → full-screen drawer overlay
 - **Desktop**: Collapsible sidebar (200-250px when open, 60px when closed)
 
+### PWA Enhancements
+
+#### Global Search (`lib/navigation/use-global-search.ts`, `components/PWAGlobalSearch.tsx`)
+- Search across all navigation items
+- Breadcrumb-aware results
+- Keyboard shortcut: Ctrl+K
+- Modal interface with ESC to close
+- Real-time filtering
+
+#### Favorites/Bookmarks (`lib/navigation/use-favorites.ts`)
+- Star/pin frequently used pages
+- Persisted to localStorage
+- Quick access from drawer
+- Add/remove with single click
+
+#### Recent Pages (`lib/navigation/use-recent-pages.ts`)
+- Automatically tracks last 5 visited pages
+- Persisted to localStorage
+- Quick access from drawer
+- Relative timestamps
+
+#### Keyboard Shortcuts (`lib/navigation/use-keyboard-shortcuts.ts`)
+- **Ctrl+K**: Global search
+- **Alt+N**: Toggle navigation menu
+- **ESC**: Close search/modals
+- Extensible for future shortcuts
+
+#### Toast Notifications (`lib/ui/toast-context.tsx`, `components/PWAToastContainer.tsx`)
+- Success, error, warning, info types
+- Auto-dismiss after 3 seconds
+- Manual dismiss button
+- Integrated with sync events
+- Bottom-right corner positioning
+
+#### Real-Time Badge Counts
+- Infrastructure ready for pending items
+- Polling every 30 seconds
+- Extensible for server action integration
+- Shows pending OSIs, certificates, surveys
+
 ## Offline-First Architecture
 
 This app uses a comprehensive offline-first approach to ensure users can continue working during temporary internet outages.
