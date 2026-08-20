@@ -38,11 +38,9 @@ export function useBadgeCounts(context: NavigationContext): BadgeCounts {
       }
     };
 
+    // Fetch once on mount. Polling is disabled until real counts are wired up
+    // to avoid unnecessary re-renders and network traffic on every drawer mount.
     fetchCounts();
-
-    // Set up polling for real-time updates every 30 seconds
-    const interval = setInterval(fetchCounts, 30000);
-    return () => clearInterval(interval);
   }, [context]);
 
   return counts;

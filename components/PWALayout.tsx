@@ -90,6 +90,14 @@ export function PWALayout({
     pageTitle = findTitle(nav);
   }
 
+  // Login pages render bare — no navbar/sidebar/chrome.
+  // Login forms handle their own layout and offline UI.
+  const isLoginPage = pathname.endsWith("/login");
+
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Top Navigation */}

@@ -8,8 +8,10 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const userName = user?.user_metadata?.name || user?.email || undefined;
+  // Use getSession() (cookie-only, no network) instead of getUser() to avoid
+  // hitting the Supabase Auth API on every dashboard navigation.
+  const { data: { session } } = await supabase.auth.getSession();
+  const userName = session?.user?.user_metadata?.name || session?.user?.email || undefined;
 
   return (
     <PWALayout userName={userName}>

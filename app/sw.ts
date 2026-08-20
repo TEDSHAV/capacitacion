@@ -3,7 +3,7 @@
 import { defaultCache } from "@serwist/turbopack/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { Serwist } from "serwist";
-import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from "serwist";
+import { CacheFirst, NetworkFirst, StaleWhileRevalidate, ExpirationPlugin } from "serwist";
 
 // This declares the value of `injectionPoint` to TypeScript.
 // `injectionPoint` is the string that will be replaced by the
@@ -23,12 +23,46 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
-    // --- Portal navigations: NetworkFirst with cache fallback ---
-    // Allows previously-visited portal pages to render offline.
+    // --- RSC payloads (client-side navigations): NetworkFirst with cache fallback ---
+    // Next.js App Router fetches RSC payloads (?_rsc=...) for client-side navigations.
+    // Caching these lets the router render previously-visited pages offline (e.g. logo click).
+    // Kept separate from the document cache to avoid polluting HTML entries.
     {
-      matcher: ({ url }) =>
-        url.pathname.startsWith("/portal/facilitador") ||
-        url.pathname.startsWith("/portal/cliente"),
+      matcher: ({ url, request }) =>
+        request.mode !== "navigate" &&
+        url.searchParams.has("_rsc") &&
+        (url.pathname.startsWith("/portal/facilitador") ||
+          url.pathname.startsWith("/portal/cliente") ||
+          url.pathname.startsWith("/dashboard") ||
+          url.pathname.startsWith("/survey/") ||
+          url.pathname.startsWith("/verify-certificate/")),
+      handler: new NetworkFirst({
+        cacheName: "rsc-payloads",
+        networkTimeoutSeconds: 5,
+        plugins: [
+          {
+            cacheWillUpdate: async ({ response }) => {
+              if (response && response.status === 200 && !response.redirected) {
+                return response;
+              }
+              return null;
+            },
+          },
+          new ExpirationPlugin({
+            maxEntries: 100,
+            maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+          }),
+        ],
+      }),
+    },
+
+    // --- Portal navigations (documents only): NetworkFirst with cache fallback ---
+    // Allows previously-visited portal pages to render offline on hard load/reload.
+    {
+      matcher: ({ url, request }) =>
+        request.mode === "navigate" &&
+        (url.pathname.startsWith("/portal/facilitador") ||
+          url.pathname.startsWith("/portal/cliente")),
       handler: new NetworkFirst({
         cacheName: "portal-pages",
         networkTimeoutSeconds: 5,
@@ -46,10 +80,10 @@ const serwist = new Serwist({
       }),
     },
 
-    // --- Dashboard navigations: NetworkFirst with cache fallback ---
-    // Allows previously-visited dashboard pages to render offline.
+    // --- Dashboard navigations (documents only): NetworkFirst with cache fallback ---
     {
-      matcher: ({ url }) => url.pathname.startsWith("/dashboard"),
+      matcher: ({ url, request }) =>
+        request.mode === "navigate" && url.pathname.startsWith("/dashboard"),
       handler: new NetworkFirst({
         cacheName: "dashboard-pages",
         networkTimeoutSeconds: 5,
@@ -66,12 +100,12 @@ const serwist = new Serwist({
       }),
     },
 
-    // --- Survey & certificate verification pages ---
-    // Public pages that can be cached for offline viewing.
+    // --- Survey & certificate verification pages (documents only) ---
     {
-      matcher: ({ url }) =>
-        url.pathname.startsWith("/survey/") ||
-        url.pathname.startsWith("/verify-certificate/"),
+      matcher: ({ url, request }) =>
+        request.mode === "navigate" &&
+        (url.pathname.startsWith("/survey/") ||
+          url.pathname.startsWith("/verify-certificate/")),
       handler: new NetworkFirst({
         cacheName: "public-pages",
         networkTimeoutSeconds: 5,
