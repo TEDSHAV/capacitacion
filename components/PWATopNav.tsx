@@ -14,6 +14,7 @@ interface PWATopNavProps {
   isMenuOpen?: boolean;
   userName?: string;
   onLogout?: () => void;
+  onSearchOpen?: () => void;
 }
 
 export function PWATopNav({
@@ -23,6 +24,7 @@ export function PWATopNav({
   isMenuOpen = false,
   userName,
   onLogout,
+  onSearchOpen,
 }: PWATopNavProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -48,10 +50,10 @@ export function PWATopNav({
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-16">
           {/* Left: Logo + Menu Toggle */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={onMenuToggle}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors md:hidden"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               aria-label="Toggle menu"
             >
               {isMenuOpen ? (
@@ -61,22 +63,16 @@ export function PWATopNav({
               )}
             </button>
 
-            {/* Logo + App Name */}
-            <Link href={getHomeHref(context)} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-              <div className="w-12 h-12 sm:w-10 sm:h-10 flex items-center justify-center flex-shrink-0">
-                <Image
-                  src="/logo.png"
-                  alt="SHA de Venezuela"
-                  width={48}
-                  height={48}
-                  className="w-full h-full object-contain"
-                  priority
-                />
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-xs text-gray-500 font-medium">SHA de Venezuela</p>
-                <p className={`text-sm font-bold ${contextInfo.textColor}`}>{contextInfo.name}</p>
-              </div>
+            {/* Logo only — no text branding */}
+            <Link href={getHomeHref(context)} className="flex items-center hover:opacity-80 transition-opacity">
+              <Image
+                src="/logo.png"
+                alt="SHA de Venezuela"
+                width={160}
+                height={50}
+                className="object-contain h-10 sm:h-12 w-auto"
+                priority
+              />
             </Link>
           </div>
 
@@ -90,7 +86,7 @@ export function PWATopNav({
           {/* Right: Search + User Menu */}
           <div className="flex items-center gap-4">
             {/* Global Search */}
-            <PWAGlobalSearch />
+            <PWAGlobalSearch onOpen={onSearchOpen} />
 
             {/* User Menu Dropdown */}
             <div className="relative" ref={userMenuRef}>

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { PWALayout } from "@/components/PWALayout";
 import PortalFooter from "@/components/PortalFooter";
+import { getFacilitatorSession } from "@/app/actions/facilitador-portal";
+import { logoutFacilitator } from "@/app/actions/facilitador-portal";
 
 export const metadata: Metadata = {
   title: "Portal de Facilitadores",
@@ -18,8 +20,16 @@ export default async function FacilitadorPortalLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getFacilitatorSession();
+
   return (
-    <PWALayout>
+    <PWALayout
+      userName={session?.nombre}
+      onLogout={async () => {
+        "use server";
+        await logoutFacilitator();
+      }}
+    >
       {children}
       <PortalFooter />
     </PWALayout>

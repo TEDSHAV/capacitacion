@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { PWATopNav } from "./PWATopNav";
 import { PWANavDrawer } from "./PWANavDrawer";
@@ -11,6 +11,8 @@ import { useNavigationContext } from "@/lib/navigation/use-navigation-context";
 import { useInitNavigation } from "@/lib/navigation/use-init-navigation";
 import { useKeyboardShortcuts, COMMON_SHORTCUTS } from "@/lib/navigation/use-keyboard-shortcuts";
 import { getNavigationForContext } from "@/lib/navigation/navigation-config";
+
+const SIDEBAR_STORAGE_KEY = "pwa_sidebar_open";
 
 interface PWALayoutProps {
   children: React.ReactNode;
@@ -31,6 +33,37 @@ export function PWALayout({
 
   // Initialize navigation caching on first load
   useInitNavigation();
+
+  // Restore sidebar state from localStorage (desktop preference)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (stored !== null) {
+        setIsMenuOpen(stored === "true");
+      } else {
+        // Default open on desktop, closed on mobile
+        setIsMenuOpen(window.innerWidth >= 768);
+      }
+    } catch {
+      setIsMenuOpen(false);
+    }
+  }, []);
+
+  // Persist sidebar state to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isMenuOpen));
+    } catch {
+      // Non-fatal
+    }
+  }, [isMenuOpen]);
+
+  // Close sidebar on route change (mobile behavior)
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setIsMenuOpen(false);
+    }
+  }, [pathname]);
 
   // Set up keyboard shortcuts
   useKeyboardShortcuts([
@@ -67,6 +100,7 @@ export function PWALayout({
         isMenuOpen={isMenuOpen}
         userName={userName}
         onLogout={onLogout}
+        onSearchOpen={() => setIsMenuOpen(false)}
       />
 
       {/* Main Content Area */}

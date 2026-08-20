@@ -8,9 +8,10 @@ import { useNavigationContext } from "@/lib/navigation/use-navigation-context";
 
 interface PWAGlobalSearchProps {
   className?: string;
+  onOpen?: () => void;
 }
 
-export function PWAGlobalSearch({ className = "" }: PWAGlobalSearchProps) {
+export function PWAGlobalSearch({ className = "", onOpen }: PWAGlobalSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const context = useNavigationContext();
   const { query, setQuery, results, hasResults } = useGlobalSearch(context);
@@ -53,7 +54,10 @@ export function PWAGlobalSearch({ className = "" }: PWAGlobalSearchProps) {
     <div ref={searchRef} className={`relative ${className}`}>
       {/* Search Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          onOpen?.();
+          setIsOpen(!isOpen);
+        }}
         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         aria-label="Global search"
         title="Buscar (Ctrl+K)"
