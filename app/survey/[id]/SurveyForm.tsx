@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { SurveyOSIData, SurveyFormData } from "@/types";
 import { submitSurvey } from "@/app/actions/surveys";
+import { enqueueOp } from "@/lib/offline/sync-queue";
+import { initSyncQueue } from "@/lib/offline/sync-queue";
 import { Check, Loader2, Send } from "lucide-react";
 import Image from "next/image";
 
@@ -134,6 +136,23 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
       attendance_reasons: reasons,
     };
 
+    // Offline path: enqueue for later sync
+    if (!navigator.onLine) {
+      try {
+        await enqueueOp(
+          "submitSurvey",
+          `survey_${osiData.id_osi}_s${osiData.nro_sesion ?? 1}_${Date.now()}`,
+          surveyData
+        );
+        setSubmitted(true);
+      } catch (err) {
+        setError("Error al guardar la encuesta offline: " + (err as Error).message);
+      }
+      setSubmitting(false);
+      return;
+    }
+
+    // Online path: use server action
     const result = await submitSurvey(surveyData);
 
     if (result.success) {
@@ -143,6 +162,12 @@ export default function SurveyForm({ osiData }: SurveyFormProps) {
     }
     setSubmitting(false);
   };
+
+  // Initialize sync queue on mount so surveys can auto-sync
+  useEffect(() => {
+    const cleanup = initSyncQueue();
+    return cleanup;
+  }, []);
 
   if (submitted) {
     return (
