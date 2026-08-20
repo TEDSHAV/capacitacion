@@ -62,13 +62,13 @@ export function PWATopNav({
             </button>
 
             {/* Logo + App Name */}
-            <Link href={getHomeHref(context)} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+            <Link href={getHomeHref(context)} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
                 <Image
                   src="/logo.png"
                   alt="SHA de Venezuela"
-                  width={32}
-                  height={32}
+                  width={40}
+                  height={40}
                   className="w-full h-full object-contain"
                   priority
                 />
