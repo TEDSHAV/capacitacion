@@ -36,7 +36,71 @@ const serwist = new Serwist({
           {
             cacheWillUpdate: async ({ response }) => {
               // Only cache successful responses (avoid caching redirects/auth errors)
-              if (response && response.status === 200) {
+              if (response && response.status === 200 && !response.redirected) {
+                return response;
+              }
+              return null;
+            },
+          },
+        ],
+      }),
+    },
+
+    // --- Dashboard navigations: NetworkFirst with cache fallback ---
+    // Allows previously-visited dashboard pages to render offline.
+    {
+      matcher: ({ url }) => url.pathname.startsWith("/dashboard"),
+      handler: new NetworkFirst({
+        cacheName: "dashboard-pages",
+        networkTimeoutSeconds: 5,
+        plugins: [
+          {
+            cacheWillUpdate: async ({ response }) => {
+              if (response && response.status === 200 && !response.redirected) {
+                return response;
+              }
+              return null;
+            },
+          },
+        ],
+      }),
+    },
+
+    // --- Survey & certificate verification pages ---
+    // Public pages that can be cached for offline viewing.
+    {
+      matcher: ({ url }) =>
+        url.pathname.startsWith("/survey/") ||
+        url.pathname.startsWith("/verify-certificate/"),
+      handler: new NetworkFirst({
+        cacheName: "public-pages",
+        networkTimeoutSeconds: 5,
+        plugins: [
+          {
+            cacheWillUpdate: async ({ response }) => {
+              if (response && response.status === 200 && !response.redirected) {
+                return response;
+              }
+              return null;
+            },
+          },
+        ],
+      }),
+    },
+
+    // --- Read-only JSON APIs used by public pages ---
+    // Verify certificate and carnet lookup endpoints.
+    {
+      matcher: ({ url }) =>
+        url.pathname.startsWith("/api/verify-certificate/") ||
+        url.pathname.startsWith("/api/carnets/by-certificate/"),
+      handler: new NetworkFirst({
+        cacheName: "public-api",
+        networkTimeoutSeconds: 8,
+        plugins: [
+          {
+            cacheWillUpdate: async ({ response }) => {
+              if (response && response.status === 200 && !response.redirected) {
                 return response;
               }
               return null;
@@ -120,6 +184,18 @@ const serwist = new Serwist({
   ],
   fallbacks: {
     entries: [
+      // For dashboard pages not in cache, try the home page
+      {
+        url: "/dashboard/capacitacion",
+        matcher({ request }) {
+          if (request.destination !== "document") return false;
+          try {
+            return new URL(request.url).pathname.startsWith("/dashboard");
+          } catch {
+            return false;
+          }
+        },
+      },
       // For portal facilitador pages not in cache, try the dashboard first
       // (it has the user's data and navigation), then fall back to offline page
       {

@@ -1,4 +1,6 @@
 import VersionBadge from "@/components/VersionBadge";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { SyncBadge } from "@/components/SyncBadge";
 
 export default function DashboardLayout({
   children,
@@ -11,6 +13,8 @@ export default function DashboardLayout({
       {/* The dashboard is embedded in the PRISMA shell and renders no chrome of
           its own, so the build version is surfaced here instead of in a footer. */}
       <VersionBadge />
+      <OfflineIndicator />
+      <SyncBadge />
     </main>
   );
 }
