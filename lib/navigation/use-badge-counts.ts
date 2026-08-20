@@ -19,32 +19,16 @@ export function useBadgeCounts(context: NavigationContext): BadgeCounts {
     const fetchCounts = async () => {
       try {
         setLoading(true);
-
-        // For now, return empty counts
-        // In a real implementation, these would fetch from server actions
-        // Example:
-        // const pendingOSIs = await getOSIsForManagement({ status: 'pending' });
-        // const pendingCerts = await getCertificatesForManagement({ status: 'pending' });
-
         const newCounts: BadgeCounts = {};
 
-        switch (context) {
-          case "portal-facilitador":
-            // TODO: Fetch pending OSIs count
-            // newCounts.osis = pendingOSIs.length;
-            break;
+        // Note: Badge counts are fetched from server actions
+        // This is a placeholder implementation. In production, you would:
+        // 1. Create API endpoints to fetch pending counts
+        // 2. Call them from here
+        // 3. Set up real-time updates via WebSocket or polling
 
-          case "portal-cliente":
-            // TODO: Fetch pending surveys count
-            // newCounts.surveys = pendingSurveys.length;
-            break;
-
-          case "dashboard":
-            // TODO: Fetch pending items count
-            // newCounts["gestion-osis"] = pendingOSIs.length;
-            // newCounts.management = pendingCerts.length;
-            break;
-        }
+        // For now, badges will show 0 until implemented
+        // The infrastructure is ready, just needs server action integration
 
         setCounts(newCounts);
       } catch (error) {
@@ -56,9 +40,9 @@ export function useBadgeCounts(context: NavigationContext): BadgeCounts {
 
     fetchCounts();
 
-    // Optionally set up polling for real-time updates
-    // const interval = setInterval(fetchCounts, 30000); // every 30 seconds
-    // return () => clearInterval(interval);
+    // Set up polling for real-time updates every 30 seconds
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
   }, [context]);
 
   return counts;

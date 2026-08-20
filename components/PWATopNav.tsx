@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Menu, X, LogOut } from "lucide-react";
+import { PWAGlobalSearch } from "./PWAGlobalSearch";
 import { getContextInfo, type NavigationContext } from "@/lib/navigation/navigation-config";
 
 interface PWATopNavProps {
@@ -62,8 +63,11 @@ export function PWATopNav({
             </div>
           )}
 
-          {/* Right: User Menu */}
+          {/* Right: Search + User Menu */}
           <div className="flex items-center gap-4">
+            {/* Global Search */}
+            <PWAGlobalSearch />
+
             {/* User Menu Dropdown */}
             <div className="relative">
               <button

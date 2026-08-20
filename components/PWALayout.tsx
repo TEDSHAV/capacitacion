@@ -9,6 +9,7 @@ import { OfflineIndicator } from "./OfflineIndicator";
 import { SyncBadge } from "./SyncBadge";
 import { useNavigationContext } from "@/lib/navigation/use-navigation-context";
 import { useInitNavigation } from "@/lib/navigation/use-init-navigation";
+import { useKeyboardShortcuts, COMMON_SHORTCUTS } from "@/lib/navigation/use-keyboard-shortcuts";
 import { getNavigationForContext } from "@/lib/navigation/navigation-config";
 
 interface PWALayoutProps {
@@ -30,6 +31,14 @@ export function PWALayout({
 
   // Initialize navigation caching on first load
   useInitNavigation();
+
+  // Set up keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      ...COMMON_SHORTCUTS.MENU_TOGGLE,
+      handler: () => setIsMenuOpen(!isMenuOpen),
+    },
+  ]);
 
   // Get current page title from navigation if not provided
   let pageTitle = title;

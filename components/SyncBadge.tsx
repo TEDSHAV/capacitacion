@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { CloudUpload, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { getPendingCount, flushQueue, initSyncQueue, onFlushComplete, type FlushStats } from "@/lib/offline/sync-queue";
+import { useToast } from "@/lib/ui/toast-context";
 
 /**
  * Shows a badge in the facilitador portal navbar with the count of
@@ -12,6 +13,7 @@ export function SyncBadge() {
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [lastFlush, setLastFlush] = useState<FlushStats | null>(null);
+  const { addToast } = useToast();
 
   const refreshCount = useCallback(async () => {
     const count = await getPendingCount();
@@ -25,12 +27,26 @@ export function SyncBadge() {
       setLastFlush(stats);
       setSyncing(false);
       refreshCount();
+
+      // Show toast notification
+      if (stats.succeeded > 0) {
+        addToast(
+          `Sincronización completada: ${stats.succeeded} operación(es) enviada(s)`,
+          "success"
+        );
+      }
+      if (stats.failed > 0) {
+        addToast(
+          `Error en sincronización: ${stats.failed} operación(es) fallida(s)`,
+          "error"
+        );
+      }
     });
     return () => {
       cleanup();
       unsubscribe();
     };
-  }, [refreshCount]);
+  }, [refreshCount, addToast]);
 
   const handleManualSync = async () => {
     if (syncing || pendingCount === 0) return;
