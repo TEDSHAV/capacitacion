@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { CachedDataBanner } from "@/components/CachedDataBanner";
 import CertificateFiltersComponent from "./components/certificate-filters";
 import CertificateTableComponent from "./components/certificate-table";
 import CertificatePaginationComponent from "./components/certificate-pagination";
@@ -14,6 +15,7 @@ import {
   getVenezuelanStates,
   updateCertificateScoreAction,
 } from "@/app/actions/certificados";
+import { fetchWithOfflineFallback } from "@/lib/offline/use-offline-data";
 import {
   CertificateManagement,
   CertificateFilters,
@@ -28,6 +30,10 @@ export default function GestionCertificadosPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
+
+  // Offline state
+  const [fromCache, setFromCache] = useState(false);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
 
   // Filter options
   const [companies, setCompanies] = useState<
@@ -46,18 +52,25 @@ export default function GestionCertificadosPage() {
   useEffect(() => {
     const loadFilterOptions = async () => {
       try {
-        const [companiesData, coursesData, facilitatorsData, statesData] =
-          await Promise.all([
-            getCompaniesForFilters(),
-            getCoursesForFilters(),
-            getFacilitatorsForFilters(),
-            getVenezuelanStates(),
-          ]);
+        const result = await fetchWithOfflineFallback(
+          "dash_cert_filters",
+          "dash_cert_filters",
+          async () => {
+            const [companiesData, coursesData, facilitatorsData, statesData] =
+              await Promise.all([
+                getCompaniesForFilters(),
+                getCoursesForFilters(),
+                getFacilitatorsForFilters(),
+                getVenezuelanStates(),
+              ]);
+            return { companiesData, coursesData, facilitatorsData, statesData };
+          },
+        );
 
-        setCompanies(companiesData);
-        setCourses(coursesData);
-        setFacilitators(facilitatorsData);
-        setStates(statesData);
+        setCompanies(result.data.companiesData);
+        setCourses(result.data.coursesData);
+        setFacilitators(result.data.facilitatorsData);
+        setStates(result.data.statesData);
       } catch (error) {
         console.error("Error loading filter options:", error);
       } finally {
@@ -71,17 +84,20 @@ export default function GestionCertificadosPage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const result: CertificateSearchResult =
-        await getCertificatesForManagement(
-          filters,
-          currentPage,
-          itemsPerPage,
-        );
+      const cacheKey = `dash_certs_${JSON.stringify(filters)}_p${currentPage}_n${itemsPerPage}`;
+      const offlineResult = await fetchWithOfflineFallback(
+        cacheKey,
+        "dash_certs",
+        () => getCertificatesForManagement(filters, currentPage, itemsPerPage),
+      );
 
-      setCertificates(result.certificates);
-      setTotalCount(result.totalCount);
+      setCertificates(offlineResult.data.certificates);
+      setTotalCount(offlineResult.data.totalCount);
+      setFromCache(offlineResult.fromCache);
+      setCachedAt(offlineResult.cachedAt);
     } catch (error) {
       console.error("Error loading certificates:", error);
+      setFromCache(false);
     } finally {
       setLoading(false);
     }
@@ -176,6 +192,8 @@ export default function GestionCertificadosPage() {
           Administra los certificados emitidos y su historial
         </p>
       </div>
+
+      {fromCache && <div className="mb-4"><CachedDataBanner cachedAt={cachedAt} /></div>}
 
       {/* Filters */}
       <CertificateFiltersComponent

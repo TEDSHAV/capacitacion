@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Curso, Empresa } from "@/types";
 import {
@@ -14,6 +14,7 @@ import CourseList from "./CourseList";
 import CreateCourseButton from "./CreateCourseButton";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { BookOpen, Award, Clock, TrendingUp } from "lucide-react";
+import { cachePortalData } from "@/lib/offline/portal-data-cache";
 
 export default function GestionCursosClient({
   user,
@@ -32,6 +33,19 @@ export default function GestionCursosClient({
   const [editandoCurso, setEditandoCurso] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cursosList, setCursosList] = useState<Curso[]>(cursos || []);
+  const hasInitialized = useRef(false);
+
+  // Cache initial RSC data for offline use
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      cachePortalData("dash_cursos", "dash_cursos", {
+        cursos: cursos || [],
+        empresas,
+        analyticsMetrics,
+      }).catch(() => {});
+    }
+  }, [cursos, empresas, analyticsMetrics]);
 
   if (!user) {
     return (
