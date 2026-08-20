@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FacilitadorCrud, FacilitatorForm } from "./components";
 import { getFacilitatorMetrics } from "@/app/actions/participants";
+import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import { Users, MapPin, BookOpen, Star } from "lucide-react";
 
 export default function GestionDeFacilitadoresPage() {
@@ -13,6 +14,7 @@ export default function GestionDeFacilitadoresPage() {
   const createMode = searchParams.get("create");
   const [showForm, setShowForm] = useState(false);
   const [metrics, setMetrics] = useState<any>(null);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
     // Show form if in create or edit mode
@@ -27,6 +29,11 @@ export default function GestionDeFacilitadoresPage() {
     async function loadMetrics() {
       const data = await getFacilitatorMetrics();
       setMetrics(data);
+      // Cache metrics for offline access
+      if (!hasInitialized.current) {
+        hasInitialized.current = true;
+        cachePortalData("dash_facilitadores", "dash_facilitadores", { metrics: data }).catch(() => {});
+      }
     }
     loadMetrics();
   }, []);

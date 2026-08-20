@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { OSIManagement, OSISesion, OSIFilters, OSIStatus } from "@/types";
 import { getOSIsForManagement } from "@/app/actions/osi";
+import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import {
   getAllProcesoStepsBatch,
   toggleUnifiedStep,
@@ -111,9 +112,25 @@ export default function SeguimientoServiciosClient({
   const [seeding, setSeeding] = useState<number | null>(null);
   const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string; nroSesion: number; category?: string; title?: string; showReceivedToggle?: boolean } | null>(null);
   const isFirstRender = useRef(true);
+  const hasInitialized = useRef(false);
 
   // Cache of all fetched OSIs for instant client-side search
   const cachedOsisRef = useRef<OSIManagement[]>(initialOsis);
+
+  // Cache initial RSC data for offline use
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      cachePortalData("dash_seguimiento", "dash_seguimiento", {
+        osis: initialOsis,
+        totalCount: initialTotalCount,
+        stepsByOsi: initialStepsByOsi,
+        sessionsByOsi: initialSessionsByOsi,
+        filterOptions,
+        statuses,
+      }).catch(() => {});
+    }
+  }, [initialOsis, initialTotalCount, initialStepsByOsi, initialSessionsByOsi, filterOptions, statuses]);
 
   // Debounce search input → searchQuery (sent to server)
   useEffect(() => {

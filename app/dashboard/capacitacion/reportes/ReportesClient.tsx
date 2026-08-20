@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
@@ -16,6 +16,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { State } from "@/types";
+import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import OverviewReport from "./components/OverviewReport";
 import CursosReport from "./components/CursosReport";
 import FacilitadoresReport from "./components/FacilitadoresReport";
@@ -126,6 +127,15 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
   const [customFromDate, setCustomFromDate] = useState("");
   const [customToDate, setCustomToDate] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const hasInitialized = useRef(false);
+
+  // Cache states on mount
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      cachePortalData("dash_reportes", "dash_reportes", { states }).catch(() => {});
+    }
+  }, [states]);
 
   // Initialize state from URL params
   useEffect(() => {

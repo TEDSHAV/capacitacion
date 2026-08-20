@@ -11,6 +11,7 @@ import type {
   IndicadorOsiRow,
 } from "@/types";
 import { getIndicadoresCertificados72h } from "@/app/actions/indicadores-certificados";
+import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import FilterBar, {
   getDateRange,
   type IndicadoresFilterState,
@@ -138,6 +139,15 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
     { type: "estado"; value: IndicadorEstado } | { type: "osi"; value: string } | null
   >(null);
   const tableRef = useRef<HTMLDivElement>(null);
+  const hasInitialized = useRef(false);
+
+  // Cache filter options on mount
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      cachePortalData("dash_indicadores_filters", "dash_indicadores", filterOptions).catch(() => {});
+    }
+  }, [filterOptions]);
 
   // Initialize from URL params
   useEffect(() => {
