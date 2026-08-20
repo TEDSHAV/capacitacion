@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, X, LogOut } from "lucide-react";
 import { PWAGlobalSearch } from "./PWAGlobalSearch";
 import { getContextInfo, type NavigationContext } from "@/lib/navigation/navigation-config";
@@ -24,7 +25,23 @@ export function PWATopNav({
   onLogout,
 }: PWATopNavProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const contextInfo = getContextInfo(context);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showUserMenu]);
 
   return (
     <nav className={`sticky top-0 z-40 border-b ${contextInfo.borderColor} bg-white shadow-sm`}>
@@ -46,8 +63,15 @@ export function PWATopNav({
 
             {/* Logo + App Name */}
             <Link href={getHomeHref(context)} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className={`w-8 h-8 rounded-lg ${contextInfo.bgColor} flex items-center justify-center`}>
-                <span className={`text-sm font-bold ${contextInfo.textColor}`}>SHA</span>
+              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                <Image
+                  src="/logo.png"
+                  alt="SHA de Venezuela"
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-contain"
+                  priority
+                />
               </div>
               <div className="hidden sm:block">
                 <p className="text-xs text-gray-500 font-medium">SHA de Venezuela</p>
@@ -69,7 +93,7 @@ export function PWATopNav({
             <PWAGlobalSearch />
 
             {/* User Menu Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors"
