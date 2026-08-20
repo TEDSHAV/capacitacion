@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
+import { PWALayout } from "@/components/PWALayout";
 import PortalFooter from "@/components/PortalFooter";
-import { OfflineIndicator } from "@/components/OfflineIndicator";
-import { SyncBadge } from "@/components/SyncBadge";
 
 export const metadata: Metadata = {
   title: "Portal de Facilitadores",
@@ -20,11 +19,9 @@ export default async function FacilitadorPortalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <PWALayout>
       {children}
       <PortalFooter />
-      <OfflineIndicator />
-      <SyncBadge />
-    </div>
+    </PWALayout>
   );
 }

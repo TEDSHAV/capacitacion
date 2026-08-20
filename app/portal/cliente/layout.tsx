@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import { PWALayout } from "@/components/PWALayout";
 import PortalFooter from "@/components/PortalFooter";
-import { OfflineIndicator } from "@/components/OfflineIndicator";
 
 export const metadata: Metadata = {
   title: "Portal de Clientes",
@@ -19,10 +19,9 @@ export default async function ClientePortalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <PWALayout>
       {children}
       <PortalFooter />
-      <OfflineIndicator />
-    </div>
+    </PWALayout>
   );
 }
