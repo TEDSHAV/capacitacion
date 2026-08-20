@@ -4,6 +4,8 @@ import "./globals.css";
 import { SerwistProvider } from "@serwist/turbopack/react";
 import QueryProvider from "@/components/providers/QueryProvider";
 import ShellAuthProvider from "@/components/providers/ShellAuthProvider";
+import { ToastProvider } from "@/lib/ui/toast-context";
+import { PWAToastContainer } from "@/components/PWAToastContainer";
 import URLSync from "@/components/utils/URLSync";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { Suspense } from "react";
@@ -111,11 +113,14 @@ export default function RootLayout({
         <SerwistProvider swUrl="/serwist/sw.js">
           <QueryProvider>
             <ShellAuthProvider>
-              <Suspense fallback={null}>
-                <URLSync />
-              </Suspense>
-              {children}
-              <InstallPrompt />
+              <ToastProvider>
+                <Suspense fallback={null}>
+                  <URLSync />
+                </Suspense>
+                {children}
+                <InstallPrompt />
+                <PWAToastContainer />
+              </ToastProvider>
             </ShellAuthProvider>
           </QueryProvider>
         </SerwistProvider>
