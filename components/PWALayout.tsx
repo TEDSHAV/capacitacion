@@ -96,8 +96,6 @@ export function PWALayout({
       <PWATopNav
         title={pageTitle}
         context={context}
-        onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        isMenuOpen={isMenuOpen}
         userName={userName}
         onLogout={onLogout}
         onSearchOpen={() => setIsMenuOpen(false)}
@@ -109,6 +107,7 @@ export function PWALayout({
         <PWANavDrawer
           isOpen={isMenuOpen}
           onClose={() => setIsMenuOpen(false)}
+          onToggle={() => setIsMenuOpen(!isMenuOpen)}
           context={context}
           currentPath={pathname}
         />

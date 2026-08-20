@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Wifi, WifiOff } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Wifi, WifiOff } from "lucide-react";
 import { getNavigationForContext, getContextInfo, type NavigationContext, type NavItem } from "@/lib/navigation/navigation-config";
 import { useBadgeCounts } from "@/lib/navigation/use-badge-counts";
 import { useOnlineStatus } from "@/lib/offline/use-online-status";
@@ -10,6 +10,7 @@ import { useOnlineStatus } from "@/lib/offline/use-online-status";
 interface PWANavDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  onToggle: () => void;
   context: NavigationContext;
   currentPath: string;
 }
@@ -17,6 +18,7 @@ interface PWANavDrawerProps {
 export function PWANavDrawer({
   isOpen,
   onClose,
+  onToggle,
   context,
   currentPath,
 }: PWANavDrawerProps) {
@@ -158,6 +160,25 @@ export function PWANavDrawer({
 
           {/* Navigation Items */}
           {navItems.map((item) => renderNavItem(item))}
+        </div>
+
+        {/* Collapse/Expand Toggle — bottom of sidebar (desktop only) */}
+        <div className="md:sticky md:bottom-0 md:left-0 md:right-0 md:bg-white md:border-t md:border-gray-100 md:p-2">
+          <button
+            onClick={onToggle}
+            className="hidden md:flex w-full items-center justify-center gap-2 py-2 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label={isOpen ? "Contraer menú" : "Expandir menú"}
+            title={isOpen ? "Contraer menú" : "Expandir menú"}
+          >
+            {isOpen ? (
+              <>
+                <ChevronLeft className="w-4 h-4" />
+                <span>Contraer</span>
+              </>
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )}
+          </button>
         </div>
       </div>
     </>

@@ -1,15 +1,16 @@
 "use client";
 import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { handleLogin } from "@/app/actions";
 import { useEffect, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { Loader2, AlertCircle, Mail } from "lucide-react";
+import Image from "next/image";
 
 const LoginForm = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const error = searchParams.get("error");
   const [isClearing, setIsClearing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Clear stale session data on component mount to prevent rate limit errors
@@ -46,97 +47,114 @@ const LoginForm = () => {
   }, [error]);
 
   return (
-    <div className="max-w-md w-full space-y-8">
-      <div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Iniciar sesión
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Contacta al administrador para crear una cuenta.
+    <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-gray-100 p-8">
+      <div className="flex flex-col items-center mb-8">
+        <Image
+          src="/logo.png"
+          alt="SHA de Venezuela"
+          width={128}
+          height={128}
+          className="w-32 h-32 object-contain mb-4"
+        />
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard de Administración</h1>
+        <p className="text-gray-600 text-center mt-2">
+          Ingresa tus credenciales para gestionar el sistema de capacitación
         </p>
       </div>
-      <form className="mt-8 space-y-6" action={handleLogin}>
-        <input type="hidden" name="remember" defaultValue="true" />
-        <div className="rounded-md shadow-sm -space-y-px">
-          <div>
-            <label htmlFor="email-address" className="sr-only">
-              Email
-            </label>
-            <input
-              id="email-address"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              disabled={isClearing}
-              className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm disabled:opacity-50"
-              placeholder="Email"
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="sr-only">
-              Contraseña
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              disabled={isClearing}
-              className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm disabled:opacity-50"
-              placeholder="Contraseña"
-            />
-          </div>
-        </div>
 
-        {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <div className="text-red-800 text-sm">
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3 text-red-700 text-sm">
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <span>
               {error.includes("rate limit")
                 ? "Demasiados intentos de inicio de sesión. Por favor espera 1-2 minutos e intenta de nuevo."
                 : error === "Invalid credentials"
                   ? "Email o contraseña incorrectos"
                   : "Error al iniciar sesión: " + error}
-            </div>
+            </span>
             {error.includes("rate limit") && (
-              <div className="mt-2 text-xs text-red-700">
+              <div className="mt-1 text-xs text-red-600">
                 Estamos limpiando los datos de sesión. Intenta de nuevo en unos
                 momentos.
               </div>
             )}
           </div>
-        )}
+        </div>
+      )}
 
-        <div>
-          <button
-            type="submit"
+      <form
+        className="space-y-6"
+        action={handleLogin}
+        onSubmit={() => setIsSubmitting(true)}
+      >
+        <input type="hidden" name="remember" defaultValue="true" />
+
+        <div className="space-y-2">
+          <label htmlFor="email-address" className="block text-sm font-medium text-gray-700">
+            Email
+          </label>
+          <input
+            id="email-address"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
             disabled={isClearing}
-            className="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
-          >
-            {isClearing ? "Limpiando sesión..." : "Iniciar sesión"}
-          </button>
+            className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-50 transition-colors"
+            placeholder="correo@ejemplo.com"
+          />
         </div>
 
-        <div className="relative my-8">
-          <div className="absolute inset-0 flex items-center" aria-hidden="true">
-            <div className="w-full border-t border-gray-200"></div>
-          </div>
-          <div className="relative flex justify-center text-xs uppercase tracking-widest font-bold">
-            <span className="px-3 bg-gray-50 text-gray-400">O continúe como externo</span>
-          </div>
+        <div className="space-y-2">
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            Contraseña
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            disabled={isClearing}
+            className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-50 transition-colors"
+            placeholder="••••••••"
+          />
         </div>
 
-        <div>
-          <Link
-            href="/portal/cliente/login"
-            className="group relative w-full flex justify-center items-center py-2.5 px-4 border-2 border-blue-600 text-sm font-bold rounded-lg text-blue-700 bg-white hover:bg-blue-50 focus:outline-none transition-all duration-300 shadow-sm"
-          >
-            <ShieldCheck className="w-4 h-4 mr-2 text-blue-600 group-hover:scale-110 transition-transform" />
-            Verificar Certificado
-          </Link>
-        </div>
+        <button
+          type="submit"
+          disabled={isClearing || isSubmitting}
+          className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
+        >
+          {isClearing ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Limpiando sesión...
+            </>
+          ) : isSubmitting ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Iniciando sesión...
+            </>
+          ) : (
+            "Iniciar Sesión"
+          )}
+        </button>
       </form>
+
+      <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+        <p className="text-sm text-gray-500">
+          ¿No tienes una cuenta? <br />
+          Contacta al administrador del sistema.
+        </p>
+        <div className="mt-3 flex flex-col items-center gap-2 text-sm">
+          <a href="mailto:capacitacion@shadevenezuela.com.ve" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:underline">
+            <Mail className="w-4 h-4" />
+            capacitacion@shadevenezuela.com.ve
+          </a>
+        </div>
+      </div>
     </div>
   );
 };

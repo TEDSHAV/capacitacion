@@ -3,15 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, X, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { PWAGlobalSearch } from "./PWAGlobalSearch";
 import { getContextInfo, type NavigationContext } from "@/lib/navigation/navigation-config";
 
 interface PWATopNavProps {
   title?: string;
   context: NavigationContext;
-  onMenuToggle?: () => void;
-  isMenuOpen?: boolean;
   userName?: string;
   onLogout?: () => void;
   onSearchOpen?: () => void;
@@ -20,8 +18,6 @@ interface PWATopNavProps {
 export function PWATopNav({
   title,
   context,
-  onMenuToggle,
-  isMenuOpen = false,
   userName,
   onLogout,
   onSearchOpen,
@@ -49,20 +45,8 @@ export function PWATopNav({
     <nav className={`sticky top-0 z-40 border-b ${contextInfo.borderColor} bg-white shadow-sm`}>
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-16">
-          {/* Left: Logo + Menu Toggle */}
+          {/* Left: Logo */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={onMenuToggle}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              aria-label="Toggle menu"
-            >
-              {isMenuOpen ? (
-                <X className="w-5 h-5 text-gray-700" />
-              ) : (
-                <Menu className="w-5 h-5 text-gray-700" />
-              )}
-            </button>
-
             {/* Logo only — no text branding */}
             <Link href={getHomeHref(context)} className="flex items-center hover:opacity-80 transition-opacity">
               <Image
