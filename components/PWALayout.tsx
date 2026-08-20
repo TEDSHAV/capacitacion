@@ -8,6 +8,7 @@ import { PWABreadcrumb } from "./PWABreadcrumb";
 import { OfflineIndicator } from "./OfflineIndicator";
 import { SyncBadge } from "./SyncBadge";
 import { useNavigationContext } from "@/lib/navigation/use-navigation-context";
+import { useInitNavigation } from "@/lib/navigation/use-init-navigation";
 import { getNavigationForContext } from "@/lib/navigation/navigation-config";
 
 interface PWALayoutProps {
@@ -26,6 +27,9 @@ export function PWALayout({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
   const context = useNavigationContext();
+
+  // Initialize navigation caching on first load
+  useInitNavigation();
 
   // Get current page title from navigation if not provided
   let pageTitle = title;
