@@ -134,13 +134,13 @@ export function PWANavDrawer({
       {/* Drawer */}
       {/* Mobile: fixed slide-in/out. Desktop: sticky, collapses to icon-only (w-16) when !isOpen */}
       <div
-        className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-200 shadow-lg transform transition-all duration-300 z-30 overflow-y-auto overflow-x-hidden ${
+        className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-200 shadow-lg transform transition-all duration-300 z-30 overflow-y-auto overflow-x-hidden self-start flex flex-col ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } md:sticky md:top-16 md:shadow-none md:flex-shrink-0 md:translate-x-0 ${
+        } md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:shadow-none md:flex-shrink-0 md:translate-x-0 ${
           isOpen ? "md:w-64" : "md:w-16"
         }`}
       >
-        <div className={`space-y-2 ${isOpen ? "p-4" : "p-2"}`}>
+        <div className={`space-y-2 flex-1 ${isOpen ? "p-4" : "p-2"}`}>
           {/* Online Status Indicator */}
           <div className={`flex items-center gap-2 px-2 py-2 rounded-lg bg-gray-50 text-xs font-medium text-gray-600 mb-4 ${
             isOpen ? "md:justify-start" : "md:justify-center md:px-0"
