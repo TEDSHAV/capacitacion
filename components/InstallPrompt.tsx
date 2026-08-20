@@ -27,6 +27,9 @@ export function InstallPrompt() {
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   useEffect(() => {
+    // Don't show if embedded in the PRISMA shell iframe — the shell handles its own UI
+    if (window.self !== window.top) return;
+
     // Don't show if already installed (running in standalone mode)
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||

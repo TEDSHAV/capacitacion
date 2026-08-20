@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getBuildDetail, getBuildId } from "@/lib/app-version";
 
 const Footer = () => {
@@ -10,26 +9,18 @@ const Footer = () => {
   return (
     <footer className="bg-transparent border-t border-blue-100/50">
       <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-600">
+        <div className="flex flex-col items-center justify-center gap-4 text-sm text-gray-600 text-center">
           <div>
             © {currentYear} SHA de Venezuela, C.A. Todos los derechos reservados.
           </div>
-          <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
-            {buildId && (
-              <span
-                className="text-xs text-gray-400 font-mono tabular-nums"
-                title={getBuildDetail()}
-              >
-                {buildId}
-              </span>
-            )}
-            <Link
-              href="/portal/cliente/login"
-              className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+          {buildId && (
+            <span
+              className="text-xs text-gray-400 font-mono tabular-nums"
+              title={getBuildDetail()}
             >
-              Verificar Certificado
-            </Link>
-          </div>
+              {buildId}
+            </span>
+          )}
         </div>
       </div>
     </footer>

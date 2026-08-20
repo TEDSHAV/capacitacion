@@ -14,7 +14,7 @@ export default function PortalFooter() {
   return (
     <footer className="mt-auto border-t border-gray-200 bg-white/50 print:hidden">
       <div className="mx-auto max-w-5xl px-4 py-6">
-        <div className="flex flex-col items-center gap-2 text-center text-xs text-gray-500 sm:flex-row sm:justify-between sm:text-left">
+        <div className="flex flex-col items-center gap-2 text-center text-xs text-gray-500">
           <div className="space-y-1">
             <p>
               © {currentYear} SHA de Venezuela, C.A. Todos los derechos

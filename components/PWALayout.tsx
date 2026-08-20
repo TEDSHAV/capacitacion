@@ -28,11 +28,18 @@ export function PWALayout({
   onLogout,
 }: PWALayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isInShell, setIsInShell] = useState(false);
   const pathname = usePathname();
   const context = useNavigationContext();
 
   // Initialize navigation caching on first load
   useInitNavigation();
+
+  // Detect if we're embedded in the PRISMA shell iframe.
+  // When in the shell, the shell provides its own sidebar/nav — hide PWA chrome.
+  useEffect(() => {
+    setIsInShell(window.self !== window.top);
+  }, []);
 
   // Restore sidebar state from localStorage (desktop preference)
   useEffect(() => {
@@ -95,6 +102,12 @@ export function PWALayout({
   const isLoginPage = pathname.endsWith("/login");
 
   if (isLoginPage) {
+    return <>{children}</>;
+  }
+
+  // When embedded in the PRISMA shell iframe, the shell provides navigation.
+  // Render bare children — no PWA top nav, sidebar, or breadcrumbs.
+  if (isInShell) {
     return <>{children}</>;
   }
 
