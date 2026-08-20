@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { validateUrlForContext, type NavigationContext } from "./navigation-config";
 
 export interface RecentPage {
   id: string;
@@ -10,14 +11,14 @@ export interface RecentPage {
   visitedAt: number;
 }
 
-const RECENT_PAGES_STORAGE_KEY = "pwa_recent_pages";
 const MAX_RECENT_PAGES = 5;
 
 /**
  * Hook for tracking recently visited pages
- * Persists to localStorage, keeps last 5 pages
+ * Persists to localStorage, scoped per navigation context for strict isolation.
  */
-export function useRecentPages() {
+export function useRecentPages(context: NavigationContext) {
+  const STORAGE_KEY = `pwa_recent_pages_${context}`;
   const pathname = usePathname();
   const [recentPages, setRecentPages] = useState<RecentPage[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -25,19 +26,29 @@ export function useRecentPages() {
   // Load from localStorage on mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(RECENT_PAGES_STORAGE_KEY);
+      const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        setRecentPages(JSON.parse(stored));
+        const parsed: RecentPage[] = JSON.parse(stored);
+        // Safety filter: only keep entries that belong to this context
+        const filtered = parsed.filter((p) =>
+          validateUrlForContext(p.href, context)
+        );
+        setRecentPages(filtered);
+        if (filtered.length !== parsed.length) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+        }
       }
     } catch (error) {
       console.error("Error loading recent pages:", error);
     }
     setIsLoaded(true);
-  }, []);
+  }, [STORAGE_KEY, context]);
 
-  // Track current page
+  // Track current page — only if it belongs to this context
   useEffect(() => {
     if (!isLoaded || !pathname) return;
+    // Only track pages that belong to the current context
+    if (!validateUrlForContext(pathname, context)) return;
 
     // Extract page label from pathname
     const segments = pathname.split("/").filter(Boolean);
@@ -65,23 +76,23 @@ export function useRecentPages() {
       // Keep only last 5
       return updated.slice(0, MAX_RECENT_PAGES);
     });
-  }, [pathname, isLoaded]);
+  }, [pathname, isLoaded, context]);
 
   // Save to localStorage whenever recent pages change
   useEffect(() => {
     if (isLoaded && recentPages.length > 0) {
       try {
-        localStorage.setItem(RECENT_PAGES_STORAGE_KEY, JSON.stringify(recentPages));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(recentPages));
       } catch (error) {
         console.error("Error saving recent pages:", error);
       }
     }
-  }, [recentPages, isLoaded]);
+  }, [recentPages, isLoaded, STORAGE_KEY]);
 
   const clearRecentPages = () => {
     setRecentPages([]);
     try {
-      localStorage.removeItem(RECENT_PAGES_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
     } catch (error) {
       console.error("Error clearing recent pages:", error);
     }
