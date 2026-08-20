@@ -6,6 +6,102 @@
 - NEVER add "Generated with [Devin](https://devin.ai)" or any AI/tool attribution to commit messages.
 - Keep commit messages to the message itself, matching the surrounding repo style.
 
+## PWA Navigation System
+
+This app includes a comprehensive standalone PWA navigation system with **strict portal/dashboard isolation** for offline-first use.
+
+### Overview
+
+The navigation system provides:
+1. **Collapsible Navigation Drawer** — Hamburger menu on mobile, toggleable sidebar on desktop
+2. **Context-Aware Top Nav** — Logo, title, offline indicator, user menu
+3. **Breadcrumbs** — Auto-generated from URL path
+4. **Real-Time Badge Counts** — Pending items for each role
+5. **Strict Context Isolation** — Portal facilitador/cliente/dashboard never mix
+
+### Key Components
+
+#### Navigation Config (`lib/navigation/navigation-config.ts`)
+- **Strictly isolated menus** for each context (portal-facilitador, portal-cliente, dashboard)
+- Each context only links to its own routes
+- No cross-context navigation possible
+- Context-specific branding (colors, names)
+
+#### Navigation Components
+- **PWATopNav** (`components/PWATopNav.tsx`) — Top bar with logo, title, user menu, logout
+- **PWANavDrawer** (`components/PWANavDrawer.tsx`) — Collapsible drawer with context-aware menu
+- **PWABreadcrumb** (`components/PWABreadcrumb.tsx`) — Auto-generated breadcrumb trail
+- **PWALayout** (`components/PWALayout.tsx`) — Main layout combining all above
+
+#### Hooks & Utilities
+- **useNavigationContext** (`lib/navigation/use-navigation-context.ts`) — Detect current context from URL
+- **useBadgeCounts** (`lib/navigation/use-badge-counts.ts`) — Real-time badge counts (pending items)
+- **generateBreadcrumbs** (`lib/navigation/breadcrumb-utils.ts`) — Generate breadcrumb items from pathname
+- **cacheNavigationConfig** (`lib/offline/cache-navigation.ts`) — Cache navigation for offline use
+
+### Context Isolation Rules (CRITICAL)
+
+**Portal: Facilitador** (`/portal/facilitador/*`)
+- Menu only shows facilitador options
+- All links go to `/portal/facilitador/*`
+- No access to `/portal/cliente` or `/dashboard`
+
+**Portal: Cliente** (`/portal/cliente/*`)
+- Menu only shows cliente options
+- All links go to `/portal/cliente/*`
+- No access to `/portal/facilitador` or `/dashboard`
+
+**Dashboard** (`/dashboard/*`)
+- Menu only shows admin options
+- All links go to `/dashboard/*`
+- No access to `/portal/*`
+
+**Logout** — Clears session completely, prevents context mixing
+
+### Navigation Structure
+
+#### Portal: Facilitador Menu
+- Dashboard
+- Mis Servicios (OSIs) — with badge for pending
+- Mis Certificados
+- Perfil
+- Ayuda
+
+#### Portal: Cliente Menu
+- Dashboard
+- Mis Servicios
+- Mis Certificados
+- Encuestas Pendientes — with badge for new surveys
+- Perfil
+- Ayuda
+
+#### Dashboard: Admin Menu
+- Home
+- Planificación y Ejecución
+  - Seguimiento de Servicios
+  - Gestión OSIs
+- Reportes
+  - KPI
+  - Indicadores
+- Certificados
+  - Generación (online-only)
+  - Gestión
+- Cursos
+  - Gestión
+  - Plantillas
+- Facilitadores
+  - Gestión
+  - Firmas
+- Configuración
+
+### Styling & Colors
+
+- **Portal Facilitador**: Blue (#0c3f69)
+- **Portal Cliente**: Green (#059669)
+- **Dashboard**: Purple (#7c3aed)
+- **Mobile**: Hamburger menu → full-screen drawer overlay
+- **Desktop**: Collapsible sidebar (200-250px when open, 60px when closed)
+
 ## Offline-First Architecture
 
 This app uses a comprehensive offline-first approach to ensure users can continue working during temporary internet outages.
