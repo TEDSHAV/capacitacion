@@ -1,6 +1,5 @@
-import { getClienteSession, getClienteMetrics, getClienteBatchesFiltered, getClienteFilterOptions, getClienteHiddenBatches, logoutCliente } from "@/app/actions/cliente-portal";
+import { getClienteSession, getClienteMetrics, getClienteBatchesFiltered, getClienteFilterOptions, getClienteHiddenBatches } from "@/app/actions/cliente-portal";
 import { redirect } from "next/navigation";
-import { PortalNavbar } from "@/components/PortalNavbar";
 import { ClienteDashboardClient } from "./cliente-dashboard-client";
 import type { ClienteMetrics, ClienteBatchSummary, ClienteFilterOptions, HiddenBatchSummary } from "@/types";
 import { createClient } from "@/utils/supabase/server";
@@ -60,9 +59,7 @@ export default async function ClienteDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PortalNavbar title="Portal de Clientes" logoutAction={logoutCliente} loginPath="/portal/cliente/login" />
-      <div className="max-w-6xl mx-auto py-6 sm:py-10 px-4">
+    <div className="max-w-6xl mx-auto py-6 sm:py-10 px-4">
       <header className="mb-6 sm:mb-10">
         <div className="flex items-center gap-4">
           {session.logo_url ? (
@@ -106,7 +103,6 @@ export default async function ClienteDashboardPage() {
         showCiudadFilter={!session.id_sede}
         initialHiddenBatches={initialHiddenBatches}
       />
-    </div>
     </div>
   );
 }

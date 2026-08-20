@@ -1,6 +1,7 @@
 import { PWALayout } from "@/components/PWALayout";
 import VersionBadge from "@/components/VersionBadge";
 import { createClient } from "@/utils/supabase/server";
+import { handleLogout } from "@/app/actions/auth";
 
 export default async function DashboardLayout({
   children,
@@ -14,7 +15,13 @@ export default async function DashboardLayout({
   const userName = session?.user?.user_metadata?.name || session?.user?.email || undefined;
 
   return (
-    <PWALayout userName={userName}>
+    <PWALayout
+      userName={userName}
+      onLogout={async () => {
+        "use server";
+        await handleLogout();
+      }}
+    >
       {children}
       {/* The dashboard is embedded in the PRISMA shell and renders no chrome of
           its own, so the build version is surfaced here instead of in a footer. */}

@@ -10,10 +10,7 @@ import {
   LayoutGrid,
   Signature,
   Settings,
-  HelpCircle,
-  User,
   Calendar,
-  CheckCircle2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -49,6 +46,7 @@ export interface NavigationConfig {
 /**
  * Portal: Facilitador Navigation
  * ONLY links to /portal/facilitador/*
+ * NOTE: Only pages that actually exist are listed here.
  */
 const FACILITADOR_NAV: NavItem[] = [
   {
@@ -58,40 +56,12 @@ const FACILITADOR_NAV: NavItem[] = [
     icon: Home,
     offlineAvailable: true,
   },
-  {
-    id: "osis",
-    label: "Mis Servicios",
-    href: "/portal/facilitador/osi",
-    icon: ClipboardList,
-    badge: { count: 0, color: "blue" },
-    offlineAvailable: true,
-  },
-  {
-    id: "certificates",
-    label: "Mis Certificados",
-    href: "/portal/facilitador/certificates",
-    icon: Award,
-    offlineAvailable: true,
-  },
-  {
-    id: "profile",
-    label: "Perfil",
-    href: "/portal/facilitador/profile",
-    icon: User,
-    offlineAvailable: true,
-  },
-  {
-    id: "help",
-    label: "Ayuda",
-    href: "/portal/facilitador/help",
-    icon: HelpCircle,
-    offlineAvailable: true,
-  },
 ];
 
 /**
  * Portal: Cliente Navigation
  * ONLY links to /portal/cliente/*
+ * NOTE: Only pages that actually exist are listed here.
  */
 const CLIENTE_NAV: NavItem[] = [
   {
@@ -99,42 +69,6 @@ const CLIENTE_NAV: NavItem[] = [
     label: "Dashboard",
     href: "/portal/cliente/dashboard",
     icon: Home,
-    offlineAvailable: true,
-  },
-  {
-    id: "services",
-    label: "Mis Servicios",
-    href: "/portal/cliente/services",
-    icon: ClipboardList,
-    offlineAvailable: true,
-  },
-  {
-    id: "certificates",
-    label: "Mis Certificados",
-    href: "/portal/cliente/certificates",
-    icon: Award,
-    offlineAvailable: true,
-  },
-  {
-    id: "surveys",
-    label: "Encuestas Pendientes",
-    href: "/portal/cliente/surveys",
-    icon: CheckCircle2,
-    badge: { count: 0, color: "amber" },
-    offlineAvailable: true,
-  },
-  {
-    id: "profile",
-    label: "Perfil",
-    href: "/portal/cliente/profile",
-    icon: User,
-    offlineAvailable: true,
-  },
-  {
-    id: "help",
-    label: "Ayuda",
-    href: "/portal/cliente/help",
-    icon: HelpCircle,
     offlineAvailable: true,
   },
 ];

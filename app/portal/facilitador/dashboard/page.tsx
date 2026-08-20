@@ -1,7 +1,6 @@
-import { getFacilitatorSession, getAssignedOSIs, logoutFacilitator } from "@/app/actions/facilitador-portal";
+import { getFacilitatorSession, getAssignedOSIs } from "@/app/actions/facilitador-portal";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { PortalNavbar } from "@/components/PortalNavbar";
 import { toTitleCase } from "@/utils/string-utils";
 import {
   ClipboardList,
@@ -24,9 +23,7 @@ export default async function FacilitadorDashboardPage() {
   const { data: osis, error } = await getAssignedOSIs(session.facilitador_id);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PortalNavbar title="Portal de Facilitadores" logoutAction={logoutFacilitator} loginPath="/portal/facilitador/login" />
-      <div className="max-w-5xl mx-auto py-4 sm:py-10 px-4">
+    <div className="max-w-5xl mx-auto py-4 sm:py-10 px-4">
       <header className="mb-6 sm:mb-10" id="tour-welcome">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -142,7 +139,6 @@ export default async function FacilitadorDashboardPage() {
         )}
       </div>
       <AutoStart />
-    </div>
     </div>
   );
 }

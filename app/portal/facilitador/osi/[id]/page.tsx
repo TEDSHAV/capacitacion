@@ -1,14 +1,12 @@
-import { 
-  getFacilitatorSession, 
+import {
+  getFacilitatorSession,
   getOSIParticipants,
-  logoutFacilitator
 } from "@/app/actions/facilitador-portal";
 import { getOSIForControlServicios } from "@/app/actions/control-servicios";
 import { createAdminClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { ArrowLeft, ClipboardList, Info, AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { PortalNavbar } from "@/components/PortalNavbar";
 import { ParticipantForm } from "./participant-form";
 import { getSessionCount } from "@/lib/osi-utils";
 
@@ -75,9 +73,7 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PortalNavbar title="Portal de Facilitadores" logoutAction={logoutFacilitator} loginPath="/portal/facilitador/login" />
-      <div className="max-w-5xl mx-auto py-4 sm:py-10 px-4">
+    <div className="max-w-5xl mx-auto py-4 sm:py-10 px-4">
       <Link 
         href="/portal/facilitador/dashboard"
         className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 mb-8 group"
@@ -167,7 +163,6 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
           hasAllSessionsAssignment={hasAllSessionsAssignment}
         />
       </div>
-    </div>
     </div>
   );
 }
