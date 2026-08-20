@@ -3,6 +3,8 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import type { OSIFilters, OSIManagement, OSIStatus } from "@/types";
 import { getOSIsForManagement, getOSIFilterOptions, getManualOSIBatchesAction } from "@/app/actions/osi";
+import { CachedDataBanner } from "@/components/CachedDataBanner";
+import { cachePortalData, getCachedPortalData } from "@/lib/offline/portal-data-cache";
 import OSIFiltersV2 from "./components/osi-filters-v2";
 import OSITableV2 from "./components/osi-table-v2";
 import OSIPagination from "./components/osi-pagination";
@@ -38,6 +40,10 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [activeTab, setActiveTab] = useState<"automatic" | "manual">("automatic");
+
+  // Offline state
+  const [fromCache, setFromCache] = useState(false);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
 
   // Filter options
   const [companies, setCompanies] = useState<
@@ -157,11 +163,16 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
         const dataResult = results[0];
         setOsis(dataResult.osis);
         setTotalCount(dataResult.totalCount);
+        setFromCache(false);
+        setCachedAt(null);
         setCached(key, {
           osis: dataResult.osis,
           totalCount: dataResult.totalCount,
           timestamp: Date.now(),
         });
+
+        // Persist to Dexie for offline access
+        cachePortalData(key, "dash_osis", dataResult).catch(() => {});
 
         if (isInitialLoad && results[1]) {
           const filterOptions = results[1];
@@ -169,9 +180,25 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
           setEjecutivos(filterOptions.ejecutivos);
           setStatuses(filterOptions.statuses);
           filtersLoadedRef.current = true;
+          // Cache filter options too
+          cachePortalData("dash_osi_filters", "dash_osi_filters", filterOptions).catch(() => {});
         }
       } catch (error) {
         console.error("Error loading OSI data:", error);
+        // Try to load from Dexie cache on error
+        if (!cached) {
+          try {
+            const cachedData = await getCachedPortalData<{ osis: OSIManagement[]; totalCount: number }>(key);
+            if (cachedData) {
+              setOsis(cachedData.data.osis);
+              setTotalCount(cachedData.data.totalCount);
+              setFromCache(true);
+              setCachedAt(cachedData.cachedAt);
+            }
+          } catch {
+            // Offline cache also failed, show error
+          }
+        }
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -268,6 +295,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
 
   return (
     <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8 bg-white">
+      {fromCache && <div className="mb-4"><CachedDataBanner cachedAt={cachedAt} /></div>}
       <div className="mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Consulta de OSIs</h1>
