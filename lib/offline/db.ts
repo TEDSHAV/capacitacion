@@ -4,7 +4,33 @@ import Dexie, { type Table } from "dexie";
 
 export type SyncOpStatus = "pending" | "syncing" | "done" | "error";
 
-export type SyncOpType = "saveParticipants" | "uploadAttachment" | "deleteAttachment" | "saveAcknowledgment";
+export type SyncOpType =
+  | "saveParticipants"
+  | "uploadAttachment"
+  | "deleteAttachment"
+  | "saveAcknowledgment"
+  | "submitSurvey"
+  | "toggleUnifiedStep"
+  | "toggleAttachmentReceived"
+  | "updateCertificateScore";
+
+export type PortalDataType =
+  | "cliente_batches"
+  | "cliente_certs"
+  | "facilitador_osis"
+  | "facilitador_participants"
+  | "dash_home"
+  | "dash_osis"
+  | "dash_osi_filters"
+  | "dash_certs"
+  | "dash_cert_filters"
+  | "dash_seguimiento"
+  | "dash_indicadores"
+  | "dash_reportes"
+  | "dash_cursos"
+  | "dash_facilitadores"
+  | "dash_gen_cert_refdata"
+  | "survey_osi_data";
 
 export interface SyncOp {
   id?: number;
@@ -39,7 +65,7 @@ export interface PortalDataCache {
   /** Unique key, e.g. `cliente_batches_page_1` or `cliente_certs_osi_123` */
   key: string;
   /** Type of cached data for namespace queries */
-  type: "cliente_batches" | "cliente_certs" | "facilitador_osis" | "facilitador_participants";
+  type: PortalDataType;
   /** JSON-serialized data */
   data: string;
   /** Timestamp of when the data was cached */

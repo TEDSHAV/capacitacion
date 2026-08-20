@@ -18,6 +18,10 @@ const API_ROUTES: Record<SyncOpType, string> = {
   uploadAttachment: "/api/portal/facilitador/attachments",
   deleteAttachment: "/api/portal/facilitador/attachments",
   saveAcknowledgment: "/api/portal/facilitador/acknowledgment",
+  submitSurvey: "/api/surveys/submit",
+  toggleUnifiedStep: "/api/capacitacion/proceso-steps/toggle",
+  toggleAttachmentReceived: "/api/capacitacion/proceso-steps/attachment",
+  updateCertificateScore: "/api/certificates/score",
 };
 
 let isFlushing = false;
