@@ -46,7 +46,7 @@ export function PWATopNav({
   return (
     <nav className={`sticky top-0 z-40 border-b ${contextInfo.borderColor} bg-white shadow-sm`}>
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-16 sm:h-16">
           {/* Left: Logo + Menu Toggle */}
           <div className="flex items-center gap-4">
             <button
@@ -63,12 +63,12 @@ export function PWATopNav({
 
             {/* Logo + App Name */}
             <Link href={getHomeHref(context)} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 sm:w-10 sm:h-10 flex items-center justify-center flex-shrink-0">
                 <Image
                   src="/logo.png"
                   alt="SHA de Venezuela"
-                  width={40}
-                  height={40}
+                  width={48}
+                  height={48}
                   className="w-full h-full object-contain"
                   priority
                 />
