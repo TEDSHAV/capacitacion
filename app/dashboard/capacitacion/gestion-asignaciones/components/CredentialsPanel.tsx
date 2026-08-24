@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Plus,
 } from "lucide-react";
 import {
   deleteFacilitatorCredentials,
@@ -19,6 +20,7 @@ import {
 } from "@/app/actions/facilitador-portal";
 import { toTitleCase } from "@/utils/string-utils";
 import { PortalCredentialsModal } from "../../gestion-de-facilitadores/components/portal-credentials-modal";
+import FacilitadorPickerModal from "./FacilitadorPickerModal";
 
 interface CredentialRow {
   id: number;
@@ -49,6 +51,11 @@ export default function CredentialsPanel({
 }: CredentialsPanelProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingFacilitador, setEditingFacilitador] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const [showCreatePicker, setShowCreatePicker] = useState(false);
+  const [newFacilitador, setNewFacilitador] = useState<{
     id: number;
     name: string;
   } | null>(null);
@@ -140,16 +147,25 @@ export default function CredentialsPanel({
 
   return (
     <div className="space-y-4">
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Buscar por facilitador, cédula o usuario..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
-        />
+      {/* Search + Create button */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar por facilitador, cédula o usuario..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+          />
+        </div>
+        <button
+          onClick={() => setShowCreatePicker(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors shadow-sm"
+        >
+          <Plus className="w-4 h-4" />
+          Nuevas Credenciales
+        </button>
       </div>
 
       {error && (
@@ -312,13 +328,35 @@ export default function CredentialsPanel({
         </p>
       )}
 
-      {/* Reused credentials modal */}
+      {/* Reused credentials modal — edit existing credentials */}
       {editingFacilitador && (
         <PortalCredentialsModal
           facilitadorId={editingFacilitador.id}
           facilitadorName={editingFacilitador.name}
           onClose={() => {
             setEditingFacilitador(null);
+            onRefresh();
+          }}
+        />
+      )}
+
+      {/* Nuevas Credenciales flow: facilitador picker → PortalCredentialsModal */}
+      {showCreatePicker && (
+        <FacilitadorPickerModal
+          title="Nuevas Credenciales"
+          onClose={() => setShowCreatePicker(false)}
+          onSelect={(fac) => {
+            setNewFacilitador(fac);
+            setShowCreatePicker(false);
+          }}
+        />
+      )}
+      {newFacilitador && (
+        <PortalCredentialsModal
+          facilitadorId={newFacilitador.id}
+          facilitadorName={newFacilitador.name}
+          onClose={() => {
+            setNewFacilitador(null);
             onRefresh();
           }}
         />

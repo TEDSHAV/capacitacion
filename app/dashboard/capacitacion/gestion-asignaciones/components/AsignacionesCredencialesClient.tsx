@@ -17,9 +17,12 @@ import {
   KeyRound,
   Users,
   Loader2,
+  Plus,
 } from "lucide-react";
 import AssignmentsTable from "./AssignmentsTable";
 import CredentialsPanel from "./CredentialsPanel";
+import FacilitadorPickerModal from "./FacilitadorPickerModal";
+import AssignOSIModal from "../../gestion-de-facilitadores/components/assign-osi-modal";
 
 interface AssignmentRow {
   id: number;
@@ -89,6 +92,8 @@ export default function AsignacionesCredencialesClient() {
   const [cachedAt, setCachedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hasInitialized = useRef(false);
+  const [showAssignPicker, setShowAssignPicker] = useState(false);
+  const [selectedFacForAssign, setSelectedFacForAssign] = useState<{ id: number; name: string } | null>(null);
 
   const loadData = useCallback(async () => {
     const result = await getAsignacionesPageData(staleDays);
@@ -218,7 +223,7 @@ export default function AsignacionesCredencialesClient() {
       )}
 
       {/* Tabs */}
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <nav className="flex gap-2">
           <TabButton
             active={activeTab === "activas"}
@@ -235,6 +240,13 @@ export default function AsignacionesCredencialesClient() {
             count={historicalAssignments.length}
           />
         </nav>
+        <button
+          onClick={() => setShowAssignPicker(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition-colors shadow-sm"
+        >
+          <Plus className="w-4 h-4" />
+          Nueva Asignación
+        </button>
       </div>
 
       {loading ? (
@@ -262,6 +274,28 @@ export default function AsignacionesCredencialesClient() {
         </div>
         <CredentialsPanel credentials={credentials} onRefresh={handleRefresh} />
       </div>
+
+      {/* Nueva Asignación flow: facilitador picker → AssignOSIModal */}
+      {showAssignPicker && (
+        <FacilitadorPickerModal
+          title="Nueva Asignación"
+          onClose={() => setShowAssignPicker(false)}
+          onSelect={(fac) => {
+            setSelectedFacForAssign(fac);
+            setShowAssignPicker(false);
+          }}
+        />
+      )}
+      {selectedFacForAssign && (
+        <AssignOSIModal
+          facilitadorId={selectedFacForAssign.id}
+          facilitadorName={selectedFacForAssign.name}
+          onClose={() => {
+            setSelectedFacForAssign(null);
+            handleRefresh();
+          }}
+        />
+      )}
     </div>
   );
 }
