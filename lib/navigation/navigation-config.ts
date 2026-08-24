@@ -12,6 +12,7 @@ import {
   Settings,
   Calendar,
   KeyRound,
+  FilePlus2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -107,6 +108,26 @@ const DASHBOARD_NAV: NavItem[] = [
         icon: ClipboardList,
         badge: { count: 0, color: "blue" },
         offlineAvailable: true,
+      },
+    ],
+  },
+  {
+    id: "requisiciones",
+    label: "Requisiciones",
+    href: "#",
+    icon: ClipboardList,
+    children: [
+      {
+        id: "mis-requisiciones",
+        label: "Mis Requisiciones",
+        href: "/dashboard/capacitacion/requisiciones",
+        icon: ClipboardList,
+      },
+      {
+        id: "nueva-requisicion",
+        label: "Nueva Requisición",
+        href: "/dashboard/capacitacion/requisiciones/create",
+        icon: FilePlus2,
       },
     ],
   },
