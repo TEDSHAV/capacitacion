@@ -83,6 +83,21 @@ export function PWANavDrawer({
               className={`w-4 h-4 transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""} ${isOpen ? "md:inline" : "md:hidden"}`}
             />
           </button>
+        ) : item.external ? (
+          <a
+            href={item.href}
+            onClick={onClose}
+            title={item.label}
+            className={`flex items-center justify-between px-4 py-2 text-sm font-medium rounded-lg transition-colors text-gray-700 hover:bg-gray-100 ${
+              isOnlineOnly ? "opacity-50 cursor-not-allowed pointer-events-none" : ""
+            } ${isOpen ? "md:px-4" : "md:px-0 md:justify-center"}`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <item.icon className="w-4 h-4 flex-shrink-0" />
+              <span className={`truncate ${isOpen ? "inline" : "hidden md:hidden"}`}>{item.label}</span>
+            </div>
+            {isOnlineOnly && <WifiOff className={`w-4 h-4 text-gray-400 flex-shrink-0 ${isOpen ? "md:inline" : "md:hidden"}`} />}
+          </a>
         ) : (
           <Link
             href={item.href}

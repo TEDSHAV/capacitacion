@@ -96,16 +96,8 @@ export function PWAGlobalSearch({ className = "", onOpen }: PWAGlobalSearchProps
               <div className="max-h-96 overflow-y-auto">
                 {hasResults ? (
                   <div className="divide-y divide-gray-200">
-                    {results.map((result) => (
-                      <Link
-                        key={result.id}
-                        href={result.href}
-                        onClick={() => {
-                          setIsOpen(false);
-                          setQuery("");
-                        }}
-                        className="block px-4 py-3 hover:bg-gray-50 transition-colors"
-                      >
+                    {results.map((result) => {
+                      const content = (
                         <div className="flex items-start gap-3">
                           {result.icon && (
                             <result.icon className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
@@ -119,8 +111,31 @@ export function PWAGlobalSearch({ className = "", onOpen }: PWAGlobalSearchProps
                             </p>
                           </div>
                         </div>
-                      </Link>
-                    ))}
+                      );
+                      const handleClick = () => {
+                        setIsOpen(false);
+                        setQuery("");
+                      };
+                      return result.external ? (
+                        <a
+                          key={result.id}
+                          href={result.href}
+                          onClick={handleClick}
+                          className="block px-4 py-3 hover:bg-gray-50 transition-colors"
+                        >
+                          {content}
+                        </a>
+                      ) : (
+                        <Link
+                          key={result.id}
+                          href={result.href}
+                          onClick={handleClick}
+                          className="block px-4 py-3 hover:bg-gray-50 transition-colors"
+                        >
+                          {content}
+                        </Link>
+                      );
+                    })}
                   </div>
                 ) : query.trim() ? (
                   <div className="px-4 py-8 text-center text-sm text-gray-500">

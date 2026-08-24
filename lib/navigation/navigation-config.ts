@@ -13,6 +13,7 @@ import {
   Calendar,
   KeyRound,
   FilePlus2,
+  FileCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -35,6 +36,7 @@ export interface NavItem {
   children?: NavItem[];
   requiresOnline?: boolean;
   offlineAvailable?: boolean;
+  external?: boolean;
 }
 
 export interface NavigationConfig {
@@ -130,6 +132,14 @@ const DASHBOARD_NAV: NavItem[] = [
         icon: FilePlus2,
       },
     ],
+  },
+  {
+    id: "consulta-osi",
+    label: "Consulta de OSIs",
+    href: `${process.env.NEXT_PUBLIC_SHELL_URL || ""}/consulta-osi`,
+    icon: FileCheck,
+    external: true,
+    requiresOnline: true,
   },
   {
     id: "reports",

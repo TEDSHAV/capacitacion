@@ -9,6 +9,7 @@ export interface SearchResult {
   href: string;
   breadcrumb: string;
   icon?: any;
+  external?: boolean;
 }
 
 /**
@@ -32,6 +33,7 @@ export function useGlobalSearch(context: NavigationContext) {
           href: item.href,
           breadcrumb: currentBreadcrumb.join(" > "),
           icon: item.icon,
+          external: item.external,
         });
 
         if (item.children) {

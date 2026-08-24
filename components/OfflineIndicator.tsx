@@ -143,7 +143,9 @@ export function OfflineIndicator() {
       {(cachedDocs.length > 0 || !isOnline) && (
         <button
           onClick={handleOpenDownloads}
-          className="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2 bg-blue-700 rounded-full shadow-lg pl-3 pr-4 py-2.5 hover:bg-blue-800 hover:shadow-xl transition-all"
+          className={`fixed right-4 z-30 inline-flex items-center gap-2 bg-blue-700 rounded-full shadow-lg pl-3 pr-4 py-2.5 hover:bg-blue-800 hover:shadow-xl transition-all ${
+            isOnline ? "bottom-4" : "bottom-14"
+          }`}
           title="Documentos guardados offline"
         >
           <div className="relative">
