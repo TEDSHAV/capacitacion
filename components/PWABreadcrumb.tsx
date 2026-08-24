@@ -23,7 +23,7 @@ export function PWABreadcrumb({ className = "" }: PWABreadcrumbProps) {
   return (
     <nav className={`flex items-center gap-2 text-sm ${className}`} aria-label="Breadcrumb">
       {displayBreadcrumbs.map((item, index) => (
-        <div key={item.href} className="flex items-center gap-2">
+        <div key={`${index}-${item.href}`} className="flex items-center gap-2">
           {index > 0 && <ChevronRight className="w-4 h-4 text-gray-400" />}
           <Link
             href={item.href}

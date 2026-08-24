@@ -13,8 +13,9 @@ export function generateBreadcrumbs(
   pathname: string,
   context: NavigationContext
 ): BreadcrumbItem[] {
+  const homeHref = getHomeHref(context);
   const items: BreadcrumbItem[] = [
-    { label: "Home", href: getHomeHref(context) },
+    { label: "Home", href: homeHref },
   ];
 
   // Get navigation for this context
@@ -27,6 +28,9 @@ export function generateBreadcrumbs(
   let currentPath = "";
   for (const segment of segments) {
     currentPath += `/${segment}`;
+
+    // Skip the home path — it's already the first breadcrumb item
+    if (currentPath === homeHref) continue;
 
     // Find matching nav item
     const item = findNavItemByHref(nav, currentPath);
