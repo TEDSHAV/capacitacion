@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description:
       "Portal oficial de capacitación de SHA de Venezuela. Gestión de cursos, facilitadores, certificados y servicios de formación.",
     id: "/",
-    start_url: "/portal",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],

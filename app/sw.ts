@@ -56,6 +56,30 @@ const serwist = new Serwist({
       }),
     },
 
+    // --- Root launch page (documents only): NetworkFirst with cache fallback ---
+    // The PWA start_url is "/", so the root page must be cached for offline
+    // launches. The page itself is a client-side redirect to the dashboard
+    // (or the captured portal install path), so caching it ensures the
+    // redirect logic runs offline instead of showing a blank screen.
+    {
+      matcher: ({ url, request }) =>
+        request.mode === "navigate" && url.pathname === "/",
+      handler: new NetworkFirst({
+        cacheName: "root-pages",
+        networkTimeoutSeconds: 5,
+        plugins: [
+          {
+            cacheWillUpdate: async ({ response }) => {
+              if (response && response.status === 200 && !response.redirected) {
+                return response;
+              }
+              return null;
+            },
+          },
+        ],
+      }),
+    },
+
     // --- Portal navigations (documents only): NetworkFirst with cache fallback ---
     // Allows previously-visited portal pages to render offline on hard load/reload.
     {

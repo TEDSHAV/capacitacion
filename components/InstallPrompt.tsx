@@ -10,6 +10,7 @@ interface BeforeInstallPromptEvent extends Event {
 
 const DISMISS_KEY = "pwa-install-dismissed";
 const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+const INSTALL_PATH_KEY = "pwa_install_path";
 
 /**
  * Captures the `beforeinstallprompt` event and shows a custom "Install app"
@@ -89,6 +90,12 @@ export function InstallPrompt() {
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;
+    // Capture the page the user was on when they installed, so the PWA
+    // can launch back to it (e.g. /portal/facilitador/dashboard) instead
+    // of always defaulting to /portal.
+    try {
+      localStorage.setItem(INSTALL_PATH_KEY, window.location.pathname);
+    } catch {}
     await deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
     if (choice.outcome === "accepted") {
@@ -111,7 +118,14 @@ export function InstallPrompt() {
       <>
         {/* Compact button */}
         <button
-          onClick={() => setShowIOSInstructions(true)}
+          onClick={() => {
+            // iOS has no beforeinstallprompt, so capture the install path
+            // at the moment the user opens the install instructions.
+            try {
+              localStorage.setItem(INSTALL_PATH_KEY, window.location.pathname);
+            } catch {}
+            setShowIOSInstructions(true);
+          }}
           className="fixed bottom-4 left-4 z-30 inline-flex items-center gap-2 bg-blue-700 text-white px-4 py-2.5 rounded-full shadow-lg hover:bg-blue-800 transition-colors text-sm font-medium"
         >
           <Smartphone className="w-4 h-4" />
