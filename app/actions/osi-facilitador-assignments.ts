@@ -315,3 +315,357 @@ export async function getActiveFacilitatorsForDropdown() {
 
   return data || [];
 }
+
+/**
+ * Get all assignments (active and/or inactive) enriched with facilitador + OSI data.
+ * Used by the "Asignaciones y Credenciales" management page.
+ *
+ * - activeOnly: true → only is_active=true; false → only is_active=false; undefined → all
+ * - staleDays: when provided, computes days_since_end and is_stale flag based on
+ *   the OSI's fecha_fin_real. Assignments whose OSI has no fecha_fin_real are never stale.
+ */
+export async function getAllAssignments(opts?: {
+  activeOnly?: boolean;
+  staleDays?: number;
+}) {
+  const supabase = await createClient();
+  const staleDays = opts?.staleDays ?? 30;
+
+  let query = supabase
+    .from("facilitador_osi_assignments")
+    .select(`
+      id,
+      osi_id,
+      facilitador_id,
+      nro_sesion,
+      source,
+      is_active,
+      assigned_by,
+      created_at,
+      updated_at,
+      facilitadores (
+        id,
+        nombre_apellido,
+        cedula,
+        email,
+        is_active
+      )
+    `)
+    .order("created_at", { ascending: false });
+
+  if (opts?.activeOnly === true) {
+    query = query.eq("is_active", true);
+  } else if (opts?.activeOnly === false) {
+    query = query.eq("is_active", false);
+  }
+
+  const { data: assignments, error } = await query;
+
+  if (error) {
+    console.error("Error fetching all assignments:", error);
+    return { error: error.message };
+  }
+
+  if (!assignments || assignments.length === 0) {
+    return { data: [] };
+  }
+
+  const osiIds = Array.from(new Set(assignments.map((a) => a.osi_id)));
+
+  const { data: osiData, error: osiError } = await supabase
+    .from("v_osi_formato_completo")
+    .select("id_osi, nro_osi, nombre_empresa, servicio, fecha_fin_real, fecha_emision, id_estatus")
+    .in("id_osi", osiIds);
+
+  if (osiError) {
+    console.error("Error fetching OSI details for all assignments:", osiError);
+    return { error: osiError.message };
+  }
+
+  const osiMap = new Map((osiData || []).map((o) => [o.id_osi, o]));
+  const now = Date.now();
+
+  const enriched = assignments.map((a) => {
+    const osi = osiMap.get(a.osi_id);
+    const fechaFinReal = osi?.fecha_fin_real ?? null;
+    let daysSinceEnd: number | null = null;
+    if (fechaFinReal) {
+      const diff = now - new Date(fechaFinReal).getTime();
+      daysSinceEnd = Math.floor(diff / 86400000);
+    }
+    return {
+      ...a,
+      osi: osi || null,
+      days_since_end: daysSinceEnd,
+      is_stale: daysSinceEnd != null && daysSinceEnd > staleDays,
+    };
+  });
+
+  return { data: enriched };
+}
+
+/**
+ * Bulk-deactivate assignments. Reuses the cleanup logic from unassignOSIToFacilitador:
+ * for each assignment, deletes the facilitador's participants and acknowledgments for
+ * that OSI, then sets is_active=false.
+ */
+export async function bulkUnassignAssignments(assignmentIds: number[]) {
+  const supabase = await createClient();
+  const succeeded: number[] = [];
+  const failed: { id: number; error: string }[] = [];
+
+  for (const assignmentId of assignmentIds) {
+    try {
+      const { data: assignment } = await supabase
+        .from("facilitador_osi_assignments")
+        .select("osi_id, facilitador_id")
+        .eq("id", assignmentId)
+        .single();
+
+      if (assignment?.osi_id && assignment?.facilitador_id) {
+        await supabase
+          .from("ejecucion_osi_participantes")
+          .delete()
+          .eq("osi_id", assignment.osi_id)
+          .eq("facilitador_id", assignment.facilitador_id);
+        await supabase
+          .from("facilitador_acknowledgments")
+          .delete()
+          .eq("osi_id", assignment.osi_id)
+          .eq("facilitador_id", assignment.facilitador_id);
+      }
+
+      const { error } = await supabase
+        .from("facilitador_osi_assignments")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("id", assignmentId);
+
+      if (error) {
+        failed.push({ id: assignmentId, error: error.message });
+      } else {
+        succeeded.push(assignmentId);
+      }
+    } catch (err) {
+      failed.push({
+        id: assignmentId,
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  }
+
+  revalidatePath("/dashboard/capacitacion/gestion-de-facilitadores");
+  revalidatePath("/dashboard/capacitacion/gestion-osi");
+  revalidatePath("/dashboard/capacitacion/gestion-asignaciones");
+  revalidatePath("/portal/facilitador/dashboard");
+
+  return { success: succeeded.length, failed };
+}
+
+/**
+ * Aggregate stats for the metrics row on the Asignaciones y Credenciales page.
+ * staleDays controls the stale_count threshold (based on fecha_fin_real).
+ */
+export async function getAssignmentStats(staleDays = 30) {
+  const supabase = await createClient();
+
+  // Active assignments count
+  const { count: totalActive, error: activeErr } = await supabase
+    .from("facilitador_osi_assignments")
+    .select("*", { count: "exact", head: true })
+    .eq("is_active", true);
+
+  if (activeErr) {
+    console.error("Error counting active assignments:", activeErr);
+  }
+
+  // Inactive assignments count
+  const { count: totalInactive, error: inactiveErr } = await supabase
+    .from("facilitador_osi_assignments")
+    .select("*", { count: "exact", head: true })
+    .eq("is_active", false);
+
+  if (inactiveErr) {
+    console.error("Error counting inactive assignments:", inactiveErr);
+  }
+
+  // Active credentials count
+  const { count: activeCredentials, error: credActiveErr } = await supabase
+    .from("facilitador_credenciales")
+    .select("*", { count: "exact", head: true })
+    .eq("is_active", true);
+
+  if (credActiveErr) {
+    console.error("Error counting active credentials:", credActiveErr);
+  }
+
+  // Total credentials count
+  const { count: totalCredentials, error: credTotalErr } = await supabase
+    .from("facilitador_credenciales")
+    .select("*", { count: "exact", head: true });
+
+  if (credTotalErr) {
+    console.error("Error counting total credentials:", credTotalErr);
+  }
+
+  // Stale count: active assignments whose OSI fecha_fin_real is older than staleDays
+  let staleCount = 0;
+  const { data: activeAssignments } = await supabase
+    .from("facilitador_osi_assignments")
+    .select("osi_id")
+    .eq("is_active", true);
+
+  if (activeAssignments && activeAssignments.length > 0) {
+    const osiIds = Array.from(new Set(activeAssignments.map((a) => a.osi_id)));
+    const { data: osis } = await supabase
+      .from("v_osi_formato_completo")
+      .select("id_osi, fecha_fin_real")
+      .in("id_osi", osiIds);
+
+    const now = Date.now();
+    const staleOsiIds = new Set<number>();
+    for (const o of osis || []) {
+      if (o.fecha_fin_real) {
+        const diff = now - new Date(o.fecha_fin_real).getTime();
+        if (Math.floor(diff / 86400000) > staleDays) {
+          staleOsiIds.add(o.id_osi);
+        }
+      }
+    }
+    staleCount = activeAssignments.filter((a) => staleOsiIds.has(a.osi_id)).length;
+  }
+
+  return {
+    total_active: totalActive ?? 0,
+    total_inactive: totalInactive ?? 0,
+    stale_count: staleCount,
+    total_credentials: totalCredentials ?? 0,
+    active_credentials: activeCredentials ?? 0,
+  };
+}
+
+/**
+ * Single consolidated fetch for the Asignaciones y Credenciales page.
+ * Returns all assignments (active + inactive), all credentials, and computed stats
+ * in ONE server action call with 3 DB queries instead of 4 action calls + 11 queries.
+ *
+ * Stats are computed from the already-fetched data, avoiding redundant count queries.
+ */
+export async function getAsignacionesPageData(staleDays = 30) {
+  const supabase = await createClient();
+
+  // 1. Fetch ALL assignments (active + inactive) in a single query
+  const { data: assignments, error: assignError } = await supabase
+    .from("facilitador_osi_assignments")
+    .select(`
+      id,
+      osi_id,
+      facilitador_id,
+      nro_sesion,
+      source,
+      is_active,
+      assigned_by,
+      created_at,
+      updated_at,
+      facilitadores (
+        id,
+        nombre_apellido,
+        cedula,
+        email,
+        is_active
+      )
+    `)
+    .order("created_at", { ascending: false });
+
+  // 2. Fetch all credentials in parallel
+  const { data: credentials, error: credError } = await supabase
+    .from("facilitador_credenciales")
+    .select(`
+      id,
+      facilitador_id,
+      username,
+      is_active,
+      created_at,
+      updated_at,
+      facilitadores (
+        id,
+        nombre_apellido,
+        cedula,
+        email,
+        is_active
+      )
+    `)
+    .order("created_at", { ascending: false });
+
+  if (assignError) {
+    console.error("Error fetching all assignments:", assignError);
+    return { error: assignError.message };
+  }
+  if (credError) {
+    console.error("Error fetching all credentials:", credError);
+    return { error: credError.message };
+  }
+
+  // 3. Fetch OSI data for all referenced OSIs (single query)
+  const osiIds = Array.from(new Set((assignments || []).map((a) => a.osi_id)));
+  let osiMap = new Map<number, {
+    id_osi: number;
+    nro_osi: string;
+    nombre_empresa: string | null;
+    servicio: string | null;
+    fecha_fin_real: string | null;
+    fecha_emision: string | null;
+    id_estatus: number | null;
+  }>();
+
+  if (osiIds.length > 0) {
+    const { data: osiData, error: osiError } = await supabase
+      .from("v_osi_formato_completo")
+      .select("id_osi, nro_osi, nombre_empresa, servicio, fecha_fin_real, fecha_emision, id_estatus")
+      .in("id_osi", osiIds);
+
+    if (osiError) {
+      console.error("Error fetching OSI details for page data:", osiError);
+    } else {
+      osiMap = new Map((osiData || []).map((o) => [o.id_osi, o]));
+    }
+  }
+
+  // Enrich assignments with OSI data + stale computation
+  const now = Date.now();
+  const enrichedAssignments = (assignments || []).map((a) => {
+    const osi = osiMap.get(a.osi_id) || null;
+    const fechaFinReal = osi?.fecha_fin_real ?? null;
+    let daysSinceEnd: number | null = null;
+    if (fechaFinReal) {
+      const diff = now - new Date(fechaFinReal).getTime();
+      daysSinceEnd = Math.floor(diff / 86400000);
+    }
+    return {
+      ...a,
+      osi,
+      days_since_end: daysSinceEnd,
+      is_stale: daysSinceEnd != null && daysSinceEnd > staleDays,
+    };
+  });
+
+  // Compute stats from the already-fetched data (no extra DB queries)
+  const activeAssignments = enrichedAssignments.filter((a) => a.is_active === true);
+  const inactiveAssignments = enrichedAssignments.filter((a) => a.is_active === false);
+  const staleCount = activeAssignments.filter((a) => a.is_stale).length;
+  const allCreds = credentials || [];
+  const activeCreds = allCreds.filter((c) => c.is_active === true);
+
+  return {
+    data: {
+      assignments: enrichedAssignments,
+      credentials: allCreds,
+      stats: {
+        total_active: activeAssignments.length,
+        total_inactive: inactiveAssignments.length,
+        stale_count: staleCount,
+        total_credentials: allCreds.length,
+        active_credentials: activeCreds.length,
+      },
+    },
+  };
+}

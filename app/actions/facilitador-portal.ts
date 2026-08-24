@@ -804,3 +804,63 @@ export async function deleteOSIAttachment(id: string, storagePath: string): Prom
     return { error: error instanceof Error ? error.message : "Error al eliminar el archivo" };
   }
 }
+
+/**
+ * Get all facilitador portal credentials with facilitador profile info.
+ * Used by the "Asignaciones y Credenciales" management page.
+ */
+export async function getAllFacilitatorCredentials() {
+  const supabase = await createAdminClient();
+
+  const { data, error } = await supabase
+    .from("facilitador_credenciales")
+    .select(`
+      id,
+      facilitador_id,
+      username,
+      is_active,
+      created_at,
+      updated_at,
+      facilitadores (
+        id,
+        nombre_apellido,
+        cedula,
+        email,
+        is_active
+      )
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching all facilitator credentials:", error);
+    return { error: error.message };
+  }
+
+  return { data: data || [] };
+}
+
+/**
+ * Toggle the is_active flag on a facilitador's portal credentials without
+ * deleting them. Useful for temporarily suspending portal access.
+ */
+export async function toggleFacilitatorCredentialsActive(
+  facilitadorId: number,
+  isActive: boolean,
+) {
+  const supabase = await createAdminClient();
+
+  const { error } = await supabase
+    .from("facilitador_credenciales")
+    .update({ is_active: isActive, updated_at: new Date().toISOString() })
+    .eq("facilitador_id", facilitadorId);
+
+  if (error) {
+    console.error("Error toggling facilitator credentials active state:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath("/dashboard/capacitacion/gestion-asignaciones");
+  revalidatePath("/dashboard/capacitacion/gestion-de-facilitadores");
+
+  return { success: true };
+}

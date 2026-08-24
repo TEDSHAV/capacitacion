@@ -112,7 +112,7 @@ export function PWALayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Top Navigation */}
       <PWATopNav
         title={pageTitle}
@@ -123,7 +123,7 @@ export function PWALayout({
       />
 
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Navigation Drawer */}
         <PWANavDrawer
           isOpen={isMenuOpen}
@@ -134,7 +134,7 @@ export function PWALayout({
         />
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 min-w-0 overflow-y-auto">
           {/* Breadcrumb */}
           <div className="sticky top-0 z-20 bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-3">
             <PWABreadcrumb />

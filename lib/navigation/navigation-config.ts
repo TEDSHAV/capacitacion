@@ -11,6 +11,7 @@ import {
   Signature,
   Settings,
   Calendar,
+  KeyRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -198,6 +199,13 @@ const DASHBOARD_NAV: NavItem[] = [
         label: "Firmas",
         href: "/dashboard/capacitacion/gestion-de-firmas",
         icon: Signature,
+        offlineAvailable: true,
+      },
+      {
+        id: "assignments-credentials",
+        label: "Asignaciones y Credenciales",
+        href: "/dashboard/capacitacion/gestion-asignaciones",
+        icon: KeyRound,
         offlineAvailable: true,
       },
     ],
