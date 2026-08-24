@@ -8,6 +8,7 @@ import { optimizeDocumentImage, optimizePdfToImage } from "@/lib/image-optimizat
 import { OSIAttachment } from "@/types";
 import { signSession, verifySession } from "@/lib/session-signing";
 import { getSessionCount } from "@/lib/osi-utils";
+import { notifyCapacitacionUsersOfUpload } from "./facilitador-notifications";
 import {
   getClientIp,
   checkLoginRateLimit,
@@ -446,6 +447,27 @@ export async function saveParticipants(
     }
   }
 
+  // Notify capacitacion users when the facilitador submits the final participant list
+  // Fire-and-forget — don't block the submission on notification errors
+  if (status === "final") {
+    try {
+      const { data: osiInfo } = await supabase
+        .from("v_osi_lista")
+        .select("nro_osi")
+        .eq("id_osi", osiId)
+        .maybeSingle();
+
+      await notifyCapacitacionUsersOfUpload({
+        osiId,
+        nroOsi: osiInfo?.nro_osi ?? `ID ${osiId}`,
+        facilitadorName: session.nombre,
+        category: "lista_participantes",
+      });
+    } catch (notifErr) {
+      console.error("[saveParticipants] Notification error (non-fatal):", notifErr);
+    }
+  }
+
   revalidatePath("/portal/facilitador/dashboard");
   revalidatePath("/dashboard/capacitacion/seguimiento-servicios");
   return { success: true };
@@ -660,6 +682,26 @@ export async function uploadOSIAttachment(
 
     // Always revalidate the seguimiento-servicios page so any auto-marked step is visible
     revalidatePath("/dashboard/capacitacion/seguimiento-servicios");
+
+    // Notify capacitacion users that a facilitador uploaded documentation
+    // Fire-and-forget — don't block the upload on notification errors
+    try {
+      const { data: osiInfo } = await supabase
+        .from("v_osi_lista")
+        .select("nro_osi")
+        .eq("id_osi", osiId)
+        .maybeSingle();
+
+      await notifyCapacitacionUsersOfUpload({
+        osiId,
+        nroOsi: osiInfo?.nro_osi ?? `ID ${osiId}`,
+        facilitadorName: session.nombre,
+        category,
+        nroSesion,
+      });
+    } catch (notifErr) {
+      console.error("[uploadOSIAttachment] Notification error (non-fatal):", notifErr);
+    }
 
     const returnValue = { success: true, data: data as OSIAttachment };
     console.log("[uploadOSIAttachment] Returning success:", { hasData: !!returnValue.data, dataId: returnValue.data?.id });
