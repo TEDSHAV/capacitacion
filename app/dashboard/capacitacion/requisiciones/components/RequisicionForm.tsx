@@ -14,6 +14,7 @@ import {
 } from "@/app/actions/requisiciones";
 import { mapGerenciaSolicitante } from "@/lib/requisiciones-gerencia";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -805,7 +806,7 @@ function RequisicionFormContent({
               <tr className="bg-gray-50 text-center border-b border-gray-300">
                 <th className="p-2 border-r border-gray-300 w-12">ITEM</th>
                 <th className="p-2 border-r border-gray-300 w-20">UNIDAD/ CONCEPTO</th>
-                <th className="p-2 border-r border-gray-300 w-16">CANT</th>
+                <th className="p-2 border-r border-gray-300 w-20">CANT</th>
                 <th className="p-2 border-r border-gray-300">DESCRIPCIÓN</th>
                 {!isGeneralMode && (
                   <th className="p-2 border-r border-gray-300 w-32">PRECIO U.</th>
@@ -853,18 +854,22 @@ function RequisicionFormContent({
                 <td className="p-2 border-r border-gray-300"></td>
                 <td className="p-2 border-r border-gray-300">
                   <div className="flex items-center gap-2">
-                    <Input 
-                      type="number" 
-                      value={osiFi.dias_traslado || ""} 
-                      onChange={(e) => updateOSIFixedItem(osiFi.id_osi, { dias_traslado: parseInt(e.target.value) || 0 })}
-                      className="h-6 w-12 border-gray-300 p-1 text-center" 
+                    <NumberInput
+                      value={osiFi.dias_traslado || 0}
+                      onValueChange={(n) => updateOSIFixedItem(osiFi.id_osi, { dias_traslado: n })}
+                      allowDecimal={false}
+                      min={0}
+                      step={1}
+                      className="h-6 w-12 border-gray-300 p-1 text-center"
                     />
                     <span className="uppercase text-[10px] font-medium">DÍAS DE TRASL. COSTO X C/U $</span>
-                    <Input 
-                      type="number" 
-                      value={osiFi.costo_traslado || ""} 
-                      onChange={(e) => updateOSIFixedItem(osiFi.id_osi, { costo_traslado: parseFloat(e.target.value) || 0 })}
-                      className="h-6 w-20 border-gray-300 p-1 font-bold" 
+                    <NumberInput
+                      value={osiFi.costo_traslado || 0}
+                      onValueChange={(n) => updateOSIFixedItem(osiFi.id_osi, { costo_traslado: n })}
+                      allowDecimal
+                      min={0}
+                      step={0.01}
+                      className="h-6 w-20 border-gray-300 p-1 font-bold"
                     />
                   </div>
                 </td>
@@ -889,11 +894,13 @@ function RequisicionFormContent({
                 <td className="p-2 border-r border-gray-300">
                   <div className="flex items-center gap-2">
                     <span className="uppercase font-medium">IMPRESIÓN TOTAL $</span>
-                    <Input 
-                      type="number" 
-                      value={osiFi.impresion_total || ""} 
-                      onChange={(e) => updateOSIFixedItem(osiFi.id_osi, { impresion_total: parseFloat(e.target.value) || 0 })}
-                      className="h-6 w-24 border-gray-300 p-1 font-bold" 
+                    <NumberInput
+                      value={osiFi.impresion_total || 0}
+                      onValueChange={(n) => updateOSIFixedItem(osiFi.id_osi, { impresion_total: n })}
+                      allowDecimal
+                      min={0}
+                      step={0.01}
+                      className="h-6 w-24 border-gray-300 p-1 font-bold"
                     />
                   </div>
                 </td>
@@ -918,18 +925,22 @@ function RequisicionFormContent({
                 <td className="p-2 border-r border-gray-300">
                   <div className="flex items-center gap-2">
                     <span className="font-medium uppercase">HONORARIOS $</span>
-                    <Input 
-                      type="number" 
-                      value={osiFi.honorarios_costo_hora || ""} 
-                      onChange={(e) => updateOSIFixedItem(osiFi.id_osi, { honorarios_costo_hora: parseFloat(e.target.value) || 0 })}
-                      className="h-6 w-24 border-gray-300 p-1 font-bold" 
+                    <NumberInput
+                      value={osiFi.honorarios_costo_hora || 0}
+                      onValueChange={(n) => updateOSIFixedItem(osiFi.id_osi, { honorarios_costo_hora: n })}
+                      allowDecimal
+                      min={0}
+                      step={0.01}
+                      className="h-6 w-24 border-gray-300 p-1 font-bold"
                     />
                     <span className="font-medium uppercase">, POR HORAS</span>
-                    <Input 
-                      type="number" 
-                      value={osiFi.honorarios_horas || ""} 
-                      onChange={(e) => updateOSIFixedItem(osiFi.id_osi, { honorarios_horas: parseFloat(e.target.value) || 0 })}
-                      className="h-6 w-12 border-gray-300 p-1 text-center" 
+                    <NumberInput
+                      value={osiFi.honorarios_horas || 0}
+                      onValueChange={(n) => updateOSIFixedItem(osiFi.id_osi, { honorarios_horas: n })}
+                      allowDecimal
+                      min={0}
+                      step={0.01}
+                      className="h-6 w-12 border-gray-300 p-1 text-center"
                     />
                   </div>
                 </td>
@@ -954,11 +965,13 @@ function RequisicionFormContent({
                 <td className="p-2 border-r border-gray-300">
                   <div className="flex items-center gap-2">
                     <span className="uppercase font-medium">INFORME FINAL $</span>
-                    <Input 
-                      type="number" 
-                      value={osiFi.informe_final_total || ""} 
-                      onChange={(e) => updateOSIFixedItem(osiFi.id_osi, { informe_final_total: parseFloat(e.target.value) || 0 })}
-                      className="h-6 w-24 border-gray-300 p-1 font-bold" 
+                    <NumberInput
+                      value={osiFi.informe_final_total || 0}
+                      onValueChange={(n) => updateOSIFixedItem(osiFi.id_osi, { informe_final_total: n })}
+                      allowDecimal
+                      min={0}
+                      step={0.01}
+                      className="h-6 w-24 border-gray-300 p-1 font-bold"
                       placeholder="0.00"
                     />
                   </div>
@@ -1005,11 +1018,13 @@ function RequisicionFormContent({
                       />
                     </td>
                     <td className="p-2 border-r border-gray-300">
-                      <Input 
-                        type="number"
-                        className="h-6 w-full text-center border-gray-300 p-1" 
+                      <NumberInput
                         value={item.cant}
-                        onChange={(e) => updateAdditionalItem(item.id, { cant: parseInt(e.target.value) || 1 })}
+                        onValueChange={(n) => updateAdditionalItem(item.id, { cant: n })}
+                        allowDecimal={false}
+                        min={1}
+                        step={1}
+                        className="h-6 w-full text-center border-gray-300 p-1"
                       />
                     </td>
                     <td className="p-2 border-r border-gray-300">
@@ -1024,11 +1039,13 @@ function RequisicionFormContent({
                       <td className="p-2 border-r border-gray-300">
                         <div className="flex items-center gap-1">
                           <span>$</span>
-                          <Input 
-                            type="number"
-                            className="h-6 w-full border-gray-300 p-1 font-bold text-center" 
+                          <NumberInput
                             value={item.costo_unitario}
-                            onChange={(e) => updateAdditionalItem(item.id, { costo_unitario: parseFloat(e.target.value) || 0 })}
+                            onValueChange={(n) => updateAdditionalItem(item.id, { costo_unitario: n })}
+                            allowDecimal
+                            min={0}
+                            step={0.01}
+                            className="h-6 w-full border-gray-300 p-1 font-bold text-center"
                           />
                         </div>
                       </td>
@@ -1097,11 +1114,13 @@ function RequisicionFormContent({
                       />
                     </td>
                     <td className="p-2 border-r border-gray-300">
-                      <Input 
-                        type="number"
-                        className="h-6 w-full text-center border-gray-300 p-1" 
+                      <NumberInput
                         value={item.cant}
-                        onChange={(e) => updateAdditionalItem(item.id, { cant: parseInt(e.target.value) || 1 })}
+                        onValueChange={(n) => updateAdditionalItem(item.id, { cant: n })}
+                        allowDecimal={false}
+                        min={1}
+                        step={1}
+                        className="h-6 w-full text-center border-gray-300 p-1"
                       />
                     </td>
                     <td className="p-2 border-r border-gray-300">
@@ -1116,11 +1135,13 @@ function RequisicionFormContent({
                       <td className="p-2 border-r border-gray-300">
                         <div className="flex items-center gap-1">
                           <span>$</span>
-                          <Input 
-                            type="number"
-                            className="h-6 w-full border-gray-300 p-1 font-bold text-center" 
+                          <NumberInput
                             value={item.costo_unitario}
-                            onChange={(e) => updateAdditionalItem(item.id, { costo_unitario: parseFloat(e.target.value) || 0 })}
+                            onValueChange={(n) => updateAdditionalItem(item.id, { costo_unitario: n })}
+                            allowDecimal
+                            min={0}
+                            step={0.01}
+                            className="h-6 w-full border-gray-300 p-1 font-bold text-center"
                           />
                         </div>
                       </td>
@@ -1188,11 +1209,13 @@ function RequisicionFormContent({
                     />
                   </td>
                   <td className="p-2 border-r border-gray-300">
-                    <Input 
-                      type="number"
-                      className="h-6 w-full text-center border-gray-300 p-1" 
+                    <NumberInput
                       value={item.cant}
-                      onChange={(e) => updateAdditionalItem(item.id, { cant: parseInt(e.target.value) || 1 })}
+                      onValueChange={(n) => updateAdditionalItem(item.id, { cant: n })}
+                      allowDecimal={false}
+                      min={1}
+                      step={1}
+                      className="h-6 w-full text-center border-gray-300 p-1"
                     />
                   </td>
                   <td className="p-2 border-r border-gray-300">
@@ -1207,11 +1230,13 @@ function RequisicionFormContent({
                     <td className="p-2 border-r border-gray-300">
                       <div className="flex items-center gap-1">
                         <span>$</span>
-                        <Input 
-                          type="number"
-                          className="h-6 w-full border-gray-300 p-1 font-bold text-center" 
+                        <NumberInput
                           value={item.costo_unitario}
-                          onChange={(e) => updateAdditionalItem(item.id, { costo_unitario: parseFloat(e.target.value) || 0 })}
+                          onValueChange={(n) => updateAdditionalItem(item.id, { costo_unitario: n })}
+                          allowDecimal
+                          min={0}
+                          step={0.01}
+                          className="h-6 w-full border-gray-300 p-1 font-bold text-center"
                         />
                       </div>
                     </td>

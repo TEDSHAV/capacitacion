@@ -4,6 +4,7 @@ import { useState, Fragment, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { NumberInput } from "@/components/ui/number-input";
 import { RequisicionItem, OSIFixedItem } from "@/types/requisiciones";
 import { setRequisicionEstatus, updateItemVerificacion, updateFixedItemVerificacion, markAllItemsVerificadas, saveVerificacionProgress, getExchangeRate, updateFacilitadorBankingDetails, acknowledgeRequisicionReceipt, approveRequisicionByCoordinador, rejectRequisicionByCoordinador, approveRequisicionByLider, rejectRequisicionByLider, updateRequisicionByApprover } from "@/app/actions/requisiciones";
 import { CheckCircle2, XCircle, Undo2, Clock, AlertTriangle, CalendarClock, Copy, Check, Download, Save, Printer, PackageCheck, Plus, Trash2 } from "lucide-react";
@@ -1016,7 +1017,7 @@ export default function RequisicionView({
               <tr className="bg-gray-50 text-center border-b border-gray-300">
                 <th className="p-2 border-r border-gray-300 w-12">ITEM</th>
                 <th className="p-2 border-r border-gray-300 w-20">UNIDAD/ CONCEPTO</th>
-                <th className="p-2 border-r border-gray-300 w-16">CANT</th>
+                <th className="p-2 border-r border-gray-300 w-20">CANT</th>
                 <th className="p-2 border-r border-gray-300">DESCRIPCIÓN</th>
                 {!isGeneralMode && (
                   <th className="p-2 border-r border-gray-300 w-32">PRECIO U.</th>
@@ -1409,12 +1410,13 @@ export default function RequisicionView({
                     />
                   </td>
                   <td className="p-2 text-center border-r border-gray-300">
-                    <input
-                      type="number"
-                      min="1"
+                    <NumberInput
                       value={item.cant || 1}
-                      onChange={(e) => handleApproverItemChange(item.id, "cant", Number(e.target.value))}
-                      className="w-14 px-1 py-0.5 text-xs text-center border border-gray-300 rounded font-bold focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      onValueChange={(n) => handleApproverItemChange(item.id, "cant", n)}
+                      allowDecimal={false}
+                      min={1}
+                      step={1}
+                      className="w-full px-1 py-0.5 text-xs text-center border border-gray-300 rounded font-bold focus:outline-none focus:ring-1 focus:ring-blue-400"
                     />
                   </td>
                   <td className="p-2 border-r border-gray-300">
@@ -1428,12 +1430,12 @@ export default function RequisicionView({
                   </td>
                   {!isGeneralMode && (
                     <td className="p-2 text-center border-r border-gray-300">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                      <NumberInput
                         value={item.costo_unitario || 0}
-                        onChange={(e) => handleApproverItemChange(item.id, "costo_unitario", Number(e.target.value))}
+                        onValueChange={(n) => handleApproverItemChange(item.id, "costo_unitario", n)}
+                        allowDecimal
+                        min={0}
+                        step={0.01}
                         className="w-20 px-1 py-0.5 text-xs text-center border border-gray-300 rounded font-bold focus:outline-none focus:ring-1 focus:ring-blue-400"
                       />
                     </td>
