@@ -9,7 +9,6 @@ import {
   FileStack,
   LayoutGrid,
   Signature,
-  Settings,
   Calendar,
   KeyRound,
   FilePlus2,
@@ -240,13 +239,6 @@ const DASHBOARD_NAV: NavItem[] = [
         offlineAvailable: true,
       },
     ],
-  },
-  {
-    id: "settings",
-    label: "Configuración",
-    href: "/dashboard/capacitacion/configuracion/feriados",
-    icon: Settings,
-    offlineAvailable: true,
   },
 ];
 
