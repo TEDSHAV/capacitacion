@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/utils/supabase/server";
+import { syncOsiEjecutadoToShell } from "@/lib/sync/sync-osi-estatus";
 
 /**
  * POST /api/capacitacion/proceso-steps/toggle
@@ -52,6 +53,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: error.message || "Failed to toggle step" },
         { status: 500 }
+      );
+    }
+
+    // Sync `ejecutado` step to the shell's OSI status tables (best-effort).
+    // This handles the offline sync queue replay path.
+    if (stepKey === "ejecutado") {
+      await syncOsiEjecutadoToShell(osiId, nroSesion, desiredState).catch((err) =>
+        console.error("[proceso-steps/toggle] syncOsiEjecutadoToShell failed:", err),
       );
     }
 

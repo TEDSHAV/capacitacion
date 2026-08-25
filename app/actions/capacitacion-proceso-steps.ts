@@ -11,6 +11,7 @@ import {
   ALL_STEPS,
 } from "@/lib/proceso-steps";
 import type { OSIAttachment, OSISesion } from "@/types";
+import { syncOsiEjecutadoToShell } from "@/lib/sync/sync-osi-estatus";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -365,6 +366,14 @@ export async function toggleProcesoStep(
       }
     }
 
+    // Sync `ejecutado` step to the shell's OSI status tables (best-effort).
+    // The sync resolves the session date internally from osi_sesion / sesiones_programadas.
+    if (stepKey === "ejecutado") {
+      await syncOsiEjecutadoToShell(osiId, nroSesion, newCompleted).catch((err) =>
+        console.error("[toggleProcesoStep] syncOsiEjecutadoToShell failed:", err),
+      );
+    }
+
     return { success: true, completed: newCompleted };
   } catch (err) {
     console.error("Unexpected error in toggleProcesoStep:", err);
@@ -586,6 +595,31 @@ export async function autoAdvanceEjecucionSteps(
 
       if (upsertError) {
         console.error("Error auto-advancing ejecucion steps:", JSON.stringify(upsertError, null, 2));
+      }
+    }
+
+    // Sync auto-advanced `ejecutado` steps to the shell's OSI status tables.
+    // Only the `ejecutado` step_key triggers the shell sync (best-effort).
+    // Group by osiId to call recalcOsiEstatusFromSteps once per OSI after
+    // all its sessions are synced.
+    const ejecutadoUpsertsByOsi = new Map<number, Array<{ nro_sesion: number; sessionDate: string | null }>>();
+    for (const u of upserts) {
+      if (u.step_key !== "ejecutado" || !u.completed) continue;
+      const osi = osis.find((o) => o.id_osi === u.osi_id);
+      if (!osi) continue;
+      const sessions = sessionsByOsi.get(u.osi_id) || [];
+      const session = sessions.find((s) => s.nro_sesion === u.nro_sesion);
+      const sessionDate = session?.fecha ?? null;
+      const list = ejecutadoUpsertsByOsi.get(u.osi_id) || [];
+      list.push({ nro_sesion: u.nro_sesion, sessionDate });
+      ejecutadoUpsertsByOsi.set(u.osi_id, list);
+    }
+
+    for (const [osiId, sessions] of ejecutadoUpsertsByOsi) {
+      for (const { nro_sesion, sessionDate } of sessions) {
+        await syncOsiEjecutadoToShell(osiId, nro_sesion, true, sessionDate).catch((err) =>
+          console.error("[autoAdvanceEjecucionSteps] syncOsiEjecutadoToShell failed:", err),
+        );
       }
     }
 
