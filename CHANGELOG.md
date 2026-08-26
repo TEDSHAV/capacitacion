@@ -12,6 +12,11 @@ This project follows [Semantic Versioning](https://semver.org/) and
 > (an author-email change) and do not reflect when that work was actually done.
 > Only commits following the Conventional Commits format appear in the entries below.
 
+## [1.11.2](https://github.com/TEDSHAV/capacitacion/compare/v1.11.1...v1.11.2) (2026-08-26)
+
+### Bug Fixes
+
+* PDF header meta box shows código/fecha/revisión/página, fix footer width cutoff, reduce header padding, fix Bloque III row overlap 686a1eb
 ## [1.11.1](https://github.com/TEDSHAV/capacitacion/compare/v1.11.0...v1.11.1) (2026-08-26)
 
 ### Bug Fixes
