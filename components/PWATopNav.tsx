@@ -52,9 +52,9 @@ export function PWATopNav({
               <Image
                 src="/logo.png"
                 alt="SHA de Venezuela"
-                width={160}
-                height={50}
-                className="object-contain h-10 sm:h-12 w-auto"
+                width={878}
+                height={275}
+                className="h-7 sm:h-9 lg:h-11 w-auto"
                 priority
               />
             </Link>
