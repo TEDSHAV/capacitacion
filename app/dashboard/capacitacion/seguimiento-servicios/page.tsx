@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SeguimientoServiciosPage() {
   // Fetch initial OSIs first (fast — 2-3 round trips) so the page shell can paint.
-  const result = await getOSIsForManagement({}, 1, 20);
+  const result = await getOSIsForManagement({}, 1, 5);
   const osis = result.osis as OSIManagement[];
 
   return (

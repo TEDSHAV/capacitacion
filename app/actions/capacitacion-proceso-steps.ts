@@ -372,6 +372,12 @@ export async function toggleProcesoStep(
       await syncOsiEjecutadoToShell(osiId, nroSesion, newCompleted).catch((err) =>
         console.error("[toggleProcesoStep] syncOsiEjecutadoToShell failed:", err),
       );
+    } else if (stepKey === "en_proceso" && !newCompleted) {
+      // Unmarking en_proceso = service didn't happen (e.g. cancelled same-day) →
+      // sync NO_EJECUTADA to the shell so Consulta OSI reflects the cancellation.
+      await syncOsiEjecutadoToShell(osiId, nroSesion, false).catch((err) =>
+        console.error("[toggleProcesoStep] syncOsiEjecutadoToShell (en_proceso unmark) failed:", err),
+      );
     }
 
     return { success: true, completed: newCompleted };
@@ -545,10 +551,13 @@ export async function autoAdvanceEjecucionSteps(
           if (startDateStr < todayStr) isPast = true;
         }
 
-        // Auto-complete "en_proceso" if date is today or past
+        // Auto-complete "en_proceso" if date is today or past — but ONLY if no row
+        // exists yet (first time). If a row exists (even with completed=false, meaning
+        // the user manually unmarked it), don't re-auto-mark it. The user can manually
+        // re-mark it when the service resumes.
         if (isTodayOrPast) {
           const enProceso = sessionSteps.get("en_proceso");
-          if (!enProceso || !enProceso.completed) {
+          if (!enProceso) {
             upserts.push({
               osi_id: osi.id_osi,
               nro_sesion: nroSesion,

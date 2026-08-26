@@ -34,6 +34,7 @@ export const EJECUCION_STEPS: StepDef[] = [
     label: "En proceso",
     description: "El servicio está en ejecución (auto-avanzado al llegar la fecha de inicio).",
     auto: true,
+    autoUnmarkable: true,
     phase: "ejecucion",
   },
   {

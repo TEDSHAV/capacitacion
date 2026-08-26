@@ -98,7 +98,7 @@ export default function SeguimientoServiciosClient({
   const [filters, setFilters] = useState<OSIFilters>({});
   const [stepFilter, setStepFilter] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
+  const [itemsPerPage] = useState(5);
   // osiId → nroSesion → stepKey → record
   const [stepsByOsi, setStepsByOsi] = useState<
     Map<number, Map<number, Record<string, ProcesoStepRecord>>>
