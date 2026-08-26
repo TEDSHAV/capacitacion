@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import {
   Empresa,
   Usuario,
@@ -390,37 +391,42 @@ export async function getOSIsForManagement(
   }
 }
 
-// Get filter options for OSI management
-export async function getOSIFilterOptions() {
-  try {
-    const supabase = await createClient();
+// Get filter options for OSI management (cached 5 minutes — reference data
+// that changes rarely: companies, ejecutivos, statuses)
+export const getOSIFilterOptions = unstable_cache(
+  async () => {
+    try {
+      const supabase = await createClient();
 
-    const { data, error } = await supabase.rpc("get_osi_filter_options");
+      const { data, error } = await supabase.rpc("get_osi_filter_options");
 
-    if (error || !data || data.length === 0) {
-      console.error("Error fetching OSI filter options:", error);
+      if (error || !data || data.length === 0) {
+        console.error("Error fetching OSI filter options:", error);
+        return {
+          companies: [],
+          ejecutivos: [],
+          statuses: [],
+        };
+      }
+
+      const row = data[0];
+      return {
+        companies: row.companies || [],
+        ejecutivos: row.ejecutivos || [],
+        statuses: row.statuses || [],
+      };
+    } catch (err) {
+      console.error("Error fetching OSI filter options:", err);
       return {
         companies: [],
         ejecutivos: [],
         statuses: [],
       };
     }
-
-    const row = data[0];
-    return {
-      companies: row.companies || [],
-      ejecutivos: row.ejecutivos || [],
-      statuses: row.statuses || [],
-    };
-  } catch (err) {
-    console.error("Error fetching OSI filter options:", err);
-    return {
-      companies: [],
-      ejecutivos: [],
-      statuses: [],
-    };
-  }
-}
+  },
+  ["osi-filter-options"],
+  { tags: ["osi-filter-options"], revalidate: 300 },
+);
 
 /**
  * Get manual OSI batches (certificates not linked to a real OSI record)

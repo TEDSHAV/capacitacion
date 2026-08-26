@@ -615,36 +615,73 @@ export async function autoAdvanceEjecucionSteps(
       ejecutadoUpsertsByOsi.set(u.osi_id, list);
     }
 
+    // Sync auto-advanced `ejecutado` steps to the shell's OSI status tables in parallel.
+    // Each call is independent (different osiId/nroSesion pairs); recalcOsiEstatusFromSteps
+    // is idempotent so concurrent calls for the same OSI produce the same final status.
+    const syncPromises: Promise<void>[] = [];
     for (const [osiId, sessions] of ejecutadoUpsertsByOsi) {
       for (const { nro_sesion, sessionDate } of sessions) {
-        await syncOsiEjecutadoToShell(osiId, nro_sesion, true, sessionDate).catch((err) =>
-          console.error("[autoAdvanceEjecucionSteps] syncOsiEjecutadoToShell failed:", err),
+        syncPromises.push(
+          syncOsiEjecutadoToShell(osiId, nro_sesion, true, sessionDate).catch((err) =>
+            console.error("[autoAdvanceEjecucionSteps] syncOsiEjecutadoToShell failed:", err),
+          ),
         );
       }
     }
+    await Promise.all(syncPromises);
 
-    // Re-fetch all steps AFTER seeding and auto-advance to ensure the return map
-    // reflects the actual DB state (handles race conditions where facilitador uploads
-    // auto-marked a step while this function was running).
-    const { data: refreshedSteps } = await admin
-      .from("capacitacion_proceso_steps")
-      .select("*")
-      .in("osi_id", osiIds);
-
-    // Rebuild stepsLookup from the fresh fetch
-    const freshLookup = new Map<number, Map<number, Map<string, ProcesoStepRecord>>>();
-    for (const row of (refreshedSteps || []) as ProcesoStepRecord[]) {
-      let osiMap = freshLookup.get(row.osi_id);
+    // Build the returned steps map from the existing stepsLookup + applied upserts
+    // (no re-fetch needed — we already have the pre-upsert state and know exactly what
+    // we upserted). Overlay upserts onto stepsLookup in memory.
+    for (const u of upserts) {
+      let osiMap = stepsLookup.get(u.osi_id);
       if (!osiMap) {
         osiMap = new Map();
-        freshLookup.set(row.osi_id, osiMap);
+        stepsLookup.set(u.osi_id, osiMap);
       }
-      let sessionMap = osiMap.get(row.nro_sesion);
+      let sessionMap = osiMap.get(u.nro_sesion);
       if (!sessionMap) {
         sessionMap = new Map();
-        osiMap.set(row.nro_sesion, sessionMap);
+        osiMap.set(u.nro_sesion, sessionMap);
       }
-      sessionMap.set(row.step_key, row);
+      const prev = sessionMap.get(u.step_key);
+      sessionMap.set(u.step_key, {
+        id: prev?.id ?? 0,
+        osi_id: u.osi_id,
+        nro_sesion: u.nro_sesion,
+        phase: u.phase,
+        step_key: u.step_key,
+        completed: u.completed,
+        completed_at: u.completed_at,
+        completed_by: prev?.completed_by ?? null,
+        notes: prev?.notes ?? null,
+      });
+    }
+    // Also overlay seeded rows (id: 0 placeholders) so the return map includes them
+    for (const s of seedRows) {
+      let osiMap = stepsLookup.get(s.osi_id);
+      if (!osiMap) {
+        osiMap = new Map();
+        stepsLookup.set(s.osi_id, osiMap);
+      }
+      let sessionMap = osiMap.get(s.nro_sesion);
+      if (!sessionMap) {
+        sessionMap = new Map();
+        osiMap.set(s.nro_sesion, sessionMap);
+      }
+      if (!sessionMap.has(s.step_key)) {
+        sessionMap.set(s.step_key, {
+          id: 0,
+          osi_id: s.osi_id,
+          nro_sesion: s.nro_sesion,
+          phase: s.phase,
+          step_key: s.step_key,
+          completed: false,
+          completed_at: null,
+          completed_by: null,
+          notes: null,
+        });
+      }
     }
 
     // Build the returned steps map reflecting post-upsert state:
@@ -655,7 +692,7 @@ export async function autoAdvanceEjecucionSteps(
     for (const osi of osis) {
       const osiId = osi.id_osi;
       const osiMap = new Map<number, Record<string, ProcesoStepRecord>>();
-      const existingOsiMap = freshLookup.get(osiId);
+      const existingOsiMap = stepsLookup.get(osiId);
       const sessions = resolveSessions(osi, osiSesionByOsi.get(osiId));
 
       for (const session of sessions) {
@@ -690,7 +727,8 @@ export async function autoAdvanceEjecucionSteps(
           };
         }
 
-        // Overlay existing DB rows (real ids + state)
+        // Overlay existing DB rows (real ids + state) — this now includes
+        // upserted rows since we overlaid them onto stepsLookup in memory above.
         const existingSession = existingOsiMap?.get(nroSesion);
         if (existingSession) {
           for (const [stepKey, record] of existingSession.entries()) {
@@ -698,28 +736,6 @@ export async function autoAdvanceEjecucionSteps(
           }
         }
         osiMap.set(nroSesion, sessionRec);
-      }
-
-      // Overlay auto-advanced upserts for this OSI
-      for (const u of upserts) {
-        if (u.osi_id !== osiId) continue;
-        let sessionRec = osiMap.get(u.nro_sesion);
-        if (!sessionRec) {
-          sessionRec = {};
-          osiMap.set(u.nro_sesion, sessionRec);
-        }
-        const prev = sessionRec[u.step_key];
-        sessionRec[u.step_key] = {
-          id: prev?.id ?? 0,
-          osi_id: osiId,
-          nro_sesion: u.nro_sesion,
-          phase: u.phase,
-          step_key: u.step_key,
-          completed: u.completed,
-          completed_at: u.completed_at,
-          completed_by: prev?.completed_by ?? null,
-          notes: prev?.notes ?? null,
-        };
       }
 
       stepsByOsi.set(osiId, osiMap);
