@@ -12,6 +12,34 @@ This project follows [Semantic Versioning](https://semver.org/) and
 > (an author-email change) and do not reflect when that work was actually done.
 > Only commits following the Conventional Commits format appear in the entries below.
 
+## [1.11.0](https://github.com/TEDSHAV/capacitacion/compare/v1.10.0...v1.11.0) (2026-08-26)
+
+### Features
+
+* add Asignaciones y Credenciales management module 8fd38ce
+* add Nuevos Servicios (RG-NEG-003) module with PDF generation, fix null-safety in PDF document, refine PDF layout to match Excel sample 94bdd6b
+* launch PWA at the page where the user installed it afe0a8b
+* move Assign OSI and Create Credentials actions to Asignaciones y Credenciales module 4596844
+* notify capacitacion users when facilitadores upload to portal d56a0ef
+* reduce seguimiento-servicios pagination to 5, make en_proceso unmarkable with shell sync af97161
+* replicate requisiciones module in-app for snappy navigation 128e182
+* sync capacitacion ejecutado step to shell OSI status 988bb47
+
+### Bug Fixes
+
+* duplicate React key in breadcrumbs when on home page c9b1f93
+* make PWA sidebar sticky on desktop so nav stays visible while scrolling a529ff4
+* navbar logo proportions and favicon/PWA icon references 6614616
+* number inputs in requisiciones eat decimals and can't be cleared 2450954
+* remove misleading Configuración sidebar link (feriados reachable from Indicadores) 0c10850
+* stop global button rule from painting unchecked checkboxes/radios blue, soften cached-data banner when online 5d2ff25
+* stop offline banner from overlapping downloads button and toasts, add Consulta de OSIs external sidebar link e563e40
+
+### Performance
+
+* add loading skeletons, router cache, SWR data hook, and Suspense streaming for snappy navigation 8d2a95f
+* parallelize shell sync, drop redundant re-fetch, stream seguimiento-servicios behind Suspense 340f1f0
+* trim certificados SELECT and reduce pagination, add Nuevos Servicios actions/types/nav, add badge/checkbox UI primitives 60a82e4
 ## [1.8.0](https://github.com/TEDSHAV/capacitacion/compare/v1.7.3...v1.8.0) (2026-08-19)
 
 ### Features
