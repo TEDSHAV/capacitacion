@@ -569,10 +569,13 @@ export async function autoAdvanceEjecucionSteps(
           }
         }
 
-        // Auto-complete "ejecutado" only if date is strictly past (autoUnmarkable: can be manually unmarked)
+        // Auto-complete "ejecutado" only if date is strictly past — but ONLY if no
+        // row exists yet (first time). If a row exists (even with completed=false,
+        // meaning the user manually unmarked it), don't re-auto-mark it. The user
+        // can manually re-mark it when the service is actually executed.
         if (isPast) {
           const ejecutado = sessionSteps.get("ejecutado");
-          if (!ejecutado || !ejecutado.completed) {
+          if (!ejecutado) {
             upserts.push({
               osi_id: osi.id_osi,
               nro_sesion: nroSesion,
