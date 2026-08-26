@@ -12,6 +12,11 @@ This project follows [Semantic Versioning](https://semver.org/) and
 > (an author-email change) and do not reflect when that work was actually done.
 > Only commits following the Conventional Commits format appear in the entries below.
 
+## [1.11.1](https://github.com/TEDSHAV/capacitacion/compare/v1.11.0...v1.11.1) (2026-08-26)
+
+### Bug Fixes
+
+* stop auto-advance from re-marking ejecutado after manual unmark 07bae70
 ## [1.11.0](https://github.com/TEDSHAV/capacitacion/compare/v1.10.0...v1.11.0) (2026-08-26)
 
 ### Features
