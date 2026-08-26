@@ -1,9 +1,15 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { createClient } from "@/utils/supabase/server";
 import GestionCursosClient from "./GestionCursosClient";
 import { Empresa } from "@/types";
 import { getCursos } from "./actions";
 import { getAnalyticsMetrics } from "@/app/actions/participants";
+
+async function AnalyticsWrapper() {
+  const metrics = await getAnalyticsMetrics();
+  return metrics;
+}
 
 export default async function GestionCursosPage() {
   const supabase = await createClient();
@@ -14,7 +20,6 @@ export default async function GestionCursosPage() {
     },
     companiesResult,
     coursesResult,
-    analyticsMetrics,
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase
@@ -22,7 +27,6 @@ export default async function GestionCursosPage() {
       .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
       .order("razon_social"),
     getCursos(),
-    getAnalyticsMetrics(),
   ]);
 
   if (!user) {
@@ -42,11 +46,13 @@ export default async function GestionCursosPage() {
   }
 
   return (
-    <GestionCursosClient
-      user={user}
-      empresas={companies || []}
-      cursos={coursesResult.data || undefined}
-      analyticsMetrics={analyticsMetrics}
-    />
+    <Suspense fallback={<GestionCursosClient user={user} empresas={companies || []} cursos={coursesResult.data || undefined} analyticsMetrics={undefined} />}>
+      <GestionCursosClientWithAnalytics user={user} empresas={companies || []} cursos={coursesResult.data || undefined} />
+    </Suspense>
   );
+}
+
+async function GestionCursosClientWithAnalytics({ user, empresas, cursos }: { user: any; empresas: Empresa[]; cursos: any }) {
+  const analyticsMetrics = await AnalyticsWrapper();
+  return <GestionCursosClient user={user} empresas={empresas} cursos={cursos} analyticsMetrics={analyticsMetrics} />;
 }

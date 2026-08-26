@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { Button } from "@/components/ui/button";
-import { getAllRequisiciones, isRequisicionesAdmin, isCurrentUserCapacitacion, getOsiNumbersForLookup, getCoordinatedDepartments, getDepartmentsInLedGerencias, getCoordinatorlessDepartmentsInLedGerencias } from "@/app/actions/requisiciones";
+import { getAllRequisiciones, isRequisicionesAdmin, isCurrentUserCapacitacion, getOsiNumbersForLookup, getCoordinatedDepartments, getDepartmentsInLedGerencias, getCoordinatorlessDepartmentsInLedGerencias, getCurrentUser } from "@/app/actions/requisiciones";
 import RequisicionesTable from "./components/RequisicionesTable";
 import { FilePlus2 } from "lucide-react";
 
@@ -10,27 +11,17 @@ export const metadata = {
   title: "Requisiciones | PRISMA",
 };
 
-export default async function RequisicionesPage() {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
-  }
-
-  const isAdminView = await isRequisicionesAdmin();
-  const isCapacitacionView = !isAdminView && await isCurrentUserCapacitacion();
-  // Approval scope is resolved from departamentos.coordinador / gerencias.lider,
-  // never from the user's own department (a coordinador/lider may belong to a
-  // different department than the one they coordinate/lead).
-  const coordinadorDepts = isAdminView ? [] : await getCoordinatedDepartments();
-  const isCoordinador = coordinadorDepts.length > 0;
-  const [liderDepts, liderFallbackDepts] = isAdminView
-    ? [[], []]
-    : await Promise.all([
-        getDepartmentsInLedGerencias(),
-        getCoordinatorlessDepartmentsInLedGerencias(),
-      ]);
-  const isLider = liderDepts.length > 0;
+async function RequisicionesTableWrapper({
+  isAdminView,
+  coordinadorDepts,
+  liderDepts,
+  liderFallbackDepts,
+}: {
+  isAdminView: boolean;
+  coordinadorDepts: string[];
+  liderDepts: string[];
+  liderFallbackDepts: string[];
+}) {
   const [records, osiPairs] = await Promise.all([
     getAllRequisiciones(isAdminView),
     getOsiNumbersForLookup(),
@@ -43,13 +34,48 @@ export default async function RequisicionesPage() {
     }
   });
 
-  const pendingLiderCount = (records || []).filter(
-    (r: any) => r.tipo_solicitud === "Interno" && r.lider_estatus === "pendiente"
-  ).length;
-  const pendingCoordinadorCount = (records || []).filter(
-    (r: any) => r.tipo_solicitud === "Externo" && r.coordinador_estatus === "pendiente"
-  ).length;
-  const pendingApprovalCount = pendingLiderCount + pendingCoordinadorCount;
+  const isCoordinador = coordinadorDepts.length > 0;
+  const isLider = liderDepts.length > 0;
+
+  return (
+    <RequisicionesTable
+      records={records || []}
+      isAdminView={isAdminView}
+      osiLookup={osiLookup}
+      isCoordinador={isCoordinador}
+      coordinadorDepts={coordinadorDepts}
+      isLider={isLider}
+      liderDepts={liderDepts}
+      liderFallbackDepts={liderFallbackDepts}
+    />
+  );
+}
+
+export default async function RequisicionesPage() {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
+  }
+
+  // Warm the per-request profile cache (1 getUser + 1 usuarios query)
+  await getCurrentUser();
+
+  // Now all downstream helpers hit the warm cache
+  const isAdminView = await isRequisicionesAdmin();
+  const isCapacitacionView = !isAdminView && await isCurrentUserCapacitacion();
+  
+  // Approval scope is resolved from departamentos.coordinador / gerencias.lider,
+  // never from the user's own department (a coordinador/lider may belong to a
+  // different department than the one they coordinate/lead).
+  const [coordinadorDepts, liderDepts, liderFallbackDepts] = await Promise.all([
+    isAdminView ? Promise.resolve([] as string[]) : getCoordinatedDepartments(),
+    isAdminView ? Promise.resolve([] as string[]) : getDepartmentsInLedGerencias(),
+    isAdminView ? Promise.resolve([] as string[]) : getCoordinatorlessDepartmentsInLedGerencias(),
+  ]);
+  
+  const isCoordinador = coordinadorDepts.length > 0;
+  const isLider = liderDepts.length > 0;
 
   return (
     <div className="p-4 sm:p-8">
@@ -61,11 +87,9 @@ export default async function RequisicionesPage() {
           <p className="mt-1 text-sm text-gray-600">
             {isAdminView
               ? "Listado de todas las requisiciones recibidas por Administración."
-              : (isLider || isCoordinador) && pendingApprovalCount > 0
-                ? `Tienes ${pendingApprovalCount} requisición${pendingApprovalCount !== 1 ? "es" : ""} pendiente${pendingApprovalCount !== 1 ? "s" : ""} por aprobar.`
-                : isCapacitacionView
-                  ? "Listado de las requisiciones creadas por el departamento de Capacitación."
-                  : "Listado de todas las solicitudes de requisición que has creado."}
+              : isCapacitacionView
+                ? "Listado de las requisiciones creadas por el departamento de Capacitación."
+                : "Listado de todas las solicitudes de requisición que has creado."}
           </p>
         </div>
         <Link href="/dashboard/capacitacion/requisiciones/create">
@@ -76,16 +100,14 @@ export default async function RequisicionesPage() {
         </Link>
       </div>
 
-      <RequisicionesTable
-        records={records || []}
-        isAdminView={isAdminView}
-        osiLookup={osiLookup}
-        isCoordinador={isCoordinador}
-        coordinadorDepts={coordinadorDepts}
-        isLider={isLider}
-        liderDepts={liderDepts}
-        liderFallbackDepts={liderFallbackDepts}
-      />
+      <Suspense fallback={<div className="bg-white border border-gray-200 rounded-lg h-96 animate-pulse" />}>
+        <RequisicionesTableWrapper
+          isAdminView={isAdminView}
+          coordinadorDepts={coordinadorDepts}
+          liderDepts={liderDepts}
+          liderFallbackDepts={liderFallbackDepts}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -17,13 +17,14 @@ interface GestionOSIClientProps {
   user: any;
 }
 
-// --- Stale-while-revalidate cache ---
+// --- Module-level cache (survives navigation) ---
 type CacheKey = string;
 interface CacheEntry {
   osis: OSIManagement[];
   totalCount: number;
   timestamp: number;
 }
+const moduleCache = new Map<CacheKey, CacheEntry>();
 const FRESH_MS = 60_000;
 const MAX_CACHE = 20;
 
@@ -68,19 +69,18 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
   const [showAssignFacilitadorModal, setShowAssignFacilitadorModal] = useState(false);
   const [assignFacilitadorOSI, setAssignFacilitadorOSI] = useState<OSIManagement | null>(null);
 
-  // --- Client-side page cache ---
-  const cacheRef = useRef<Map<CacheKey, CacheEntry>>(new Map());
+  // Track if filters have been loaded (for initial load detection)
   const filtersLoadedRef = useRef(false);
 
   const getCached = useCallback((key: CacheKey): CacheEntry | null => {
-    return cacheRef.current.get(key) || null;
+    return moduleCache.get(key) || null;
   }, []);
 
   const setCached = useCallback((key: CacheKey, entry: CacheEntry) => {
-    cacheRef.current.set(key, entry);
-    if (cacheRef.current.size > MAX_CACHE) {
-      const firstKey = cacheRef.current.keys().next().value;
-      if (firstKey) cacheRef.current.delete(firstKey);
+    moduleCache.set(key, entry);
+    if (moduleCache.size > MAX_CACHE) {
+      const firstKey = moduleCache.keys().next().value;
+      if (firstKey) moduleCache.delete(firstKey);
     }
   }, []);
 

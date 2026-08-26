@@ -15,7 +15,7 @@ import {
   getVenezuelanStates,
   updateCertificateScoreAction,
 } from "@/app/actions/certificados";
-import { fetchWithOfflineFallback } from "@/lib/offline/use-offline-data";
+import { useSwrCachedData } from "@/lib/offline/use-swr-cached-data";
 import {
   CertificateManagement,
   CertificateFilters,
@@ -23,17 +23,10 @@ import {
 } from "@/types";
 
 export default function GestionCertificadosPage() {
-  const [loading, setLoading] = useState(true);
-  const [certificates, setCertificates] = useState<CertificateManagement[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
   const [filters, setFilters] = useState<CertificateFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
-
-  // Offline state
-  const [fromCache, setFromCache] = useState(false);
-  const [cachedAt, setCachedAt] = useState<number | null>(null);
 
   // Filter options
   const [companies, setCompanies] = useState<
@@ -46,71 +39,63 @@ export default function GestionCertificadosPage() {
   const [states, setStates] = useState<{ id: number; nombre_estado: string }[]>(
     [],
   );
-  const [loadingFilters, setLoadingFilters] = useState(true);
 
-  // Load filter options
+  // Load filter options with SWR
+  const filtersCacheKey = "dash_cert_filters";
+  const {
+    data: filtersData,
+    loading: loadingFilters,
+    fromCache: filtersCached,
+    cachedAt: filtersCachedAt,
+    reload: reloadFilters,
+  } = useSwrCachedData(
+    filtersCacheKey,
+    "dash_cert_filters",
+    async () => {
+      const [companiesData, coursesData, facilitatorsData, statesData] =
+        await Promise.all([
+          getCompaniesForFilters(),
+          getCoursesForFilters(),
+          getFacilitatorsForFilters(),
+          getVenezuelanStates(),
+        ]);
+      return { companiesData, coursesData, facilitatorsData, statesData };
+    },
+    [],
+  );
+
+  // Update state when filter data loads
   useEffect(() => {
-    const loadFilterOptions = async () => {
-      try {
-        const result = await fetchWithOfflineFallback(
-          "dash_cert_filters",
-          "dash_cert_filters",
-          async () => {
-            const [companiesData, coursesData, facilitatorsData, statesData] =
-              await Promise.all([
-                getCompaniesForFilters(),
-                getCoursesForFilters(),
-                getFacilitatorsForFilters(),
-                getVenezuelanStates(),
-              ]);
-            return { companiesData, coursesData, facilitatorsData, statesData };
-          },
-        );
-
-        setCompanies(result.data.companiesData);
-        setCourses(result.data.coursesData);
-        setFacilitators(result.data.facilitatorsData);
-        setStates(result.data.statesData);
-      } catch (error) {
-        console.error("Error loading filter options:", error);
-      } finally {
-        setLoadingFilters(false);
-      }
-    };
-
-    loadFilterOptions();
-  }, []);
-
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const cacheKey = `dash_certs_${JSON.stringify(filters)}_p${currentPage}_n${itemsPerPage}`;
-      const offlineResult = await fetchWithOfflineFallback(
-        cacheKey,
-        "dash_certs",
-        () => getCertificatesForManagement(filters, currentPage, itemsPerPage),
-      );
-
-      setCertificates(offlineResult.data.certificates);
-      setTotalCount(offlineResult.data.totalCount);
-      setFromCache(offlineResult.fromCache);
-      setCachedAt(offlineResult.cachedAt);
-    } catch (error) {
-      console.error("Error loading certificates:", error);
-      setFromCache(false);
-    } finally {
-      setLoading(false);
+    if (filtersData) {
+      setCompanies(filtersData.companiesData);
+      setCourses(filtersData.coursesData);
+      setFacilitators(filtersData.facilitatorsData);
+      setStates(filtersData.statesData);
     }
-  }, [filters, currentPage, itemsPerPage]);
+  }, [filtersData]);
 
-  // Load certificates data
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  // Load certificates data with SWR
+  const certsCacheKey = `dash_certs_${JSON.stringify(filters)}_p${currentPage}_n${itemsPerPage}`;
+  const {
+    data: certsData,
+    loading: certsLoading,
+    fetching: certsFetching,
+    fromCache: certsCached,
+    cachedAt: certsCachedAt,
+    reload: reloadCerts,
+  } = useSwrCachedData(
+    certsCacheKey,
+    "dash_certs",
+    () => getCertificatesForManagement(filters, currentPage, itemsPerPage),
+    [filters, currentPage, itemsPerPage],
+  );
+
+  const certificates = certsData?.certificates || [];
+  const totalCount = certsData?.totalCount || 0;
 
   const handleFiltersChange = useCallback((newFilters: CertificateFilters) => {
     setFilters(newFilters);
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
   }, []);
 
   const handlePageChange = useCallback((page: number) => {
@@ -119,7 +104,7 @@ export default function GestionCertificadosPage() {
 
   const handleItemsPerPageChange = useCallback((newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset to first page when items per page changes
+    setCurrentPage(1);
   }, []);
 
   const handleViewCertificate = useCallback(
@@ -175,9 +160,12 @@ export default function GestionCertificadosPage() {
 
   const handleScoreUpdate = useCallback(
     async (certificateId: number, newScore: number) => {
-      return await updateCertificateScoreAction(certificateId, newScore);
+      const result = await updateCertificateScoreAction(certificateId, newScore);
+      // Reload data after score update
+      reloadCerts();
+      return result;
     },
-    [],
+    [reloadCerts],
   );
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -193,7 +181,13 @@ export default function GestionCertificadosPage() {
         </p>
       </div>
 
-      {fromCache && <div className="mb-4"><CachedDataBanner cachedAt={cachedAt} /></div>}
+      {certsCached && <div className="mb-4"><CachedDataBanner cachedAt={certsCachedAt} /></div>}
+      {certsFetching && (
+        <div className="mb-4 text-sm text-gray-500 flex items-center gap-2">
+          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+          Actualizando...
+        </div>
+      )}
 
       {/* Filters */}
       <CertificateFiltersComponent
@@ -209,7 +203,7 @@ export default function GestionCertificadosPage() {
       {/* Certificate Table */}
       <CertificateTableComponent
         certificates={certificates}
-        loading={loading}
+        loading={certsLoading}
         onViewCertificate={handleViewCertificate}
         onDownloadCertificate={handleDownloadCertificate}
         onVerifyCertificate={handleVerifyCertificate}
@@ -234,7 +228,7 @@ export default function GestionCertificadosPage() {
           itemsPerPage={itemsPerPage}
           onPageChange={handlePageChange}
           onItemsPerPageChange={handleItemsPerPageChange}
-          loading={loading}
+          loading={certsLoading}
         />
       </div>
 
@@ -242,7 +236,7 @@ export default function GestionCertificadosPage() {
       <BatchEditModal
         isOpen={isBatchEditOpen}
         onClose={() => setIsBatchEditOpen(false)}
-        onSuccess={loadData}
+        onSuccess={reloadCerts}
         initialOsi={
           filters.searchTerm && /^\d+$/.test(filters.searchTerm)
             ? filters.searchTerm

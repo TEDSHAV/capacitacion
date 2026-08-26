@@ -56,6 +56,13 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "10mb",
     },
+    // Client router cache: keep page segments in cache for 30s (dynamic) / 3min (static).
+    // Repeat navigations within this window reuse cached segments (instant).
+    // revalidatePath() on mutations still invalidates, so edits stay fresh.
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
   },
 
   // Redirects for SEO and security

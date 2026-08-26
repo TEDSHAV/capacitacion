@@ -74,16 +74,7 @@ function buildRequisicionSnapshot(rec: Record<string, any>): Record<string, any>
 // Wrapped in cache() to deduplicate across multiple calls in the same request
 export const isRequisicionesAdmin = cache(async (): Promise<boolean> => {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
-
-    const { data: usuario } = await supabase
-      .from("usuarios")
-      .select("departamentos!usuarios_departamento_fkey(nombre)")
-      .eq("id_auth", user.id)
-      .single();
-
+    const usuario = await getCurrentUser();
     const deptName = (usuario?.departamentos as any)?.nombre?.toLowerCase() || "";
     return deptName.includes("admin");
   } catch {
@@ -94,16 +85,7 @@ export const isRequisicionesAdmin = cache(async (): Promise<boolean> => {
 // True when the current user belongs to the Capacitación department.
 export const isCurrentUserCapacitacion = cache(async (): Promise<boolean> => {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
-
-    const { data: usuario } = await supabase
-      .from("usuarios")
-      .select("departamentos!usuarios_departamento_fkey(nombre)")
-      .eq("id_auth", user.id)
-      .single();
-
+    const usuario = await getCurrentUser();
     const deptName = (usuario?.departamentos as any)?.nombre || "";
     return isCapacitacionDept(deptName);
   } catch {
@@ -116,19 +98,46 @@ export const isCurrentUserCapacitacion = cache(async (): Promise<boolean> => {
 // gerencias.lider.
 export const getCurrentUserUsuarioId = cache(async (): Promise<number | null> => {
   try {
+    const usuario = await getCurrentUser();
+    if (usuario?.id != null) return usuario.id;
+    // Fallback: preserve original admin-client path in case RLS ever hides the row.
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     const admin = await createAdminClient();
-    const { data: usuario } = await admin
+    const { data } = await admin
       .from("usuarios")
       .select("id")
       .eq("id_auth", user.id)
       .single();
-    return usuario?.id ?? null;
+    return data?.id ?? null;
   } catch {
     return null;
   }
+});
+
+// Get current logged in user details with full profile (cached per request).
+// Returns the full usuarios row with departamentos join.
+export const getCurrentUser = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from("usuarios")
+    .select("*, departamentos!usuarios_departamento_fkey(nombre, gerencia)")
+    .eq("id_auth", user.id)
+    .single();
+
+  if (error) {
+    console.error("Error fetching user details:", error);
+    return null;
+  }
+
+  return data;
 });
 
 // Returns the current user's department name (or null). Cached per request.
@@ -481,29 +490,6 @@ export const getBanksForDropdown = unstable_cache(
   ["banks-for-dropdown"],
   { tags: ["banks"], revalidate: 3600 }
 );
-
-// Get current logged in user details
-export async function getCurrentUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  const { data, error } = await supabase
-    .from("usuarios")
-    .select("*, departamentos!usuarios_departamento_fkey(nombre, gerencia)")
-    .eq("id_auth", user.id)
-    .single();
-
-  if (error) {
-    console.error("Error fetching user details:", error);
-    return null;
-  }
-
-  return data;
-}
 
 // Get OSI data for auto-population
 export async function getOSIForRequisicion(osiId: number) {
@@ -1012,10 +998,6 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
         fecha_inicio_real,
         desglose_recursos_sesiones
       ),
-      facilitadores!left (
-        nombre_apellido,
-        cedula
-      ),
       requisiciones_osis!requisiciones_osis_id_requisicion_fkey (
         id_osi
       )
@@ -1048,10 +1030,6 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
             nombre_empresa,
             fecha_inicio_real,
             desglose_recursos_sesiones
-          ),
-          facilitadores!left (
-            nombre_apellido,
-            cedula
           ),
           requisiciones_osis!requisiciones_osis_id_requisicion_fkey (
             id_osi
@@ -1109,15 +1087,6 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
   const merged = [...(ownData || [])];
   const ownIds = new Set(merged.map((r: any) => r.id));
 
-  const addPending = (rows: any[] | null) => {
-    for (const r of rows || []) {
-      if (!ownIds.has(r.id)) {
-        merged.push(r);
-        ownIds.add(r.id);
-      }
-    }
-  };
-
   const SELECT_RELATIONS = `
     *,
     v_osi_formato_completo!left (
@@ -1128,96 +1097,102 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
       fecha_inicio_real,
       desglose_recursos_sesiones
     ),
-    facilitadores!left (
-      nombre_apellido,
-      cedula
-    ),
     requisiciones_osis!requisiciones_osis_id_requisicion_fkey (
       id_osi
     )
   `;
 
-  // 1) Lider: pending internas from every department in the gerencia(s) they lead.
-  //    Resolved from gerencias.lider (NOT from the lider's own department), since a
-  //    lider may belong to a department under a different gerencia.
+  // Resolve prerequisites (all cache-warm from page.tsx Step 2)
   const ledGerencias = await getLedGerencias();
   const isLider = ledGerencias.length > 0;
-
-  if (isLider) {
-    const deptNames = await getDepartmentsInLedGerencias();
-    if (deptNames.length > 0) {
-      const { data: pendingInternas, error: pendingErr } = await supabase
-        .from("requisiciones")
-        .select(SELECT_RELATIONS)
-        .eq("tipo_solicitud", "Interno")
-        .eq("lider_estatus", "pendiente")
-        .neq("created_by", userId)
-        .is("deleted_at", null)
-        .in("departamento", deptNames)
-        .order("id", { ascending: false });
-      if (pendingErr && (pendingErr.message || "").includes("column") && (pendingErr.message || "").includes("does not exist")) {
-        console.warn("[getAllRequisiciones] lider_estatus column not found, skipping lider queue");
-      } else if (pendingErr) {
-        console.error("[getAllRequisiciones] Error fetching pending internas for lider:", pendingErr);
-      } else {
-        addPending(pendingInternas);
-      }
-    }
-  }
-
-  // 2) Coordinador: pending externas from EVERY department they coordinate
-  //    (resolved from departamentos.coordinador, not from their own department).
   const coordDepts = await getCoordinatedDepartments();
   const isCoord = coordDepts.length > 0;
-  if (isCoord) {
-    const { data: pendingExternas, error: pendingErr } = await supabase
-      .from("requisiciones")
-      .select(SELECT_RELATIONS)
-      .eq("tipo_solicitud", "Externo")
-      .eq("coordinador_estatus", "pendiente")
-      .neq("created_by", userId)
-      .is("deleted_at", null)
-      .in("departamento", coordDepts)
-      .order("id", { ascending: false });
-    if (pendingErr && (pendingErr.message || "").includes("column") && (pendingErr.message || "").includes("does not exist")) {
-      console.warn("[getAllRequisiciones] coordinador_estatus column not found, skipping coordinador queue");
-    } else if (pendingErr) {
-      console.error("[getAllRequisiciones] Error fetching pending externas for coordinador:", pendingErr);
-    } else {
-      addPending(pendingExternas);
-    }
-  }
+  const historyUsuarioId = await getCurrentUserUsuarioId();
 
-  // 3) Gerencia Lider fallback: pending externas from departments in the gerencia(s)
-  //    they lead that have NO coordinador (the lider is the fallback approver).
-  if (isLider) {
-    const noCoordDeptNames = await getCoordinatorlessDepartmentsInLedGerencias();
-    if (noCoordDeptNames.length > 0) {
-      const { data: pendingExternas, error: pendingErr } = await supabase
-        .from("requisiciones")
-        .select(SELECT_RELATIONS)
-        .eq("tipo_solicitud", "Externo")
-        .eq("coordinador_estatus", "pendiente")
-        .neq("created_by", userId)
-        .is("deleted_at", null)
-        .in("departamento", noCoordDeptNames)
-        .order("id", { ascending: false });
-      if (pendingErr && (pendingErr.message || "").includes("column") && (pendingErr.message || "").includes("does not exist")) {
-        console.warn("[getAllRequisiciones] coordinador_estatus column not found, skipping lider-fallback queue");
-      } else if (pendingErr) {
-        console.error("[getAllRequisiciones] Error fetching pending externas for lider fallback:", pendingErr);
-      } else {
-        addPending(pendingExternas);
+  // Fetch department lists for lider queries (cache-warm)
+  const [deptNames, noCoordDeptNames] = await Promise.all([
+    isLider ? getDepartmentsInLedGerencias() : Promise.resolve([] as string[]),
+    isLider ? getCoordinatorlessDepartmentsInLedGerencias() : Promise.resolve([] as string[]),
+  ]);
+
+  // Parallelize the 5 supplementary queries (all independent)
+  const [
+    pendingInternaResult,
+    pendingExternaResult,
+    pendingExternaFallbackResult,
+    liderHistoryResult,
+    coordHistoryResult,
+  ] = await Promise.all([
+    // 1) Lider: pending internas from every department in the gerencia(s) they lead.
+    isLider && deptNames.length > 0
+      ? supabase
+          .from("requisiciones")
+          .select(SELECT_RELATIONS)
+          .eq("tipo_solicitud", "Interno")
+          .eq("lider_estatus", "pendiente")
+          .neq("created_by", userId)
+          .is("deleted_at", null)
+          .in("departamento", deptNames)
+          .order("id", { ascending: false })
+      : Promise.resolve({ data: null, error: null }),
+    // 2) Coordinador: pending externas from EVERY department they coordinate
+    isCoord
+      ? supabase
+          .from("requisiciones")
+          .select(SELECT_RELATIONS)
+          .eq("tipo_solicitud", "Externo")
+          .eq("coordinador_estatus", "pendiente")
+          .neq("created_by", userId)
+          .is("deleted_at", null)
+          .in("departamento", coordDepts)
+          .order("id", { ascending: false })
+      : Promise.resolve({ data: null, error: null }),
+    // 3) Gerencia Lider fallback: pending externas from departments with NO coordinador
+    isLider && noCoordDeptNames.length > 0
+      ? supabase
+          .from("requisiciones")
+          .select(SELECT_RELATIONS)
+          .eq("tipo_solicitud", "Externo")
+          .eq("coordinador_estatus", "pendiente")
+          .neq("created_by", userId)
+          .is("deleted_at", null)
+          .in("departamento", noCoordDeptNames)
+          .order("id", { ascending: false })
+      : Promise.resolve({ data: null, error: null }),
+    // 4) Lider history: internas the current user approved/rejected as lider.
+    isLider && historyUsuarioId
+      ? supabase
+          .from("requisiciones")
+          .select(SELECT_RELATIONS)
+          .eq("tipo_solicitud", "Interno")
+          .eq("lider_por", historyUsuarioId)
+          .in("lider_estatus", ["aprobada", "rechazada"])
+          .is("deleted_at", null)
+          .order("id", { ascending: false })
+      : Promise.resolve({ data: null, error: null }),
+    // 5) Coordinador history: externas the current user approved/rejected as coordinador
+    isCoord && userId
+      ? supabase
+          .from("requisiciones")
+          .select(SELECT_RELATIONS)
+          .eq("tipo_solicitud", "Externo")
+          .eq("coordinador_por", userId)
+          .in("coordinador_estatus", ["aprobada", "rechazada"])
+          .is("deleted_at", null)
+          .order("id", { ascending: false })
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+
+  // Process results in order (preserving original merge logic)
+  const addPending = (rows: any[] | null) => {
+    for (const r of rows || []) {
+      if (!ownIds.has(r.id)) {
+        merged.push(r);
+        ownIds.add(r.id);
       }
     }
-  }
+  };
 
-  // --- Approval history for non-admin users ---
-  // Liders/coordinadors keep seeing requisiciones they've already approved/rejected
-  // (tagged with _isApprovalHistory = true) so they have a record instead of those
-  // vanishing once acted on. Driven by lider_por / coordinador_por (already persisted
-  // by the approve/reject actions), so no schema changes are required for this part.
-  const historyUsuarioId = await getCurrentUserUsuarioId();
   const addHistory = (rows: any[] | null) => {
     for (const r of rows || []) {
       if (!r) continue;
@@ -1232,45 +1207,49 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
     }
   };
 
-  // 4) Lider history: internas the current user approved/rejected as lider.
-  if (isLider && historyUsuarioId) {
-    const { data: liderHistory, error: histErr } = await supabase
-      .from("requisiciones")
-      .select(SELECT_RELATIONS)
-      .eq("tipo_solicitud", "Interno")
-      .eq("lider_por", historyUsuarioId)
-      .in("lider_estatus", ["aprobada", "rechazada"])
-      .is("deleted_at", null)
-      .order("id", { ascending: false });
-    if (histErr && (histErr.message || "").includes("column") && (histErr.message || "").includes("does not exist")) {
-      console.warn("[getAllRequisiciones] lider_por column not found, skipping lider history");
-    } else if (histErr) {
-      console.error("[getAllRequisiciones] Error fetching lider history:", histErr);
-    } else {
-      addHistory(liderHistory);
-    }
+  // 1) Pending internas
+  if (pendingInternaResult.error && (pendingInternaResult.error.message || "").includes("column") && (pendingInternaResult.error.message || "").includes("does not exist")) {
+    console.warn("[getAllRequisiciones] lider_estatus column not found, skipping lider queue");
+  } else if (pendingInternaResult.error) {
+    console.error("[getAllRequisiciones] Error fetching pending internas for lider:", pendingInternaResult.error);
+  } else {
+    addPending(pendingInternaResult.data);
   }
 
-  // 5) Coordinador history: externas the current user approved/rejected as coordinador
-  //    (or lider fallback — coordinador_por is set in both paths).
-  //    NOTE: coordinador_por is a UUID column (stores auth uid), unlike lider_por
-  //    which is int4 (stores usuarios.id). Filter by the auth UUID here.
-  if (isCoord && userId) {
-    const { data: coordHistory, error: histErr } = await supabase
-      .from("requisiciones")
-      .select(SELECT_RELATIONS)
-      .eq("tipo_solicitud", "Externo")
-      .eq("coordinador_por", userId)
-      .in("coordinador_estatus", ["aprobada", "rechazada"])
-      .is("deleted_at", null)
-      .order("id", { ascending: false });
-    if (histErr && (histErr.message || "").includes("column") && (histErr.message || "").includes("does not exist")) {
-      console.warn("[getAllRequisiciones] coordinador_por column not found, skipping coordinador history");
-    } else if (histErr) {
-      console.error("[getAllRequisiciones] Error fetching coordinador history:", histErr);
-    } else {
-      addHistory(coordHistory);
-    }
+  // 2) Pending externas (coordinador)
+  if (pendingExternaResult.error && (pendingExternaResult.error.message || "").includes("column") && (pendingExternaResult.error.message || "").includes("does not exist")) {
+    console.warn("[getAllRequisiciones] coordinador_estatus column not found, skipping coordinador queue");
+  } else if (pendingExternaResult.error) {
+    console.error("[getAllRequisiciones] Error fetching pending externas for coordinador:", pendingExternaResult.error);
+  } else {
+    addPending(pendingExternaResult.data);
+  }
+
+  // 3) Pending externas (lider fallback)
+  if (pendingExternaFallbackResult.error && (pendingExternaFallbackResult.error.message || "").includes("column") && (pendingExternaFallbackResult.error.message || "").includes("does not exist")) {
+    console.warn("[getAllRequisiciones] coordinador_estatus column not found, skipping lider-fallback queue");
+  } else if (pendingExternaFallbackResult.error) {
+    console.error("[getAllRequisiciones] Error fetching pending externas for lider fallback:", pendingExternaFallbackResult.error);
+  } else {
+    addPending(pendingExternaFallbackResult.data);
+  }
+
+  // 4) Lider history
+  if (liderHistoryResult.error && (liderHistoryResult.error.message || "").includes("column") && (liderHistoryResult.error.message || "").includes("does not exist")) {
+    console.warn("[getAllRequisiciones] lider_por column not found, skipping lider history");
+  } else if (liderHistoryResult.error) {
+    console.error("[getAllRequisiciones] Error fetching lider history:", liderHistoryResult.error);
+  } else {
+    addHistory(liderHistoryResult.data);
+  }
+
+  // 5) Coordinador history
+  if (coordHistoryResult.error && (coordHistoryResult.error.message || "").includes("column") && (coordHistoryResult.error.message || "").includes("does not exist")) {
+    console.warn("[getAllRequisiciones] coordinador_por column not found, skipping coordinador history");
+  } else if (coordHistoryResult.error) {
+    console.error("[getAllRequisiciones] Error fetching coordinador history:", coordHistoryResult.error);
+  } else {
+    addHistory(coordHistoryResult.data);
   }
 
   merged.sort((a: any, b: any) => b.id - a.id);
