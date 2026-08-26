@@ -7,8 +7,8 @@ import {
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 70,
-    paddingBottom: 60,
+    paddingTop: 40,
+    paddingBottom: 40,
     paddingHorizontal: 24,
     fontSize: 8,
     fontFamily: "Helvetica",
@@ -133,7 +133,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderBottomWidth: 1,
     borderColor: "#000",
-    minHeight: 16,
   },
   itemsCell: {
     padding: 3,
@@ -156,11 +155,10 @@ const styles = StyleSheet.create({
     fontSize: 7,
   },
   footerImage: {
-    width: "100%",
+    width: 564,
     position: "absolute",
     bottom: 10,
-    left: 0,
-    right: 0,
+    left: 24,
   },
   signatureBlock: {
     borderWidth: 1,
@@ -339,12 +337,19 @@ export default function DisenoServicioPdfDocument({
           </Text>
           <View style={styles.metaBox}>
             <Text>
-              <Text style={styles.metaLabel}>Código:</Text> RG-NEG-003
+              <Text style={styles.metaLabel}>CÓDIGO</Text> RG-NEG-003
             </Text>
             <Text>
-              <Text style={styles.metaLabel}>Estatus:</Text>{" "}
-              {solicitud.estatus_nombre || "—"}
+              <Text style={styles.metaLabel}>FECHA</Text> 04/08/2026
             </Text>
+            <Text>
+              <Text style={styles.metaLabel}>REVISIÓN</Text> 01
+            </Text>
+            <Text
+              render={({ pageNumber, totalPages }) =>
+                `PÁGINA ${pageNumber} de ${totalPages}`
+              }
+            />
           </View>
         </View>
 
