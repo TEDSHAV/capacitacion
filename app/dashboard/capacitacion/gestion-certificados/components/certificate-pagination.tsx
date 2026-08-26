@@ -98,10 +98,10 @@ function CertificatePaginationComponent({
             onChange={(e) => onItemsPerPageChange(parseInt(e.target.value))}
             className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
+            <option value={5}>5</option>
             <option value={10}>10</option>
             <option value={25}>25</option>
             <option value={50}>50</option>
-            <option value={100}>100</option>
           </select>
           <span className="text-sm text-gray-700">por página</span>
         </div>

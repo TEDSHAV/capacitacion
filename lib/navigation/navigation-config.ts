@@ -133,6 +133,13 @@ const DASHBOARD_NAV: NavItem[] = [
     ],
   },
   {
+    id: "nuevos-servicios",
+    label: "Nuevos Servicios",
+    href: "/dashboard/capacitacion/nuevos-servicios",
+    icon: FilePlus2,
+    requiresOnline: true,
+  },
+  {
     id: "consulta-osi",
     label: "Consulta de OSIs",
     href: `${process.env.NEXT_PUBLIC_SHELL_URL || ""}/consulta-osi`,

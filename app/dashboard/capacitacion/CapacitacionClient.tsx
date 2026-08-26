@@ -120,8 +120,7 @@ export default function CapacitacionClient({
       description: "Solicitudes de diseño de nuevos servicios",
       gradient: "from-indigo-500 to-blue-600",
       icon: ClipboardList,
-      href: `${process.env.NEXT_PUBLIC_SHELL_URL || ""}/nuevo-servicio`,
-      external: true,
+      href: "/dashboard/capacitacion/nuevos-servicios",
     },
     {
       id: "reportes",
@@ -200,7 +199,7 @@ export default function CapacitacionClient({
     },
     {
       id: "gestion",
-      title: "Gestión",
+      title: "OSI",
       gradient: "from-slate-500 to-gray-600",
       icon: Briefcase,
       accent: "slate",

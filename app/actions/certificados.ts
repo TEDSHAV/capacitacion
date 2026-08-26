@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 
 import {
   CertificateGeneration,
+  CertificateManagement,
   CertificateParticipant,
   CertificateFilters,
   CertificateSearchResult,
@@ -2081,10 +2082,20 @@ export async function getCertificatesForManagement(
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    // Use direct query instead of RPC to ensure we use catalogo_servicios and get accurate data
+    // Trimmed SELECT: only columns used by the management table UI.
+    // Deliberately excludes the heavy `snapshot_contenido` text blob,
+    // `qr_code`, unused FK IDs, and the `cat_estados_venezuela` join
+    // (state name is never rendered in the table; the state filter uses
+    // the base-table `id_estado` column directly). `snapshot_contenido`
+    // is still filterable via `.ilike()` below without being selected.
     let query = supabase.from("certificados").select(
       `
-        *,
+        id,
+        calificacion,
+        fecha_emision,
+        fecha_vencimiento,
+        nro_osi,
+        is_active,
         participantes_certificados!inner (
           id,
           nombre,
@@ -2093,11 +2104,7 @@ export async function getCertificatesForManagement(
         ),
         catalogo_servicios!inner (
           id,
-          nombre,
-          contenido_curso,
-          carga_horaria_std,
-          nota_aprobatoria,
-          emite_carnet
+          nombre
         ),
         empresas!inner (
           id,
@@ -2107,10 +2114,6 @@ export async function getCertificatesForManagement(
         facilitadores (
           id,
           nombre_apellido
-        ),
-        cat_estados_venezuela (
-          id,
-          nombre_estado
         )
       `,
       { count: "exact" },
@@ -2122,7 +2125,6 @@ export async function getCertificatesForManagement(
       if (!isNaN(companyId)) {
         // Use joined table filter for better reliability with !inner joins
         query = query.eq("empresas.id", companyId);
-        console.log(`[FILTER DEBUG] Applied companyId filter: ${companyId}`);
       }
     }
     if (filters.courseId) {
@@ -2130,34 +2132,22 @@ export async function getCertificatesForManagement(
       if (!isNaN(courseId)) {
         // Use joined table filter for better reliability with !inner joins
         query = query.eq("catalogo_servicios.id", courseId);
-        console.log(`[FILTER DEBUG] Applied courseId filter: ${courseId}`);
       }
     }
     if (filters.facilitatorId) {
       query = query.eq("id_facilitador", filters.facilitatorId);
-      console.log(
-        `[FILTER DEBUG] Applied facilitatorId filter: ${filters.facilitatorId}`,
-      );
     }
     if (filters.stateId) {
       query = query.eq("id_estado", filters.stateId);
-      console.log(`[FILTER DEBUG] Applied stateId filter: ${filters.stateId}`);
     }
     if (filters.isActive !== undefined) {
       query = query.eq("is_active", filters.isActive);
-      console.log(
-        `[FILTER DEBUG] Applied isActive filter: ${filters.isActive}`,
-      );
     }
     if (filters.dateFrom) {
       query = query.gte("fecha_emision", filters.dateFrom);
-      console.log(
-        `[FILTER DEBUG] Applied dateFrom filter: ${filters.dateFrom}`,
-      );
     }
     if (filters.dateTo) {
       query = query.lte("fecha_emision", filters.dateTo);
-      console.log(`[FILTER DEBUG] Applied dateTo filter: ${filters.dateTo}`);
     }
 
     // Apply search term if present
@@ -2188,15 +2178,10 @@ export async function getCertificatesForManagement(
         query = query.eq("nro_osi", nroOsi);
       } else {
         // Non-numeric term: name/empresa/curso search via the snapshot blob.
+        // The column is not in the SELECT list, but it remains filterable.
         query = query.ilike("snapshot_contenido", ilikeTerm);
       }
-
-      console.log(
-        `[FILTER DEBUG] Applied search term filter: ${filters.searchTerm}`,
-      );
     }
-
-    console.log("[FILTER DEBUG] Final filters object:", filters);
 
     // Execution of query with pagination and ordering
     const { data, count, error } = await query
@@ -2212,27 +2197,13 @@ export async function getCertificatesForManagement(
       };
     }
 
-    // Map results to standard structure used by the component
-    const certificates = data || [];
+    // Map results to standard structure used by the component.
+    // Cast through `unknown` because the trimmed SELECT returns a subset of
+    // CertificateManagement fields (the table component accesses the joined
+    // fields via optional chaining, so missing columns are safe at runtime).
+    const certificates = (data || []) as unknown as CertificateManagement[];
 
     const totalCount = count || 0;
-
-    // Debug: Log returned certificates
-    if (certificates.length > 0) {
-      console.log(
-        `[FILTER DEBUG] Returned ${certificates.length} certificates with filters:`,
-        filters,
-      );
-      console.log("[FILTER DEBUG] First 3 returned certificates:");
-      certificates.slice(0, 3).forEach((cert: any) => {
-        const course = Array.isArray(cert.catalogo_servicios)
-          ? cert.catalogo_servicios[0]
-          : cert.catalogo_servicios;
-        console.log(
-          `  - Cert ${cert.id}: id_curso=${cert.id_curso}, course name=${course?.nombre}`,
-        );
-      });
-    }
 
     return {
       certificates,
