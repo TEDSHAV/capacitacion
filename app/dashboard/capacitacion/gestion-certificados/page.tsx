@@ -16,6 +16,7 @@ import {
   updateCertificateScoreAction,
 } from "@/app/actions/certificados";
 import { useSwrCachedData } from "@/lib/offline/use-swr-cached-data";
+import { useOnlineStatus } from "@/lib/offline/use-online-status";
 import {
   CertificateManagement,
   CertificateFilters,
@@ -23,9 +24,10 @@ import {
 } from "@/types";
 
 export default function GestionCertificadosPage() {
+  const isOnline = useOnlineStatus();
   const [filters, setFilters] = useState<CertificateFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
 
   // Filter options
@@ -181,7 +183,7 @@ export default function GestionCertificadosPage() {
         </p>
       </div>
 
-      {certsCached && <div className="mb-4"><CachedDataBanner cachedAt={certsCachedAt} /></div>}
+      {certsCached && <div className="mb-4"><CachedDataBanner cachedAt={certsCachedAt} isOnline={isOnline} /></div>}
       {certsFetching && (
         <div className="mb-4 text-sm text-gray-500 flex items-center gap-2">
           <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />

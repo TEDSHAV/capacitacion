@@ -186,7 +186,7 @@ export default function AsignacionesCredencialesClient() {
         </p>
       </div>
 
-      {fromCache && <div className="mb-4"><CachedDataBanner cachedAt={cachedAt} /></div>}
+      {fromCache && <div className="mb-4"><CachedDataBanner cachedAt={cachedAt} isOnline={isOnline} /></div>}
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">

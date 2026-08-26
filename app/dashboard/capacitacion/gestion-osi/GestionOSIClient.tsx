@@ -4,6 +4,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react
 import type { OSIFilters, OSIManagement, OSIStatus } from "@/types";
 import { getOSIsForManagement, getOSIFilterOptions, getManualOSIBatchesAction } from "@/app/actions/osi";
 import { CachedDataBanner } from "@/components/CachedDataBanner";
+import { useOnlineStatus } from "@/lib/offline/use-online-status";
 import { cachePortalData, getCachedPortalData } from "@/lib/offline/portal-data-cache";
 import OSIFiltersV2 from "./components/osi-filters-v2";
 import OSITableV2 from "./components/osi-table-v2";
@@ -33,6 +34,7 @@ function cacheKey(filters: OSIFilters, page: number, itemsPerPage: number, tab: 
 }
 
 export default function GestionOSIClient({ user }: GestionOSIClientProps) {
+  const isOnline = useOnlineStatus();
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [osis, setOsis] = useState<OSIManagement[]>([]);
@@ -295,7 +297,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
 
   return (
     <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8 bg-white">
-      {fromCache && <div className="mb-4"><CachedDataBanner cachedAt={cachedAt} /></div>}
+      {fromCache && <div className="mb-4"><CachedDataBanner cachedAt={cachedAt} isOnline={isOnline} /></div>}
       <div className="mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Consulta de OSIs</h1>
