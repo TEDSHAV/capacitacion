@@ -1,4 +1,5 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
+import type { ReactNode } from "react";
 import {
   CAP_CHECKLIST_ITEMS,
   ST_CHECKLIST_ITEMS,
@@ -189,6 +190,116 @@ const styles = StyleSheet.create({
   spacer: {
     height: 4,
   },
+  // Stacked label/value styles (label row above, value row below — matches Excel)
+  stackLabelRow: {
+    flexDirection: "row",
+    backgroundColor: "#f2f2f2",
+    borderBottomWidth: 1,
+    borderColor: "#000",
+  },
+  stackLabelCell: {
+    flex: 1,
+    fontWeight: 700,
+    padding: 3,
+    fontSize: 7,
+    borderRightWidth: 1,
+    borderColor: "#000",
+    justifyContent: "center",
+  },
+  stackLabelCellLast: {
+    flex: 1,
+    fontWeight: 700,
+    padding: 3,
+    fontSize: 7,
+    justifyContent: "center",
+  },
+  stackValueRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderColor: "#000",
+  },
+  stackValueCell: {
+    flex: 1,
+    padding: 3,
+    fontSize: 7,
+    borderRightWidth: 1,
+    borderColor: "#000",
+    justifyContent: "center",
+    minHeight: 14,
+  },
+  stackValueCellLast: {
+    flex: 1,
+    padding: 3,
+    fontSize: 7,
+    justifyContent: "center",
+    minHeight: 14,
+  },
+  // Side-by-side dual checklist (Bloque IV)
+  dualChecklistHeader: {
+    flexDirection: "row",
+    backgroundColor: "#f2f2f2",
+    borderBottomWidth: 1,
+    borderColor: "#000",
+  },
+  dualChecklistSectionLabel: {
+    flex: 1,
+    fontWeight: 700,
+    fontSize: 8,
+    textAlign: "center",
+    padding: 3,
+    borderRightWidth: 1,
+    borderColor: "#000",
+  },
+  dualChecklistSectionLabelLast: {
+    flex: 1,
+    fontWeight: 700,
+    fontSize: 8,
+    textAlign: "center",
+    padding: 3,
+  },
+  dualChecklistColHeader: {
+    flexDirection: "row",
+    backgroundColor: "#f2f2f2",
+    borderBottomWidth: 1,
+    borderColor: "#000",
+  },
+  dualChecklistColCell: {
+    padding: 2,
+    fontWeight: 700,
+    fontSize: 6,
+    textAlign: "center",
+    borderRightWidth: 1,
+    borderColor: "#000",
+    justifyContent: "center",
+  },
+  dualChecklistColCellLast: {
+    padding: 2,
+    fontWeight: 700,
+    fontSize: 6,
+    textAlign: "center",
+    justifyContent: "center",
+  },
+  dualChecklistRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderColor: "#000",
+  },
+  dualChecklistCell: {
+    padding: 2,
+    fontSize: 6,
+    borderRightWidth: 1,
+    borderColor: "#000",
+    justifyContent: "center",
+  },
+  dualChecklistCellLast: {
+    padding: 2,
+    fontSize: 6,
+    justifyContent: "center",
+  },
+  dualChecklistDivider: {
+    width: 1,
+    backgroundColor: "#000",
+  },
 });
 
 function money(n: number | null | undefined) {
@@ -299,6 +410,46 @@ function LabelValueRow({
   );
 }
 
+// Stacked multi-field: N labels in one row, N values in the row below (matches Excel layout)
+function StackRow({
+  fields,
+}: {
+  fields: { label: string; value?: string; node?: ReactNode }[];
+}) {
+  return (
+    <>
+      <View style={styles.stackLabelRow}>
+        {fields.map((f, i) => (
+          <View
+            key={i}
+            style={
+              i < fields.length - 1
+                ? styles.stackLabelCell
+                : styles.stackLabelCellLast
+            }
+          >
+            <Text>{f.label}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={styles.stackValueRow}>
+        {fields.map((f, i) => (
+          <View
+            key={i}
+            style={
+              i < fields.length - 1
+                ? styles.stackValueCell
+                : styles.stackValueCellLast
+            }
+          >
+            {f.node ?? <Text>{f.value || "—"}</Text>}
+          </View>
+        ))}
+      </View>
+    </>
+  );
+}
+
 export interface DisenoServicioPdfDocumentProps {
   solicitud: DisenoServicioFullData;
 }
@@ -306,21 +457,20 @@ export interface DisenoServicioPdfDocumentProps {
 export default function DisenoServicioPdfDocument({
   solicitud,
 }: DisenoServicioPdfDocumentProps) {
-  const isCAP =
-    solicitud.tipo_servicio?.toLowerCase().includes("cap") ||
-    solicitud.tipo_servicio?.toLowerCase().includes("capacitaci");
-  const checklistItems = isCAP ? CAP_CHECKLIST_ITEMS : ST_CHECKLIST_ITEMS;
-
   const recursos = solicitud.bloque_recursos_requisitos;
   const higiene = solicitud.bloque_higiene_seguridad_ambiente;
   const planif = solicitud.bloque_planificacion_factibilidad;
   const controles = solicitud.bloque_controles_diseno;
   const salidas = solicitud.bloque_salidas_diseno;
 
-  // Build checklist map for quick lookup of aplica/especifique by item label
+  // Build checklist maps for quick lookup of aplica/especifique by item label
   const checklistMap = new Map<string, { aplica: string; especifique: string }>();
   (salidas?.checklist || []).forEach((c) => {
     checklistMap.set(c.item, { aplica: c.aplica, especifique: c.especifique });
+  });
+  const checklistCapMap = new Map<string, { aplica: string; especifique: string }>();
+  (salidas?.checklist_cap || []).forEach((c) => {
+    checklistCapMap.set(c.item, { aplica: c.aplica, especifique: c.especifique });
   });
 
   const costItems = planif?.estructura_costos || [];
@@ -358,48 +508,25 @@ export default function DisenoServicioPdfDocument({
           <Text>Identificación del Registro</Text>
         </View>
         <View style={styles.table}>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Fecha de Solicitud</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <Text>{formatDate(solicitud.fecha_solicitud)}</Text>
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Tipo de Solicitud</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>
-                {solicitud.tipo_solicitud === "creacion"
-                  ? "Nueva Creación"
-                  : solicitud.tipo_solicitud === "modificacion"
-                    ? "Modificación"
-                    : solicitud.tipo_solicitud || "—"}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Tipo / Naturaleza del Servicio</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <Text>{solicitud.tipo_servicio || "—"}</Text>
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Nombre y Apellido del Solicitante</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{solicitud.solicitante_nombre || "—"}</Text>
-            </View>
-          </View>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Cargo del Solicitante</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 3 }]}>
-              <Text>{solicitud.cargo_solicitante || "—"}</Text>
-            </View>
-          </View>
+          <StackRow
+            fields={[
+              { label: "Fecha de Solicitud", value: formatDate(solicitud.fecha_solicitud) },
+              {
+                label: "Tipo de Solicitud",
+                value:
+                  solicitud.tipo_solicitud === "creacion"
+                    ? "Nueva Creación"
+                    : solicitud.tipo_solicitud === "modificacion"
+                      ? "Modificación"
+                      : solicitud.tipo_solicitud || "—",
+              },
+              { label: "Tipo / Naturaleza del Servicio", value: solicitud.tipo_servicio || "—" },
+              { label: "Nombre y Apellido del Solicitante", value: solicitud.solicitante_nombre || "—" },
+            ]}
+          />
+          <StackRow
+            fields={[{ label: "Cargo del Solicitante", value: solicitud.cargo_solicitante || "—" }]}
+          />
         </View>
 
         <View style={styles.spacer} />
@@ -409,19 +536,12 @@ export default function DisenoServicioPdfDocument({
           <Text>Bloque I: Elementos de Entrada (Llenado por Negocios / Solicitante)</Text>
         </View>
         <View style={styles.table}>
-          <LabelValueRow
-            label="Nombre Sugerido del Servicio"
-            value={solicitud.nombre_sugerido || ""}
-            labelWidth={140}
+          <StackRow
+            fields={[
+              { label: "Nombre Sugerido del Servicio, Según Aplique", value: solicitud.nombre_sugerido || "" },
+              { label: "Objetivo / Propósito", value: solicitud.objetivo_proposito || "" },
+            ]}
           />
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { width: 140 }]}>
-              <Text>Objetivo / Propósito</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{solicitud.objetivo_proposito || "—"}</Text>
-            </View>
-          </View>
         </View>
 
         <View style={styles.spacer} />
@@ -431,99 +551,48 @@ export default function DisenoServicioPdfDocument({
           <Text>Recursos Necesarios para la Ejecución del Servicio</Text>
         </View>
         <View style={styles.table}>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Personal Requerido (Competencias y Cantidad)</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <Text>{recursos?.personal_requerido || "—"}</Text>
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Equipos y Herramientas</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{recursos?.equipos_herramientas || "—"}</Text>
-            </View>
-          </View>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Software</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <Text>{recursos?.software || "—"}</Text>
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Infraestructura</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{recursos?.infraestructura || "—"}</Text>
-            </View>
-          </View>
+          <StackRow
+            fields={[
+              { label: "Personal Requerido (Competencias y Cantidad)", value: recursos?.personal_requerido || "" },
+              { label: "Equipos y Herramientas", value: recursos?.equipos_herramientas || "" },
+              { label: "Software", value: recursos?.software || "" },
+              { label: "Infraestructura", value: recursos?.infraestructura || "" },
+            ]}
+          />
         </View>
 
         <View style={styles.spacer} />
 
         {/* Requisitos */}
         <View style={styles.table}>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Requisitos Legales y Reglamentarios</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <Text>{recursos?.requisitos_legales || "—"}</Text>
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Requisitos del Cliente / Mercado</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{recursos?.requisitos_cliente || "—"}</Text>
-            </View>
-          </View>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { width: 140 }]}>
-              <Text>Criterios de Aceptación del Servicio</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{recursos?.criterios_aceptacion || "—"}</Text>
-            </View>
-          </View>
+          <StackRow
+            fields={[
+              { label: "Requisitos Legales y Reglamentarios, Según Aplique", value: recursos?.requisitos_legales || "" },
+              { label: "Requisitos del Cliente / Mercado", value: recursos?.requisitos_cliente || "" },
+              { label: "Criterios de Aceptación del Servicio, Según Aplique", value: recursos?.criterios_aceptacion || "" },
+            ]}
+          />
         </View>
 
         <View style={styles.spacer} />
 
         {/* Aspectos Ambientales */}
         <View style={styles.subTitle}>
-          <Text>¿El Servicio Genera Aspectos Ambientales?</Text>
+          <Text>¿El Servicio Genera o Puede Generar Aspectos Ambientales?</Text>
         </View>
         <View style={styles.table}>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Generación de Residuos</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <YesNoSquares value={higiene?.ambiental?.generacion_residuos ?? null} />
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Consumo de Energía</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <YesNoSquares value={higiene?.ambiental?.consumo_energia ?? null} />
-            </View>
-          </View>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Emisiones o Vertidos</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <YesNoSquares value={higiene?.ambiental?.emisiones_vertidos ?? null} />
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Significancia / Impacto / Controles</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{higiene?.ambiental?.significancia || "—"}</Text>
-            </View>
-          </View>
+          <StackRow
+            fields={[
+              { label: "Generación de Residuos", node: <YesNoSquares value={higiene?.ambiental?.generacion_residuos ?? null} /> },
+              { label: "Consumo de Energía", node: <YesNoSquares value={higiene?.ambiental?.consumo_energia ?? null} /> },
+              { label: "Emisiones o Vertidos", node: <YesNoSquares value={higiene?.ambiental?.emisiones_vertidos ?? null} /> },
+            ]}
+          />
+          <StackRow
+            fields={[
+              { label: "En Caso Afirmativo, Describa la Significancia, el Impacto Ambiental y Controles Requeridos", value: higiene?.ambiental?.significancia || "" },
+            ]}
+          />
         </View>
 
         <View style={styles.spacer} />
@@ -533,75 +602,37 @@ export default function DisenoServicioPdfDocument({
           <Text>¿El Servicio Introduce o Modifica Peligros para el Personal de SHA o del Cliente?</Text>
         </View>
         <View style={styles.table}>
-          <View style={styles.row}>
-            {[
-              { label: "Biológicos", val: higiene?.peligros?.biologicos },
-              { label: "Mecánicos", val: higiene?.peligros?.mecanicos },
-              { label: "Ergonómicos", val: higiene?.peligros?.ergonomicos },
-            ].map((p, i) => (
-              <View
-                key={i}
-                style={[
-                  i < 2 ? styles.cellValue : styles.cellValueLast,
-                  { flex: 1, flexDirection: "row", alignItems: "center", gap: 4 },
-                ]}
-              >
-                <CheckSquare checked={p.val ?? false} />
-                <Text>{p.label}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={styles.row}>
-            {[
-              { label: "Eléctricos", val: higiene?.peligros?.electricos },
-              { label: "Químicos", val: higiene?.peligros?.quimicos },
-            ].map((p, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.cellValue,
-                  { flex: 1, flexDirection: "row", alignItems: "center", gap: 4 },
-                ]}
-              >
-                <CheckSquare checked={p.val ?? false} />
-                <Text>{p.label}</Text>
-              </View>
-            ))}
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Otros (Especifique)</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{higiene?.peligros?.otros || "—"}</Text>
-            </View>
-          </View>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { width: 140 }]}>
-              <Text>Descripción del Peligro / Nivel de Riesgo / Controles</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{higiene?.peligros?.descripcion || "—"}</Text>
-            </View>
-          </View>
+          <StackRow
+            fields={[
+              { label: "Biológicos", node: <CheckSquare checked={higiene?.peligros?.biologicos ?? false} /> },
+              { label: "Mecánicos", node: <CheckSquare checked={higiene?.peligros?.mecanicos ?? false} /> },
+              { label: "Ergonómicos", node: <CheckSquare checked={higiene?.peligros?.ergonomicos ?? false} /> },
+              { label: "Eléctricos", node: <CheckSquare checked={higiene?.peligros?.electricos ?? false} /> },
+              { label: "Químicos", node: <CheckSquare checked={higiene?.peligros?.quimicos ?? false} /> },
+            ]}
+          />
+          <StackRow
+            fields={[
+              { label: "Otros (Especifique)", value: higiene?.peligros?.otros || "" },
+            ]}
+          />
+          <StackRow
+            fields={[
+              { label: "Descripción del Peligro / Nivel de Riesgo Estimado / Controles Requeridos", value: higiene?.peligros?.descripcion || "" },
+            ]}
+          />
         </View>
 
         <View style={styles.spacer} />
 
         {/* Antecedentes */}
         <View style={styles.table}>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>¿Existen Antecedentes o Servicios Similares?</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <YesNoSquares value={recursos?.antecedentes?.existe ?? null} />
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Especifique</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{recursos?.antecedentes?.especificacion || "—"}</Text>
-            </View>
-          </View>
+          <StackRow
+            fields={[
+              { label: "¿Existen Antecedentes o Servicios Similares?", node: <YesNoSquares value={recursos?.antecedentes?.existe ?? null} /> },
+              { label: "Especifique", value: recursos?.antecedentes?.especificacion || "" },
+            ]}
+          />
         </View>
 
         <View style={styles.spacer} />
@@ -611,28 +642,13 @@ export default function DisenoServicioPdfDocument({
           <Text>Bloque II: Factibilidad y Planificación (Llenado por Departamento Ejecutante)</Text>
         </View>
         <View style={styles.table}>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Recurso Asignado / Personal Técnico</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <Text>{planif?.recurso_asignado || "—"}</Text>
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Equipos / Instrumentos Asignados</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{planif?.equipos_asignados || "—"}</Text>
-            </View>
-          </View>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Software / Material Didáctico Asignado</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 3 }]}>
-              <Text>{planif?.software_material_asignado || "—"}</Text>
-            </View>
-          </View>
+          <StackRow
+            fields={[
+              { label: "Nombre y Apellido del Recurso Asignado / Personal Técnico", value: planif?.recurso_asignado || "" },
+              { label: "Equipos / Instrumentos Asignados (Para Servicios Técnicos)", value: planif?.equipos_asignados || "" },
+              { label: "Software / Material Didáctico Asignados (Para Capacitación)", value: planif?.software_material_asignado || "" },
+            ]}
+          />
         </View>
 
         <View style={styles.spacer} />
@@ -703,34 +719,18 @@ export default function DisenoServicioPdfDocument({
           <Text>Evaluación de Viabilidad del Servicio</Text>
         </View>
         <View style={styles.table}>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Viabilidad Técnica</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <FavorableSquares value={planif?.viabilidad_tecnica || ""} />
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Viabilidad Económica</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <FavorableSquares value={planif?.viabilidad_economica || ""} />
-            </View>
-          </View>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Tiempo Estimado</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <Text>{planif?.tiempo_estimado || "—"}</Text>
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Fecha Estimada de Finalización</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{formatDate(planif?.fecha_estimada_finalizacion)}</Text>
-            </View>
-          </View>
+          <StackRow
+            fields={[
+              { label: "Viabilidad Técnica", node: <FavorableSquares value={planif?.viabilidad_tecnica || ""} /> },
+              { label: "Viabilidad Económica", node: <FavorableSquares value={planif?.viabilidad_economica || ""} /> },
+            ]}
+          />
+          <StackRow
+            fields={[
+              { label: "Tiempo Estimado para Llevar a Cabo la Solicitud", value: planif?.tiempo_estimado || "" },
+              { label: "Fecha Estimada de Finalización", value: formatDate(planif?.fecha_estimada_finalizacion) },
+            ]}
+          />
         </View>
 
         <View style={styles.spacer} />
@@ -740,26 +740,13 @@ export default function DisenoServicioPdfDocument({
           <Text>Aprobación de Inicio</Text>
         </View>
         <View style={styles.table}>
-          <View style={styles.row}>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Nombre y Apellido</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <Text>{planif?.aprobacion?.nombre || "—"}</Text>
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Cargo</Text>
-            </View>
-            <View style={[styles.cellValue, { flex: 1 }]}>
-              <Text>{planif?.aprobacion?.cargo || "—"}</Text>
-            </View>
-            <View style={[styles.cellLabel, { flex: 1 }]}>
-              <Text>Fecha</Text>
-            </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
-              <Text>{formatDate(planif?.aprobacion?.fecha)}</Text>
-            </View>
-          </View>
+          <StackRow
+            fields={[
+              { label: "Nombre y Apellido", value: planif?.aprobacion?.nombre || "" },
+              { label: "Cargo", value: planif?.aprobacion?.cargo || "" },
+              { label: "Fecha", value: formatDate(planif?.aprobacion?.fecha) },
+            ]}
+          />
         </View>
 
         <View style={styles.spacer} />
@@ -834,34 +821,69 @@ export default function DisenoServicioPdfDocument({
           <Text>Bloque IV: Salidas del Diseño y Desarrollo (Llenado por Departamento Ejecutante)</Text>
         </View>
         <View style={styles.subTitle}>
-          <Text>
-            Documentos generados — {isCAP ? "Capacitación (CAP)" : "Servicio Técnico (ST)"}
-          </Text>
+          <Text>Marque los documentos generados, en función del servicio aplicable:</Text>
         </View>
+
+        {/* Side-by-side ST + CAP checklists */}
         <View style={styles.table}>
-          <View style={styles.itemsHeaderRow}>
-            <View style={[styles.itemsHeaderCell, { flex: 3 }]}>
+          {/* Section headers: SERVICIO TÉCNICO | CAPACITACIÓN */}
+          <View style={styles.dualChecklistHeader}>
+            <View style={styles.dualChecklistSectionLabel}>
+              <Text>SERVICIO TÉCNICO</Text>
+            </View>
+            <View style={styles.dualChecklistSectionLabelLast}>
+              <Text>CAPACITACIÓN</Text>
+            </View>
+          </View>
+
+          {/* Column headers: Salidas | ¿Aplica? | Especifique (×2) */}
+          <View style={styles.dualChecklistColHeader}>
+            <View style={[styles.dualChecklistColCell, { flex: 3 }]}>
               <Text>Salidas</Text>
             </View>
-            <View style={[styles.itemsHeaderCell, { flex: 1 }]}>
+            <View style={[styles.dualChecklistColCell, { flex: 1 }]}>
               <Text>¿Aplica?</Text>
             </View>
-            <View style={[styles.itemsHeaderCellLast, { flex: 2 }]}>
+            <View style={[styles.dualChecklistColCell, { flex: 2 }]}>
+              <Text>Especifique</Text>
+            </View>
+            <View style={[styles.dualChecklistColCell, { flex: 3 }]}>
+              <Text>Salidas</Text>
+            </View>
+            <View style={[styles.dualChecklistColCell, { flex: 1 }]}>
+              <Text>¿Aplica?</Text>
+            </View>
+            <View style={[styles.dualChecklistColCellLast, { flex: 2 }]}>
               <Text>Especifique</Text>
             </View>
           </View>
-          {checklistItems.map((item, idx) => {
-            const entry = checklistMap.get(item);
+
+          {/* Item rows: ST items on left, CAP items on right */}
+          {ST_CHECKLIST_ITEMS.map((stItem, idx) => {
+            const capItem = CAP_CHECKLIST_ITEMS[idx];
+            const stEntry = checklistMap.get(stItem);
+            const capEntry = checklistCapMap.get(capItem);
             return (
-              <View key={idx} style={styles.itemsRow}>
-                <View style={[styles.itemsCell, { flex: 3 }]}>
-                  <Text>{item}</Text>
+              <View key={idx} style={styles.dualChecklistRow}>
+                {/* ST side */}
+                <View style={[styles.dualChecklistCell, { flex: 3 }]}>
+                  <Text>{stItem}</Text>
                 </View>
-                <View style={[styles.itemsCell, { flex: 1 }]}>
-                  <AplicaSquares value={entry?.aplica || ""} />
+                <View style={[styles.dualChecklistCell, { flex: 1 }]}>
+                  <AplicaSquares value={stEntry?.aplica || ""} />
                 </View>
-                <View style={[styles.itemsCellLast, { flex: 2 }]}>
-                  <Text>{entry?.aplica === "aplica" ? entry?.especifique || "—" : "—"}</Text>
+                <View style={[styles.dualChecklistCell, { flex: 2 }]}>
+                  <Text>{stEntry?.aplica === "aplica" ? stEntry?.especifique || "—" : "—"}</Text>
+                </View>
+                {/* CAP side */}
+                <View style={[styles.dualChecklistCell, { flex: 3 }]}>
+                  <Text>{capItem}</Text>
+                </View>
+                <View style={[styles.dualChecklistCell, { flex: 1 }]}>
+                  <AplicaSquares value={capEntry?.aplica || ""} />
+                </View>
+                <View style={[styles.dualChecklistCellLast, { flex: 2 }]}>
+                  <Text>{capEntry?.aplica === "aplica" ? capEntry?.especifique || "—" : "—"}</Text>
                 </View>
               </View>
             );
@@ -870,24 +892,24 @@ export default function DisenoServicioPdfDocument({
 
         <View style={styles.spacer} />
 
-        {/* Declaración de Cumplimiento */}
+        {/* Declaración de Cumplimiento + Observaciones */}
         <View style={styles.table}>
           <View style={styles.row}>
             <View style={[styles.cellLabel, { flex: 2 }]}>
               <Text>
-                ¿Las salidas del diseño cumplen con las entradas del Bloque I?
+                ¿Las salidas del diseño cumplen con las entradas definidas en el Bloque I?
               </Text>
             </View>
-            <View style={[styles.cellValueLast, { flex: 1 }]}>
+            <View style={[styles.cellValue, { flex: 1 }]}>
               <YesNoSquares value={salidas?.declaracion_cumplimiento ?? null} />
             </View>
+            <View style={[styles.cellLabel, { flex: 2 }]}>
+              <Text>Observaciones (si aplican):</Text>
+            </View>
+            <View style={[styles.cellValueLast, { flex: 3 }]}>
+              <Text>{salidas?.observaciones || "—"}</Text>
+            </View>
           </View>
-        </View>
-        <View style={styles.subTitle}>
-          <Text>Observaciones (si aplican)</Text>
-        </View>
-        <View style={styles.observaciones}>
-          <Text>{salidas?.observaciones || "—"}</Text>
         </View>
 
         <View style={styles.spacer} />

@@ -140,17 +140,44 @@ export default function DisenoServicioWizard({
 
   const isCompleted = solicitud.id_estatus === 38;
   const isCAP = solicitud.tipo_servicio?.toLowerCase().includes("cap") || solicitud.tipo_servicio?.toLowerCase().includes("capacitaci");
-  const checklistItems = isCAP ? CAP_CHECKLIST_ITEMS : ST_CHECKLIST_ITEMS;
 
-  // Initialize checklist if empty
-  if ((bloqueSalidas.checklist?.length ?? 0) === 0 && checklistItems.length > 0) {
+  // Initialize both checklists (ST + CAP) if empty, migrating old CAP data if needed
+  if (
+    (bloqueSalidas.checklist?.length ?? 0) === 0 ||
+    (bloqueSalidas.checklist_cap?.length ?? 0) === 0
+  ) {
+    const existingChecklist = bloqueSalidas.checklist || [];
+    const existingCap = bloqueSalidas.checklist_cap || [];
+
+    // Detect old CAP data stored in checklist (pre-dual-checklist migration)
+    const isOldCapData =
+      existingChecklist.length > 0 &&
+      existingChecklist.every((c) =>
+        CAP_CHECKLIST_ITEMS.some(
+          (cap) => cap.toLowerCase() === c.item.toLowerCase()
+        )
+      );
+
     setBloqueSalidas({
       ...bloqueSalidas,
-      checklist: checklistItems.map((item) => ({
-        item,
-        aplica: "",
-        especifique: "",
-      })),
+      checklist:
+        existingChecklist.length > 0 && !isOldCapData
+          ? existingChecklist
+          : ST_CHECKLIST_ITEMS.map((item) => ({
+              item,
+              aplica: "" as const,
+              especifique: "",
+            })),
+      checklist_cap:
+        existingCap.length > 0
+          ? existingCap
+          : isOldCapData
+            ? existingChecklist
+            : CAP_CHECKLIST_ITEMS.map((item) => ({
+                item,
+                aplica: "" as const,
+                especifique: "",
+              })),
     });
   }
 
@@ -990,49 +1017,103 @@ export default function DisenoServicioWizard({
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-1">Bloque IV: Salidas del Diseño y Desarrollo</h2>
                 <p className="text-sm text-gray-500">
-                  Checklist de entregables — {isCAP ? "Capacitación (CAP)" : "Servicio Técnico (ST)"}
+                  Marque los documentos generados, en función del servicio aplicable
                 </p>
               </div>
-              <div className="space-y-2">
-                {bloqueSalidas.checklist.map((checkItem, idx) => (
-                  <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border border-gray-200 rounded-lg">
-                    <div className="flex-1">
-                      <Label className="text-sm">{checkItem.item}</Label>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <RadioGroup
-                        value={checkItem.aplica}
-                        onValueChange={(val) => {
-                          const newChecklist = [...bloqueSalidas.checklist];
-                          newChecklist[idx] = { ...checkItem, aplica: val as any };
-                          setBloqueSalidas({ ...bloqueSalidas, checklist: newChecklist });
-                        }}
-                        className="flex gap-3"
-                      >
-                        <div className="flex items-center gap-1">
-                          <RadioGroupItem value="aplica" />
-                          <Label className="text-xs">Aplica</Label>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <RadioGroupItem value="no_aplica" />
-                          <Label className="text-xs">No Aplica</Label>
-                        </div>
-                      </RadioGroup>
-                      {checkItem.aplica === "aplica" && (
-                        <Input
-                          value={checkItem.especifique}
-                          onChange={(e) => {
+
+              {/* Side-by-side ST + CAP checklists */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* ST Checklist */}
+                <div className="space-y-2">
+                  <div className="text-sm font-bold text-gray-700 bg-gray-100 px-3 py-2 rounded-t border border-gray-200">
+                    Servicio Técnico (ST)
+                  </div>
+                  {bloqueSalidas.checklist.map((checkItem, idx) => (
+                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border border-gray-200 rounded-lg">
+                      <div className="flex-1">
+                        <Label className="text-sm">{checkItem.item}</Label>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <RadioGroup
+                          value={checkItem.aplica}
+                          onValueChange={(val) => {
                             const newChecklist = [...bloqueSalidas.checklist];
-                            newChecklist[idx] = { ...checkItem, especifique: e.target.value };
+                            newChecklist[idx] = { ...checkItem, aplica: val as any };
                             setBloqueSalidas({ ...bloqueSalidas, checklist: newChecklist });
                           }}
-                          placeholder="Especifique"
-                          className="h-8 w-40"
-                        />
-                      )}
+                          className="flex gap-3"
+                        >
+                          <div className="flex items-center gap-1">
+                            <RadioGroupItem value="aplica" />
+                            <Label className="text-xs">Aplica</Label>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <RadioGroupItem value="no_aplica" />
+                            <Label className="text-xs">No Aplica</Label>
+                          </div>
+                        </RadioGroup>
+                        {checkItem.aplica === "aplica" && (
+                          <Input
+                            value={checkItem.especifique}
+                            onChange={(e) => {
+                              const newChecklist = [...bloqueSalidas.checklist];
+                              newChecklist[idx] = { ...checkItem, especifique: e.target.value };
+                              setBloqueSalidas({ ...bloqueSalidas, checklist: newChecklist });
+                            }}
+                            placeholder="Especifique"
+                            className="h-8 w-40"
+                          />
+                        )}
+                      </div>
                     </div>
+                  ))}
+                </div>
+
+                {/* CAP Checklist */}
+                <div className="space-y-2">
+                  <div className="text-sm font-bold text-gray-700 bg-gray-100 px-3 py-2 rounded-t border border-gray-200">
+                    Capacitación (CAP)
                   </div>
-                ))}
+                  {bloqueSalidas.checklist_cap.map((checkItem, idx) => (
+                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border border-gray-200 rounded-lg">
+                      <div className="flex-1">
+                        <Label className="text-sm">{checkItem.item}</Label>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <RadioGroup
+                          value={checkItem.aplica}
+                          onValueChange={(val) => {
+                            const newChecklist = [...bloqueSalidas.checklist_cap];
+                            newChecklist[idx] = { ...checkItem, aplica: val as any };
+                            setBloqueSalidas({ ...bloqueSalidas, checklist_cap: newChecklist });
+                          }}
+                          className="flex gap-3"
+                        >
+                          <div className="flex items-center gap-1">
+                            <RadioGroupItem value="aplica" />
+                            <Label className="text-xs">Aplica</Label>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <RadioGroupItem value="no_aplica" />
+                            <Label className="text-xs">No Aplica</Label>
+                          </div>
+                        </RadioGroup>
+                        {checkItem.aplica === "aplica" && (
+                          <Input
+                            value={checkItem.especifique}
+                            onChange={(e) => {
+                              const newChecklist = [...bloqueSalidas.checklist_cap];
+                              newChecklist[idx] = { ...checkItem, especifique: e.target.value };
+                              setBloqueSalidas({ ...bloqueSalidas, checklist_cap: newChecklist });
+                            }}
+                            placeholder="Especifique"
+                            className="h-8 w-40"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="border-t border-gray-200 pt-4">

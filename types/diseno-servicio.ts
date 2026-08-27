@@ -107,6 +107,7 @@ export interface SalidaChecklistItem {
 
 export interface BloqueSalidasDiseno {
   checklist: SalidaChecklistItem[];
+  checklist_cap: SalidaChecklistItem[];
   declaracion_cumplimiento: boolean | null;
   observaciones: string;
 }
@@ -208,6 +209,7 @@ export const EMPTY_BLOQUE_CONTROLES: BloqueControlesDiseno = {
 
 export const EMPTY_BLOQUE_SALIDAS: BloqueSalidasDiseno = {
   checklist: [],
+  checklist_cap: [],
   declaracion_cumplimiento: null,
   observaciones: "",
 };

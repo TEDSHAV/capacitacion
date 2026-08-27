@@ -217,7 +217,7 @@ export default function CapacitacionClient({
             Capacitación
           </h1>
           <p className="text-gray-500 mt-1">
-            Gestión centralizada de procesos académicos
+            Gestión centralizada de los procesos de Capacitación
           </p>
         </div>
 
