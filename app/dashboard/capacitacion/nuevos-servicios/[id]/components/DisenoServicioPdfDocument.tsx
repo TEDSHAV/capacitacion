@@ -749,10 +749,9 @@ export default function DisenoServicioPdfDocument({
           />
         </View>
 
-        <View style={styles.spacer} />
-
         {/* ===== BLOQUE III: CONTROLES DEL DISEÑO ===== */}
-        <View style={styles.sectionTitle} minPresenceAhead={30}>
+        {/* break: force Bloque III onto a new page to avoid mid-row cutoff */}
+        <View style={styles.sectionTitle} minPresenceAhead={30} break>
           <Text>Bloque III: Controles del Diseño (Llenado por Departamento Ejecutante)</Text>
         </View>
         <View style={styles.table}>
@@ -793,13 +792,17 @@ export default function DisenoServicioPdfDocument({
               entry: controles?.validacion,
             },
           ].map((section, idx) => (
-            <View key={idx} style={styles.itemsRow}>
+            <View key={idx} style={styles.itemsRow} minPresenceAhead={40}>
               <View style={[styles.itemsCell, { flex: 1.2, fontWeight: 700 }]}>
                 <Text>{section.title}</Text>
-                <Text style={{ fontSize: 6, fontWeight: 400 }}>{section.desc}</Text>
               </View>
               <View style={[styles.itemsCell, { flex: 2.5 }]}>
-                <Text>{section.entry?.descripcion || "—"}</Text>
+                <Text>{section.desc}</Text>
+                {section.entry?.descripcion && (
+                  <Text style={{ marginTop: 2, fontSize: 6 }}>
+                    {"\n"}Actividad realizada: {section.entry.descripcion}
+                  </Text>
+                )}
               </View>
               <View style={[styles.itemsCell, { flex: 1 }]}>
                 <Text>{section.entry?.responsable || "—"}</Text>
