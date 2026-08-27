@@ -12,6 +12,16 @@ This project follows [Semantic Versioning](https://semver.org/) and
 > (an author-email change) and do not reflect when that work was actually done.
 > Only commits following the Conventional Commits format appear in the entries below.
 
+## [1.12.0](https://github.com/TEDSHAV/capacitacion/compare/v1.11.2...v1.12.0) (2026-08-27)
+
+### Features
+
+* match PDF layout to Excel sample — stacked label/value format, side-by-side ST+CAP checklists in Bloque IV 7dbb592
+
+### Bug Fixes
+
+* move Bloque III description to its own column, force page break before Bloque III e2207bd
+* prevent header/footer overlap in PDF, stack Aplica/No Aplica vertically in Bloque IV cd19191
 ## [1.11.2](https://github.com/TEDSHAV/capacitacion/compare/v1.11.1...v1.11.2) (2026-08-26)
 
 ### Bug Fixes
