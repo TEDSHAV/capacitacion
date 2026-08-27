@@ -8,8 +8,8 @@ import {
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 40,
-    paddingBottom: 40,
+    paddingTop: 50,
+    paddingBottom: 55,
     paddingHorizontal: 24,
     fontSize: 8,
     fontFamily: "Helvetica",
@@ -359,7 +359,7 @@ function FavorableSquares({ value }: { value: string }) {
 // Render an aplica/no_aplica value
 function AplicaSquares({ value }: { value: string }) {
   return (
-    <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+    <View style={{ flexDirection: "column", gap: 2, alignItems: "flex-start" }}>
       <View style={styles.checkboxRow}>
         <CheckSquare checked={value === "aplica"} />
         <Text>Aplica</Text>
