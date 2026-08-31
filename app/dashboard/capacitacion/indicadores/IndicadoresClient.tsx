@@ -5,24 +5,23 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, AlertCircle, Info, Settings, X } from "lucide-react";
 import type {
+  GestionMensualResponse,
   IndicadorEstado,
   IndicadoresFilterOptions,
   IndicadoresResponse,
   IndicadorOsiRow,
 } from "@/types";
 import { getIndicadoresCertificados72h } from "@/app/actions/indicadores-certificados";
+import { getIndicadoresGestionMensual } from "@/app/actions/indicadores-gestion";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
-import FilterBar, {
-  getDateRange,
-  type IndicadoresFilterState,
-} from "./components/FilterBar";
-import KpiCards from "./components/KpiCards";
+import { fetchWithOfflineFallback } from "@/lib/offline/use-offline-data";
+import { useOnlineStatus } from "@/lib/offline/use-online-status";
+import { CachedDataBanner } from "@/components/CachedDataBanner";
+import FilterBar, { type IndicadoresFilterState } from "./components/FilterBar";
+import GestionKpiCards from "./components/GestionKpiCards";
+import GestionMensualTable from "./components/GestionMensualTable";
+import CarryPanel from "./components/CarryPanel";
 import ComplianceGauge from "./components/ComplianceGauge";
-import TrendLineChart from "./components/TrendLineChart";
-import DistributionHistogram from "./components/DistributionHistogram";
-import OsiBarChart from "./components/OsiBarChart";
-import DimensionBarChart from "./components/DimensionBarChart";
-import MonthlyStackedBar from "./components/MonthlyStackedBar";
 import IndicadoresTable from "./components/IndicadoresTable";
 
 interface Props {
@@ -30,26 +29,42 @@ interface Props {
   filterOptions: IndicadoresFilterOptions;
 }
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 const DEFAULT_STATE: IndicadoresFilterState = {
   osiIds: [],
-  datePreset: "all",
-  customFrom: "",
-  customTo: "",
+  year: CURRENT_YEAR,
   empresaId: "",
   facilitadorId: "",
   estadoId: "",
   soloIncumplimientos: false,
 };
 
-function buildFilters(state: IndicadoresFilterState) {
-  const { from, to } =
-    state.datePreset === "custom"
-      ? { from: state.customFrom, to: state.customTo }
-      : getDateRange(state.datePreset);
+/** "YYYY-MM" of the month the cards should open on for a given year. */
+function defaultMesForYear(year: number): string {
+  const month = year === CURRENT_YEAR ? new Date().getMonth() + 1 : 12;
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+/**
+ * The 72h section is scoped to the selected month (derived from
+ * `selectedMes`), so the page has a single period control shared with the
+ * monthly matrix highlight.
+ */
+function build72hFilters(
+  state: IndicadoresFilterState,
+  selectedMes: string,
+) {
+  const [yStr, mStr] = selectedMes.split("-");
+  const y = parseInt(yStr, 10);
+  const m = parseInt(mStr, 10);
+  // Last day of the selected month (clamped for month length, including
+  // leap-year February).
+  const lastDay = new Date(y, m, 0).getDate();
   return {
     osiIds: state.osiIds.length ? state.osiIds : undefined,
-    fechaFrom: from,
-    fechaTo: to,
+    fechaFrom: `${y}-${String(m).padStart(2, "0")}-01`,
+    fechaTo: `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
     empresaId: state.empresaId || undefined,
     facilitadorId: state.facilitadorId || undefined,
     estadoId: state.estadoId || undefined,
@@ -57,7 +72,67 @@ function buildFilters(state: IndicadoresFilterState) {
   };
 }
 
-function exportCsv(rows: IndicadorOsiRow[]) {
+function buildGestionFilters(state: IndicadoresFilterState) {
+  return {
+    year: state.year,
+    empresaId: state.empresaId || undefined,
+    facilitadorId: state.facilitadorId || undefined,
+    estadoId: state.estadoId || undefined,
+  };
+}
+
+function escapeCsv(v: unknown): string {
+  const s = v == null ? "" : String(v);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function downloadCsv(lines: string[], filename: string) {
+  const blob = new Blob(["\uFEFF" + lines.join("\n")], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/** Monthly matrix export: one row per indicator, one column per month. */
+function exportGestionCsv(gestion: GestionMensualResponse) {
+  const rows: { label: string; get: (m: (typeof gestion.meses)[number]) => number }[] = [
+    { label: "OSIs recibidas", get: (m) => m.osisRecibidas },
+    { label: "OSIs planificadas", get: (m) => m.osisPlanificadas },
+    { label: "Ejecutadas en su mes", get: (m) => m.osisEjecutadasEnSuMes },
+    { label: "Pendientes del mes", get: (m) => m.osisPendientes },
+    { label: "Pendientes con fecha ya pasada", get: (m) => m.osisPendientesVencidas },
+    { label: "Ejecutadas de meses anteriores", get: (m) => m.osisRezagadasEjecutadas },
+    { label: "Participantes planificados", get: (m) => m.participantesPlanificados },
+    { label: "Participantes en lista", get: (m) => m.participantesLista },
+    { label: "Certificados emitidos", get: (m) => m.certificados },
+    { label: "Participantes con certificado", get: (m) => m.participantesCertificados },
+    { label: "PVC (carnets) emitidos", get: (m) => m.pvc },
+  ];
+  const lines = [
+    ["Indicador", ...gestion.meses.map((m) => m.label), "Total"]
+      .map(escapeCsv)
+      .join(","),
+  ];
+  for (const r of rows) {
+    lines.push(
+      [r.label, ...gestion.meses.map((m) => r.get(m)), r.get(gestion.total)]
+        .map(escapeCsv)
+        .join(","),
+    );
+  }
+  downloadCsv(lines, `indicadores-gestion-mensual-${gestion.year}.csv`);
+}
+
+/** 72h detail export: one row per OSI. */
+function exportDetalleCsv(rows: IndicadorOsiRow[], periodLabel: string) {
   const headers = [
     "OSI",
     "Empresa",
@@ -67,18 +142,13 @@ function exportCsv(rows: IndicadorOsiRow[]) {
     "Fuente ejecucion",
     "Fecha emision",
     "Fuente emision",
-    "Dias habiles",
+    "Dias habiles (max. 3)",
     "Brecha (dias)",
     "Facilitador emisor",
     "Facilitador sesion",
     "Estado",
     "Sospechoso",
   ];
-  const escape = (v: unknown) => {
-    const s = v == null ? "" : String(v);
-    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-    return s;
-  };
   const lines = [headers.join(",")];
   for (const r of rows) {
     lines.push(
@@ -98,29 +168,19 @@ function exportCsv(rows: IndicadorOsiRow[]) {
         r.estado,
         r.sospechoso ? "SI" : "No",
       ]
-        .map(escape)
+        .map(escapeCsv)
         .join(","),
     );
   }
-  const blob = new Blob(["\uFEFF" + lines.join("\n")], {
-    type: "text/csv;charset=utf-8;",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `indicadores-dias-habiles-${new Date().toISOString().split("T")[0]}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadCsv(lines, `indicadores-72-horas-${periodLabel}.csv`);
 }
 
-// Drill-down: clicking a KPI card/gauge slice filters the detail table to
-// just that estado, without triggering a new server fetch. Label map used
-// for the "showing X" banner above the table.
+// Drill-down: clicking a gauge slice filters the detail table to just that
+// estado, without triggering a new server fetch. Label map used for the
+// "showing X" banner above the table.
 const DRILLDOWN_LABELS: Record<IndicadorEstado, string> = {
-  dentro: "Dentro de SLA",
-  fuera: "Fuera de SLA",
+  dentro: "Dentro de 72h",
+  fuera: "Fuera de 72h",
   pendiente: "Pendientes",
   programada: "Programadas",
   no_aplica: "No aplica",
@@ -129,12 +189,19 @@ const DRILLDOWN_LABELS: Record<IndicadorEstado, string> = {
 export default function IndicadoresClient({ user: _user, filterOptions }: Props) {
   void _user;
   const searchParams = useSearchParams();
+  const isOnline = useOnlineStatus();
   const [filterState, setFilterState] = useState<IndicadoresFilterState>(DEFAULT_STATE);
+  const [selectedMes, setSelectedMes] = useState(defaultMesForYear(CURRENT_YEAR));
+
+  const [gestion, setGestion] = useState<GestionMensualResponse | null>(null);
+  const [gestionFromCache, setGestionFromCache] = useState(false);
+  const [gestionCachedAt, setGestionCachedAt] = useState<number | null>(null);
+
   const [data, setData] = useState<IndicadoresResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Drill-down applied to the detail table only (estado bucket, or a
-  // specific OSI number e.g. from the "Peor caso" card). null = show all.
+  // specific OSI number). null = show all.
   const [drilldown, setDrilldown] = useState<
     { type: "estado"; value: IndicadorEstado } | { type: "osi"; value: string } | null
   >(null);
@@ -152,12 +219,11 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
   // Initialize from URL params
   useEffect(() => {
     const osiIdsParam = searchParams.get("osis");
-    const date = searchParams.get("date");
+    const year = searchParams.get("year");
+    const mes = searchParams.get("mes");
     const empresa = searchParams.get("empresa");
     const facilitador = searchParams.get("facilitador");
     const estado = searchParams.get("estado");
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
     const breach = searchParams.get("breach");
     const vista = searchParams.get("vista");
 
@@ -168,17 +234,16 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
         .map((s) => parseInt(s, 10))
         .filter((n) => Number.isFinite(n));
     }
-    if (date) next.datePreset = date;
+    const parsedYear = year ? parseInt(year, 10) : NaN;
+    if (Number.isFinite(parsedYear)) next.year = parsedYear;
     if (empresa) next.empresaId = empresa;
     if (facilitador) next.facilitadorId = facilitador;
     if (estado) next.estadoId = estado;
-    if (from && to) {
-      next.customFrom = from;
-      next.customTo = to;
-      next.datePreset = "custom";
-    }
     if (breach === "1") next.soloIncumplimientos = true;
     setFilterState(next);
+    setSelectedMes(
+      mes && /^\d{4}-\d{2}$/.test(mes) ? mes : defaultMesForYear(next.year),
+    );
     if (vista?.startsWith("osi:")) {
       setDrilldown({ type: "osi", value: vista.slice(4) });
     } else if (vista && vista in DRILLDOWN_LABELS) {
@@ -192,45 +257,96 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
     const params = new URLSearchParams();
     if (filterState.osiIds.length)
       params.set("osis", filterState.osiIds.join(","));
-    params.set("date", filterState.datePreset);
+    params.set("year", String(filterState.year));
+    params.set("mes", selectedMes);
     if (filterState.empresaId) params.set("empresa", filterState.empresaId);
     if (filterState.facilitadorId)
       params.set("facilitador", filterState.facilitadorId);
     if (filterState.estadoId) params.set("estado", filterState.estadoId);
-    if (filterState.datePreset === "custom" && filterState.customFrom && filterState.customTo) {
-      params.set("from", filterState.customFrom);
-      params.set("to", filterState.customTo);
-    }
     if (filterState.soloIncumplimientos) params.set("breach", "1");
     if (drilldown?.type === "estado") params.set("vista", drilldown.value);
     else if (drilldown?.type === "osi") params.set("vista", `osi:${drilldown.value}`);
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", newUrl);
-  }, [filterState, drilldown]);
+  }, [filterState, selectedMes, drilldown]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await getIndicadoresCertificados72h(buildFilters(filterState));
-    if (res.error) {
-      setError(res.error);
-      setData(null);
+    const gestionFilters = buildGestionFilters(filterState);
+    const filters72h = build72hFilters(filterState, selectedMes);
+    const filterKey = JSON.stringify({
+      empresaId: gestionFilters.empresaId,
+      facilitadorId: gestionFilters.facilitadorId,
+      estadoId: gestionFilters.estadoId,
+    });
+
+    const [gestionRes, res72h] = await Promise.all([
+      fetchWithOfflineFallback(
+        `dash_indicadores_gestion_${filterState.year}_${filterKey}`,
+        "dash_indicadores",
+        () => getIndicadoresGestionMensual(gestionFilters),
+      ).catch((err) => {
+        console.error("Error loading gestion mensual:", err);
+        return null;
+      }),
+      fetchWithOfflineFallback(
+        `dash_indicadores_72h_${selectedMes}_${JSON.stringify({
+          osiIds: filters72h.osiIds,
+          empresaId: filters72h.empresaId,
+          facilitadorId: filters72h.facilitadorId,
+          estadoId: filters72h.estadoId,
+          soloIncumplimientos: filters72h.soloIncumplimientos,
+        })}`,
+        "dash_indicadores",
+        () => getIndicadoresCertificados72h(filters72h),
+      ).catch((err) => {
+        console.error("Error loading indicadores 72h:", err);
+        return null;
+      }),
+    ]);
+
+    if (gestionRes?.data.data) {
+      setGestion(gestionRes.data.data);
+      setGestionFromCache(gestionRes.fromCache);
+      setGestionCachedAt(gestionRes.cachedAt);
     } else {
-      setData(res.data);
+      setGestion(null);
     }
+
+    const err = gestionRes?.data.error ?? res72h?.data.error ?? null;
+    if (res72h?.data.data) setData(res72h.data.data);
+    else setData(null);
+    setError(err);
     setLoading(false);
-  }, [filterState]);
+  }, [filterState, selectedMes]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const aggregates = data?.aggregates;
-  const rows = data?.rows ?? [];
+  const rows = useMemo(() => data?.rows ?? [], [data?.rows]);
 
-  // Drill-down only filters the detail table below — the CSV export, the
-  // OSI bar chart, and the dimension charts keep reflecting the full
-  // toolbar-filtered dataset.
+  // Years offered by the selector: whatever the server found, always
+  // including the current year and the one currently selected (so the
+  // control never renders an empty/invalid value).
+  const years = useMemo(() => {
+    const set = new Set<number>([CURRENT_YEAR, filterState.year]);
+    for (const y of gestion?.yearsDisponibles ?? []) set.add(y);
+    return Array.from(set).sort((a, b) => b - a);
+  }, [gestion?.yearsDisponibles, filterState.year]);
+
+  const mesActual = useMemo(() => {
+    if (!gestion) return null;
+    return (
+      gestion.meses.find((m) => m.mes === selectedMes) ??
+      gestion.meses[gestion.meses.length - 1]
+    );
+  }, [gestion, selectedMes]);
+
+  // Drill-down only filters the detail table below — the CSV export keeps
+  // reflecting the full toolbar-filtered dataset.
   const tableRows = useMemo(() => {
     if (!drilldown) return rows;
     if (drilldown.type === "estado") {
@@ -240,8 +356,8 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
   }, [rows, drilldown]);
 
   const scrollToTable = useCallback(() => {
-    // Defer to the next tick so layout has settled (e.g. after a card click
-    // that also changes visible content above the table).
+    // Defer to the next tick so layout has settled (e.g. after a click that
+    // also changes visible content above the table).
     setTimeout(() => {
       tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
@@ -259,16 +375,15 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
     [scrollToTable],
   );
 
-  const handleSelectOsi = useCallback(
-    (nroOsi: string | null) => {
-      setDrilldown((cur) => {
-        if (nroOsi == null) return null;
-        if (cur?.type === "osi" && cur.value === nroOsi) return null; // toggle off
-        return { type: "osi", value: nroOsi };
+  // Changing the year moves the card selection to a month that exists in it.
+  const handleFilterChange = useCallback(
+    (next: IndicadoresFilterState) => {
+      setFilterState((cur) => {
+        if (next.year !== cur.year) setSelectedMes(defaultMesForYear(next.year));
+        return next;
       });
-      if (nroOsi != null) scrollToTable();
     },
-    [scrollToTable],
+    [],
   );
 
   const drilldownLabel =
@@ -283,52 +398,23 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
       <FilterBar
         options={filterOptions}
         state={filterState}
-        onChange={setFilterState}
-        onExportCsv={() => exportCsv(rows)}
+        onChange={handleFilterChange}
+        years={years}
+        selectedMes={selectedMes}
+        onSelectMes={setSelectedMes}
+        onExportGestionCsv={() => gestion && exportGestionCsv(gestion)}
+        onExportDetalleCsv={() => exportDetalleCsv(rows, selectedMes)}
       />
 
       <main className="flex-1 p-6 overflow-auto">
-        {/* Title + assumption note */}
         <div className="mb-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">
-                Indicadores de Certificados · SLA 3 días hábiles
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Mide si la emisión de certificados ocurre dentro de 3 días
-                hábiles (excluyendo fines de semana y feriados venezolanos)
-                tras la última fecha de ejecución real (
-                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-                  MAX(osi_sesion.fecha_ejecutada)
-                </code>
-                , con respaldo en{" "}
-                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-                  fecha
-                </code>{" "}
-                planificada y{" "}
-                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-                  fecha_fin_real
-                </code>
-                ). Emisión medida por{" "}
-                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-                  certificados.created_at
-                </code>{" "}
-                (timestamp real de BD), con respaldo en{" "}
-                <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-                  fecha_emision
-                </code>
-                . El día de ejecución cuenta como día 1.
-              </p>
-            </div>
-            <Link
-              href="/dashboard/capacitacion/configuracion/feriados"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors whitespace-nowrap flex-shrink-0"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              Configurar feriados
-            </Link>
-          </div>
+          <h1 className="text-xl font-bold text-gray-900">
+            Indicadores de Gestión · Capacitación {filterState.year}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Flujo mensual de OSIs (recibidas, ejecutadas, pendientes),
+            participantes y emisión de certificados y carnets.
+          </p>
         </div>
 
         {error && (
@@ -343,6 +429,12 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
           </div>
         )}
 
+        {gestionFromCache && (
+          <div className="mb-5">
+            <CachedDataBanner cachedAt={gestionCachedAt} isOnline={isOnline} />
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <Loader2 className="w-6 h-6 text-sky-600 animate-spin" />
@@ -350,89 +442,125 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
               Calculando indicadores…
             </span>
           </div>
-        ) : !aggregates ? (
-          <div className="flex items-center justify-center py-24 text-sm text-gray-400">
-            Sin datos
-          </div>
-        ) : aggregates.totalEvaluadas === 0 &&
-          aggregates.pendientes === 0 &&
-          aggregates.noAplica === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-            <Info className="w-8 h-8 mb-2" />
-            <p className="text-sm">
-              No hay OSIs de capacitación que coincidan con los filtros.
-            </p>
-          </div>
         ) : (
-          <div className="space-y-6">
-            <KpiCards
-              aggregates={aggregates}
-              activeEstado={drilldown?.type === "estado" ? drilldown.value : null}
-              activeOsi={drilldown?.type === "osi" ? drilldown.value : null}
-              onSelectEstado={handleSelectEstado}
-              onSelectOsi={handleSelectOsi}
-            />
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <ComplianceGauge
-                aggregates={aggregates}
-                activeEstado={drilldown?.type === "estado" ? drilldown.value : null}
-                onSelectEstado={handleSelectEstado}
-              />
-              <div className="lg:col-span-2">
-                <TrendLineChart data={aggregates.tendenciaMensual} />
+          <div className="space-y-8">
+            {/* ── Gestión mensual ─────────────────────────────────────── */}
+            <section className="space-y-4">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">
+                  Gestión mensual de OSIs
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Recibidas por fecha de emisión de la OSI · planificadas y
+                  ejecutadas por fecha de sesión · certificados y carnets por su
+                  propia fecha de emisión.
+                </p>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <DistributionHistogram data={aggregates.distribucion} />
-              <MonthlyStackedBar data={aggregates.tendenciaMensual} />
-            </div>
-
-            <OsiBarChart rows={rows} />
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <DimensionBarChart
-                data={aggregates.porEmpresa}
-                title="Promedio de días por empresa · sede · servicio"
-                subtitle="Top 10 por volumen de OSIs evaluadas (línea roja = 3 días)"
-              />
-              <DimensionBarChart
-                data={aggregates.porFacilitador}
-                title="Promedio de días por facilitador emisor"
-                subtitle="Top 10 facilitadores que emiten certificados (línea roja = 3 días)"
-                uppercaseLabel
-              />
-            </div>
-
-            <DimensionBarChart
-              data={aggregates.porFacilitadorSesion}
-              title="Promedio de días por facilitador de sesión"
-              subtitle="Top 10 · historial de quién dictó cada sesión (una OSI con varios facilitadores cuenta en cada uno · línea roja = 3 días)"
-              uppercaseLabel
-            />
-
-            <div ref={tableRef}>
-              {drilldownLabel && (
-                <div className="mb-3 flex items-center justify-between gap-3 bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5">
-                  <p className="text-sm text-gray-800">
-                    Mostrando: <strong>{drilldownLabel}</strong> ({tableRows.length}{" "}
-                    {tableRows.length === 1 ? "OSI" : "OSIs"})
+              {!gestion || !mesActual ? (
+                <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+                  <Info className="w-8 h-8 mb-2" />
+                  <p className="text-sm">
+                    No hay datos de gestión para {filterState.year} con estos
+                    filtros.
                   </p>
-                  <button
-                    onClick={() => setDrilldown(null)}
-                    className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    Limpiar
-                  </button>
                 </div>
+              ) : (
+                <>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xs font-medium text-gray-500">
+                      Mes seleccionado:
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {mesActual.label}
+                    </span>
+                  </div>
+                  <GestionKpiCards mes={mesActual} />
+                  <CarryPanel
+                    osisList={gestion.osisList}
+                    selectedMes={mesActual.mes}
+                    selectedMesLabel={mesActual.label}
+                  />
+                  <GestionMensualTable
+                    data={gestion}
+                    selectedMes={mesActual.mes}
+                    onSelectMes={setSelectedMes}
+                  />
+                </>
               )}
-              <IndicadoresTable
-                rows={tableRows}
-                defaultSortByBrecha={drilldown?.type === "estado" && drilldown.value === "pendiente"}
-              />
-            </div>
+            </section>
+
+            {/* ── Certificados en 72 horas ────────────────────────────── */}
+            <section className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">
+                    Certificados emitidos en 72 horas · {mesActual?.label}
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Mide si la emisión del certificado ocurre dentro de 3 días
+                    hábiles (72 horas laborables, excluyendo fines de semana y
+                    feriados venezolanos) tras la última fecha de ejecución. El
+                    día de ejecución cuenta como día 1. Alcance: certificados
+                    emitidos en {mesActual?.label}.
+                  </p>
+                </div>
+                <Link
+                  href="/dashboard/capacitacion/configuracion/feriados"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors whitespace-nowrap flex-shrink-0"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  Configurar feriados
+                </Link>
+              </div>
+
+              {!aggregates || aggregates.totalOsis === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+                  <Info className="w-8 h-8 mb-2" />
+                  <p className="text-sm">
+                    No hay OSIs de capacitación que coincidan con los filtros.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="max-w-md">
+                    <ComplianceGauge
+                      aggregates={aggregates}
+                      activeEstado={
+                        drilldown?.type === "estado" ? drilldown.value : null
+                      }
+                      onSelectEstado={handleSelectEstado}
+                    />
+                  </div>
+
+                  <div ref={tableRef}>
+                    {drilldownLabel && (
+                      <div className="mb-3 flex items-center justify-between gap-3 bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5">
+                        <p className="text-sm text-gray-800">
+                          Mostrando: <strong>{drilldownLabel}</strong> (
+                          {tableRows.length}{" "}
+                          {tableRows.length === 1 ? "OSI" : "OSIs"})
+                        </p>
+                        <button
+                          onClick={() => setDrilldown(null)}
+                          className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Limpiar
+                        </button>
+                      </div>
+                    )}
+                    <IndicadoresTable
+                      key={drilldown ? `${drilldown.type}:${drilldown.value}` : "all"}
+                      rows={tableRows}
+                      defaultSortByBrecha={
+                        drilldown?.type === "estado" &&
+                        drilldown.value === "pendiente"
+                      }
+                    />
+                  </div>
+                </>
+              )}
+            </section>
           </div>
         )}
       </main>

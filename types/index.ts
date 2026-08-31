@@ -1869,7 +1869,7 @@ export interface ClienteFilterOptions {
 }
 
 // ============================================================================
-// Indicadores de Certificados — SLA 3 días hábiles
+// Indicadores de Certificados — plazo de 72 horas (3 días hábiles)
 // Measures whether certificate issuance (certificados.created_at, with
 // fecha_emision fallback) happens within 3 business days (inclusive) of the
 // last session execution date (MAX(osi_sesion.fecha_ejecutada), with fecha
@@ -1909,51 +1909,8 @@ export interface IndicadorOsiRow {
   // OSI's sessions, joined with ", " when there's more than one (e.g. the
   // OSI had multiple sessions taught by different facilitadores).
   facilitadorSesionNombre: string | null;
-  // Underlying list backing facilitadorSesionNombre, used to credit each
-  // distinct facilitador separately in the "por facilitador de sesión"
-  // breakdown (an OSI can count toward more than one facilitador's bar).
-  facilitadorSesionNombres: string[];
   sesiones: number | null;
   sospechoso: boolean;
-}
-
-export interface DistribucionBucket {
-  bucket: string;
-  label: string;
-  count: number;
-  dentro: boolean;
-}
-
-export interface TendenciaMensual {
-  mes: string;
-  label: string;
-  dentro: number;
-  fuera: number;
-  total: number;
-  pct: number | null;
-}
-
-// Sentinel key used by the "por dimensión" breakdowns (empresa, facilitador,
-// facilitador de sesión) when a row has no resolvable value for that
-// dimension, so it can be bucketed under a visible "Sin dato" bar instead of
-// being silently dropped. Shared between the server aggregation logic and
-// the client chart so the UI can style this bucket distinctly.
-export const SIN_DATO_KEY = "__sin_dato__";
-
-export interface PorDimensionItem {
-  key: string;
-  label: string;
-  // Number of evaluated (dentro+fuera) rows for this entity — the same
-  // population backing avgDias/pct below. Used for ranking/sorting and as
-  // the headline "OSIs" count shown in tooltips.
-  count: number;
-  dentro: number;
-  fuera: number;
-  pendientes: number;
-  noAplica: number;
-  programadas: number;
-  avgDias: number | null;
-  pct: number | null;
 }
 
 export interface IndicadoresAggregates {
@@ -1973,11 +1930,6 @@ export interface IndicadoresAggregates {
   maxDiasOsi: string | null;
   minDias: number | null;
   enRiesgoPendientes: number;
-  distribucion: DistribucionBucket[];
-  tendenciaMensual: TendenciaMensual[];
-  porEmpresa: PorDimensionItem[];
-  porFacilitador: PorDimensionItem[];
-  porFacilitadorSesion: PorDimensionItem[];
 }
 
 export interface IndicadoresResponse {
@@ -2007,4 +1959,100 @@ export interface IndicadoresFilterOptions {
   empresas: { id: number; razon_social: string }[];
   facilitadores: { id: number; nombre_apellido: string }[];
   estados: State[];
+}
+
+// ============================================================================
+// Indicadores de Gestión Mensual — flujo mensual de OSIs
+//
+// Managerial view of the capacitacion pipeline, month by month. Per-OSI
+// derived fields feeding these buckets:
+//   - mes de recepción  = month of v_osi_formato_completo.fecha_emision
+//   - mes planificado   = month of MIN(osi_sesion.fecha), fallback
+//                         fecha_inicio_real
+//   - fecha de ejecución final = MAX(osi_sesion.fecha_ejecutada) only when
+//                         EVERY session has fecha_ejecutada; legacy fallback
+//                         fecha_fin_real when id_estatus = 12 (EJECUTADO)
+// Certificados and carnets (PVC) are counted by their own issuance month
+// (fecha_emision), independently of the OSI's month.
+// ============================================================================
+
+export interface GestionMesIndicadores {
+  /** "YYYY-MM" for real months, "total" for the year aggregate column. */
+  mes: string;
+  /** Short display label, e.g. "Ene 26" or "Total". */
+  label: string;
+  /** OSIs whose fecha_emision falls in this month. */
+  osisRecibidas: number;
+  /** OSIs planned in this month AND executed within this same month. */
+  osisEjecutadasEnSuMes: number;
+  /** OSIs planned in this month with no execution date yet. */
+  osisPendientes: number;
+  /** Subset of osisPendientes whose last planned session is already past. */
+  osisPendientesVencidas: number;
+  /** OSIs planned in an earlier month but executed during this month. */
+  osisRezagadasEjecutadas: number;
+  /** OSIs planned in this month (denominator for osisEjecutadasEnSuMes). */
+  osisPlanificadas: number;
+  /** SUM(participantes_ejecucion) over OSIs planned in this month. */
+  participantesPlanificados: number;
+  /** Distinct cedulas in ejecucion_osi_participantes for those same OSIs. */
+  participantesLista: number;
+  /** Active certificates issued during this month. */
+  certificados: number;
+  /** Distinct participants among those certificates. */
+  participantesCertificados: number;
+  /** Active carnets (PVC) issued during this month. */
+  pvc: number;
+}
+
+export interface GestionMensualResponse {
+  year: number;
+  /** Always 12 entries, Ene → Dic of `year`. */
+  meses: GestionMesIndicadores[];
+  /** Year aggregate (mes: "total"). */
+  total: GestionMesIndicadores;
+  /** Years with data, descending — drives the year selector. */
+  yearsDisponibles: number[];
+  /**
+   * Per-OSI rows used by the carry-over panel. Each entry classifies an OSI
+   * by its planned month, execution month (if any), and pending/vencida
+   * status, so the client can group OSIs into the three carry populations
+   * for the selected month without a second server fetch.
+   */
+  osisList: OsiCarryRow[];
+}
+
+/**
+ * One OSI in the carry-over detail list.
+ *
+ * `mesPlanificado` is always set (it's the bucket key). `mesEjecucion` is
+ * null when the OSI hasn't been fully executed. `diasAtraso` is the number
+ * of calendar days between the last planned session date and today; it's
+ * null for OSIs that aren't overdue.
+ */
+export interface OsiCarryRow {
+  id: number;
+  nroOsi: string;
+  empresa: string | null;
+  /** "YYYY-MM" of the planned month (earliest session fecha). */
+  mesPlanificado: string;
+  /** "YYYY-MM" of the execution month, or null if not fully executed. */
+  mesEjecucion: string | null;
+  /** Last planned session date "YYYY-MM-DD", or fallback. */
+  ultimaFechaPlanificada: string | null;
+  /** True when not all sessions have fecha_ejecutada. */
+  pendiente: boolean;
+  /** True when pendiente AND ultimaFechaPlanificada < today. */
+  vencida: boolean;
+  /** Calendar days from ultimaFechaPlanificada to today (null if not vencida). */
+  diasAtraso: number | null;
+  /** OSI estatus label, e.g. "EJECUTADO", "PENDIENTE". */
+  estatus: string;
+}
+
+export interface IndicadoresGestionFilters {
+  year: number;
+  empresaId?: string;
+  facilitadorId?: string;
+  estadoId?: string;
 }

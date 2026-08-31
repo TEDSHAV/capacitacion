@@ -265,6 +265,78 @@ Examples:
 
 ---
 
+## Indicadores de Capacitación
+
+The `/dashboard/capacitacion/indicadores` page combines two views, both driven
+by a year selector + month selector in `FilterBar.tsx`. The year scopes the
+monthly matrix; the month scopes the 72h view and highlights a matrix row.
+
+### View 1 — Gestión Mensual OSIs (managerial monthly flow)
+
+Server action: `getIndicadoresGestionMensual` in `app/actions/indicadores-gestion.ts`.
+
+For each month of the selected year, computes:
+- **OSIs recibidas** — count of OSIs whose earliest `osi_sesion.fecha` falls in that month
+- **Ejecutadas en su mes** — OSIs whose every session has `fecha_ejecutada` (planned month = month of earliest session)
+- **Pendientes del mes** — received but not yet fully executed
+- **Certificados emitidos** / **Pendientes** / **Carnets emitidos** / **Pendientes** — counts scoped to that month's OSIs
+- **OSIs en riesgo** — received > 30 days ago with at least one pending session
+
+Per-OSI "planned month" = month of the earliest `osi_sesion.fecha`. An OSI is
+"ejecutada" when all its sessions have `fecha_ejecutada`. Note: `fecha_ejecutada`
+is written from the *planned* date by the seguimiento sync, so UI-toggled items
+may appear executed-on-time even when the real execution slipped.
+
+Components: `GestionKpiCards.tsx` (9 KPI cards) + `GestionMensualTable.tsx`
+(12-row monthly table with per-month breakdown) + `CarryPanel.tsx`
+(collapsible panel below the KPI cards listing the three carry-over
+populations for the selected month: arrastradas, pasaran, rezagadas).
+
+### Carry-over panel
+
+The action also returns `osisList: OsiCarryRow[]` — one entry per OSI planned
+in the selected year, with its planned month, execution month, pending/vencida
+flags, and days overdue. The client-side `CarryPanel.tsx` groups these into
+three populations for the selected month without a second server fetch:
+- **Arrastradas de meses anteriores** — planned before the selected month, still pending
+- **Pasarán al próximo mes** — planned for the selected month, still pending
+- **Rezagadas ejecutadas este mes** — planned earlier, executed during this month
+
+Each row links to `/dashboard/capacitacion/gestion-osi?id={osiId}`.
+
+### View 2 — Certificados 72 horas (issuance latency)
+
+Server action: `getIndicadoresCertificados72h` in `app/actions/indicadores-certificados.ts`.
+
+Measures whether certificate issuance (`certificados.created_at`, with
+`fecha_emision` fallback) happens within 3 business days (inclusive) of the last
+session execution date. Business days exclude weekends and Venezuelan holidays
+(`cat_feriados_venezuela` table, via `lib/business-days.ts`).
+
+Trimmed from the previous SLA dashboard to only show:
+- Compliance percentage gauge (`ComplianceGauge.tsx`) with compact stats
+- Detail table (`IndicadoresTable.tsx`) of every certificate issued in the
+  selected month (scoped via `fechaFrom`/`fechaTo` derived from `selectedMes`)
+
+The `PLAZO_BUSINESS_DAYS` constant (= 3) lives in `indicadores-certificados.ts`.
+The `slaDeadline` helper in `lib/business-days.ts` is still named as-is (callers
+unchanged) but doc comments refer to "plazo" rather than "SLA".
+
+### Offline fallback
+
+`IndicadoresClient.tsx` wraps both fetches in `fetchWithOfflineFallback` and
+shows `CachedDataBanner` when serving stale data from Dexie. Cache keys:
+`dash_indicadores_gestion_{year}_{filterKey}` and
+`dash_indicadores_72h_{selectedMes}_{filterKey}`.
+
+### CSV exports
+
+Both views export CSV via client-side `Blob` download (no server roundtrip):
+- Gestión: `indicadores-gestion-mensual-{year}.csv` (one row per month)
+- 72 horas: `indicadores-72-horas-{YYYY-MM}.csv` (one row per certificate)
+
+---
+
 ## Build & Deployment
 
 ### Local Development

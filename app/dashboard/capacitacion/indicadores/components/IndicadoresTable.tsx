@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { IndicadorOsiRow } from "@/types";
 import { parseDate } from "@/lib/business-days";
@@ -26,11 +26,11 @@ type SortKey =
 
 const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
   dentro: {
-    label: "Dentro",
+    label: "Dentro de 72h",
     cls: "bg-emerald-50 text-emerald-700 border-emerald-200",
   },
   fuera: {
-    label: "Fuera",
+    label: "Fuera de 72h",
     cls: "bg-red-50 text-red-700 border-red-200",
   },
   pendiente: {
@@ -82,17 +82,10 @@ function formatDate(s: string | null): string {
 }
 
 export default function IndicadoresTable({ rows, defaultSortByBrecha }: Props) {
-  const [sortKey, setSortKey] = useState<SortKey>("diasHabiles");
+  const [sortKey, setSortKey] = useState<SortKey>(
+    defaultSortByBrecha ? "brechaDias" : "diasHabiles",
+  );
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-
-  // When the drill-down switches to pendientes, default-sort by brecha
-  // (most overdue first) so the worst-off backlog items surface immediately.
-  useEffect(() => {
-    if (defaultSortByBrecha) {
-      setSortKey("brechaDias");
-      setSortDir("desc");
-    }
-  }, [defaultSortByBrecha]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -139,7 +132,7 @@ export default function IndicadoresTable({ rows, defaultSortByBrecha }: Props) {
     { key: "servicio", label: "Servicio" },
     { key: "fechaEjecucion", label: "Fecha ejecución" },
     { key: "fechaEmision", label: "Fecha emisión" },
-    { key: "diasHabiles", label: "Días hábiles", className: "text-right" },
+    { key: "diasHabiles", label: "Días hábiles (máx. 3)", className: "text-right" },
     { key: "brechaDias", label: "Brecha (días)", className: "text-right" },
     { key: "facilitadorNombre", label: "Facilitador emisor" },
     { key: "facilitadorSesionNombre", label: "Facilitador sesión" },

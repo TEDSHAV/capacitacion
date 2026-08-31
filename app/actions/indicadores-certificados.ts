@@ -3,8 +3,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { cache } from "react";
 import {
-  SIN_DATO_KEY,
-  type DistribucionBucket,
   type IndicadorEstado,
   type IndicadorFuente,
   type IndicadorFuenteEjecucion,
@@ -14,21 +12,70 @@ import {
   type IndicadoresFilterOptions,
   type IndicadoresFilters,
   type IndicadoresResponse,
-  type PorDimensionItem,
-  type TendenciaMensual,
 } from "@/types";
 import { getFeriadosSet } from "@/app/actions/feriados";
 import { businessDaysInclusive, parseDate } from "@/lib/business-days";
 
-// SLA threshold in business days (inclusive of execution day).
-// Certificates must be issued within 3 business days of the last session
-// execution date. Execution day = day 1.
-const SLA_BUSINESS_DAYS = 3;
+// Issuance deadline expressed in business days, inclusive of the execution
+// day. Communicated to users as "72 horas": certificates must be issued
+// within 3 business days of the last session execution date, excluding
+// weekends and Venezuelan holidays. Execution day = day 1.
+const PLAZO_BUSINESS_DAYS = 3;
 
 // Rows with business days beyond this threshold are flagged "sospechoso"
 // (data quality suspect) — highlighted amber in the table for auditor review.
 // 90 business days ≈ ~180 calendar days.
 const SOSPECHOSO_DIAS = 90;
+
+// Supabase caps un-ranged selects at 1000 rows, so every batch fetch below
+// pages explicitly. 50 pages = 50,000 rows, enough headroom while still
+// bounding a runaway loop.
+const PAGE_SIZE = 1000;
+const MAX_PAGES = 50;
+
+// `.in()` lists are serialized into the query string, so large id arrays are
+// split into chunks to stay well under URL length limits.
+const IN_CHUNK_SIZE = 300;
+
+type PagedResult<T> = { data: T[] | null; error: { message: string } | null };
+
+/**
+ * Page through a Supabase select until a short page comes back.
+ * `build` must apply a stable `.order()` so pages don't overlap or skip rows.
+ */
+async function fetchAllPages<T>(
+  build: (from: number, to: number) => PromiseLike<PagedResult<T>>,
+  label: string,
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const from = page * PAGE_SIZE;
+    const { data, error } = await build(from, from + PAGE_SIZE - 1);
+    if (error) {
+      console.error(`[indicadores] Error fetching ${label} page ${page}:`, error);
+      break;
+    }
+    const rows = data ?? [];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return all;
+}
+
+/** Like fetchAllPages, but splits `ids` into chunks for the `.in()` filter. */
+async function fetchChunkedIn<T>(
+  ids: number[],
+  build: (chunk: number[], from: number, to: number) => PromiseLike<PagedResult<T>>,
+  label: string,
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK_SIZE) {
+    const chunk = ids.slice(i, i + IN_CHUNK_SIZE);
+    const rows = await fetchAllPages<T>((from, to) => build(chunk, from, to), label);
+    all.push(...rows);
+  }
+  return all;
+}
 
 function emptyAggregates(): IndicadoresAggregates {
   return {
@@ -45,247 +92,7 @@ function emptyAggregates(): IndicadoresAggregates {
     maxDiasOsi: null,
     minDias: null,
     enRiesgoPendientes: 0,
-    distribucion: [],
-    tendenciaMensual: [],
-    porEmpresa: [],
-    porFacilitador: [],
-    porFacilitadorSesion: [],
   };
-}
-
-const MONTH_LABELS = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
-];
-
-function monthKeyFromDate(dateStr: string): string | null {
-  const d = parseDate(dateStr);
-  if (isNaN(d.getTime())) return null;
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabelFromKey(key: string): string {
-  const [y, m] = key.split("-");
-  const idx = parseInt(m, 10) - 1;
-  return `${MONTH_LABELS[idx] ?? m} ${y.slice(2)}`;
-}
-
-// Build last 12 months keys ending at the latest data month (or current month)
-function buildLast12Months(latestKey: string): string[] {
-  const [y, m] = latestKey.split("-").map((n) => parseInt(n, 10));
-  const keys: string[] = [];
-  const cur = new Date(y, m - 1, 1);
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(cur.getFullYear(), cur.getMonth() - i, 1);
-    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-  }
-  return keys;
-}
-
-function computeDistribucion(rows: IndicadorOsiRow[]): DistribucionBucket[] {
-  // Business-day buckets. The SLA is 3 business days inclusive.
-  // Bucket boundaries: [0,1), [1,2), [2,3], (3,4], (4, +inf)
-  // Note: the "2-3" bucket includes 3 (<= SLA) to be consistent with estado.
-  const buckets = [
-    { bucket: "0-1", label: "0–1 días", min: 0, max: 1, dentro: true },
-    { bucket: "1-2", label: "1–2 días", min: 1, max: 2, dentro: true },
-    { bucket: "2-3", label: "2–3 días", min: 2, max: 3, dentro: true },
-    { bucket: "3-4", label: "3–4 días", min: 3, max: 4, dentro: false },
-    { bucket: ">4", label: ">4 días", min: 4, max: Infinity, dentro: false },
-  ];
-  return buckets.map((b) => ({
-    bucket: b.bucket,
-    label: b.label,
-    dentro: b.dentro,
-    count: rows.filter((r) => {
-      if (r.diasHabiles == null) return false;
-      if (b.max === Infinity) return r.diasHabiles > b.min;
-      // The "2-3" bucket is inclusive of the upper bound (3 = SLA)
-      if (b.bucket === "2-3") return r.diasHabiles >= b.min && r.diasHabiles <= b.max;
-      return r.diasHabiles >= b.min && r.diasHabiles < b.max;
-    }).length,
-  }));
-}
-
-function computeTendencia(
-  rows: IndicadorOsiRow[],
-  fechaFrom?: string,
-  fechaTo?: string,
-): TendenciaMensual[] {
-  // Group evaluadas (dentro+fuera) by month of fechaEjecucion
-  const byMonth = new Map<string, { dentro: number; fuera: number }>();
-  let earliestKey = "";
-  let latestKey = "";
-  for (const r of rows) {
-    if (r.estado !== "dentro" && r.estado !== "fuera") continue;
-    if (!r.fechaEjecucion) continue;
-    const key = monthKeyFromDate(r.fechaEjecucion);
-    if (!key) continue;
-    const entry = byMonth.get(key) ?? { dentro: 0, fuera: 0 };
-    if (r.estado === "dentro") entry.dentro += 1;
-    else entry.fuera += 1;
-    byMonth.set(key, entry);
-    if (!earliestKey || key < earliestKey) earliestKey = key;
-    if (key > latestKey) latestKey = key;
-  }
-
-  // Determine the month range to display:
-  // - If date filters are applied, use the filter range (from the start of
-  //   fechaFrom's month to the end of fechaTo's month).
-  // - Otherwise, default to the last 12 months ending at the latest data
-  //   month (or current month if no data).
-  let startKey: string;
-  let endKey: string;
-  if (fechaFrom || fechaTo) {
-    if (fechaFrom) {
-      const d = parseDate(fechaFrom);
-      startKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    } else {
-      startKey = earliestKey || (() => {
-        const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      })();
-    }
-    if (fechaTo) {
-      const d = parseDate(fechaTo);
-      endKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    } else {
-      endKey = latestKey || (() => {
-        const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      })();
-    }
-  } else {
-    if (!latestKey) {
-      const now = new Date();
-      latestKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    }
-    // Last 12 months ending at latestKey
-    const keys12 = buildLast12Months(latestKey);
-    startKey = keys12[0];
-    endKey = keys12[keys12.length - 1];
-  }
-
-  // Build the full list of month keys from startKey to endKey
-  const keys: string[] = [];
-  {
-    const [sy, sm] = startKey.split("-").map(Number);
-    const [ey, em] = endKey.split("-").map(Number);
-    let y = sy, m = sm;
-    while (y < ey || (y === ey && m <= em)) {
-      keys.push(`${y}-${String(m).padStart(2, "0")}`);
-      m++;
-      if (m > 12) { m = 1; y++; }
-    }
-  }
-
-  return keys.map((key) => {
-    const e = byMonth.get(key);
-    const dentro = e?.dentro ?? 0;
-    const fuera = e?.fuera ?? 0;
-    const total = dentro + fuera;
-    return {
-      mes: key,
-      label: monthLabelFromKey(key),
-      dentro,
-      fuera,
-      total,
-      pct: total > 0 ? Math.round((dentro / total) * 1000) / 10 : null,
-    };
-  });
-}
-
-type DimensionBucket = {
-  label: string;
-  dentro: number;
-  fuera: number;
-  pendientes: number;
-  noAplica: number;
-  programadas: number;
-  diasSum: number;
-  diasCount: number;
-};
-
-function newDimensionBucket(label: string): DimensionBucket {
-  return { label, dentro: 0, fuera: 0, pendientes: 0, noAplica: 0, programadas: 0, diasSum: 0, diasCount: 0 };
-}
-
-function creditDimensionBucket(entry: DimensionBucket, r: IndicadorOsiRow) {
-  if (r.estado === "dentro") entry.dentro += 1;
-  else if (r.estado === "fuera") entry.fuera += 1;
-  else if (r.estado === "pendiente") entry.pendientes += 1;
-  else if (r.estado === "no_aplica") entry.noAplica += 1;
-  else if (r.estado === "programada") entry.programadas += 1;
-  if (r.diasHabiles != null) {
-    entry.diasSum += r.diasHabiles;
-    entry.diasCount += 1;
-  }
-}
-
-function dimensionBucketsToItems(
-  map: Map<string, DimensionBucket>,
-  topN: number,
-): PorDimensionItem[] {
-  // "count" reflects only evaluated (dentro+fuera) rows — the same
-  // population avgDias/pct are computed from — so ranking and the tooltip's
-  // headline OSI count stay consistent with each other. pendientes/noAplica/
-  // programadas are tracked separately so they can still be surfaced without
-  // inflating the evaluated count.
-  const items: PorDimensionItem[] = Array.from(map.entries()).map(([key, e]) => ({
-    key,
-    label: e.label,
-    count: e.dentro + e.fuera,
-    dentro: e.dentro,
-    fuera: e.fuera,
-    pendientes: e.pendientes,
-    noAplica: e.noAplica,
-    programadas: e.programadas,
-    avgDias: e.diasCount > 0 ? Math.round((e.diasSum / e.diasCount) * 10) / 10 : null,
-    pct: e.dentro + e.fuera > 0 ? Math.round((e.dentro / (e.dentro + e.fuera)) * 1000) / 10 : null,
-  }));
-  items.sort((a, b) => b.count - a.count);
-  return items.slice(0, topN);
-}
-
-function computePorDimension(
-  rows: IndicadorOsiRow[],
-  getKey: (r: IndicadorOsiRow) => string | null,
-  getLabel: (r: IndicadorOsiRow) => string,
-  topN: number,
-): PorDimensionItem[] {
-  const map = new Map<string, DimensionBucket>();
-  for (const r of rows) {
-    const key = getKey(r) ?? SIN_DATO_KEY;
-    const entry = map.get(key) ?? newDimensionBucket(getLabel(r));
-    creditDimensionBucket(entry, r);
-    map.set(key, entry);
-  }
-  return dimensionBucketsToItems(map, topN);
-}
-
-// Like computePorDimension, but a row can be credited to 0..N buckets (e.g.
-// an OSI with multiple sessions taught by different facilitadores counts
-// toward each of them). Rows with no resolvable keys fall into the
-// "Sin dato" sentinel bucket. Because a row can count toward more than one
-// bucket, the sum of bar counts can exceed the total evaluated population —
-// this is expected and should be called out in the UI.
-function computePorDimensionMulti(
-  rows: IndicadorOsiRow[],
-  getKeys: (r: IndicadorOsiRow) => string[],
-  getLabel: (key: string) => string,
-  topN: number,
-): PorDimensionItem[] {
-  const map = new Map<string, DimensionBucket>();
-  for (const r of rows) {
-    const keys = Array.from(new Set(getKeys(r)));
-    const effectiveKeys = keys.length ? keys : [SIN_DATO_KEY];
-    for (const key of effectiveKeys) {
-      const entry = map.get(key) ?? newDimensionBucket(getLabel(key));
-      creditDimensionBucket(entry, r);
-      map.set(key, entry);
-    }
-  }
-  return dimensionBucketsToItems(map, topN);
 }
 
 type OsiViewRow = {
@@ -391,34 +198,33 @@ export async function getIndicadoresCertificados72h(
     // 1. Fetch capacitacion OSIs (exclude pending PEN-)
     // Date filters are applied post-fetch on fechaEjecucion (computed from
     // osi_sesion + fecha_fin_real), so we don't filter on fecha_fin_real here.
-    let q = supabase
-      .from("v_osi_formato_completo")
-      .select(
-        "id_osi, nro_osi, nombre_empresa, sede, id_sede, servicio, fecha_fin_real, fecha_emision, id_empresa, id_estatus, sesiones_ejecucion, tipo_servicio, id_estado_direccion_ejecucion_efectiva",
-      )
-      .ilike("tipo_servicio", "%capacitacion%")
-      .not("nro_osi", "ilike", "%PEN-%");
+    const osis = await fetchAllPages<OsiViewRow>((from, to) => {
+      let q = supabase
+        .from("v_osi_formato_completo")
+        .select(
+          "id_osi, nro_osi, nombre_empresa, sede, id_sede, servicio, fecha_fin_real, fecha_emision, id_empresa, id_estatus, sesiones_ejecucion, tipo_servicio, id_estado_direccion_ejecucion_efectiva",
+        )
+        .ilike("tipo_servicio", "%capacitacion%")
+        .not("nro_osi", "ilike", "%PEN-%");
 
-    if (filters.osiIds?.length) q = q.in("id_osi", filters.osiIds);
-    if (filters.empresaId) q = q.eq("id_empresa", filters.empresaId);
-    if (filters.estadoId)
-      q = q.eq("id_estado_direccion_ejecucion_efectiva", filters.estadoId);
+      if (filters.osiIds?.length) q = q.in("id_osi", filters.osiIds);
+      if (filters.empresaId) q = q.eq("id_empresa", filters.empresaId);
+      if (filters.estadoId)
+        q = q.eq("id_estado_direccion_ejecucion_efectiva", filters.estadoId);
 
-    const { data: osis, error } = await q.order("fecha_fin_real", {
-      ascending: false,
-      nullsFirst: false,
-    });
+      // id_osi is the stable tiebreaker that keeps pages from overlapping.
+      return q
+        .order("fecha_fin_real", { ascending: false, nullsFirst: false })
+        .order("id_osi", { ascending: false })
+        .range(from, to);
+    }, "v_osi_formato_completo");
 
-    if (error) {
-      console.error("Error fetching OSIs for indicadores:", error);
-      return { data: null, error: error.message };
-    }
-    if (!osis || osis.length === 0) {
+    if (osis.length === 0) {
       return { data: { rows: [], aggregates: emptyAggregates() }, error: null };
     }
 
     const osiIds = osis
-      .map((o: OsiViewRow) => o.id_osi)
+      .map((o) => o.id_osi)
       .filter((v): v is number => v != null);
 
     // Map osiId -> numeric nro_osi (for joining certificados.nro_osi).
@@ -428,15 +234,22 @@ export async function getIndicadoresCertificados72h(
     // (the primary key) to get nro_osi_secuencial. This is the exact field
     // that certificados.nro_osi stores.
     const numericOsiByOsiId = new Map<number, number>();
-    if (osiIds.length) {
-      const { data: ejecucionRows, error: ejecErr } = await supabase
-        .from("ejecucion_osi")
-        .select("id, nro_osi_secuencial")
-        .in("id", osiIds);
-      if (ejecErr) {
-        console.error("Error fetching ejecucion_osi for nro_osi_secuencial:", ejecErr);
-      }
-      for (const e of ejecucionRows || []) {
+    {
+      const ejecucionRows = await fetchChunkedIn<{
+        id: number;
+        nro_osi_secuencial: string | number | null;
+      }>(
+        osiIds,
+        (chunk, from, to) =>
+          supabase
+            .from("ejecucion_osi")
+            .select("id, nro_osi_secuencial")
+            .in("id", chunk)
+            .order("id", { ascending: true })
+            .range(from, to),
+        "ejecucion_osi",
+      );
+      for (const e of ejecucionRows) {
         const seq = e.nro_osi_secuencial;
         if (seq != null) {
           // nro_osi_secuencial is a string; parse to int (matches
@@ -448,7 +261,7 @@ export async function getIndicadoresCertificados72h(
     }
     const numericOsis = Array.from(new Set(numericOsiByOsiId.values()));
 
-    // 2. Batch fetch osi_sesion dates → compute the SLA start date per OSI.
+    // 2. Batch fetch osi_sesion dates → compute the clock start date per OSI.
     //    For each session, prefer fecha_ejecutada (actual) and fall back to
     //    fecha (planned) on a PER-SESSION basis. Then take the MAX across all
     //    sessions. This ensures that if only some sessions have
@@ -460,15 +273,19 @@ export async function getIndicadoresCertificados72h(
     // Per-session dates (nro_sesion + effective date), used below to
     // historically resolve which facilitador taught each session.
     const sessionsByOsi = new Map<number, { nroSesion: number; sessionDate: string }[]>();
-    if (osiIds.length) {
-      const { data: sesionRows, error: sesionErr } = await supabase
-        .from("osi_sesion")
-        .select("id_osi, nro_sesion, fecha, fecha_ejecutada")
-        .in("id_osi", osiIds);
-      if (sesionErr) {
-        console.error("Error fetching osi_sesion for indicadores:", sesionErr);
-      }
-      for (const s of (sesionRows || []) as SesionRow[]) {
+    {
+      const sesionRows = await fetchChunkedIn<SesionRow>(
+        osiIds,
+        (chunk, from, to) =>
+          supabase
+            .from("osi_sesion")
+            .select("id_osi, nro_sesion, fecha, fecha_ejecutada")
+            .in("id_osi", chunk)
+            .order("id", { ascending: true })
+            .range(from, to),
+        "osi_sesion",
+      );
+      for (const s of sesionRows) {
         // Per-session: prefer fecha_ejecutada, fall back to fecha
         const sessionDate = s.fecha_ejecutada ?? s.fecha;
         if (!sessionDate) continue;
@@ -504,45 +321,31 @@ export async function getIndicadoresCertificados72h(
       }
     >();
     const facilitadorNames = new Map<number, string>();
-    if (numericOsis.length) {
-      // Paginate through ALL cert rows — Supabase defaults to 1000 rows per
-      // request, which is far too few for OSIs with many participants (each
-      // participant gets a cert row). Without pagination, we'd only get the
-      // first 1000 certs (all for the same few OSIs) and miss the rest.
-      const PAGE_SIZE = 1000;
-      let pageStart = 0;
-      let allCerts: Array<{
+    {
+      // Pages through ALL cert rows: an OSI with many participants produces
+      // one cert row per participant, so the default 1000-row cap would
+      // silently drop most OSIs' certificates.
+      const certs = await fetchChunkedIn<{
         nro_osi: number | null;
         fecha_emision: string | null;
         created_at: string | null;
         id_facilitador: number | null;
         id_sede: number | null;
         facilitadores: unknown;
-      }> = [];
-      let fetchError: string | null = null;
-      // Safety cap to avoid infinite loops (50 pages = 50,000 certs)
-      for (let page = 0; page < 50; page++) {
-        const { data: pageData, error: pageErr } = await supabase
-          .from("certificados")
-          .select(
-            "nro_osi, fecha_emision, created_at, id_facilitador, id_sede, facilitadores!inner(nombre_apellido)",
-          )
-          .in("nro_osi", numericOsis)
-          .range(pageStart, pageStart + PAGE_SIZE - 1);
-        if (pageErr) {
-          fetchError = pageErr.message;
-          console.error("Error fetching certificados page", page, ":", pageErr);
-          break;
-        }
-        allCerts = allCerts.concat(pageData || []);
-        if ((pageData || []).length < PAGE_SIZE) break; // last page
-        pageStart += PAGE_SIZE;
-      }
-      if (fetchError) {
-        console.error("Error fetching certificados for indicadores:", fetchError);
-      }
-      const certs = allCerts;
-      for (const c of certs || []) {
+      }>(
+        numericOsis,
+        (chunk, from, to) =>
+          supabase
+            .from("certificados")
+            .select(
+              "nro_osi, fecha_emision, created_at, id_facilitador, id_sede, facilitadores!inner(nombre_apellido)",
+            )
+            .in("nro_osi", chunk)
+            .order("id", { ascending: true })
+            .range(from, to),
+        "certificados",
+      );
+      for (const c of certs) {
         if (c.nro_osi == null) continue;
         const ca = c.created_at ?? null;
         const fe = c.fecha_emision ?? null;
@@ -590,17 +393,21 @@ export async function getIndicadoresCertificados72h(
     //     never hard-deleted (reassignment/unassignment only flips
     //     is_active), so the full history is available.
     const assignmentsByOsi = new Map<number, AssignmentRow[]>();
-    if (osiIds.length) {
-      const { data: assignRows, error: assignErr } = await supabase
-        .from("facilitador_osi_assignments")
-        .select(
-          "osi_id, facilitador_id, nro_sesion, is_active, created_at, updated_at, facilitadores!inner(nombre_apellido)",
-        )
-        .in("osi_id", osiIds);
-      if (assignErr) {
-        console.error("Error fetching facilitador assignments for indicadores:", assignErr);
-      }
-      for (const a of (assignRows || []) as AssignmentRow[]) {
+    {
+      const assignRows = await fetchChunkedIn<AssignmentRow>(
+        osiIds,
+        (chunk, from, to) =>
+          supabase
+            .from("facilitador_osi_assignments")
+            .select(
+              "osi_id, facilitador_id, nro_sesion, is_active, created_at, updated_at, facilitadores!inner(nombre_apellido)",
+            )
+            .in("osi_id", chunk)
+            .order("id", { ascending: true })
+            .range(from, to),
+        "facilitador_osi_assignments",
+      );
+      for (const a of assignRows) {
         const list = assignmentsByOsi.get(a.osi_id) ?? [];
         list.push(a);
         assignmentsByOsi.set(a.osi_id, list);
@@ -617,22 +424,26 @@ export async function getIndicadoresCertificados72h(
     //     and the certificados fetch above, then resolve names via
     //     empresa_sedes.nombre_sede.
     const sedeNameById = new Map<number, string>();
-    const sedeIdsFromView = (osis as OsiViewRow[])
+    const sedeIdsFromView = osis
       .map((o) => o.id_sede)
       .filter((v): v is number => v != null);
     const sedeIdsFromCerts = Array.from(certByNumericOsi.values())
       .map((c) => c.sedeId)
       .filter((v): v is number => v != null);
     const sedeIds = Array.from(new Set([...sedeIdsFromView, ...sedeIdsFromCerts]));
-    if (sedeIds.length) {
-      const { data: sedeRows, error: sedeErr } = await supabase
-        .from("empresa_sedes")
-        .select("id, nombre_sede")
-        .in("id", sedeIds);
-      if (sedeErr) {
-        console.error("Error fetching empresa_sedes for indicadores:", sedeErr);
-      }
-      for (const s of (sedeRows || []) as { id: number; nombre_sede: string }[]) {
+    {
+      const sedeRows = await fetchChunkedIn<{ id: number; nombre_sede: string }>(
+        sedeIds,
+        (chunk, from, to) =>
+          supabase
+            .from("empresa_sedes")
+            .select("id, nombre_sede")
+            .in("id", chunk)
+            .order("id", { ascending: true })
+            .range(from, to),
+        "empresa_sedes",
+      );
+      for (const s of sedeRows) {
         sedeNameById.set(s.id, s.nombre_sede);
       }
     }
@@ -640,11 +451,11 @@ export async function getIndicadoresCertificados72h(
     // 4. Build per-OSI rows
     const facilitadorIdByOsi = new Map<number, number | null>();
     const nowDate = new Date();
-    const allRows: IndicadorOsiRow[] = (osis as OsiViewRow[]).map((o) => {
+    const allRows: IndicadorOsiRow[] = osis.map((o) => {
       const osiId = o.id_osi ?? 0;
       const fechaFinReal = o.fecha_fin_real ?? null;
 
-      // SLA start: MAX(per-session fecha_ejecutada ?? fecha) || fecha_fin_real
+      // Clock start: MAX(per-session fecha_ejecutada ?? fecha) || fecha_fin_real
       const maxSesionFecha = maxSesionFechaByOsi.get(osiId) ?? null;
       const usedFechaEjecutada = usedFechaEjecutadaByOsi.has(osiId);
       let fechaEjecucion: string | null;
@@ -660,7 +471,7 @@ export async function getIndicadoresCertificados72h(
         fuenteEjecucion = null;
       }
 
-      // SLA end: MIN(fecha_emision) (primary) || MIN(created_at) (fallback)
+      // Clock end: MIN(fecha_emision) (primary) || MIN(created_at) (fallback)
       const numericOsi = numericOsiByOsiId.get(osiId) ?? null;
       const cert = numericOsi != null ? certByNumericOsi.get(numericOsi) : undefined;
       const minFechaEmision = cert?.minFechaEmision ?? null;
@@ -688,7 +499,7 @@ export async function getIndicadoresCertificados72h(
         estado = "no_aplica";
       } else {
         const execDate = parseDate(fechaEjecucion);
-        // "programada": execution date is in the future — the SLA clock
+        // "programada": execution date is in the future — the 72h clock
         // hasn't started yet. These OSIs are NOT pending cert issuance
         // (they haven't been executed), so they must be classified
         // separately from "pendiente" to avoid inflating the pending
@@ -698,11 +509,11 @@ export async function getIndicadoresCertificados72h(
         } else if (!fechaEmision) {
           estado = "pendiente";
           // Business days elapsed since execution, relative to today, minus
-          // the SLA. Positive = already past the 3-day SLA and still
+          // the deadline. Positive = already past the 72h plazo and still
           // waiting on a certificate (useful for sorting the pending
-          // backlog worst-first); can be negative/zero if still within SLA.
+          // backlog worst-first); can be negative/zero if still on time.
           brechaDias =
-            businessDaysInclusive(execDate, nowDate, holidays) - SLA_BUSINESS_DAYS;
+            businessDaysInclusive(execDate, nowDate, holidays) - PLAZO_BUSINESS_DAYS;
         } else {
           const certDate = parseDate(fechaEmision);
           diasHabiles = businessDaysInclusive(execDate, certDate, holidays);
@@ -712,11 +523,11 @@ export async function getIndicadoresCertificados72h(
             diasHabiles = 0;
             estado = "dentro";
             sospechoso = true;
-          } else if (diasHabiles <= SLA_BUSINESS_DAYS) {
+          } else if (diasHabiles <= PLAZO_BUSINESS_DAYS) {
             estado = "dentro";
           } else {
             estado = "fuera";
-            brechaDias = diasHabiles - SLA_BUSINESS_DAYS;
+            brechaDias = diasHabiles - PLAZO_BUSINESS_DAYS;
           }
 
           // Flag extreme values as sospechoso for auditor review
@@ -729,10 +540,8 @@ export async function getIndicadoresCertificados72h(
       const facilitadorNombre =
         facilitadorId != null ? facilitadorNames.get(facilitadorId) ?? null : null;
       // Historically-resolved facilitador(es) who taught this OSI's
-      // sessions (may be more than one if sessions had different
-      // facilitadores). facilitadorSesionNombre is a joined display string;
-      // facilitadorSesionNombres is the underlying list used to credit each
-      // distinct facilitador in the "por facilitador de sesión" chart.
+      // sessions, joined into a single display string (may list more than
+      // one if the sessions had different facilitadores).
       const facilitadorSesionNombres = sessionFacilitadorNamesByOsi.get(osiId) ?? [];
       const facilitadorSesionNombre =
         facilitadorSesionNombres.length ? facilitadorSesionNombres.join(", ") : null;
@@ -762,7 +571,6 @@ export async function getIndicadoresCertificados72h(
         brechaDias,
         facilitadorNombre,
         facilitadorSesionNombre,
-        facilitadorSesionNombres,
         sesiones: o.sesiones_ejecucion ?? null,
         sospechoso,
       };
@@ -824,9 +632,9 @@ export async function getIndicadoresCertificados72h(
         ? Math.round((dentro / evaluadas.length) * 1000) / 10
         : null;
 
-    // Pending in risk: already past the SLA and still not issued. Each
+    // Pending in risk: already past the 72h plazo and still not issued. Each
     // pendiente row now carries its own brechaDias (computed at row-build
-    // time above), so we just count the ones already over SLA instead of
+    // time above), so we just count the ones already overdue instead of
     // recomputing it here.
     const enRiesgo = pendientes.filter((r) => (r.brechaDias ?? -Infinity) > 0).length;
 
@@ -844,38 +652,6 @@ export async function getIndicadoresCertificados72h(
       maxDiasOsi: maxRow?.nroOsi ?? null,
       minDias,
       enRiesgoPendientes: enRiesgo,
-      distribucion: computeDistribucion(rows),
-      tendenciaMensual: computeTendencia(rows, filters.fechaFrom, filters.fechaTo),
-      // "por empresa" is broken down by empresa + sede + servicio because a
-      // company can have multiple offices (sedes) and different services,
-      // each with distinct SLA metrics. Aggregating at the empresa level
-      // alone would hide per-office/per-service variability.
-      porEmpresa: computePorDimension(
-        rows,
-        (r) =>
-          r.empresa
-            ? `${r.empresa}|${r.sede ?? "Sin sede"}|${r.servicio ?? "Sin servicio"}`
-            : null,
-        (r) =>
-          `${r.empresa || "Sin empresa"} · ${r.sede ?? "Sin sede"} · ${r.servicio ?? "Sin servicio"}`,
-        10,
-      ),
-      porFacilitador: computePorDimension(
-        rows,
-        (r) => r.facilitadorNombre || null,
-        (r) => r.facilitadorNombre || "Sin facilitador",
-        10,
-      ),
-      // An OSI with multiple sessions taught by different facilitadores is
-      // credited to each of them (deduped within the OSI), so bar counts
-      // here can exceed the total evaluated population — see
-      // computePorDimensionMulti and resolveHistoricalFacilitadoresPorOsi.
-      porFacilitadorSesion: computePorDimensionMulti(
-        rows,
-        (r) => r.facilitadorSesionNombres,
-        (key) => (key === SIN_DATO_KEY ? "Sin facilitador" : key),
-        10,
-      ),
     };
 
     return { data: { rows, aggregates }, error: null };

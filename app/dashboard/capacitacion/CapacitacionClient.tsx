@@ -140,7 +140,7 @@ export default function CapacitacionClient({
         {
           id: "indicadores",
           title: "Indicadores",
-          description: "Cumplimiento de certificados en 3 días hábiles",
+          description: "Gestión mensual de OSIs y certificados en 72 horas",
           icon: Gauge,
           href: "/dashboard/capacitacion/indicadores",
         },

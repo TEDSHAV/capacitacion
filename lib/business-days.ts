@@ -5,7 +5,7 @@
  * holiday. The holiday set is provided by the caller as a Set of "YYYY-MM-DD"
  * strings (from the cat_feriados_venezuela table).
  *
- * The SLA for certificate issuance counts business days INCLUSIVE of both the
+ * The plazo for certificate issuance counts business days INCLUSIVE of both the
  * execution date and the issuance date. Execution day = day 1.
  *
  * Examples (no holidays):
@@ -121,11 +121,11 @@ export function addBusinessDays(
 }
 
 /**
- * Compute the SLA deadline: the date that is `slaDays` business days
+ * Compute the plazo deadline: the date that is `slaDays` business days
  * inclusive of the start date. E.g. slaDays=3, start=Mon → deadline=Wed.
  *
  * @param start Execution date
- * @param slaDays SLA threshold in business days (inclusive)
+ * @param slaDays Plazo threshold in business days (inclusive)
  * @param holidays Set of "YYYY-MM-DD" holiday strings
  * @returns The deadline date (cert must be issued on or before this date)
  */

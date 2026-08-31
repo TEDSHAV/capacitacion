@@ -49,10 +49,10 @@ export default function ComplianceGauge({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">
-            Cumplimiento 3 días hábiles
+            Cumplimiento 72 horas
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            Distribución de OSIs por estado
+            Distribución de {total} OSIs por estado · 72 horas
           </p>
         </div>
       </div>
@@ -151,6 +151,50 @@ export default function ComplianceGauge({
           onClick={onSelectEstado ? () => handleSelect("no_aplica") : undefined}
         />
       </div>
+      {/* Latency stats for the evaluated population, in business days */}
+      <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-gray-100">
+        <Stat
+          label="Días promedio"
+          value={aggregates.avgDias != null ? `${aggregates.avgDias}d` : "—"}
+        />
+        <Stat
+          label="Peor caso"
+          value={aggregates.maxDias != null ? `${aggregates.maxDias}d` : "—"}
+          hint={aggregates.maxDiasOsi ? `OSI ${aggregates.maxDiasOsi}` : undefined}
+        />
+        <Stat
+          label="Pendientes en riesgo"
+          value={aggregates.enRiesgoPendientes}
+          hint="ya sobre 72 horas"
+          danger={aggregates.enRiesgoPendientes > 0}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+  danger,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+  danger?: boolean;
+}) {
+  return (
+    <div className="text-center">
+      <p
+        className={`text-lg font-bold leading-none ${
+          danger ? "text-red-600" : "text-gray-900"
+        }`}
+      >
+        {value}
+      </p>
+      <p className="text-[11px] text-gray-500 mt-1">{label}</p>
+      {hint && <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>}
     </div>
   );
 }

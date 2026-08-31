@@ -90,7 +90,7 @@ export default function FeriadosClient({
         <p className="text-sm text-gray-500">
           Gestiona los días feriados venezolanos utilizados para el cálculo de
           días hábiles en los indicadores de certificados. Los feriados se
-          excluyen del conteo de días hábiles para el SLA de 3 días.
+          excluyen del conteo de días hábiles para el plazo de 72 horas.
         </p>
         <Link
           href="/dashboard/capacitacion/indicadores"

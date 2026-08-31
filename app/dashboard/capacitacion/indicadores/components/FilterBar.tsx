@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Search,
-  X,
   ChevronDown,
   Check,
   MapPin,
@@ -11,90 +10,84 @@ import {
   UserCheck,
   Download,
   AlertTriangle,
+  CalendarRange,
+  CalendarDays,
 } from "lucide-react";
 import type {
   IndicadorOsiOption,
   IndicadoresFilterOptions,
 } from "@/types";
 
-const DATE_PRESETS = [
-  { label: "1 mes", value: "1m" },
-  { label: "3 meses", value: "3m" },
-  { label: "6 meses", value: "6m" },
-  { label: "Este año", value: "year" },
-  { label: "Personalizado", value: "custom" },
-  { label: "Todo", value: "all" },
-];
-
-// Format a Date as "YYYY-MM-DD" in local time (avoids UTC offset issues
-// that occur with toISOString(), which can shift the date by 1 day in UTC-4).
-function toLocalDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function getDateRange(preset: string): { from?: string; to?: string } {
-  const now = new Date();
-  const to = toLocalDateStr(now);
-  if (preset === "1m") {
-    const from = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-    return { from: toLocalDateStr(from), to };
-  }
-  if (preset === "3m") {
-    const from = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-    return { from: toLocalDateStr(from), to };
-  }
-  if (preset === "6m") {
-    const from = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
-    return { from: toLocalDateStr(from), to };
-  }
-  if (preset === "year") {
-    return { from: `${now.getFullYear()}-01-01`, to };
-  }
-  return {};
-}
-
 export interface IndicadoresFilterState {
   osiIds: number[];
-  datePreset: string;
-  customFrom: string;
-  customTo: string;
+  /** Calendar year driving both the monthly matrix and the 72h section. */
+  year: number;
   empresaId: string;
   facilitadorId: string;
   estadoId: string;
   soloIncumplimientos: boolean;
 }
 
+const MONTH_LABELS = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+/** Build "YYYY-MM" → "Mes" option pairs for a given year. */
+function monthOptionsForYear(year: number): { value: string; label: string }[] {
+  return MONTH_LABELS.map((label, i) => ({
+    value: `${year}-${String(i + 1).padStart(2, "0")}`,
+    label,
+  }));
+}
+
 interface Props {
   options: IndicadoresFilterOptions;
   state: IndicadoresFilterState;
   onChange: (next: IndicadoresFilterState) => void;
-  onExportCsv: () => void;
+  /** Years offered by the selector — resolved from the data, newest first. */
+  years: number[];
+  /** "YYYY-MM" of the selected month, drives the 72h scope and matrix highlight. */
+  selectedMes: string;
+  onSelectMes: (mes: string) => void;
+  onExportGestionCsv: () => void;
+  onExportDetalleCsv: () => void;
 }
 
 export default function FilterBar({
   options,
   state,
   onChange,
-  onExportCsv,
+  years,
+  selectedMes,
+  onSelectMes,
+  onExportGestionCsv,
+  onExportDetalleCsv,
 }: Props) {
   const [osiDropdownOpen, setOsiDropdownOpen] = useState(false);
   const [osiSearch, setOsiSearch] = useState("");
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  // Local draft state for custom date inputs — only propagated to the parent
-  // (which triggers a fetch) when the user clicks "Aplicar". This prevents
-  // intermediate fetches while the user is still selecting the date range.
-  const [draftFrom, setDraftFrom] = useState(state.customFrom);
-  const [draftTo, setDraftTo] = useState(state.customTo);
+  const [exportOpen, setExportOpen] = useState(false);
   const osiRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
 
-  // Close OSI dropdown on outside click
+  // Close the OSI / export dropdowns on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (osiRef.current && !osiRef.current.contains(e.target as Node)) {
         setOsiDropdownOpen(false);
+      }
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -121,20 +114,6 @@ export default function FilterBar({
 
   function clearOsis() {
     onChange({ ...state, osiIds: [] });
-  }
-
-  function applyDatePreset(value: string) {
-    if (value === "custom") {
-      // Sync draft state from the parent when opening the picker
-      if (!showDatePicker) {
-        setDraftFrom(state.customFrom);
-        setDraftTo(state.customTo);
-      }
-      setShowDatePicker(!showDatePicker);
-      return;
-    }
-    setShowDatePicker(false);
-    onChange({ ...state, datePreset: value });
   }
 
   const osiLabel =
@@ -226,80 +205,21 @@ export default function FilterBar({
           )}
         </div>
 
-        {/* Date preset pills */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 relative">
-          {DATE_PRESETS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => applyDatePreset(p.value)}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                state.datePreset === p.value
-                  ? "bg-white text-sky-700 shadow-sm"
-                  : "text-gray-500 hover:text-gray-800"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        {/* Year selector — drives the monthly matrix and scopes the 72h view */}
+        <SelectFilter
+          icon={<CalendarRange className="w-3.5 h-3.5 text-gray-400" />}
+          value={String(state.year)}
+          onChange={(v) => onChange({ ...state, year: parseInt(v, 10) })}
+          options={years.map((y) => ({ value: String(y), label: String(y) }))}
+        />
 
-        {/* Custom date picker popover */}
-        {showDatePicker && (
-          <div className="absolute top-full mt-2 right-40 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50 min-w-[300px]">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-900">
-                Rango personalizado
-              </h3>
-              <button
-                onClick={() => setShowDatePicker(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Desde
-                </label>
-                <input
-                  type="date"
-                  value={draftFrom}
-                  onChange={(e) => setDraftFrom(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Hasta
-                </label>
-                <input
-                  type="date"
-                  value={draftTo}
-                  onChange={(e) => setDraftTo(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
-                />
-              </div>
-              <button
-                onClick={() => {
-                  if (draftFrom && draftTo) {
-                    onChange({
-                      ...state,
-                      customFrom: draftFrom,
-                      customTo: draftTo,
-                      datePreset: "custom",
-                    });
-                    setShowDatePicker(false);
-                  }
-                }}
-                disabled={!draftFrom || !draftTo}
-                className="w-full px-3 py-2 bg-sky-600 text-white text-sm font-medium rounded-md hover:bg-sky-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              >
-                Aplicar
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Month selector — scopes the 72h view and highlights the matrix row */}
+        <SelectFilter
+          icon={<CalendarDays className="w-3.5 h-3.5 text-gray-400" />}
+          value={selectedMes}
+          onChange={(v) => onSelectMes(v)}
+          options={monthOptionsForYear(state.year)}
+        />
 
         {/* Empresa */}
         <SelectFilter
@@ -356,13 +276,38 @@ export default function FilterBar({
         </button>
       </div>
 
-      <button
-        onClick={onExportCsv}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-      >
-        <Download className="w-3.5 h-3.5" />
-        Exportar CSV
-      </button>
+      <div className="relative" ref={exportRef}>
+        <button
+          onClick={() => setExportOpen((v) => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Exportar CSV
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+        {exportOpen && (
+          <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 w-[220px] py-1">
+            <button
+              onClick={() => {
+                onExportGestionCsv();
+                setExportOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+            >
+              Matriz mensual
+            </button>
+            <button
+              onClick={() => {
+                onExportDetalleCsv();
+                setExportOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+            >
+              Detalle 72 horas
+            </button>
+          </div>
+        )}
+      </div>
     </header>
   );
 }
@@ -377,7 +322,8 @@ function SelectFilter({
   icon: React.ReactNode;
   value: string;
   onChange: (v: string) => void;
-  placeholder: string;
+  /** Omit to render a selector with no empty "all" option (e.g. the year). */
+  placeholder?: string;
   options: { value: string; label: string }[];
 }) {
   return (
@@ -388,7 +334,7 @@ function SelectFilter({
         onChange={(e) => onChange(e.target.value)}
         className="text-xs text-gray-700 bg-transparent outline-none max-w-[140px]"
       >
-        <option value="">{placeholder}</option>
+        {placeholder !== undefined && <option value="">{placeholder}</option>}
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -399,5 +345,4 @@ function SelectFilter({
   );
 }
 
-export { getDateRange, DATE_PRESETS };
 export type { IndicadorOsiOption };
