@@ -103,7 +103,6 @@ function emptyBucket(mes: string, label: string): GestionMesIndicadores {
     participantesPlanificados: 0,
     participantesLista: 0,
     certificados: 0,
-    participantesCertificados: 0,
     pvc: 0,
   };
 }
@@ -115,6 +114,7 @@ type OsiRow = {
   fecha_inicio_real: string | null;
   fecha_fin_real: string | null;
   participantes_ejecucion: number | null;
+  participantes_max_solped: number | null;
   id_empresa: number | null;
   id_estatus: number | null;
   nombre_empresa: string | null;
@@ -161,7 +161,7 @@ export async function getIndicadoresGestionMensual(
       let q = supabase
         .from("v_osi_formato_completo")
         .select(
-          "id_osi, nro_osi, fecha_emision, fecha_inicio_real, fecha_fin_real, participantes_ejecucion, id_empresa, id_estatus, nombre_empresa",
+          "id_osi, nro_osi, fecha_emision, fecha_inicio_real, fecha_fin_real, participantes_ejecucion, participantes_max_solped, id_empresa, id_estatus, nombre_empresa",
         )
         .ilike("tipo_servicio", "%capacitacion%")
         .not("nro_osi", "ilike", "%PEN-%");
@@ -228,24 +228,71 @@ export async function getIndicadoresGestionMensual(
       aggByOsi.set(s.id_osi, agg);
     }
 
-    // ── 4. Attendance list submitted by facilitadores ────────────────────
-    const listaRows = await fetchChunkedIn<{ osi_id: number; cedula: string }>(
-      osiIds,
-      (chunk, from, to) =>
-        supabase
-          .from("ejecucion_osi_participantes")
-          .select("osi_id, cedula")
-          .in("osi_id", chunk)
-          .order("id", { ascending: true })
-          .range(from, to),
-      "ejecucion_osi_participantes",
-    );
-    const cedulasByOsi = new Map<number, Set<string>>();
-    for (const r of listaRows) {
-      if (!r.cedula) continue;
-      const set = cedulasByOsi.get(r.osi_id) ?? new Set<string>();
-      set.add(r.cedula.trim().toUpperCase());
-      cedulasByOsi.set(r.osi_id, set);
+    // ── 4. Certified participants per OSI (replaces facilitador-uploaded  ─
+    //    attendance list). The old source (ejecucion_osi_participantes) was
+    //    unreliable — facilitadores don't always upload the list. Certificates
+    //    are the authoritative record of who actually attended and was
+    //    certified. We fetch ejecucion_osi to map id_osi → numeric nro_osi
+    //    (the key certificados.nro_osi stores), then fetch all active certs
+    //    for those OSIs (no year filter — an OSI planned in the selected
+    //    year may have certs issued in a different year).
+    const numericOsiByOsiId = new Map<number, number>();
+    {
+      const ejecucionRows = await fetchChunkedIn<{
+        id: number;
+        nro_osi_secuencial: string | number | null;
+      }>(
+        osiIds,
+        (chunk, from, to) =>
+          supabase
+            .from("ejecucion_osi")
+            .select("id, nro_osi_secuencial")
+            .in("id", chunk)
+            .order("id", { ascending: true })
+            .range(from, to),
+        "ejecucion_osi",
+      );
+      for (const e of ejecucionRows) {
+        const seq = e.nro_osi_secuencial;
+        if (seq != null) {
+          const n = typeof seq === "number" ? seq : parseInt(String(seq), 10);
+          if (Number.isFinite(n)) numericOsiByOsiId.set(e.id, n);
+        }
+      }
+    }
+    const numericOsis = Array.from(new Set(numericOsiByOsiId.values()));
+
+    // osiId → raw count of certificates issued for that OSI (not distinct
+    // participants — the user doesn't care about uniqueness, just how many
+    // certificates were issued = how many people attended).
+    const certCountByOsi = new Map<number, number>();
+    {
+      const certRows = await fetchChunkedIn<{
+        nro_osi: number | null;
+        id_participante: number | null;
+      }>(
+        numericOsis,
+        (chunk, from, to) =>
+          supabase
+            .from("certificados")
+            .select("nro_osi, id_participante")
+            .eq("is_active", true)
+            .in("nro_osi", chunk)
+            .order("id", { ascending: true })
+            .range(from, to),
+        "certificados (by nro_osi)",
+      );
+      // Reverse map: numericOsi → osiId (for joining back).
+      const osiIdByNumeric = new Map<number, number>();
+      for (const [osiId, num] of numericOsiByOsiId) {
+        osiIdByNumeric.set(num, osiId);
+      }
+      for (const c of certRows) {
+        if (c.nro_osi == null || c.id_participante == null) continue;
+        const osiId = osiIdByNumeric.get(c.nro_osi);
+        if (osiId == null) continue;
+        certCountByOsi.set(osiId, (certCountByOsi.get(osiId) ?? 0) + 1);
+      }
     }
 
     // ── 5. Certificates issued during the selected year ──────────────────
@@ -296,10 +343,6 @@ export async function getIndicadoresGestionMensual(
       buckets.set(key, bucket);
       meses.push(bucket);
     }
-    // Distinct participants per month (and for the whole year) — a person
-    // certified twice in the same month must only count once.
-    const participantesCertByMes = new Map<string, Set<number>>();
-    const participantesCertYear = new Set<number>();
     const yearsSet = new Set<number>([year]);
     const osisList: OsiCarryRow[] = [];
 
@@ -338,8 +381,6 @@ export async function getIndicadoresGestionMensual(
         const b = buckets.get(mesPlanificado);
         if (b) {
           b.osisPlanificadas += 1;
-          b.participantesPlanificados += o.participantes_ejecucion ?? 0;
-          b.participantesLista += cedulasByOsi.get(osiId)?.size ?? 0;
           if (mesEjecucion === mesPlanificado) {
             b.osisEjecutadasEnSuMes += 1;
           } else if (!fechaEjecucionFinal) {
@@ -350,6 +391,23 @@ export async function getIndicadoresGestionMensual(
               b.osisPendientesVencidas += 1;
             }
           }
+        }
+      }
+
+      // Participant metrics (planificados + asistidos) are attributed to the
+      // OSI's EXECUTION month, not the planned month. This lets you compare
+      // "how many were declared for this service" vs "how many actually
+      // attended (got certified)" for OSIs executed in the same month.
+      // Pending OSIs (no execution date) don't contribute to these rows.
+      if (mesEjecucion) {
+        const b = buckets.get(mesEjecucion);
+        if (b) {
+          // Prefer participantes_ejecucion (execution-phase, most accurate),
+          // fall back to participantes_max_solped (SOLPED/purchase request,
+          // set earlier and more reliably populated), then 0.
+          b.participantesPlanificados +=
+            o.participantes_ejecucion ?? o.participantes_max_solped ?? 0;
+          b.participantesLista += certCountByOsi.get(osiId) ?? 0;
         }
       }
 
@@ -402,16 +460,6 @@ export async function getIndicadoresGestionMensual(
       const b = buckets.get(mes);
       if (!b) continue;
       b.certificados += 1;
-      if (c.id_participante != null) {
-        const set = participantesCertByMes.get(mes) ?? new Set<number>();
-        set.add(c.id_participante);
-        participantesCertByMes.set(mes, set);
-        participantesCertYear.add(c.id_participante);
-      }
-    }
-    for (const [mes, set] of participantesCertByMes.entries()) {
-      const b = buckets.get(mes);
-      if (b) b.participantesCertificados = set.size;
     }
 
     for (const c of carnets) {
@@ -438,9 +486,6 @@ export async function getIndicadoresGestionMensual(
       total.certificados += m.certificados;
       total.pvc += m.pvc;
     }
-    // Distinct across the whole year — deliberately NOT the sum of the
-    // monthly columns, since the same person can be certified in two months.
-    total.participantesCertificados = participantesCertYear.size;
 
     const yearsDisponibles = Array.from(yearsSet).sort((a, b) => b - a);
 

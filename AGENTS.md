@@ -267,9 +267,13 @@ Examples:
 
 ## Indicadores de Capacitación
 
-The `/dashboard/capacitacion/indicadores` page combines two views, both driven
-by a year selector + month selector in `FilterBar.tsx`. The year scopes the
-monthly matrix; the month scopes the 72h view and highlights a matrix row.
+The `/dashboard/capacitacion/indicadores` page has three views organized as
+tabs (Gestión Mensual | Certificados 72h | Horas por Facilitador). The active
+tab persists in the URL (`?tab=gestion|72h|facilitadores`). All three data
+sources are fetched in parallel regardless of active tab, so switching is
+instant. The shared `FilterBar.tsx` drives all views; the month selector and
+"Solo incumplimientos" toggle are hidden on the facilitadores tab (that view
+is year-scoped only).
 
 ### View 1 — Gestión Mensual OSIs (managerial monthly flow)
 
@@ -279,7 +283,10 @@ For each month of the selected year, computes:
 - **OSIs recibidas** — count of OSIs whose earliest `osi_sesion.fecha` falls in that month
 - **Ejecutadas en su mes** — OSIs whose every session has `fecha_ejecutada` (planned month = month of earliest session)
 - **Pendientes del mes** — received but not yet fully executed
-- **Certificados emitidos** / **Pendientes** / **Carnets emitidos** / **Pendientes** — counts scoped to that month's OSIs
+- **Participantes planificados** — SUM(`participantes_ejecucion ?? participantes_max_solped`) over OSIs **executed** in this month (attributed to execution month, not planned month, so it aligns with asistidos)
+- **Participantes asistidos** — raw count of certificates issued for OSIs **executed** in this month (NOT distinct participants — just total certificates). Attributed to the OSI's execution month so it can be compared directly against planificados. Sourced from `certificados` by `nro_osi`. Pending OSIs (no execution date) don't contribute to either participant row.
+- **Certificados emitidos** — raw count of certificates by their `fecha_emision` month (issuance month). Differs from "Participantes asistidos" because the latter follows the OSI's execution month while this follows the certificate's own issuance date.
+- **PVC (carnets) emitidos** — count of active carnets by `fecha_emision` month
 - **OSIs en riesgo** — received > 30 days ago with at least one pending session
 
 Per-OSI "planned month" = month of the earliest `osi_sesion.fecha`. An OSI is
@@ -287,10 +294,11 @@ Per-OSI "planned month" = month of the earliest `osi_sesion.fecha`. An OSI is
 is written from the *planned* date by the seguimiento sync, so UI-toggled items
 may appear executed-on-time even when the real execution slipped.
 
-Components: `GestionKpiCards.tsx` (9 KPI cards) + `GestionMensualTable.tsx`
-(12-row monthly table with per-month breakdown) + `CarryPanel.tsx`
-(collapsible panel below the KPI cards listing the three carry-over
-populations for the selected month: arrastradas, pasaran, rezagadas).
+Components: `GestionMensualTable.tsx` (12-row monthly matrix with
+per-month breakdown) + `CarryPanel.tsx` (collapsible panel below the
+matrix listing the three carry-over populations for the selected month:
+arrastradas, pasaran, rezagadas). KPI cards were removed — the matrix
+table already shows all the same data per month.
 
 ### Carry-over panel
 
@@ -322,18 +330,137 @@ The `PLAZO_BUSINESS_DAYS` constant (= 3) lives in `indicadores-certificados.ts`.
 The `slaDeadline` helper in `lib/business-days.ts` is still named as-is (callers
 unchanged) but doc comments refer to "plazo" rather than "SLA".
 
+### View 3 — Horas y honorarios por facilitador (instructor hours & pay)
+
+Server action: `getIndicadoresFacilitadores` in
+`app/actions/indicadores-facilitadores.ts`.
+
+Builds a per-facilitador monthly matrix of instructor hours for the selected
+year. One row per facilitador, 12 month columns (Ene–Dic), and three year-total
+columns: NRO TOTAL DE CURSOS (count of OSIs taught), NRO TOTAL DE HORAS
+(sum of instructor hours), and MONTO TOTAL EN $ (sum of honorarios).
+
+**Two-tier hours source:**
+1. **Requisición (primary):** `requisiciones.osi_fixed_items[].honorarios_horas`
+   on rows with `deleted_at IS NULL`, a non-null `cod_facilitador`, and no
+   rejected status (`estatus_admin`, `coordinador_estatus`, `lider_estatus`
+   all ≠ "rechazada"). Pendiente requisiciones count.
+2. **OSI fallback:** when no requisición covers a facilitador+OSI pair, the
+   OSI's `horas_honorarios_instructor` is split evenly across its sessions
+   (`osi_sesion`), and each session's share is credited to the facilitadores
+   assigned to that session (session-specific assignments win; general
+   assignments split evenly among assignees). A facilitador with a
+   requisición for an OSI is skipped in the fallback for that OSI — the
+   requisición wins by design.
+
+**Monto = rate × hours first:**
+- Requisición: `honorarios_costo_hora × honorarios_horas`, falling back to
+  `honorarios_total` when the rate is missing/zero.
+- OSI fallback: `tarifa_hora_honorarios × hoursShare`, falling back to
+  `costo_honorarios_instructor / sessionCount / assigneeCount`.
+
+**Month attribution:** the `osi_sesion.fecha` of `requisiciones.id_sesion`
+when it matches the item's OSI; otherwise the session's `fecha`, else the
+OSI's `fecha_inicio_real`.
+
+**Cursos (totalCursos):** count of distinct OSIs taught in the year —
+requisición-covered + fallback-covered. Each OSI counts once per facilitador.
+`cursosEstimados` is the subset credited via the OSI fallback (data-quality
+signal shown as an amber "{n} según OSI" badge).
+
+**Roster:** facilitadores with credited hours, UNIONED with facilitadores
+assigned (via `facilitador_osi_assignments`) to in-scope OSIs. The latter
+appear with zero hours.
+
+**Scope:** capacitacion OSIs (excluding provisional `PEN-` numbers), same as
+the gestion view. Empresa/estado filters apply to the OSI scope.
+
+> **Divergence from the reportes tab:** the reportes facilitadores tab
+> (`getFacilitadoresReport`) uses requisición-only hours (procesada, no
+> fallback) — a stricter rule. The indicadores tab intentionally widens to
+> pendiente + OSI fallback so the matrix reflects all assigned activity,
+> not just what Administración has processed.
+
+Data sources:
+- `v_osi_formato_completo` (id_osi, fecha_inicio_real, horas_honorarios_instructor,
+  tarifa_hora_honorarios, costo_honorarios_instructor — scope + fallback + attribution)
+- `requisiciones` (id, cod_facilitador, id_osi, id_sesion, estatus_admin,
+  coordinador_estatus, lider_estatus, osi_fixed_items — filtered:
+  deleted_at IS NULL, cod_facilitador NOT NULL, estatus_admin != 'rechazada')
+- `osi_sesion` (id, id_osi, nro_sesion, fecha — attribution + fallback sessions)
+- `facilitador_osi_assignments` (osi_id, facilitador_id, nro_sesion — attribution + roster)
+- `facilitadores` (id, nombre_apellido — row labels)
+
+Component: `FacilitadorHorasTable.tsx` (tabular-nums hours, `$`-prefixed
+monto, totals footer row, CSV export button, "según OSI" badge for
+fallback-credited cursos). The footer documents the two-tier source and
+monto formula.
+
 ### Offline fallback
 
-`IndicadoresClient.tsx` wraps both fetches in `fetchWithOfflineFallback` and
-shows `CachedDataBanner` when serving stale data from Dexie. Cache keys:
-`dash_indicadores_gestion_{year}_{filterKey}` and
-`dash_indicadores_72h_{selectedMes}_{filterKey}`.
+`IndicadoresClient.tsx` wraps all three fetches in `fetchWithOfflineFallback`
+and shows `CachedDataBanner` when serving stale data from Dexie. Cache keys:
+`dash_indicadores_gestion_{year}_{filterKey}`,
+`dash_indicadores_72h_{selectedMes}_{filterKey}`, and
+`dash_indicadores_facilitadores_{year}_{filterKey}`.
 
 ### CSV exports
 
-Both views export CSV via client-side `Blob` download (no server roundtrip):
+All three views export CSV via client-side `Blob` download (no server roundtrip):
 - Gestión: `indicadores-gestion-mensual-{year}.csv` (one row per month)
 - 72 horas: `indicadores-72-horas-{YYYY-MM}.csv` (one row per certificate)
+- Facilitadores: `indicadores-facilitadores-{year}.csv` (one row per facilitador)
+
+---
+
+## Reportes de Capacitación
+
+The `/dashboard/capacitacion/reportes` page has multiple tabs (overview, cursos,
+facilitadores, empresas, tendencias, carnets). Each tab is a client component
+that calls a server action from `app/actions/reportes.ts`.
+
+### Tab: Facilitadores (`?tab=facilitadores`)
+
+Server action: `getFacilitadoresReport` in `app/actions/reportes.ts`.
+
+Per-facilitador report with certificates, hours, courses, and survey ratings.
+Includes facilitadores with certificates, requisiciones, or assignments.
+
+**Critical join rule (canonical):** `certificados.nro_osi` (integer) stores
+`ejecucion_osi.nro_osi_secuencial`, NOT the formatted `nro_osi` string from
+`v_osi_lista`. To join certificates to OSI data:
+1. Fetch `ejecucion_osi (id, nro_osi_secuencial)` → build `numericOsi → id_osi`
+2. Look up OSI data by `id_osi`
+
+Joining `certificados.nro_osi` directly to `v_osi_lista.nro_osi` (string) is a
+guaranteed miss — the types differ and the formatted string can contain
+non-digits. See also `indicadores-certificados.ts:232-235`.
+
+**Hours source of truth (canonical rule):** facilitador hours come
+**exclusively** from `requisiciones.osi_fixed_items[].honorarios_horas` on
+rows with `estatus_admin = 'procesada'`, `deleted_at IS NULL`, and a
+non-null `cod_facilitador`. No OSI/course fallback is used. The requisición
+is the authoritative record for what was paid. The same rule applies to the
+indicadores facilitadores view.
+
+**Cursos dictados (totalOsis):** distinct OSI ids with at least one
+qualifying requisición item. **Temas (uniqueCourses):** distinct
+`catalogo_servicios` ids from certificates.
+
+Facilitadores with certificates or assignments but no processed requisición
+appear with `sinRequisicion: true` and zero hours.
+
+**Rating** = survey q1-q5 average per facilitador, mapped via
+`facilitador_osi_assignments` (OSI → facilitador). Not participant grades.
+
+**Paging:** all queries use `fetchAllPages` (1000 rows/page, max 50 pages) —
+no `.limit(5000)` truncation. Warnings (if any) go in the `warning` field of
+the response, rendered as a non-blocking amber banner.
+
+Component: `FacilitadoresReport.tsx` — KPI cards, ranking bar chart, state
+distribution, full table with search/status filter, Excel export. Columns
+include "Cursos dict." (OSI deliveries) and "Temas" (distinct catalog
+titles).
 
 ---
 

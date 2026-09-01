@@ -60,8 +60,11 @@ interface Props {
   /** "YYYY-MM" of the selected month, drives the 72h scope and matrix highlight. */
   selectedMes: string;
   onSelectMes: (mes: string) => void;
+  /** Active tab — controls which filter controls and export options are shown. */
+  activeTab: "gestion" | "72h" | "facilitadores";
   onExportGestionCsv: () => void;
   onExportDetalleCsv: () => void;
+  onExportFacilitadoresCsv: () => void;
 }
 
 export default function FilterBar({
@@ -71,8 +74,10 @@ export default function FilterBar({
   years,
   selectedMes,
   onSelectMes,
+  activeTab,
   onExportGestionCsv,
   onExportDetalleCsv,
+  onExportFacilitadoresCsv,
 }: Props) {
   const [osiDropdownOpen, setOsiDropdownOpen] = useState(false);
   const [osiSearch, setOsiSearch] = useState("");
@@ -213,12 +218,18 @@ export default function FilterBar({
           options={years.map((y) => ({ value: String(y), label: String(y) }))}
         />
 
-        {/* Month selector — scopes the 72h view and highlights the matrix row */}
+        {/* Month selector — scopes the 72h view, highlights the matrix row,
+            and filters the facilitadores tab. On facilitadores, an extra
+            "Todos los meses" option is prepended to allow full-year view. */}
         <SelectFilter
           icon={<CalendarDays className="w-3.5 h-3.5 text-gray-400" />}
           value={selectedMes}
           onChange={(v) => onSelectMes(v)}
-          options={monthOptionsForYear(state.year)}
+          options={
+            activeTab === "facilitadores"
+              ? [{ value: "all", label: "Todos los meses" }, ...monthOptionsForYear(state.year)]
+              : monthOptionsForYear(state.year)
+          }
         />
 
         {/* Empresa */}
@@ -257,23 +268,25 @@ export default function FilterBar({
           }))}
         />
 
-        {/* Solo incumplimientos toggle */}
-        <button
-          onClick={() =>
-            onChange({
-              ...state,
-              soloIncumplimientos: !state.soloIncumplimientos,
-            })
-          }
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-            state.soloIncumplimientos
-              ? "bg-red-50 border-red-200 text-red-700"
-              : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
-          }`}
-        >
-          <AlertTriangle className="w-3.5 h-3.5" />
-          Solo incumplimientos
-        </button>
+        {/* Solo incumplimientos toggle — only relevant to the 72h detail table */}
+        {activeTab !== "facilitadores" && (
+          <button
+            onClick={() =>
+              onChange({
+                ...state,
+                soloIncumplimientos: !state.soloIncumplimientos,
+              })
+            }
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+              state.soloIncumplimientos
+                ? "bg-red-50 border-red-200 text-red-700"
+                : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Solo incumplimientos
+          </button>
+        )}
       </div>
 
       <div className="relative" ref={exportRef}>
@@ -304,6 +317,15 @@ export default function FilterBar({
               className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
             >
               Detalle 72 horas
+            </button>
+            <button
+              onClick={() => {
+                onExportFacilitadoresCsv();
+                setExportOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+            >
+              Horas por facilitador
             </button>
           </div>
         )}

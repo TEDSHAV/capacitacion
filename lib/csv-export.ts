@@ -131,9 +131,12 @@ export function exportFacilitadoresReport(data: any[]): void {
     'Cédula',
     'Email',
     'Total Certificados',
-    'Horas Totales',
-    'Cursos Únicos',
-    'Calificación Promedio',
+    'Horas Totales (req. procesada)',
+    'Cursos Dictados',
+    'Temas',
+    'Rating Encuestas (q1-q5)',
+    'N° Encuestas',
+    'Sin Requisición',
     'Última Actividad'
   ];
 
@@ -144,9 +147,12 @@ export function exportFacilitadoresReport(data: any[]): void {
     'Cédula': item.cedula || '',
     'Email': item.email || '',
     'Total Certificados': item.totalCerts,
-    'Horas Totales': item.totalHours,
-    'Cursos Únicos': item.uniqueCourses,
-    'Calificación Promedio': item.avgScore > 0 ? parseFloat(item.avgScore.toFixed(1)) : 0,
+    'Horas Totales (req. procesada)': item.totalHours,
+    'Cursos Dictados': item.totalOsis,
+    'Temas': item.uniqueCourses,
+    'Rating Encuestas (q1-q5)': item.avgRating > 0 ? parseFloat(item.avgRating.toFixed(1)) : 0,
+    'N° Encuestas': item.surveyCount,
+    'Sin Requisición': item.sinRequisicion ? 'Sí' : 'No',
     'Última Actividad': item.lastActivity || 'N/A'
   }));
 

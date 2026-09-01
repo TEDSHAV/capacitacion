@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Loader2, AlertCircle, Info, Settings, X } from "lucide-react";
+import { Loader2, AlertCircle, Info, Settings, X, BarChart3, Clock, Users } from "lucide-react";
 import type {
+  FacilitadoresHorasResponse,
   GestionMensualResponse,
   IndicadorEstado,
   IndicadoresFilterOptions,
@@ -12,22 +13,54 @@ import type {
   IndicadorOsiRow,
 } from "@/types";
 import { getIndicadoresCertificados72h } from "@/app/actions/indicadores-certificados";
+import { getIndicadoresFacilitadores } from "@/app/actions/indicadores-facilitadores";
 import { getIndicadoresGestionMensual } from "@/app/actions/indicadores-gestion";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import { fetchWithOfflineFallback } from "@/lib/offline/use-offline-data";
 import { useOnlineStatus } from "@/lib/offline/use-online-status";
 import { CachedDataBanner } from "@/components/CachedDataBanner";
 import FilterBar, { type IndicadoresFilterState } from "./components/FilterBar";
-import GestionKpiCards from "./components/GestionKpiCards";
 import GestionMensualTable from "./components/GestionMensualTable";
 import CarryPanel from "./components/CarryPanel";
 import ComplianceGauge from "./components/ComplianceGauge";
+import FacilitadorHorasTable from "./components/FacilitadorHorasTable";
 import IndicadoresTable from "./components/IndicadoresTable";
 
 interface Props {
   user: { id?: string } | null;
   filterOptions: IndicadoresFilterOptions;
 }
+
+type IndicadorTab = "gestion" | "72h" | "facilitadores";
+
+const TAB_DEFS: {
+  id: IndicadorTab;
+  label: string;
+  icon: typeof BarChart3;
+  subtitle: string;
+}[] = [
+  {
+    id: "gestion",
+    label: "Gestión Mensual",
+    icon: BarChart3,
+    subtitle:
+      "Flujo mensual de OSIs: recibidas, ejecutadas, pendientes, participantes y certificados.",
+  },
+  {
+    id: "72h",
+    label: "Certificados 72h",
+    icon: Clock,
+    subtitle:
+      "Cumplimiento de emisión de certificados dentro de 3 días hábiles tras la ejecución.",
+  },
+  {
+    id: "facilitadores",
+    label: "Horas por Facilitador",
+    icon: Users,
+    subtitle:
+      "Horas de instructor y honorarios por facilitador, mes por mes.",
+  },
+];
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -55,6 +88,20 @@ function build72hFilters(
   state: IndicadoresFilterState,
   selectedMes: string,
 ) {
+  // "all" is only used on the facilitadores tab; return a no-op filter
+  // so the 72h fetch (which runs in parallel regardless of active tab)
+  // doesn't produce invalid date strings.
+  if (selectedMes === "all" || !/^\d{4}-\d{2}$/.test(selectedMes)) {
+    return {
+      osiIds: state.osiIds.length ? state.osiIds : undefined,
+      fechaFrom: undefined,
+      fechaTo: undefined,
+      empresaId: state.empresaId || undefined,
+      facilitadorId: state.facilitadorId || undefined,
+      estadoId: state.estadoId || undefined,
+      soloIncumplimientos: state.soloIncumplimientos || undefined,
+    };
+  }
   const [yStr, mStr] = selectedMes.split("-");
   const y = parseInt(yStr, 10);
   const m = parseInt(mStr, 10);
@@ -111,9 +158,8 @@ function exportGestionCsv(gestion: GestionMensualResponse) {
     { label: "Pendientes con fecha ya pasada", get: (m) => m.osisPendientesVencidas },
     { label: "Ejecutadas de meses anteriores", get: (m) => m.osisRezagadasEjecutadas },
     { label: "Participantes planificados", get: (m) => m.participantesPlanificados },
-    { label: "Participantes en lista", get: (m) => m.participantesLista },
-    { label: "Certificados emitidos", get: (m) => m.certificados },
-    { label: "Participantes con certificado", get: (m) => m.participantesCertificados },
+    { label: "Participantes asistidos (por mes de ejecución)", get: (m) => m.participantesLista },
+    { label: "Certificados emitidos (por mes de emisión)", get: (m) => m.certificados },
     { label: "PVC (carnets) emitidos", get: (m) => m.pvc },
   ];
   const lines = [
@@ -175,6 +221,36 @@ function exportDetalleCsv(rows: IndicadorOsiRow[], periodLabel: string) {
   downloadCsv(lines, `indicadores-72-horas-${periodLabel}.csv`);
 }
 
+/** Facilitadores hours export: one row per facilitador. */
+function exportFacilitadoresCsv(data: FacilitadoresHorasResponse) {
+  const monthHeaders = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+  ];
+  const headers = [
+    "Facilitador",
+    ...monthHeaders,
+    "NRO TOTAL DE CURSOS EN EL AÑO",
+    "NRO TOTAL DE HORAS EN EL AÑO",
+    "MONTO TOTAL EN $",
+  ];
+  const lines = [headers.map(escapeCsv).join(",")];
+  for (const f of data.facilitadores) {
+    lines.push(
+      [
+        f.nombre,
+        ...f.horasPorMes,
+        f.totalCursos,
+        f.totalHoras,
+        f.totalMonto.toFixed(2),
+      ]
+        .map(escapeCsv)
+        .join(","),
+    );
+  }
+  downloadCsv(lines, `indicadores-facilitadores-${data.year}.csv`);
+}
+
 // Drill-down: clicking a gauge slice filters the detail table to just that
 // estado, without triggering a new server fetch. Label map used for the
 // "showing X" banner above the table.
@@ -192,10 +268,18 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
   const isOnline = useOnlineStatus();
   const [filterState, setFilterState] = useState<IndicadoresFilterState>(DEFAULT_STATE);
   const [selectedMes, setSelectedMes] = useState(defaultMesForYear(CURRENT_YEAR));
+  const [activeTab, setActiveTab] = useState<IndicadorTab>("gestion");
 
   const [gestion, setGestion] = useState<GestionMensualResponse | null>(null);
   const [gestionFromCache, setGestionFromCache] = useState(false);
   const [gestionCachedAt, setGestionCachedAt] = useState<number | null>(null);
+
+  const [facilitadoresHoras, setFacilitadoresHoras] =
+    useState<FacilitadoresHorasResponse | null>(null);
+  const [facilitadoresFromCache, setFacilitadoresFromCache] = useState(false);
+  const [facilitadoresCachedAt, setFacilitadoresCachedAt] = useState<
+    number | null
+  >(null);
 
   const [data, setData] = useState<IndicadoresResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -226,6 +310,7 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
     const estado = searchParams.get("estado");
     const breach = searchParams.get("breach");
     const vista = searchParams.get("vista");
+    const tab = searchParams.get("tab");
 
     const next: IndicadoresFilterState = { ...DEFAULT_STATE };
     if (osiIdsParam) {
@@ -242,12 +327,17 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
     if (breach === "1") next.soloIncumplimientos = true;
     setFilterState(next);
     setSelectedMes(
-      mes && /^\d{4}-\d{2}$/.test(mes) ? mes : defaultMesForYear(next.year),
+      mes === "all" || (mes && /^\d{4}-\d{2}$/.test(mes))
+        ? mes
+        : defaultMesForYear(next.year),
     );
     if (vista?.startsWith("osi:")) {
       setDrilldown({ type: "osi", value: vista.slice(4) });
     } else if (vista && vista in DRILLDOWN_LABELS) {
       setDrilldown({ type: "estado", value: vista as IndicadorEstado });
+    }
+    if (tab === "72h" || tab === "facilitadores" || tab === "gestion") {
+      setActiveTab(tab);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -266,9 +356,10 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
     if (filterState.soloIncumplimientos) params.set("breach", "1");
     if (drilldown?.type === "estado") params.set("vista", drilldown.value);
     else if (drilldown?.type === "osi") params.set("vista", `osi:${drilldown.value}`);
+    if (activeTab !== "gestion") params.set("tab", activeTab);
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", newUrl);
-  }, [filterState, selectedMes, drilldown]);
+  }, [filterState, selectedMes, drilldown, activeTab]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -281,7 +372,20 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
       estadoId: gestionFilters.estadoId,
     });
 
-    const [gestionRes, res72h] = await Promise.all([
+    // Facilitadores filters: same as gestion but with an optional month
+    // filter ("all" = no month filter, full year).
+    const facilitadoresFilters = {
+      ...gestionFilters,
+      mes: selectedMes !== "all" ? selectedMes : undefined,
+    };
+    const facilitadorFilterKey = JSON.stringify({
+      empresaId: facilitadoresFilters.empresaId,
+      facilitadorId: facilitadoresFilters.facilitadorId,
+      estadoId: facilitadoresFilters.estadoId,
+      mes: facilitadoresFilters.mes,
+    });
+
+    const [gestionRes, res72h, facilitadoresRes] = await Promise.all([
       fetchWithOfflineFallback(
         `dash_indicadores_gestion_${filterState.year}_${filterKey}`,
         "dash_indicadores",
@@ -304,6 +408,14 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
         console.error("Error loading indicadores 72h:", err);
         return null;
       }),
+      fetchWithOfflineFallback(
+        `dash_indicadores_facilitadores_${filterState.year}_${facilitadorFilterKey}`,
+        "dash_indicadores",
+        () => getIndicadoresFacilitadores(facilitadoresFilters),
+      ).catch((err) => {
+        console.error("Error loading indicadores facilitadores:", err);
+        return null;
+      }),
     ]);
 
     if (gestionRes?.data.data) {
@@ -314,7 +426,19 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
       setGestion(null);
     }
 
-    const err = gestionRes?.data.error ?? res72h?.data.error ?? null;
+    if (facilitadoresRes?.data.data) {
+      setFacilitadoresHoras(facilitadoresRes.data.data);
+      setFacilitadoresFromCache(facilitadoresRes.fromCache);
+      setFacilitadoresCachedAt(facilitadoresRes.cachedAt);
+    } else {
+      setFacilitadoresHoras(null);
+    }
+
+    const err =
+      gestionRes?.data.error ??
+      res72h?.data.error ??
+      facilitadoresRes?.data.error ??
+      null;
     if (res72h?.data.data) setData(res72h.data.data);
     else setData(null);
     setError(err);
@@ -393,6 +517,8 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
         ? `OSI ${drilldown.value}`
         : null;
 
+  const activeTabDef = TAB_DEFS.find((t) => t.id === activeTab) ?? TAB_DEFS[0];
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <FilterBar
@@ -402,19 +528,54 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
         years={years}
         selectedMes={selectedMes}
         onSelectMes={setSelectedMes}
+        activeTab={activeTab}
         onExportGestionCsv={() => gestion && exportGestionCsv(gestion)}
         onExportDetalleCsv={() => exportDetalleCsv(rows, selectedMes)}
+        onExportFacilitadoresCsv={() =>
+          facilitadoresHoras && exportFacilitadoresCsv(facilitadoresHoras)
+        }
       />
 
       <main className="flex-1 p-6 overflow-auto">
-        <div className="mb-5">
+        <div className="mb-4">
           <h1 className="text-xl font-bold text-gray-900">
             Indicadores de Gestión · Capacitación {filterState.year}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Flujo mensual de OSIs (recibidas, ejecutadas, pendientes),
-            participantes y emisión de certificados y carnets.
-          </p>
+          <p className="text-sm text-gray-500 mt-1">{activeTabDef.subtitle}</p>
+        </div>
+
+        {/* Tab bar */}
+        <div className="mb-6 border-b border-gray-200 flex gap-1 overflow-x-auto">
+          {TAB_DEFS.map((tab) => {
+            const Icon = tab.icon;
+            const active = tab.id === activeTab;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  if (tab.id === "facilitadores") {
+                    // Default to "Todos los meses" so the full-year table
+                    // shows all months at first glance. The user can then
+                    // narrow to a specific month if needed.
+                    if (selectedMes !== "all") setSelectedMes("all");
+                  } else if (selectedMes === "all") {
+                    // "Todos los meses" is only valid on the facilitadores tab.
+                    // Reset to a real month when switching to gestión/72h.
+                    setSelectedMes(defaultMesForYear(filterState.year));
+                  }
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 -mb-px transition-colors whitespace-nowrap bg-transparent ${
+                  active
+                    ? "border-sky-600 text-sky-700 font-semibold"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         {error && (
@@ -429,12 +590,6 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
           </div>
         )}
 
-        {gestionFromCache && (
-          <div className="mb-5">
-            <CachedDataBanner cachedAt={gestionCachedAt} isOnline={isOnline} />
-          </div>
-        )}
-
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <Loader2 className="w-6 h-6 text-sky-600 animate-spin" />
@@ -443,124 +598,167 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
             </span>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* ── Gestión mensual ─────────────────────────────────────── */}
-            <section className="space-y-4">
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">
-                  Gestión mensual de OSIs
-                </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Recibidas por fecha de emisión de la OSI · planificadas y
-                  ejecutadas por fecha de sesión · certificados y carnets por su
-                  propia fecha de emisión.
-                </p>
-              </div>
-              {!gestion || !mesActual ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
-                  <Info className="w-8 h-8 mb-2" />
-                  <p className="text-sm">
-                    No hay datos de gestión para {filterState.year} con estos
-                    filtros.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xs font-medium text-gray-500">
-                      Mes seleccionado:
-                    </span>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {mesActual.label}
-                    </span>
-                  </div>
-                  <GestionKpiCards mes={mesActual} />
-                  <CarryPanel
-                    osisList={gestion.osisList}
-                    selectedMes={mesActual.mes}
-                    selectedMesLabel={mesActual.label}
-                  />
-                  <GestionMensualTable
-                    data={gestion}
-                    selectedMes={mesActual.mes}
-                    onSelectMes={setSelectedMes}
-                  />
-                </>
-              )}
-            </section>
-
-            {/* ── Certificados en 72 horas ────────────────────────────── */}
-            <section className="space-y-4">
-              <div className="flex items-start justify-between gap-4">
+            {activeTab === "gestion" && (
+              <section className="space-y-4">
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">
-                    Certificados emitidos en 72 horas · {mesActual?.label}
+                    Gestión mensual de OSIs
                   </h2>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Mide si la emisión del certificado ocurre dentro de 3 días
-                    hábiles (72 horas laborables, excluyendo fines de semana y
-                    feriados venezolanos) tras la última fecha de ejecución. El
-                    día de ejecución cuenta como día 1. Alcance: certificados
-                    emitidos en {mesActual?.label}.
+                    Recibidas por fecha de emisión de la OSI · planificadas y
+                    ejecutadas por fecha de sesión · certificados y carnets por
+                    su propia fecha de emisión.
                   </p>
                 </div>
-                <Link
-                  href="/dashboard/capacitacion/configuracion/feriados"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors whitespace-nowrap flex-shrink-0"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  Configurar feriados
-                </Link>
-              </div>
+                {gestionFromCache && (
+                  <CachedDataBanner
+                    cachedAt={gestionCachedAt}
+                    isOnline={isOnline}
+                  />
+                )}
+                {!gestion || !mesActual ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+                    <Info className="w-8 h-8 mb-2" />
+                    <p className="text-sm">
+                      No hay datos de gestión para {filterState.year} con estos
+                      filtros.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-gray-500">
+                        Mes seleccionado:
+                      </span>
+                      <span className="bg-sky-50 text-sky-700 rounded-full px-3 py-1 text-xs font-semibold">
+                        {mesActual.label}
+                      </span>
+                    </div>
+                    <GestionMensualTable
+                      data={gestion}
+                      selectedMes={mesActual.mes}
+                      onSelectMes={setSelectedMes}
+                    />
+                    <CarryPanel
+                      osisList={gestion.osisList}
+                      selectedMes={mesActual.mes}
+                      selectedMesLabel={mesActual.label}
+                    />
+                  </>
+                )}
+              </section>
+            )}
 
-              {!aggregates || aggregates.totalOsis === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
-                  <Info className="w-8 h-8 mb-2" />
-                  <p className="text-sm">
-                    No hay OSIs de capacitación que coincidan con los filtros.
+            {/* ── Certificados en 72 horas ────────────────────────────── */}
+            {activeTab === "72h" && (
+              <section className="space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      Certificados emitidos en 72 horas · {mesActual?.label}
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Mide si la emisión del certificado ocurre dentro de 3 días
+                      hábiles (72 horas laborables, excluyendo fines de semana y
+                      feriados venezolanos) tras la última fecha de ejecución. El
+                      día de ejecución cuenta como día 1. Alcance: certificados
+                      emitidos en {mesActual?.label}.
+                    </p>
+                  </div>
+                  <Link
+                    href="/dashboard/capacitacion/configuracion/feriados"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors whitespace-nowrap flex-shrink-0"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    Configurar feriados
+                  </Link>
+                </div>
+
+                {!aggregates || aggregates.totalOsis === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+                    <Info className="w-8 h-8 mb-2" />
+                    <p className="text-sm">
+                      No hay OSIs de capacitación que coincidan con los filtros.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="max-w-md">
+                      <ComplianceGauge
+                        aggregates={aggregates}
+                        activeEstado={
+                          drilldown?.type === "estado" ? drilldown.value : null
+                        }
+                        onSelectEstado={handleSelectEstado}
+                      />
+                    </div>
+
+                    <div ref={tableRef}>
+                      {drilldownLabel && (
+                        <div className="mb-3 flex items-center justify-between gap-3 bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5">
+                          <p className="text-sm text-gray-800">
+                            Mostrando: <strong>{drilldownLabel}</strong> (
+                            {tableRows.length}{" "}
+                            {tableRows.length === 1 ? "OSI" : "OSIs"})
+                          </p>
+                          <button
+                            onClick={() => setDrilldown(null)}
+                            className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            Limpiar
+                          </button>
+                        </div>
+                      )}
+                      <IndicadoresTable
+                        key={drilldown ? `${drilldown.type}:${drilldown.value}` : "all"}
+                        rows={tableRows}
+                        defaultSortByBrecha={
+                          drilldown?.type === "estado" &&
+                          drilldown.value === "pendiente"
+                        }
+                      />
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
+
+            {/* ── Horas y honorarios por facilitador ───────────────────── */}
+            {activeTab === "facilitadores" && (
+              <section className="space-y-4">
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">
+                    Horas y honorarios por facilitador · {filterState.year}
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Horas de instructor por fecha de ejecución de cada sesión ·
+                    cursos = OSIs distintas ejecutadas · monto desde
+                    costo_honorarios_instructor.
                   </p>
                 </div>
-              ) : (
-                <>
-                  <div className="max-w-md">
-                    <ComplianceGauge
-                      aggregates={aggregates}
-                      activeEstado={
-                        drilldown?.type === "estado" ? drilldown.value : null
-                      }
-                      onSelectEstado={handleSelectEstado}
-                    />
+                {facilitadoresFromCache && (
+                  <CachedDataBanner
+                    cachedAt={facilitadoresCachedAt}
+                    isOnline={isOnline}
+                  />
+                )}
+                {!facilitadoresHoras ||
+                facilitadoresHoras.facilitadores.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+                    <Info className="w-8 h-8 mb-2" />
+                    <p className="text-sm">
+                      No hay sesiones ejecutadas en {filterState.year} con
+                      facilitador asignado.
+                    </p>
                   </div>
-
-                  <div ref={tableRef}>
-                    {drilldownLabel && (
-                      <div className="mb-3 flex items-center justify-between gap-3 bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5">
-                        <p className="text-sm text-gray-800">
-                          Mostrando: <strong>{drilldownLabel}</strong> (
-                          {tableRows.length}{" "}
-                          {tableRows.length === 1 ? "OSI" : "OSIs"})
-                        </p>
-                        <button
-                          onClick={() => setDrilldown(null)}
-                          className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          Limpiar
-                        </button>
-                      </div>
-                    )}
-                    <IndicadoresTable
-                      key={drilldown ? `${drilldown.type}:${drilldown.value}` : "all"}
-                      rows={tableRows}
-                      defaultSortByBrecha={
-                        drilldown?.type === "estado" &&
-                        drilldown.value === "pendiente"
-                      }
-                    />
-                  </div>
-                </>
-              )}
-            </section>
+                ) : (
+                  <FacilitadorHorasTable data={facilitadoresHoras} />
+                )}
+              </section>
+            )}
           </div>
         )}
       </main>

@@ -61,21 +61,14 @@ const ROWS: RowDef[] = [
   },
   {
     key: "participantesLista",
-    label: "Participantes en lista",
+    label: "Participantes asistidos (por mes de ejecución)",
     get: (m) => m.participantesLista,
   },
   {
     key: "certificados",
-    label: "Certificados emitidos",
+    label: "Certificados emitidos (por mes de emisión)",
     get: (m) => m.certificados,
     groupStart: true,
-  },
-  {
-    key: "participantesCertificados",
-    label: "Participantes con certificado",
-    get: (m) => m.participantesCertificados,
-    sub: true,
-    note: "1",
   },
   {
     key: "pvc",

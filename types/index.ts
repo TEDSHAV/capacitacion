@@ -1475,15 +1475,20 @@ export interface FacilitadorReportItem {
   email: string | null;
   totalCerts: number;
   totalHours: number;
+  totalOsis: number;
   uniqueCourses: number;
   courseNames: string[];
-  avgScore: number;
+  avgRating: number;
+  surveyCount: number;
   lastActivity: string | null;
+  /** True when the facilitador has certificates but no processed requisición. */
+  sinRequisicion: boolean;
 }
 
 export interface FacilitadoresReportData {
   facilitadores: FacilitadorReportItem[];
   stateStats: Array<{ nombre: string; count: number }>;
+  warning?: string | null;
 }
 
 export interface EmpresaReportItem {
@@ -1993,14 +1998,12 @@ export interface GestionMesIndicadores {
   osisRezagadasEjecutadas: number;
   /** OSIs planned in this month (denominator for osisEjecutadasEnSuMes). */
   osisPlanificadas: number;
-  /** SUM(participantes_ejecucion) over OSIs planned in this month. */
+  /** SUM(participantes_ejecucion ?? participantes_max_solped) over OSIs planned in this month. */
   participantesPlanificados: number;
-  /** Distinct cedulas in ejecucion_osi_participantes for those same OSIs. */
+  /** Count of certificates issued for OSIs planned in this month (raw, not distinct). */
   participantesLista: number;
-  /** Active certificates issued during this month. */
+  /** Active certificates issued during this month (by fecha_emision). */
   certificados: number;
-  /** Distinct participants among those certificates. */
-  participantesCertificados: number;
   /** Active carnets (PVC) issued during this month. */
   pvc: number;
 }
@@ -2055,4 +2058,42 @@ export interface IndicadoresGestionFilters {
   empresaId?: string;
   facilitadorId?: string;
   estadoId?: string;
+  /** Optional "YYYY-MM" month filter (used by the facilitadores view). */
+  mes?: string;
+}
+
+// ============================================================================
+// Indicadores de Facilitadores — horas y honorarios por mes
+//
+// Per-facilitador monthly matrix of instructor hours. Hours come from the
+// requisición first (`osi_fixed_items[].honorarios_horas` on non-deleted,
+// non-rejected rows with a `cod_facilitador`), falling back to OSI-level
+// `horas_honorarios_instructor` split per session/assignee when no
+// requisición covers that facilitador+OSI pair. Month attribution uses the
+// `osi_sesion.fecha` of `requisiciones.id_sesion` (when it matches the
+// item's OSI), else the session's `fecha`, else the OSI's
+// `fecha_inicio_real`. Monto = rate × hours first (stored total as
+// fallback). `cursosEstimados` counts OSIs credited via the OSI fallback —
+// a data-quality signal for missing requisiciones.
+// ============================================================================
+
+export interface FacilitadorHorasRow {
+  facilitadorId: number;
+  nombre: string;
+  /** 12 entries, index 0=Ene … 11=Dic. Instructor hours per month. */
+  horasPorMes: number[];
+  /** Distinct OSIs taught in the year (requisición-covered + fallback-covered). */
+  totalCursos: number;
+  /** Sum of instructor hours across all sources. */
+  totalHoras: number;
+  /** Sum of honorarios (rate × hours first, stored total as fallback). */
+  totalMonto: number;
+  /** Number of OSIs credited via the OSI fallback (no requisición on file). */
+  cursosEstimados: number;
+}
+
+export interface FacilitadoresHorasResponse {
+  year: number;
+  facilitadores: FacilitadorHorasRow[];
+  yearsDisponibles: number[];
 }

@@ -132,12 +132,13 @@ export default function FacilitadoresReport({
 
   if (!reportData) return null;
 
-  const { facilitadores, stateStats } = reportData;
+  const { facilitadores, stateStats, warning } = reportData;
   const totalCerts = facilitadores.reduce((s, f) => s + f.totalCerts, 0);
   const totalHours = facilitadores.reduce((s, f) => s + f.totalHours, 0);
+  const facilitadoresConHoras = facilitadores.filter((f) => f.totalHours > 0).length;
   const avgHours =
-    facilitadores.length > 0
-      ? (totalHours / facilitadores.length).toFixed(1)
+    facilitadoresConHoras > 0
+      ? (totalHours / facilitadoresConHoras).toFixed(1)
       : "0";
   const activeCount = facilitadores.filter((f) => f.is_active).length;
   const maxCerts = Math.max(...facilitadores.map((f) => f.totalCerts), 1);
@@ -161,7 +162,9 @@ export default function FacilitadoresReport({
           </p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs text-gray-500 mb-1">Horas impartidas</p>
+          <p className="text-xs text-gray-500 mb-1" title="Horas según requisiciones procesadas (osi_fixed_items.honorarios_horas)">
+            Horas según req. procesada
+          </p>
           <p className="text-2xl font-bold text-orange-500">
             {totalHours.toLocaleString("es-VE")}
           </p>
@@ -171,6 +174,14 @@ export default function FacilitadoresReport({
           <p className="text-2xl font-bold text-amber-600">{avgHours}</p>
         </div>
       </div>
+
+      {/* Warning banner (non-blocking) */}
+      {warning && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-800">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <p className="text-xs">{warning}</p>
+        </div>
+      )}
 
       {/* Export button */}
       {facilitadores.length > 0 && (
@@ -223,7 +234,7 @@ export default function FacilitadoresReport({
                             {f.estado_nombre}
                           </span>
                           <span className="text-xs font-semibold text-sky-700">
-                            {f.totalCerts} cert. en {f.uniqueCourses} cursos
+                            {f.totalCerts} cert. · {f.totalOsis} cursos · {f.uniqueCourses} temas
                           </span>
                         </div>
                       </div>
@@ -240,7 +251,7 @@ export default function FacilitadoresReport({
                         </div>
                         <span className="text-[10px] text-gray-400 w-16 text-right flex-shrink-0">
                           {f.totalHours > 0 ? `${f.totalHours}h` : ""}
-                          {f.avgScore > 0 ? ` · ★${f.avgScore}` : ""}
+                          {f.avgRating > 0 ? ` · ★${f.avgRating}` : ""}
                         </span>
                       </div>
                     </div>
@@ -341,11 +352,14 @@ export default function FacilitadoresReport({
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
                     Cursos
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    #
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide" title="OSIs distintos con requisición procesada (cursos dictados)">
+                    Cursos dict.
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                    Prom.
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide" title="Temas distintos del catálogo (cursos)">
+                    Temas
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide" title="Promedio de evaluación del facilitador (encuestas q1-q5)">
+                    Rating
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">
                     Estatus
@@ -361,6 +375,14 @@ export default function FacilitadoresReport({
                     <td className="px-5 py-3">
                       <p className="text-sm font-medium text-gray-800">
                         {f.nombre_apellido.toLocaleUpperCase()}
+                        {f.sinRequisicion && (
+                          <span
+                            className="ml-2 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 align-middle"
+                            title="Tiene certificados o asignaciones pero ninguna requisición procesada"
+                          >
+                            sin requisición
+                          </span>
+                        )}
                       </p>
                       {f.cedula && (
                         <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1">
@@ -413,14 +435,19 @@ export default function FacilitadoresReport({
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span className="text-xs text-gray-600">
-                        {f.uniqueCourses}
+                        {f.totalOsis}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {f.avgScore > 0 ? (
+                      <span className="text-xs text-gray-600">
+                        {f.uniqueCourses}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right" title={f.surveyCount > 0 ? `Promedio de ${f.surveyCount} encuesta(s)` : undefined}>
+                      {f.avgRating > 0 ? (
                         <span className="inline-flex items-center gap-1 text-xs text-amber-700">
                           <Star className="w-3 h-3" />
-                          {f.avgScore}
+                          {f.avgRating}
                         </span>
                       ) : (
                         <span className="text-xs text-gray-400">—</span>

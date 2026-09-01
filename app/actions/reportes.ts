@@ -11,6 +11,32 @@ import {
   MonthlyCarnetData,
 } from "@/types";
 
+// ─── Paging helpers ──────────────────────────────────────────────────────────
+// Supabase caps unranged selects at 1000 rows; these page through everything.
+const PAGE_SIZE = 1000;
+const MAX_PAGES = 50;
+
+type PagedResult<T> = { data: T[] | null; error: { message: string } | null };
+
+async function fetchAllPages<T>(
+  build: (from: number, to: number) => PromiseLike<PagedResult<T>>,
+  label: string,
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const from = page * PAGE_SIZE;
+    const { data, error } = await build(from, from + PAGE_SIZE - 1);
+    if (error) {
+      console.error(`[reportes] Error fetching ${label} page ${page}:`, error);
+      break;
+    }
+    const rows = data ?? [];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return all;
+}
+
 // Helper function to check for data truncation
 function checkTruncation(data: any[] | null, limit: number): { isTruncated: boolean; message?: string } {
   if (data && data.length >= limit) {
@@ -532,6 +558,33 @@ export async function getCursosReport(
 
 // ─── Facilitadores ────────────────────────────────────────────────────────────
 
+/**
+ * Per-facilitador report: certificates, hours, courses, survey ratings.
+ *
+ * **Critical join rule**: `certificados.nro_osi` (integer) stores
+ * `ejecucion_osi.nro_osi_secuencial`, NOT the formatted `nro_osi` string
+ * from `v_osi_lista`. The join must go through `ejecucion_osi` to resolve
+ * `nro_osi_secuencial → id_osi`, then look up OSI data by `id_osi`.
+ * Joining `certificados.nro_osi` directly to `v_osi_lista.nro_osi` (string)
+ * is a guaranteed miss — see `indicadores-certificados.ts:232-235`.
+ *
+ * **Hours source of truth:** `requisiciones.osi_fixed_items[].honorarios_horas`
+ * on rows with `estatus_admin = 'procesada'`, `deleted_at IS NULL`, and a
+ * non-null `cod_facilitador`. No OSI/course fallback is used. Hours are
+ * attributed to the facilitador named on the requisición (`cod_facilitador`),
+ * not the certificate's `id_facilitador` — the requisición is the authoritative
+ * record for what was paid.
+ *
+ * **Cursos dictados (totalOsis):** distinct OSI ids with at least one
+ * qualifying requisición item. **Temas (uniqueCourses):** distinct
+ * `catalogo_servicios` ids from certificates.
+ *
+ * Facilitadores with certificates but no processed requisición are included
+ * with `sinRequisicion: true` and zero hours, so missing requisiciones are
+ * visible as a data-quality signal.
+ *
+ * Rating = survey q1-q5 average, mapped via `facilitador_osi_assignments`.
+ */
 export async function getFacilitadoresReport(
   dateFrom?: string,
   dateTo?: string,
@@ -539,6 +592,7 @@ export async function getFacilitadoresReport(
 ): Promise<{ data: FacilitadoresReportData | null; error: string | null }> {
   const supabase = await createClient();
   try {
+    // ── 1. Facilitadores (all, optionally filtered by state) ──────────────
     let facilitadoresQuery = supabase
       .from("facilitadores")
       .select(
@@ -551,121 +605,269 @@ export async function getFacilitadoresReport(
         stateId,
       );
 
-    const [facilitadoresRes, certsRes, osiRes, statesRes, serviciosRes] =
-      await Promise.all([
-        facilitadoresQuery,
+    // ── 2. Certificates (paged, no truncation) ────────────────────────────
+    const certs = await fetchAllPages<{
+      id_facilitador: number | null;
+      fecha_emision: string | null;
+      calificacion: number | null;
+      id_curso: number | null;
+      nro_osi: number | null;
+    }>(
+      (from, to) => {
+        let q = supabase
+          .from("certificados")
+          .select(
+            "id_facilitador, fecha_emision, calificacion, id_curso, nro_osi",
+          )
+          .not("id_facilitador", "is", null)
+          .not("nro_osi", "is", null)
+          .order("id", { ascending: true });
+        if (dateFrom) q = q.gte("fecha_emision", dateFrom);
+        if (dateTo) q = q.lte("fecha_emision", dateTo);
+        return q.range(from, to);
+      },
+      "certificados",
+    );
 
-        (async () => {
-          let q = supabase
-            .from("certificados")
-            .select(`id_facilitador, fecha_emision, calificacion, id_curso, nro_osi, snapshot_contenido`)
-            .not("id_facilitador", "is", null)
-            .not("nro_osi", "is", null)
-            .limit(5000);
-          if (dateFrom) q = q.gte("fecha_emision", dateFrom);
-          if (dateTo) q = q.lte("fecha_emision", dateTo);
-          return q;
-        })(),
+    // ── 3. ejecucion_osi → nro_osi_secuencial (the authoritative join) ────
+    const ejecucionRows = await fetchAllPages<{
+      id: number;
+      nro_osi_secuencial: string | number | null;
+    }>(
+      (from, to) =>
+        supabase
+          .from("ejecucion_osi")
+          .select("id, nro_osi_secuencial")
+          .order("id", { ascending: true })
+          .range(from, to),
+      "ejecucion_osi",
+    );
 
-        (async () => {
-          let q = supabase
-            .from("v_osi_lista")
-            .select(`id_osi, nro_osi, horas_academicas_ejecucion, sesiones_ejecucion, id_estatus`)
-            .not("id_osi", "is", null)
-            .limit(5000);
-          return q;
-        })(),
+    // numericOsi → id_osi  (certificados.nro_osi is the integer sequential)
+    const numericOsiToIdOsi = new Map<number, number>();
+    for (const e of ejecucionRows) {
+      const seq = e.nro_osi_secuencial;
+      if (seq == null) continue;
+      const n = typeof seq === "number" ? seq : parseInt(String(seq), 10);
+      if (Number.isFinite(n)) numericOsiToIdOsi.set(n, e.id);
+    }
 
+    // ── 4. Requisiciones (the hours source of truth) ──────────────────────
+    // Processed, non-deleted, with a named facilitador. We fetch all of them
+    // (no id_osi chunking) because a multi-OSI requisición's primary id_osi
+    // may not appear in any certificate, while a secondary OSI in
+    // osi_fixed_items does. Requisiciones volume is low.
+    const requisicionRows = await fetchAllPages<{
+      id: number;
+      cod_facilitador: number | null;
+      id_osi: number | null;
+      id_sesion: number | null;
+      osi_fixed_items: unknown[] | null;
+    }>(
+      (from, to) =>
+        supabase
+          .from("requisiciones")
+          .select(
+            "id, cod_facilitador, id_osi, id_sesion, osi_fixed_items",
+          )
+          .eq("estatus_admin", "procesada")
+          .is("deleted_at", null)
+          .not("cod_facilitador", "is", null)
+          .order("id", { ascending: true })
+          .range(from, to),
+      "requisiciones",
+    );
+
+    // Aggregate hours + monto + distinct OSIs per facilitador from requisiciones.
+    // Shape of osi_fixed_items entries (only fields we read):
+    type ReqFixedItem = {
+      id_osi: number | null;
+      honorarios_horas: number | null;
+      honorarios_total: number | null;
+    };
+    const reqStats = new Map<
+      number,
+      { totalHours: number; totalOsis: Set<number> }
+    >();
+    for (const req of requisicionRows) {
+      const fid = req.cod_facilitador;
+      if (fid == null) continue;
+      const items = Array.isArray(req.osi_fixed_items) ? req.osi_fixed_items : [];
+      let entry = reqStats.get(fid);
+      if (!entry) {
+        entry = { totalHours: 0, totalOsis: new Set<number>() };
+        reqStats.set(fid, entry);
+      }
+      for (const raw of items) {
+        const item = raw as ReqFixedItem;
+        if (item.id_osi == null) continue;
+        const horas = item.honorarios_horas ?? 0;
+        if (horas > 0) {
+          entry.totalHours += Math.round(horas * 100) / 100;
+          entry.totalOsis.add(item.id_osi);
+        }
+      }
+    }
+
+    // ── 5. catalogo_servicios (course standard hours) ─────────────────────
+    const serviciosRows = await fetchAllPages<{
+      id: number;
+      nombre: string | null;
+      carga_horaria_std: number | null;
+    }>(
+      (from, to) =>
+        supabase
+          .from("catalogo_servicios")
+          .select("id, nombre, carga_horaria_std")
+          .order("id", { ascending: true })
+          .range(from, to),
+      "catalogo_servicios",
+    );
+    const serviciosMap = new Map<
+      number,
+      { nombre: string | null; carga_horaria_std: number | null }
+    >(serviciosRows.map((s) => [s.id, { nombre: s.nombre, carga_horaria_std: s.carga_horaria_std }]));
+
+    // ── 6. State names ────────────────────────────────────────────────────
+    const statesRows = await fetchAllPages<{
+      id: number;
+      nombre_estado: string;
+    }>(
+      (from, to) =>
         supabase
           .from("cat_estados_venezuela")
           .select("id, nombre_estado")
-          .order("nombre_estado"),
-
-        supabase.from("catalogo_servicios").select("id, nombre, carga_horaria_std"),
-      ]);
-
-    if (certsRes.error) return { error: certsRes.error.message, data: null };
-    if (osiRes.error) return { error: osiRes.error.message, data: null };
-
-    // Check for truncation
-    const truncationWarning = checkTruncation(certsRes.data, 5000);
-
-    // Create maps for quick lookup
-    const serviciosMap = new Map(
-      (serviciosRes.data || []).map((s: any) => [s.id, s]),
+          .order("nombre_estado", { ascending: true })
+          .range(from, to),
+      "cat_estados_venezuela",
+    );
+    const stateNames = new Map<number, string>(
+      statesRows.map((s) => [s.id, s.nombre_estado]),
     );
 
-    const osiMap = new Map(
-      (osiRes.data || []).map((osi: any) => [osi.nro_osi?.toString(), osi]),
+    // ── 7. Facilitador assignments (for zero-cert inclusion) ──────────────
+    const assignmentRows = await fetchAllPages<{
+      osi_id: number;
+      facilitador_id: number;
+    }>(
+      (from, to) =>
+        supabase
+          .from("facilitador_osi_assignments")
+          .select("osi_id, facilitador_id")
+          .order("id", { ascending: true })
+          .range(from, to),
+      "facilitador_osi_assignments",
     );
 
+    // ── 8. Surveys (q1-q5 for facilitator ratings) ────────────────────────
+    const surveyRows = await fetchAllPages<{
+      id_osi: number;
+      q1: number;
+      q2: number;
+      q3: number;
+      q4: number;
+      q5: number;
+    }>(
+      (from, to) =>
+        supabase
+          .from("course_satisfaction_surveys")
+          .select("id_osi, q1, q2, q3, q4, q5")
+          .order("id", { ascending: true })
+          .range(from, to),
+      "course_satisfaction_surveys",
+    );
 
-    const stateNames = new Map<number, string>();
-    statesRes.data?.forEach((s: any) => stateNames.set(s.id, s.nombre_estado));
+    // ── 9. Fetch facilitadores (paged) ────────────────────────────────────
+    const facilitadoresRows = await fetchAllPages<{
+      id: number;
+      nombre_apellido: string;
+      id_estado_geografico: number | null;
+      is_active: boolean;
+      cedula: string | null;
+      email: string | null;
+    }>(
+      (from, to) => facilitadoresQuery.range(from, to),
+      "facilitadores",
+    );
 
-    // Track unique OSIs per facilitator to avoid double-counting hours
-    const facilitatorOSIMap = new Map<number, Set<number>>();
+    // ── 10. Build assignment map: osi_id → facilitador_id[] ───────────────
+    const assignmentsByOsi = new Map<number, number[]>();
+    for (const a of assignmentRows) {
+      let arr = assignmentsByOsi.get(a.osi_id);
+      if (!arr) {
+        arr = [];
+        assignmentsByOsi.set(a.osi_id, arr);
+      }
+      if (!arr.includes(a.facilitador_id)) arr.push(a.facilitador_id);
+    }
 
+    // ── 11. Build survey rating per facilitador ───────────────────────────
+    // Map id_osi → facilitador_ids via assignments, then average q1-q5.
+    const facilitatorSurveyStats = new Map<
+      number,
+      { totalScore: number; count: number }
+    >();
+    for (const sv of surveyRows) {
+      const fids = assignmentsByOsi.get(sv.id_osi);
+      if (!fids || fids.length === 0) continue;
+      const surveyAvg =
+        (sv.q1 + sv.q2 + sv.q3 + sv.q4 + sv.q5) / 5;
+      for (const fid of fids) {
+        let st = facilitatorSurveyStats.get(fid);
+        if (!st) {
+          st = { totalScore: 0, count: 0 };
+          facilitatorSurveyStats.set(fid, st);
+        }
+        st.totalScore += surveyAvg;
+        st.count += 1;
+      }
+    }
+
+    // ── 12. Aggregate certificate stats per facilitador ───────────────────
+    // Hours come from requisiciones (reqStats), NOT from certificates. The
+    // cert loop only tracks cert count, distinct courses (temas), and
+    // last activity. osiIds is kept for potential future use but no longer
+    // drives hours.
     const certStats = new Map<
       number,
       {
         totalCerts: number;
-        totalScore: number;
-        scoreCount: number;
-        totalHours: number;
         uniqueCourses: Set<number>;
         courseNames: Set<string>;
+        osiIds: Set<number>;
         lastActivity: string | null;
       }
     >();
 
-    certsRes.data?.forEach((cert: any, index: number) => {
-      const fid = cert.id_facilitador;
-      const osiId = cert.nro_osi?.toString();
-      
-      if (!certStats.has(fid)) {
-        certStats.set(fid, {
+    function ensureCertStats(fid: number) {
+      let s = certStats.get(fid);
+      if (!s) {
+        s = {
           totalCerts: 0,
-          totalScore: 0,
-          scoreCount: 0,
-          totalHours: 0,
           uniqueCourses: new Set(),
           courseNames: new Set(),
+          osiIds: new Set(),
           lastActivity: null,
-        });
-        
-        // Initialize OSI tracking for this facilitator
-        facilitatorOSIMap.set(fid, new Set());
+        };
+        certStats.set(fid, s);
       }
-      
-      const s = certStats.get(fid)!;
-      const osiSet = facilitatorOSIMap.get(fid)!;
-      
-      // Only count hours once per OSI
-      if (!osiSet.has(osiId)) {
-        osiSet.add(osiId);
-        const osiData = osiMap.get(osiId);
-        
-        const hours = calculateHoursForCertificate(cert, osiData, serviciosMap);
-        
-        if (hours > 0) {
-          s.totalHours += hours;
-        }
-      }
-      
-      // Continue with other metrics (certificates, scores, courses, activity)
+      return s;
+    }
+
+    for (const cert of certs) {
+      const fid = cert.id_facilitador;
+      if (fid == null) continue;
+      const s = ensureCertStats(fid);
+
+      // Resolve OSI id via the authoritative join (for osiIds tracking)
+      const idOsi = cert.nro_osi != null ? numericOsiToIdOsi.get(cert.nro_osi) ?? null : null;
+      if (idOsi != null) s.osiIds.add(idOsi);
+
       s.totalCerts++;
-      if (cert.calificacion != null) {
-        s.totalScore += cert.calificacion;
-        s.scoreCount++;
-      }
       if (cert.id_curso) {
         s.uniqueCourses.add(cert.id_curso);
-        // Also collect course name
-        const servicio = serviciosMap.get(cert.id_curso);
-        if (servicio?.nombre) {
-          s.courseNames.add(servicio.nombre);
-        }
+        const svc = serviciosMap.get(cert.id_curso);
+        if (svc?.nombre) s.courseNames.add(svc.nombre);
       }
       if (
         cert.fecha_emision &&
@@ -673,37 +875,60 @@ export async function getFacilitadoresReport(
       ) {
         s.lastActivity = cert.fecha_emision;
       }
-    });
+    }
 
-    const facilitadoresList = (facilitadoresRes.data || [])
+    // ── 13. Include facilitadores with assignments but no certificates ────
+    // Build a set of all facilitador ids that have assignments
+    const assignedFacilitatorIds = new Set<number>();
+    for (const fids of assignmentsByOsi.values()) {
+      for (const fid of fids) assignedFacilitatorIds.add(fid);
+    }
+
+    // ── 14. Build the facilitador list ────────────────────────────────────
+    const facilitadoresConRequisicion = new Set<number>(reqStats.keys());
+    const facilitadoresList = facilitadoresRows
       .map((f) => {
         const s = certStats.get(f.id);
-        const result = {
+        const sv = facilitatorSurveyStats.get(f.id);
+        const rq = reqStats.get(f.id);
+        const totalCerts = s?.totalCerts ?? 0;
+        const hasAssignments = assignedFacilitatorIds.has(f.id);
+        const hasRequisicion = facilitadoresConRequisicion.has(f.id);
+        return {
           id: f.id,
           nombre_apellido: f.nombre_apellido,
           is_active: f.is_active,
           estado_nombre:
-            stateNames.get(f.id_estado_geografico) || "No definido",
+            stateNames.get(f.id_estado_geografico ?? -1) || "No definido",
           cedula: f.cedula,
           email: f.email,
-          totalCerts: s?.totalCerts || 0,
-          totalHours: s?.totalHours || 0,
-          uniqueCourses: s?.uniqueCourses.size || 0,
+          totalCerts,
+          totalHours: rq?.totalHours ?? 0,
+          totalOsis: rq?.totalOsis.size ?? 0,
+          uniqueCourses: s?.uniqueCourses.size ?? 0,
           courseNames: s?.courseNames ? Array.from(s.courseNames) : [],
-          avgScore:
-            s && s.scoreCount > 0
-              ? parseFloat((s.totalScore / s.scoreCount).toFixed(1))
+          avgRating:
+            sv && sv.count > 0
+              ? parseFloat((sv.totalScore / sv.count).toFixed(1))
               : 0,
-          lastActivity: s?.lastActivity || null,
+          surveyCount: sv?.count ?? 0,
+          lastActivity: s?.lastActivity ?? null,
+          hasAssignments,
+          hasRequisicion,
         };
-        
-        return result;
       })
-      .filter((f) => f.totalCerts > 0);
-
+      // Keep facilitadores with certificates, requisiciones, OR assignments
+      .filter(
+        (f) => f.totalCerts > 0 || f.hasRequisicion || f.hasAssignments,
+      )
+      .map(({ hasAssignments: _ha, hasRequisicion, ...rest }) => ({
+        ...rest,
+        sinRequisicion: !hasRequisicion,
+      }));
 
     facilitadoresList.sort((a, b) => b.totalCerts - a.totalCerts);
 
+    // ── 15. State distribution ────────────────────────────────────────────
     const stateDistMap = new Map<string, number>();
     facilitadoresList.forEach((f) => {
       stateDistMap.set(
@@ -711,14 +936,13 @@ export async function getFacilitadoresReport(
         (stateDistMap.get(f.estado_nombre) || 0) + 1,
       );
     });
-
     const stateStats = Array.from(stateDistMap.entries())
       .map(([nombre, count]) => ({ nombre, count }))
       .sort((a, b) => b.count - a.count);
 
     return {
-      data: { facilitadores: facilitadoresList, stateStats },
-      error: truncationWarning.isTruncated ? (truncationWarning.message || null) : null,
+      data: { facilitadores: facilitadoresList, stateStats, warning: null },
+      error: null,
     };
   } catch (err) {
     return {

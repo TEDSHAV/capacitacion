@@ -113,12 +113,12 @@ export default function GestionKpiCards({ mes }: Props) {
       />
       <KpiCard
         icon={ClipboardList}
-        label="Participantes en lista"
+        label="Participantes asistidos"
         value={mes.participantesLista}
         sub={
           asistencia
             ? `${asistencia} de los planificados`
-            : "Listas cargadas por facilitadores"
+            : "Certificados emitidos para OSIs del mes"
         }
         color="bg-violet-100 text-violet-700"
       />
@@ -126,7 +126,7 @@ export default function GestionKpiCards({ mes }: Props) {
         icon={Award}
         label="Certificados emitidos"
         value={mes.certificados}
-        sub={`${mes.participantesCertificados} participantes distintos`}
+        sub="Por fecha de emisión del certificado"
         color="bg-teal-100 text-teal-700"
       />
       <KpiCard

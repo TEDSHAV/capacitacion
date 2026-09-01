@@ -35,7 +35,7 @@ const POPULATION_DEFS: Record<
   pasaran: {
     label: "Pasarán al próximo mes",
     icon: ArrowRightCircle,
-    description: "Planificadas para este mes y aún pendientes",
+    description: "Planificadas para este mes, fecha ya pasada y aún pendientes",
   },
   rezagadas: {
     label: "Rezagadas ejecutadas este mes",
@@ -62,8 +62,10 @@ export default function CarryPanel({
       if (o.pendiente && o.mesPlanificado < selectedMes) {
         arrastradas.push(o);
       }
-      // Pasaran: planned for selectedMes, still pending
-      if (o.pendiente && o.mesPlanificado === selectedMes) {
+      // Pasaran: planned for selectedMes, still pending, and overdue
+      // (last planned date already passed — only these will actually slip
+      // to next month; future-dated pending OSIs are still on schedule).
+      if (o.pendiente && o.vencida && o.mesPlanificado === selectedMes) {
         pasaran.push(o);
       }
       // Rezagadas: executed in selectedMes, planned before selectedMes
