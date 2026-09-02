@@ -18,6 +18,7 @@ import {
 } from "@/app/actions/certificados";
 import { useSwrCachedData } from "@/lib/offline/use-swr-cached-data";
 import { useOnlineStatus } from "@/lib/offline/use-online-status";
+import { useToast } from "@/lib/ui/toast-context";
 import {
   CertificateManagement,
   CertificateFilters,
@@ -26,6 +27,7 @@ import {
 
 export default function GestionCertificadosPage() {
   const isOnline = useOnlineStatus();
+  const { addToast } = useToast();
   const [filters, setFilters] = useState<CertificateFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -185,9 +187,13 @@ export default function GestionCertificadosPage() {
     [],
   );
 
-  const handleAnularSuccess = useCallback(() => {
-    reloadCerts();
-  }, [reloadCerts]);
+  const handleAnularSuccess = useCallback(
+    (result: { message: string; annulledCarnets?: number }) => {
+      reloadCerts();
+      addToast(result.message, "success", 5000);
+    },
+    [reloadCerts, addToast],
+  );
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 

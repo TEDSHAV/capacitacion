@@ -10,7 +10,8 @@ import { toTitleCase } from "@/utils/string-utils";
 interface AnularCertificateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  /** Se llama al anular exitosamente con el mensaje del servidor */
+  onSuccess: (result: { message: string; annulledCarnets?: number }) => void;
   /** Certificado objetivo a anular */
   certificate?: CertificateManagement | null;
 }
@@ -97,7 +98,10 @@ export function AnularCertificateModal({
       const result = await anularCertificateAction(certificate.id, trimmedMotivo);
 
       if (result.success) {
-        onSuccess();
+        onSuccess({
+          message: result.message,
+          annulledCarnets: result.annulledCarnets,
+        });
         onClose();
       } else {
         setError(result.message);
