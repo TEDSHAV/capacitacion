@@ -1006,6 +1006,8 @@ export interface OSIFilters {
   ejecutivo?: string;
 }
 
+export type SurveyMode = "unique" | "per_session";
+
 export interface OSIManagement {
   id_osi: number;
   nro_osi: string;

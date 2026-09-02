@@ -23,6 +23,7 @@ interface ProcesoStepsTimelineProps {
   onPreviewListaAsistencia?: (osiId: number) => void;
   onPreviewCalificacion?: (osiId: number) => void;
   onPreviewMaterialFotografico?: (osiId: number) => void;
+  onPreviewEncuestas?: (osiId: number) => void;
   compact?: boolean;
 }
 
@@ -36,6 +37,7 @@ export default function ProcesoStepsTimeline({
   onPreviewListaAsistencia,
   onPreviewCalificacion,
   onPreviewMaterialFotografico,
+  onPreviewEncuestas,
   compact = false,
 }: ProcesoStepsTimelineProps) {
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
@@ -455,11 +457,13 @@ export default function ProcesoStepsTimeline({
                       const hasPreview =
                         (subStep.key === "lista_asistencia" && onPreviewListaAsistencia) ||
                         (subStep.key === "calificacion" && onPreviewCalificacion) ||
-                        (subStep.key === "material_fotografico" && onPreviewMaterialFotografico);
+                        (subStep.key === "material_fotografico" && onPreviewMaterialFotografico) ||
+                        (subStep.key === "encuestas_satisfaccion_tabulacion" && onPreviewEncuestas);
                       const previewHandler =
                         subStep.key === "lista_asistencia" ? onPreviewListaAsistencia
                         : subStep.key === "calificacion" ? onPreviewCalificacion
                         : subStep.key === "material_fotografico" ? onPreviewMaterialFotografico
+                        : subStep.key === "encuestas_satisfaccion_tabulacion" ? onPreviewEncuestas
                         : undefined;
 
                       return (

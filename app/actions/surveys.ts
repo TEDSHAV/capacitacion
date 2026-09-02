@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient, createAdminClient } from "@/utils/supabase/server";
-import { CourseSatisfactionSurvey, SurveyOSIData, SurveyTabulacionData } from "@/types";
+import { CourseSatisfactionSurvey, SurveyOSIData, SurveyTabulacionData, SurveyMode } from "@/types";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -96,6 +96,56 @@ export async function getOSIDataForSurvey(osiId: number, nroSesion?: number): Pr
   } catch (error) {
     console.error("Exception fetching OSI data for survey:", error);
     return null;
+  }
+}
+
+/**
+ * Get the survey QR mode for an OSI ('unique' | 'per_session').
+ * Defaults to 'unique' when no setting row exists or on error.
+ */
+export async function getSurveyMode(osiId: number): Promise<SurveyMode> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("capacitacion_osi_survey_settings")
+      .select("survey_mode")
+      .eq("osi_id", osiId)
+      .maybeSingle();
+
+    if (error || !data) {
+      return "unique";
+    }
+    return data.survey_mode === "per_session" ? "per_session" : "unique";
+  } catch (error) {
+    console.error("Exception fetching survey mode:", error);
+    return "unique";
+  }
+}
+
+/**
+ * Persist the survey QR mode for an OSI (upsert into the settings table).
+ */
+export async function setSurveyMode(
+  osiId: number,
+  mode: SurveyMode,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const admin = await createAdminClient();
+    const { error } = await admin
+      .from("capacitacion_osi_survey_settings")
+      .upsert({ osi_id: osiId, survey_mode: mode }, { onConflict: "osi_id" });
+
+    if (error) {
+      console.error("Error setting survey mode:", error);
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath(`/dashboard/capacitacion/gestion-osi`);
+    revalidatePath(`/dashboard/capacitacion/gestion-osi/${osiId}/survey-view`);
+    return { success: true };
+  } catch (error) {
+    console.error("Exception setting survey mode:", error);
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 

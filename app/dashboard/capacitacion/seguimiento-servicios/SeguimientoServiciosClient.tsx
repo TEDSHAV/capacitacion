@@ -670,6 +670,12 @@ export default function SeguimientoServiciosClient({
                           onPreviewMaterialFotografico={(id) =>
                             setPreviewOsi({ osiId: id, nroOsi: osi.nro_osi || "", nroSesion: currentNroSesion, category: "material_fotografico", title: "Registro Fotográfico", showReceivedToggle: false })
                           }
+                          onPreviewEncuestas={(id) =>
+                            window.open(
+                              `/dashboard/capacitacion/gestion-osi/${id}/survey-view?sesion=${currentNroSesion}`,
+                              "_blank",
+                            )
+                          }
                         />
                       )}
                     </div>

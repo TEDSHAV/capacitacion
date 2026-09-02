@@ -1,6 +1,6 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import { getOSIDataForSurvey, getSurveysByOSI } from "@/app/actions/surveys";
+import { getOSIDataForSurvey, getSurveysByOSI, getSurveyMode } from "@/app/actions/surveys";
 import { getSessionCount } from "@/lib/osi-utils";
 import { createAdminClient } from "@/utils/supabase/server";
 import SurveyDocumentView from "./SurveyDocumentView";
@@ -10,21 +10,33 @@ import { ArrowLeft, User, Calendar, Layers } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ surveyId?: string }>;
+  searchParams: Promise<{ surveyId?: string; sesion?: string }>;
 }
 
 export default async function SurveyViewPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { surveyId } = await searchParams;
+  const { surveyId, sesion } = await searchParams;
   const osiId = parseInt(id);
+  const sesionFilter = sesion ? parseInt(sesion) : undefined;
 
   if (isNaN(osiId)) {
     return notFound();
   }
 
-  const [osiData, surveys] = await Promise.all([
+  // Fetch OSI data, surveys (optionally filtered by session), survey mode, and session count in parallel
+  const [osiData, surveys, surveyMode, sessionCount] = await Promise.all([
     getOSIDataForSurvey(osiId),
-    getSurveysByOSI(osiId),
+    getSurveysByOSI(osiId, sesionFilter),
+    getSurveyMode(osiId),
+    (async () => {
+      const admin = await createAdminClient();
+      const { data: osi } = await admin
+        .from("v_osi_formato_completo")
+        .select("desglose_recursos_sesiones, sesiones_programadas, sesiones_ejecucion")
+        .eq("id_osi", osiId)
+        .single();
+      return getSessionCount(osi ?? {});
+    })(),
   ]);
 
   if (!osiData) {
@@ -33,10 +45,20 @@ export default async function SurveyViewPage({ params, searchParams }: PageProps
 
   // If a specific survey is requested, show it
   if (surveyId) {
+    // When a sesion filter is active, the surveys list is already scoped to that session
     const selectedSurvey = surveys.find(s => s.id === surveyId);
     if (selectedSurvey) {
       return <SurveyDocumentView osiData={osiData} survey={selectedSurvey} />;
     }
+    // Fallback: fetch all surveys if the requested id isn't in the filtered set
+    if (sesionFilter !== undefined) {
+      const allSurveys = await getSurveysByOSI(osiId);
+      const fallback = allSurveys.find(s => s.id === surveyId);
+      if (fallback) {
+        return <SurveyDocumentView osiData={osiData} survey={fallback} />;
+      }
+    }
+    return notFound();
   }
 
   // If no specific survey is requested, but there's only one, show it directly
@@ -44,18 +66,9 @@ export default async function SurveyViewPage({ params, searchParams }: PageProps
     return <SurveyDocumentView osiData={osiData} survey={surveys[0]} />;
   }
 
-  // Determine session count and whether to group
-  const sessionCount = await (async () => {
-    const admin = await createAdminClient();
-    const { data: osi } = await admin
-      .from("v_osi_formato_completo")
-      .select("desglose_recursos_sesiones, sesiones_programadas, sesiones_ejecucion")
-      .eq("id_osi", osiId)
-      .single();
-    return getSessionCount(osi ?? {});
-  })();
-
-  const shouldGroup = sessionCount > 1;
+  const hasMultipleSessions = sessionCount > 1;
+  // Group by session only when the OSI is in per-session mode AND has multiple sessions.
+  const shouldGroup = hasMultipleSessions && surveyMode === "per_session";
 
   // Fetch facilitador names per session for grouping headers
   const facilitadorBySession = new Map<number, string>();
@@ -144,13 +157,33 @@ export default async function SurveyViewPage({ params, searchParams }: PageProps
           </div>
 
           <div className="p-6">
+            {/* Session filter banner */}
+            {sesionFilter !== undefined && (
+              <div className="mb-6 flex items-center justify-between gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 text-sm text-blue-800">
+                  <Layers className="w-4 h-4 flex-shrink-0" />
+                  <span className="font-medium">Filtrado por Sesión {sesionFilter}</span>
+                </div>
+                <Link
+                  href={`/dashboard/capacitacion/gestion-osi/${id}/survey-view`}
+                  className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline whitespace-nowrap"
+                >
+                  Ver todas las sesiones
+                </Link>
+              </div>
+            )}
+
             {surveys.length === 0 ? (
               <div className="text-center py-12">
                 <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <User className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900">No hay encuestas registradas</h3>
-                <p className="text-gray-500">Aún no se han recibido respuestas para esta orden de servicio.</p>
+                <p className="text-gray-500">
+                  {sesionFilter !== undefined
+                    ? `Aún no se han recibido respuestas para la Sesión ${sesionFilter} de esta orden de servicio.`
+                    : "Aún no se han recibido respuestas para esta orden de servicio."}
+                </p>
               </div>
             ) : shouldGroup ? (
               <div className="space-y-8">

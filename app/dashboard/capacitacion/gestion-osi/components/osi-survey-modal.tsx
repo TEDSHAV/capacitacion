@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { OSIManagement } from "@/types";
-import { X, Copy, Download, ExternalLink, QrCode, FileText } from "lucide-react";
+import { OSIManagement, SurveyMode } from "@/types";
+import { X, Copy, Download, ExternalLink, QrCode, FileText, Users, Layers } from "lucide-react";
 import QRCode from "qrcode";
 import Link from "next/link";
+import { getSurveyMode, setSurveyMode as setSurveyModeAction } from "@/app/actions/surveys";
 
 interface OSISurveyModalProps {
   osi: OSIManagement | null;
-  /** Number of sessions for this OSI. If >1, shows a session selector with one QR per session. */
+  /** Number of sessions for this OSI. If >1, shows a mode selector (unique vs per-session). */
   sessionCount?: number;
   onClose: () => void;
 }
@@ -17,19 +18,36 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
   const [qrUrl, setQrUrl] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [selectedSession, setSelectedSession] = useState<number>(1);
+  const [surveyMode, setSurveyMode] = useState<SurveyMode>("unique");
+  const [modeLoaded, setModeLoaded] = useState(false);
 
   // Use production domain for QR code even in localhost, or environment variable if set
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prisma.shadevenezuela.com.ve";
   const hasMultipleSessions = sessionCount > 1;
+  // Per-session QRs only when the OSI has multiple sessions AND the user chose per-session mode.
+  const isPerSession = hasMultipleSessions && surveyMode === "per_session";
 
-  // Build the survey URL for the selected session
+  // Build the survey URL based on the selected mode/session
   const buildSurveyUrl = (origin: string, nroSesion: number) => {
     const base = origin.includes("localhost") ? origin : baseUrl;
-    return hasMultipleSessions
+    return isPerSession
       ? `${base}/survey/${osi?.id_osi}?sesion=${nroSesion}`
       : `${base}/survey/${osi?.id_osi}`;
   };
 
+  // Load persisted survey mode when an OSI is opened
+  useEffect(() => {
+    if (!osi) return;
+    setModeLoaded(false);
+    getSurveyMode(osi.id_osi)
+      .then((mode) => {
+        setSurveyMode(mode);
+        setModeLoaded(true);
+      })
+      .catch(() => setModeLoaded(true));
+  }, [osi]);
+
+  // Regenerate QR when OSI, session, or mode changes
   useEffect(() => {
     if (osi) {
       // The QR code ALWAYS points to production (as per requirements)
@@ -40,7 +58,7 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [osi, selectedSession, baseUrl, hasMultipleSessions]);
+  }, [osi, selectedSession, baseUrl, isPerSession]);
 
   if (!osi) return null;
 
@@ -57,12 +75,26 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
   const handleDownloadQR = () => {
     const link = document.createElement("a");
     link.href = qrUrl;
-    link.download = hasMultipleSessions
+    link.download = isPerSession
       ? `QR_Encuesta_OSI_${osi.nro_osi}_Sesion${selectedSession}.png`
       : `QR_Encuesta_OSI_${osi.nro_osi}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleModeChange = (mode: SurveyMode) => {
+    setSurveyMode(mode);
+    // Persist the choice (fire-and-forget; optimistic update)
+    persistSurveyMode(osi.id_osi, mode);
+  };
+
+  const persistSurveyMode = async (osiId: number, mode: SurveyMode) => {
+    try {
+      await setSurveyModeAction(osiId, mode);
+    } catch (err) {
+      console.error("Failed to persist survey mode:", err);
+    }
   };
 
   // Pills for a small number of sessions; dropdown for many (prevents row explosion on mobile)
@@ -88,8 +120,59 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
 
         {/* Content */}
         <div className="p-6 space-y-6 flex-1 overflow-y-auto">
-          {/* Session selector for multi-session OSIs */}
+          {/* Mode selector — only for multi-session OSIs */}
           {hasMultipleSessions && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-black text-gray-400 uppercase tracking-widest">
+                Modo de encuesta
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleModeChange("unique")}
+                  disabled={!modeLoaded}
+                  className={`flex items-start gap-2.5 p-3 rounded-xl border-2 text-left transition-all ${
+                    surveyMode === "unique"
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  } ${!modeLoaded ? "opacity-60" : ""}`}
+                >
+                  <Users className={`w-4 h-4 mt-0.5 flex-shrink-0 ${surveyMode === "unique" ? "text-blue-600" : "text-gray-400"}`} />
+                  <div className="min-w-0">
+                    <p className={`text-sm font-bold ${surveyMode === "unique" ? "text-blue-700" : "text-gray-700"}`}>
+                      Un QR para toda la OSI
+                    </p>
+                    <p className="text-[11px] text-gray-500 leading-tight mt-0.5">
+                      Mismo grupo de participantes en todas las sesiones
+                    </p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModeChange("per_session")}
+                  disabled={!modeLoaded}
+                  className={`flex items-start gap-2.5 p-3 rounded-xl border-2 text-left transition-all ${
+                    surveyMode === "per_session"
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  } ${!modeLoaded ? "opacity-60" : ""}`}
+                >
+                  <Layers className={`w-4 h-4 mt-0.5 flex-shrink-0 ${surveyMode === "per_session" ? "text-blue-600" : "text-gray-400"}`} />
+                  <div className="min-w-0">
+                    <p className={`text-sm font-bold ${surveyMode === "per_session" ? "text-blue-700" : "text-gray-700"}`}>
+                      Un QR por sesión
+                    </p>
+                    <p className="text-[11px] text-gray-500 leading-tight mt-0.5">
+                      Grupos o facilitador diferentes por sesión
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Session selector — only in per-session mode */}
+          {isPerSession && (
             <div className="flex flex-col items-center gap-2">
               <label className="text-xs font-black text-gray-400 uppercase tracking-widest">
                 Selecciona la sesión
