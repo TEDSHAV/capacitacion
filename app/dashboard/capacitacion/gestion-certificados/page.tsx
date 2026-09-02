@@ -7,6 +7,7 @@ import CertificateFiltersComponent from "./components/certificate-filters";
 import CertificateTableComponent from "./components/certificate-table";
 import CertificatePaginationComponent from "./components/certificate-pagination";
 import { BatchEditModal } from "./components/batch-edit-modal";
+import { AnularCertificateModal } from "./components/anular-certificate-modal";
 import {
   getCertificatesForManagement,
   getCompaniesForFilters,
@@ -29,6 +30,11 @@ export default function GestionCertificadosPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
+
+  // --- Anulación modal state ---
+  const [isAnularOpen, setIsAnularOpen] = useState(false);
+  const [anularCertificate, setAnularCertificate] =
+    useState<CertificateManagement | null>(null);
 
   // Filter options
   const [companies, setCompanies] = useState<
@@ -170,6 +176,19 @@ export default function GestionCertificadosPage() {
     [reloadCerts],
   );
 
+  // --- Anulación handlers ---
+  const handleAnularCertificate = useCallback(
+    (certificate: CertificateManagement) => {
+      setAnularCertificate(certificate);
+      setIsAnularOpen(true);
+    },
+    [],
+  );
+
+  const handleAnularSuccess = useCallback(() => {
+    reloadCerts();
+  }, [reloadCerts]);
+
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
@@ -210,6 +229,7 @@ export default function GestionCertificadosPage() {
         onDownloadCertificate={handleDownloadCertificate}
         onVerifyCertificate={handleVerifyCertificate}
         onEditCertificate={handleEditCertificate}
+        onAnularCertificate={handleAnularCertificate}
         onScoreUpdate={handleScoreUpdate}
         headerActions={
           <Button
@@ -244,6 +264,14 @@ export default function GestionCertificadosPage() {
             ? filters.searchTerm
             : ""
         }
+      />
+
+      {/* Anular Certificate Modal */}
+      <AnularCertificateModal
+        isOpen={isAnularOpen}
+        onClose={() => setIsAnularOpen(false)}
+        onSuccess={handleAnularSuccess}
+        certificate={anularCertificate}
       />
     </div>
   );

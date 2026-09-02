@@ -4,7 +4,7 @@ import { memo, useState, useEffect, useRef } from "react";
 import { toTitleCase } from "@/utils/string-utils";
 import { CertificateManagement } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Loader2, Pencil } from "lucide-react";
+import { Loader2, Pencil, Ban } from "lucide-react";
 
 interface CertificateTableProps {
   certificates: CertificateManagement[];
@@ -13,6 +13,7 @@ interface CertificateTableProps {
   onDownloadCertificate?: (certificate: CertificateManagement) => void;
   onVerifyCertificate?: (certificate: CertificateManagement) => void;
   onEditCertificate?: (certificate: CertificateManagement) => void;
+  onAnularCertificate?: (certificate: CertificateManagement) => void;
   onScoreUpdate?: (
     certificateId: number,
     newScore: number,
@@ -27,6 +28,7 @@ function CertificateTableComponent({
   onDownloadCertificate,
   onVerifyCertificate,
   onEditCertificate,
+  onAnularCertificate,
   onScoreUpdate,
   headerActions,
 }: CertificateTableProps) {
@@ -153,6 +155,8 @@ function CertificateTableComponent({
   const getStatusBadge = (
     isActive: boolean,
     fechaVencimiento: string | null,
+    motivoAnulacion?: string | null,
+    fechaAnulacion?: string | null,
   ) => {
     const now = new Date();
     // Adding T12:00:00 to avoid timezone shift for YYYY-MM-DD strings
@@ -163,6 +167,25 @@ function CertificateTableComponent({
           ? new Date(fechaVencimiento)
           : null;
     const isExpired = expiryDate && expiryDate < now;
+
+    if (!isActive && motivoAnulacion) {
+      const anulacionDate = fechaAnulacion
+        ? new Date(
+            fechaAnulacion.includes("T")
+              ? fechaAnulacion
+              : fechaAnulacion + "T12:00:00",
+          ).toLocaleDateString("es-ES")
+        : "";
+      const tooltip = `Anulado${anulacionDate ? ` el ${anulacionDate}` : ""}: ${motivoAnulacion}`;
+      return (
+        <span
+          className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full cursor-help"
+          title={tooltip}
+        >
+          Anulado
+        </span>
+      );
+    }
 
     if (!isActive) {
       return (
@@ -409,6 +432,15 @@ function CertificateTableComponent({
 
                 <td className="px-3 py-3">
                   <div className="flex flex-col gap-1">
+                    {/* Indicador de anulado: muestra el motivo como tooltip */}
+                    {!certificate.is_active && certificate.motivo_anulacion && (
+                      <span
+                        className="w-full text-xs text-center py-1 px-2 rounded bg-red-100 text-red-800 font-medium cursor-help"
+                        title={`Anulado${certificate.fecha_anulacion ? ` el ${new Date(certificate.fecha_anulacion.includes("T") ? certificate.fecha_anulacion : certificate.fecha_anulacion + "T12:00:00").toLocaleDateString("es-ES")}` : ""}: ${certificate.motivo_anulacion}`}
+                      >
+                        Anulado
+                      </span>
+                    )}
                     {onViewCertificate && (
                       <button
                         onClick={() => onViewCertificate(certificate)}
@@ -434,6 +466,16 @@ function CertificateTableComponent({
                         title="Editar o reeditar certificado"
                       >
                         Editar
+                      </button>
+                    )}
+                    {onAnularCertificate && certificate.is_active && (
+                      <button
+                        onClick={() => onAnularCertificate(certificate)}
+                        className="w-full text-xs text-center py-1 px-2 rounded border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors flex items-center justify-center gap-1"
+                        title="Anular certificado y carnet asociado"
+                      >
+                        <Ban className="h-3 w-3" />
+                        Anular
                       </button>
                     )}
                   </div>

@@ -2096,6 +2096,9 @@ export async function getCertificatesForManagement(
         fecha_vencimiento,
         nro_osi,
         is_active,
+        motivo_anulacion,
+        fecha_anulacion,
+        anulado_por,
         participantes_certificados!inner (
           id,
           nombre,
@@ -2664,6 +2667,118 @@ export async function batchUpdateCertificatesAction(
       success: false,
       message: error instanceof Error ? error.message : "Error desconocido",
       updatedCount: 0,
+    };
+  }
+}
+
+/**
+ * Result type for anulación actions.
+ */
+export interface AnularResult {
+  success: boolean;
+  message: string;
+  annulledCertificates?: number;
+  annulledCarnets?: number;
+}
+
+/**
+ * Soft-delete (anular) a single certificate and its associated carnet.
+ * Records motivo_anulacion, anulado_por (auth user id) and fecha_anulacion
+ * on both rows for audit. The participant record itself is left untouched.
+ */
+export async function anularCertificateAction(
+  certificateId: number,
+  motivo: string,
+): Promise<AnularResult> {
+  try {
+    const trimmedMotivo = (motivo || "").trim();
+    if (trimmedMotivo.length < 5) {
+      return {
+        success: false,
+        message:
+          "Debe ingresar un motivo de anulación de al menos 5 caracteres.",
+      };
+    }
+
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const anuladoPor = user?.id ?? null;
+    const ahora = new Date().toISOString();
+
+    // 1. Anular el certificado (solo si está activo)
+    const { data: certUpdate, error: certError } = await supabase
+      .from("certificados")
+      .update({
+        is_active: false,
+        motivo_anulacion: trimmedMotivo,
+        anulado_por: anuladoPor,
+        fecha_anulacion: ahora,
+      })
+      .eq("id", certificateId)
+      .eq("is_active", true)
+      .select("id")
+      .maybeSingle();
+
+    if (certError) {
+      console.error("Error anulando certificado:", certError);
+      return {
+        success: false,
+        message: `Error al anular el certificado: ${certError.message}`,
+      };
+    }
+
+    if (!certUpdate) {
+      return {
+        success: false,
+        message:
+          "No se encontró un certificado activo con ese ID (puede que ya haya sido anulado).",
+      };
+    }
+
+    // 2. Cascada: anular el carnet asociado (one-to-one por id_certificado)
+    const { data: carnetUpdate, error: carnetError } = await supabase
+      .from("carnets")
+      .update({
+        is_active: false,
+        motivo_anulacion: trimmedMotivo,
+        anulado_por: anuladoPor,
+        fecha_anulacion: ahora,
+      })
+      .eq("id_certificado", certificateId)
+      .eq("is_active", true)
+      .select("id")
+      .maybeSingle();
+
+    if (carnetError) {
+      // El certificado ya quedó anulado; solo reportamos el fallo del carnet
+      console.warn("Error anulando carnet asociado:", carnetError);
+      return {
+        success: true,
+        message:
+          "Certificado anulado, pero ocurrió un error al anular el carnet asociado.",
+        annulledCertificates: 1,
+        annulledCarnets: 0,
+      };
+    }
+
+    return {
+      success: true,
+      message: carnetUpdate
+        ? "Certificado y carnet anulados correctamente."
+        : "Certificado anulado correctamente (no tenía carnet asociado).",
+      annulledCertificates: 1,
+      annulledCarnets: carnetUpdate ? 1 : 0,
+    };
+  } catch (error) {
+    console.error("Error in anularCertificateAction:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Error desconocido al anular el certificado.",
     };
   }
 }

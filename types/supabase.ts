@@ -244,9 +244,11 @@ export type Database = {
       }
       carnets: {
         Row: {
+          anulado_por: string | null
           cedula_participante: string
           created_at: string | null
           empresa_participante: string | null
+          fecha_anulacion: string | null
           fecha_emision: string
           fecha_vencimiento: string | null
           id: number
@@ -256,6 +258,7 @@ export type Database = {
           id_osi: number | null
           id_participante: number | null
           is_active: boolean
+          motivo_anulacion: string | null
           nombre_participante: string
           qr_code: string | null
           snapshot_contenido: string | null
@@ -263,9 +266,11 @@ export type Database = {
           titulo_curso: string
         }
         Insert: {
+          anulado_por?: string | null
           cedula_participante: string
           created_at?: string | null
           empresa_participante?: string | null
+          fecha_anulacion?: string | null
           fecha_emision?: string
           fecha_vencimiento?: string | null
           id?: number
@@ -275,6 +280,7 @@ export type Database = {
           id_osi?: number | null
           id_participante?: number | null
           is_active?: boolean
+          motivo_anulacion?: string | null
           nombre_participante: string
           qr_code?: string | null
           snapshot_contenido?: string | null
@@ -282,9 +288,11 @@ export type Database = {
           titulo_curso: string
         }
         Update: {
+          anulado_por?: string | null
           cedula_participante?: string
           created_at?: string | null
           empresa_participante?: string | null
+          fecha_anulacion?: string | null
           fecha_emision?: string
           fecha_vencimiento?: string | null
           id?: number
@@ -294,6 +302,7 @@ export type Database = {
           id_osi?: number | null
           id_participante?: number | null
           is_active?: boolean
+          motivo_anulacion?: string | null
           nombre_participante?: string
           qr_code?: string | null
           snapshot_contenido?: string | null
@@ -551,8 +560,10 @@ export type Database = {
       }
       certificados: {
         Row: {
+          anulado_por: string | null
           calificacion: number
           created_at: string | null
+          fecha_anulacion: string | null
           fecha_emision: string | null
           fecha_vencimiento: string | null
           id: number
@@ -566,6 +577,7 @@ export type Database = {
           id_plantilla_certificado: number | null
           id_sede: number | null
           is_active: boolean
+          motivo_anulacion: string | null
           nro_control: number
           nro_hoja: number | null
           nro_libro: number | null
@@ -575,8 +587,10 @@ export type Database = {
           snapshot_contenido: string | null
         }
         Insert: {
+          anulado_por?: string | null
           calificacion?: number
           created_at?: string | null
+          fecha_anulacion?: string | null
           fecha_emision?: string | null
           fecha_vencimiento?: string | null
           id?: number
@@ -590,6 +604,7 @@ export type Database = {
           id_plantilla_certificado?: number | null
           id_sede?: number | null
           is_active?: boolean
+          motivo_anulacion?: string | null
           nro_control: number
           nro_hoja?: number | null
           nro_libro?: number | null
@@ -599,8 +614,10 @@ export type Database = {
           snapshot_contenido?: string | null
         }
         Update: {
+          anulado_por?: string | null
           calificacion?: number
           created_at?: string | null
+          fecha_anulacion?: string | null
           fecha_emision?: string | null
           fecha_vencimiento?: string | null
           id?: number
@@ -614,6 +631,7 @@ export type Database = {
           id_plantilla_certificado?: number | null
           id_sede?: number | null
           is_active?: boolean
+          motivo_anulacion?: string | null
           nro_control?: number
           nro_hoja?: number | null
           nro_libro?: number | null

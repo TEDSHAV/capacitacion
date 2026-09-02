@@ -1215,8 +1215,10 @@ export interface BatchUpdateResult {
 // Certificate Management Interfaces
 export interface CertificateManagement {
   id: number;
+  anulado_por: string | null;
   calificacion: number;
   created_at: string | null;
+  fecha_anulacion: string | null;
   fecha_emision: string | null;
   fecha_vencimiento: string | null;
   id_curso: number | null;
@@ -1227,6 +1229,7 @@ export interface CertificateManagement {
   id_plantilla_certificado: number | null;
   id_plantilla_carnet: number | null;
   is_active: boolean;
+  motivo_anulacion: string | null;
   nro_control: number;
   nro_hoja: number | null;
   nro_libro: number | null;
