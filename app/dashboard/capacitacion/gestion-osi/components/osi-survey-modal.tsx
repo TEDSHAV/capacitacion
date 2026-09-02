@@ -134,12 +134,12 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
                   className={`flex items-start gap-2.5 p-3 rounded-xl border-2 text-left transition-all ${
                     surveyMode === "unique"
                       ? "border-blue-600 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
+                      : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
                   } ${!modeLoaded ? "opacity-60" : ""}`}
                 >
                   <Users className={`w-4 h-4 mt-0.5 flex-shrink-0 ${surveyMode === "unique" ? "text-blue-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
-                    <p className={`text-sm font-bold ${surveyMode === "unique" ? "text-blue-700" : "text-gray-700"}`}>
+                    <p className={`text-sm font-bold ${surveyMode === "unique" ? "text-blue-700" : "text-gray-800"}`}>
                       Un QR para toda la OSI
                     </p>
                     <p className="text-[11px] text-gray-500 leading-tight mt-0.5">
@@ -154,12 +154,12 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
                   className={`flex items-start gap-2.5 p-3 rounded-xl border-2 text-left transition-all ${
                     surveyMode === "per_session"
                       ? "border-blue-600 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
+                      : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
                   } ${!modeLoaded ? "opacity-60" : ""}`}
                 >
                   <Layers className={`w-4 h-4 mt-0.5 flex-shrink-0 ${surveyMode === "per_session" ? "text-blue-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
-                    <p className={`text-sm font-bold ${surveyMode === "per_session" ? "text-blue-700" : "text-gray-700"}`}>
+                    <p className={`text-sm font-bold ${surveyMode === "per_session" ? "text-blue-700" : "text-gray-800"}`}>
                       Un QR por sesión
                     </p>
                     <p className="text-[11px] text-gray-500 leading-tight mt-0.5">
