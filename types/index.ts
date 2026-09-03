@@ -479,8 +479,11 @@ export interface Facilitador {
 
 /**
  * One row in a facilitador's course-teaching history (one entry per OSI they
- * were ever assigned to, regardless of whether the assignment is still active).
- * Sourced from `facilitador_osi_assignments` joined to `v_osi_formato_completo`.
+ * were ever assigned to OR were named on a processed requisición for).
+ * Sourced from a union of `facilitador_osi_assignments` (operational) and
+ * `requisiciones` with `estatus_admin = 'procesada'` (payment record), joined
+ * to `v_osi_formato_completo`. The `source` discriminator indicates which
+ * source(s) referenced the OSI so the UI can badge requisición-only rows.
  */
 export interface FacilitadorHistoryEntry {
   osi_id: number;
@@ -492,8 +495,14 @@ export interface FacilitadorHistoryEntry {
   // degrade gracefully if the view shape ever changes.
   sesiones_ejecucion: unknown;
   sesiones_programadas: unknown;
-  assignment_active: boolean;
-  assigned_at: string;
+  // Null when the OSI was found only via a processed requisición (no
+  // assignment row exists for this facilitador).
+  assignment_active: boolean | null;
+  assigned_at: string | null;
+  // "asignada" = only in facilitador_osi_assignments,
+  // "requisicion" = only in processed requisiciones,
+  // "ambas" = in both sources.
+  source: "asignada" | "requisicion" | "ambas";
 }
 
 // Keep the old interface for backward compatibility

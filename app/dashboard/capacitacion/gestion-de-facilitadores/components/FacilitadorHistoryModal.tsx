@@ -168,15 +168,25 @@ export const FacilitadorHistoryModal = ({
                           className="hover:bg-gray-50 transition-colors"
                         >
                           <td className="px-3 py-2.5 whitespace-nowrap text-sm">
-                            <Link
-                              href={`/dashboard/capacitacion/gestion-osi?id=${row.osi_id}`}
-                              onClick={onClose}
-                              className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-medium"
-                              title="Abrir OSI"
-                            >
-                              {row.nro_osi || `OSI #${row.osi_id}`}
-                              <ExternalLink className="w-3 h-3" />
-                            </Link>
+                            <div className="flex items-center gap-1.5">
+                              <Link
+                                href={`/dashboard/capacitacion/gestion-osi?id=${row.osi_id}`}
+                                onClick={onClose}
+                                className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-medium"
+                                title="Abrir OSI"
+                              >
+                                {row.nro_osi || `OSI #${row.osi_id}`}
+                                <ExternalLink className="w-3 h-3" />
+                              </Link>
+                              {row.source === "requisicion" && (
+                                <span
+                                  className="inline-flex items-center text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full"
+                                  title="OSI encontrada solo en requisiciones procesadas, no en asignaciones — verificar si el facilitador dictó este curso"
+                                >
+                                  Solo en req.
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-3 py-2.5 text-sm text-gray-700">
                             {row.servicio || "—"}

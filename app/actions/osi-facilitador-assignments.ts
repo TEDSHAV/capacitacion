@@ -187,72 +187,155 @@ export async function getAssignmentsByFacilitador(facilitadorId: number) {
 
 /**
  * Full course-teaching history for a facilitador — one entry per OSI they were
- * ever assigned to (active + inactive). Inactive assignments are included so
- * the history captures OSIs the facilitador was reassigned away from (they
- * still taught that OSI). Sorted by the OSI's execution start date descending;
- * OSIs with no execution date (pending) sort last.
+ * ever assigned to OR were named on a processed requisición for. Inactive
+ * assignments are included so the history captures OSIs the facilitador was
+ * reassigned away from (they still taught that OSI). Sorted by the OSI's
+ * execution start date descending; OSIs with no execution date (pending) sort
+ * last.
  *
- * Reuses `facilitador_osi_assignments` + `v_osi_formato_completo`, mirroring
- * `getAssignmentsByFacilitador` but without the `is_active = true` filter and
- * collapsing duplicate per-session rows to a single entry per OSI.
+ * Two sources are unioned (deduped by osi_id):
+ *  1. `facilitador_osi_assignments` — operational assignments (active + inactive)
+ *  2. `requisiciones` with `estatus_admin = 'procesada'` — payment records. Both
+ *     the top-level `id_osi` and each `osi_fixed_items[].id_osi` are read so
+ *     multi-OSI requisiciones are fully captured.
+ *
+ * The `source` field on each row indicates which source(s) referenced the OSI
+ * ("asignada" | "requisicion" | "ambas") so the UI can badge requisición-only
+ * rows — a `cod_facilitador` on a requisición is technically "who gets paid",
+ * usually but not always "who taught", so those rows are surfaced but flagged.
  */
 export async function getFacilitadorHistory(
   facilitadorId: number,
 ): Promise<{ data: FacilitadorHistoryEntry[] | null; error: string | null }> {
   const supabase = await createClient();
 
-  const { data: assignments, error } = await supabase
+  // ── Source A: facilitador_osi_assignments (all rows, active + inactive) ──
+  const { data: assignments, error: assignError } = await supabase
     .from("facilitador_osi_assignments")
     .select("osi_id, nro_sesion, is_active, created_at")
     .eq("facilitador_id", facilitadorId)
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Error fetching facilitador history:", error);
-    return { data: null, error: error.message };
+  if (assignError) {
+    console.error("Error fetching facilitador history assignments:", assignError);
+    return { data: null, error: assignError.message };
   }
 
-  if (!assignments || assignments.length === 0) {
+  // Most recent assignment metadata per osi_id (assignments are ordered
+  // created_at desc, so the first occurrence wins).
+  const assignmentByOsi = new Map<
+    number,
+    { is_active: boolean; created_at: string }
+  >();
+  for (const a of assignments ?? []) {
+    if (!assignmentByOsi.has(a.osi_id)) {
+      assignmentByOsi.set(a.osi_id, { is_active: a.is_active, created_at: a.created_at });
+    }
+  }
+
+  // ── Source B: processed requisiciones naming this facilitador ─────────────
+  // Read both the top-level id_osi AND each osi_fixed_items[].id_osi so
+  // multi-OSI requisiciones are fully captured (per reportes.ts:657-659).
+  const requisicionOsiIds = new Set<number>();
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 10;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const from = page * PAGE_SIZE;
+    const { data: reqRows, error: reqError } = await supabase
+      .from("requisiciones")
+      .select("id_osi, osi_fixed_items")
+      .eq("cod_facilitador", facilitadorId)
+      .eq("estatus_admin", "procesada")
+      .is("deleted_at", null)
+      .order("id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (reqError) {
+      console.error("Error fetching facilitador history requisiciones:", reqError);
+      // Non-fatal: keep whatever assignment data we have. Requisición-only
+      // OSIs will be missed, but we don't fail the whole history over a
+      // secondary source error.
+      break;
+    }
+    const rows = reqRows ?? [];
+    for (const r of rows) {
+      if (typeof r.id_osi === "number" && Number.isFinite(r.id_osi)) {
+        requisicionOsiIds.add(r.id_osi);
+      }
+      if (Array.isArray(r.osi_fixed_items)) {
+        for (const raw of r.osi_fixed_items) {
+          const item = raw as { id_osi?: number | null } | null;
+          if (item && typeof item.id_osi === "number" && Number.isFinite(item.id_osi)) {
+            requisicionOsiIds.add(item.id_osi);
+          }
+        }
+      }
+    }
+    if (rows.length < PAGE_SIZE) break;
+  }
+
+  // ── Union of osi_ids from both sources ────────────────────────────────────
+  const allOsiIds = [
+    ...new Set<number>([...assignmentByOsi.keys(), ...requisicionOsiIds]),
+  ];
+
+  if (allOsiIds.length === 0) {
     return { data: [], error: null };
   }
 
-  const osiIds = [...new Set(assignments.map((a) => a.osi_id))];
-
-  const { data: osiData, error: osiError } = await supabase
-    .from("v_osi_formato_completo")
-    .select(
-      "id_osi, nro_osi, servicio, nombre_empresa, fecha_inicio_real, sesiones_ejecucion, sesiones_programadas",
-    )
-    .in("id_osi", osiIds);
-
-  if (osiError) {
-    console.error("Error fetching OSI details for history:", osiError);
-    return { data: null, error: osiError.message };
+  // ── Fetch OSI details once for the union (chunked .in() to stay under URL
+  // limits, matching indicadores-facilitadores.ts IN_CHUNK_SIZE convention) ──
+  type OsiDetailRow = {
+    id_osi: number;
+    nro_osi: string | null;
+    servicio: string | null;
+    nombre_empresa: string | null;
+    fecha_inicio_real: string | null;
+    sesiones_ejecucion: unknown;
+    sesiones_programadas: unknown;
+  };
+  const IN_CHUNK_SIZE = 300;
+  const osiById = new Map<number, OsiDetailRow>();
+  let osiFetchError: string | null = null;
+  for (let i = 0; i < allOsiIds.length; i += IN_CHUNK_SIZE) {
+    const chunk = allOsiIds.slice(i, i + IN_CHUNK_SIZE);
+    const { data: osiChunk, error: osiError } = await supabase
+      .from("v_osi_formato_completo")
+      .select(
+        "id_osi, nro_osi, servicio, nombre_empresa, fecha_inicio_real, sesiones_ejecucion, sesiones_programadas",
+      )
+      .in("id_osi", chunk);
+    if (osiError) {
+      console.error("Error fetching OSI details for history:", osiError);
+      osiFetchError = osiError.message;
+      break;
+    }
+    for (const o of osiChunk ?? []) {
+      osiById.set(o.id_osi, o);
+    }
+  }
+  if (osiFetchError) {
+    return { data: null, error: osiFetchError };
   }
 
-  const osiById = new Map((osiData ?? []).map((o) => [o.id_osi, o]));
-
-  // Collapse duplicate assignment rows per OSI (a facilitador may have one
-  // all-sessions row + several per-session rows for the same OSI). The first
-  // occurrence wins because assignments are ordered by created_at desc, so we
-  // keep the most recent assignment metadata per osi_id.
-  const seen = new Set<number>();
+  // ── Build rows: one per osi_id in the union, with source discriminator ───
   const rows: FacilitadorHistoryEntry[] = [];
-  for (const a of assignments) {
-    if (seen.has(a.osi_id)) continue;
-    seen.add(a.osi_id);
-    const osi = osiById.get(a.osi_id);
+  for (const osiId of allOsiIds) {
+    const osi = osiById.get(osiId);
     if (!osi) continue;
+    const inAssignments = assignmentByOsi.has(osiId);
+    const inRequisiciones = requisicionOsiIds.has(osiId);
+    const assignment = assignmentByOsi.get(osiId);
     rows.push({
-      osi_id: a.osi_id,
+      osi_id: osiId,
       nro_osi: osi.nro_osi,
       servicio: osi.servicio,
       nombre_empresa: osi.nombre_empresa,
       fecha_inicio_real: osi.fecha_inicio_real,
       sesiones_ejecucion: osi.sesiones_ejecucion,
       sesiones_programadas: osi.sesiones_programadas,
-      assignment_active: a.is_active,
-      assigned_at: a.created_at,
+      assignment_active: assignment ? assignment.is_active : null,
+      assigned_at: assignment ? assignment.created_at : null,
+      source: inAssignments && inRequisiciones ? "ambas" : inRequisiciones ? "requisicion" : "asignada",
     });
   }
 
