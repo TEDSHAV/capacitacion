@@ -26,6 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 export default function RequisicionForm({
   osis = [],
@@ -186,6 +187,23 @@ function RequisicionFormContent({
       const sesiones = host ? getSessionsForOsi(host) : [];
       return sesiones.find((s) => s.id_sesion === sesId) || null;
     })(),
+    selectedSesiones: (() => {
+      // On edit: reconstruct from editRecord.selected_sesiones (JSONB) or fall
+      // back to the single selectedSesion for backward compat with old records.
+      if (editRecord?.selected_sesiones && Array.isArray(editRecord.selected_sesiones)) {
+        const host = (editSelectedOSIs[0] || initialOsis.find((o: any) => o.id_osi === editRecord?.id_osi)) as OSIFullData | undefined;
+        const sesiones = host ? getSessionsForOsi(host) : [];
+        return (editRecord.selected_sesiones as any[])
+          .map((ss) => sesiones.find((s) => s.id_sesion === ss.id_sesion))
+          .filter(Boolean) as OSISesion[];
+      }
+      const sesId = editRecord?.id_sesion;
+      if (!sesId) return [];
+      const host = (editSelectedOSIs[0] || initialOsis.find((o: any) => o.id_osi === editRecord?.id_osi)) as OSIFullData | undefined;
+      const sesiones = host ? getSessionsForOsi(host) : [];
+      const found = sesiones.find((s) => s.id_sesion === sesId);
+      return found ? [found] : [];
+    })(),
 
     // Details - Fixed Items Quantities (Removed from UI, defaulting to 1 in actions)
     cant_traslado: editRecord?.cant_traslado ?? 1,
@@ -261,6 +279,7 @@ function RequisicionFormContent({
       osi_fixed_items: [],
       id_sesion: null,
       selectedSesion: null,
+      selectedSesiones: [],
       tipo_solicitud: newMode === "general" ? "Interno" : "Externo",
     }));
     setSearchTerm("");
@@ -327,11 +346,21 @@ function RequisicionFormContent({
   });
 
   const handleOSIToggle = (osi: OSIFullData) => {
+    // In single-OSI mode (Capacitación, Negocios), selecting an OSI closes the
+    // dropdown and clears the search — behaves like a single-select pick.
+    // In multi-OSI mode (Servicios Técnicos), the dropdown stays open for
+    // additional selections.
+    const already = formData.selectedOSIs.some((s) => s.id_osi === osi.id_osi);
+    if (isSingleOSIMode && !already) {
+      setIsDropdownOpen(false);
+      setSearchTerm("");
+    }
+
     setFormData((prev) => {
-      const already = prev.selectedOSIs.some((s) => s.id_osi === osi.id_osi);
-      const newSelection = already
+      const alreadyPrev = prev.selectedOSIs.some((s) => s.id_osi === osi.id_osi);
+      const newSelection = alreadyPrev
         ? prev.selectedOSIs.filter((s) => s.id_osi !== osi.id_osi)
-        // Capacitación Externa only allows a single OSI: picking a new one replaces the current selection.
+        // Capacitación/Negocios Externa only allows a single OSI: picking a new one replaces the current selection.
         : (isSingleOSIMode ? [osi] : [...prev.selectedOSIs, osi]);
 
       // Auto-populate cost fields ONLY for Capacitación department, and only in Externa mode.
@@ -341,6 +370,7 @@ function RequisicionFormContent({
           selectedOSIs: newSelection,
           id_sesion: null,
           selectedSesion: null,
+          selectedSesiones: [],
         };
       }
 
@@ -348,20 +378,23 @@ function RequisicionFormContent({
       let newFixedItems: OSIFixedItem[];
       let newSesion: OSISesion | null = null;
       let newSesionId: number | null = null;
+      let newSesiones: OSISesion[] = [];
       if (already) {
         // Removing this OSI - remove its fixed items block
         newFixedItems = prev.osi_fixed_items.filter((fi) => fi.id_osi !== osi.id_osi);
       } else {
         const sesiones = getSessionsForOsi(osi);
         if (sesiones.length > 1) {
-          // Multi-session OSI: defer auto-populate until the user picks a session.
+          // Multi-session OSI: defer auto-populate until the user picks sessions.
           newSesion = null;
           newSesionId = null;
+          newSesiones = [];
           newFixedItems = isSingleOSIMode ? [] : prev.osi_fixed_items;
         } else if (sesiones.length === 1) {
           // Single session: auto-select it and populate from that session.
           newSesion = sesiones[0];
           newSesionId = sesiones[0].id_sesion;
+          newSesiones = [sesiones[0]];
           newFixedItems = isSingleOSIMode
             ? [buildFixedItem(osi, newSesion)]
             : [...prev.osi_fixed_items, buildFixedItem(osi, newSesion)];
@@ -381,6 +414,7 @@ function RequisicionFormContent({
         osi_fixed_items: newFixedItems,
         id_sesion: newSesionId,
         selectedSesion: newSesion,
+        selectedSesiones: newSesiones,
         costo_traslado: firstFixed?.costo_traslado || 0,
         impresion_total: firstFixed?.impresion_total || 0,
         honorarios_horas: firstFixed?.honorarios_horas || 0,
@@ -394,21 +428,34 @@ function RequisicionFormContent({
 
   // When a capacitacion user picks a session for a multi-session OSI, recompute
   // the fixed-items block from that session's costs.
-  const handleSesionChange = (idSesion: number) => {
+  // When a capacitacion user picks sessions for a multi-session OSI, recompute
+  // the fixed-items block from the FIRST selected session's costs. Additional
+  // sessions do NOT sum costs — the first session covers them.
+  const handleSesionesChange = (selectedIds: number[]) => {
     setFormData((prev) => {
       const osi = prev.selectedOSIs[0];
       if (!osi) return prev;
       const sesiones = getSessionsForOsi(osi);
-      const sesion = sesiones.find((s) => s.id_sesion === idSesion) || null;
-      if (!sesion) return prev;
+      const selected = sesiones.filter((s) => selectedIds.includes(s.id_sesion));
+      if (selected.length === 0) {
+        return {
+          ...prev,
+          selectedSesiones: [],
+          id_sesion: null,
+          selectedSesion: null,
+        };
+      }
+      // First selected session drives costs (primary)
+      const primary = selected[0];
       const newFixedItems = isSingleOSIMode
-        ? [buildFixedItem(osi, sesion)]
-        : prev.osi_fixed_items.map((fi) => (fi.id_osi === osi.id_osi ? buildFixedItem(osi, sesion) : fi));
+        ? [buildFixedItem(osi, primary)]
+        : prev.osi_fixed_items.map((fi) => (fi.id_osi === osi.id_osi ? buildFixedItem(osi, primary) : fi));
       const firstFixed = newFixedItems[0];
       return {
         ...prev,
-        id_sesion: idSesion,
-        selectedSesion: sesion,
+        selectedSesiones: selected,
+        id_sesion: primary.id_sesion,
+        selectedSesion: primary,
         osi_fixed_items: newFixedItems,
         costo_traslado: firstFixed?.costo_traslado || 0,
         impresion_total: firstFixed?.impresion_total || 0,
@@ -660,6 +707,11 @@ function RequisicionFormContent({
                 />
                 {isDropdownOpen && filteredOSIs.length > 0 && (
                   <div className="absolute z-50 w-full left-0 mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto">
+                    {isSingleOSIMode && (
+                      <div className="px-3 py-1.5 text-[10px] text-gray-500 bg-gray-50 border-b border-gray-200">
+                        Seleccione una OSI{formData.selectedOSIs.length > 0 ? " (reemplaza la actual)" : ""}
+                      </div>
+                    )}
                     {filteredOSIs.map((osi) => (
                       <div
                         key={osi.id_osi}
@@ -708,27 +760,29 @@ function RequisicionFormContent({
             const osi = formData.selectedOSIs[0];
             const sesiones = osi ? getSessionsForOsi(osi) : [];
             if (sesiones.length === 0) return null;
+            const options = sesiones.map((s) => ({
+              id: s.id_sesion,
+              label: `Sesión #${s.nro_sesion ?? s.id_sesion}${s.fecha ? ` — ${s.fecha}` : ""}`,
+            }));
+            const selectedIds = formData.selectedSesiones.map((s) => s.id_sesion);
             return (
               <div className="grid grid-cols-12 border-b border-gray-300 bg-amber-50/40">
                 <div className="col-span-3 p-3 border-r border-gray-300 bg-gray-50 flex items-center font-bold text-sm">
-                  Sesión:
+                  Sesiones:
                 </div>
                 <div className="col-span-9 p-3">
-                  <Select
-                    value={formData.id_sesion?.toString() || ""}
-                    onValueChange={(v: string) => handleSesionChange(parseInt(v))}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Seleccione la sesión..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sesiones.map((s) => (
-                        <SelectItem key={s.id_sesion} value={s.id_sesion.toString()}>
-                          {`Sesión #${s.nro_sesion ?? s.id_sesion}${s.fecha ? ` — ${s.fecha}` : ""}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <MultiSelect
+                    options={options}
+                    selectedIds={selectedIds}
+                    onChange={handleSesionesChange}
+                    placeholder="Seleccione las sesiones..."
+                  />
+                  {/* Subtle banner: costs come from the first selected session only */}
+                  {selectedIds.length > 1 && (
+                    <p className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 leading-snug">
+                      Los costos mostrados corresponden a la primera sesión seleccionada (Sesión #{formData.selectedSesiones[0]?.nro_sesion ?? formData.selectedSesiones[0]?.id_sesion}), tal como están registrados en la OSI. Las sesiones adicionales no se suman.
+                    </p>
+                  )}
                 </div>
               </div>
             );

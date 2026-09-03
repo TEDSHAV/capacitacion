@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
   Circle,
@@ -40,6 +41,7 @@ export default function ProcesoStepsTimeline({
   onPreviewEncuestas,
   compact = false,
 }: ProcesoStepsTimelineProps) {
+  const router = useRouter();
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
   const [bulkToggling, setBulkToggling] = useState(false);
   const [inputStepKey, setInputStepKey] = useState<string | null>(null);
@@ -299,10 +301,10 @@ export default function ProcesoStepsTimeline({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  window.parent?.postMessage({ type: "SHELL_NAVIGATE", href: "/requisiciones/create" }, "*");
+                  router.push("/dashboard/capacitacion/requisiciones/create");
                 }}
                 className="text-[10px] font-medium text-center mt-1.5 leading-tight text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-0.5"
-                title="Crear requisición en el shell"
+                title="Crear requisición"
               >
                 {step.label}
                 <ExternalLink className="w-2.5 h-2.5" />

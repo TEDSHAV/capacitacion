@@ -87,6 +87,10 @@ export interface RequisicionFormData {
   prioridad: "Alta" | "Media" | "Baja" | "";
   id_sesion: number | null;
   selectedSesion?: OSISesion | null;
+  // Multi-session selection (Capacitación Externa). The first entry is the
+  // primary session (also stored in id_sesion for backward compat). Drives the
+  // auto-mark of the requisicion_enviada_admin planificacion step.
+  selectedSesiones: OSISesion[];
 
   // Details - Fixed Items Quantities
   cant_traslado: number;

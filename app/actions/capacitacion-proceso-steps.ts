@@ -1009,6 +1009,90 @@ export async function toggleUnifiedStep(
   return toggleProcesoStep(osiId, phase, stepKey, nroSesion, notes);
 }
 
+// ─── Auto-mark from requisicion externa creation ─────────────────────────────
+
+/**
+ * Idempotently mark the `requisicion_enviada_admin` planificacion step as
+ * completed for the given OSI sessions. Called when an externa requisicion is
+ * created — the selected sessions get the first planificacion step auto-marked
+ * in the seguimiento-servicios workflow.
+ *
+ * Best-effort: errors are logged and never thrown, so a failure here won't
+ * block requisicion creation.
+ *
+ * @param sessions Array of { osiId, nroSesion } pairs identifying which
+ *                 OSI sessions to mark. Only the specified sessions are
+ *                 marked (not all sessions of the OSI).
+ */
+export async function markRequisicionEnviadaAdminForSessions(
+  sessions: { osiId: number; nroSesion: number }[],
+): Promise<{ success: boolean; sessionsMarked?: number; error?: string }> {
+  if (!sessions.length) return { success: true, sessionsMarked: 0 };
+
+  try {
+    const userClient = await createClient();
+    const { data: { user } } = await userClient.auth.getUser();
+    const userId = user?.id ?? null;
+
+    const admin = await createAdminClient();
+    const now = new Date().toISOString();
+    const planificacionKeys = getStepKeys("planificacion");
+
+    // 1. Batch seed all planificacion step rows for each session (ignoreDuplicates
+    //    so existing rows are untouched).
+    const seedRows = sessions.flatMap(({ osiId, nroSesion }) =>
+      planificacionKeys.map((key) => ({
+        osi_id: osiId,
+        nro_sesion: nroSesion,
+        phase: "planificacion" as const,
+        step_key: key,
+        completed: false,
+      })),
+    );
+
+    const { error: seedError } = await admin
+      .from("capacitacion_proceso_steps")
+      .upsert(seedRows, {
+        onConflict: "osi_id,nro_sesion,phase,step_key",
+        ignoreDuplicates: true,
+      });
+
+    if (seedError) {
+      console.error("[markRequisicionEnviadaAdminForSessions] seed error:", seedError);
+    }
+
+    // 2. Batch upsert requisicion_enviada_admin as completed for each session.
+    //    Uses onConflict WITHOUT ignoreDuplicates so existing rows get updated
+    //    to completed=true (idempotent).
+    const markRows = sessions.map(({ osiId, nroSesion }) => ({
+      osi_id: osiId,
+      nro_sesion: nroSesion,
+      phase: "planificacion" as const,
+      step_key: "requisicion_enviada_admin",
+      completed: true,
+      completed_at: now,
+      completed_by: userId,
+      notes: "Auto-marcada por creación de requisición externa",
+    }));
+
+    const { error: markError } = await admin
+      .from("capacitacion_proceso_steps")
+      .upsert(markRows, {
+        onConflict: "osi_id,nro_sesion,phase,step_key",
+      });
+
+    if (markError) {
+      console.error("[markRequisicionEnviadaAdminForSessions] mark error:", markError);
+      return { success: false, error: markError.message };
+    }
+
+    return { success: true, sessionsMarked: sessions.length };
+  } catch (err) {
+    console.error("[markRequisicionEnviadaAdminForSessions] unexpected error:", err);
+    return { success: false, error: "Error inesperado" };
+  }
+}
+
 // ─── Session helpers for UI ──────────────────────────────────────────────────
 
 /**

@@ -962,21 +962,50 @@ export default function RequisicionView({
             </div>
           </div>
 
-          {/* Selected session (Capacitación Externa with a multi-session OSI) */}
-          {!isGeneralMode && record.id_sesion && (() => {
+          {/* Selected sessions (Capacitación Externa) — multi-session display with
+              backward-compat fallback to single id_sesion for legacy records. */}
+          {!isGeneralMode && (() => {
             const sesiones = (osiData?.desglose_recursos_sesiones as any[] | null | undefined) || [];
-            const sesion = sesiones.find((s) => s.id_sesion === record.id_sesion);
-            if (!sesion) return null;
-            return (
-              <div className="grid grid-cols-12 border-b border-gray-300">
-                <div className="col-span-3 p-3 border-r border-gray-300 bg-gray-50 flex items-center font-bold text-sm">
-                  Sesión:
+
+            // New records: selected_sesiones JSONB array
+            if (record.selected_sesiones && Array.isArray(record.selected_sesiones) && record.selected_sesiones.length > 0) {
+              return (
+                <div className="grid grid-cols-12 border-b border-gray-300">
+                  <div className="col-span-3 p-3 border-r border-gray-300 bg-gray-50 flex items-center font-bold text-sm">
+                    Sesiones:
+                  </div>
+                  <div className="col-span-9 p-3 flex flex-wrap items-center gap-x-2 font-medium text-sm">
+                    {record.selected_sesiones.map((ss: any, i: number) => {
+                      const sesion = sesiones.find((s) => s.id_sesion === ss.id_sesion);
+                      const label = `Sesión #${ss.nro_sesion ?? ss.id_sesion}${sesion?.fecha ? ` — ${sesion.fecha}` : ""}`;
+                      return (
+                        <span key={i}>
+                          {label}{i < record.selected_sesiones.length - 1 ? "," : ""}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="col-span-9 p-3 flex items-center font-medium text-sm">
-                  {`Sesión #${sesion.nro_sesion ?? sesion.id_sesion}${sesion.fecha ? ` — ${sesion.fecha}` : ""}`}
+              );
+            }
+
+            // Legacy fallback: single id_sesion
+            if (record.id_sesion) {
+              const sesion = sesiones.find((s) => s.id_sesion === record.id_sesion);
+              if (!sesion) return null;
+              return (
+                <div className="grid grid-cols-12 border-b border-gray-300">
+                  <div className="col-span-3 p-3 border-r border-gray-300 bg-gray-50 flex items-center font-bold text-sm">
+                    Sesión:
+                  </div>
+                  <div className="col-span-9 p-3 flex items-center font-medium text-sm">
+                    {`Sesión #${sesion.nro_sesion ?? sesion.id_sesion}${sesion.fecha ? ` — ${sesion.fecha}` : ""}`}
+                  </div>
                 </div>
-              </div>
-            );
+              );
+            }
+
+            return null;
           })()}
 
           <div className="grid grid-cols-12 border-b border-gray-300">

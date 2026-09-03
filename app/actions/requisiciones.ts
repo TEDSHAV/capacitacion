@@ -28,6 +28,7 @@ import {
   isCapacitacionDept,
   resolveInternaApprovalGerencia,
 } from "@/lib/requisiciones-gerencia";
+import { markRequisicionEnviadaAdminForSessions } from "@/app/actions/capacitacion-proceso-steps";
 
 // Build a JSON snapshot of the editable content fields of a requisicion record.
 // Captured at creation and on every creator save (so it always reflects the
@@ -641,6 +642,15 @@ export async function createRequisicionRecord(
   const newColumns = {
     departamento: formData.departamento || null,
     id_sesion: formData.id_sesion || null,
+    // Multi-session selection for Capacitación Externa. Array of
+    // {id_osi, id_sesion, nro_sesion}. NULL for internas and legacy records.
+    selected_sesiones: !isInterna && formData.selectedSesiones?.length > 0
+      ? formData.selectedSesiones.map((s) => ({
+          id_osi: primaryOSI?.id_osi ?? formData.selectedOSIs[0]?.id_osi ?? null,
+          id_sesion: s.id_sesion,
+          nro_sesion: s.nro_sesion,
+        }))
+      : null,
     // Externas require coordinador approval (or lider fallback) before reaching
     // Administración. Internas never use coordinador_estatus.
     coordinador_estatus: !isInterna && needsCoordinadorApproval ? "pendiente" : null,
@@ -676,6 +686,25 @@ export async function createRequisicionRecord(
   if (error) throw error;
 
   await syncRequisicionOsis(data.id, formData);
+
+  // Auto-mark the first planificacion step ("Requisición a Admin") on the
+  // selected sessions of all linked OSIs when an externa is created. Internas
+  // have no OSI and are excluded. Best-effort: failures are logged but don't
+  // block creation.
+  if (!isInterna && formData.selectedSesiones?.length > 0) {
+    const sessionsToMark = formData.selectedSesiones
+      .map((s) => ({
+        osiId: primaryOSI?.id_osi ?? formData.selectedOSIs[0]?.id_osi,
+        nroSesion: s.nro_sesion,
+      }))
+      .filter((s) => s.osiId != null) as { osiId: number; nroSesion: number }[];
+    if (sessionsToMark.length > 0) {
+      await markRequisicionEnviadaAdminForSessions(sessionsToMark).catch((err) =>
+        console.error("[createRequisicionRecord] markRequisicionEnviadaAdminForSessions failed:", err)
+      );
+    }
+    revalidatePath("/dashboard/capacitacion/seguimiento-servicios");
+  }
 
   // Notifications based on the workflow path:
   // - Internas that skip the lider gate → notify Administración directly.
@@ -937,6 +966,13 @@ export async function updateRequisicionRecord(
   const newColumns = {
     departamento: formData.departamento || null,
     id_sesion: formData.id_sesion || null,
+    selected_sesiones: !isInterna && formData.selectedSesiones?.length > 0
+      ? formData.selectedSesiones.map((s) => ({
+          id_osi: primaryOSI?.id_osi ?? formData.selectedOSIs[0]?.id_osi ?? null,
+          id_sesion: s.id_sesion,
+          nro_sesion: s.nro_sesion,
+        }))
+      : null,
   };
 
   // Refresh the original_snapshot on every creator save so it always reflects the
