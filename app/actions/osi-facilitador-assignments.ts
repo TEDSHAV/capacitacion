@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import type { FacilitadorHistoryEntry } from "@/types";
 
 export async function assignOSIToFacilitador(
   osiId: number,
@@ -182,6 +183,88 @@ export async function getAssignmentsByFacilitador(facilitadorId: number) {
   });
 
   return { data: assignments };
+}
+
+/**
+ * Full course-teaching history for a facilitador — one entry per OSI they were
+ * ever assigned to (active + inactive). Inactive assignments are included so
+ * the history captures OSIs the facilitador was reassigned away from (they
+ * still taught that OSI). Sorted by the OSI's execution start date descending;
+ * OSIs with no execution date (pending) sort last.
+ *
+ * Reuses `facilitador_osi_assignments` + `v_osi_formato_completo`, mirroring
+ * `getAssignmentsByFacilitador` but without the `is_active = true` filter and
+ * collapsing duplicate per-session rows to a single entry per OSI.
+ */
+export async function getFacilitadorHistory(
+  facilitadorId: number,
+): Promise<{ data: FacilitadorHistoryEntry[] | null; error: string | null }> {
+  const supabase = await createClient();
+
+  const { data: assignments, error } = await supabase
+    .from("facilitador_osi_assignments")
+    .select("osi_id, nro_sesion, is_active, created_at")
+    .eq("facilitador_id", facilitadorId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching facilitador history:", error);
+    return { data: null, error: error.message };
+  }
+
+  if (!assignments || assignments.length === 0) {
+    return { data: [], error: null };
+  }
+
+  const osiIds = [...new Set(assignments.map((a) => a.osi_id))];
+
+  const { data: osiData, error: osiError } = await supabase
+    .from("v_osi_formato_completo")
+    .select(
+      "id_osi, nro_osi, servicio, nombre_empresa, fecha_inicio_real, sesiones_ejecucion, sesiones_programadas",
+    )
+    .in("id_osi", osiIds);
+
+  if (osiError) {
+    console.error("Error fetching OSI details for history:", osiError);
+    return { data: null, error: osiError.message };
+  }
+
+  const osiById = new Map((osiData ?? []).map((o) => [o.id_osi, o]));
+
+  // Collapse duplicate assignment rows per OSI (a facilitador may have one
+  // all-sessions row + several per-session rows for the same OSI). The first
+  // occurrence wins because assignments are ordered by created_at desc, so we
+  // keep the most recent assignment metadata per osi_id.
+  const seen = new Set<number>();
+  const rows: FacilitadorHistoryEntry[] = [];
+  for (const a of assignments) {
+    if (seen.has(a.osi_id)) continue;
+    seen.add(a.osi_id);
+    const osi = osiById.get(a.osi_id);
+    if (!osi) continue;
+    rows.push({
+      osi_id: a.osi_id,
+      nro_osi: osi.nro_osi,
+      servicio: osi.servicio,
+      nombre_empresa: osi.nombre_empresa,
+      fecha_inicio_real: osi.fecha_inicio_real,
+      sesiones_ejecucion: osi.sesiones_ejecucion,
+      sesiones_programadas: osi.sesiones_programadas,
+      assignment_active: a.is_active,
+      assigned_at: a.created_at,
+    });
+  }
+
+  // Sort by execution date desc, nulls last.
+  rows.sort((a, b) => {
+    if (!a.fecha_inicio_real && !b.fecha_inicio_real) return 0;
+    if (!a.fecha_inicio_real) return 1;
+    if (!b.fecha_inicio_real) return -1;
+    return b.fecha_inicio_real.localeCompare(a.fecha_inicio_real);
+  });
+
+  return { data: rows, error: null };
 }
 
 export async function getAssignmentByOSI(osiId: number) {

@@ -477,6 +477,25 @@ export interface Facilitador {
   } | null;
 }
 
+/**
+ * One row in a facilitador's course-teaching history (one entry per OSI they
+ * were ever assigned to, regardless of whether the assignment is still active).
+ * Sourced from `facilitador_osi_assignments` joined to `v_osi_formato_completo`.
+ */
+export interface FacilitadorHistoryEntry {
+  osi_id: number;
+  nro_osi: string | null;
+  servicio: string | null;
+  nombre_empresa: string | null;
+  fecha_inicio_real: string | null;
+  // `v_osi_formato_completo` exposes these as arrays (or null); kept loose to
+  // degrade gracefully if the view shape ever changes.
+  sesiones_ejecucion: unknown;
+  sesiones_programadas: unknown;
+  assignment_active: boolean;
+  assigned_at: string;
+}
+
 // Keep the old interface for backward compatibility
 export interface Facilitator {
   id: string;

@@ -5,10 +5,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Facilitador, State } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Edit, Minus, Check, Star, StarHalf, FileText } from "lucide-react";
+import { Edit, Minus, Check, Star, StarHalf, FileText, History } from "lucide-react";
 import { toTitleCase } from "@/utils/string-utils";
 import { createClient } from "@/utils/supabase/client";
 import { getFacilitatorRatings } from "@/app/actions/facilitators";
+import { FacilitadorHistoryModal } from "./FacilitadorHistoryModal";
 
 interface FacilitadorCrudProps {
   onFacilitadorSaved?: () => void;
@@ -28,6 +29,7 @@ export const FacilitadorCrud = ({
   const [loading, setLoading] = useState(true);
   const [loadingStates, setLoadingStates] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [historyFacilitador, setHistoryFacilitador] = useState<Facilitador | null>(null);
 
   // Client-side only: Check if we're in the browser
   const isClient = typeof window !== "undefined";
@@ -393,6 +395,14 @@ export const FacilitadorCrud = ({
                       <FileText className="w-4 h-4" />
                     </a>
                     <button
+                      onClick={() => setHistoryFacilitador(facilitador)}
+                      className="text-white p-2 rounded-md hover:opacity-90 transition-colors shadow-sm"
+                      style={{ backgroundColor: "var(--primary-blue)" }}
+                      title="Ver historial de cursos"
+                    >
+                      <History className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() =>
                         handleToggleStatus(
                           facilitador.id.toString(),
@@ -429,6 +439,13 @@ export const FacilitadorCrud = ({
         )}
       </div>
 
+      {historyFacilitador && (
+        <FacilitadorHistoryModal
+          facilitadorId={historyFacilitador.id}
+          facilitadorName={toTitleCase(historyFacilitador.nombre_apellido || "")}
+          onClose={() => setHistoryFacilitador(null)}
+        />
+      )}
     </div>
   );
 };
