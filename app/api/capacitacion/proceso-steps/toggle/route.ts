@@ -56,9 +56,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sync `ejecutado` step to the shell's OSI status tables (best-effort).
+    // Sync `en_proceso` step (En proceso/Ejecutado) to the shell's OSI status tables (best-effort).
     // This handles the offline sync queue replay path.
-    if (stepKey === "ejecutado") {
+    if (stepKey === "en_proceso") {
       await syncOsiEjecutadoToShell(osiId, nroSesion, desiredState).catch((err) =>
         console.error("[proceso-steps/toggle] syncOsiEjecutadoToShell failed:", err),
       );

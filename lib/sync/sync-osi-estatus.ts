@@ -156,13 +156,13 @@ async function getPreviousSessionStatus(
 
 /**
  * Recalculate and update the OSI-level id_estatus based on how many sessions
- * have the `ejecutado` step completed in capacitacion_proceso_steps.
+ * have the `en_proceso` step (En proceso/Ejecutado) completed in capacitacion_proceso_steps.
  *
- *   ALL sessions ejecutado  → 12 (EJECUTADO)
- *   SOME sessions ejecutado → 11 (EN_PROCESO)
- *   NONE sessions ejecutado → 39 (NO_EJECUTADA)
+ *   ALL sessions en_proceso  → 12 (EJECUTADO)
+ *   SOME sessions en_proceso → 11 (EN_PROCESO)
+ *   NONE sessions en_proceso → 39 (NO_EJECUTADA)
  *
- * Skipped (no-op) when there are no seeded `ejecutado` step rows for the OSI,
+ * Skipped (no-op) when there are no seeded `en_proceso` step rows for the OSI,
  * to avoid clobbering shell-managed pre-execution statuses for legacy OSIs.
  */
 export async function recalcOsiEstatusFromSteps(
@@ -170,12 +170,12 @@ export async function recalcOsiEstatusFromSteps(
   osiId: number,
 ): Promise<void> {
   try {
-    // Count distinct sessions with an `ejecutado` step row, and how many are completed
+    // Count distinct sessions with an `en_proceso` step row, and how many are completed
     const { data: rows, error } = await admin
       .from("capacitacion_proceso_steps")
       .select("nro_sesion, completed")
       .eq("osi_id", osiId)
-      .eq("step_key", "ejecutado");
+      .eq("step_key", "en_proceso");
 
     if (error) {
       console.error("[sync-osi-estatus] Error fetching ejecutado steps for recalc:", error);

@@ -366,17 +366,12 @@ export async function toggleProcesoStep(
       }
     }
 
-    // Sync `ejecutado` step to the shell's OSI status tables (best-effort).
-    // The sync resolves the session date internally from osi_sesion / sesiones_programadas.
-    if (stepKey === "ejecutado") {
+    // Sync `en_proceso` step (En proceso/Ejecutado) to the shell's OSI status tables
+    // (best-effort). Marking = EJECUTADO, unmarking = NO_EJECUTADA. The sync resolves
+    // the session date internally from osi_sesion / sesiones_programadas.
+    if (stepKey === "en_proceso") {
       await syncOsiEjecutadoToShell(osiId, nroSesion, newCompleted).catch((err) =>
         console.error("[toggleProcesoStep] syncOsiEjecutadoToShell failed:", err),
-      );
-    } else if (stepKey === "en_proceso" && !newCompleted) {
-      // Unmarking en_proceso = service didn't happen (e.g. cancelled same-day) →
-      // sync NO_EJECUTADA to the shell so Consulta OSI reflects the cancellation.
-      await syncOsiEjecutadoToShell(osiId, nroSesion, false).catch((err) =>
-        console.error("[toggleProcesoStep] syncOsiEjecutadoToShell (en_proceso unmark) failed:", err),
       );
     }
 
@@ -392,7 +387,7 @@ export async function toggleProcesoStep(
 /**
  * Result of auto-advancing ejecucion steps for a batch of OSIs.
  * - stepsByOsi: osiId → nroSesion → stepKey → record (reflects post-upsert state,
- *   including seeded rows and auto-completed en_proceso/ejecutado).
+ *   including seeded rows and auto-completed en_proceso).
  * - sessionsByOsi: osiId → sessions[] (resolved via the same priority chain as
  *   getOSISessions, reusing the osi_sesion rows already fetched here).
  */
@@ -404,8 +399,7 @@ export interface AutoAdvanceResult {
 /**
  * Auto-advance ejecucion steps for a batch of OSIs, per-session:
  *   - Ensure all step rows exist (seeds rows for old OSIs predating the steps system)
- *   - If session fecha is today or past, mark "en_proceso" as completed
- *   - If session fecha is strictly past, also mark "ejecutado" as completed
+ *   - If session fecha is today or past, mark "en_proceso" (En proceso/Ejecutado) as completed
  *
  * Seeding is done in a SINGLE batch upsert (ignoreDuplicates) instead of one
  * round-trip per session/phase, and the function returns the steps + sessions
@@ -483,7 +477,7 @@ export async function autoAdvanceEjecucionSteps(
       completed: boolean;
     }[] = [];
 
-    // Auto-advance upserts (en_proceso / ejecutado)
+    // Auto-advance upserts (en_proceso)
     const upserts: {
       osi_id: number;
       nro_sesion: number;
@@ -519,7 +513,7 @@ export async function autoAdvanceEjecucionSteps(
             });
           }
         }
-        const hasEjecucion = existingSessionSteps?.["en_proceso"] || existingSessionSteps?.["ejecutado"];
+        const hasEjecucion = existingSessionSteps?.["en_proceso"];
         if (!hasEjecucion) {
           for (const key of getStepKeys("ejecucion")) {
             seedRows.push({
@@ -537,24 +531,21 @@ export async function autoAdvanceEjecucionSteps(
         const nroSesion = session.nro_sesion;
         const sessionSteps = osiStepsMap.get(nroSesion) || new Map();
 
-        // Determine if this session's date is today/past or strictly past (date-only comparison)
+        // Determine if this session's date is today or past (date-only comparison)
         let isTodayOrPast = false;
-        let isPast = false;
         if (session.fecha) {
           const sessionDateStr = session.fecha.split("T")[0];
           if (sessionDateStr <= todayStr) isTodayOrPast = true;
-          if (sessionDateStr < todayStr) isPast = true;
         } else if (nroSesion === 1 && osi.fecha_inicio_real) {
           // Fallback to fecha_inicio_real for session 1 if session fecha is null
           const startDateStr = osi.fecha_inicio_real.split("T")[0];
           if (startDateStr <= todayStr) isTodayOrPast = true;
-          if (startDateStr < todayStr) isPast = true;
         }
 
-        // Auto-complete "en_proceso" if date is today or past — but ONLY if no row
-        // exists yet (first time). If a row exists (even with completed=false, meaning
-        // the user manually unmarked it), don't re-auto-mark it. The user can manually
-        // re-mark it when the service resumes.
+        // Auto-complete "en_proceso" (En proceso/Ejecutado) if date is today or past —
+        // but ONLY if no row exists yet (first time). If a row exists (even with
+        // completed=false, meaning the user manually unmarked it), don't re-auto-mark
+        // it. The user can manually re-mark it when the service resumes.
         if (isTodayOrPast) {
           const enProceso = sessionSteps.get("en_proceso");
           if (!enProceso) {
@@ -565,24 +556,6 @@ export async function autoAdvanceEjecucionSteps(
               step_key: "en_proceso",
               completed: true,
               completed_at: enProceso?.completed_at || todayStr,
-            });
-          }
-        }
-
-        // Auto-complete "ejecutado" only if date is strictly past — but ONLY if no
-        // row exists yet (first time). If a row exists (even with completed=false,
-        // meaning the user manually unmarked it), don't re-auto-mark it. The user
-        // can manually re-mark it when the service is actually executed.
-        if (isPast) {
-          const ejecutado = sessionSteps.get("ejecutado");
-          if (!ejecutado) {
-            upserts.push({
-              osi_id: osi.id_osi,
-              nro_sesion: nroSesion,
-              phase: "ejecucion",
-              step_key: "ejecutado",
-              completed: true,
-              completed_at: ejecutado?.completed_at || todayStr,
             });
           }
         }
@@ -610,28 +583,30 @@ export async function autoAdvanceEjecucionSteps(
       }
     }
 
-    // Sync auto-advanced `ejecutado` steps to the shell's OSI status tables.
-    // Only the `ejecutado` step_key triggers the shell sync (best-effort).
+    // Sync auto-advanced `en_proceso` steps to the shell's OSI status tables.
+    // Only the `en_proceso` step_key triggers the shell sync (best-effort).
     // Group by osiId to call recalcOsiEstatusFromSteps once per OSI after
     // all its sessions are synced.
-    const ejecutadoUpsertsByOsi = new Map<number, Array<{ nro_sesion: number; sessionDate: string | null }>>();
+    const enProcesoUpsertsByOsi = new Map<number, Array<{ nro_sesion: number; sessionDate: string | null }>>();
     for (const u of upserts) {
-      if (u.step_key !== "ejecutado" || !u.completed) continue;
+      if (u.step_key !== "en_proceso" || !u.completed) continue;
       const osi = osis.find((o) => o.id_osi === u.osi_id);
       if (!osi) continue;
       const sessions = sessionsByOsi.get(u.osi_id) || [];
       const session = sessions.find((s) => s.nro_sesion === u.nro_sesion);
       const sessionDate = session?.fecha ?? null;
-      const list = ejecutadoUpsertsByOsi.get(u.osi_id) || [];
+      const list = enProcesoUpsertsByOsi.get(u.osi_id) || [];
       list.push({ nro_sesion: u.nro_sesion, sessionDate });
-      ejecutadoUpsertsByOsi.set(u.osi_id, list);
+      enProcesoUpsertsByOsi.set(u.osi_id, list);
     }
 
-    // Sync auto-advanced `ejecutado` steps to the shell's OSI status tables in parallel.
+    // Sync auto-advanced `en_proceso` steps to the shell's OSI status tables in parallel.
     // Each call is independent (different osiId/nroSesion pairs); recalcOsiEstatusFromSteps
     // is idempotent so concurrent calls for the same OSI produce the same final status.
+    // Fire-and-forget: the page doesn't depend on the sync result (the steps map is built
+    // from stepsLookup + upserts in memory below). The sync completes in the background.
     const syncPromises: Promise<void>[] = [];
-    for (const [osiId, sessions] of ejecutadoUpsertsByOsi) {
+    for (const [osiId, sessions] of enProcesoUpsertsByOsi) {
       for (const { nro_sesion, sessionDate } of sessions) {
         syncPromises.push(
           syncOsiEjecutadoToShell(osiId, nro_sesion, true, sessionDate).catch((err) =>
@@ -640,7 +615,11 @@ export async function autoAdvanceEjecucionSteps(
         );
       }
     }
-    await Promise.all(syncPromises);
+    if (syncPromises.length > 0) {
+      Promise.all(syncPromises).catch((err) =>
+        console.error("[autoAdvanceEjecucionSteps] sync chain failed:", err),
+      );
+    }
 
     // Build the returned steps map from the existing stepsLookup + applied upserts
     // (no re-fetch needed — we already have the pre-upsert state and know exactly what
