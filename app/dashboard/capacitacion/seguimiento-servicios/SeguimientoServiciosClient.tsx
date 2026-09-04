@@ -29,6 +29,7 @@ import {
 import { ALL_STEPS, PLANIFICACION_STEPS, EJECUCION_STEPS } from "@/lib/proceso-steps";
 import ProcesoStepsTimeline from "../components/proceso-steps-timeline";
 import ListaAsistenciaPreview from "./components/lista-asistencia-preview";
+import { formatDateOnly } from "@/lib/format-date";
 
 interface FilterOptions {
   companies: { id_empresa: number; nombre_empresa: string }[];
@@ -319,14 +320,12 @@ export default function SeguimientoServiciosClient({
     [stepsByOsi],
   );
 
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleDateString("es-VE", {
+  const formatDate = (dateStr: string | null | undefined) =>
+    formatDateOnly(dateStr, "es-VE", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     });
-  };
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 

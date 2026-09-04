@@ -3,6 +3,7 @@
 import { OSIManagement } from "@/types";
 import { Calendar, Building2, Clock, FileText, Download, ClipboardList, UserPlus, ShieldCheck } from "lucide-react";
 import type { OSIStatus } from "@/types";
+import { formatDateOnly } from "@/lib/format-date";
 
 interface OSITableV2Props {
   osis: OSIManagement[];
@@ -25,7 +26,7 @@ export default function OSITableV2({
 }: OSITableV2Props) {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("es-ES", {
+    return formatDateOnly(dateString, "es-ES", {
       day: "2-digit",
       month: "short",
       year: "numeric",
