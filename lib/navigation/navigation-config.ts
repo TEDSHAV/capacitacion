@@ -13,6 +13,7 @@ import {
   KeyRound,
   FilePlus2,
   FileCheck,
+  ClipboardCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -243,6 +244,13 @@ const DASHBOARD_NAV: NavItem[] = [
         label: "Asignaciones y Credenciales",
         href: "/dashboard/capacitacion/gestion-asignaciones",
         icon: KeyRound,
+        offlineAvailable: true,
+      },
+      {
+        id: "facilitator-evaluation",
+        label: "Evaluación de Facilitadores",
+        href: "/dashboard/capacitacion/evaluacion-facilitadores",
+        icon: ClipboardCheck,
         offlineAvailable: true,
       },
     ],

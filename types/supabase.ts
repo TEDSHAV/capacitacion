@@ -3838,6 +3838,108 @@ export type Database = {
           },
         ]
       }
+      facilitador_evaluaciones: {
+        Row: {
+          id: number
+          facilitador_id: number
+          tipo_evaluacion: "nuevo" | "seguimiento" | "reevaluacion"
+          evaluador_nombre: string | null
+          evaluador_cargo: string | null
+          recomendado_por: string | null
+          tipo_proveedor: string | null
+          entrevista: string | null
+          firma: string | null
+          fecha_evaluacion: string
+          fase_inicial: Json
+          fase_seguimiento: Json | null
+          fase_reevaluacion: Json | null
+          puntaje_total: number | null
+          porcentaje_total: number | null
+          condicion_final:
+            | "aprobado"
+            | "aprobado_supervision"
+            | "no_aprobado"
+            | "aceptable"
+            | "no_aceptable"
+            | null
+          observaciones: string | null
+          creado_por: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          facilitador_id: number
+          tipo_evaluacion: "nuevo" | "seguimiento" | "reevaluacion"
+          evaluador_nombre?: string | null
+          evaluador_cargo?: string | null
+          recomendado_por?: string | null
+          tipo_proveedor?: string | null
+          entrevista?: string | null
+          firma?: string | null
+          fecha_evaluacion: string
+          fase_inicial?: Json
+          fase_seguimiento?: Json | null
+          fase_reevaluacion?: Json | null
+          puntaje_total?: number | null
+          porcentaje_total?: number | null
+          condicion_final?:
+            | "aprobado"
+            | "aprobado_supervision"
+            | "no_aprobado"
+            | "aceptable"
+            | "no_aceptable"
+            | null
+          observaciones?: string | null
+          creado_por?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          facilitador_id?: number
+          tipo_evaluacion?: "nuevo" | "seguimiento" | "reevaluacion"
+          evaluador_nombre?: string | null
+          evaluador_cargo?: string | null
+          recomendado_por?: string | null
+          tipo_proveedor?: string | null
+          entrevista?: string | null
+          firma?: string | null
+          fecha_evaluacion?: string
+          fase_inicial?: Json
+          fase_seguimiento?: Json | null
+          fase_reevaluacion?: Json | null
+          puntaje_total?: number | null
+          porcentaje_total?: number | null
+          condicion_final?:
+            | "aprobado"
+            | "aprobado_supervision"
+            | "no_aprobado"
+            | "aceptable"
+            | "no_aceptable"
+            | null
+          observaciones?: string | null
+          creado_por?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facilitador_evaluaciones_facilitador_id_fkey"
+            columns: ["facilitador_id"]
+            isOneToOne: false
+            referencedRelation: "facilitadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facilitador_evaluaciones_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       facilitadores: {
         Row: {
           alcance: string | null

@@ -219,7 +219,8 @@ const serwist = new Serwist({
         url.pathname.startsWith("/api/generate-certificate-pdf/") ||
         url.pathname.startsWith("/api/batch-download-osi/") ||
         url.pathname.startsWith("/api/batch-download-documents/") ||
-        url.pathname.startsWith("/api/generate-carnet-pdf/"),
+        url.pathname.startsWith("/api/generate-carnet-pdf/") ||
+        url.pathname.startsWith("/api/generate-evaluacion-facilitador-pdf"),
       handler: new NetworkFirst({
         cacheName: "offline-documents",
         networkTimeoutSeconds: 10,

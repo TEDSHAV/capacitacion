@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Gauge,
   KeyRound,
+  ClipboardCheck,
 } from "lucide-react";
 
 type LucideIcon = typeof BookOpen;
@@ -195,6 +196,7 @@ export default function CapacitacionClient({
         { id: "gestion-de-facilitadores", title: "Gestión", icon: UserCheck },
         { id: "gestion-de-firmas", title: "Firmas", icon: Signature },
         { id: "gestion-asignaciones", title: "Asignaciones y Credenciales", icon: KeyRound },
+        { id: "evaluacion-facilitadores", title: "Evaluación", icon: ClipboardCheck },
       ],
     },
     {
