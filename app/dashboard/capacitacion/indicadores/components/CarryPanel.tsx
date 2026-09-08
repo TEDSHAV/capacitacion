@@ -309,7 +309,7 @@ export default function CarryPanel({
                             </td>
                             <td className="py-2">
                               <a
-                                href={`${process.env.NEXT_PUBLIC_SHELL_URL}/consulta-osi?nro_osi=${o.nroOsi}`}
+                                href={`${process.env.NEXT_PUBLIC_SHELL_URL}/consulta-osi?nro_osi=${encodeURIComponent(o.nroOsi)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-700"
