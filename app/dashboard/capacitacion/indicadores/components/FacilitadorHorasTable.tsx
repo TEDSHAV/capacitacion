@@ -2,6 +2,7 @@
 
 import { Download } from "lucide-react";
 import type { FacilitadoresHorasResponse } from "@/types";
+import { trackedMonthIndicesForYear } from "@/lib/indicadores-cutoff";
 
 interface Props {
   data: FacilitadoresHorasResponse;
@@ -49,9 +50,11 @@ function downloadCsv(lines: string[], filename: string) {
 }
 
 function exportCsv(data: FacilitadoresHorasResponse) {
+  // Only export tracked months — pre-cutoff columns would be all-zeros.
+  const monthIdxs = trackedMonthIndicesForYear(data.year);
   const headers = [
     "Facilitador",
-    ...MONTH_LABELS,
+    ...monthIdxs.map((i) => MONTH_LABELS[i]),
     "NRO TOTAL DE CURSOS EN EL AÑO",
     "NRO TOTAL DE HORAS EN EL AÑO",
     "MONTO TOTAL EN $",
@@ -61,7 +64,7 @@ function exportCsv(data: FacilitadoresHorasResponse) {
     lines.push(
       [
         f.nombre,
-        ...f.horasPorMes,
+        ...monthIdxs.map((i) => f.horasPorMes[i]),
         f.totalCursos,
         f.totalHoras,
         f.totalMonto.toFixed(2),
@@ -74,6 +77,8 @@ function exportCsv(data: FacilitadoresHorasResponse) {
 }
 
 export default function FacilitadorHorasTable({ data }: Props) {
+  // Only tracked months get a column — pre-cutoff months are hidden.
+  const monthIdxs = trackedMonthIndicesForYear(data.year);
   const totalHorasGeneral = data.facilitadores.reduce(
     (sum, f) => sum + f.totalHoras,
     0,
@@ -114,12 +119,12 @@ export default function FacilitadorHorasTable({ data }: Props) {
               <th className="bg-gray-50 text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 Facilitador
               </th>
-              {MONTH_LABELS.map((label) => (
+              {monthIdxs.map((i) => (
                 <th
-                  key={label}
+                  key={i}
                   className="px-2 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide"
                 >
-                  {label}
+                  {MONTH_LABELS[i]}
                 </th>
               ))}
               <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide border-l border-gray-200">
@@ -150,16 +155,19 @@ export default function FacilitadorHorasTable({ data }: Props) {
                     </span>
                   )}
                 </th>
-                {f.horasPorMes.map((horas, i) => (
-                  <td
-                    key={i}
-                    className={`px-2 py-2 text-center tabular-nums ${
-                      horas === 0 ? "text-gray-300" : "text-gray-700"
-                    }`}
-                  >
-                    {horas === 0 ? "—" : formatHoras(horas)}
-                  </td>
-                ))}
+                {monthIdxs.map((i) => {
+                  const horas = f.horasPorMes[i];
+                  return (
+                    <td
+                      key={i}
+                      className={`px-2 py-2 text-center tabular-nums ${
+                        horas === 0 ? "text-gray-300" : "text-gray-700"
+                      }`}
+                    >
+                      {horas === 0 ? "—" : formatHoras(horas)}
+                    </td>
+                  );
+                })}
                 <td className="px-3 py-2 text-right tabular-nums font-semibold text-gray-900 border-l border-gray-200">
                   {f.totalCursos}
                 </td>
@@ -174,7 +182,7 @@ export default function FacilitadorHorasTable({ data }: Props) {
             {data.facilitadores.length === 0 && (
               <tr>
                 <td
-                  colSpan={16}
+                  colSpan={monthIdxs.length + 4}
                   className="px-4 py-10 text-center text-sm text-gray-400"
                 >
                   No hay requisiciones ni OSIs con horas en {data.year} con
@@ -192,7 +200,7 @@ export default function FacilitadorHorasTable({ data }: Props) {
                 >
                   Total
                 </th>
-                {MONTH_LABELS.map((_, i) => {
+                {monthIdxs.map((i) => {
                   const monthTotal = data.facilitadores.reduce(
                     (sum, f) => sum + f.horasPorMes[i],
                     0,

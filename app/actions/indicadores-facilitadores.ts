@@ -7,6 +7,7 @@ import type {
   IndicadoresGestionFilters,
 } from "@/types";
 import { parseDate } from "@/lib/business-days";
+import { isMesTracked, INDICADORES_START_YEAR } from "@/lib/indicadores-cutoff";
 
 // Same paging constants as indicadores-gestion.ts — Supabase caps un-ranged
 // selects at 1000 rows, and large `.in()` lists are chunked to stay under URL
@@ -375,6 +376,8 @@ export async function getIndicadoresFacilitadores(
 
         const mes = monthKey(fecha);
         if (!mes) continue;
+        // Skip pre-cutoff months — see lib/indicadores-cutoff.ts.
+        if (!isMesTracked(mes)) continue;
         if (filterMes && mes !== filterMes) continue;
         const monthIdx = parseInt(mes.slice(5), 10) - 1; // 0-11
         if (monthIdx < 0 || monthIdx > 11) continue;
@@ -422,6 +425,8 @@ export async function getIndicadoresFacilitadores(
 
         const mes = monthKey(fecha);
         if (!mes) continue;
+        // Skip pre-cutoff months — see lib/indicadores-cutoff.ts.
+        if (!isMesTracked(mes)) continue;
         if (filterMes && mes !== filterMes) continue;
         const monthIdx = parseInt(mes.slice(5), 10) - 1;
         if (monthIdx < 0 || monthIdx > 11) continue;
@@ -482,7 +487,9 @@ export async function getIndicadoresFacilitadores(
     }
     facilitadores.sort((a, b) => b.totalHoras - a.totalHoras);
 
-    const yearsDisponibles = Array.from(yearsSet).sort((a, b) => b - a);
+    const yearsDisponibles = Array.from(yearsSet)
+      .filter((y) => y >= INDICADORES_START_YEAR)
+      .sort((a, b) => b - a);
 
     return {
       data: { year, facilitadores, yearsDisponibles },

@@ -2061,10 +2061,9 @@ export interface GestionMensualResponse {
 /**
  * One OSI in the carry-over detail list.
  *
- * `mesPlanificado` is always set (it's the bucket key). `mesEjecucion` is
- * null when the OSI hasn't been fully executed. `diasAtraso` is the number
- * of calendar days between the last planned session date and today; it's
- * null for OSIs that aren't overdue.
+ * Raw facts only: planned month, execution month (if any), and status.
+ * The client derives grouping (arrastradas/pasarán/rezagadas) and
+ * overdue flags relative to the selected month.
  */
 export interface OsiCarryRow {
   id: number;
@@ -2076,14 +2075,20 @@ export interface OsiCarryRow {
   mesEjecucion: string | null;
   /** Last planned session date "YYYY-MM-DD", or fallback. */
   ultimaFechaPlanificada: string | null;
-  /** True when not all sessions have fecha_ejecutada. */
-  pendiente: boolean;
-  /** True when pendiente AND ultimaFechaPlanificada < today. */
-  vencida: boolean;
-  /** Calendar days from ultimaFechaPlanificada to today (null if not vencida). */
-  diasAtraso: number | null;
   /** OSI estatus label, e.g. "EJECUTADO", "PENDIENTE". */
   estatus: string;
+}
+
+/**
+ * One note/observation entry for an OSI.
+ * Append-only log: author and timestamp are immutable.
+ */
+export interface OsiNota {
+  id: number;
+  osiId: number;
+  nota: string;
+  createdAt: string;
+  autorNombre: string | null;
 }
 
 export interface IndicadoresGestionFilters {

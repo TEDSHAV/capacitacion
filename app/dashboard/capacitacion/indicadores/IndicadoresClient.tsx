@@ -18,6 +18,13 @@ import { getIndicadoresGestionMensual } from "@/app/actions/indicadores-gestion"
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import { fetchWithOfflineFallback } from "@/lib/offline/use-offline-data";
 import { useOnlineStatus } from "@/lib/offline/use-online-status";
+import {
+  INDICADORES_START_MES,
+  INDICADORES_START_YEAR,
+  INDICADORES_START_MONTH,
+  isMesTracked,
+  trackedMonthIndicesForYear,
+} from "@/lib/indicadores-cutoff";
 import { CachedDataBanner } from "@/components/CachedDataBanner";
 import FilterBar, { type IndicadoresFilterState } from "./components/FilterBar";
 import GestionMensualTable from "./components/GestionMensualTable";
@@ -32,6 +39,11 @@ interface Props {
 }
 
 type IndicadorTab = "gestion" | "72h" | "facilitadores";
+
+const MONTH_LABELS_FULL = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
 
 const TAB_DEFS: {
   id: IndicadorTab;
@@ -75,8 +87,16 @@ const DEFAULT_STATE: IndicadoresFilterState = {
 
 /** "YYYY-MM" of the month the cards should open on for a given year. */
 function defaultMesForYear(year: number): string {
+  // Clamp to the tracking cutoff — months before Ago 2026 are hidden, so
+  // we never want to land on them by default (e.g. when opening the page
+  // in Ene 2027, the default should be Ago 2026 if 2026 is selected, not
+  // Ene 2026).
+  if (year < INDICADORES_START_YEAR) return INDICADORES_START_MES;
   const month = year === CURRENT_YEAR ? new Date().getMonth() + 1 : 12;
-  return `${year}-${String(month).padStart(2, "0")}`;
+  const clamped = year === INDICADORES_START_YEAR
+    ? Math.max(month, INDICADORES_START_MONTH)
+    : month;
+  return `${year}-${String(clamped).padStart(2, "0")}`;
 }
 
 /**
@@ -223,10 +243,10 @@ function exportDetalleCsv(rows: IndicadorOsiRow[], periodLabel: string) {
 
 /** Facilitadores hours export: one row per facilitador. */
 function exportFacilitadoresCsv(data: FacilitadoresHorasResponse) {
-  const monthHeaders = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-  ];
+  // Only export tracked months — pre-cutoff columns would be all-zeros and
+  // misleading. Indices are 0-based month indices for `data.year`.
+  const monthIdxs = trackedMonthIndicesForYear(data.year);
+  const monthHeaders = monthIdxs.map((i) => MONTH_LABELS_FULL[i]);
   const headers = [
     "Facilitador",
     ...monthHeaders,
@@ -239,7 +259,7 @@ function exportFacilitadoresCsv(data: FacilitadoresHorasResponse) {
     lines.push(
       [
         f.nombre,
-        ...f.horasPorMes,
+        ...monthIdxs.map((i) => f.horasPorMes[i]),
         f.totalCursos,
         f.totalHoras,
         f.totalMonto.toFixed(2),
@@ -326,11 +346,17 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
     if (estado) next.estadoId = estado;
     if (breach === "1") next.soloIncumplimientos = true;
     setFilterState(next);
-    setSelectedMes(
-      mes === "all" || (mes && /^\d{4}-\d{2}$/.test(mes))
-        ? mes
-        : defaultMesForYear(next.year),
-    );
+    // Clamp URL-provided month to a tracked one — pre-cutoff months are
+    // hidden, so landing on them would render an empty/invalid view.
+    let initMes: string;
+    if (mes === "all") {
+      initMes = "all";
+    } else if (mes && /^\d{4}-\d{2}$/.test(mes)) {
+      initMes = isMesTracked(mes) ? mes : defaultMesForYear(next.year);
+    } else {
+      initMes = defaultMesForYear(next.year);
+    }
+    setSelectedMes(initMes);
     if (vista?.startsWith("osi:")) {
       setDrilldown({ type: "osi", value: vista.slice(4) });
     } else if (vista && vista in DRILLDOWN_LABELS) {
@@ -454,9 +480,12 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
 
   // Years offered by the selector: whatever the server found, always
   // including the current year and the one currently selected (so the
-  // control never renders an empty/invalid value).
+  // control never renders an empty/invalid value). Pre-cutoff years are
+  // dropped — their data isn't tracked.
   const years = useMemo(() => {
-    const set = new Set<number>([CURRENT_YEAR, filterState.year]);
+    const set = new Set<number>();
+    if (CURRENT_YEAR >= INDICADORES_START_YEAR) set.add(CURRENT_YEAR);
+    if (filterState.year >= INDICADORES_START_YEAR) set.add(filterState.year);
     for (const y of gestion?.yearsDisponibles ?? []) set.add(y);
     return Array.from(set).sort((a, b) => b - a);
   }, [gestion?.yearsDisponibles, filterState.year]);
@@ -610,6 +639,11 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
                     Recibidas por fecha de emisión de la OSI · planificadas y
                     ejecutadas por fecha de sesión · certificados y carnets por
                     su propia fecha de emisión.
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Los datos confiables comienzan en Ago {INDICADORES_START_YEAR};
+                    los meses anteriores no se muestran porque el sistema de
+                    seguimiento aún no estaba en uso.
                   </p>
                 </div>
                 {gestionFromCache && (

@@ -17,6 +17,7 @@ import type {
   IndicadorOsiOption,
   IndicadoresFilterOptions,
 } from "@/types";
+import { trackedMonthIndicesForYear } from "@/lib/indicadores-cutoff";
 
 export interface IndicadoresFilterState {
   osiIds: number[];
@@ -43,11 +44,12 @@ const MONTH_LABELS = [
   "Diciembre",
 ];
 
-/** Build "YYYY-MM" → "Mes" option pairs for a given year. */
+/** Build "YYYY-MM" → "Mes" option pairs for a given year, filtered to
+ *  tracked months (pre-cutoff months are hidden — see indicadores-cutoff.ts). */
 function monthOptionsForYear(year: number): { value: string; label: string }[] {
-  return MONTH_LABELS.map((label, i) => ({
+  return trackedMonthIndicesForYear(year).map((i) => ({
     value: `${year}-${String(i + 1).padStart(2, "0")}`,
-    label,
+    label: MONTH_LABELS[i],
   }));
 }
 

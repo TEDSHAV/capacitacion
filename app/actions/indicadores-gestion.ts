@@ -9,6 +9,7 @@ import type {
 } from "@/types";
 import { OSI_ESTATUS } from "@/lib/sync/sync-osi-estatus";
 import { parseDate, toDateStr } from "@/lib/business-days";
+import { isMesTracked, trackedMonthIndicesForYear, INDICADORES_START_YEAR } from "@/lib/indicadores-cutoff";
 
 // Supabase caps un-ranged selects at 1000 rows, so every fetch here pages
 // explicitly. 50 pages = 50,000 rows, enough headroom for a full year while
@@ -334,10 +335,13 @@ export async function getIndicadoresGestionMensual(
     }, "carnets");
 
     // ── 7. Buckets ───────────────────────────────────────────────────────
+    // Only build buckets for tracked months. The seguimiento system went
+    // live in Ago 2026; months before that have no reliable session data, so
+    // they're hidden entirely (matrix columns, carry panel, facilitadores).
     const buckets = new Map<string, GestionMesIndicadores>();
     const meses: GestionMesIndicadores[] = [];
     const yearSuffix = String(year).slice(2);
-    for (let i = 0; i < 12; i++) {
+    for (const i of trackedMonthIndicesForYear(year)) {
       const key = `${year}-${String(i + 1).padStart(2, "0")}`;
       const bucket = emptyBucket(key, `${MONTH_LABELS[i]} ${yearSuffix}`);
       buckets.set(key, bucket);
@@ -365,6 +369,11 @@ export async function getIndicadoresGestionMensual(
       const mesPlanificado = monthKey(fechaPlanificadaInicio);
       const anioPlanificado = yearOf(fechaPlanificadaInicio);
       if (anioPlanificado != null) yearsSet.add(anioPlanificado);
+
+      // Skip OSIs whose planned month predates the tracking cutoff. Those
+      // legacy OSIs weren't followed through this app, so counting them as
+      // "rezagadas" / "arrastradas" in tracked months would be misleading.
+      if (!isMesTracked(mesPlanificado)) continue;
 
       // Execution date — only when EVERY session is marked as executed.
       // Legacy OSIs with no osi_sesion rows fall back to fecha_fin_real when
@@ -419,38 +428,34 @@ export async function getIndicadoresGestionMensual(
         if (b) b.osisRezagadasEjecutadas += 1;
       }
 
-      // Carry-over detail: only include OSIs with a planned month in the
-      // selected year (the matrix only shows that year, so the panel should
-      // too). OSIs planned in other years are still counted in the buckets
-      // above but excluded from the detail list to keep the payload small.
-      if (mesPlanificado && yearOf(fechaPlanificadaInicio) === year) {
-        const pendiente = !fechaEjecucionFinal;
-        const ultimaPlanificada =
-          agg?.maxFecha ?? o.fecha_inicio_real ?? o.fecha_fin_real ?? null;
-        const vencida =
-          pendiente && ultimaPlanificada != null && ultimaPlanificada < todayStr;
-        const diasAtraso =
-          vencida && ultimaPlanificada != null
-            ? Math.floor(
-                (new Date(todayStr).getTime() -
-                  parseDate(ultimaPlanificada).getTime()) /
-                  86_400_000,
-              )
-            : null;
-        osisList.push({
-          id: osiId,
-          nroOsi: o.nro_osi ?? "—",
-          empresa: o.nombre_empresa?.trim() || null,
-          mesPlanificado,
-          mesEjecucion: mesEjecucion,
-          ultimaFechaPlanificada: ultimaPlanificada,
-          pendiente,
-          vencida,
-          diasAtraso,
-          estatus: o.id_estatus != null
-            ? ESTATUS_LABELS[o.id_estatus] ?? String(o.id_estatus)
-            : "—",
-        });
+      // Carry-over detail: include OSIs planned in the selected year, OR
+      // planned in earlier years but still open (mesEjecucion null or >= year).
+      // This allows cross-year carry to be visible (e.g., Dic 2026 OSI dragging
+      // into Ene 2027). The panel filters by selectedMes at the client.
+      if (mesPlanificado) {
+        const anioPlanificado = yearOf(fechaPlanificadaInicio);
+        const anioEjecucion = mesEjecucion ? yearOf(mesEjecucion) : null;
+        const isInSelectedYear = anioPlanificado === year;
+        const isStillOpenInYear =
+          anioPlanificado != null &&
+          anioPlanificado < year &&
+          (mesEjecucion == null || (anioEjecucion != null && anioEjecucion >= year));
+
+        if (isInSelectedYear || isStillOpenInYear) {
+          const ultimaPlanificada =
+            agg?.maxFecha ?? o.fecha_inicio_real ?? o.fecha_fin_real ?? null;
+          osisList.push({
+            id: osiId,
+            nroOsi: o.nro_osi ?? "—",
+            empresa: o.nombre_empresa?.trim() || null,
+            mesPlanificado,
+            mesEjecucion: mesEjecucion,
+            ultimaFechaPlanificada: ultimaPlanificada,
+            estatus: o.id_estatus != null
+              ? ESTATUS_LABELS[o.id_estatus] ?? String(o.id_estatus)
+              : "—",
+          });
+        }
       }
     }
 
@@ -487,7 +492,9 @@ export async function getIndicadoresGestionMensual(
       total.pvc += m.pvc;
     }
 
-    const yearsDisponibles = Array.from(yearsSet).sort((a, b) => b - a);
+    const yearsDisponibles = Array.from(yearsSet)
+      .filter((y) => y >= INDICADORES_START_YEAR)
+      .sort((a, b) => b - a);
 
     return {
       data: { year, meses, total, yearsDisponibles, osisList },

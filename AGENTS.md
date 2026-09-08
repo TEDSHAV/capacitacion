@@ -275,6 +275,26 @@ instant. The shared `FilterBar.tsx` drives all views; the month selector and
 "Solo incumplimientos" toggle are hidden on the facilitadores tab (that view
 is year-scoped only).
 
+### Tracking cutoff (`lib/indicadores-cutoff.ts`)
+
+The seguimiento system went live in **Ago 2026**. Months before `2026-08`
+weren't tracked through this app, so the indicadores hide them entirely:
+
+- `indicadores-gestion.ts` only builds buckets for tracked months and skips
+  OSIs whose planned month is before the cutoff (so they don't pollute
+  tracked months as "rezagadas"/"arrastradas").
+- `indicadores-facilitadores.ts` skips sessions whose month is before the
+  cutoff.
+- `FilterBar.tsx` only offers tracked months in the selector; `IndicadoresClient.tsx`
+  clamps the default month and the year list.
+- `FacilitadorHorasTable.tsx` and both CSV exports render only tracked
+  months.
+
+The cutoff is an absolute constant (`INDICADORES_START_MES = "2026-08"`),
+not "August of the selected year", so 2027+ isn't wrongly truncated. Change
+the single constant in `lib/indicadores-cutoff.ts` when the cutoff no
+longer applies.
+
 ### View 1 — Gestión Mensual OSIs (managerial monthly flow)
 
 Server action: `getIndicadoresGestionMensual` in `app/actions/indicadores-gestion.ts`.
@@ -303,12 +323,32 @@ table already shows all the same data per month.
 ### Carry-over panel
 
 The action also returns `osisList: OsiCarryRow[]` — one entry per OSI planned
-in the selected year, with its planned month, execution month, pending/vencida
-flags, and days overdue. The client-side `CarryPanel.tsx` groups these into
-three populations for the selected month without a second server fetch:
-- **Arrastradas de meses anteriores** — planned before the selected month, still pending
-- **Pasarán al próximo mes** — planned for the selected month, still pending
-- **Rezagadas ejecutadas este mes** — planned earlier, executed during this month
+in the selected year (or still open from prior years), with raw facts only:
+planned month, execution month (if any), and status. The client-side
+`CarryPanel.tsx` groups these into three mutually-exclusive populations for
+the selected month without a second server fetch:
+
+| Bucket | Condition |
+|---|---|
+| **Arrastradas de meses anteriores** | Planned before the selected month AND (not executed OR executed after the selected month) |
+| **Pasarán al próximo mes** | Planned for the selected month AND (not executed OR executed after the selected month) |
+| **Rezagadas ejecutadas este mes** | Planned before the selected month AND executed during the selected month |
+
+These are provably disjoint: *arrastradas* and *rezagadas* share "planned before"
+but differ on execution; *pasarán* is the only bucket with "planned in selected month".
+
+Days overdue (`diasAtraso`) are computed locally relative to the end of the
+selected month, so past months show delays as they stood then rather than
+growing toward today.
+
+#### Notes / Observations
+
+Each OSI row has a "Notas" column (💬 icon) that opens `OsiNotasModal.tsx`.
+This is an append-only log (`capacitacion_osi_notas` table) where users can
+document why an OSI slipped, delays, or other contextual information. Notes
+are fetched once per panel render for all OSIs, so all three tabs share the
+data. Each note shows the author name (resolved via `usuarios.id_auth`) and
+a relative timestamp. Authenticated users can add or delete notes.
 
 Each row links to `/dashboard/capacitacion/gestion-osi?id={osiId}`.
 
