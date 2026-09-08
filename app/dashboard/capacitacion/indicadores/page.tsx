@@ -20,5 +20,11 @@ export default async function IndicadoresPage() {
     redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
   }
 
-  return <IndicadoresClient user={user} filterOptions={filterOptions} />;
+  return (
+    <IndicadoresClient
+      user={user}
+      filterOptions={filterOptions}
+      shellUrl={process.env.NEXT_PUBLIC_SHELL_URL || ""}
+    />
+  );
 }

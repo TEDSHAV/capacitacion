@@ -22,6 +22,8 @@ interface Props {
   selectedMes: string;
   /** Display label for the selected month, e.g. "Ago 26". */
   selectedMesLabel: string;
+  /** URL of the shell app for linking to consulta-osi. */
+  shellUrl: string;
 }
 
 type Population = "arrastradas" | "pasaran" | "rezagadas";
@@ -77,6 +79,7 @@ export default function CarryPanel({
   osisList,
   selectedMes,
   selectedMesLabel,
+  shellUrl,
 }: Props) {
   const [open, setOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<Population>("arrastradas");
@@ -309,7 +312,7 @@ export default function CarryPanel({
                             </td>
                             <td className="py-2">
                               <a
-                                href={`${process.env.NEXT_PUBLIC_SHELL_URL}/consulta-osi?nro_osi=${encodeURIComponent(o.nroOsi)}`}
+                                href={`${shellUrl}/consulta-osi?nro_osi=${encodeURIComponent(o.nroOsi)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-700"

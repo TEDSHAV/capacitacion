@@ -36,6 +36,7 @@ import IndicadoresTable from "./components/IndicadoresTable";
 interface Props {
   user: { id?: string } | null;
   filterOptions: IndicadoresFilterOptions;
+  shellUrl: string;
 }
 
 type IndicadorTab = "gestion" | "72h" | "facilitadores";
@@ -282,7 +283,7 @@ const DRILLDOWN_LABELS: Record<IndicadorEstado, string> = {
   no_aplica: "No aplica",
 };
 
-export default function IndicadoresClient({ user: _user, filterOptions }: Props) {
+export default function IndicadoresClient({ user: _user, filterOptions, shellUrl }: Props) {
   void _user;
   const searchParams = useSearchParams();
   const isOnline = useOnlineStatus();
@@ -679,6 +680,7 @@ export default function IndicadoresClient({ user: _user, filterOptions }: Props)
                       osisList={gestion.osisList}
                       selectedMes={mesActual.mes}
                       selectedMesLabel={mesActual.label}
+                      shellUrl={shellUrl}
                     />
                   </>
                 )}
