@@ -34,6 +34,11 @@ import {
   CLASIFICACION_REEVALUACION,
 } from "@/lib/evaluacion-facilitadores-criteria";
 import {
+  computeGestionPct,
+  computeReevaluacionTotal,
+  classifyReevaluacionCondicion,
+} from "@/app/actions/evaluacion-facilitadores-scoring";
+import {
   generateBarChartPng,
   generateDoughnutPng,
   generateComplianceDoughnutPng,
@@ -214,6 +219,14 @@ interface CellSpec {
   bold?: boolean;
 }
 
+function cleanPdfText(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/[—–]/g, "-")
+    .replace(/≥/g, ">=")
+    .replace(/≤/g, "<=");
+}
+
 function drawTableRow(
   pdf: jsPDF,
   y: number,
@@ -229,7 +242,7 @@ function drawTableRow(
   const wrappedCells = cells.map((cell) => {
     pdf.setFont("helvetica", cell.bold || isHeader ? "bold" : "normal");
     const maxTextWidth = cell.width - cellPadding * 2;
-    const lines = pdf.splitTextToSize(String(cell.text || ""), maxTextWidth);
+    const lines = pdf.splitTextToSize(cleanPdfText(String(cell.text || "")), maxTextWidth);
     return { ...cell, lines };
   });
 
@@ -327,15 +340,75 @@ function drawLabelValue(
   pdf.setFontSize(FONT_SIZE_SMALL);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
-  pdf.text(label, MARGIN_X + 1.5, y + 3.5);
+  pdf.text(cleanPdfText(label), MARGIN_X + 1.5, y + 3.5);
   // Value cell
   pdf.setFillColor(255, 255, 255);
   pdf.rect(MARGIN_X + labelWidth, y, valueWidth, 5, "S");
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(55, 65, 81);
-  const truncatedValue = pdf.splitTextToSize(value || "—", valueWidth - 3);
-  pdf.text(truncatedValue[0] || "—", MARGIN_X + labelWidth + 1.5, y + 3.5);
+  const truncatedValue = pdf.splitTextToSize(cleanPdfText(value || "-"), valueWidth - 3);
+  pdf.text(truncatedValue[0] || "-", MARGIN_X + labelWidth + 1.5, y + 3.5);
   return y + 5;
+}
+
+// ─── Helper: draw vector horizontal bar chart natively in jsPDF ─────────────
+
+function drawVectorBarChart(
+  pdf: jsPDF,
+  startX: number,
+  startY: number,
+  width: number,
+  title: string,
+  items: { label: string; value: number; max: number; color?: readonly [number, number, number] }[],
+  scaleMax?: number,
+): number {
+  let y = startY;
+  // Title
+  pdf.setFontSize(FONT_SIZE_SECTION);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
+  pdf.text(cleanPdfText(title), startX, y);
+  y += 5;
+
+  const labelW = 46;
+  const valW = 20;
+  const barW = width - labelW - valW - 4;
+  const barH = 3.6;
+  const gap = 3.2;
+  const maxVal = scaleMax || Math.max(...items.map((i) => i.max), 1);
+
+  for (const item of items) {
+    y = ensureSpace(pdf, y, barH + gap);
+    // Label on left
+    pdf.setFontSize(6.5);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(55, 65, 81);
+    const splitLabel = pdf.splitTextToSize(cleanPdfText(item.label), labelW - 2);
+    pdf.text(splitLabel[0] || item.label, startX, y + barH - 0.8);
+
+    // Track
+    const trackX = startX + labelW;
+    pdf.setFillColor(COLOR_LIGHT_GRAY[0], COLOR_LIGHT_GRAY[1], COLOR_LIGHT_GRAY[2]);
+    pdf.roundedRect(trackX, y, barW, barH, 0.8, 0.8, "F");
+
+    // Filled bar
+    const filledW = Math.max(0, Math.min(barW, (item.value / maxVal) * barW));
+    if (filledW > 0) {
+      const color = item.color || COLOR_DARK;
+      pdf.setFillColor(color[0], color[1], color[2]);
+      pdf.roundedRect(trackX, y, filledW, barH, 0.8, 0.8, "F");
+    }
+
+    // Value text on right
+    pdf.setFontSize(6.5);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(55, 65, 81);
+    const valText = `${item.value.toFixed(1)} / ${item.max.toFixed(0)}`;
+    pdf.text(valText, trackX + barW + 2, y + barH - 0.8);
+
+    y += barH + gap;
+  }
+  return y + 2;
 }
 
 // ─── Helper: embed an image (PNG data URL) preserving aspect ratio ───────────
@@ -387,14 +460,14 @@ export async function generateEvaluacionFacilitadorPdf(
   y = drawSectionHeading(pdf, y, "DATOS DEL FACILITADOR");
   const labelW = 50;
   const valueW = CONTENT_W - labelW;
-  y = drawLabelValue(pdf, y, "Nombre y Apellido", toTitleCase(data.facilitador_nombre || "—"), labelW, valueW);
-  y = drawLabelValue(pdf, y, "Cédula de Identidad", data.facilitador_cedula || "—", labelW, valueW);
-  y = drawLabelValue(pdf, y, "RIF", data.facilitador_rif || "—", labelW, valueW);
-  y = drawLabelValue(pdf, y, "Tipo de Proveedor", data.tipo_proveedor || "—", labelW, valueW);
-  y = drawLabelValue(pdf, y, "Entrevista", data.entrevista || "—", labelW, valueW);
-  y = drawLabelValue(pdf, y, "Evaluador", data.evaluador_nombre || "—", labelW, valueW);
-  y = drawLabelValue(pdf, y, "Cargo del Evaluador", data.evaluador_cargo || "—", labelW, valueW);
-  y = drawLabelValue(pdf, y, "Recomendado Por", data.recomendado_por || "—", labelW, valueW);
+  y = drawLabelValue(pdf, y, "Nombre y Apellido", toTitleCase(data.facilitador_nombre || "-"), labelW, valueW);
+  y = drawLabelValue(pdf, y, "Cédula de Identidad", data.facilitador_cedula || "-", labelW, valueW);
+  y = drawLabelValue(pdf, y, "RIF", data.facilitador_rif || "-", labelW, valueW);
+  y = drawLabelValue(pdf, y, "Tipo de Proveedor", data.tipo_proveedor || "-", labelW, valueW);
+  y = drawLabelValue(pdf, y, "Entrevista", data.entrevista || "-", labelW, valueW);
+  y = drawLabelValue(pdf, y, "Evaluador", data.evaluador_nombre || "-", labelW, valueW);
+  y = drawLabelValue(pdf, y, "Cargo del Evaluador", data.evaluador_cargo || "-", labelW, valueW);
+  y = drawLabelValue(pdf, y, "Recomendado Por", data.recomendado_por || "-", labelW, valueW);
   y = drawLabelValue(pdf, y, "Tipo de Evaluación", getTipoLabel(data.tipo_evaluacion), labelW, valueW);
   y = drawLabelValue(pdf, y, "Fecha de Evaluación", formatDate(data.fecha_evaluacion), labelW, valueW);
   y += 4;
@@ -403,7 +476,7 @@ export async function generateEvaluacionFacilitadorPdf(
   y = drawSectionHeading(
     pdf,
     y,
-    "VERIFICACIÓN INICIAL — ASPECTOS A EVALUAR",
+    "VERIFICACIÓN INICIAL - ASPECTOS A EVALUAR",
   );
   y = ensureSpace(pdf, y, 5);
   pdf.setFontSize(FONT_SIZE_SMALL);
@@ -518,28 +591,26 @@ export async function generateEvaluacionFacilitadorPdf(
   pdf.setFontSize(FONT_SIZE);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
-  pdf.text("Resultados Visuales — Verificación Inicial", MARGIN_X, y);
+  pdf.text("Resultados Visuales - Verificación Inicial", MARGIN_X, y);
   y += 4;
 
   // Bar chart (left half) + Doughnut (right half)
   const chartW = CONTENT_W * 0.58;
   const doughnutW = CONTENT_W * 0.38;
   const chartH = 55;
-  const barImg = await generateBarChartPng(
+
+  const barEndY = drawVectorBarChart(
+    pdf,
+    MARGIN_X,
+    y,
+    chartW,
+    "Puntaje por Criterio",
     sectionScores.map((s, i) => ({
       ...s,
-      color: i % 2 === 0 ? "#0c3f69" : "#3b82f6",
+      color: i % 2 === 0 ? COLOR_DARK : ([59, 130, 246] as const),
     })),
-    {
-      width: 780,
-      height: 400,
-      title: "Puntaje por Sección",
-      scaleMax: Math.max(...sectionScores.map((s) => s.max), 5),
-      showValues: true,
-    },
-    `bar_phase1_${data.id || "new"}`,
+    Math.max(...sectionScores.map((s) => s.max), 5),
   );
-  embedImage(pdf, barImg, MARGIN_X, y, chartW, chartH);
 
   // Compliance doughnut (right)
   const compliancePct = totalPuntos / maxPuntos;
@@ -551,7 +622,7 @@ export async function generateEvaluacionFacilitadorPdf(
   }, `doughnut_phase1_${data.id || "new"}`);
   embedImage(pdf, doughnutImg, MARGIN_X + chartW + 4, y, doughnutW, chartH);
 
-  y += chartH + 6;
+  y = Math.max(barEndY, y + chartH) + 6;
 
   // Classification table
   y = ensureSpace(pdf, y, 6);
@@ -596,12 +667,40 @@ export async function generateEvaluacionFacilitadorPdf(
     y = drawTextField(pdf, y, "Observaciones de la Verificación Inicial", data.observaciones);
   }
 
-  // ─── Phase 2: Seguimiento ───
-  if (data.tipo_evaluacion === "seguimiento" && data.fase_seguimiento) {
-    y = drawSectionHeading(pdf, y, "EVALUACIÓN DE SEGUIMIENTO");
-    const fs = data.fase_seguimiento as FaseSeguimiento;
+  // ─── Reevaluación del Facilitador (Unified) ───
+  let avgTotal = 0;
+  if (data.tipo_evaluacion === "reevaluacion" || data.tipo_evaluacion === "seguimiento") {
+    y = drawSectionHeading(pdf, y, "REEVALUACIÓN DEL FACILITADOR");
+    const fr = (data.fase_reevaluacion || data.fase_seguimiento || {}) as FaseReevaluacion & FaseSeguimiento;
+    const osis = fr.osis || [];
 
-    // Gestión items table
+    // Description text per RG-CAP-004
+    y = ensureSpace(pdf, y, 16);
+    pdf.setFontSize(FONT_SIZE_SMALL);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(COLOR_GRAY[0], COLOR_GRAY[1], COLOR_GRAY[2]);
+    const introLines = [
+      "La reevaluación del facilitador se estructura bajo los siguientes criterios (SHA-IT-CAP-001):",
+      "1. Verificación del cumplimiento de la documentación inicial (representa el 40 %).",
+      "2. Resultados de las encuestas de satisfacción aplicadas en cada actividad (representa el 40 %).",
+      "3. Gestión de actividades y compromiso con la organización (representa el 20 %).",
+    ];
+    for (const line of introLines) {
+      pdf.text(line, MARGIN_X, y);
+      y += 3.5;
+    }
+    y += 2;
+
+    // Component percentages
+    const docsPct = fr.docs_iniciales_pct ?? (totalPuntos / maxPuntos) * 0.4;
+    const encPct = fr.encuestas_pct ?? 0;
+    const gestionItems = fr.gestion_actividades?.items || [0, 0, 0, 0, 0, 0];
+    const gestPct = computeGestionPct(gestionItems);
+    avgTotal = osis.length > 0
+      ? computeReevaluacionTotal(fr)
+      : (fr.total_pct ?? (docsPct * 0.4 + encPct * 0.4 + gestPct * 0.2));
+
+    // 1. Gestión items table (6 items, 1-5 scale)
     y = ensureSpace(pdf, y, 6);
     pdf.setFontSize(FONT_SIZE);
     pdf.setFont("helvetica", "bold");
@@ -609,144 +708,48 @@ export async function generateEvaluacionFacilitadorPdf(
     pdf.text("Gestión de Actividades y Compromiso (escala 1-5)", MARGIN_X, y);
     y += 4;
 
-    const gCol1 = CONTENT_W * 0.8;
-    const gCol2 = CONTENT_W * 0.2;
+    const gCol1 = CONTENT_W * 0.82;
+    const gCol2 = CONTENT_W * 0.18;
     y = drawTableRow(pdf, y, [
-      { text: "Aspecto", width: gCol1 },
-      { text: "Puntos", width: gCol2, align: "center" },
+      { text: "Aspecto a Evaluar", width: gCol1 },
+      { text: "Puntos (1-5)", width: gCol2, align: "center" },
     ], true);
 
-    const items = fs.gestion_actividades?.items || [0, 0, 0, 0, 0, 0];
     for (let i = 0; i < GESTION_ITEMS.length; i++) {
       y = ensureSpace(pdf, y, 5);
       y = drawTableRow(pdf, y, [
         { text: GESTION_ITEMS[i].label, width: gCol1 },
-        { text: String(items[i] || 0), width: gCol2, align: "center" },
+        { text: String(gestionItems[i] || 0), width: gCol2, align: "center" },
       ], false);
     }
-    // Total row
-    const gestionTotal = items.reduce((s, v) => s + (v || 0), 0);
+    const gestionTotal = gestionItems.reduce((s, v) => s + (v || 0), 0);
     y = ensureSpace(pdf, y, 5);
     y = drawTableRow(pdf, y, [
-      { text: "TOTAL", width: gCol1, bold: true },
-      { text: String(gestionTotal), width: gCol2, align: "center", bold: true },
+      { text: "TOTAL GESTIÓN (sobre 30 pts)", width: gCol1, bold: true },
+      { text: `${gestionTotal} / 30 (${(gestPct * 100).toFixed(1)}%)`, width: gCol2, align: "center", bold: true },
     ], false);
     y += 4;
 
-    // Resultados finales
-    y = ensureSpace(pdf, y, 12);
-    pdf.setFontSize(FONT_SIZE);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
-    pdf.text("Resultados Finales", MARGIN_X, y);
-    y += 4;
-
-    const docsPct = fs.docs_iniciales_pct ?? 0;
-    const encPct = fs.encuestas_pct ?? 0;
-    const gestPct = fs.gestion_actividades?.pct ?? 0;
-    const totalPct = fs.total_pct ?? docsPct * 0.4 + encPct * 0.4 + gestPct * 0.2;
-
-    y = drawLabelValue(pdf, y, "Documentación Inicial (40%)", `${(docsPct * 100).toFixed(1)}%`, 70, CONTENT_W - 70);
-    y = drawLabelValue(pdf, y, "Encuestas de Satisfacción (40%)", `${(encPct * 100).toFixed(1)}%`, 70, CONTENT_W - 70);
-    y = drawLabelValue(pdf, y, "Gestión de Actividades (20%)", `${(gestPct * 100).toFixed(1)}%`, 70, CONTENT_W - 70);
-    y = ensureSpace(pdf, y, 6);
-    pdf.setFillColor(COLOR_VIOLET[0], COLOR_VIOLET[1], COLOR_VIOLET[2]);
-    pdf.rect(MARGIN_X, y, CONTENT_W, 6, "F");
-    pdf.setFontSize(FONT_SIZE_SECTION);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(255, 255, 255);
-    pdf.text("TOTAL DE EVALUACIÓN DE SEGUIMIENTO", MARGIN_X + 2, y + 4);
-    pdf.text(`${(totalPct * 100).toFixed(1)}%`, PAGE_W - MARGIN_X - 2, y + 4, {
-      align: "right",
-    });
-    y += 8;
-
-    // ─── Phase 2 Charts: 3 small doughnuts + 1 large ───
-    y = ensureSpace(pdf, y, 50);
-    pdf.setFontSize(FONT_SIZE);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
-    pdf.text("Resultados Visuales — Seguimiento", MARGIN_X, y);
-    y += 4;
-
-    const smallDoughnutW = (CONTENT_W - 12) / 3;
-    const smallDoughnutH = 42;
-
-    // Docs doughnut
-    const docsImg = await generateComplianceDoughnutPng(docsPct, {
-      width: 250, height: 250,
-      title: "Requisitos Iniciales (40%)",
-    }, `doughnut_p2_docs_${data.id || "new"}`);
-    embedImage(pdf, docsImg, MARGIN_X, y, smallDoughnutW, smallDoughnutH);
-
-    // Encuestas doughnut
-    const encImg = await generateComplianceDoughnutPng(encPct, {
-      width: 250, height: 250,
-      title: "Encuesta de Satisfacción (40%)",
-    }, `doughnut_p2_enc_${data.id || "new"}`);
-    embedImage(pdf, encImg, MARGIN_X + smallDoughnutW + 6, y, smallDoughnutW, smallDoughnutH);
-
-    // Gestión doughnut
-    const gestImg = await generateComplianceDoughnutPng(gestPct, {
-      width: 250, height: 250,
-      title: "Gestión de Actividades (20%)",
-    }, `doughnut_p2_gest_${data.id || "new"}`);
-    embedImage(pdf, gestImg, MARGIN_X + (smallDoughnutW + 6) * 2, y, smallDoughnutW, smallDoughnutH);
-
-    y += smallDoughnutH + 4;
-
-    // Total doughnut (centered, larger)
-    y = ensureSpace(pdf, y, 50);
-    const totalImg = await generateComplianceDoughnutPng(totalPct, {
-      width: 300, height: 300,
-      title: "Resultado de Evaluación de Seguimiento",
-      centerSubtext: "Total",
-    }, `doughnut_p2_total_${data.id || "new"}`);
-    embedImage(pdf, totalImg, MARGIN_X + (CONTENT_W - 45) / 2, y, 45, 45);
-    y += 50;
-
-    // Text fields
-    if (fs.observaciones) {
-      y = drawTextField(pdf, y, "Observaciones", fs.observaciones);
-    }
-    if (fs.oportunidades_mejora) {
-      y = drawTextField(pdf, y, "Oportunidades de Mejora", fs.oportunidades_mejora);
-    }
-    if (fs.metodologias) {
-      y = drawTextField(pdf, y, "Metodologías Complementarias", fs.metodologias);
-    }
-  }
-
-  // ─── Phase 3: Reevaluación ───
-  let avgTotal = 0;
-  if (data.tipo_evaluacion === "reevaluacion" && data.fase_reevaluacion) {
-    y = drawSectionHeading(pdf, y, "REEVALUACIÓN DEL FACILITADOR");
-    const fr = data.fase_reevaluacion as FaseReevaluacion;
-    const osis = fr.osis || [];
-
+    // 2. Component Results or Multi-OSI matrix
     if (osis.length > 0) {
-      // Table: Componente | OSI 1 | OSI 2 | OSI 3 | Resultado
+      y = ensureSpace(pdf, y, 20);
+      pdf.setFontSize(FONT_SIZE);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
+      pdf.text("Matriz de Reevaluación por Actividad / OSI", MARGIN_X, y);
+      y += 4;
+
       const numOsis = osis.length;
-      const compW = CONTENT_W * 0.3;
-      const osiW = (CONTENT_W * 0.5) / Math.max(numOsis, 1);
+      const compW = CONTENT_W * 0.32;
+      const osiW = (CONTENT_W * 0.48) / Math.max(numOsis, 1);
       const resW = CONTENT_W * 0.2;
 
-      const headers: CellSpec[] = [
-        { text: "Componente", width: compW },
-      ];
+      const headers: CellSpec[] = [{ text: "Componente", width: compW }];
       for (let i = 0; i < numOsis; i++) {
-        headers.push({ text: `N° OSI`, width: osiW, align: "center" });
+        headers.push({ text: `OSI ${osis[i].nro_osi || i + 1}`, width: osiW, align: "center" });
       }
-      headers.push({ text: "Resultado", width: resW, align: "center" });
+      headers.push({ text: "Promedio", width: resW, align: "center" });
       y = drawTableRow(pdf, y, headers, true);
-
-      // OSI numbers row
-      const osiNumRow: CellSpec[] = [{ text: "N° OSI", width: compW, bold: true }];
-      for (const o of osis) {
-        osiNumRow.push({ text: o.nro_osi || "—", width: osiW, align: "center" });
-      }
-      osiNumRow.push({ text: "—", width: resW, align: "center" });
-      y = drawTableRow(pdf, y, osiNumRow, false);
 
       // Data rows
       const rowData = [
@@ -757,14 +760,17 @@ export async function generateEvaluacionFacilitadorPdf(
       for (const row of rowData) {
         y = ensureSpace(pdf, y, 5);
         const cells: CellSpec[] = [{ text: row.label, width: compW }];
+        let rowSum = 0;
         for (const o of osis) {
+          const val = (o[row.key] as number) || 0;
+          rowSum += val;
           cells.push({
-            text: `${(((o[row.key] as number) || 0) * 100).toFixed(1)}%`,
+            text: `${(val * 100).toFixed(1)}%`,
             width: osiW,
             align: "center",
           });
         }
-        cells.push({ text: "—", width: resW, align: "center" });
+        cells.push({ text: `${((rowSum / osis.length) * 100).toFixed(1)}%`, width: resW, align: "center", bold: true });
         y = drawTableRow(pdf, y, cells, false);
       }
 
@@ -779,99 +785,141 @@ export async function generateEvaluacionFacilitadorPdf(
           bold: true,
         });
       }
-      avgTotal = osis.reduce((s, o) => s + (o.total || 0), 0) / osis.length;
       totalCells.push({
-        text: `Prom: ${(avgTotal * 100).toFixed(1)}%`,
+        text: `${(avgTotal * 100).toFixed(1)}%`,
         width: resW,
         align: "center",
         bold: true,
       });
       y = drawTableRow(pdf, y, totalCells, false);
       y += 4;
-
-      // ─── Phase 3 Charts ───
-      y = ensureSpace(pdf, y, 60);
+    } else {
+      // Single evaluation component summary
+      y = ensureSpace(pdf, y, 12);
       pdf.setFontSize(FONT_SIZE);
       pdf.setFont("helvetica", "bold");
       pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
-      pdf.text("Resultados Visuales — Reevaluación", MARGIN_X, y);
+      pdf.text("Resultados por Componente", MARGIN_X, y);
       y += 4;
 
-      // Bar chart: per-OSI total %
+      y = drawLabelValue(pdf, y, "Documentación Inicial (40%)", `${(docsPct * 100).toFixed(1)}%`, 70, CONTENT_W - 70);
+      y = drawLabelValue(pdf, y, "Encuestas de Satisfacción (40%)", `${(encPct * 100).toFixed(1)}%`, 70, CONTENT_W - 70);
+      y = drawLabelValue(pdf, y, "Gestión de Actividades (20%)", `${(gestPct * 100).toFixed(1)}%`, 70, CONTENT_W - 70);
+    }
+
+    // Total Banner
+    y = ensureSpace(pdf, y, 8);
+    pdf.setFillColor(COLOR_VIOLET[0], COLOR_VIOLET[1], COLOR_VIOLET[2]);
+    pdf.rect(MARGIN_X, y, CONTENT_W, 6, "F");
+    pdf.setFontSize(FONT_SIZE_SECTION);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(255, 255, 255);
+    pdf.text("TOTAL DE REEVALUACIÓN DEL FACILITADOR", MARGIN_X + 2, y + 4);
+    pdf.text(`${(avgTotal * 100).toFixed(1)}%`, PAGE_W - MARGIN_X - 2, y + 4, { align: "right" });
+    y += 8;
+
+    // Visual results: 3 small doughnuts (Docs, Encuestas, Gestión)
+    y = ensureSpace(pdf, y, 48);
+    pdf.setFontSize(FONT_SIZE);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
+    pdf.text("Resultados Visuales - Reevaluación", MARGIN_X, y);
+    y += 4;
+
+    const smallDoughnutW = (CONTENT_W - 12) / 3;
+    const smallDoughnutH = 40;
+
+    const docsImg = await generateComplianceDoughnutPng(docsPct, {
+      width: 250, height: 250,
+      title: "Documentación Inicial (40%)",
+    }, `doughnut_reev_docs_${data.id || "new"}`);
+    embedImage(pdf, docsImg, MARGIN_X, y, smallDoughnutW, smallDoughnutH);
+
+    const encImg = await generateComplianceDoughnutPng(encPct, {
+      width: 250, height: 250,
+      title: "Encuesta Satisfacción (40%)",
+    }, `doughnut_reev_enc_${data.id || "new"}`);
+    embedImage(pdf, encImg, MARGIN_X + smallDoughnutW + 6, y, smallDoughnutW, smallDoughnutH);
+
+    const gestImg = await generateComplianceDoughnutPng(gestPct, {
+      width: 250, height: 250,
+      title: "Gestión Actividades (20%)",
+    }, `doughnut_reev_gest_${data.id || "new"}`);
+    embedImage(pdf, gestImg, MARGIN_X + (smallDoughnutW + 6) * 2, y, smallDoughnutW, smallDoughnutH);
+
+    y += smallDoughnutH + 6;
+
+    // If multiple OSIs, also show vector bar chart of OSIs
+    if (osis.length > 0) {
+      y = ensureSpace(pdf, y, 40);
       const osiBarData = osis.map((o, i) => ({
-        label: `OSI ${o.nro_osi || (i + 1)}`,
+        label: `OSI ${o.nro_osi || i + 1}`,
         value: (o.total || 0) * 100,
         max: 100,
-        color: i % 2 === 0 ? "#0c3f69" : "#3b82f6",
+        color: i % 2 === 0 ? COLOR_DARK : ([59, 130, 246] as const),
       }));
-      const p3BarW = CONTENT_W * 0.58;
-      const p3DoughnutW = CONTENT_W * 0.38;
-      const p3ChartH = 50;
-
-      const p3BarImg = await generateBarChartPng(osiBarData, {
-        width: 720, height: 350,
-        title: "Total por OSI (%)",
-        scaleMax: 100,
-        showValues: true,
-      }, `bar_phase3_${data.id || "new"}`);
-      embedImage(pdf, p3BarImg, MARGIN_X, y, p3BarW, p3ChartH);
-
-      // Compliance doughnut: average
-      const p3DoughnutImg = await generateComplianceDoughnutPng(avgTotal, {
-        width: 300, height: 300,
-        title: "Cumplimiento Promedio",
-        centerSubtext: "Reevaluación",
-      }, `doughnut_phase3_${data.id || "new"}`);
-      embedImage(pdf, p3DoughnutImg, MARGIN_X + p3BarW + 4, y, p3DoughnutW, p3ChartH);
-
-      y += p3ChartH + 6;
-
-      // Classification
-      y = ensureSpace(pdf, y, 6);
-      pdf.setFontSize(FONT_SIZE);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
-      pdf.text("Tabla de Clasificación de los Resultados de la Reevaluación", MARGIN_X, y);
-      y += 4;
-
-      y = drawTableRow(pdf, y, [
-        { text: "Rango de Calificación", width: clsCol1 },
-        { text: "Resultado", width: clsCol2 },
-        { text: "Descripción", width: clsCol3 },
-      ], true);
-
-      for (const row of CLASIFICACION_REEVALUACION) {
-        const isMatch =
-          (avgTotal >= 0.8 && row.resultado === "ACEPTABLE") ||
-          (avgTotal < 0.8 && row.resultado === "NO ACEPTABLE");
-        if (isMatch) {
-          pdf.setFillColor(254, 243, 199); // amber-100
-          pdf.rect(MARGIN_X, y, CONTENT_W, 5, "F");
-        }
-        y = drawTableRow(pdf, y, [
-          { text: row.rango, width: clsCol1, bold: isMatch },
-          { text: row.resultado, width: clsCol2, bold: isMatch },
-          { text: row.descripcion, width: clsCol3 },
-        ], false);
-      }
-      y += 4;
-
-      // Condición final
-      y = drawLabelValue(
+      y = drawVectorBarChart(
         pdf,
+        MARGIN_X,
         y,
-        "Condición después de la Reevaluación",
-        fr.condicion === "aprobado"
-          ? "APROBADO"
-          : fr.condicion === "aprobado_supervision"
-            ? "APROBADO BAJO SUPERVISIÓN"
-            : fr.condicion === "no_aprobado"
-              ? "NO APROBADO"
-              : "—",
-        70,
-        CONTENT_W - 70,
+        CONTENT_W,
+        "Total por OSI (%)",
+        osiBarData,
+        100,
       );
+      y += 4;
     }
+
+    // Classification table (>= 80% Aceptable, < 80% No Aceptable)
+    y = ensureSpace(pdf, y, 6);
+    pdf.setFontSize(FONT_SIZE);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
+    pdf.text("Tabla de Clasificación de los Resultados de la Reevaluación", MARGIN_X, y);
+    y += 4;
+
+    const clsCol1 = CONTENT_W * 0.25;
+    const clsCol2 = CONTENT_W * 0.25;
+    const clsCol3 = CONTENT_W * 0.5;
+    y = drawTableRow(pdf, y, [
+      { text: "Rango de Calificación", width: clsCol1 },
+      { text: "Resultado", width: clsCol2 },
+      { text: "Descripción", width: clsCol3 },
+    ], true);
+
+    for (const row of CLASIFICACION_REEVALUACION) {
+      const isMatch =
+        (avgTotal >= 0.8 && row.resultado === "ACEPTABLE") ||
+        (avgTotal < 0.8 && row.resultado === "NO ACEPTABLE");
+      if (isMatch) {
+        pdf.setFillColor(254, 243, 199);
+        pdf.rect(MARGIN_X, y, CONTENT_W, 5, "F");
+      }
+      y = drawTableRow(pdf, y, [
+        { text: row.rango, width: clsCol1, bold: isMatch },
+        { text: row.resultado, width: clsCol2, bold: isMatch },
+        { text: row.descripcion, width: clsCol3 },
+      ], false);
+    }
+    y += 4;
+
+    // Condición después de la reevaluación (>=90% Aprobado, >=80% Aprobado bajo supervisión, <80% No aprobado)
+    const condicionReev = fr.condicion || classifyReevaluacionCondicion(avgTotal);
+    const condLabel =
+      condicionReev === "aprobado"
+        ? "APROBADO"
+        : condicionReev === "aprobado_supervision"
+          ? "APROBADO BAJO SUPERVISIÓN"
+          : "NO APROBADO";
+    y = drawLabelValue(pdf, y, "Condición después de la Reevaluación", condLabel, 70, CONTENT_W - 70);
+
+    // Qualitative notes
+    const obs = fr.observaciones;
+    const oport = fr.oportunidades_mejora;
+    const metod = fr.metodologias;
+    if (obs) y = drawTextField(pdf, y, "Observaciones", obs);
+    if (oport) y = drawTextField(pdf, y, "Oportunidades de Mejora", oport);
+    if (metod) y = drawTextField(pdf, y, "Metodologías Complementarias", metod);
   }
 
   // ─── Summary Dashboard Page ───
@@ -894,15 +942,12 @@ export async function generateEvaluacionFacilitadorPdf(
     const cond = classifyInicial(totalPuntos);
     overallLabel = cond === "aprobado" ? "APROBADO" : cond === "aprobado_supervision" ? "APROBADO BAJO SUPERVISIÓN" : "NO APROBADO";
     overallColor = cond === "aprobado" ? COLOR_GREEN : cond === "aprobado_supervision" ? COLOR_AMBER : COLOR_RED;
-  } else if (data.tipo_evaluacion === "seguimiento" && data.fase_seguimiento) {
-    const fs = data.fase_seguimiento as FaseSeguimiento;
-    overallPct = fs.total_pct ?? 0;
-    overallLabel = overallPct >= 0.8 ? "SATISFACTORIO" : "REQUIERE MEJORA";
-    overallColor = overallPct >= 0.8 ? COLOR_GREEN : COLOR_AMBER;
-  } else if (data.tipo_evaluacion === "reevaluacion") {
+  } else {
+    // Reevaluación (or legacy seguimiento)
     overallPct = avgTotal;
-    overallLabel = overallPct >= 0.8 ? "ACEPTABLE" : "NO ACEPTABLE";
-    overallColor = overallPct >= 0.8 ? COLOR_GREEN : COLOR_RED;
+    const cond = classifyReevaluacionCondicion(overallPct);
+    overallLabel = cond === "aprobado" ? "APROBADO" : cond === "aprobado_supervision" ? "APROBADO BAJO SUPERVISIÓN" : "NO APROBADO";
+    overallColor = cond === "aprobado" ? COLOR_GREEN : cond === "aprobado_supervision" ? COLOR_AMBER : COLOR_RED;
   }
 
   // Large doughnut (left)
@@ -916,7 +961,6 @@ export async function generateEvaluacionFacilitadorPdf(
 
   // Key metrics grid (right of doughnut)
   const metricsX = MARGIN_X + 80;
-  const metricsW = CONTENT_W - 80;
   let metricY = y + 4;
 
   pdf.setFontSize(FONT_SIZE_SECTION);
@@ -926,18 +970,17 @@ export async function generateEvaluacionFacilitadorPdf(
   metricY += 6;
 
   const metrics: { label: string; value: string }[] = [
-    { label: "Facilitador", value: toTitleCase(data.facilitador_nombre || "—") },
+    { label: "Facilitador", value: toTitleCase(data.facilitador_nombre || "-") },
     { label: "Tipo de Evaluación", value: getTipoLabel(data.tipo_evaluacion) },
     { label: "Fecha", value: formatDate(data.fecha_evaluacion) },
-    { label: "Evaluador", value: data.evaluador_nombre || "—" },
+    { label: "Evaluador", value: data.evaluador_nombre || "-" },
   ];
 
   if (data.tipo_evaluacion === "nuevo") {
     metrics.push({ label: "Puntaje Total", value: `${totalPuntos.toFixed(1)} / ${maxPuntos} pts` });
-  } else if (data.tipo_evaluacion === "seguimiento") {
-    metrics.push({ label: "Total Seguimiento", value: `${(overallPct * 100).toFixed(1)}%` });
-  } else if (data.tipo_evaluacion === "reevaluacion") {
-    metrics.push({ label: "Promedio Reevaluación", value: `${(overallPct * 100).toFixed(1)}%` });
+  } else {
+    metrics.push({ label: "Total Reevaluación", value: `${(overallPct * 100).toFixed(1)}%` });
+    metrics.push({ label: "Resultado", value: overallPct >= 0.8 ? "ACEPTABLE" : "NO ACEPTABLE" });
   }
 
   metrics.push({ label: "Condición", value: overallLabel });
@@ -950,7 +993,7 @@ export async function generateEvaluacionFacilitadorPdf(
     pdf.text(m.label, metricsX, metricY);
     pdf.setFont("helvetica", "normal");
     pdf.setTextColor(55, 65, 81);
-    pdf.text(m.value, metricsX + 45, metricY);
+    pdf.text(cleanPdfText(m.value), metricsX + 45, metricY);
     metricY += 5;
   }
 
@@ -966,30 +1009,23 @@ export async function generateEvaluacionFacilitadorPdf(
   pdf.setFontSize(FONT_SIZE_SECTION);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(255, 255, 255);
-  pdf.text(overallLabel, PAGE_W / 2, y + badgeH / 2 + 1, { align: "center" });
+  pdf.text(cleanPdfText(overallLabel), PAGE_W / 2, y + badgeH / 2 + 1, { align: "center" });
   y += badgeH + 8;
 
-  // Bar chart: section scores summary (Phase 1 always shown)
-  y = ensureSpace(pdf, y, 60);
-  pdf.setFontSize(FONT_SIZE);
-  pdf.setFont("helvetica", "bold");
-  pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
-  pdf.text("Puntaje por Criterio — Verificación Inicial", MARGIN_X, y);
-  y += 4;
-
-  const summaryBarImg = await generateBarChartPng(
+  // Vector bar chart: section scores summary (Phase 1 criteria)
+  y = ensureSpace(pdf, y, 45);
+  y = drawVectorBarChart(
+    pdf,
+    MARGIN_X,
+    y,
+    CONTENT_W,
+    "Puntaje por Criterio - Verificación Inicial",
     sectionScores.map((s, i) => ({
       ...s,
-      color: i % 2 === 0 ? "#0c3f69" : "#3b82f6",
+      color: i % 2 === 0 ? COLOR_DARK : ([59, 130, 246] as const),
     })),
-    {
-      width: 900, height: 280,
-      scaleMax: Math.max(...sectionScores.map((s) => s.max), 5),
-      showValues: true,
-    },
-    `bar_summary_${data.id || "new"}`,
+    Math.max(...sectionScores.map((s) => s.max), 5),
   );
-  embedImage(pdf, summaryBarImg, MARGIN_X, y, CONTENT_W, 55);
 
   // ─── Footer on all pages + page number correction ───
   const totalPages = pdf.getNumberOfPages();
@@ -1009,11 +1045,11 @@ function drawTextField(pdf: jsPDF, y: number, label: string, value: string): num
   pdf.setFontSize(FONT_SIZE);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(COLOR_DARK[0], COLOR_DARK[1], COLOR_DARK[2]);
-  pdf.text(`${label}:`, MARGIN_X, y);
+  pdf.text(`${cleanPdfText(label)}:`, MARGIN_X, y);
   y += 4;
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(55, 65, 81);
-  const lines = pdf.splitTextToSize(value, CONTENT_W);
+  const lines = pdf.splitTextToSize(cleanPdfText(value), CONTENT_W);
   for (const line of lines) {
     y = ensureSpace(pdf, y, LINE_HEIGHT);
     pdf.text(line, MARGIN_X, y);
@@ -1041,7 +1077,6 @@ function getTipoLabel(tipo: string): string {
     case "nuevo":
       return "NUEVO (Verificación Inicial)";
     case "seguimiento":
-      return "SEGUIMIENTO";
     case "reevaluacion":
       return "REEVALUACIÓN";
     default:
@@ -1050,7 +1085,7 @@ function getTipoLabel(tipo: string): string {
 }
 
 function formatDate(iso: string): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   try {
     return new Date(iso).toLocaleDateString("es-VE", {
       day: "2-digit",

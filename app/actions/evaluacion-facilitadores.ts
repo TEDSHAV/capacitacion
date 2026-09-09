@@ -6,6 +6,8 @@ import {
   computePuntajeInicial,
   classifyInicial,
   computeSeguimientoTotal,
+  computeReevaluacionTotal,
+  classifyReevaluacionCondicion,
 } from "./evaluacion-facilitadores-scoring";
 import type {
   TipoEvaluacion,
@@ -161,19 +163,13 @@ export async function saveEvaluacion(payload: EvaluacionPayload) {
       // Phase 1 only — classification by points
       porcentajeTotal = puntajeInicial / 30; // 30 = max reference for classification ranges
       condicionFinal = classifyInicial(puntajeInicial);
-    } else if (payload.tipo_evaluacion === "seguimiento") {
-      // Phase 2 — weighted total
-      porcentajeTotal = computeSeguimientoTotal(payload.fase_seguimiento);
-      condicionFinal = porcentajeTotal >= 0.8 ? "aceptable" : "no_aceptable";
-    } else if (payload.tipo_evaluacion === "reevaluacion") {
-      // Phase 3 — average of per-OSI totals
-      const osis = payload.fase_reevaluacion?.osis ?? [];
-      if (osis.length > 0) {
-        const avgTotal =
-          osis.reduce((sum, o) => sum + (o.total ?? 0), 0) / osis.length;
-        porcentajeTotal = avgTotal;
-        condicionFinal = avgTotal >= 0.8 ? "aceptable" : "no_aceptable";
-      }
+    } else if (payload.tipo_evaluacion === "reevaluacion" || payload.tipo_evaluacion === "seguimiento") {
+      // Unified Reevaluación (or legacy seguimiento)
+      const totalPct = payload.tipo_evaluacion === "reevaluacion"
+        ? computeReevaluacionTotal(payload.fase_reevaluacion)
+        : computeSeguimientoTotal(payload.fase_seguimiento);
+      porcentajeTotal = totalPct;
+      condicionFinal = classifyReevaluacionCondicion(totalPct);
     }
 
     const row = {

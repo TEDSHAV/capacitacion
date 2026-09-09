@@ -34,6 +34,8 @@ async function svgToPngDataUrl(
 
 // ─── Colors ──────────────────────────────────────────────────────────────────
 
+const FONT_FAMILY = 'DejaVu Sans, Arial, Helvetica, sans-serif';
+
 const COLORS = {
   violet: "#7c3aed",
   violetLight: "#c4b5fd",
@@ -65,6 +67,7 @@ export interface BarChartOptions {
   width?: number;
   height?: number;
   title?: string;
+  paddingLeft?: number;
   /** Max value for the scale (defaults to max of all items' max) */
   scaleMax?: number;
   /** Show value labels at the end of each bar */
@@ -76,9 +79,10 @@ export async function generateBarChartPng(
   options: BarChartOptions = {},
   cacheKey: string,
 ): Promise<ChartImage> {
-  const width = options.width || 600;
+  const width = options.width || 700;
   const height = options.height || 400;
-  const padding = { top: options.title ? 50 : 20, right: 60, bottom: 20, left: 180 };
+  const padLeft = options.paddingLeft || 230;
+  const padding = { top: options.title ? 50 : 25, right: 70, bottom: 25, left: padLeft };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
@@ -86,19 +90,19 @@ export async function generateBarChartPng(
   const barHeight = Math.min(30, chartH / data.length - 8);
   const barGap = (chartH - barHeight * data.length) / Math.max(data.length - 1, 1);
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
   svg += `<rect width="${width}" height="${height}" fill="${COLORS.white}"/>`;
 
   // Title
   if (options.title) {
-    svg += `<text x="${width / 2}" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="${COLORS.darkBlue}">${escapeXml(options.title)}</text>`;
+    svg += `<text x="${width / 2}" y="28" text-anchor="middle" font-family="${FONT_FAMILY}" font-size="16" font-weight="bold" fill="${COLORS.darkBlue}">${escapeXml(options.title)}</text>`;
   }
 
   // Gridlines (25%, 50%, 75%, 100%)
   for (const pct of [0.25, 0.5, 0.75, 1.0]) {
     const x = padding.left + chartW * pct;
     svg += `<line x1="${x}" y1="${padding.top}" x2="${x}" y2="${padding.top + chartH}" stroke="${COLORS.grayLight}" stroke-width="1" stroke-dasharray="3,3"/>`;
-    svg += `<text x="${x}" y="${padding.top + chartH + 14}" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="${COLORS.textLight}">${(scaleMax * pct).toFixed(1)}</text>`;
+    svg += `<text x="${x}" y="${padding.top + chartH + 16}" text-anchor="middle" font-family="${FONT_FAMILY}" font-size="11" fill="${COLORS.textLight}">${(scaleMax * pct).toFixed(1)}</text>`;
   }
 
   // Bars
@@ -108,23 +112,23 @@ export async function generateBarChartPng(
     const color = item.color || COLORS.violet;
 
     // Label (left of bar)
-    const labelLines = wrapText(item.label, 28);
+    const labelLines = wrapText(item.label, 30);
     labelLines.forEach((line, li) => {
-      svg += `<text x="${padding.left - 8}" y="${y + barHeight / 2 + (li - (labelLines.length - 1) / 2) * 12 + 4}" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="${COLORS.text}">${escapeXml(line)}</text>`;
+      svg += `<text x="${padding.left - 10}" y="${y + barHeight / 2 + (li - (labelLines.length - 1) / 2) * 12 + 4}" text-anchor="end" font-family="${FONT_FAMILY}" font-size="11" font-weight="600" fill="${COLORS.text}">${escapeXml(line)}</text>`;
     });
 
     // Bar background (track)
-    svg += `<rect x="${padding.left}" y="${y}" width="${chartW}" height="${barHeight}" rx="3" fill="${COLORS.grayLight}"/>`;
+    svg += `<rect x="${padding.left}" y="${y}" width="${chartW}" height="${barHeight}" rx="4" fill="${COLORS.grayLight}"/>`;
 
     // Bar fill
     if (barW > 0) {
-      svg += `<rect x="${padding.left}" y="${y}" width="${barW}" height="${barHeight}" rx="3" fill="${color}"/>`;
+      svg += `<rect x="${padding.left}" y="${y}" width="${barW}" height="${barHeight}" rx="4" fill="${color}"/>`;
     }
 
     // Value label
     if (options.showValues !== false) {
-      const valText = `${item.value.toFixed(1)}/${item.max.toFixed(0)}`;
-      svg += `<text x="${padding.left + barW + 4}" y="${y + barHeight / 2 + 4}" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="${COLORS.text}">${valText}</text>`;
+      const valText = `${item.value.toFixed(1)} / ${item.max.toFixed(0)}`;
+      svg += `<text x="${padding.left + barW + 6}" y="${y + barHeight / 2 + 4}" font-family="${FONT_FAMILY}" font-size="11" font-weight="bold" fill="${COLORS.text}">${valText}</text>`;
     }
   });
 
@@ -170,12 +174,12 @@ export async function generateDoughnutPng(
   const totalValue = data.reduce((s, d) => s + d.value, 0);
   const overallPct = totalValue / totalMax;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
   svg += `<rect width="${width}" height="${height}" fill="${COLORS.white}"/>`;
 
   // Title
   if (options.title) {
-    svg += `<text x="${cx}" y="24" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="${COLORS.darkBlue}">${escapeXml(options.title)}</text>`;
+    svg += `<text x="${cx}" y="24" text-anchor="middle" font-family="${FONT_FAMILY}" font-size="14" font-weight="bold" fill="${COLORS.darkBlue}">${escapeXml(options.title)}</text>`;
   }
 
   // Background ring (gray)
@@ -196,10 +200,10 @@ export async function generateDoughnutPng(
 
   // Center text
   const centerText = options.centerText || `${(overallPct * 100).toFixed(1)}%`;
-  svg += `<text x="${cx}" y="${cy + 2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="${COLORS.darkBlue}">${escapeXml(centerText)}</text>`;
+  svg += `<text x="${cx}" y="${cy + 2}" text-anchor="middle" font-family="${FONT_FAMILY}" font-size="28" font-weight="bold" fill="${COLORS.darkBlue}">${escapeXml(centerText)}</text>`;
 
   if (options.centerSubtext) {
-    svg += `<text x="${cx}" y="${cy + 20}" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="${COLORS.textLight}">${escapeXml(options.centerSubtext)}</text>`;
+    svg += `<text x="${cx}" y="${cy + 22}" text-anchor="middle" font-family="${FONT_FAMILY}" font-size="12" font-weight="600" fill="${COLORS.textLight}">${escapeXml(options.centerSubtext)}</text>`;
   }
 
   // Legend
@@ -208,7 +212,7 @@ export async function generateDoughnutPng(
     let legendX = 20;
     for (const item of data) {
       svg += `<rect x="${legendX}" y="${legendY - 8}" width="10" height="10" rx="2" fill="${item.color}"/>`;
-      svg += `<text x="${legendX + 14}" y="${legendY}" font-family="Arial, sans-serif" font-size="10" fill="${COLORS.text}">${escapeXml(item.label)}</text>`;
+      svg += `<text x="${legendX + 14}" y="${legendY}" font-family="${FONT_FAMILY}" font-size="10" fill="${COLORS.text}">${escapeXml(item.label)}</text>`;
       legendX += escapeXml(item.label).length * 6 + 30;
     }
   }

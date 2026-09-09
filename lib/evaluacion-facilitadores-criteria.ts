@@ -236,7 +236,7 @@ export const CLASIFICACION_INICIAL = [
 /** Classification table for Phase 3 (Reevaluación). */
 export const CLASIFICACION_REEVALUACION = [
   {
-    rango: "≥ 80 %",
+    rango: ">= 80 %",
     resultado: "ACEPTABLE",
     descripcion:
       "El facilitador mantiene un desempeño satisfactorio, pudiendo conservar su condición como aprobado o aprobado bajo supervisión, según el análisis del Coordinador de Capacitación.",

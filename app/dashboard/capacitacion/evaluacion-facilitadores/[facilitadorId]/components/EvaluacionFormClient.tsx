@@ -60,7 +60,6 @@ interface HistoryRow {
 
 const TIPO_OPTIONS: { value: TipoEvaluacion; label: string }[] = [
   { value: "nuevo", label: "NUEVO (Verificación Inicial)" },
-  { value: "seguimiento", label: "SEGUIMIENTO" },
   { value: "reevaluacion", label: "REEVALUACIÓN" },
 ];
 
@@ -148,7 +147,7 @@ export default function EvaluacionFormClient({
         const evalResult = await getEvaluacionById(parseInt(editId));
         if (evalResult.evaluacion) {
           const ev = evalResult.evaluacion as any;
-          setTipoEvaluacion(ev.tipo_evaluacion);
+          setTipoEvaluacion(ev.tipo_evaluacion === "seguimiento" ? "reevaluacion" : ev.tipo_evaluacion);
           setFechaEvaluacion(ev.fecha_evaluacion);
           setEvaluadorNombre(ev.evaluador_nombre || "");
           setEvaluadorCargo(ev.evaluador_cargo || "");
@@ -165,19 +164,24 @@ export default function EvaluacionFormClient({
 
           if (ev.fase_seguimiento) {
             const fs = ev.fase_seguimiento as FaseSeguimiento;
-            setDocsInicialesPct(fs.docs_iniciales_pct ?? 0);
-            setEncuestasPct(fs.encuestas_pct ?? 0);
+            if (fs.docs_iniciales_pct != null) setDocsInicialesPct(fs.docs_iniciales_pct);
+            if (fs.encuestas_pct != null) setEncuestasPct(fs.encuestas_pct);
             if (fs.gestion_actividades?.items) {
               setGestionItems(fs.gestion_actividades.items);
             }
-            setSegObservaciones(fs.observaciones || "");
-            setSegOportunidades(fs.oportunidades_mejora || "");
-            setSegMetodologias(fs.metodologias || "");
+            if (fs.observaciones) setSegObservaciones(fs.observaciones);
+            if (fs.oportunidades_mejora) setSegOportunidades(fs.oportunidades_mejora);
+            if (fs.metodologias) setSegMetodologias(fs.metodologias);
           }
 
           if (ev.fase_reevaluacion) {
             const fr = ev.fase_reevaluacion as FaseReevaluacion;
-            if (fr.osis) {
+            if (fr.docs_iniciales_pct != null) setDocsInicialesPct(fr.docs_iniciales_pct);
+            if (fr.encuestas_pct != null) setEncuestasPct(fr.encuestas_pct);
+            if (fr.gestion_actividades?.items) {
+              setGestionItems(fr.gestion_actividades.items);
+            }
+            if (fr.osis && fr.osis.length > 0) {
               setReevaluacionOsis(
                 fr.osis.map((o) => ({
                   nro_osi: o.nro_osi,
@@ -188,7 +192,10 @@ export default function EvaluacionFormClient({
                 })),
               );
             }
-            setReevaluacionCondicion(fr.condicion || "aprobado");
+            if (fr.condicion) setReevaluacionCondicion(fr.condicion);
+            if (fr.observaciones) setSegObservaciones(fr.observaciones);
+            if (fr.oportunidades_mejora) setSegOportunidades(fr.oportunidades_mejora);
+            if (fr.metodologias) setSegMetodologias(fr.metodologias);
           }
         }
       }
@@ -238,6 +245,22 @@ export default function EvaluacionFormClient({
     );
   }, [reevaluacionOsis]);
 
+  const totalReevaluacion = useMemo(() => {
+    const hasOsiData =
+      reevaluacionOsis.length > 0 &&
+      reevaluacionOsis.some(
+        (o) =>
+          (o.total || 0) > 0 ||
+          (o.docs || 0) > 0 ||
+          (o.encuestas || 0) > 0 ||
+          (o.gestion || 0) > 0,
+      );
+    if (hasOsiData) {
+      return reevaluacionAvg;
+    }
+    return docsInicialesPct * 0.4 + encuestasPct * 0.4 + gestionPct * 0.2;
+  }, [reevaluacionOsis, reevaluacionAvg, docsInicialesPct, encuestasPct, gestionPct]);
+
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
   const toggleSection = (key: string) =>
@@ -286,33 +309,30 @@ export default function EvaluacionFormClient({
 
   const buildPayload = useCallback(
     (): EvaluacionPayload => {
-      const faseSeg: FaseSeguimiento | null =
-        tipoEvaluacion === "seguimiento"
+      const faseReev: FaseReevaluacion | null =
+        tipoEvaluacion === "reevaluacion"
           ? {
               docs_iniciales_pct: docsInicialesPct,
               encuestas_pct: encuestasPct,
               gestion_actividades: {
                 items: gestionItems,
                 pct: gestionPct,
+                total: gestionItems.reduce((s, v) => s + (v || 0), 0),
               },
-              total_pct: seguimientoTotal,
+              osis: reevaluacionOsis
+                .filter((o) => o.nro_osi || (o.total && o.total > 0))
+                .map((o) => ({
+                  nro_osi: o.nro_osi,
+                  docs: o.docs,
+                  encuestas: o.encuestas,
+                  gestion: o.gestion,
+                  total: o.total,
+                })),
+              total_pct: totalReevaluacion,
+              condicion: reevaluacionCondicion,
               observaciones: segObservaciones,
               oportunidades_mejora: segOportunidades,
               metodologias: segMetodologias,
-            }
-          : null;
-
-      const faseReev: FaseReevaluacion | null =
-        tipoEvaluacion === "reevaluacion"
-          ? {
-              osis: reevaluacionOsis.map((o) => ({
-                nro_osi: o.nro_osi,
-                docs: o.docs,
-                encuestas: o.encuestas,
-                gestion: o.gestion,
-                total: o.total,
-              })),
-              condicion: reevaluacionCondicion,
             }
           : null;
 
@@ -328,7 +348,7 @@ export default function EvaluacionFormClient({
         firma: firma || null,
         fecha_evaluacion: fechaEvaluacion,
         fase_inicial: { secciones: faseInicial, total_puntos: puntajeTotal },
-        fase_seguimiento: faseSeg,
+        fase_seguimiento: faseReev as any,
         fase_reevaluacion: faseReev,
         observaciones: observacionesInicial || null,
       };
@@ -350,7 +370,7 @@ export default function EvaluacionFormClient({
       encuestasPct,
       gestionItems,
       gestionPct,
-      seguimientoTotal,
+      totalReevaluacion,
       segObservaciones,
       segOportunidades,
       segMetodologias,
@@ -763,58 +783,88 @@ export default function EvaluacionFormClient({
             </div>
           </div>
 
-          {/* ─── Phase 2: Seguimiento ─── */}
-          {tipoEvaluacion === "seguimiento" && (
-            <div className="border-2 border-blue-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <ClipboardCheck className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Evaluación de Seguimiento
-                </h2>
+          {/* ─── Reevaluación del Facilitador (Unified) ─── */}
+          {tipoEvaluacion === "reevaluacion" && (
+            <div className="border-2 border-violet-200 rounded-lg p-5 bg-white space-y-6">
+              <div className="flex items-center gap-2 border-b border-violet-100 pb-3">
+                <ClipboardCheck className="w-5 h-5 text-violet-600" />
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Reevaluación del Facilitador
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    Criterios establecidos conforme a la Instrucción de Trabajo SHA-IT-CAP-001 (Documentación 40% + Encuestas 40% + Gestión 20%).
+                  </p>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <NumberInputField
-                  label="Documentación Inicial (40%)"
-                  value={docsInicialesPct}
-                  onChange={setDocsInicialesPct}
-                  step={0.01}
-                  min={0}
-                  max={1}
-                  hint="Valor decimal (0-1)"
-                />
-                <NumberInputField
-                  label="Encuestas de Satisfacción (40%)"
-                  value={encuestasPct}
-                  onChange={setEncuestasPct}
-                  step={0.01}
-                  min={0}
-                  max={1}
-                  hint="Valor decimal (0-1)"
-                />
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
-                    Gestión de Actividades (20%)
+              {/* 3 Weighted Components */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <label className="text-xs font-semibold text-gray-700 uppercase block mb-1">
+                    1. Documentación Inicial (40%)
                   </label>
-                  <div className="px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-sm text-gray-700">
-                    {(gestionPct * 100).toFixed(1)}% (auto)
+                  <NumberInputField
+                    label=""
+                    value={docsInicialesPct}
+                    onChange={setDocsInicialesPct}
+                    step={0.01}
+                    min={0}
+                    max={1}
+                    hint="Valor decimal (0 a 1)"
+                  />
+                  {puntajeTotal > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setDocsInicialesPct(Number(((puntajeTotal / 30) * 0.40).toFixed(4)))}
+                      className="mt-2 text-xs text-violet-600 hover:text-violet-800 underline block"
+                    >
+                      Usar de Verif. Inicial ({((puntajeTotal / 30) * 0.40 * 100).toFixed(1)}%)
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <label className="text-xs font-semibold text-gray-700 uppercase block mb-1">
+                    2. Encuestas de Satisfacción (40%)
+                  </label>
+                  <NumberInputField
+                    label=""
+                    value={encuestasPct}
+                    onChange={setEncuestasPct}
+                    step={0.01}
+                    min={0}
+                    max={1}
+                    hint="Valor decimal (0 a 1)"
+                  />
+                </div>
+
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <label className="text-xs font-semibold text-gray-700 uppercase block mb-1">
+                    3. Gestión y Compromiso (20%)
+                  </label>
+                  <div className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm font-semibold text-violet-700">
+                    {(gestionPct * 0.20 * 100).toFixed(1)}% (auto)
                   </div>
+                  <p className="text-[11px] text-gray-500 mt-2">
+                    Calculado de los 6 aspectos ({gestionItems.reduce((s, v) => s + v, 0)}/30 pts).
+                  </p>
                 </div>
               </div>
 
               {/* Gestión items */}
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                  Gestión de Actividades y Compromiso (escala 1-5)
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/50">
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                  Gestión de Actividades y Compromiso con la Organización (escala 1-5)
                 </h3>
                 <p className="text-xs text-gray-500 mb-3">
                   1 = Malo / 2 = Poco aceptable / 3 = Bueno / 4 = Muy bueno / 5 = Excelente
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-2 bg-white p-3 rounded-md border border-gray-200">
                   {GESTION_ITEMS.map((item, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-3 p-2 border border-gray-100 rounded-md"
+                      className="flex items-center gap-3 py-1.5 px-2 border-b last:border-b-0 border-gray-100"
                     >
                       <span className="flex-1 text-sm text-gray-700">{item.label}</span>
                       <select
@@ -823,7 +873,7 @@ export default function EvaluacionFormClient({
                           const val = parseInt(e.target.value);
                           setGestionItems((p) => p.map((v, idx) => (idx === i ? val : v)));
                         }}
-                        className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                       >
                         {[0, 1, 2, 3, 4, 5].map((n) => (
                           <option key={n} value={n}>
@@ -834,174 +884,198 @@ export default function EvaluacionFormClient({
                     </div>
                   ))}
                 </div>
-                <div className="mt-2 flex justify-end">
-                  <span className="text-sm font-semibold text-gray-900">
-                    Total: {gestionItems.reduce((s, v) => s + v, 0)} / 30
+                <div className="mt-3 flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Puntaje acumulado:</span>
+                  <span className="font-bold text-violet-700">
+                    {gestionItems.reduce((s, v) => s + v, 0)} / 30 pts ({(gestionPct * 100).toFixed(1)}%)
                   </span>
                 </div>
               </div>
 
-              {/* Resultados finales */}
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-900">
-                    TOTAL de Evaluación de Seguimiento
-                  </span>
-                  <span className="text-2xl font-bold text-blue-700">
-                    {(seguimientoTotal * 100).toFixed(1)}%
-                  </span>
-                </div>
-              </div>
-
-              <TextAreaField label="Observaciones" value={segObservaciones} onChange={setSegObservaciones} />
-              <TextAreaField label="Oportunidades de Mejora" value={segOportunidades} onChange={setSegOportunidades} />
-              <TextAreaField label="Metodologías Complementarias" value={segMetodologias} onChange={setSegMetodologias} />
-            </div>
-          )}
-
-          {/* ─── Phase 3: Reevaluación ─── */}
-          {tipoEvaluacion === "reevaluacion" && (
-            <div className="border-2 border-amber-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <ClipboardCheck className="w-5 h-5 text-amber-600" />
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Reevaluación del Facilitador
-                </h2>
-              </div>
-
-              <div className="overflow-x-auto mb-4">
-                <table className="w-full text-sm border border-gray-200 rounded-lg">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Componente</th>
-                      {reevaluacionOsis.map((_, i) => (
-                        <th key={i} className="px-3 py-2 text-left text-xs font-semibold text-gray-600">
-                          N° OSI
-                        </th>
-                      ))}
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Resultado</th>
-                      <th className="px-3 py-2"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* OSI number row */}
-                    <tr className="border-t border-gray-100">
-                      <td className="px-3 py-2 text-xs font-semibold text-gray-500">N° OSI</td>
-                      {reevaluacionOsis.map((o, i) => (
-                        <td key={i} className="px-3 py-2">
-                          <input
-                            type="text"
-                            value={o.nro_osi}
-                            onChange={(e) => updateReevaluacionOsi(i, "nro_osi", e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            placeholder="OSI-XXX"
-                          />
-                        </td>
-                      ))}
-                      <td className="px-3 py-2"></td>
-                      <td className="px-3 py-2"></td>
-                    </tr>
-                    {/* Docs row */}
-                    <tr className="border-t border-gray-100">
-                      <td className="px-3 py-2 text-xs text-gray-600">Documentación Inicial (40%)</td>
-                      {reevaluacionOsis.map((o, i) => (
-                        <td key={i} className="px-3 py-2">
-                          <input
-                            type="number"
-                            step={0.01}
-                            min={0}
-                            max={1}
-                            value={o.docs}
-                            onChange={(e) => updateReevaluacionOsi(i, "docs", parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                          />
-                        </td>
-                      ))}
-                      <td className="px-3 py-2 text-xs text-gray-400">—</td>
-                      <td className="px-3 py-2"></td>
-                    </tr>
-                    {/* Encuestas row */}
-                    <tr className="border-t border-gray-100">
-                      <td className="px-3 py-2 text-xs text-gray-600">Encuestas de Satisfacción (40%)</td>
-                      {reevaluacionOsis.map((o, i) => (
-                        <td key={i} className="px-3 py-2">
-                          <input
-                            type="number"
-                            step={0.01}
-                            min={0}
-                            max={1}
-                            value={o.encuestas}
-                            onChange={(e) => updateReevaluacionOsi(i, "encuestas", parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                          />
-                        </td>
-                      ))}
-                      <td className="px-3 py-2 text-xs text-gray-400">—</td>
-                      <td className="px-3 py-2"></td>
-                    </tr>
-                    {/* Gestión row */}
-                    <tr className="border-t border-gray-100">
-                      <td className="px-3 py-2 text-xs text-gray-600">Gestión de Actividades (20%)</td>
-                      {reevaluacionOsis.map((o, i) => (
-                        <td key={i} className="px-3 py-2">
-                          <input
-                            type="number"
-                            step={0.01}
-                            min={0}
-                            max={1}
-                            value={o.gestion}
-                            onChange={(e) => updateReevaluacionOsi(i, "gestion", parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
-                          />
-                        </td>
-                      ))}
-                      <td className="px-3 py-2 text-xs text-gray-400">—</td>
-                      <td className="px-3 py-2"></td>
-                    </tr>
-                    {/* Total row */}
-                    <tr className="border-t border-gray-200 bg-amber-50">
-                      <td className="px-3 py-2 text-xs font-bold text-gray-900">TOTAL</td>
-                      {reevaluacionOsis.map((o, i) => (
-                        <td key={i} className="px-3 py-2 text-xs font-bold text-amber-700">
-                          {((o.total || 0) * 100).toFixed(1)}%
-                        </td>
-                      ))}
-                      <td className="px-3 py-2 text-xs font-bold text-amber-700">
-                        Prom: {(reevaluacionAvg * 100).toFixed(1)}%
-                      </td>
-                      <td className="px-3 py-2"></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() =>
-                    setReevaluacionOsis((p) => [
-                      ...p,
-                      { nro_osi: "", docs: 0, encuestas: 0, gestion: 0, total: 0 },
-                    ])
-                  }
-                  disabled={reevaluacionOsis.length >= 3}
-                  className="text-xs px-3 py-1.5 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  + Agregar OSI
-                </button>
-                {reevaluacionOsis.length > 1 && (
+              {/* Matriz por OSI (opcional) */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      Matriz de Reevaluación por Actividad / OSI (Opcional)
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Permite registrar y comparar el desempeño en múltiples servicios (OSIs).
+                    </p>
+                  </div>
                   <button
-                    onClick={() =>
-                      setReevaluacionOsis((p) => p.slice(0, -1))
-                    }
-                    className="text-xs px-3 py-1.5 border border-red-200 rounded-md text-red-600 hover:bg-red-50"
+                    type="button"
+                    onClick={() => {
+                      setReevaluacionOsis((p) => {
+                        const target = p.length > 0 ? p : [{ nro_osi: "", docs: 0, encuestas: 0, gestion: 0, total: 0 }];
+                        return target.map((o, idx) =>
+                          idx === 0
+                            ? {
+                                ...o,
+                                docs: docsInicialesPct,
+                                encuestas: encuestasPct,
+                                gestion: Number((gestionPct * 0.2).toFixed(4)),
+                                total: Number((docsInicialesPct * 0.4 + encuestasPct * 0.4 + gestionPct * 0.2).toFixed(4)),
+                              }
+                            : o,
+                        );
+                      });
+                    }}
+                    className="text-xs px-2.5 py-1 bg-violet-50 text-violet-700 border border-violet-200 rounded hover:bg-violet-100"
                   >
-                    − Quitar OSI
+                    Copiar componentes actuales a OSI 1
                   </button>
-                )}
+                </div>
+
+                <div className="overflow-x-auto my-3">
+                  <table className="w-full text-sm border border-gray-200 rounded-lg">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Componente</th>
+                        {reevaluacionOsis.map((_, i) => (
+                          <th key={i} className="px-3 py-2 text-left text-xs font-semibold text-gray-600">
+                            N° OSI
+                          </th>
+                        ))}
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Resultado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t border-gray-100">
+                        <td className="px-3 py-2 text-xs font-semibold text-gray-500">N° OSI</td>
+                        {reevaluacionOsis.map((o, i) => (
+                          <td key={i} className="px-3 py-2">
+                            <input
+                              type="text"
+                              value={o.nro_osi}
+                              onChange={(e) => updateReevaluacionOsi(i, "nro_osi", e.target.value)}
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-violet-500"
+                              placeholder="OSI-XXX"
+                            />
+                          </td>
+                        ))}
+                        <td className="px-3 py-2 text-xs text-gray-400">-</td>
+                      </tr>
+                      <tr className="border-t border-gray-100">
+                        <td className="px-3 py-2 text-xs text-gray-600">Documentación Inicial (40%)</td>
+                        {reevaluacionOsis.map((o, i) => (
+                          <td key={i} className="px-3 py-2">
+                            <input
+                              type="number"
+                              step={0.01}
+                              min={0}
+                              max={1}
+                              value={o.docs}
+                              onChange={(e) => updateReevaluacionOsi(i, "docs", parseFloat(e.target.value) || 0)}
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-violet-500"
+                            />
+                          </td>
+                        ))}
+                        <td className="px-3 py-2 text-xs text-gray-400">-</td>
+                      </tr>
+                      <tr className="border-t border-gray-100">
+                        <td className="px-3 py-2 text-xs text-gray-600">Encuestas de Satisfacción (40%)</td>
+                        {reevaluacionOsis.map((o, i) => (
+                          <td key={i} className="px-3 py-2">
+                            <input
+                              type="number"
+                              step={0.01}
+                              min={0}
+                              max={1}
+                              value={o.encuestas}
+                              onChange={(e) => updateReevaluacionOsi(i, "encuestas", parseFloat(e.target.value) || 0)}
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-violet-500"
+                            />
+                          </td>
+                        ))}
+                        <td className="px-3 py-2 text-xs text-gray-400">-</td>
+                      </tr>
+                      <tr className="border-t border-gray-100">
+                        <td className="px-3 py-2 text-xs text-gray-600">Gestión de Actividades (20%)</td>
+                        {reevaluacionOsis.map((o, i) => (
+                          <td key={i} className="px-3 py-2">
+                            <input
+                              type="number"
+                              step={0.01}
+                              min={0}
+                              max={1}
+                              value={o.gestion}
+                              onChange={(e) => updateReevaluacionOsi(i, "gestion", parseFloat(e.target.value) || 0)}
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-violet-500"
+                            />
+                          </td>
+                        ))}
+                        <td className="px-3 py-2 text-xs text-gray-400">-</td>
+                      </tr>
+                      <tr className="border-t border-gray-200 bg-violet-50">
+                        <td className="px-3 py-2 text-xs font-bold text-gray-900">TOTAL</td>
+                        {reevaluacionOsis.map((o, i) => (
+                          <td key={i} className="px-3 py-2 text-xs font-bold text-violet-700">
+                            {((o.total || 0) * 100).toFixed(1)}%
+                          </td>
+                        ))}
+                        <td className="px-3 py-2 text-xs font-bold text-violet-700">
+                          Prom: {(reevaluacionAvg * 100).toFixed(1)}%
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReevaluacionOsis((p) => [
+                        ...p,
+                        { nro_osi: "", docs: docsInicialesPct, encuestas: encuestasPct, gestion: Number((gestionPct * 0.2).toFixed(4)), total: 0 },
+                      ])
+                    }
+                    disabled={reevaluacionOsis.length >= 4}
+                    className="text-xs px-3 py-1.5 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    + Agregar OSI
+                  </button>
+                  {reevaluacionOsis.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setReevaluacionOsis((p) => p.slice(0, -1))}
+                      className="text-xs px-3 py-1.5 border border-red-200 rounded-md text-red-600 hover:bg-red-50"
+                    >
+                      - Quitar OSI
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Classification */}
-              <div className="overflow-x-auto mb-4">
+              {/* Total + Clasificación */}
+              <div className="p-4 bg-violet-50 border border-violet-200 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-semibold text-gray-900">
+                    TOTAL DE REEVALUACIÓN DEL FACILITADOR
+                  </span>
+                  <span className="text-2xl font-bold text-violet-700">
+                    {(totalReevaluacion * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 text-xs">
+                  <div>
+                    <span className="text-gray-500 mr-1.5">Resultado:</span>
+                    <span className={`inline-flex px-2 py-0.5 font-bold rounded-full border ${totalReevaluacion >= 0.8 ? "bg-green-100 text-green-700 border-green-300" : "bg-red-100 text-red-700 border-red-300"}`}>
+                      {totalReevaluacion >= 0.8 ? "ACEPTABLE" : "NO ACEPTABLE"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 mr-1.5">Condición sugerida:</span>
+                    <span className="font-bold text-gray-900 uppercase">
+                      {totalReevaluacion >= 0.9 ? "Aprobado" : totalReevaluacion >= 0.8 ? "Aprobado bajo supervisión" : "No aprobado"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Clasificación Table */}
+              <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-gray-200 rounded-lg">
                   <thead className="bg-gray-50">
                     <tr>
@@ -1015,9 +1089,9 @@ export default function EvaluacionFormClient({
                       <tr
                         key={row.rango}
                         className={`border-t border-gray-100 ${
-                          (reevaluacionAvg >= 0.8 && row.resultado === "ACEPTABLE") ||
-                          (reevaluacionAvg < 0.8 && row.resultado === "NO ACEPTABLE")
-                            ? "bg-amber-50"
+                          (totalReevaluacion >= 0.8 && row.resultado === "ACEPTABLE") ||
+                          (totalReevaluacion < 0.8 && row.resultado === "NO ACEPTABLE")
+                            ? "bg-violet-50 font-medium"
                             : ""
                         }`}
                       >
@@ -1030,6 +1104,7 @@ export default function EvaluacionFormClient({
                 </table>
               </div>
 
+              {/* Condición selector */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
                   Condición del Facilitador después de la Reevaluación
@@ -1037,13 +1112,17 @@ export default function EvaluacionFormClient({
                 <select
                   value={reevaluacionCondicion}
                   onChange={(e) => setReevaluacionCondicion(e.target.value)}
-                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                 >
                   <option value="aprobado">APROBADO</option>
                   <option value="aprobado_supervision">APROBADO BAJO SUPERVISIÓN</option>
                   <option value="no_aprobado">NO APROBADO</option>
                 </select>
               </div>
+
+              <TextAreaField label="Observaciones de la Reevaluación" value={segObservaciones} onChange={setSegObservaciones} />
+              <TextAreaField label="Oportunidades de Mejora" value={segOportunidades} onChange={setSegOportunidades} />
+              <TextAreaField label="Metodologías Complementarias" value={segMetodologias} onChange={setSegMetodologias} />
             </div>
           )}
 

@@ -43,13 +43,15 @@ RUN --mount=type=cache,target=/app/.next/cache npm run build
 
 # Stage 3: Runner
 #
-# No apt packages are installed here. The previous Chromium/GTK library set
-# (libnss3, libgtk-3-0, libasound2, libgbm1, libcups2, libxss1, libatk*,
-# libpangocairo, fonts-liberation) was only needed by puppeteer, which was
-# replaced by jsPDF/@react-pdf/renderer — both pure JS. System libvips is not
-# used either: prebuilt sharp bundles its own copy inside node_modules.
+# fonts-dejavu-core and fontconfig are required so sharp's bundled librsvg can
+# rasterize SVG charts with text without missing glyphs (tofu/squares).
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    fonts-dejavu-core \
+    fontconfig \
+    && rm -rf /var/lib/apt/lists/*
 
 # Setup user and permissions properly
 RUN groupadd --system --gid 1001 nodejs && \

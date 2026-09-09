@@ -46,16 +46,32 @@ export interface FaseSeguimiento {
   metodologias?: string;
 }
 
-/** Phase 3 — Reevaluación. */
+/** Reevaluación (unifies Seguimiento & Reevaluación per RG-CAP-004). */
 export interface FaseReevaluacion {
-  osis: {
+  /** Documentación inicial decimal weight (0-1, represents 40%). Derived from Phase 1: (puntos/30)*0.4. */
+  docs_iniciales_pct?: number;
+  /** Encuestas de satisfacción decimal weight (0-1, represents 40%). */
+  encuestas_pct?: number;
+  /** Gestión de actividades y compromiso (20%). */
+  gestion_actividades?: {
+    /** 6 items rated 1-5. */
+    items: number[];
+    total?: number;
+    pct?: number;
+  };
+  /** Multi-OSI matrix tracking (optional breakdown per OSI). */
+  osis?: {
     nro_osi: string;
     docs?: number;
     encuestas?: number;
     gestion?: number;
     total?: number;
   }[];
+  total_pct?: number;
   condicion?: string;
+  observaciones?: string;
+  oportunidades_mejora?: string;
+  metodologias?: string;
 }
 
 export interface EvaluacionPayload {

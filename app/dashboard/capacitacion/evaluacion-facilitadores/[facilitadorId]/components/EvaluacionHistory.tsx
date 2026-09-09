@@ -25,7 +25,7 @@ interface EvaluacionHistoryProps {
 
 const TIPO_LABELS: Record<string, string> = {
   nuevo: "Verificación Inicial",
-  seguimiento: "Seguimiento",
+  seguimiento: "Reevaluación",
   reevaluacion: "Reevaluación",
 };
 

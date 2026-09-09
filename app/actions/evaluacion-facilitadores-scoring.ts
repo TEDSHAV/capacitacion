@@ -8,6 +8,7 @@
 import type {
   FaseInicial,
   FaseSeguimiento,
+  FaseReevaluacion,
   CondicionFinal,
 } from "./evaluacion-facilitadores-types";
 
@@ -91,6 +92,40 @@ export function computeSeguimientoTotal(fase: FaseSeguimiento | null | undefined
   const encuestas = fase.encuestas_pct ?? 0;
   const gestion = fase.gestion_actividades?.pct ?? 0;
   return docs * 0.4 + encuestas * 0.4 + gestion * 0.2;
+}
+
+/** Compute Reevaluación total percentage (40% docs + 40% encuestas + 20% gestión or average across OSIs). */
+export function computeReevaluacionTotal(fase: FaseReevaluacion | null | undefined): number {
+  if (!fase) return 0;
+  const osis = fase.osis ?? [];
+  if (osis.length > 0) {
+    const validOsis = osis.filter((o) => (o.total ?? 0) > 0 || (o.docs ?? 0) > 0 || (o.encuestas ?? 0) > 0 || (o.gestion ?? 0) > 0);
+    if (validOsis.length > 0) {
+      const sum = validOsis.reduce((acc, o) => {
+        const itemTotal = o.total && o.total > 0
+          ? o.total
+          : (o.docs ?? 0) * 0.4 + (o.encuestas ?? 0) * 0.4 + (o.gestion ?? 0) * 0.2;
+        return acc + itemTotal;
+      }, 0);
+      return sum / validOsis.length;
+    }
+  }
+  const docs = fase.docs_iniciales_pct ?? 0;
+  const encuestas = fase.encuestas_pct ?? 0;
+  const gestion = fase.gestion_actividades?.pct ?? 0;
+  return docs * 0.4 + encuestas * 0.4 + gestion * 0.2;
+}
+
+/** Classify Reevaluación condition per RG-CAP-004 formula: >=90% Aprobado, >=80% Aprobado bajo supervisión, <80% No aprobado. */
+export function classifyReevaluacionCondicion(totalPct: number): CondicionFinal {
+  if (totalPct >= 0.90) return "aprobado";
+  if (totalPct >= 0.80) return "aprobado_supervision";
+  return "no_aprobado";
+}
+
+/** Classify Reevaluación qualitative outcome: >=80% Aceptable, <80% No aceptable. */
+export function classifyReevaluacionResultado(totalPct: number): "ACEPTABLE" | "NO ACEPTABLE" {
+  return totalPct >= 0.80 ? "ACEPTABLE" : "NO ACEPTABLE";
 }
 
 /** Compute gestión de actividades percentage from 6 items (1-5 scale, max 30 → 100%). */

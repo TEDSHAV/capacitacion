@@ -48,7 +48,7 @@ const CONDICION_LABELS: Record<string, { label: string; color: string }> = {
 
 const TIPO_LABELS: Record<string, string> = {
   nuevo: "Verificación Inicial",
-  seguimiento: "Seguimiento",
+  seguimiento: "Reevaluación",
   reevaluacion: "Reevaluación",
 };
 
