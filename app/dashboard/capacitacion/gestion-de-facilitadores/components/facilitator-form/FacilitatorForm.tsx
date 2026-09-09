@@ -48,6 +48,7 @@ export const FacilitatorForm = ({
     id_estado_geografico: null,
     id_ciudad: null,
     temas_cursos: [],
+    niveles_habilidad: {},
     calificacion: null,
     firma_id: null,
     tiene_curriculum: false,
@@ -119,6 +120,7 @@ export const FacilitatorForm = ({
             id_estado_geografico: facilitator.id_estado_geografico,
             id_ciudad: facilitator.id_ciudad,
             temas_cursos: facilitator.temas_cursos || [],
+            niveles_habilidad: facilitator.niveles_habilidad || {},
             calificacion: facilitator.calificacion,
             firma_id: facilitator.firma_id,
             tiene_curriculum: facilitator.tiene_curriculum || false,
@@ -435,9 +437,10 @@ export const FacilitatorForm = ({
 
       // Add form fields
       Object.entries(preparedData).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
+        if (value === undefined || value === null) return;
+        if (Array.isArray(value) || typeof value === "object") {
           formDataToSend.append(key, JSON.stringify(value));
-        } else if (value !== undefined && value !== null) {
+        } else {
           formDataToSend.append(key, value.toString());
         }
       });

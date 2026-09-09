@@ -39,12 +39,46 @@ export function FacilitadorCard({
 }: FacilitadorCardProps) {
   const [imgError, setImgError] = useState(false);
 
+  // Skill level helpers
+  const niveles = facilitador.niveles_habilidad || {};
+  const levelForTopic = (topicName: string): string | undefined => {
+    const matchKey = Object.keys(niveles).find(
+      (k) => k.toLowerCase().trim() === topicName.toLowerCase().trim(),
+    );
+    return matchKey ? niveles[matchKey] : undefined;
+  };
+  const levelDotClass = (level: string | undefined): string => {
+    switch (level) {
+      case "experto":
+        return "bg-emerald-500";
+      case "intermedio":
+        return "bg-amber-500";
+      case "basico":
+        return "bg-slate-400";
+      default:
+        return "bg-gray-300";
+    }
+  };
+  const levelLabelShort = (level: string | undefined): string => {
+    switch (level) {
+      case "experto":
+        return "Exp";
+      case "intermedio":
+        return "Int";
+      case "basico":
+        return "Bás";
+      default:
+        return "";
+    }
+  };
+
   // Check matched topic rating
   const normalizedMatched = matchedTopic ? matchedTopic.toLowerCase().trim() : null;
   const matchedRating = normalizedMatched ? facilitador.topicRatings[normalizedMatched] : null;
   const teachesMatchedTopic = !!matchedRating || (facilitador.temas_cursos || []).some(
     (t) => t.toLowerCase().trim() === normalizedMatched
   );
+  const matchedLevel = matchedTopic ? levelForTopic(matchedTopic) : undefined;
 
   // Check matched city
   const isCityMatch =
@@ -101,7 +135,21 @@ export function FacilitadorCard({
       {/* Top Highlight Banner if matching topic selected */}
       {matchedTopic && teachesMatchedTopic && (
         <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-3.5 py-1 text-white text-[11px] font-medium flex items-center justify-between">
-          <span className="truncate">Experto en: <strong className="font-semibold">{matchedTopic}</strong></span>
+          <span className="truncate flex items-center gap-1.5">
+            {matchedLevel && (
+              <span className={`w-2 h-2 rounded-full ${levelDotClass(matchedLevel)}`} />
+            )}
+            <span>
+              {matchedLevel === "experto"
+                ? "Experto"
+                : matchedLevel === "intermedio"
+                  ? "Intermedio"
+                  : matchedLevel === "basico"
+                    ? "Básico"
+                    : "Habilitado"}{" "}
+              en: <strong className="font-semibold">{matchedTopic}</strong>
+            </span>
+          </span>
           <span className="ml-2 font-bold shrink-0">
             {matchedRating && matchedRating.avgRating > 0
               ? `★ ${matchedRating.avgRating.toFixed(1)} (${matchedRating.reviewCount} evals)`
@@ -209,6 +257,7 @@ export function FacilitadorCard({
             {(facilitador.temas_cursos || []).slice(0, 3).map((topic, i) => {
               const topRating = facilitador.topicRatings[topic.toLowerCase().trim()];
               const isMatched = normalizedMatched === topic.toLowerCase().trim();
+              const lvl = levelForTopic(topic);
               return (
                 <span
                   key={i}
@@ -218,6 +267,12 @@ export function FacilitadorCard({
                       : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200"
                   }`}
                 >
+                  {lvl && (
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${levelDotClass(lvl)}`}
+                      title={`Nivel: ${lvl === "experto" ? "Experto" : lvl === "intermedio" ? "Intermedio" : "Básico"}`}
+                    />
+                  )}
                   <span className="truncate max-w-[140px]">{topic}</span>
                   {topRating && topRating.avgRating > 0 && (
                     <span className="text-[10px] font-bold text-amber-600">

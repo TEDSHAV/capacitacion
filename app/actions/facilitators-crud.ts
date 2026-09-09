@@ -242,6 +242,9 @@ const createFacilitator = cache(async (formData: FormData) => {
     const temas_cursos = formData.get("temas_cursos")
       ? JSON.parse(formData.get("temas_cursos") as string)
       : [];
+    const niveles_habilidad = formData.get("niveles_habilidad")
+      ? JSON.parse(formData.get("niveles_habilidad") as string)
+      : {};
     const calificacion = formData.get("calificacion")
       ? parseFloat(formData.get("calificacion") as string)
       : null;
@@ -287,6 +290,7 @@ const createFacilitator = cache(async (formData: FormData) => {
           id_estado_geografico,
           id_ciudad,
           temas_cursos,
+          niveles_habilidad,
           calificacion,
           tiene_curriculum,
           tiene_certificaciones,
@@ -393,6 +397,9 @@ const updateFacilitator = cache(async (id: string, formData: FormData) => {
     const temas_cursos = formData.get("temas_cursos")
       ? JSON.parse(formData.get("temas_cursos") as string)
       : [];
+    const niveles_habilidad = formData.get("niveles_habilidad")
+      ? JSON.parse(formData.get("niveles_habilidad") as string)
+      : {};
     const calificacion = formData.get("calificacion")
       ? parseFloat(formData.get("calificacion") as string)
       : null;
@@ -435,6 +442,7 @@ const updateFacilitator = cache(async (id: string, formData: FormData) => {
       id_estado_geografico,
       id_ciudad,
       temas_cursos,
+      niveles_habilidad,
       calificacion,
       tiene_curriculum,
       tiene_certificaciones,

@@ -93,6 +93,26 @@ export function FacilitadorProfileDrawer({
   };
 
   // Convert topic ratings to array
+  const niveles = facilitador.niveles_habilidad || {};
+  const levelForTopic = (topicName: string): string | undefined => {
+    const matchKey = Object.keys(niveles).find(
+      (k) => k.toLowerCase().trim() === topicName.toLowerCase().trim(),
+    );
+    return matchKey ? niveles[matchKey] : undefined;
+  };
+  const levelBadgeClasses = (level: string | undefined): { dot: string; chip: string; label: string } => {
+    switch (level) {
+      case "experto":
+        return { dot: "bg-emerald-500", chip: "bg-emerald-50 text-emerald-700 border-emerald-200", label: "Experto" };
+      case "intermedio":
+        return { dot: "bg-amber-500", chip: "bg-amber-50 text-amber-700 border-amber-200", label: "Intermedio" };
+      case "basico":
+        return { dot: "bg-slate-400", chip: "bg-slate-50 text-slate-700 border-slate-200", label: "Básico" };
+      default:
+        return { dot: "bg-gray-300", chip: "bg-gray-50 text-gray-500 border-gray-200", label: "Sin nivel" };
+    }
+  };
+
   const topicsList = (facilitador.temas_cursos || []).map((topicName) => {
     const key = topicName.toLowerCase().trim();
     const tr = facilitador.topicRatings[key];
@@ -101,8 +121,16 @@ export function FacilitadorProfileDrawer({
       avgRating: tr?.avgRating || 0,
       reviewCount: tr?.reviewCount || 0,
       sessionsCount: tr?.sessionsCount || 0,
+      level: levelForTopic(topicName),
     };
-  }).sort((a, b) => b.avgRating - a.avgRating || a.topicName.localeCompare(b.topicName));
+  }).sort((a, b) => {
+    // Sort by skill level first (experto > intermedio > basico > none), then by rating
+    const rank = (lvl: string | undefined) =>
+      lvl === "experto" ? 3 : lvl === "intermedio" ? 2 : lvl === "basico" ? 1 : 0;
+    const lvlDiff = rank(b.level) - rank(a.level);
+    if (lvlDiff !== 0) return lvlDiff;
+    return b.avgRating - a.avgRating || a.topicName.localeCompare(b.topicName);
+  });
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
@@ -262,13 +290,13 @@ export function FacilitadorProfileDrawer({
         </div>
 
         {/* Tab Navigation */}
-        <div className="px-6 border-b border-gray-200 bg-white flex gap-6 text-sm font-medium shrink-0">
+        <div className="px-6 border-b border-gray-200 bg-white flex gap-1 text-sm font-medium shrink-0">
           <button
             onClick={() => setActiveTab("competencias")}
-            className={`py-3 border-b-2 flex items-center gap-2 transition-colors ${
+            className={`py-3 px-3 -mb-px border-b-2 flex items-center gap-2 transition-colors rounded-t-md ${
               activeTab === "competencias"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                ? "border-violet-600 text-violet-700 font-semibold bg-violet-50/50"
+                : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50"
             }`}
           >
             <Sparkles className="w-4 h-4" />
@@ -277,10 +305,10 @@ export function FacilitadorProfileDrawer({
 
           <button
             onClick={() => setActiveTab("trayectoria")}
-            className={`py-3 border-b-2 flex items-center gap-2 transition-colors ${
+            className={`py-3 px-3 -mb-px border-b-2 flex items-center gap-2 transition-colors rounded-t-md ${
               activeTab === "trayectoria"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                ? "border-violet-600 text-violet-700 font-semibold bg-violet-50/50"
+                : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50"
             }`}
           >
             <GraduationCap className="w-4 h-4" />
@@ -289,10 +317,10 @@ export function FacilitadorProfileDrawer({
 
           <button
             onClick={() => setActiveTab("evaluacion")}
-            className={`py-3 border-b-2 flex items-center gap-2 transition-colors ${
+            className={`py-3 px-3 -mb-px border-b-2 flex items-center gap-2 transition-colors rounded-t-md ${
               activeTab === "evaluacion"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                ? "border-violet-600 text-violet-700 font-semibold bg-violet-50/50"
+                : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50"
             }`}
           >
             <ClipboardCheck className="w-4 h-4" />
@@ -324,6 +352,7 @@ export function FacilitadorProfileDrawer({
                 <div className="space-y-2.5">
                   {topicsList.map((t, idx) => {
                     const scorePct = t.avgRating > 0 ? (t.avgRating / 5) * 100 : 0;
+                    const badge = levelBadgeClasses(t.level);
                     return (
                       <div
                         key={idx}
@@ -331,9 +360,17 @@ export function FacilitadorProfileDrawer({
                       >
                         <div className="flex items-start justify-between gap-3 mb-2">
                           <div className="min-w-0 flex-1">
-                            <h4 className="text-sm font-semibold text-gray-900 truncate">
-                              {t.topicName}
-                            </h4>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-sm font-semibold text-gray-900 truncate">
+                                {t.topicName}
+                              </h4>
+                              <span
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${badge.chip}`}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                                {badge.label}
+                              </span>
+                            </div>
                             <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
                               <span>
                                 {t.sessionsCount > 0 ? `${t.sessionsCount} OSIs dictadas` : "Sin servicios aún"}

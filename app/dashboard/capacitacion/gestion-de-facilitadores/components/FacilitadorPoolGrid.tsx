@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import { FacilitatorPoolItem } from "@/app/actions/facilitators-pool";
 import { FacilitadorCard } from "./FacilitadorCard";
-import { ViewMode, SortMode } from "./FacilitadorMatcherBar";
+import { ViewMode, SortMode, SkillLevel } from "./FacilitadorMatcherBar";
 import { toTitleCase } from "@/utils/string-utils";
 import {
   Star,
@@ -30,6 +30,7 @@ interface FacilitadorPoolGridProps {
   searchTerm: string;
   selectedTopic: string | null;
   selectedCity: string | null;
+  selectedLevel: SkillLevel;
   onlyActive: boolean;
   sortMode: SortMode;
   viewMode: ViewMode;
@@ -47,6 +48,7 @@ export function FacilitadorPoolGrid({
   searchTerm,
   selectedTopic,
   selectedCity,
+  selectedLevel,
   onlyActive,
   sortMode,
   viewMode,
@@ -61,6 +63,22 @@ export function FacilitadorPoolGrid({
     const term = searchTerm.toLowerCase().trim();
     const topicKey = selectedTopic ? selectedTopic.toLowerCase().trim() : null;
     const cityLower = selectedCity ? selectedCity.toLowerCase().trim() : null;
+
+    // Helper: skill level rank (higher = better). Returns -1 if no level for topic.
+    const levelRank = (f: FacilitatorPoolItem, key: string): number => {
+      // niveles_habilidad is keyed by exact topic name; topicKey is lowercased.
+      // Find the matching key case-insensitively.
+      const niveles = f.niveles_habilidad || {};
+      const matchKey = Object.keys(niveles).find(
+        (k) => k.toLowerCase().trim() === key,
+      );
+      if (!matchKey) return -1;
+      const lvl = niveles[matchKey];
+      if (lvl === "experto") return 3;
+      if (lvl === "intermedio") return 2;
+      if (lvl === "basico") return 1;
+      return -1;
+    };
 
     let list = facilitadores.filter((f) => {
       // Active filter
@@ -96,17 +114,32 @@ export function FacilitadorPoolGrid({
           !!f.topicRatings[topicKey] ||
           (f.temas_cursos || []).some((t) => t.toLowerCase().trim() === topicKey);
         if (teaches) matched++;
+
+        // Skill level filter (only meaningful when a topic is selected)
+        if (teaches && selectedLevel !== "todos") {
+          const rank = levelRank(f, topicKey);
+          if (rank === -1) return false; // no level recorded -> exclude when filtering by level
+          const wantedRank =
+            selectedLevel === "experto" ? 3 : selectedLevel === "intermedio" ? 2 : 1;
+          if (rank !== wantedRank) return false;
+        }
+
         return true;
       });
     }
 
     // Sort
     list = [...list].sort((a, b) => {
-      // When a topic is selected, prioritize topic match + topic rating first
+      // When a topic is selected, prioritize topic match + skill level + topic rating first
       if (topicKey) {
         const aTeaches = !!a.topicRatings[topicKey] || (a.temas_cursos || []).some((t) => t.toLowerCase().trim() === topicKey);
         const bTeaches = !!b.topicRatings[topicKey] || (b.temas_cursos || []).some((t) => t.toLowerCase().trim() === topicKey);
         if (aTeaches !== bTeaches) return aTeaches ? -1 : 1;
+
+        // Skill level: expert (3) > intermediate (2) > basic (1) > none (-1)
+        const aLevel = levelRank(a, topicKey);
+        const bLevel = levelRank(b, topicKey);
+        if (aLevel !== bLevel) return bLevel - aLevel;
 
         const aRating = a.topicRatings[topicKey]?.avgRating || 0;
         const bRating = b.topicRatings[topicKey]?.avgRating || 0;
@@ -128,7 +161,7 @@ export function FacilitadorPoolGrid({
     });
 
     return { filtered: list, matchedCount: matched };
-  }, [facilitadores, searchTerm, selectedTopic, selectedCity, onlyActive, sortMode]);
+  }, [facilitadores, searchTerm, selectedTopic, selectedCity, selectedLevel, onlyActive, sortMode]);
 
   // Loading state
   if (loading) {
@@ -311,15 +344,29 @@ export function FacilitadorPoolGrid({
                   <div className="flex flex-wrap gap-1 max-w-md">
                     {(f.temas_cursos || []).slice(0, 3).map((t, i) => {
                       const isMatched = topicKey === t.toLowerCase().trim();
+                      const niveles = f.niveles_habilidad || {};
+                      const lvlKey = Object.keys(niveles).find(
+                        (k) => k.toLowerCase().trim() === t.toLowerCase().trim(),
+                      );
+                      const lvl = lvlKey ? niveles[lvlKey] : undefined;
+                      const dotClass =
+                        lvl === "experto"
+                          ? "bg-emerald-500"
+                          : lvl === "intermedio"
+                            ? "bg-amber-500"
+                            : lvl === "basico"
+                              ? "bg-slate-400"
+                              : "bg-gray-300";
                       return (
                         <span
                           key={i}
-                          className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
                             isMatched
                               ? "bg-violet-100 text-violet-800 border border-violet-300"
                               : "bg-gray-50 text-gray-700 border border-gray-200"
                           }`}
                         >
+                          {lvl && <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />}
                           {t.length > 28 ? t.slice(0, 28) + "…" : t}
                         </span>
                       );

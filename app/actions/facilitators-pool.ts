@@ -30,6 +30,7 @@ export interface FacilitatorPoolItem {
   id_estado_geografico: number | null;
   estado_nombre: string | null;
   temas_cursos: string[];
+  niveles_habilidad: Record<string, string>;
   calificacion: number | null;
   ano_ingreso: number | null;
   fecha_ingreso: string | null;
@@ -95,6 +96,7 @@ export async function getFacilitatorPoolAction(): Promise<FacilitatorPoolRespons
           id_ciudad,
           id_estado_geografico,
           temas_cursos,
+          niveles_habilidad,
           calificacion,
           ano_ingreso,
           fecha_ingreso,
@@ -337,6 +339,7 @@ export async function getFacilitatorPoolAction(): Promise<FacilitatorPoolRespons
         id_estado_geografico: fac.id_estado_geografico,
         estado_nombre: estadoNombre,
         temas_cursos: temas,
+        niveles_habilidad: (fac.niveles_habilidad as Record<string, string>) || {},
         calificacion: fac.calificacion,
         ano_ingreso: fac.ano_ingreso,
         fecha_ingreso: fac.fecha_ingreso,

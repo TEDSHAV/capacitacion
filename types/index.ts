@@ -148,6 +148,7 @@ export interface FacilitadorFormData {
   id_estado_geografico: number | null;
   id_ciudad: number | null;
   temas_cursos: string[];
+  niveles_habilidad: Record<string, "experto" | "intermedio" | "basico">;
   calificacion: number | null;
   firma_id: number | null;
   tiene_curriculum: boolean;
@@ -445,6 +446,7 @@ export interface Facilitador {
   id_estado_geografico: number | null;
   id_estatus: number | null;
   temas_cursos: string[];
+  niveles_habilidad?: Record<string, string> | null;
   ficha_tecnica: string | null;
   calificacion: number | null;
   url_curriculum: string | null;

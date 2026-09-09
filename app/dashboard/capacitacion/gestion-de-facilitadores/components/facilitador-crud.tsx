@@ -21,7 +21,7 @@ import { getFacilitatorRatings } from "@/app/actions/facilitators";
 import { getFacilitatorPoolAction, FacilitatorPoolItem } from "@/app/actions/facilitators-pool";
 import { FacilitadorHistoryModal } from "./FacilitadorHistoryModal";
 import AssignOSIModal from "./assign-osi-modal";
-import { FacilitadorMatcherBar, ViewMode, SortMode } from "./FacilitadorMatcherBar";
+import { FacilitadorMatcherBar, ViewMode, SortMode, SkillLevel } from "./FacilitadorMatcherBar";
 import { FacilitadorPoolGrid } from "./FacilitadorPoolGrid";
 import { FacilitadorProfileDrawer } from "./FacilitadorProfileDrawer";
 
@@ -57,6 +57,7 @@ export const FacilitadorCrud = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<SkillLevel>("todos");
   const [onlyActive, setOnlyActive] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("rating");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
@@ -301,6 +302,7 @@ export const FacilitadorCrud = ({
     setSearchTerm("");
     setSelectedTopic(null);
     setSelectedCity(null);
+    setSelectedLevel("todos");
     setOnlyActive(false);
   };
 
@@ -388,6 +390,7 @@ export const FacilitadorCrud = ({
             searchTerm={searchTerm}
             selectedTopic={selectedTopic}
             selectedCity={selectedCity}
+            selectedLevel={selectedLevel}
             onlyActive={onlyActive}
             sortMode={sortMode}
             viewMode={viewMode}
@@ -421,6 +424,7 @@ export const FacilitadorCrud = ({
             onSearchChange={setSearchTerm}
             onTopicChange={setSelectedTopic}
             onCityChange={setSelectedCity}
+            onLevelChange={setSelectedLevel}
             onOnlyActiveChange={setOnlyActive}
             onSortChange={setSortMode}
             onViewModeChange={setViewMode}
@@ -434,6 +438,7 @@ export const FacilitadorCrud = ({
             searchTerm={searchTerm}
             selectedTopic={selectedTopic}
             selectedCity={selectedCity}
+            selectedLevel={selectedLevel}
             onlyActive={onlyActive}
             sortMode={sortMode}
             viewMode={viewMode}

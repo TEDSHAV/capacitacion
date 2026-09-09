@@ -17,6 +17,7 @@ import {
 
 export type ViewMode = "cards" | "list";
 export type SortMode = "rating" | "topic" | "name" | "activity";
+export type SkillLevel = "experto" | "intermedio" | "basico" | "todos";
 
 interface FacilitadorMatcherBarProps {
   allTopics: string[];
@@ -24,6 +25,7 @@ interface FacilitadorMatcherBarProps {
   searchTerm: string;
   selectedTopic: string | null;
   selectedCity: string | null;
+  selectedLevel: SkillLevel;
   onlyActive: boolean;
   sortMode: SortMode;
   viewMode: ViewMode;
@@ -33,6 +35,7 @@ interface FacilitadorMatcherBarProps {
   onSearchChange: (value: string) => void;
   onTopicChange: (value: string | null) => void;
   onCityChange: (value: string | null) => void;
+  onLevelChange: (level: SkillLevel) => void;
   onOnlyActiveChange: (value: boolean) => void;
   onSortChange: (mode: SortMode) => void;
   onViewModeChange: (mode: ViewMode) => void;
@@ -45,6 +48,7 @@ export function FacilitadorMatcherBar({
   searchTerm,
   selectedTopic,
   selectedCity,
+  selectedLevel,
   onlyActive,
   sortMode,
   viewMode,
@@ -54,6 +58,7 @@ export function FacilitadorMatcherBar({
   onSearchChange,
   onTopicChange,
   onCityChange,
+  onLevelChange,
   onOnlyActiveChange,
   onSortChange,
   onViewModeChange,
@@ -76,7 +81,8 @@ export function FacilitadorMatcherBar({
     return list.slice(0, 60);
   }, [allCities, cityQuery]);
 
-  const hasActiveFilters = !!searchTerm || !!selectedTopic || !!selectedCity || onlyActive;
+  const hasActiveFilters =
+    !!searchTerm || !!selectedTopic || !!selectedCity || onlyActive || selectedLevel !== "todos";
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -264,6 +270,29 @@ export function FacilitadorMatcherBar({
           </div>
         </div>
 
+        {/* Skill Level Filter (only enabled when a topic is selected) */}
+        <div className="lg:w-auto">
+          <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1">
+            <Sparkles className="w-3 h-3 text-violet-500" />
+            Nivel de habilidad
+          </label>
+          <select
+            value={selectedLevel}
+            onChange={(e) => onLevelChange(e.target.value as SkillLevel)}
+            disabled={!selectedTopic}
+            className={`text-sm border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-colors ${
+              selectedTopic
+                ? "border-gray-300 bg-white text-gray-700"
+                : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+            }`}
+          >
+            <option value="todos">Todos los niveles</option>
+            <option value="experto">Experto</option>
+            <option value="intermedio">Intermedio</option>
+            <option value="basico">Básico</option>
+          </select>
+        </div>
+
         {/* Only Active Toggle */}
         <div className="lg:w-auto flex items-end">
           <label className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors text-sm">
@@ -296,6 +325,20 @@ export function FacilitadorMatcherBar({
               <span>Tema: {selectedTopic}</span>
               <span className="text-violet-500">•</span>
               <span>{matchedCount} expertos</span>
+            </span>
+          )}
+
+          {selectedTopic && selectedLevel !== "todos" && (
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-violet-100 text-violet-800 rounded-full font-medium">
+              <Sparkles className="w-3 h-3" />
+              <span>
+                Nivel:{" "}
+                {selectedLevel === "experto"
+                  ? "Experto"
+                  : selectedLevel === "intermedio"
+                    ? "Intermedio"
+                    : "Básico"}
+              </span>
             </span>
           )}
 

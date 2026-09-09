@@ -3972,6 +3972,7 @@ export type Database = {
           titulo_profesional: string | null
           experiencia_laboral: string | null
           competencias_habilidades: string | null
+          niveles_habilidad: Record<string, string> | null
         }
         Insert: {
           alcance?: string | null
@@ -4004,6 +4005,7 @@ export type Database = {
           titulo_profesional?: string | null
           experiencia_laboral?: string | null
           competencias_habilidades?: string | null
+          niveles_habilidad?: Record<string, string> | null
         }
         Update: {
           alcance?: string | null
@@ -4036,6 +4038,7 @@ export type Database = {
           titulo_profesional?: string | null
           experiencia_laboral?: string | null
           competencias_habilidades?: string | null
+          niveles_habilidad?: Record<string, string> | null
         }
         Relationships: [
           {
