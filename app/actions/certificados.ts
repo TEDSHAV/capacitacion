@@ -2130,6 +2130,9 @@ export async function getCertificatesForManagement(
         query = query.eq("empresas.id", companyId);
       }
     }
+    if (filters.companyName) {
+      query = query.ilike("empresas.razon_social", `%${filters.companyName}%`);
+    }
     if (filters.courseId) {
       const courseId = Number(filters.courseId);
       if (!isNaN(courseId)) {

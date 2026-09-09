@@ -9,26 +9,6 @@ interface CourseItemProps {
   onDuplicate: (id: string) => void;
 }
 
-const formatDate = (dateString: string | null) => {
-  if (!dateString) return "Sin fecha";
-
-  try {
-    // Handle PostgreSQL date format (YYYY-MM-DD)
-    const date = new Date(dateString + "T00:00:00"); // Add time to make it a valid date
-    // Check if the date is valid
-    if (isNaN(date.getTime())) {
-      return "Fecha inválida";
-    }
-    return date.toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  } catch (error) {
-    return "Fecha inválida";
-  }
-};
-
 export default function CourseItem({
   curso,
   onEdit,
@@ -50,7 +30,7 @@ export default function CourseItem({
     >
       <div className="grid grid-cols-12 gap-4 items-center">
         {/* Course Information */}
-        <div className="col-span-3">
+        <div className="col-span-5">
           <div className="space-y-1">
             <div className="text-sm font-medium text-gray-900 truncate">
               {curso.nombre.toUpperCase()}
@@ -70,13 +50,6 @@ export default function CourseItem({
         <div className="col-span-2">
           <div className="text-sm font-medium text-gray-900">
             {curso.carga_horaria_std || 0}h
-          </div>
-        </div>
-
-        {/* Creation Date */}
-        <div className="col-span-2">
-          <div className="text-xs text-gray-500">
-            {formatDate(curso.created_at)}
           </div>
         </div>
 

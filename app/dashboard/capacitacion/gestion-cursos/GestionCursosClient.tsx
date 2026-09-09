@@ -13,19 +13,16 @@ import CourseForm from "./CourseForm";
 import CourseList from "./CourseList";
 import CreateCourseButton from "./CreateCourseButton";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
-import { BookOpen, Award, Clock, TrendingUp } from "lucide-react";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
 
 export default function GestionCursosClient({
   user,
   empresas = [],
   cursos = [],
-  analyticsMetrics = null,
 }: {
   user: any;
   empresas: Empresa[];
   cursos: Curso[] | undefined;
-  analyticsMetrics: any;
 }) {
   const router = useRouter();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -42,10 +39,9 @@ export default function GestionCursosClient({
       cachePortalData("dash_cursos", "dash_cursos", {
         cursos: cursos || [],
         empresas,
-        analyticsMetrics,
       }).catch(() => {});
     }
-  }, [cursos, empresas, analyticsMetrics]);
+  }, [cursos, empresas]);
 
   if (!user) {
     return (
@@ -164,84 +160,6 @@ export default function GestionCursosClient({
             </div>
             <CreateCourseButton onClick={() => setCreandoCurso(true)} />
           </div>
-
-          {/* Metrics Row */}
-          {analyticsMetrics && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
-                <BookOpen className="h-8 w-8 text-blue-600" />
-                <div>
-                  <p className="text-sm text-gray-500">
-                    Cursos con Certificados
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {analyticsMetrics.unique_courses_with_certificates || 0}
-                  </p>
-                </div>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
-                <Award className="h-8 w-8 text-green-600" />
-                <div>
-                  <p className="text-sm text-gray-500">Certificados Totales</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {analyticsMetrics.total_certificates || 0}
-                  </p>
-                </div>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
-                <Clock className="h-8 w-8 text-purple-600" />
-                <div>
-                  <p className="text-sm text-gray-500">Promedio de Cursos</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {analyticsMetrics.average_score || 0}
-                  </p>
-                </div>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
-                <TrendingUp className="h-8 w-8 text-orange-600" />
-                <div>
-                  <p className="text-sm text-gray-500">Certificados Este Mes</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {analyticsMetrics.certificates_this_month || 0}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Top Courses */}
-          {analyticsMetrics?.top_courses &&
-            analyticsMetrics.top_courses.length > 0 && (
-              <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Top Cursos por Certificados
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {analyticsMetrics.top_courses
-                    .slice(0, 3)
-                    .map((course: any, index: number) => (
-                      <div
-                        key={index}
-                        className="border border-gray-200 rounded-lg p-4"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-gray-900 text-sm">
-                            {course.course_name}
-                          </h4>
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                            #{index + 1}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-500 space-y-1">
-                          <p>Certificados: {course.certificate_count}</p>
-                          <p>Participantes: {course.participant_count}</p>
-                          <p>Promedio: {course.avg_score}</p>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
         </div>
 
         {/* Create/Edit Course Modal */}

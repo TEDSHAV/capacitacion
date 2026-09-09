@@ -374,8 +374,8 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
             <div className="mb-4 flex items-start gap-2.5 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
               <Info className="w-4 h-4 shrink-0 mt-0.5" />
               <p className="flex-1 leading-relaxed">
-                Los datos mostrados en este módulo son de ejemplo y no reflejan
-                información real ni actualizada. Esta sección es una demostración
+                Los datos mostrados en este módulo no reflejan
+                información actualizada. Esta sección es una demostración
                 para futuras implementaciones.
               </p>
               <button

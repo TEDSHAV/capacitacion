@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { CertificateFilters } from "@/types";
-import { X, Search, ChevronDown, Check } from "lucide-react";
+import { X, Search, ChevronDown, Check, Building2 } from "lucide-react";
 
 interface SearchableSelectProps {
   label: string;
@@ -155,9 +155,16 @@ function CertificateFiltersComponent({
   const localFiltersRef = useRef(localFilters);
   const onFiltersChangeRef = useRef(onFiltersChange);
 
+  // Searchable Empresa combobox state
+  const [localCompany, setLocalCompany] = useState(filters.companyName || "");
+  const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
+  const [companySelectedIndex, setCompanySelectedIndex] = useState(0);
+  const companyDropdownRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setLocalFilters(filters);
     setSearchTerm(filters.searchTerm || "");
+    setLocalCompany(filters.companyName || "");
   }, [filters]);
 
   useEffect(() => {
@@ -183,6 +190,89 @@ function CertificateFiltersComponent({
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Filtered company suggestions for the searchable Empresa combobox (max 10)
+  const filteredCompanies = useMemo(() => {
+    const q = localCompany.toLowerCase().trim();
+    const list = companies.map((c) => ({ id: c.id, label: c.razon_social }));
+    if (!q) return list.slice(0, 10);
+    return list.filter((c) => c.label.toLowerCase().includes(q)).slice(0, 10);
+  }, [companies, localCompany]);
+
+  // Debounced company filter — applies after user stops typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const current = localFiltersRef.current.companyName || "";
+      if (current !== localCompany) {
+        const newFilters = { ...localFiltersRef.current, companyName: localCompany || undefined };
+        setLocalFilters(newFilters);
+        onFiltersChangeRef.current(newFilters);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [localCompany]);
+
+  // Close company dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        companyDropdownRef.current &&
+        !companyDropdownRef.current.contains(e.target as Node)
+      ) {
+        setCompanyDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleCompanySelect = useCallback((name: string) => {
+    setLocalCompany(name);
+    setCompanyDropdownOpen(false);
+    setCompanySelectedIndex(0);
+    const newFilters = { ...localFiltersRef.current, companyName: name || undefined };
+    setLocalFilters(newFilters);
+    onFiltersChangeRef.current(newFilters);
+  }, []);
+
+  const handleCompanyKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        if (filteredCompanies.length > 0) {
+          setCompanyDropdownOpen(true);
+          setCompanySelectedIndex((prev) => {
+            const safePrev = Math.min(prev, filteredCompanies.length - 1);
+            return safePrev < filteredCompanies.length - 1 ? safePrev + 1 : 0;
+          });
+        }
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        if (filteredCompanies.length > 0) {
+          setCompanyDropdownOpen(true);
+          setCompanySelectedIndex((prev) => {
+            const safePrev = Math.min(prev, filteredCompanies.length - 1);
+            return safePrev > 0 ? safePrev - 1 : filteredCompanies.length - 1;
+          });
+        }
+        break;
+      case "Enter":
+        if (companyDropdownOpen && filteredCompanies[companySelectedIndex]) {
+          e.preventDefault();
+          handleCompanySelect(filteredCompanies[companySelectedIndex].label);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setCompanyDropdownOpen(false);
+        setCompanySelectedIndex(0);
+        break;
+      case "Tab":
+        setCompanyDropdownOpen(false);
+        break;
+    }
+  };
+
   const handleFilterChange = (key: keyof CertificateFilters, value: any) => {
     const newFilters = { ...localFilters, [key]: value };
     setLocalFilters(newFilters);
@@ -193,6 +283,7 @@ function CertificateFiltersComponent({
     const emptyFilters: CertificateFilters = {};
     setLocalFilters(emptyFilters);
     setSearchTerm("");
+    setLocalCompany("");
     onFiltersChange(emptyFilters);
   };
 
@@ -254,14 +345,68 @@ function CertificateFiltersComponent({
           </div>
         </div>
 
-        {/* Company */}
-        <SearchableSelect
-          label="Empresa"
-          placeholder="Todas las empresas"
-          options={companies.map((c) => ({ id: c.id, label: c.razon_social }))}
-          value={localFilters.companyId}
-          onChange={(val) => handleFilterChange("companyId", val)}
-        />
+        {/* Company — searchable combobox */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Empresa
+          </label>
+          <div className="relative" ref={companyDropdownRef}>
+            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+            <input
+              type="text"
+              placeholder="Buscar empresa..."
+              value={localCompany}
+              onChange={(e) => {
+                setLocalCompany(e.target.value);
+                setCompanyDropdownOpen(true);
+                setCompanySelectedIndex(0);
+              }}
+              onFocus={() => setCompanyDropdownOpen(true)}
+              onKeyDown={handleCompanyKeyDown}
+              className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              autoComplete="off"
+            />
+            {localCompany && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLocalCompany("");
+                  setCompanyDropdownOpen(false);
+                  const newFilters = { ...localFiltersRef.current, companyName: undefined };
+                  setLocalFilters(newFilters);
+                  onFiltersChangeRef.current(newFilters);
+                }}
+                className="absolute inset-y-0 right-0 w-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+            {companyDropdownOpen && filteredCompanies.length > 0 && (
+              <div className="absolute mt-1 w-full border border-gray-300 rounded-md shadow-lg bg-white max-h-60 overflow-y-auto z-50">
+                {filteredCompanies.map((company, index) => (
+                  <div
+                    key={company.id}
+                    onClick={() => handleCompanySelect(company.label)}
+                    className={`px-3 py-2 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm ${
+                      index === companySelectedIndex
+                        ? "bg-blue-50 text-blue-700"
+                        : "hover:bg-gray-50 text-gray-900"
+                    }`}
+                  >
+                    {company.label}
+                  </div>
+                ))}
+              </div>
+            )}
+            {companyDropdownOpen && localCompany && filteredCompanies.length === 0 && (
+              <div className="absolute mt-1 w-full border border-gray-300 rounded-md shadow-lg bg-white z-50">
+                <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                  Sin coincidencias
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Course */}
         <SearchableSelect
@@ -321,7 +466,7 @@ function CertificateFiltersComponent({
         {/* Date From */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Fecha Desde
+            Emisión Desde
           </label>
           <input
             type="date"
@@ -336,7 +481,7 @@ function CertificateFiltersComponent({
         {/* Date To */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Fecha Hasta
+            Emisión Hasta
           </label>
           <input
             type="date"

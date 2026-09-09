@@ -1326,6 +1326,7 @@ export interface CertificateMetrics {
 export interface CertificateFilters {
   searchTerm?: string;
   companyId?: number;
+  companyName?: string;
   courseId?: number;
   facilitatorId?: number;
   stateId?: number;
