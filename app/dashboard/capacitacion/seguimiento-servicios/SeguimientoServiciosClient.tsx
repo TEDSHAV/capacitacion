@@ -28,6 +28,7 @@ import {
 } from "@/app/actions/capacitacion-proceso-steps";
 import { ALL_STEPS, PLANIFICACION_STEPS, EJECUCION_STEPS } from "@/lib/proceso-steps";
 import ProcesoStepsTimeline from "../components/proceso-steps-timeline";
+import OSIPagination from "../gestion-osi/components/osi-pagination";
 import ListaAsistenciaPreview from "./components/lista-asistencia-preview";
 import { formatDateOnly } from "@/lib/format-date";
 
@@ -99,7 +100,7 @@ export default function SeguimientoServiciosClient({
   const [filters, setFilters] = useState<OSIFilters>({});
   const [stepFilter, setStepFilter] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   // osiId → nroSesion → stepKey → record
   const [stepsByOsi, setStepsByOsi] = useState<
     Map<number, Map<number, Record<string, ProcesoStepRecord>>>
@@ -114,6 +115,12 @@ export default function SeguimientoServiciosClient({
   const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string; nroSesion: number; category?: string; title?: string; showReceivedToggle?: boolean } | null>(null);
   const isFirstRender = useRef(true);
   const hasInitialized = useRef(false);
+
+  // Searchable Empresa combobox state
+  const [localCompany, setLocalCompany] = useState(filters.companyName || "");
+  const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
+  const [companySelectedIndex, setCompanySelectedIndex] = useState(0);
+  const companyDropdownRef = useRef<HTMLDivElement>(null);
 
   // Cache of all fetched OSIs for instant client-side search
   const cachedOsisRef = useRef<OSIManagement[]>(initialOsis);
@@ -161,6 +168,86 @@ export default function SeguimientoServiciosClient({
     }
     return Array.from(set).sort();
   }, [osis]);
+
+  // Filtered company suggestions for the searchable Empresa combobox (max 10)
+  const filteredCompanies = useMemo(() => {
+    const q = localCompany.toLowerCase().trim();
+    const list = filterOptions?.companies ?? [];
+    if (!q) return list.slice(0, 10);
+    return list.filter((c) => c.nombre_empresa.toLowerCase().includes(q)).slice(0, 10);
+  }, [filterOptions, localCompany]);
+
+  // Sync local company input when the filter is cleared externally (e.g. "Limpiar")
+  useEffect(() => {
+    setLocalCompany(filters.companyName || "");
+  }, [filters.companyName]);
+
+  // Close company dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        companyDropdownRef.current &&
+        !companyDropdownRef.current.contains(e.target as Node)
+      ) {
+        setCompanyDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleCompanySelect = useCallback((name: string) => {
+    setLocalCompany(name);
+    setCompanyDropdownOpen(false);
+    setCompanySelectedIndex(0);
+    setFilters((prev) => ({ ...prev, companyName: name || undefined }));
+    setCurrentPage(1);
+  }, []);
+
+  const handleCompanyKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        if (filteredCompanies.length > 0) {
+          setCompanyDropdownOpen(true);
+          setCompanySelectedIndex((prev) => {
+            const safePrev = Math.min(prev, filteredCompanies.length - 1);
+            return safePrev < filteredCompanies.length - 1 ? safePrev + 1 : 0;
+          });
+        }
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        if (filteredCompanies.length > 0) {
+          setCompanyDropdownOpen(true);
+          setCompanySelectedIndex((prev) => {
+            const safePrev = Math.min(prev, filteredCompanies.length - 1);
+            return safePrev > 0 ? safePrev - 1 : filteredCompanies.length - 1;
+          });
+        }
+        break;
+      case "Enter":
+        if (companyDropdownOpen && filteredCompanies[companySelectedIndex]) {
+          e.preventDefault();
+          handleCompanySelect(filteredCompanies[companySelectedIndex].nombre_empresa);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setCompanyDropdownOpen(false);
+        setCompanySelectedIndex(0);
+        break;
+      case "Tab":
+        setCompanyDropdownOpen(false);
+        break;
+    }
+  };
+
+  const handlePageChange = useCallback((page: number) => setCurrentPage(page), []);
+  const handleItemsPerPageChange = useCallback((n: number) => {
+    setItemsPerPage(n);
+    setCurrentPage(1);
+  }, []);
 
   const fetchOSIs = useCallback(async () => {
     setLoading(true);
@@ -388,28 +475,65 @@ export default function SeguimientoServiciosClient({
               ) : null}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
-                {/* Empresa */}
+                {/* Empresa — searchable combobox */}
                 <div>
                   <label className="block text-[10px] font-medium text-gray-600 mb-1">
                     Empresa
                   </label>
-                  <div className="relative">
-                    <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                    <select
-                      value={filters.companyName || ""}
+                  <div className="relative" ref={companyDropdownRef}>
+                    <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 z-10" />
+                    <input
+                      type="text"
+                      placeholder="Buscar empresa..."
+                      value={localCompany}
                       onChange={(e) => {
-                        setFilters((prev) => ({ ...prev, companyName: e.target.value || undefined }));
-                        setCurrentPage(1);
+                        setLocalCompany(e.target.value);
+                        setCompanyDropdownOpen(true);
+                        setCompanySelectedIndex(0);
                       }}
-                      className="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-                    >
-                      <option value="">Todas</option>
-                      {filterOptions.companies.map((company) => (
-                        <option key={company.id_empresa} value={company.nombre_empresa}>
-                          {company.nombre_empresa}
-                        </option>
-                      ))}
-                    </select>
+                      onFocus={() => setCompanyDropdownOpen(true)}
+                      onKeyDown={handleCompanyKeyDown}
+                      className="w-full pl-8 pr-7 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      autoComplete="off"
+                    />
+                    {localCompany && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocalCompany("");
+                          setCompanyDropdownOpen(false);
+                          setFilters((prev) => ({ ...prev, companyName: undefined }));
+                          setCurrentPage(1);
+                        }}
+                        className="absolute inset-y-0 right-0 w-7 flex items-center justify-center text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                    {companyDropdownOpen && filteredCompanies.length > 0 && (
+                      <div className="absolute mt-1 w-full border border-gray-300 rounded-md shadow-lg bg-white max-h-60 overflow-y-auto z-50">
+                        {filteredCompanies.map((company, index) => (
+                          <div
+                            key={company.id_empresa}
+                            onClick={() => handleCompanySelect(company.nombre_empresa)}
+                            className={`px-3 py-1.5 cursor-pointer border-b border-gray-100 last:border-b-0 text-xs ${
+                              index === companySelectedIndex
+                                ? "bg-blue-50 text-blue-700"
+                                : "hover:bg-gray-50 text-gray-900"
+                            }`}
+                          >
+                            {company.nombre_empresa}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {companyDropdownOpen && localCompany && filteredCompanies.length === 0 && (
+                      <div className="absolute mt-1 w-full border border-gray-300 rounded-md shadow-lg bg-white z-50">
+                        <div className="px-3 py-1.5 text-xs text-gray-500 text-center">
+                          Sin coincidencias
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -687,28 +811,16 @@ export default function SeguimientoServiciosClient({
         )}
 
         {/* Pagination — hidden when step-filtering (client-side filter within page); visible when searching (server-side) */}
-        {!stepFilter && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50/50">
-            <span className="text-xs text-gray-500">
-              Página {currentPage} de {totalPages}
-            </span>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 text-xs border border-gray-300 rounded-md disabled:opacity-50 hover:bg-gray-100 transition-colors"
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 text-xs border border-gray-300 rounded-md disabled:opacity-50 hover:bg-gray-100 transition-colors"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
+        {!stepFilter && (
+          <OSIPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            loading={loading}
+          />
         )}
       </div>
 
