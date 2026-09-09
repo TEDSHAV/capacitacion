@@ -165,11 +165,11 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
         const dataResult = results[0];
 
         // Fetch certificado_impreso flag for this page's OSIs (one lightweight
-        // PK-lookup query on ejecucion_osi, ~20 rows, 2 columns). Only applies
-        // to the automatic tab — manual batches aren't real OSIs.
+        // query on the certificados table, ~20 integer values, 1 column). Only
+        // applies to the automatic tab — manual batches aren't real OSIs.
         if (activeTab === "automatic" && dataResult.osis.length > 0) {
           const certMap = await getCertificadoImpresoBatch(
-            dataResult.osis.map((o: OSIManagement) => o.id_osi),
+            dataResult.osis.map((o: OSIManagement) => ({ id_osi: o.id_osi, nro_osi: o.nro_osi })),
           );
           dataResult.osis = dataResult.osis.map((o: OSIManagement) => ({
             ...o,
@@ -248,7 +248,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
         // Merge certificado_impreso for prefetched automatic-tab OSIs
         if (activeTab === "automatic" && result.osis.length > 0) {
           const certMap = await getCertificadoImpresoBatch(
-            result.osis.map((o: OSIManagement) => o.id_osi),
+            result.osis.map((o: OSIManagement) => ({ id_osi: o.id_osi, nro_osi: o.nro_osi })),
           );
           result.osis = result.osis.map((o: OSIManagement) => ({
             ...o,

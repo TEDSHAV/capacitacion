@@ -531,29 +531,52 @@ export async function getOSIsForGestionOSI(
 }
 
 /**
- * Batch-fetch the `certificado_impreso` flag for a set of OSI IDs.
+ * Batch-check which OSIs have certificate records in the `certificados` table.
  *
- * This is a lightweight PK-lookup query on `ejecucion_osi` (same underlying
- * table as v_osi_lista) returning only 2 columns for ~20 rows. Used by the
- * gestion-osi list to show a subtle green stripe on OSIs that have
- * certificates issued, without joining extra tables in the main query.
+ * `certificados.nro_osi` stores the raw sequential integer, while
+ * `v_osi_lista.nro_osi` is a formatted string (e.g. "OSI-2024-001"). We parse
+ * the digits from each OSI's nro_osi string and query `certificados` for
+ * matching records — one lightweight IN-clause query on ~20 integer values,
+ * selecting a single column.
  *
- * Returns a Map<id_osi, boolean>.
+ * Returns a Map<id_osi, boolean> where true = has certificates issued.
  */
 export async function getCertificadoImpresoBatch(
-  osiIds: number[],
+  osis: { id_osi: number; nro_osi: string }[],
 ): Promise<Map<number, boolean>> {
   const map = new Map<number, boolean>();
-  if (osiIds.length === 0) return map;
+  if (osis.length === 0) return map;
+
+  // Parse the sequential integer from each OSI's formatted nro_osi string
+  const nroOsiIntToId = new Map<number, number>();
+  const nroOsiInts: number[] = [];
+  for (const osi of osis) {
+    map.set(osi.id_osi, false);
+    const digits = osi.nro_osi.replace(/[^\d]/g, "");
+    if (digits) {
+      const nroOsiInt = parseInt(digits, 10);
+      if (!nroOsiIntToId.has(nroOsiInt)) {
+        nroOsiIntToId.set(nroOsiInt, osi.id_osi);
+        nroOsiInts.push(nroOsiInt);
+      }
+    }
+  }
+  if (nroOsiInts.length === 0) return map;
+
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from("ejecucion_osi")
-      .select("id, certificado_impreso")
-      .in("id", osiIds);
+      .from("certificados")
+      .select("nro_osi")
+      .in("nro_osi", nroOsiInts);
     if (error) return map;
+
     for (const row of data || []) {
-      map.set(row.id, row.certificado_impreso ?? false);
+      if (row.nro_osi == null) continue;
+      const osiId = nroOsiIntToId.get(row.nro_osi);
+      if (osiId !== undefined) {
+        map.set(osiId, true);
+      }
     }
   } catch (err) {
     console.error("Error in getCertificadoImpresoBatch:", err);
