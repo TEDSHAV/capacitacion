@@ -86,8 +86,10 @@ export async function GET(
       .single();
 
     const zip = new JSZip();
-    const certsFolder = zip.folder("Certificados");
-    const carnetsFolder = zip.folder("Carnets");
+    let certsFolder: JSZip | null = null;
+    let carnetsFolder: JSZip | null = null;
+    const getCertsFolder = () => (certsFolder ??= zip.folder("Certificados")!);
+    const getCarnetsFolder = () => (carnetsFolder ??= zip.folder("Carnets")!);
     const certificateGenerator = new CertificateGenerator();
     let filesAdded = 0;
     const errors: string[] = [];
@@ -253,7 +255,7 @@ export async function GET(
         });
         const certFileName = `Certificado_${participant.idNumber}_${participant.name.replace(/\s+/g, "_")}.pdf`;
         const certArrayBuffer = await certBlob.arrayBuffer();
-        certsFolder?.file(certFileName, certArrayBuffer);
+        getCertsFolder().file(certFileName, certArrayBuffer);
         filesAdded++;
 
         // Generate carnet if applicable (only for participants who passed)
@@ -310,7 +312,7 @@ export async function GET(
 
           const carnetFileName = `Carnet_${participant.idNumber}_${participant.name.replace(/\s+/g, "_")}.pdf`;
           const carnetArrayBuffer = await carnetBlob.arrayBuffer();
-          carnetsFolder?.file(carnetFileName, carnetArrayBuffer);
+          getCarnetsFolder().file(carnetFileName, carnetArrayBuffer);
           filesAdded++;
         }
       } catch (err) {

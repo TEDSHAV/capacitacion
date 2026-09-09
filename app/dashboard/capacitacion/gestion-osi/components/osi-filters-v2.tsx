@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { OSIFilters, OSIStatus } from "@/types";
 import { Search, X, Filter, ChevronDown, Calendar, Building2, User } from "lucide-react";
 
@@ -26,9 +26,21 @@ export default function OSIFiltersV2({
   );
   const [localNroOsi, setLocalNroOsi] = useState(filters.nroOsi || "");
 
+  // Company searchable state
+  const [localCompany, setLocalCompany] = useState(filters.companyName || "");
+  const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
+  const [companySelectedIndex, setCompanySelectedIndex] = useState(0);
+  const companyInputRef = useRef<HTMLInputElement>(null);
+  const companyDropdownRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setLocalNroOsi(filters.nroOsi || "");
   }, [filters.nroOsi]);
+
+  // Sync local company input when filter is cleared externally
+  useEffect(() => {
+    setLocalCompany(filters.companyName || "");
+  }, [filters.companyName]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -42,6 +54,92 @@ export default function OSIFiltersV2({
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localNroOsi]);
+
+  // Debounced company filter — applies after user stops typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if ((filters.companyName || "") !== localCompany) {
+        onFiltersChange({
+          ...filters,
+          companyName: localCompany || undefined,
+        });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localCompany]);
+
+  // Filtered company suggestions (case-insensitive, limited to 10)
+  const filteredCompanies = useMemo(() => {
+    const q = localCompany.toLowerCase().trim();
+    if (!q) return companies.slice(0, 10);
+    return companies
+      .filter((c) => c.nombre_empresa.toLowerCase().includes(q))
+      .slice(0, 10);
+  }, [companies, localCompany]);
+
+  // Close company dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        companyDropdownRef.current &&
+        !companyDropdownRef.current.contains(e.target as Node)
+      ) {
+        setCompanyDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleCompanySelect = (name: string) => {
+    setLocalCompany(name);
+    setCompanyDropdownOpen(false);
+    setCompanySelectedIndex(0);
+    onFiltersChange({
+      ...filters,
+      companyName: name || undefined,
+    });
+  };
+
+  const handleCompanyKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        if (filteredCompanies.length > 0) {
+          setCompanyDropdownOpen(true);
+          setCompanySelectedIndex((prev) => {
+            const safePrev = Math.min(prev, filteredCompanies.length - 1);
+            return safePrev < filteredCompanies.length - 1 ? safePrev + 1 : 0;
+          });
+        }
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        if (filteredCompanies.length > 0) {
+          setCompanyDropdownOpen(true);
+          setCompanySelectedIndex((prev) => {
+            const safePrev = Math.min(prev, filteredCompanies.length - 1);
+            return safePrev > 0 ? safePrev - 1 : filteredCompanies.length - 1;
+          });
+        }
+        break;
+      case "Enter":
+        if (companyDropdownOpen && filteredCompanies[companySelectedIndex]) {
+          e.preventDefault();
+          handleCompanySelect(filteredCompanies[companySelectedIndex].nombre_empresa);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setCompanyDropdownOpen(false);
+        setCompanySelectedIndex(0);
+        break;
+      case "Tab":
+        setCompanyDropdownOpen(false);
+        break;
+    }
+  };
 
   const handleFilterChange = (key: keyof OSIFilters, value: any) => {
     onFiltersChange({
@@ -123,28 +221,66 @@ export default function OSIFiltersV2({
               </div>
             </div>
 
-            {/* Company */}
+            {/* Company — searchable combobox */}
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Empresa
               </label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <select
-                  value={filters.companyName || ""}
-                  onChange={(e) =>
-                    handleFilterChange("companyName", e.target.value || undefined)
-                  }
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+              <div className="relative" ref={companyDropdownRef}>
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                <input
+                  ref={companyInputRef}
+                  type="text"
+                  placeholder="Buscar empresa..."
+                  value={localCompany}
+                  onChange={(e) => {
+                    setLocalCompany(e.target.value);
+                    setCompanyDropdownOpen(true);
+                    setCompanySelectedIndex(0);
+                  }}
+                  onFocus={() => setCompanyDropdownOpen(true)}
+                  onKeyDown={handleCompanyKeyDown}
+                  className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                   disabled={loading}
-                >
-                  <option value="">Todas</option>
-                  {companies.map((company: { id_empresa: number; nombre_empresa: string }) => (
-                    <option key={company.id_empresa} value={company.nombre_empresa}>
-                      {company.nombre_empresa}
-                    </option>
-                  ))}
-                </select>
+                  autoComplete="off"
+                />
+                {localCompany && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocalCompany("");
+                      setCompanyDropdownOpen(false);
+                      onFiltersChange({ ...filters, companyName: undefined });
+                    }}
+                    className="absolute inset-y-0 right-0 w-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                {companyDropdownOpen && filteredCompanies.length > 0 && (
+                  <div className="absolute mt-1 w-full border border-gray-300 rounded-md shadow-lg bg-white max-h-60 overflow-y-auto z-50">
+                    {filteredCompanies.map((company, index) => (
+                      <div
+                        key={company.id_empresa}
+                        onClick={() => handleCompanySelect(company.nombre_empresa)}
+                        className={`px-3 py-2 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm ${
+                          index === companySelectedIndex
+                            ? "bg-blue-50 text-blue-700"
+                            : "hover:bg-gray-50 text-gray-900"
+                        }`}
+                      >
+                        {company.nombre_empresa}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {companyDropdownOpen && localCompany && filteredCompanies.length === 0 && (
+                  <div className="absolute mt-1 w-full border border-gray-300 rounded-md shadow-lg bg-white z-50">
+                    <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                      Sin coincidencias
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

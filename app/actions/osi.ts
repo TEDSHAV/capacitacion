@@ -2,7 +2,6 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
 import {
   Empresa,
   Usuario,
@@ -391,42 +390,197 @@ export async function getOSIsForManagement(
   }
 }
 
+/**
+ * Lightweight OSI list for the Gestión OSI dashboard.
+ *
+ * Uses `v_osi_lista` (~20 columns) instead of `v_osi_formato_completo`
+ * (~80 columns including heavy JSONB) to drastically reduce payload and
+ * query time. The details modal fetches full data on-demand if needed.
+ *
+ * Does NOT fetch `facilitador_acknowledgments` (the list badge was removed)
+ * or `conf_estatus` enrichment (the table doesn't display status_name/color).
+ */
+export async function getOSIsForGestionOSI(
+  filters: OSIFilters = {},
+  page = 1,
+  limit = 20,
+): Promise<OSISearchResult> {
+  try {
+    const supabase = await createClient();
+
+    let query = supabase
+      .from("v_osi_lista")
+      .select(
+        "id_osi, nro_osi, nombre_empresa, id_empresa, id_estatus, servicio, tipo_servicio, ejecutivo_negocios, fecha_emision, fecha_inicio_real, fecha_fin_real, horas_academicas_ejecucion, sesiones_ejecucion, direccion_ejecucion, codigo_cliente, participantes_ejecucion, id_ciudad_direccion_ejecucion_efectiva",
+        { count: "exact" },
+      );
+
+    // Only capacitacion
+    query = query.ilike("tipo_servicio", "%capacitacion%");
+
+    // Exclude pending OSIs
+    query = query.not("nro_osi", "ilike", "%PEN-%");
+
+    // Apply filters (same as getOSIsForManagement — all compatible with v_osi_lista)
+    if (filters.companyName) {
+      query = query.ilike("nombre_empresa", `%${filters.companyName}%`);
+    }
+
+    if (filters.nroOsi) {
+      query = query.ilike("nro_osi", `%${filters.nroOsi}%`);
+    }
+
+    if (filters.search && filters.search.trim()) {
+      const q = filters.search.trim();
+      query = query.or(`nro_osi.ilike.%${q}%,nombre_empresa.ilike.%${q}%`);
+    }
+
+    if (filters.status) {
+      query = query.eq("id_estatus", parseInt(filters.status));
+    }
+
+    if (filters.dateServiceFrom) {
+      query = query.gte("fecha_inicio_real", filters.dateServiceFrom);
+    }
+
+    if (filters.dateServiceTo) {
+      query = query.lte("fecha_inicio_real", filters.dateServiceTo);
+    }
+
+    if (filters.ejecutivo) {
+      query = query.ilike("ejecutivo_negocios", `%${filters.ejecutivo}%`);
+    }
+
+    if (filters.servicio) {
+      query = query.ilike("servicio", `%${filters.servicio}%`);
+    }
+
+    if (filters.monthIssued) {
+      query = query.like("fecha_emision", `${filters.monthIssued}%`);
+    }
+
+    if (filters.location) {
+      query = query.ilike("direccion_ejecucion", `%${filters.location}%`);
+    }
+
+    if (filters.numSesionesMin !== undefined) {
+      query = query.gte("sesiones_ejecucion", filters.numSesionesMin);
+    }
+
+    if (filters.numSesionesMax !== undefined) {
+      query = query.lte("sesiones_ejecucion", filters.numSesionesMax);
+    }
+
+    if (filters.numHoursMin !== undefined) {
+      query = query.gte("horas_academicas_ejecucion", filters.numHoursMin);
+    }
+
+    if (filters.numHoursMax !== undefined) {
+      query = query.lte("horas_academicas_ejecucion", filters.numHoursMax);
+    }
+
+    // Pagination
+    const offset = (page - 1) * limit;
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query
+      .order("fecha_emision", { ascending: false, nullsFirst: false })
+      .order("id_osi", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching OSIs for gestion-osi:", error);
+      return { osis: [], totalCount: 0 };
+    }
+
+    // Map v_osi_lista rows to OSIManagement with defaults for missing fields.
+    // batch-download-utils uses certificate snapshots for OSI data (id_empresa,
+    // id_ciudad, etc.); the OSIManagement object only needs id_osi, nro_osi,
+    // nombre_empresa for the download flow.
+    const enrichedOSIs = (data || []).map((osi: any) => ({
+      id_osi: osi.id_osi,
+      nro_osi: osi.nro_osi || "",
+      nombre_empresa: osi.nombre_empresa || "",
+      id_empresa: osi.id_empresa || 0,
+      id_servicio: 0,
+      servicio: osi.servicio || "",
+      tipo_servicio: osi.tipo_servicio || "",
+      ejecutivo_negocios: osi.ejecutivo_negocios || "",
+      fecha_inicio_real: osi.fecha_inicio_real,
+      fecha_fin_real: osi.fecha_fin_real,
+      fecha_emision: osi.fecha_emision,
+      horas_academicas_ejecucion: osi.horas_academicas_ejecucion || 0,
+      sesiones_ejecucion: osi.sesiones_ejecucion || 0,
+      direccion_ejecucion: osi.direccion_ejecucion || "",
+      contenido_servicio: "",
+      codigo_cliente: osi.codigo_cliente || 0,
+      id_estatus: osi.id_estatus || 0,
+      participantes_ejecucion: osi.participantes_ejecucion,
+      // Fields not in v_osi_lista — defaults
+      desglose_recursos_sesiones: null,
+      sesiones_programadas: null,
+    }) as OSIManagement);
+
+    return {
+      osis: enrichedOSIs,
+      totalCount: count || 0,
+    };
+  } catch (err) {
+    console.error("Unexpected error in getOSIsForGestionOSI:", err);
+    return { osis: [], totalCount: 0 };
+  }
+}
+
 // Get filter options for OSI management (cached 5 minutes — reference data
 // that changes rarely: companies, ejecutivos, statuses)
-export const getOSIFilterOptions = unstable_cache(
-  async () => {
-    try {
-      const supabase = await createClient();
+//
+// Note: We can't use Next.js `unstable_cache` here because `createClient()`
+// calls `cookies()` (a dynamic data source), which is disallowed inside a
+// cache scope in Next.js 16+. Instead we use a simple module-level TTL cache.
+let _filterOptionsCache: { data: any; expiresAt: number } | null = null;
+const FILTER_OPTIONS_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-      const { data, error } = await supabase.rpc("get_osi_filter_options");
+export async function getOSIFilterOptions() {
+  // Return cached data if still fresh
+  if (_filterOptionsCache && Date.now() < _filterOptionsCache.expiresAt) {
+    return _filterOptionsCache.data;
+  }
 
-      if (error || !data || data.length === 0) {
-        console.error("Error fetching OSI filter options:", error);
-        return {
-          companies: [],
-          ejecutivos: [],
-          statuses: [],
-        };
-      }
+  try {
+    const supabase = await createClient();
 
-      const row = data[0];
-      return {
-        companies: row.companies || [],
-        ejecutivos: row.ejecutivos || [],
-        statuses: row.statuses || [],
-      };
-    } catch (err) {
-      console.error("Error fetching OSI filter options:", err);
+    const { data, error } = await supabase.rpc("get_osi_filter_options");
+
+    if (error || !data || data.length === 0) {
+      console.error("Error fetching OSI filter options:", error);
       return {
         companies: [],
         ejecutivos: [],
         statuses: [],
       };
     }
-  },
-  ["osi-filter-options"],
-  { tags: ["osi-filter-options"], revalidate: 300 },
-);
+
+    const row = data[0];
+    const result = {
+      companies: row.companies || [],
+      ejecutivos: row.ejecutivos || [],
+      statuses: row.statuses || [],
+    };
+
+    _filterOptionsCache = {
+      data: result,
+      expiresAt: Date.now() + FILTER_OPTIONS_TTL_MS,
+    };
+
+    return result;
+  } catch (err) {
+    console.error("Error fetching OSI filter options:", err);
+    return {
+      companies: [],
+      ejecutivos: [],
+      statuses: [],
+    };
+  }
+}
 
 /**
  * Get manual OSI batches (certificates not linked to a real OSI record)

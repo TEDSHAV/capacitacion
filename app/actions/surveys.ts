@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { CourseSatisfactionSurvey, SurveyOSIData, SurveyTabulacionData, SurveyMode } from "@/types";
+import { generateSurveyTabulacionPdf } from "@/lib/survey-tabulacion-renderer";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -240,6 +241,7 @@ const TABULACION_SECTIONS = [
  */
 export async function getSurveyTabulacionData(
   osiId: number,
+  nroSesion?: number,
 ): Promise<SurveyTabulacionData | null> {
   try {
     const supabase = await createClient();
@@ -265,13 +267,27 @@ export async function getSurveyTabulacionData(
       return null;
     }
 
-    // 2. Facilitator name (reuse the existing resolver so the logic stays
-    //    consistent with the survey form / document view).
-    const osiSurveyData = await getOSIDataForSurvey(osiId);
+    // 2. Facilitator name (scoped to session if provided).
+    const osiSurveyData = await getOSIDataForSurvey(osiId, nroSesion);
     const facilitador_nombre = osiSurveyData?.facilitador_nombre || "";
 
-    // 3. All surveys for this OSI (every session).
-    const surveys = await getSurveysByOSI(osiId);
+    // If specific session requested, resolve session date from osi_sesion
+    let fechaInicio = osi.fecha_inicio_real;
+    if (nroSesion !== undefined) {
+      const { data: sesionData } = await supabase
+        .from("osi_sesion")
+        .select("fecha")
+        .eq("id_osi", osiId)
+        .eq("nro_sesion", nroSesion)
+        .maybeSingle();
+
+      if (sesionData?.fecha) {
+        fechaInicio = sesionData.fecha;
+      }
+    }
+
+    // 3. Surveys for this OSI (all or filtered by session).
+    const surveys = await getSurveysByOSI(osiId, nroSesion);
     if (surveys.length === 0) {
       // Return a zeroed-out structure so the PDF can still render (empty).
       return {
@@ -281,8 +297,8 @@ export async function getSurveyTabulacionData(
         servicio: osi.servicio || "",
         facilitador_nombre,
         ejecutivo_negocios: osi.ejecutivo_negocios || "",
-        fecha_inicio_real: osi.fecha_inicio_real || "",
-        total_participantes: osi.participantes_ejecucion ?? 0,
+        fecha_inicio_real: fechaInicio || "",
+        total_participantes: nroSesion !== undefined ? surveys.length : (osi.participantes_ejecucion ?? 0),
         total_encuestas: 0,
         sections: {
           facilitador: { label: TABULACION_SECTIONS[0].label, weight: TABULACION_SECTIONS[0].weight, question_ids: [1, 2, 3, 4, 5], distributions: {}, total: 0 },
@@ -380,5 +396,108 @@ export async function getSurveyTabulacionData(
   } catch (error) {
     console.error("Exception building survey tabulation data:", error);
     return null;
+  }
+}
+
+function sanitizeFilename(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .substring(0, 60) || "resultado_actividad"
+  );
+}
+
+export interface ResultadoActividadFile {
+  fileName: string;
+  base64: string;
+}
+
+/**
+ * Fetch and generate all applicable "Resultado de la Actividad" PDF report files for an OSI.
+ * - If survey_mode is 'per_session' and sessions have surveys: generates one PDF per session with surveys.
+ * - If survey_mode is 'unique' (or default): generates one combined PDF for the OSI.
+ * - If no surveys exist: returns an empty array.
+ */
+export async function getResultadoActividadFilesAction(
+  osiId: number,
+): Promise<{ success: boolean; files: ResultadoActividadFile[]; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const mode = await getSurveyMode(osiId);
+
+    if (mode === "per_session") {
+      const { data: sessionRows, error } = await supabase
+        .from("course_satisfaction_surveys")
+        .select("nro_sesion")
+        .eq("id_osi", osiId);
+
+      if (error) {
+        console.error("Error fetching survey sessions:", error);
+        return { success: false, files: [], error: error.message };
+      }
+
+      if (!sessionRows || sessionRows.length === 0) {
+        return { success: true, files: [] };
+      }
+
+      const distinctSessions = Array.from(
+        new Set(sessionRows.map((r) => r.nro_sesion ?? 1)),
+      ).sort((a, b) => a - b);
+
+      const files: ResultadoActividadFile[] = [];
+      for (const sessionNum of distinctSessions) {
+        const tabData = await getSurveyTabulacionData(osiId, sessionNum);
+        if (tabData && tabData.total_encuestas > 0) {
+          const buffer = await generateSurveyTabulacionPdf(tabData);
+          const safeOsi = sanitizeFilename(tabData.nro_osi);
+          files.push({
+            fileName: `Resultado_Actividad_OSI_${safeOsi}_Sesion_${sessionNum}.pdf`,
+            base64: buffer.toString("base64"),
+          });
+        }
+      }
+
+      return { success: true, files };
+    } else {
+      const { count, error } = await supabase
+        .from("course_satisfaction_surveys")
+        .select("*", { count: "exact", head: true })
+        .eq("id_osi", osiId);
+
+      if (error) {
+        console.error("Error counting surveys:", error);
+        return { success: false, files: [], error: error.message };
+      }
+
+      if (!count || count === 0) {
+        return { success: true, files: [] };
+      }
+
+      const tabData = await getSurveyTabulacionData(osiId);
+      if (!tabData || tabData.total_encuestas === 0) {
+        return { success: true, files: [] };
+      }
+
+      const buffer = await generateSurveyTabulacionPdf(tabData);
+      const safeOsi = sanitizeFilename(tabData.nro_osi);
+      return {
+        success: true,
+        files: [
+          {
+            fileName: `Resultado_Actividad_OSI_${safeOsi}.pdf`,
+            base64: buffer.toString("base64"),
+          },
+        ],
+      };
+    }
+  } catch (error) {
+    console.error("Error in getResultadoActividadFilesAction:", error);
+    return {
+      success: false,
+      files: [],
+      error: error instanceof Error ? error.message : "Error desconocido",
+    };
   }
 }

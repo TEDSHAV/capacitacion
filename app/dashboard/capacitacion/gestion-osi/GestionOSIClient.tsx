@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import type { OSIFilters, OSIManagement, OSIStatus } from "@/types";
-import { getOSIsForManagement, getOSIFilterOptions, getManualOSIBatchesAction } from "@/app/actions/osi";
+import { getOSIsForGestionOSI, getOSIFilterOptions, getManualOSIBatchesAction } from "@/app/actions/osi";
 import { CachedDataBanner } from "@/components/CachedDataBanner";
 import { useOnlineStatus } from "@/lib/offline/use-online-status";
 import { cachePortalData, getCachedPortalData } from "@/lib/offline/portal-data-cache";
@@ -149,7 +149,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
         // Always load OSI data
         promises.push(
           activeTab === "automatic"
-            ? getOSIsForManagement(filters, currentPage, itemsPerPage)
+            ? getOSIsForGestionOSI(filters, currentPage, itemsPerPage)
             : getManualOSIBatchesAction(filters, currentPage, itemsPerPage)
         );
 
@@ -228,7 +228,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
       if (cancelled) return;
       try {
         const result = activeTab === "automatic"
-          ? await getOSIsForManagement(filters, nextPage, itemsPerPage)
+          ? await getOSIsForGestionOSI(filters, nextPage, itemsPerPage)
           : await getManualOSIBatchesAction(filters, nextPage, itemsPerPage);
         if (cancelled) return;
         setCached(nextKey, {

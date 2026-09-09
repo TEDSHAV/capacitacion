@@ -2,8 +2,9 @@ import JSZip from "jszip";
 import { CertificateGenerator } from "./certificate-generator";
 import { generateDocumentsServer } from "./document-server-actions";
 import { getDocumentFileName } from "./document-client-utils";
+import { getResultadoActividadFilesAction } from "@/app/actions/surveys";
 
-export type DownloadChoice = "full" | "certificates" | "carnets" | "documents";
+export type DownloadChoice = "full" | "certificates" | "carnets" | "documents" | "resultado";
 
 export async function downloadBatchAction(
   choice: DownloadChoice,
@@ -16,10 +17,16 @@ export async function downloadBatchAction(
   const zip = new JSZip();
   const certificateGenerator = new CertificateGenerator();
 
-  // Folders in ZIP
-  const certsFolder = zip.folder("Certificados");
-  const carnetsFolder = zip.folder("Carnets");
-  const docsFolder = zip.folder("Documentos_Adicionales");
+  // Lazy folders in ZIP to avoid empty directories when not requested or empty
+  let certsFolder: JSZip | null = null;
+  let carnetsFolder: JSZip | null = null;
+  let docsFolder: JSZip | null = null;
+  let resultadoFolder: JSZip | null = null;
+
+  const getCertsFolder = () => (certsFolder ??= zip.folder("Certificados")!);
+  const getCarnetsFolder = () => (carnetsFolder ??= zip.folder("Carnets")!);
+  const getDocsFolder = () => (docsFolder ??= zip.folder("Documentos_Adicionales")!);
+  const getResultadoFolder = () => (resultadoFolder ??= zip.folder("Resultado_Actividad")!);
 
   let filesAddedCount = 0;
   const results: { success: boolean; errors: string[] } = {
@@ -137,7 +144,7 @@ export async function downloadBatchAction(
             paperSize: snapshot.certificado?.paperSize || "half-letter-custom",
           });
           const fileName = `Certificado_${participant.idNumber}_${participant.name.replace(/\s+/g, "_")}.pdf`;
-          certsFolder?.file(fileName, certBlob);
+          getCertsFolder().file(fileName, certBlob);
           filesAddedCount++;
         }
 
@@ -186,7 +193,7 @@ export async function downloadBatchAction(
           });
 
           const fileName = `Carnet_${participant.idNumber}_${participant.name.replace(/\s+/g, "_")}.pdf`;
-          carnetsFolder?.file(fileName, carnetBlob);
+          getCarnetsFolder().file(fileName, carnetBlob);
           filesAddedCount++;
         }
       } catch (err) {
@@ -257,7 +264,7 @@ export async function downloadBatchAction(
         Object.entries(docResult.documents).forEach(([key, base64]) => {
           const fileName = `${key.replace(/_/g, " ").toUpperCase()}.pdf`;
           console.log(`[BatchDownload] Adding additional document: ${fileName}`);
-          docsFolder?.file(fileName, base64, { base64: true });
+          getDocsFolder().file(fileName, base64, { base64: true });
           filesAddedCount++;
         });
       }
@@ -270,18 +277,69 @@ export async function downloadBatchAction(
     }
   }
 
+  // 3. Generate Resultado de la Actividad
+  if (choice === "full" || choice === "resultado") {
+    const osiId = osiData?.id_osi || osiData?.id;
+    if (osiId) {
+      try {
+        console.log(`[BatchDownload] Generating Resultado de la Actividad for OSI ID: ${osiId}...`);
+        const resultadoRes = await getResultadoActividadFilesAction(osiId);
+        if (resultadoRes.success && resultadoRes.files && resultadoRes.files.length > 0) {
+          const folder = getResultadoFolder();
+          for (const file of resultadoRes.files) {
+            console.log(`[BatchDownload] Adding Resultado de la Actividad: ${file.fileName}`);
+            folder.file(file.fileName, file.base64, { base64: true });
+            filesAddedCount++;
+          }
+        } else if (choice === "resultado") {
+          results.success = false;
+          results.errors.push("Esta OSI no tiene encuestas registradas para generar el Resultado de la Actividad.");
+          return results;
+        }
+      } catch (err) {
+        console.error("[BatchDownload] Error generating Resultado de la Actividad:", err);
+        const errMsg = `Error generando Resultado de la Actividad: ${err instanceof Error ? err.message : "Error desconocido"}`;
+        if (choice === "resultado") {
+          results.success = false;
+          results.errors.push(errMsg);
+          return results;
+        } else {
+          results.errors.push(errMsg);
+        }
+      }
+    } else if (choice === "resultado") {
+      results.success = false;
+      results.errors.push("No se pudo identificar el ID de la OSI.");
+      return results;
+    }
+  }
+
   console.log(`[BatchDownload] Generation complete. Files to ZIP: ${filesAddedCount}`);
   
   if (filesAddedCount === 0) {
     console.warn("[BatchDownload] No files were added to the ZIP.");
     results.success = false;
-    results.errors.push("No se pudieron generar archivos para el ZIP. Verifique los datos de los certificados.");
+    const defaultMsg = choice === "resultado"
+      ? "Esta OSI no tiene encuestas registradas para generar el Resultado de la Actividad."
+      : "No se pudieron generar archivos para el ZIP. Verifique los datos de los certificados.";
+    results.errors.push(defaultMsg);
     return results;
   }
 
-  // 3. Finalize ZIP
+  // 4. Finalize ZIP
   const content = await zip.generateAsync({ type: "blob" });
-  const zipFileName = `Lote_${osiData.nro_osi}_${date}_${courseTitle.replace(/\s+/g, "_")}.zip`;
+  const prefix =
+    choice === "full"
+      ? "Lote"
+      : choice === "certificates"
+        ? "Certificados"
+        : choice === "carnets"
+          ? "Carnets"
+          : choice === "documents"
+            ? "Documentos"
+            : "Resultado_Actividad";
+
+  const zipFileName = `${prefix}_${osiData.nro_osi}_${date}_${courseTitle.replace(/\s+/g, "_")}.zip`;
 
   // Trigger download
   const url = URL.createObjectURL(content);
