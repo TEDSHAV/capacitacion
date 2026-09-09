@@ -12,6 +12,27 @@ This project follows [Semantic Versioning](https://semver.org/) and
 > (an author-email change) and do not reflect when that work was actually done.
 > Only commits following the Conventional Commits format appear in the entries below.
 
+## [1.13.0](https://github.com/TEDSHAV/capacitacion/compare/v1.12.0...v1.13.0) (2026-09-09)
+
+### Features
+
+* add charts, standard header/footer, and text wrapping to evaluacion de facilitadores PDF ([0f59950](https://github.com/TEDSHAV/capacitacion/commit/0f59950978ca3da8d470465808d19fe4eddf05c5))
+* add per-facilitador course history modal in gestion-de-facilitadores ([7d5cd78](https://github.com/TEDSHAV/capacitacion/commit/7d5cd7853ec6e641fcaeafff3d627657342c752b))
+* anular certificados individuales con motivo de anulación ([0d5748c](https://github.com/TEDSHAV/capacitacion/commit/0d5748c5606c218b1b7c9698c3c16014a26d11ba))
+* Evaluación de Facilitadores (RG-CAP-004) — form, registry, PDF generation ([f90305c](https://github.com/TEDSHAV/capacitacion/commit/f90305cb841ac1423ab2a1d9b83d156cbf677335))
+* merge en_proceso + ejecutado into single auto-step, fire-and-forget sync ([6b5f340](https://github.com/TEDSHAV/capacitacion/commit/6b5f3401e93968f1841540788bd1fc12ffc1448c))
+* move survey mode to dedicated settings table ([0f1d8ab](https://github.com/TEDSHAV/capacitacion/commit/0f1d8ab886a912c58fb03607c0848739ea35ccd0))
+* multi-select session picker for requisicion externa + auto-mark requisicion_enviada_admin step ([bd3dc21](https://github.com/TEDSHAV/capacitacion/commit/bd3dc2106caefce386673185ad7003917e984b29))
+* rebuild indicadores page around gestión mensual + carry-over panel, fix CarryPanel blue background ([db40ed2](https://github.com/TEDSHAV/capacitacion/commit/db40ed25fd250fbf623116fec64a37582fe3c149))
+* Resultado de la Actividad download, searchable company filter, lighter gestion-osi query ([bf5c396](https://github.com/TEDSHAV/capacitacion/commit/bf5c39601f02ec4d8cfc9fd937014da5032b0f3e))
+* show success toast on certificate anulación ([e1c0f3b](https://github.com/TEDSHAV/capacitacion/commit/e1c0f3bd42d3217a48bdb077a0e28dd1bc2b3c94))
+* two-tier horas por facilitador (requisición → OSI fallback), reportes requisición-as-truth, indicadores page rebuild ([2dcaa58](https://github.com/TEDSHAV/capacitacion/commit/2dcaa5844dd21011d6b890f247b94514e085e46f))
+* union processed requisiciones into facilitador history with source badge ([c107a1f](https://github.com/TEDSHAV/capacitacion/commit/c107a1f4fb2d9bd588729747ce5533341cfe811b))
+
+### Bug Fixes
+
+* correct contrast on survey mode selector buttons ([69f560f](https://github.com/TEDSHAV/capacitacion/commit/69f560feed2caa692ea6ab6f2904e5de5ea0317e))
+* correct date offset in OSI date columns parsed as UTC midnight ([7be1577](https://github.com/TEDSHAV/capacitacion/commit/7be15770c6b36b3e7bc6ac9e4e99fe489bbced68))
 ## [1.12.0](https://github.com/TEDSHAV/capacitacion/compare/v1.11.2...v1.12.0) (2026-08-27)
 
 ### Features
