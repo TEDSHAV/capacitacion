@@ -78,7 +78,10 @@ export default function OSITableV2({
         {osis.map((osi, index) => (
           <div
             key={`${osi.id_osi}-${osi.nro_osi}-${osi.id_servicio}-${index}`}
-            className="p-4 hover:bg-blue-50 transition-colors cursor-pointer active:bg-blue-100"
+            className={`p-4 hover:bg-blue-50 transition-colors cursor-pointer active:bg-blue-100 relative ${
+              osi.certificado_impreso ? "shadow-[inset_3px_0_0_#22c55e]" : ""
+            }`}
+            title={osi.certificado_impreso ? "Certificados emitidos" : undefined}
             onClick={() => onViewDetails(osi)}
           >
             {/* Top row: OSI number + date */}
@@ -176,7 +179,10 @@ export default function OSITableV2({
             {osis.map((osi, index) => (
               <tr
                 key={`${osi.id_osi}-${osi.nro_osi}-${osi.id_servicio}-${index}`}
-                className="hover:bg-blue-50 transition-colors cursor-pointer group"
+                className={`hover:bg-blue-50 transition-colors cursor-pointer group ${
+                  osi.certificado_impreso ? "shadow-[inset_3px_0_0_#22c55e]" : ""
+                }`}
+                title={osi.certificado_impreso ? "Certificados emitidos" : undefined}
                 onClick={() => onViewDetails(osi)}
               >
                 <td className="px-3 py-4">

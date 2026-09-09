@@ -530,6 +530,37 @@ export async function getOSIsForGestionOSI(
   }
 }
 
+/**
+ * Batch-fetch the `certificado_impreso` flag for a set of OSI IDs.
+ *
+ * This is a lightweight PK-lookup query on `ejecucion_osi` (same underlying
+ * table as v_osi_lista) returning only 2 columns for ~20 rows. Used by the
+ * gestion-osi list to show a subtle green stripe on OSIs that have
+ * certificates issued, without joining extra tables in the main query.
+ *
+ * Returns a Map<id_osi, boolean>.
+ */
+export async function getCertificadoImpresoBatch(
+  osiIds: number[],
+): Promise<Map<number, boolean>> {
+  const map = new Map<number, boolean>();
+  if (osiIds.length === 0) return map;
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("ejecucion_osi")
+      .select("id, certificado_impreso")
+      .in("id", osiIds);
+    if (error) return map;
+    for (const row of data || []) {
+      map.set(row.id, row.certificado_impreso ?? false);
+    }
+  } catch (err) {
+    console.error("Error in getCertificadoImpresoBatch:", err);
+  }
+  return map;
+}
+
 // Get filter options for OSI management (cached 5 minutes — reference data
 // that changes rarely: companies, ejecutivos, statuses)
 //

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import type { OSIFilters, OSIManagement, OSIStatus } from "@/types";
-import { getOSIsForGestionOSI, getOSIFilterOptions, getManualOSIBatchesAction } from "@/app/actions/osi";
+import { getOSIsForGestionOSI, getOSIFilterOptions, getManualOSIBatchesAction, getCertificadoImpresoBatch } from "@/app/actions/osi";
 import { CachedDataBanner } from "@/components/CachedDataBanner";
 import { useOnlineStatus } from "@/lib/offline/use-online-status";
 import { cachePortalData, getCachedPortalData } from "@/lib/offline/portal-data-cache";
@@ -163,6 +163,20 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
         if (cancelled) return;
 
         const dataResult = results[0];
+
+        // Fetch certificado_impreso flag for this page's OSIs (one lightweight
+        // PK-lookup query on ejecucion_osi, ~20 rows, 2 columns). Only applies
+        // to the automatic tab — manual batches aren't real OSIs.
+        if (activeTab === "automatic" && dataResult.osis.length > 0) {
+          const certMap = await getCertificadoImpresoBatch(
+            dataResult.osis.map((o: OSIManagement) => o.id_osi),
+          );
+          dataResult.osis = dataResult.osis.map((o: OSIManagement) => ({
+            ...o,
+            certificado_impreso: certMap.get(o.id_osi) ?? false,
+          }));
+        }
+
         setOsis(dataResult.osis);
         setTotalCount(dataResult.totalCount);
         setFromCache(false);
@@ -230,6 +244,17 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
         const result = activeTab === "automatic"
           ? await getOSIsForGestionOSI(filters, nextPage, itemsPerPage)
           : await getManualOSIBatchesAction(filters, nextPage, itemsPerPage);
+        if (cancelled) return;
+        // Merge certificado_impreso for prefetched automatic-tab OSIs
+        if (activeTab === "automatic" && result.osis.length > 0) {
+          const certMap = await getCertificadoImpresoBatch(
+            result.osis.map((o: OSIManagement) => o.id_osi),
+          );
+          result.osis = result.osis.map((o: OSIManagement) => ({
+            ...o,
+            certificado_impreso: certMap.get(o.id_osi) ?? false,
+          }));
+        }
         if (cancelled) return;
         setCached(nextKey, {
           osis: result.osis,
@@ -353,6 +378,10 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
       />
 
       {/* OSI Table */}
+      <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mb-2">
+        <span className="inline-block w-1 h-3 bg-green-500 rounded-sm" />
+        <span>Certificados emitidos</span>
+      </div>
       <OSITableV2
         osis={osis}
         loading={loading}
