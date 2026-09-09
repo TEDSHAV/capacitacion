@@ -14,6 +14,7 @@ import {
   Calendar,
   X,
   CreditCard,
+  Info,
 } from "lucide-react";
 import { State } from "@/types";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
@@ -127,7 +128,17 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
   const [customFromDate, setCustomFromDate] = useState("");
   const [customToDate, setCustomToDate] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const hasInitialized = useRef(false);
+
+  // Restore banner dismissal from localStorage on mount
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("reportes_sample_banner_dismissed") === "1") {
+        setBannerDismissed(true);
+      }
+    } catch {}
+  }, []);
 
   // Cache states on mount
   useEffect(() => {
@@ -359,6 +370,28 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
 
         {/* Report content */}
         <main className="flex-1 p-6 overflow-auto">
+          {!bannerDismissed && (
+            <div className="mb-4 flex items-start gap-2.5 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+              <Info className="w-4 h-4 shrink-0 mt-0.5" />
+              <p className="flex-1 leading-relaxed">
+                Los datos mostrados en este módulo son de ejemplo y no reflejan
+                información real ni actualizada. Esta sección es una demostración
+                para futuras implementaciones.
+              </p>
+              <button
+                onClick={() => {
+                  setBannerDismissed(true);
+                  try {
+                    localStorage.setItem("reportes_sample_banner_dismissed", "1");
+                  } catch {}
+                }}
+                className="shrink-0 text-amber-600 hover:text-amber-900 transition-colors"
+                aria-label="Cerrar aviso"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
           {activeTab === "overview" && (
             <OverviewReport
               dateFrom={dateFrom}
