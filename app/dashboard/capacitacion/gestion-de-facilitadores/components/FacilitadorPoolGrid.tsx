@@ -113,10 +113,11 @@ export function FacilitadorPoolGrid({
         const teaches =
           !!f.topicRatings[topicKey] ||
           (f.temas_cursos || []).some((t) => t.toLowerCase().trim() === topicKey);
-        if (teaches) matched++;
+        if (!teaches) return false; // hide facilitadores who don't teach this topic
+        matched++;
 
         // Skill level filter (only meaningful when a topic is selected)
-        if (teaches && selectedLevel !== "todos") {
+        if (selectedLevel !== "todos") {
           const rank = levelRank(f, topicKey);
           if (rank === -1) return false; // no level recorded -> exclude when filtering by level
           const wantedRank =
