@@ -151,11 +151,10 @@ export default function RequisicionRow({
   const verifiedCount = fixedVerifiedCount + additionalVerifiedCount;
   const totalCount = fixedTotalCount + additionalItems.length;
 
-  // Execution date badge. For capacitacion externas with a selected session,
-  // prefer the session fecha over the OSI's fecha_inicio_real.
-  const sesiones = (record.v_osi_formato_completo?.desglose_recursos_sesiones as any[] | null | undefined) || [];
-  const selectedSesion = record.id_sesion ? sesiones.find((s) => s.id_sesion === record.id_sesion) : null;
-  const executionDate = selectedSesion?.fecha || record.v_osi_formato_completo?.fecha_inicio_real;
+  // Execution date badge. Uses the OSI's fecha_inicio_real from the
+  // lightweight v_osi_lista view (the heavy desglose_recursos_sesiones
+  // column is no longer fetched for the list view to avoid the LATERAL cost).
+  const executionDate = record.v_osi_lista?.fecha_inicio_real;
   let executionBadge: { text: string; color: string } | null = null;
   if (executionDate) {
     const today = new Date();
@@ -277,7 +276,7 @@ export default function RequisicionRow({
               .join(", ")}
           </span>
         ) : (
-          record.v_osi_formato_completo?.nro_osi || "-"
+          record.v_osi_lista?.nro_osi || "-"
         )}
       </td>
       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">

@@ -245,10 +245,18 @@ export async function getOSIsForManagement(
   try {
     const supabase = await createClient();
 
-    // Build query with filters
+    // Use the lightweight v_osi_lista view for list + count to avoid the
+    // LATERAL aggregations in v_osi_formato_completo (Postgres can't push
+    // column projections through ON-true LATERAL, so count:exact forces
+    // full evaluation for ALL matching OSIs). Heavy fields
+    // (desglose_recursos_sesiones, sesiones_programadas) are fetched
+    // separately below for only the page's OSIs.
     let query = supabase
-      .from("v_osi_formato_completo")
-      .select("*", { count: "exact" });
+      .from("v_osi_lista")
+      .select(
+        "id_osi, nro_osi, nombre_empresa, id_empresa, id_estatus, servicio, tipo_servicio, ejecutivo_negocios, fecha_emision, fecha_inicio_real, fecha_fin_real, horas_academicas_ejecucion, sesiones_ejecucion, direccion_ejecucion, codigo_cliente, participantes_ejecucion, id_ciudad_direccion_ejecucion_efectiva",
+        { count: "exact" },
+      );
 
     // Filter by tipo_servicio - only capacitacion
     query = query.ilike("tipo_servicio", "%capacitacion%");
@@ -345,12 +353,22 @@ export async function getOSIsForManagement(
       };
     }
 
-    // Fetch statuses and acknowledgments in parallel
     const osiIds = (data || []).map((osi: any) => osi.id_osi);
+
+    // Fetch heavy fields (desglose_recursos_sesiones, sesiones_programadas)
+    // from v_osi_formato_completo for ONLY the page's OSIs. LATERAL for ~limit
+    // rows is fast; the expensive part was count:exact over the full view.
     const [
+      heavyResult,
       statuses,
       ackResult,
     ] = await Promise.all([
+      osiIds.length > 0
+        ? supabase
+            .from("v_osi_formato_completo")
+            .select("id_osi, desglose_recursos_sesiones, sesiones_programadas")
+            .in("id_osi", osiIds)
+        : Promise.resolve({ data: null as any, error: null as any }),
       getOSIStatuses(),
       osiIds.length > 0
         ? supabase
@@ -360,6 +378,16 @@ export async function getOSIsForManagement(
         : Promise.resolve({ data: null }),
     ]);
 
+    const heavyMap = new Map<number, { desglose_recursos_sesiones: any; sesiones_programadas: any }>();
+    if (heavyResult.data) {
+      for (const row of heavyResult.data) {
+        heavyMap.set(row.id_osi, {
+          desglose_recursos_sesiones: row.desglose_recursos_sesiones,
+          sesiones_programadas: row.sesiones_programadas,
+        });
+      }
+    }
+
     const statusMap = new Map(statuses.map((s) => [s.id, s]));
     let acknowledgedOsiIds = new Set<number>();
     if (ackResult.data) {
@@ -368,8 +396,11 @@ export async function getOSIsForManagement(
 
     const enrichedOSIs = (data || []).map((osi: any) => {
       const status = statusMap.get(osi.id_estatus);
+      const heavy = heavyMap.get(osi.id_osi);
       return {
         ...osi,
+        desglose_recursos_sesiones: heavy?.desglose_recursos_sesiones ?? null,
+        sesiones_programadas: heavy?.sesiones_programadas ?? null,
         status_name: status?.nombre_estado || "Desconocido",
         status_color: status?.color_hex || "#gray",
         status_order: status?.orden || 0,

@@ -765,7 +765,7 @@ export async function getRequisicionRecord(id: number) {
     .from("requisiciones")
     .select(`
       *,
-      v_osi_formato_completo!left (
+      v_osi_lista!left (
         id_osi,
         nro_osi,
         servicio
@@ -869,15 +869,15 @@ export async function getOsisByIds(ids: number[]) {
   if (!ids.length) return [];
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("v_osi_formato_completo")
-    .select("*")
+    .from("v_osi_lista")
+    .select("id_osi, nro_osi")
     .in("id_osi", ids);
 
   if (error) {
     console.error("Error fetching OSIs by ids:", error);
     return [];
   }
-  return data as OSIFullData[];
+  return data as { id_osi: number; nro_osi: string | null }[];
 }
 
 // Update requisition record
@@ -1026,13 +1026,12 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
     .from("requisiciones")
     .select(`
       *,
-      v_osi_formato_completo!left (
+      v_osi_lista!left (
         id_osi,
         nro_osi,
         servicio,
         nombre_empresa,
-        fecha_inicio_real,
-        desglose_recursos_sesiones
+        fecha_inicio_real
       ),
       requisiciones_osis!requisiciones_osis_id_requisicion_fkey (
         id_osi
@@ -1059,13 +1058,12 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
         .from("requisiciones")
         .select(`
           *,
-          v_osi_formato_completo!left (
+          v_osi_lista!left (
             id_osi,
             nro_osi,
             servicio,
             nombre_empresa,
-            fecha_inicio_real,
-            desglose_recursos_sesiones
+            fecha_inicio_real
           ),
           requisiciones_osis!requisiciones_osis_id_requisicion_fkey (
             id_osi
@@ -1125,13 +1123,12 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
 
   const SELECT_RELATIONS = `
     *,
-    v_osi_formato_completo!left (
+    v_osi_lista!left (
       id_osi,
       nro_osi,
       servicio,
       nombre_empresa,
-      fecha_inicio_real,
-      desglose_recursos_sesiones
+      fecha_inicio_real
     ),
     requisiciones_osis!requisiciones_osis_id_requisicion_fkey (
       id_osi

@@ -105,7 +105,7 @@ export default function RequisicionesTable({
   const empresas = useMemo(() => {
     const set = new Set<string>();
     for (const r of records) {
-      const e = r.v_osi_formato_completo?.nombre_empresa?.trim();
+      const e = r.v_osi_lista?.nombre_empresa?.trim();
       if (e) set.add(e);
     }
     return [...set].sort();
@@ -115,7 +115,7 @@ export default function RequisicionesTable({
   const cursos = useMemo(() => {
     const set = new Set<string>();
     for (const r of records) {
-      const s = r.v_osi_formato_completo?.servicio?.trim();
+      const s = r.v_osi_lista?.servicio?.trim();
       if (s) set.add(s);
     }
     return [...set].sort();
@@ -152,13 +152,13 @@ export default function RequisicionesTable({
 
       // Empresa/Cliente filter: exact match on the OSI's nombre_empresa.
       if (filters.empresa) {
-        const empresa = r.v_osi_formato_completo?.nombre_empresa || "";
+        const empresa = r.v_osi_lista?.nombre_empresa || "";
         if (empresa !== filters.empresa) return false;
       }
 
       // Course name filter: exact match on the OSI's servicio.
       if (filters.curso) {
-        const servicio = r.v_osi_formato_completo?.servicio || "";
+        const servicio = r.v_osi_lista?.servicio || "";
         if (servicio !== filters.curso) return false;
       }
 
@@ -170,8 +170,8 @@ export default function RequisicionesTable({
         const haystack = [
           r.solicitante,
           mapGerenciaSolicitante(r.gerencia_solicitante),
-          r.v_osi_formato_completo?.nro_osi,
-          r.v_osi_formato_completo?.servicio,
+          r.v_osi_lista?.nro_osi,
+          r.v_osi_lista?.servicio,
           ...linkedOsiNumbers,
         ]
           .filter(Boolean)
