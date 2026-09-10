@@ -1,26 +1,28 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 export default function URLSync() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Construct the full internal path
-    const query = searchParams.toString();
-    const fullPath = query ? `${pathname}?${query}` : pathname;
-
-    // Send the path to the parent window (the shell)
+    // Send the pathname to the parent window (the shell).
+    // Only send the pathname — not query params — because:
+    // 1. The shell only needs the pathname to update the browser URL
+    // 2. Including ?shell=1 causes a comparison mismatch in ShellURLSync
+    //    (window.location.pathname never includes query params)
+    // 3. useSearchParams() can return a new reference on each render,
+    //    causing this effect to re-fire repeatedly and creating an
+    //    infinite replaceState loop between cached iframes
     if (window.parent !== window) {
       window.parent.postMessage({
         type: "IFRAME_NAVIGATION",
-        path: fullPath,
+        path: pathname,
         appId: "capacitacion" // This should match the ID in the shell config
       }, "*");
     }
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return null;
 }
