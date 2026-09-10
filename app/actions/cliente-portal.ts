@@ -1486,7 +1486,8 @@ export async function getOrphanCertificateBatches(): Promise<{
     const { data: certOsis, error: certError } = await supabase
       .from("certificados")
       .select("nro_osi")
-      .not("nro_osi", "is", null);
+      .not("nro_osi", "is", null)
+      .limit(100000);
     if (certError) {
       console.error("Error fetching certificate nro_osi values:", certError);
       return { error: certError.message };
