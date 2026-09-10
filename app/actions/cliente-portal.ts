@@ -1483,20 +1483,27 @@ export async function getOrphanCertificateBatches(): Promise<{
     // 1. Fetch all distinct nro_osi values from certificates (including
     //    inactive ones — an orphan batch may have been anulled but still
     //    needs to be visible/hidden in the client portal).
-    const { data: certOsis, error: certError } = await supabase
-      .from("certificados")
-      .select("nro_osi")
-      .not("nro_osi", "is", null)
-      .limit(100000);
-    if (certError) {
-      console.error("Error fetching certificate nro_osi values:", certError);
-      return { error: certError.message };
-    }
-
+    //    Paginate because Supabase has a server-side max of 1000 rows per
+    //    request, regardless of the limit parameter.
     const certOsiSet = new Set<number>();
-    for (const row of certOsis || []) {
-      const nro = row.nro_osi as number;
-      if (nro != null && !isNaN(nro)) certOsiSet.add(nro);
+    let pageOffset = 0;
+    const PAGE_SIZE = 1000;
+    while (true) {
+      const { data: pageData, error: pageError } = await supabase
+        .from("certificados")
+        .select("nro_osi")
+        .not("nro_osi", "is", null)
+        .range(pageOffset, pageOffset + PAGE_SIZE - 1);
+      if (pageError) {
+        console.error("Error fetching certificate nro_osi values:", pageError);
+        return { error: pageError.message };
+      }
+      for (const row of pageData || []) {
+        const nro = row.nro_osi as number;
+        if (nro != null && !isNaN(nro)) certOsiSet.add(nro);
+      }
+      if (!pageData || pageData.length < PAGE_SIZE) break;
+      pageOffset += PAGE_SIZE;
     }
     if (certOsiSet.size === 0) return { data: [] };
 
@@ -1524,25 +1531,32 @@ export async function getOrphanCertificateBatches(): Promise<{
     // 4. Fetch batch summaries for orphan nro_osi values.
     //    Batch the .in() queries to avoid URL length limits (Supabase/PostgREST
     //    caps GET request URLs). Use 200 IDs per batch.
+    //    Paginate each batch because Supabase has a server-side max of 1000
+    //    rows per request, regardless of the limit parameter.
     const BATCH_SIZE = 200;
     const batchData: Record<string, unknown>[] = [];
     for (let i = 0; i < orphanOsiNumbers.length; i += BATCH_SIZE) {
       const chunk = orphanOsiNumbers.slice(i, i + BATCH_SIZE);
-      const { data: chunkData, error: chunkError } = await supabase
-        .from("certificados")
-        .select(
-          `id, nro_osi, fecha_emision, id_curso, snapshot_contenido, id_empresa, is_active,
-           catalogo_servicios!left(nombre),
-           empresas!left(razon_social)`,
-        )
-        .in("nro_osi", chunk)
-        .order("fecha_emision", { ascending: false })
-        .limit(10000);
-      if (chunkError) {
-        console.error("Error fetching orphan batch details:", chunkError);
-        return { error: chunkError.message };
+      let batchOffset = 0;
+      while (true) {
+        const { data: chunkData, error: chunkError } = await supabase
+          .from("certificados")
+          .select(
+            `id, nro_osi, fecha_emision, id_curso, snapshot_contenido, id_empresa, is_active,
+             catalogo_servicios!left(nombre),
+             empresas!left(razon_social)`,
+          )
+          .in("nro_osi", chunk)
+          .order("fecha_emision", { ascending: false })
+          .range(batchOffset, batchOffset + PAGE_SIZE - 1);
+        if (chunkError) {
+          console.error("Error fetching orphan batch details:", chunkError);
+          return { error: chunkError.message };
+        }
+        if (chunkData) batchData.push(...(chunkData as Record<string, unknown>[]));
+        if (!chunkData || chunkData.length < PAGE_SIZE) break;
+        batchOffset += PAGE_SIZE;
       }
-      if (chunkData) batchData.push(...(chunkData as Record<string, unknown>[]));
     }
 
     // 5. Fetch current visibility status for orphan nro_osi values (batched)
