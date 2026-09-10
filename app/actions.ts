@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 
 // Helper function to format error messages
@@ -35,14 +36,18 @@ export async function handleLogin(formData: FormData) {
   redirect("/dashboard");
 }
 
-export async function checkDepartments() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.from("departamentos").select("*");
+export const checkDepartments = unstable_cache(
+  async () => {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("departamentos").select("*");
 
-  if (error) {
-    console.error("Error loading departments:", error);
-    return [];
-  }
+    if (error) {
+      console.error("Error loading departments:", error);
+      return [];
+    }
 
-  return data;
-}
+    return data;
+  },
+  ["capacitacion-departamentos"],
+  { revalidate: 60, tags: ["capacitacion-departamentos"] },
+);

@@ -59,16 +59,11 @@ export function OfflineIndicator() {
     const handleDocChange = () => refreshDocs();
     window.addEventListener("offline-docs-changed", handleDocChange);
 
-    // Poll every 2s as a fallback (covers cases where the custom event
-    // isn't fired, e.g. from the batch download buttons)
-    const pollInterval = setInterval(refreshDocs, 2000);
-
     return () => {
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", goOffline);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("offline-docs-changed", handleDocChange);
-      clearInterval(pollInterval);
     };
   }, [refreshDocs]);
 
