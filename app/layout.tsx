@@ -7,7 +7,6 @@ import ShellAuthProvider from "@/components/providers/ShellAuthProvider";
 import { ToastProvider } from "@/lib/ui/toast-context";
 import { PWAToastContainer } from "@/components/PWAToastContainer";
 import URLSync from "@/components/utils/URLSync";
-import { InstallPrompt } from "@/components/InstallPrompt";
 import { Suspense } from "react";
 
 const geistSans = Geist({
@@ -119,7 +118,6 @@ export default function RootLayout({
                   <URLSync />
                 </Suspense>
                 {children}
-                <InstallPrompt />
                 <PWAToastContainer />
               </ToastProvider>
             </ShellAuthProvider>

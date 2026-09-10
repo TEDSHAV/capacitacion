@@ -29,6 +29,7 @@ export function PWALayout({
 }: PWALayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isInShell, setIsInShell] = useState(false);
+  const [hasRestored, setHasRestored] = useState(false);
   const pathname = usePathname();
   const context = useNavigationContext();
 
@@ -54,16 +55,21 @@ export function PWALayout({
     } catch {
       setIsMenuOpen(false);
     }
+    setHasRestored(true);
   }, []);
 
   // Persist sidebar state to localStorage
   useEffect(() => {
+    // Skip until the restore effect has completed — otherwise we'd overwrite
+    // the stored value with the default `false` before the restore's setState
+    // is applied on the next render.
+    if (!hasRestored) return;
     try {
       localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isMenuOpen));
     } catch {
       // Non-fatal
     }
-  }, [isMenuOpen]);
+  }, [isMenuOpen, hasRestored]);
 
   // Close sidebar on route change (mobile behavior)
   useEffect(() => {
@@ -127,7 +133,14 @@ export function PWALayout({
         {/* Navigation Drawer */}
         <PWANavDrawer
           isOpen={isMenuOpen}
-          onClose={() => setIsMenuOpen(false)}
+          onClose={() => {
+            // Only auto-close on mobile (slide-in drawer). On desktop the
+            // sidebar is a persistent expand/collapse panel — navigating
+            // should not collapse it.
+            if (typeof window !== "undefined" && window.innerWidth < 768) {
+              setIsMenuOpen(false);
+            }
+          }}
           onToggle={() => setIsMenuOpen(!isMenuOpen)}
           context={context}
           currentPath={pathname}
