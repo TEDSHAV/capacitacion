@@ -24,6 +24,7 @@ import type {
   ClienteFilterOptions,
   EmpresaLogo,
   HiddenBatchSummary,
+  OrphanBatchSummary,
 } from "@/types";
 
 // ─── Auth Helpers ───
@@ -301,9 +302,12 @@ const getVisibleOsiIds = cache(async (): Promise<Set<number>> => {
     const supabase = await createAdminClient();
     // Join with ejecucion_osi to get nro_osi_secuencial, which is what
     // certificados.nro_osi and carnets.id_osi actually reference.
+    // Also select nro_osi for orphan batches (no ejecucion_osi row).
+    // Use !left so rows with osi_id=null (orphans) aren't excluded by
+    // an inner join on ejecucion_osi.
     const { data, error } = await supabase
       .from("osi_visibilidad_cliente")
-      .select("osi_id, ejecucion_osi(nro_osi_secuencial)")
+      .select("osi_id, nro_osi, ejecucion_osi!left(nro_osi_secuencial)")
       .eq("oculto", false);
     if (error) {
       console.error("[getVisibleOsiIds] Error:", JSON.stringify(error));
@@ -311,6 +315,12 @@ const getVisibleOsiIds = cache(async (): Promise<Set<number>> => {
     }
     const ids = new Set<number>();
     for (const r of data || []) {
+      // Orphan batches use nro_osi directly (no ejecucion_osi row)
+      if (r.nro_osi != null) {
+        ids.add(r.nro_osi as number);
+        continue;
+      }
+      // Normal OSIs resolve via the ejecucion_osi join
       const osiRow = r.ejecucion_osi as unknown as { nro_osi_secuencial: string } | null;
       if (osiRow?.nro_osi_secuencial) {
         const nro = parseInt(osiRow.nro_osi_secuencial, 10);
@@ -1450,4 +1460,223 @@ export async function getClienteHiddenBatches(
   );
 
   return { data: allBatches, totalCount: allBatches.length };
+}
+
+// ─── Orphan batch visibility (dev-only admin tool) ───
+//
+// Certificates may exist with nro_osi values that don't correspond to any
+// ejecucion_osi row. These "orphan" batches can't be toggled from the OSI
+// list (no ejecucion_osi.id to reference), so this dev-only admin tool
+// manages their visibility directly via the nro_osi column on
+// osi_visibilidad_cliente.
+
+export async function getOrphanCertificateBatches(): Promise<{
+  data?: OrphanBatchSummary[];
+  error?: string;
+}> {
+  if (process.env.NODE_ENV === "production") {
+    return { error: "No disponible en producción" };
+  }
+  try {
+    const supabase = await createAdminClient();
+
+    // 1. Fetch all distinct nro_osi values from certificates (including
+    //    inactive ones — an orphan batch may have been anulled but still
+    //    needs to be visible/hidden in the client portal).
+    const { data: certOsis, error: certError } = await supabase
+      .from("certificados")
+      .select("nro_osi")
+      .not("nro_osi", "is", null);
+    if (certError) {
+      console.error("Error fetching certificate nro_osi values:", certError);
+      return { error: certError.message };
+    }
+
+    const certOsiSet = new Set<number>();
+    for (const row of certOsis || []) {
+      const nro = row.nro_osi as number;
+      if (nro != null && !isNaN(nro)) certOsiSet.add(nro);
+    }
+    if (certOsiSet.size === 0) return { data: [] };
+
+    // 2. Fetch all nro_osi_secuencial values from ejecucion_osi
+    const { data: ejecOsis, error: ejecError } = await supabase
+      .from("ejecucion_osi")
+      .select("nro_osi_secuencial");
+    if (ejecError) {
+      console.error("Error fetching ejecucion_osi nro_osi_secuencial:", ejecError);
+      return { error: ejecError.message };
+    }
+
+    const ejecOsiSet = new Set<number>();
+    for (const row of ejecOsis || []) {
+      const nro = parseInt(row.nro_osi_secuencial as string, 10);
+      if (!isNaN(nro)) ejecOsiSet.add(nro);
+    }
+
+    // 3. Orphans = cert nro_osi values NOT in ejecucion_osi
+    const orphanOsiNumbers = [...certOsiSet].filter(
+      (nro) => !ejecOsiSet.has(nro),
+    );
+    if (orphanOsiNumbers.length === 0) return { data: [] };
+
+    // 4. Fetch batch summaries for orphan nro_osi values.
+    //    Batch the .in() queries to avoid URL length limits (Supabase/PostgREST
+    //    caps GET request URLs). Use 200 IDs per batch.
+    const BATCH_SIZE = 200;
+    const batchData: Record<string, unknown>[] = [];
+    for (let i = 0; i < orphanOsiNumbers.length; i += BATCH_SIZE) {
+      const chunk = orphanOsiNumbers.slice(i, i + BATCH_SIZE);
+      const { data: chunkData, error: chunkError } = await supabase
+        .from("certificados")
+        .select(
+          `id, nro_osi, fecha_emision, id_curso, snapshot_contenido, id_empresa, is_active,
+           catalogo_servicios!left(nombre),
+           empresas!left(razon_social)`,
+        )
+        .in("nro_osi", chunk)
+        .order("fecha_emision", { ascending: false })
+        .limit(10000);
+      if (chunkError) {
+        console.error("Error fetching orphan batch details:", chunkError);
+        return { error: chunkError.message };
+      }
+      if (chunkData) batchData.push(...(chunkData as Record<string, unknown>[]));
+    }
+
+    // 5. Fetch current visibility status for orphan nro_osi values (batched)
+    const visMap = new Map<number, boolean>();
+    for (let i = 0; i < orphanOsiNumbers.length; i += BATCH_SIZE) {
+      const chunk = orphanOsiNumbers.slice(i, i + BATCH_SIZE);
+      const { data: visData, error: visError } = await supabase
+        .from("osi_visibilidad_cliente")
+        .select("nro_osi, oculto")
+        .in("nro_osi", chunk);
+      if (visError) {
+        console.error("Error fetching orphan visibility status:", visError);
+        // Non-fatal: default to hidden (not visible)
+      }
+      for (const row of visData || []) {
+        if (row.nro_osi != null) {
+          visMap.set(row.nro_osi as number, !(row.oculto as boolean));
+        }
+      }
+    }
+
+    // 6. Group by nro_osi
+    const orphanMap = new Map<number, OrphanBatchSummary>();
+    for (const row of batchData) {
+      const nroOsi = row.nro_osi as number;
+      if (nroOsi == null) continue;
+
+      if (!orphanMap.has(nroOsi)) {
+        const courseInfo = row.catalogo_servicios as unknown as { nombre: string } | null;
+        const companyInfo = row.empresas as unknown as { razon_social: string } | null;
+        let courseNombre = courseInfo?.nombre || "";
+        if (!courseNombre && row.snapshot_contenido) {
+          try {
+            const snapshot = typeof row.snapshot_contenido === "string"
+              ? JSON.parse(row.snapshot_contenido)
+              : row.snapshot_contenido;
+            courseNombre = snapshot?.certificado_detalles?.title || snapshot?.curso?.name || "N/A";
+          } catch {
+            // ignore parse errors
+          }
+        }
+        orphanMap.set(nroOsi, {
+          nro_osi: nroOsi,
+          course_name: courseNombre || "N/A",
+          fecha_emision: (row.fecha_emision as string) || "",
+          participant_count: 0,
+          company_name: companyInfo?.razon_social || "N/A",
+          visible: visMap.get(nroOsi) ?? false,
+        });
+      }
+
+      orphanMap.get(nroOsi)!.participant_count++;
+    }
+
+    const orphans = Array.from(orphanMap.values()).sort(
+      (a, b) =>
+        new Date(b.fecha_emision).getTime() -
+        new Date(a.fecha_emision).getTime(),
+    );
+
+    return { data: orphans };
+  } catch (err) {
+    console.error("Unexpected error in getOrphanCertificateBatches:", err);
+    return { error: "Error inesperado" };
+  }
+}
+
+export async function setOrphanBatchVisibility(
+  nroOsi: number,
+  hidden: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  if (process.env.NODE_ENV === "production") {
+    return { success: false, error: "No disponible en producción" };
+  }
+  if (!Number.isFinite(nroOsi) || nroOsi <= 0) {
+    return { success: false, error: "Nro OSI inválido" };
+  }
+  try {
+    const supabase = await createClient();
+
+    // Resolve current usuarios.id for the audit column.
+    const { data: { user } } = await supabase.auth.getUser();
+    let updatedBy: number | null = null;
+    if (user) {
+      const { data: usuario } = await supabase
+        .from("usuarios")
+        .select("id")
+        .eq("id_auth", user.id)
+        .maybeSingle();
+      updatedBy = usuario?.id ?? null;
+    }
+
+    // Use admin client to bypass RLS on the control table.
+    const admin = await createAdminClient();
+
+    // Manual select-then-insert/update (safer than onConflict with partial
+    // unique index).
+    const { data: existing } = await admin
+      .from("osi_visibilidad_cliente")
+      .select("id")
+      .eq("nro_osi", nroOsi)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await admin
+        .from("osi_visibilidad_cliente")
+        .update({
+          oculto: hidden,
+          updated_by: updatedBy,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("nro_osi", nroOsi);
+      if (error) {
+        console.error("Error updating orphan batch visibility:", error);
+        return { success: false, error: "Error al actualizar la visibilidad" };
+      }
+    } else {
+      const { error } = await admin
+        .from("osi_visibilidad_cliente")
+        .insert({
+          nro_osi: nroOsi,
+          osi_id: null,
+          oculto: hidden,
+          updated_by: updatedBy,
+          updated_at: new Date().toISOString(),
+        });
+      if (error) {
+        console.error("Error inserting orphan batch visibility:", error);
+        return { success: false, error: "Error al actualizar la visibilidad" };
+      }
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("Unexpected error in setOrphanBatchVisibility:", err);
+    return { success: false, error: "Error inesperado" };
+  }
 }

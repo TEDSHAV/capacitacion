@@ -46,7 +46,12 @@ export function PWANavDrawer({
   // Desktop: isOpen = expanded (labels), !isOpen = collapsed (icons only)
   // Mobile: isOpen = visible, !isOpen = hidden (slid off-screen)
 
+  const isDev = process.env.NODE_ENV === "development";
+
   const renderNavItem = (item: NavItem, depth = 0) => {
+    // Skip dev-only items in production
+    if (item.devOnly && !isDev) return null;
+
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.has(item.id);
     const active = isActive(item.href);

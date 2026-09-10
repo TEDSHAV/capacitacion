@@ -26,6 +26,7 @@ export function useGlobalSearch(context: NavigationContext) {
 
     const flatten = (items: NavItem[], breadcrumb: string[] = []) => {
       for (const item of items) {
+        if (item.devOnly && process.env.NODE_ENV !== "development") continue;
         const currentBreadcrumb = [...breadcrumb, item.label];
         results.push({
           id: item.id,

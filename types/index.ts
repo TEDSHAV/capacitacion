@@ -1869,6 +1869,18 @@ export interface HiddenBatchSummary {
   sede_names: string[];
 }
 
+// Orphan certificate batch: certificates with nro_osi values that don't
+// correspond to any ejecucion_osi row. Used by the dev-only admin page to
+// toggle client portal visibility for these batches.
+export interface OrphanBatchSummary {
+  nro_osi: number;
+  course_name: string;
+  fecha_emision: string;
+  participant_count: number;
+  company_name: string;
+  visible: boolean;
+}
+
 export interface ClienteCertificateRow {
   id: number;
   participant_nombre: string;

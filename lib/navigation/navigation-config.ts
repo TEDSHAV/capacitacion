@@ -38,6 +38,7 @@ export interface NavItem {
   requiresOnline?: boolean;
   offlineAvailable?: boolean;
   external?: boolean;
+  devOnly?: boolean;
 }
 
 export interface NavigationConfig {
@@ -193,6 +194,14 @@ const DASHBOARD_NAV: NavItem[] = [
         icon: FileStack,
         badge: { count: 0, color: "red" },
         offlineAvailable: true,
+      },
+      {
+        id: "orphan-visibility",
+        label: "Lotes Huérfanos",
+        href: "/dashboard/capacitacion/visibilidad-lotes-huerfanos",
+        icon: FileStack,
+        requiresOnline: true,
+        devOnly: true,
       },
     ],
   },

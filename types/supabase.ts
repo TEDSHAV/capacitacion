@@ -5062,22 +5062,25 @@ export type Database = {
       osi_visibilidad_cliente: {
         Row: {
           id: number
+          nro_osi: number | null
           oculto: boolean
-          osi_id: number
+          osi_id: number | null
           updated_at: string
           updated_by: number | null
         }
         Insert: {
           id?: number
+          nro_osi?: number | null
           oculto?: boolean
-          osi_id: number
+          osi_id?: number | null
           updated_at?: string
           updated_by?: number | null
         }
         Update: {
           id?: number
+          nro_osi?: number | null
           oculto?: boolean
-          osi_id?: number
+          osi_id?: number | null
           updated_at?: string
           updated_by?: number | null
         }
