@@ -14,6 +14,7 @@ import {
   FilePlus2,
   FileCheck,
   ClipboardCheck,
+  Mail,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -251,6 +252,13 @@ const DASHBOARD_NAV: NavItem[] = [
         label: "Evaluación de Facilitadores",
         href: "/dashboard/capacitacion/evaluacion-facilitadores",
         icon: ClipboardCheck,
+        offlineAvailable: true,
+      },
+      {
+        id: "email-templates",
+        label: "Plantillas de Email",
+        href: "/dashboard/capacitacion/plantillas-email",
+        icon: Mail,
         offlineAvailable: true,
       },
     ],

@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { CourseSatisfactionSurvey, SurveyOSIData, SurveyTabulacionData, SurveyMode } from "@/types";
 import { generateSurveyTabulacionPdf } from "@/lib/survey-tabulacion-renderer";
 import { revalidatePath } from "next/cache";
+import { getSessionCount } from "@/lib/osi-utils";
 
 /**
  * Fetch OSI details for the survey form
@@ -120,6 +121,52 @@ export async function getSurveyMode(osiId: number): Promise<SurveyMode> {
   } catch (error) {
     console.error("Exception fetching survey mode:", error);
     return "unique";
+  }
+}
+
+/**
+ * Fetch the real session count for an OSI.
+ *
+ * The gestion-osi list view (v_osi_lista) only exposes sesiones_ejecucion
+ * (executed count, 0/null for not-yet-executed OSIs), so callers that need the
+ * planned session count (e.g. the survey/QR and assign-facilitador modals) must
+ * fetch it here.
+ *
+ * Priority chain (mirrors resolveSessions / getOSISessions):
+ *   1. osi_sesion table row count (authoritative relational source — fast,
+ *      indexed by id_osi; populated by the seguimiento system)
+ *   2. v_osi_formato_completo: desglose_recursos_sesiones → sesiones_programadas
+ *      → sesiones_ejecucion (via getSessionCount)
+ *   3. 1 (single-session default)
+ */
+export async function getOsiSessionCount(osiId: number): Promise<number> {
+  try {
+    // 1. osi_sesion table — the most reliable source for planned sessions.
+    const admin = await createAdminClient();
+    const { count, error: sesionError } = await admin
+      .from("osi_sesion")
+      .select("id", { count: "exact", head: true })
+      .eq("id_osi", osiId);
+
+    if (!sesionError && count && count > 0) {
+      return count;
+    }
+
+    // 2. Fall back to v_osi_formato_completo JSONB fields.
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("v_osi_formato_completo")
+      .select("desglose_recursos_sesiones, sesiones_programadas, sesiones_ejecucion")
+      .eq("id_osi", osiId)
+      .maybeSingle();
+
+    if (error || !data) {
+      return 1;
+    }
+    return getSessionCount(data);
+  } catch (error) {
+    console.error("Exception fetching OSI session count:", error);
+    return 1;
   }
 }
 

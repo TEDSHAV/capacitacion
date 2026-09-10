@@ -5,7 +5,7 @@ import { OSIManagement, SurveyMode } from "@/types";
 import { X, Copy, Download, ExternalLink, QrCode, FileText, Users, Layers } from "lucide-react";
 import QRCode from "qrcode";
 import Link from "next/link";
-import { getSurveyMode, setSurveyMode as setSurveyModeAction } from "@/app/actions/surveys";
+import { getSurveyMode, setSurveyMode as setSurveyModeAction, getOsiSessionCount } from "@/app/actions/surveys";
 
 interface OSISurveyModalProps {
   osi: OSIManagement | null;
@@ -20,10 +20,17 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
   const [selectedSession, setSelectedSession] = useState<number>(1);
   const [surveyMode, setSurveyMode] = useState<SurveyMode>("unique");
   const [modeLoaded, setModeLoaded] = useState(false);
+  // Real session count fetched from v_osi_formato_completo on open. The list
+  // view only has sesiones_ejecucion (0/null for not-yet-executed OSIs), so the
+  // prop is used only as the initial/fallback value to avoid flicker.
+  const [realSessionCount, setRealSessionCount] = useState<number>(sessionCount);
+  const [sessionCountLoaded, setSessionCountLoaded] = useState(false);
 
   // Use production domain for QR code even in localhost, or environment variable if set
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prisma.shadevenezuela.com.ve";
-  const hasMultipleSessions = sessionCount > 1;
+  // Use the fetched real count once loaded; fall back to the prop until then.
+  const effectiveSessionCount = sessionCountLoaded ? realSessionCount : sessionCount;
+  const hasMultipleSessions = effectiveSessionCount > 1;
   // Per-session QRs only when the OSI has multiple sessions AND the user chose per-session mode.
   const isPerSession = hasMultipleSessions && surveyMode === "per_session";
 
@@ -35,16 +42,35 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
       : `${base}/survey/${osi?.id_osi}`;
   };
 
-  // Load persisted survey mode when an OSI is opened
+  // Close on ESC key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  // Load persisted survey mode and the real session count when an OSI is opened.
+  // Both fetches run in parallel so opening the modal adds no perceptible delay.
   useEffect(() => {
     if (!osi) return;
     setModeLoaded(false);
-    getSurveyMode(osi.id_osi)
-      .then((mode) => {
+    setSessionCountLoaded(false);
+    Promise.all([
+      getSurveyMode(osi.id_osi),
+      getOsiSessionCount(osi.id_osi),
+    ])
+      .then(([mode, count]) => {
         setSurveyMode(mode);
+        setRealSessionCount(count);
         setModeLoaded(true);
+        setSessionCountLoaded(true);
       })
-      .catch(() => setModeLoaded(true));
+      .catch(() => {
+        setModeLoaded(true);
+        setSessionCountLoaded(true);
+      });
   }, [osi]);
 
   // Regenerate QR when OSI, session, or mode changes
@@ -98,7 +124,7 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
   };
 
   // Pills for a small number of sessions; dropdown for many (prevents row explosion on mobile)
-  const usePills = sessionCount <= 8;
+  const usePills = effectiveSessionCount <= 8;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -179,7 +205,7 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
               </label>
               {usePills ? (
                 <div className="flex flex-wrap gap-2 justify-center">
-                  {Array.from({ length: sessionCount }, (_, i) => i + 1).map((n) => (
+                  {Array.from({ length: effectiveSessionCount }, (_, i) => i + 1).map((n) => (
                     <button
                       key={n}
                       onClick={() => setSelectedSession(n)}
@@ -199,7 +225,7 @@ export default function OSISurveyModal({ osi, sessionCount = 1, onClose }: OSISu
                   onChange={(e) => setSelectedSession(Number(e.target.value))}
                   className="px-4 py-2 rounded-lg text-sm font-bold bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {Array.from({ length: sessionCount }, (_, i) => i + 1).map((n) => (
+                  {Array.from({ length: effectiveSessionCount }, (_, i) => i + 1).map((n) => (
                     <option key={n} value={n}>
                       Sesión {n}
                     </option>
