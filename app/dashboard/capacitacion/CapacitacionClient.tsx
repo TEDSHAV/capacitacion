@@ -171,7 +171,10 @@ export default function CapacitacionClient({
         { id: "generacion-certificado", title: "Generación", icon: Award },
         { id: "gestion-certificados", title: "Gestión", icon: FileStack },
         ...(process.env.NODE_ENV === "development"
-          ? [{ id: "generacion-personalizada", title: "Gen. Personalizada", icon: Sparkles }]
+          ? [
+              { id: "generacion-personalizada", title: "Gen. Personalizada", icon: Sparkles },
+              { id: "visibilidad-lotes-huerfanos", title: "Lotes Huérfanos", icon: FileStack },
+            ]
           : []),
       ],
     },
