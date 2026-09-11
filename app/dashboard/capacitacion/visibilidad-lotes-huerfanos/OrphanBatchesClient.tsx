@@ -275,7 +275,7 @@ export function OrphanBatchesClient() {
                         <button
                           onClick={() => handleOpenSedeDropdown(batch)}
                           disabled={savingSedeNro === batch.nro_osi || !batch.id_empresa}
-                          className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                           title={batch.id_empresa ? "Cambiar sede" : "Sin empresa asociada"}
                         >
                           {savingSedeNro === batch.nro_osi ? (
@@ -301,7 +301,7 @@ export function OrphanBatchesClient() {
                                 {batch.current_sede_id !== null && (
                                   <button
                                     onClick={() => handleAssignSede(batch.nro_osi, null)}
-                                    className="block w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 border-b border-gray-100"
+                                    className="block w-full text-left px-3 py-2 text-xs text-red-600 bg-white hover:bg-red-50 border-b border-gray-100"
                                   >
                                     Quitar sede
                                   </button>
@@ -313,7 +313,7 @@ export function OrphanBatchesClient() {
                                     className={`block w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${
                                       sede.id === batch.current_sede_id
                                         ? "font-semibold text-green-700 bg-green-50"
-                                        : "text-gray-700"
+                                        : "text-gray-700 bg-white"
                                     }`}
                                   >
                                     {sede.nombre_sede}

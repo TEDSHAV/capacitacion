@@ -174,7 +174,7 @@ export function FacilitadorLoginForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword((s) => !s)}
-                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3 top-3 bg-transparent text-gray-400 hover:text-gray-600 transition-colors"
                 tabIndex={-1}
                 aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
               >
