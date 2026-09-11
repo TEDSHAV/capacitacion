@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Key, User, Loader2, AlertCircle, Mail, Phone, WifiOff, ArrowRight } from "lucide-react";
+import { Key, User, Loader2, AlertCircle, Mail, Phone, WifiOff, ArrowRight, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import { loginFacilitator } from "@/app/actions/facilitador-portal";
 import { getClientSession, saveClientSession } from "@/lib/offline/client-session";
@@ -17,6 +17,7 @@ export function FacilitadorLoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [offlineSession, setOfflineSession] = useState<{ nombre: string } | null>(null);
   // Ref guard prevents concurrent submissions even before React re-renders with disabled state
   const isSubmitting = useRef(false);
@@ -162,14 +163,27 @@ export function FacilitadorLoginForm() {
               <Key className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
               <Input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10"
+                className="pl-10 pr-10"
                 placeholder="••••••••"
                 autoComplete="current-password"
                 disabled={loading}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors"
+                tabIndex={-1}
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </div>
 
