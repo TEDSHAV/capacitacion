@@ -1555,7 +1555,7 @@ export default function RequisicionView({
               <button
                 type="button"
                 onClick={() => handleCopy(field, value)}
-                className="ml-1 text-gray-400 hover:text-blue-600 transition-colors"
+                className="ml-1 p-0.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 bg-transparent border-none transition-colors cursor-pointer"
                 title="Copiar"
               >
                 {copiedField === field ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
@@ -1578,7 +1578,7 @@ export default function RequisicionView({
               <button
                 type="button"
                 onClick={() => handleCopy("todo", copyBlock)}
-                className="flex items-center gap-1 text-[10px] font-normal text-blue-700 hover:text-blue-900 normal-case"
+                className="flex items-center gap-1 text-[10px] font-normal text-gray-500 hover:text-blue-700 hover:bg-blue-50 bg-transparent border-none normal-case px-1.5 py-0.5 rounded transition-colors cursor-pointer"
                 title="Copiar todos los datos"
               >
                 {copiedField === "todo" ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
