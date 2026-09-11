@@ -1462,11 +1462,11 @@ export async function getClienteHiddenBatches(
   return { data: allBatches, totalCount: allBatches.length };
 }
 
-// ─── Orphan batch visibility (dev-only admin tool) ───
+// ─── Orphan batch visibility (admin-only tool) ───
 //
 // Certificates may exist with nro_osi values that don't correspond to any
 // ejecucion_osi row. These "orphan" batches can't be toggled from the OSI
-// list (no ejecucion_osi.id to reference), so this dev-only admin tool
+// list (no ejecucion_osi.id to reference), so this admin-only tool
 // manages their visibility directly via the nro_osi column on
 // osi_visibilidad_cliente.
 
@@ -1474,9 +1474,6 @@ export async function getOrphanCertificateBatches(): Promise<{
   data?: OrphanBatchSummary[];
   error?: string;
 }> {
-  if (process.env.NODE_ENV === "production") {
-    return { error: "No disponible en producción" };
-  }
   try {
     const supabase = await createAdminClient();
 
@@ -1628,9 +1625,6 @@ export async function setOrphanBatchVisibility(
   nroOsi: number,
   hidden: boolean,
 ): Promise<{ success: boolean; error?: string }> {
-  if (process.env.NODE_ENV === "production") {
-    return { success: false, error: "No disponible en producción" };
-  }
   if (!Number.isFinite(nroOsi) || nroOsi <= 0) {
     return { success: false, error: "Nro OSI inválido" };
   }
