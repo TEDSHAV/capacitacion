@@ -37,7 +37,7 @@ export function OrphanBatchesClient() {
         setBatches(result.data || []);
       }
     } catch (err) {
-      setError("Error al cargar los lotes huérfanos");
+      setError("Error al cargar los lotes sin OSI");
       console.error(err);
     } finally {
       setLoading(false);
@@ -161,7 +161,7 @@ export function OrphanBatchesClient() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-900">
             <FileStack className="w-6 h-6 text-amber-600" />
-            Lotes Huérfanos — Visibilidad Cliente
+            Lotes sin OSI en PRISMA — Visibilidad Cliente
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Certificados con nro_osi que no existen en ejecucion_osi.
@@ -192,7 +192,7 @@ export function OrphanBatchesClient() {
       {loaded && !loading && batches.length === 0 && !error && (
         <div className="text-center py-12 text-gray-500">
           <FileStack className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p>No hay lotes huérfanos. Todos los certificados tienen un OSI válido.</p>
+          <p>No hay lotes sin OSI. Todos los certificados tienen un OSI válido.</p>
         </div>
       )}
 
@@ -275,7 +275,7 @@ export function OrphanBatchesClient() {
                         <button
                           onClick={() => handleOpenSedeDropdown(batch)}
                           disabled={savingSedeNro === batch.nro_osi || !batch.id_empresa}
-                          className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                           title={batch.id_empresa ? "Cambiar sede" : "Sin empresa asociada"}
                         >
                           {savingSedeNro === batch.nro_osi ? (

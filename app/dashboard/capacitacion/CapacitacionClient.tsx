@@ -174,7 +174,7 @@ export default function CapacitacionClient({
         { id: "gestion-certificados", title: "Gestión", icon: FileStack },
         ...(isAdmin
           ? [
-              { id: "visibilidad-lotes-huerfanos", title: "Lotes Huérfanos", icon: FileStack },
+              { id: "visibilidad-lotes-huerfanos", title: "Lotes sin OSI en PRISMA", icon: FileStack },
             ]
           : []),
         ...(process.env.NODE_ENV === "development"

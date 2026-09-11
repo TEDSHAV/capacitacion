@@ -198,7 +198,7 @@ const DASHBOARD_NAV: NavItem[] = [
       },
       {
         id: "orphan-visibility",
-        label: "Lotes Huérfanos",
+        label: "Lotes sin OSI en PRISMA",
         href: "/dashboard/capacitacion/visibilidad-lotes-huerfanos",
         icon: FileStack,
         requiresOnline: true,
