@@ -15,6 +15,8 @@ import {
   Send,
   Settings,
   Info,
+  Paperclip,
+  X,
 } from "lucide-react";
 import {
   getAssignmentByOSI,
@@ -29,8 +31,9 @@ import {
   getDefaultEmailTemplate,
 } from "@/app/actions/email-templates";
 import { sendAssignmentEmail, isEmailServerConfigured } from "@/app/actions/email-send";
+import { getEmailLogsForOSI } from "@/app/actions/email-log";
 import { renderTemplateBoth, emailContextToMap } from "@/lib/email/template-render";
-import type { EmailContext, EmailTemplateListItem } from "@/types/email";
+import type { EmailAttachmentInput, EmailContext, EmailLogEntry, EmailTemplateListItem } from "@/types/email";
 import {
   Select,
   SelectContent,
@@ -50,8 +53,10 @@ interface AssignFacilitadorModalProps {
 
 interface AssignmentRow {
   id: number;
+  facilitador_id?: number;
   nro_sesion: number | null;
   facilitadores?: {
+    id?: number;
     nombre_apellido?: string;
     cedula?: string;
     email?: string;
@@ -84,6 +89,9 @@ export default function AssignFacilitadorModal({
   const [emailConfigured, setEmailConfigured] = useState(true);
   const [sending, setSending] = useState(false);
   const [emailResult, setEmailResult] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<EmailAttachmentInput[]>([]);
+  const [readingFiles, setReadingFiles] = useState(false);
+  const [emailLogs, setEmailLogs] = useState<EmailLogEntry[]>([]);
 
   // Real session count fetched from v_osi_formato_completo on open. The list
   // view only has sesiones_ejecucion (0/null for not-yet-executed OSIs), so the
@@ -101,16 +109,29 @@ export default function AssignFacilitadorModal({
   const [userEditedBody, setUserEditedBody] = useState(false);
   const [userEditedTo, setUserEditedTo] = useState(false);
 
+  function formatRelativeTime(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "hace un momento";
+    if (mins < 60) return `hace ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `hace ${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `hace ${days}d`;
+    return new Date(iso).toLocaleDateString("es-VE");
+  }
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [assignRes, facilitatorsData, templatesData, configured, count] = await Promise.all([
+      const [assignRes, facilitatorsData, templatesData, configured, count, logs] = await Promise.all([
         getAssignmentByOSI(osiId),
         getActiveFacilitatorsForDropdown(),
         getEmailTemplates(),
         isEmailServerConfigured(),
         getOsiSessionCount(osiId),
+        getEmailLogsForOSI(osiId),
       ]);
 
       if (assignRes.error) {
@@ -126,6 +147,7 @@ export default function AssignFacilitadorModal({
       setEmailConfigured(configured);
       setRealSessionCount(count);
       setSessionCountLoaded(true);
+      setEmailLogs(logs || []);
 
       // Pick the default template automatically.
       if (templatesData && templatesData.length > 0) {
@@ -247,6 +269,56 @@ export default function AssignFacilitadorModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emailContext]);
 
+  // Read a File as base64 (strips the data URL prefix).
+  function readFileAsBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Strip "data:<mime>;base64," prefix.
+        const base64 = result.includes(",") ? result.split(",")[1] : result;
+        resolve(base64);
+      };
+      reader.onerror = () => reject(reader.error || new Error("Error leyendo archivo"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setReadingFiles(true);
+    try {
+      const newAttachments: EmailAttachmentInput[] = [];
+      for (const file of Array.from(files)) {
+        const contentBase64 = await readFileAsBase64(file);
+        newAttachments.push({
+          filename: file.name,
+          contentBase64,
+          contentType: file.type || "application/octet-stream",
+          size: file.size,
+        });
+      }
+      setAttachments((prev) => [...prev, ...newAttachments]);
+    } catch {
+      setError("Error al leer uno o más archivos adjuntos.");
+    } finally {
+      setReadingFiles(false);
+      // Reset the input so the same file can be re-selected later.
+      e.target.value = "";
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const handleAssign = async (sendEmail: boolean) => {
     if (!selectedFacilitadorId) {
       setError("Seleccione un facilitador");
@@ -290,6 +362,7 @@ export default function AssignFacilitadorModal({
             subject: emailSubject,
             body: emailBody,
             templateId: selectedTemplateId ? parseInt(selectedTemplateId) : null,
+            attachments: attachments.length > 0 ? attachments : undefined,
           });
           if (sendRes.status === "sent") {
             setEmailResult("Correo enviado exitosamente");
@@ -317,6 +390,7 @@ export default function AssignFacilitadorModal({
     setUserEditedSubject(false);
     setUserEditedBody(false);
     setUserEditedTo(false);
+    setAttachments([]);
     await loadData();
     setTimeout(() => {
       setSuccess(null);
@@ -381,7 +455,11 @@ export default function AssignFacilitadorModal({
               </h4>
               {currentAssignments.length > 0 ? (
                 <div className="space-y-2">
-                  {currentAssignments.map((a) => (
+                  {currentAssignments.map((a) => {
+                    const log = emailLogs.find(
+                      (l) => l.facilitador_id === a.facilitador_id || l.assignment_id === a.id,
+                    );
+                    return (
                     <div
                       key={a.id}
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200"
@@ -397,6 +475,31 @@ export default function AssignFacilitadorModal({
                           <Layers className="w-3 h-3" />
                           {sessionLabel(a.nro_sesion)}
                         </span>
+                        {log && (
+                          <span
+                            className={`text-xs flex items-center gap-1 mt-1 ${
+                              log.status === "sent"
+                                ? "text-green-600"
+                                : log.status === "failed"
+                                  ? "text-red-500"
+                                  : "text-gray-400"
+                            }`}
+                            title={new Date(log.sent_at).toLocaleString("es-VE")}
+                          >
+                            {log.status === "sent" ? (
+                              <CheckCircle2 className="w-3 h-3" />
+                            ) : log.status === "failed" ? (
+                              <AlertCircle className="w-3 h-3" />
+                            ) : (
+                              <Mail className="w-3 h-3" />
+                            )}
+                            {log.status === "sent"
+                              ? `Correo enviado ${formatRelativeTime(log.sent_at)}`
+                              : log.status === "failed"
+                                ? `Correo falló ${formatRelativeTime(log.sent_at)}`
+                                : `Correo no configurado ${formatRelativeTime(log.sent_at)}`}
+                          </span>
+                        )}
                       </div>
                       <button
                         onClick={() => handleUnassign(a.id)}
@@ -406,7 +509,8 @@ export default function AssignFacilitadorModal({
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-gray-400 italic py-3">
@@ -558,6 +662,54 @@ export default function AssignFacilitadorModal({
                     className="font-mono text-xs min-h-[320px] whitespace-pre-wrap"
                     placeholder="Cuerpo del correo..."
                   />
+                </div>
+
+                {/* Attachments */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Adjuntos
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-md text-xs text-gray-700 hover:bg-gray-50 hover:border-gray-400 cursor-pointer transition-colors">
+                      <Paperclip className="w-3.5 h-3.5" />
+                      {readingFiles ? "Leyendo..." : "Adjuntar archivos"}
+                      <input
+                        type="file"
+                        multiple
+                        onChange={handleFileSelect}
+                        disabled={readingFiles}
+                        className="hidden"
+                      />
+                    </label>
+                    {attachments.length > 0 && (
+                      <span className="text-xs text-gray-500">
+                        {attachments.length} archivo{attachments.length === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </div>
+                  {attachments.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {attachments.map((a, i) => (
+                        <div
+                          key={`${a.filename}-${i}`}
+                          className="flex items-center justify-between p-2 bg-gray-50 rounded-md border border-gray-200 text-xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Paperclip className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span className="text-gray-700 truncate">{a.filename}</span>
+                            <span className="text-gray-400 shrink-0">{formatFileSize(a.size)}</span>
+                          </div>
+                          <button
+                            onClick={() => removeAttachment(i)}
+                            className="text-gray-400 hover:text-red-500 p-1 rounded transition-colors shrink-0"
+                            title="Quitar adjunto"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

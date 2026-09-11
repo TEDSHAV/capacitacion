@@ -49,7 +49,12 @@ function getTransporter(): nodemailer.Transporter {
 function fromAddress(): string {
   const from = process.env.EMAIL_FROM!;
   const name = process.env.EMAIL_FROM_NAME || "Capacitación SHA";
-  // Quote the display name if it contains chars that need quoting.
+  // Quote the display name if it contains special chars (comma, pipe, etc.)
+  // per RFC 5322.
+  if (/[,;<>@!:"\[\]()]/.test(name)) {
+    const escaped = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    return `"${escaped}" <${from}>`;
+  }
   return `${name} <${from}>`;
 }
 
@@ -72,9 +77,10 @@ export async function sendMail(input: SendMailInput): Promise<SendResult> {
   try {
     const transporter = getTransporter();
     const html = textToBasicHtml(input.text);
+    const from = fromAddress();
 
     const info = await transporter.sendMail({
-      from: fromAddress(),
+      from,
       to: input.to,
       subject: input.subject,
       text: input.text,

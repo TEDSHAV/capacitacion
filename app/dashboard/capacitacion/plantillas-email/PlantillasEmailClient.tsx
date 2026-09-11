@@ -428,7 +428,7 @@ export default function PlantillasEmailClient() {
                   </label>
                   <button
                     onClick={() => setShowPreview((v) => !v)}
-                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-teal-700 bg-teal-50 border border-teal-200 rounded-md hover:bg-teal-100 hover:border-teal-300 transition-colors"
                   >
                     <Eye className="w-3 h-3" />
                     {showPreview ? "Ocultar vista previa" : "Vista previa"}
@@ -449,8 +449,8 @@ export default function PlantillasEmailClient() {
               </div>
 
               {showPreview && preview && (
-                <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                <div className="border border-teal-200 rounded-md p-4 bg-teal-50/50">
+                  <div className="text-xs font-semibold text-teal-700 uppercase mb-2">
                     Vista previa
                   </div>
                   <div className="text-sm font-medium text-gray-900 mb-2">

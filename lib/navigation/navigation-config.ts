@@ -15,6 +15,7 @@ import {
   FileCheck,
   ClipboardCheck,
   Mail,
+  MailCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -201,7 +202,6 @@ const DASHBOARD_NAV: NavItem[] = [
         href: "/dashboard/capacitacion/visibilidad-lotes-huerfanos",
         icon: FileStack,
         requiresOnline: true,
-        devOnly: true,
       },
     ],
   },
@@ -268,6 +268,13 @@ const DASHBOARD_NAV: NavItem[] = [
         label: "Plantillas de Email",
         href: "/dashboard/capacitacion/plantillas-email",
         icon: Mail,
+        offlineAvailable: true,
+      },
+      {
+        id: "registro-correos",
+        label: "Registro de Correos",
+        href: "/dashboard/capacitacion/registro-correos",
+        icon: MailCheck,
         offlineAvailable: true,
       },
     ],

@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { sendMail, isEmailConfigured } from "@/lib/email/send";
-import type { EmailLogStatus } from "@/types/email";
+import type { EmailAttachmentInput, EmailLogStatus } from "@/types/email";
 
 /**
  * Client-callable check: is MXroute configured? Used by the assign modal to
@@ -31,6 +31,7 @@ export async function sendAssignmentEmail(input: {
   subject: string;
   body: string;
   templateId?: number | null;
+  attachments?: EmailAttachmentInput[];
 }): Promise<{ status: EmailLogStatus; logId: number | null; error?: string }> {
   const supabase = await createClient();
   const userRes = await supabase.auth.getUser();
@@ -40,15 +41,31 @@ export async function sendAssignmentEmail(input: {
     return { status: "failed", logId: null, error: "Faltan destinatario, asunto o cuerpo." };
   }
 
+  // Decode base64 attachments to Buffers for nodemailer. File content is never
+  // persisted — only metadata (filename, size) is logged below.
+  const decodedAttachments = input.attachments?.map((a) => ({
+    filename: a.filename,
+    content: Buffer.from(a.contentBase64, "base64"),
+    contentType: a.contentType,
+  }));
+
   // Send via MXroute (soft no-op when not configured).
   const result = await sendMail({
     to: input.to,
     subject: input.subject,
     text: input.body,
+    attachments: decodedAttachments,
   });
 
   const status: EmailLogStatus =
     result.status === "sent" ? "sent" : result.status === "failed" ? "failed" : "not_configured";
+
+  // Log metadata only (filename + size) — never the file content.
+  const attachmentMeta = (input.attachments ?? []).map((a) => ({
+    key: "",
+    name: a.filename,
+    size: a.size,
+  }));
 
   // Always log the attempt.
   const { data: logRow, error: logErr } = await supabase
@@ -63,7 +80,7 @@ export async function sendAssignmentEmail(input: {
       body_sent: input.body,
       status,
       error_message: result.error ?? null,
-      attachments: [],
+      attachments: attachmentMeta,
       sent_by: sentBy,
     })
     .select("id")

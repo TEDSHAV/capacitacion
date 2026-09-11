@@ -64,6 +64,14 @@ export interface EmailLog {
 }
 
 /**
+ * Log entry with the facilitador name joined in — used by the assign modal
+ * badges and the registro-correos table.
+ */
+export interface EmailLogEntry extends EmailLog {
+  facilitadores?: { nombre_apellido?: string } | null;
+}
+
+/**
  * Per-session detail used to populate date/horario/duracion placeholders.
  * Sourced from `osi_sesion` (preferred) or `desglose_recursos_sesiones`.
  */
@@ -113,4 +121,17 @@ export interface SendMailInput {
     content: Buffer;
     contentType?: string;
   }>;
+}
+
+/**
+ * Attachment payload sent from the client to the server action, base64-encoded
+ * so it serializes cleanly over the server action boundary. The server decodes
+ * it to a Buffer before handing it to nodemailer. File content is never
+ * persisted — only metadata (filename, size) is recorded in the email log.
+ */
+export interface EmailAttachmentInput {
+  filename: string;
+  contentBase64: string;
+  contentType: string;
+  size: number;
 }

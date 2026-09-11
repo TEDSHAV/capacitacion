@@ -20,6 +20,8 @@ import {
   Gauge,
   KeyRound,
   ClipboardCheck,
+  Mail,
+  MailCheck,
 } from "lucide-react";
 
 type LucideIcon = typeof BookOpen;
@@ -103,8 +105,11 @@ export default function CapacitacionClient({
   user: _user,
   stats: _stats,
 }: CapacitacionClientProps) {
-  void _user;
   void _stats;
+
+  const userRole =
+    (_user as Record<string, unknown> | undefined)?.user_role as string | undefined;
+  const isAdmin = userRole === "admin" || userRole === "superadmin";
 
   const mainCards: MainCard[] = [
     {
@@ -173,6 +178,10 @@ export default function CapacitacionClient({
         ...(process.env.NODE_ENV === "development"
           ? [
               { id: "generacion-personalizada", title: "Gen. Personalizada", icon: Sparkles },
+            ]
+          : []),
+        ...(isAdmin || process.env.NODE_ENV === "development"
+          ? [
               { id: "visibilidad-lotes-huerfanos", title: "Lotes Huérfanos", icon: FileStack },
             ]
           : []),
@@ -200,6 +209,8 @@ export default function CapacitacionClient({
         { id: "gestion-de-firmas", title: "Firmas", icon: Signature },
         { id: "gestion-asignaciones", title: "Asignaciones y Credenciales", icon: KeyRound },
         { id: "evaluacion-facilitadores", title: "Evaluación", icon: ClipboardCheck },
+        { id: "plantillas-email", title: "Plantillas de Email", icon: Mail },
+        { id: "registro-correos", title: "Registro de Correos", icon: MailCheck },
       ],
     },
     {
