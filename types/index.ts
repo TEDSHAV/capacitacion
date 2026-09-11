@@ -602,6 +602,7 @@ export interface DashboardStats {
 export interface CapacitacionClientProps {
   user: User;
   stats?: DashboardStats;
+  isAdmin?: boolean;
 }
 
 export interface GestionCursosClientProps {

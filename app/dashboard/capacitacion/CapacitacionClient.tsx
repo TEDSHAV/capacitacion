@@ -104,12 +104,9 @@ const ACCENT_CLASSES: Record<string, {
 export default function CapacitacionClient({
   user: _user,
   stats: _stats,
+  isAdmin = false,
 }: CapacitacionClientProps) {
   void _stats;
-
-  const userRole =
-    (_user as Record<string, unknown> | undefined)?.user_role as string | undefined;
-  const isAdmin = userRole === "admin" || userRole === "superadmin";
 
   const mainCards: MainCard[] = [
     {
