@@ -105,8 +105,6 @@ export function buildEmailContext(
     contenido_servicio?: string | null;
     observaciones_totales?: string | null;
     fecha_inicio_real?: string | null;
-    horas_academicas_ejecucion?: number | null;
-    sesiones_ejecucion?: number | null;
   },
   facilitador: {
     nombre_apellido: string | null;
@@ -143,24 +141,11 @@ export function buildEmailContext(
       .join(", ");
   }
 
-  // Duración: per-session hours. If all equal, show once; else show per session.
-  const horas = sList.map((s) => s.horas).filter((h): h is number => h != null);
-  let duracion: string;
-  if (horas.length === 0) {
-    // Fall back to OSI-level: total academic hours / session count.
-    const total = osi.horas_academicas_ejecucion;
-    const n = osi.sesiones_ejecucion || sList.length || 1;
-    duracion = total ? String(Math.round((total / n) * 10) / 10) : "";
-  } else if (Array.from(new Set(horas)).length === 1) {
-    duracion = String(horas[0]);
-  } else {
-    duracion = sList
-      .map((s, i) =>
-        s.horas != null ? `Sesión ${s.nro_sesion ?? i + 1}: ${s.horas}h` : "",
-      )
-      .filter(Boolean)
-      .join(", ");
-  }
+  // Duración: left as a highlighted marker so the user manually confirms/sets
+  // it in the assign modal before sending. The session-level hours source
+  // (osi_sesion has no hours column; desglose_recursos_sesiones is unreliable)
+  // makes automatic population unreliable, so we surface it explicitly.
+  const duracion = "[DURACIÓN A CONFIRMAR]";
 
   return {
     facilitador_nombre: facilitador.nombre_apellido ?? "",

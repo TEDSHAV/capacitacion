@@ -80,7 +80,7 @@ export default function RegistroCorreosClient() {
       const data = await getEmailLogs({ limit: 200 });
       setLogs(data);
     } catch {
-      setError("Error al cargar el registro de correos");
+      setError("Error al cargar el historial de emails");
     } finally {
       setLoading(false);
     }
@@ -113,7 +113,7 @@ export default function RegistroCorreosClient() {
       <div className="mb-6 flex items-center gap-3">
         <MailCheck className="w-6 h-6 text-teal-600" />
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Registro de Correos</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Historial de Emails</h1>
           <p className="text-sm text-gray-500">
             Historial de correos enviados desde el módulo de asignación de facilitadores
           </p>

@@ -264,17 +264,26 @@ const DASHBOARD_NAV: NavItem[] = [
         offlineAvailable: true,
       },
       {
+        id: "email-history",
+        label: "Historial de Emails",
+        href: "/dashboard/capacitacion/registro-correos",
+        icon: MailCheck,
+        offlineAvailable: true,
+      },
+    ],
+  },
+  {
+    id: "templates",
+    label: "Plantillas",
+    href: "#",
+    icon: LayoutGrid,
+    offlineAvailable: true,
+    children: [
+      {
         id: "email-templates",
         label: "Plantillas de Email",
         href: "/dashboard/capacitacion/plantillas-email",
         icon: Mail,
-        offlineAvailable: true,
-      },
-      {
-        id: "registro-correos",
-        label: "Registro de Correos",
-        href: "/dashboard/capacitacion/registro-correos",
-        icon: MailCheck,
         offlineAvailable: true,
       },
     ],

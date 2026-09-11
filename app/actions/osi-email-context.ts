@@ -30,7 +30,7 @@ export async function getOSIEmailContext(
     supabase
       .from("v_osi_formato_completo")
       .select(
-        "nro_osi, servicio, nombre_empresa, direccion_ejecucion, persona_contacto, contacto_telefono, contenido_servicio, observaciones_totales, fecha_inicio_real, horas_academicas_ejecucion, sesiones_ejecucion, desglose_recursos_sesiones",
+        "nro_osi, servicio, nombre_empresa, direccion_ejecucion, persona_contacto, contacto_telefono, contenido_servicio, observaciones_totales, fecha_inicio_real, desglose_recursos_sesiones",
       )
       .eq("id_osi", osiId)
       .maybeSingle(),
@@ -114,8 +114,6 @@ export async function getOSIEmailContext(
       contenido_servicio: osiRes.data.contenido_servicio,
       observaciones_totales: osiRes.data.observaciones_totales,
       fecha_inicio_real: osiRes.data.fecha_inicio_real,
-      horas_academicas_ejecucion: osiRes.data.horas_academicas_ejecucion,
-      sesiones_ejecucion: osiRes.data.sesiones_ejecucion,
     },
     {
       nombre_apellido: facRes.data.nombre_apellido,
