@@ -4,9 +4,11 @@ import { useState, useCallback, useMemo } from "react";
 import {
   getOrphanCertificateBatches,
   setOrphanBatchVisibility,
+  getSedesForEmpresa,
+  assignSedeToOrphanBatch,
 } from "@/app/actions/cliente-portal";
-import type { OrphanBatchSummary } from "@/types";
-import { Loader2, Eye, EyeOff, RefreshCw, FileStack, AlertCircle, Search } from "lucide-react";
+import type { OrphanBatchSummary, EmpresaSedeOption } from "@/types";
+import { Loader2, Eye, EyeOff, RefreshCw, FileStack, AlertCircle, Search, MapPin, ChevronDown } from "lucide-react";
 
 export function OrphanBatchesClient() {
   const [batches, setBatches] = useState<OrphanBatchSummary[]>([]);
@@ -15,6 +17,14 @@ export function OrphanBatchesClient() {
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Per-row sede dropdown state: which nro_osi is currently open
+  const [openSedeNro, setOpenSedeNro] = useState<number | null>(null);
+  // Sedes fetched for the company of the currently-open row
+  const [sedesForRow, setSedesForRow] = useState<EmpresaSedeOption[]>([]);
+  const [sedesLoading, setSedesLoading] = useState(false);
+  // Which nro_osi is currently saving a sede change
+  const [savingSedeNro, setSavingSedeNro] = useState<number | null>(null);
 
   const fetchBatches = useCallback(async () => {
     setLoading(true);
@@ -59,6 +69,73 @@ export function OrphanBatchesClient() {
     [],
   );
 
+  const handleOpenSedeDropdown = useCallback(
+    async (batch: OrphanBatchSummary) => {
+      // Toggle: if already open for this row, close it.
+      if (openSedeNro === batch.nro_osi) {
+        setOpenSedeNro(null);
+        setSedesForRow([]);
+        return;
+      }
+      setOpenSedeNro(batch.nro_osi);
+      setSedesForRow([]);
+      if (!batch.id_empresa) {
+        return; // No company → no sedes to fetch
+      }
+      setSedesLoading(true);
+      try {
+        const result = await getSedesForEmpresa(batch.id_empresa);
+        if (result.error) {
+          setError(result.error);
+        } else {
+          setSedesForRow(result.data || []);
+        }
+      } catch (err) {
+        setError("Error al cargar las sedes");
+        console.error(err);
+      } finally {
+        setSedesLoading(false);
+      }
+    },
+    [openSedeNro],
+  );
+
+  const handleAssignSede = useCallback(
+    async (nroOsi: number, sedeId: number | null) => {
+      setSavingSedeNro(nroOsi);
+      setOpenSedeNro(null);
+      try {
+        const result = await assignSedeToOrphanBatch(nroOsi, sedeId);
+        if (result.success) {
+          // Update local state: find the sede name from the fetched list.
+          const sedeName =
+            sedeId === null
+              ? null
+              : sedesForRow.find((s) => s.id === sedeId)?.nombre_sede ?? null;
+          setBatches((prev) =>
+            prev.map((b) =>
+              b.nro_osi === nroOsi
+                ? {
+                    ...b,
+                    current_sede_id: sedeId,
+                    current_sede_name: sedeName,
+                  }
+                : b,
+            ),
+          );
+        } else {
+          setError(result.error || "Error al asignar la sede");
+        }
+      } catch (err) {
+        setError("Error inesperado");
+        console.error(err);
+      } finally {
+        setSavingSedeNro(null);
+      }
+    },
+    [sedesForRow],
+  );
+
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";
     const date = dateString.includes("T")
@@ -88,7 +165,7 @@ export function OrphanBatchesClient() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Certificados con nro_osi que no existen en ejecucion_osi.
-            Disponible solo en desarrollo.
+            Herramienta administrativa para gestionar visibilidad y sede.
           </p>
         </div>
         <button
@@ -152,6 +229,9 @@ export function OrphanBatchesClient() {
                     Empresa
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    Sede
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                     Participantes
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
@@ -167,7 +247,7 @@ export function OrphanBatchesClient() {
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
                 {filteredBatches.map((batch) => (
-                  <tr key={batch.nro_osi} className="hover:bg-gray-50">
+                  <tr key={batch.nro_osi} className="hover:bg-gray-50 align-top">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">
                       {batch.nro_osi}
                     </td>
@@ -176,6 +256,75 @@ export function OrphanBatchesClient() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {batch.company_name}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {/* Current sede badge */}
+                      {batch.current_sede_name ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-700">
+                          <MapPin className="w-3 h-3" />
+                          {batch.current_sede_name}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700">
+                          <MapPin className="w-3 h-3" />
+                          Sin sede
+                        </span>
+                      )}
+                      {/* Sede selector dropdown */}
+                      <div className="relative mt-1.5">
+                        <button
+                          onClick={() => handleOpenSedeDropdown(batch)}
+                          disabled={savingSedeNro === batch.nro_osi || !batch.id_empresa}
+                          className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={batch.id_empresa ? "Cambiar sede" : "Sin empresa asociada"}
+                        >
+                          {savingSedeNro === batch.nro_osi ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                          Cambiar
+                        </button>
+                        {openSedeNro === batch.nro_osi && (
+                          <div className="absolute z-20 mt-1 left-0 min-w-[200px] bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                            {sedesLoading ? (
+                              <div className="px-3 py-2 text-xs text-gray-500 flex items-center gap-2">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Cargando sedes...
+                              </div>
+                            ) : sedesForRow.length === 0 ? (
+                              <div className="px-3 py-2 text-xs text-gray-500">
+                                No hay sedes activas para esta empresa
+                              </div>
+                            ) : (
+                              <>
+                                {batch.current_sede_id !== null && (
+                                  <button
+                                    onClick={() => handleAssignSede(batch.nro_osi, null)}
+                                    className="block w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 border-b border-gray-100"
+                                  >
+                                    Quitar sede
+                                  </button>
+                                )}
+                                {sedesForRow.map((sede) => (
+                                  <button
+                                    key={sede.id}
+                                    onClick={() => handleAssignSede(batch.nro_osi, sede.id)}
+                                    className={`block w-full text-left px-3 py-2 text-xs hover:bg-gray-50 ${
+                                      sede.id === batch.current_sede_id
+                                        ? "font-semibold text-green-700 bg-green-50"
+                                        : "text-gray-700"
+                                    }`}
+                                  >
+                                    {sede.nombre_sede}
+                                    {sede.id === batch.current_sede_id && " ✓"}
+                                  </button>
+                                ))}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {batch.participant_count}
@@ -234,6 +383,17 @@ export function OrphanBatchesClient() {
             </div>
           )}
         </>
+      )}
+
+      {/* Click-away overlay to close the sede dropdown */}
+      {openSedeNro !== null && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => {
+            setOpenSedeNro(null);
+            setSedesForRow([]);
+          }}
+        />
       )}
     </div>
   );

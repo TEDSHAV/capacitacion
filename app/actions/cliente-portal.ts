@@ -25,6 +25,7 @@ import type {
   EmpresaLogo,
   HiddenBatchSummary,
   OrphanBatchSummary,
+  EmpresaSedeOption,
 } from "@/types";
 
 // ─── Auth Helpers ───
@@ -1539,9 +1540,10 @@ export async function getOrphanCertificateBatches(): Promise<{
         const { data: chunkData, error: chunkError } = await supabase
           .from("certificados")
           .select(
-            `id, nro_osi, fecha_emision, id_curso, snapshot_contenido, id_empresa, is_active,
+            `id, nro_osi, fecha_emision, id_curso, snapshot_contenido, id_empresa, is_active, id_sede,
              catalogo_servicios!left(nombre),
-             empresas!left(razon_social)`,
+             empresas!left(razon_social),
+             empresa_sedes!left(id, nombre_sede)`,
           )
           .in("nro_osi", chunk)
           .order("fecha_emision", { ascending: false })
@@ -1584,6 +1586,7 @@ export async function getOrphanCertificateBatches(): Promise<{
       if (!orphanMap.has(nroOsi)) {
         const courseInfo = row.catalogo_servicios as unknown as { nombre: string } | null;
         const companyInfo = row.empresas as unknown as { razon_social: string } | null;
+        const sedeInfo = row.empresa_sedes as unknown as { id: number; nombre_sede: string } | null;
         let courseNombre = courseInfo?.nombre || "";
         if (!courseNombre && row.snapshot_contenido) {
           try {
@@ -1601,6 +1604,9 @@ export async function getOrphanCertificateBatches(): Promise<{
           fecha_emision: (row.fecha_emision as string) || "",
           participant_count: 0,
           company_name: companyInfo?.razon_social || "N/A",
+          id_empresa: (row.id_empresa as number) ?? null,
+          current_sede_id: sedeInfo?.id ?? null,
+          current_sede_name: sedeInfo?.nombre_sede ?? null,
           visible: visMap.get(nroOsi) ?? false,
         });
       }
@@ -1686,6 +1692,94 @@ export async function setOrphanBatchVisibility(
     return { success: true };
   } catch (err) {
     console.error("Unexpected error in setOrphanBatchVisibility:", err);
+    return { success: false, error: "Error inesperado" };
+  }
+}
+
+/**
+ * Fetch active sedes for a given company, for the orphan-batch sede selector.
+ */
+export async function getSedesForEmpresa(
+  empresaId: number,
+): Promise<{ data?: EmpresaSedeOption[]; error?: string }> {
+  if (!Number.isFinite(empresaId) || empresaId <= 0) {
+    return { error: "ID de empresa inválido" };
+  }
+  try {
+    const supabase = await createAdminClient();
+    const { data, error } = await supabase
+      .from("empresa_sedes")
+      .select("id, nombre_sede")
+      .eq("id_empresa", empresaId)
+      .eq("esta_activo", true)
+      .order("nombre_sede", { ascending: true });
+    if (error) {
+      console.error("Error fetching sedes for empresa:", error);
+      return { error: error.message };
+    }
+    return { data: (data ?? []) as EmpresaSedeOption[] };
+  } catch (err) {
+    console.error("Unexpected error in getSedesForEmpresa:", err);
+    return { error: "Error inesperado" };
+  }
+}
+
+/**
+ * Assign (or clear) a sede on all certificates in an orphan batch.
+ * Updates `certificados.id_sede` for every row matching `nro_osi = nroOsi`.
+ * Pass `sedeId = null` to clear the sede assignment.
+ */
+export async function assignSedeToOrphanBatch(
+  nroOsi: number,
+  sedeId: number | null,
+): Promise<{ success: boolean; error?: string }> {
+  if (!Number.isFinite(nroOsi) || nroOsi <= 0) {
+    return { success: false, error: "Nro OSI inválido" };
+  }
+  if (sedeId !== null && (!Number.isFinite(sedeId) || sedeId <= 0)) {
+    return { success: false, error: "ID de sede inválido" };
+  }
+  try {
+    const admin = await createAdminClient();
+
+    // Validate sede belongs to the company of the batch (if a sede is set).
+    // We look up the first cert's id_empresa to know which company this
+    // batch belongs to, then verify the sede is owned by that company.
+    if (sedeId !== null) {
+      const { data: certRow } = await admin
+        .from("certificados")
+        .select("id_empresa")
+        .eq("nro_osi", nroOsi)
+        .limit(1)
+        .maybeSingle();
+      const empresaId = certRow?.id_empresa as number | null;
+      if (empresaId != null) {
+        const { data: sedeRow } = await admin
+          .from("empresa_sedes")
+          .select("id")
+          .eq("id", sedeId)
+          .eq("id_empresa", empresaId)
+          .eq("esta_activo", true)
+          .maybeSingle();
+        if (!sedeRow) {
+          return { success: false, error: "La sede no pertenece a la empresa del lote" };
+        }
+      }
+    }
+
+    const { error } = await admin
+      .from("certificados")
+      .update({ id_sede: sedeId })
+      .eq("nro_osi", nroOsi);
+
+    if (error) {
+      console.error("Error assigning sede to orphan batch:", error);
+      return { success: false, error: "Error al asignar la sede" };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("Unexpected error in assignSedeToOrphanBatch:", err);
     return { success: false, error: "Error inesperado" };
   }
 }
