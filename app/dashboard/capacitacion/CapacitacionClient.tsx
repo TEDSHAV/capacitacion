@@ -105,8 +105,11 @@ export default function CapacitacionClient({
   user: _user,
   stats: _stats,
 }: CapacitacionClientProps) {
-  void _user;
   void _stats;
+
+  const userRole =
+    (_user as Record<string, unknown> | undefined)?.user_role as string | undefined;
+  const isAdmin = userRole === "admin" || userRole === "superadmin";
 
   const mainCards: MainCard[] = [
     {
@@ -172,7 +175,11 @@ export default function CapacitacionClient({
       modules: [
         { id: "generacion-certificado", title: "Generación", icon: Award },
         { id: "gestion-certificados", title: "Gestión", icon: FileStack },
-        { id: "visibilidad-lotes-huerfanos", title: "Lotes Huérfanos", icon: FileStack },
+        ...(isAdmin
+          ? [
+              { id: "visibilidad-lotes-huerfanos", title: "Lotes Huérfanos", icon: FileStack },
+            ]
+          : []),
         ...(process.env.NODE_ENV === "development"
           ? [
               { id: "generacion-personalizada", title: "Gen. Personalizada", icon: Sparkles },
