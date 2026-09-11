@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense, useRef, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Trash2, CheckCircle2, Lock, AlertCircle } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Lock } from "lucide-react";
 import { RequisicionFormData, OSIFullData, RequisicionItem, OSIFixedItem, OSISesion } from "@/types/requisiciones";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,7 +39,6 @@ export default function RequisicionForm({
   lockReason = "",
   banks = [],
   osiSessions = [],
-  canPlaceInterna = true,
   isLider = false,
 }: {
   osis?: OSIFullData[],
@@ -52,7 +51,6 @@ export default function RequisicionForm({
   lockReason?: string,
   banks?: { id: number; nombre: string }[],
   osiSessions?: { id: number; id_osi: number; nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[],
-  canPlaceInterna?: boolean,
   isLider?: boolean,
 }) {
   return (
@@ -68,7 +66,6 @@ export default function RequisicionForm({
         lockReason={lockReason}
         banks={banks}
         osiSessions={osiSessions}
-        canPlaceInterna={canPlaceInterna}
         isLider={isLider}
       />
     </Suspense>
@@ -86,7 +83,6 @@ function RequisicionFormContent({
   lockReason,
   banks,
   osiSessions,
-  canPlaceInterna,
   isLider,
 }: {
   initialOsis: OSIFullData[],
@@ -99,7 +95,6 @@ function RequisicionFormContent({
   lockReason: string,
   banks: { id: number; nombre: string }[],
   osiSessions: { id: number; id_osi: number; nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[],
-  canPlaceInterna: boolean,
   isLider: boolean,
 }) {
   const router = useRouter();
@@ -580,10 +575,6 @@ function RequisicionFormContent({
       alert(lockReason || "Esta requisición está bloqueada para edición.");
       return;
     }
-    if (isGeneralMode && !canPlaceInterna) {
-      alert("Las requisiciones internas deben ser colocadas por el coordinador de su departamento.");
-      return;
-    }
 
     setIsLoading(true);
     try {
@@ -629,21 +620,6 @@ function RequisicionFormContent({
         <div className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-lg flex items-center gap-2 text-amber-800 text-sm font-medium">
           <Lock className="h-4 w-4" />
           {lockReason || "Esta requisición está bloqueada para edición."}
-        </div>
-      )}
-
-      {/* Blocking notice: analistas cannot place internas. Only the department's
-          coordinador (or, if the dept has no coordinador, the gerencia lider) can. */}
-      {isGeneralMode && !canPlaceInterna && !isLocked && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-300 rounded-lg flex items-start gap-3 text-blue-900 text-sm">
-          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="font-bold mb-1">Requisiciones internas restringidas</p>
-            <p>
-              Las requisiciones internas deben ser colocadas por el coordinador de su
-              departamento. Solicite a su coordinador que la coloque por usted.
-            </p>
-          </div>
         </div>
       )}
 
@@ -1481,7 +1457,7 @@ function RequisicionFormContent({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || isLocked || (isGeneralMode && !canPlaceInterna)}
+              disabled={isLoading || isLocked}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               {isLoading ? "Guardando..." : editId ? "Actualizar Requisición" : "Crear Requisición"}

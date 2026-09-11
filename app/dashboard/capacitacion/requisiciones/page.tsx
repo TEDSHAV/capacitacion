@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { Button } from "@/components/ui/button";
-import { getAllRequisiciones, isRequisicionesAdmin, isCurrentUserCapacitacion, getOsiNumbersForLookup, getCoordinatedDepartments, getDepartmentsInLedGerencias, getCoordinatorlessDepartmentsInLedGerencias, getCurrentUser } from "@/app/actions/requisiciones";
+import { getAllRequisiciones, isRequisicionesAdmin, isCurrentUserCapacitacion, getOsiNumbersForLookup, getCoordinatedDepartments, getDepartmentsInLedGerencias, getCurrentUser } from "@/app/actions/requisiciones";
 import RequisicionesTable from "./components/RequisicionesTable";
 import { FilePlus2 } from "lucide-react";
 
@@ -15,12 +15,10 @@ async function RequisicionesTableWrapper({
   isAdminView,
   coordinadorDepts,
   liderDepts,
-  liderFallbackDepts,
 }: {
   isAdminView: boolean;
   coordinadorDepts: string[];
   liderDepts: string[];
-  liderFallbackDepts: string[];
 }) {
   const [records, osiPairs] = await Promise.all([
     getAllRequisiciones(isAdminView),
@@ -46,7 +44,6 @@ async function RequisicionesTableWrapper({
       coordinadorDepts={coordinadorDepts}
       isLider={isLider}
       liderDepts={liderDepts}
-      liderFallbackDepts={liderFallbackDepts}
     />
   );
 }
@@ -68,10 +65,9 @@ export default async function RequisicionesPage() {
   // Approval scope is resolved from departamentos.coordinador / gerencias.lider,
   // never from the user's own department (a coordinador/lider may belong to a
   // different department than the one they coordinate/lead).
-  const [coordinadorDepts, liderDepts, liderFallbackDepts] = await Promise.all([
+  const [coordinadorDepts, liderDepts] = await Promise.all([
     isAdminView ? Promise.resolve([] as string[]) : getCoordinatedDepartments(),
     isAdminView ? Promise.resolve([] as string[]) : getDepartmentsInLedGerencias(),
-    isAdminView ? Promise.resolve([] as string[]) : getCoordinatorlessDepartmentsInLedGerencias(),
   ]);
   
   const isCoordinador = coordinadorDepts.length > 0;
@@ -105,7 +101,6 @@ export default async function RequisicionesPage() {
           isAdminView={isAdminView}
           coordinadorDepts={coordinadorDepts}
           liderDepts={liderDepts}
-          liderFallbackDepts={liderFallbackDepts}
         />
       </Suspense>
     </div>

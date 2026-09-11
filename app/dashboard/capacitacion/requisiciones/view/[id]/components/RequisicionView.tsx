@@ -28,7 +28,6 @@ export default function RequisicionView({
   coordinadorDepts = [],
   isLider = false,
   liderDepts = [],
-  liderFallbackDepts = [],
   banks = [],
 }: {
   record: any,
@@ -41,8 +40,6 @@ export default function RequisicionView({
   isLider?: boolean,
   /** All departments inside the gerencia(s) the current user leads. */
   liderDepts?: string[],
-  /** Departments inside the led gerencia(s) that have NO coordinador. */
-  liderFallbackDepts?: string[],
   banks?: { id: number; nombre: string }[],
 }) {
   const router = useRouter();
@@ -91,31 +88,25 @@ export default function RequisicionView({
   );
   const canLiderAct = isLiderPendiente && liderDeptMatches;
 
-  // --- Coordinador approval state (externas only) ---
+  // --- Coordinador approval state (internas only) ---
   const coordinadorEstatus = record.coordinador_estatus as "pendiente" | "aprobada" | "rechazada" | null | undefined;
-  const isCoordinadorPendiente = !isGeneralMode && coordinadorEstatus === "pendiente";
-  const isCoordinadorAprobada = !isGeneralMode && coordinadorEstatus === "aprobada";
-  const isCoordinadorRechazada = !isGeneralMode && coordinadorEstatus === "rechazada";
-  // A coordinador can only approve/reject externas of the departments they coordinate.
+  const isCoordinadorPendiente = isGeneralMode && coordinadorEstatus === "pendiente";
+  const isCoordinadorAprobada = isGeneralMode && coordinadorEstatus === "aprobada";
+  const isCoordinadorRechazada = isGeneralMode && coordinadorEstatus === "rechazada";
+  // A coordinador can only approve/reject internas of the departments they coordinate.
   // Fallback: if record.departamento is null (legacy record), allow any coordinador.
   const coordinadorDeptMatches = isCoordinador && (
     record.departamento
       ? deptInList(record.departamento, coordinadorDepts)
       : true
   );
-  // Lider fallback for externas, but ONLY for departments that genuinely have no
-  // coordinador inside the gerencia(s) this user leads.
-  const canLiderFallbackAct = isCoordinadorPendiente && isLider
-    && !coordinadorDeptMatches
-    && deptInList(record.departamento, liderFallbackDepts);
   const canCoordinadorAct = isCoordinadorPendiente && coordinadorDeptMatches;
-  const canExternasApproverAct = canCoordinadorAct || canLiderFallbackAct;
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [coordinadorRejectOpen, setCoordinadorRejectOpen] = useState(false);
   const [liderRejectOpen, setLiderRejectOpen] = useState(false);
 
   // --- Approver inline-edit state ---
-  // The approver (lider for internas, coordinador/lider-fallback for externas) can
+  // The approver (coordinador for internas, then lider for internas) can
   // edit the requisicion's content while the approval is pending OR after they've
   // already approved (they may realize they need to change something before
   // Administración processes it) — but NOT after a rejection or after admin has
@@ -123,14 +114,10 @@ export default function RequisicionView({
   const adminProcessed = record.estatus_admin === "procesada" || record.estatus_admin === "rechazada";
   const canLiderEditPostApproval = isLiderAprobada && !adminProcessed && liderDeptMatches && !isAdminView;
   const canCoordinadorEditPostApproval = isCoordinadorAprobada && !adminProcessed && coordinadorDeptMatches && !isAdminView;
-  const canLiderFallbackEditPostApproval = isCoordinadorAprobada && !adminProcessed && isLider
-    && !coordinadorDeptMatches
-    && deptInList(record.departamento, liderFallbackDepts);
   const canApproverEdit =
-    canLiderAct || canExternasApproverAct
+    canLiderAct || canCoordinadorAct
     || canLiderEditPostApproval
-    || canCoordinadorEditPostApproval
-    || canLiderFallbackEditPostApproval;
+    || canCoordinadorEditPostApproval;
   const [editedItems, setEditedItems] = useState<any[]>(record.additional_items || []);
   const [editedObservaciones, setEditedObservaciones] = useState<string>(record.observaciones_compras || "");
   const [editedPrioridad, setEditedPrioridad] = useState<string>(record.prioridad || "");
@@ -674,7 +661,7 @@ export default function RequisicionView({
         <div className="mb-4 flex flex-wrap items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-300 rounded-lg">
           <AlertTriangle className="h-4 w-4 text-blue-700 flex-shrink-0" />
           <span className="text-xs text-blue-800 font-medium">
-            {canLiderAct || canExternasApproverAct
+            {canLiderAct || canCoordinadorAct
               ? "Puede modificar el contenido de esta requisición antes de aprobar. El solicitante verá los cambios."
               : "Puede modificar el contenido de esta requisición antes de que Administración la procese. El solicitante verá los cambios."}
           </span>
@@ -737,8 +724,8 @@ export default function RequisicionView({
         </div>
       )}
 
-      {/* Coordinador status bar (externas only) */}
-      {!isGeneralMode && coordinadorEstatus && (
+      {/* Coordinador status bar (internas only) */}
+      {isGeneralMode && coordinadorEstatus && (
         <div className="mb-4 flex flex-wrap items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm">
           <span className="text-sm font-medium text-gray-600">Coordinador:</span>
           <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
@@ -753,7 +740,7 @@ export default function RequisicionView({
               Motivo: {record.motivo_rechazo_coordinador}
             </span>
           )}
-          {canExternasApproverAct && (
+          {canCoordinadorAct && (
             <div className="ml-auto flex gap-2">
               <Button
                 type="button"
@@ -764,7 +751,7 @@ export default function RequisicionView({
                 className="h-8 px-3 text-xs flex gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                {canLiderFallbackAct ? "Aprobar (Lider - sin coordinador)" : "Aprobar (Coordinador)"}
+                Aprobar (Coordinador)
               </Button>
               <Button
                 type="button"
@@ -775,7 +762,7 @@ export default function RequisicionView({
                 className="h-8 px-3 text-xs flex gap-1 border-red-300 text-red-700 hover:bg-red-50"
               >
                 <XCircle className="h-3.5 w-3.5" />
-                {canLiderFallbackAct ? "Rechazar (Lider - sin coordinador)" : "Rechazar (Coordinador)"}
+                Rechazar (Coordinador)
               </Button>
             </div>
           )}

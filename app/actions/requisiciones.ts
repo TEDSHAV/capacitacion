@@ -518,66 +518,54 @@ export async function createRequisicionRecord(
   const isInterna = formData.is_general;
 
   // --- Workflow ---
-  // Internas: placed by the department's coordinador, or by anyone when the
-  //   department has no coordinador (e.g. TED, Calidad, SIG, SSST, Servicios
-  //   Tecnicos). An interna needs Lider approval before reaching Administración
-  //   — UNLESS the creator IS the approving lider (which covers both the
-  //   "no coordinador and the creator is the lider" case and the "coordinador
-  //   is also the lider" case), in which case there is nobody left to approve
-  //   and it goes straight to Administración.
-  // Externas: placed by anyone. If the creator IS the coordinador (or the gerencia
-  //   lider when the department has no coordinador), it skips approval and goes
-  //   straight to Administración. If an analyst places it, it needs Coordinador
-  //   approval (or gerencia Lider fallback) before reaching Administración.
-  let needsLiderApproval = false;       // internas
+  // Internas: placed by anyone. They require Coordinador approval, then Lider
+  //   approval, before reaching Administración.
+  //   - If the creator IS the coordinador (or the department has no coordinador),
+  //     the coordinador gate is skipped. The interna then needs Lider approval
+  //     — UNLESS the creator IS the approving lider (which covers both the
+  //     "no coordinador and the creator is the lider" case and the "coordinador
+  //     is also the lider" case), in which case there is nobody left to approve
+  //     and it goes straight to Administración.
+  //   - If the creator is an analyst (not the coordinador) and the department
+  //     has a coordinador, the interna needs Coordinador approval first. The
+  //     Lider gate is activated only after the coordinador approves (handled in
+  //     approveRequisicionByCoordinador).
+  // Externas: placed by anyone. No approval gate — go straight to Administración.
+  let needsLiderApproval = false;       // internas that need lider gate now
   let liderBypassApproval = false;      // internas that skip lider approval
-  let needsCoordinadorApproval = false; // externas placed by analyst
-  let coordinadorBypassApproval = false;// externas placed by coordinador (or lider fallback)
+  let needsCoordinadorApproval = false; // internas placed by analyst
+  let coordinadorBypassApproval = false;// internas placed by coordinador (or no coordinador)
 
   if (isInterna) {
-    const canPlace = await canPlaceInterna(formData.departamento);
-    if (!canPlace) {
-      throw new Error(
-        "Las requisiciones internas deben ser colocadas por el coordinador de su departamento. " +
-        "Solicite a su coordinador que la coloque por usted."
-      );
-    }
-    // If the creator is the approving lider there is no separate approver, so the
-    // interna skips the lider gate (this covers the coordinador-less case where
-    // the lider places it themselves, and the case where the coordinador is also
-    // the lider — otherwise the requisicion would sit pending on its own
-    // creator's approval forever). Any other creator (coordinador, or an analyst
-    // in a coordinador-less department) needs Lider approval.
-    const creatorIsLider = await isLiderForInternaApproval(formData.departamento);
-    if (creatorIsLider) {
-      liderBypassApproval = true;
-    } else {
-      needsLiderApproval = true;
-    }
-  } else {
-    // Externa. Check if the creator is the approver (coordinador or lider fallback).
     const isCoord = await isCoordinadorForDepartment(formData.departamento);
     if (isCoord) {
-      // Coordinador placed it → skip approval, go straight to Administración.
+      // Coordinador placed it → skip coordinador gate, check lider gate.
       coordinadorBypassApproval = true;
+      const creatorIsLider = await isLiderForInternaApproval(formData.departamento);
+      if (creatorIsLider) {
+        liderBypassApproval = true;
+      } else {
+        needsLiderApproval = true;
+      }
     } else {
       const hasCoord = await departmentHasCoordinador(formData.departamento);
       if (!hasCoord) {
-        // No coordinador → check if the creator is the gerencia lider.
-        const isLider = await isLiderForDepartmentGerencia(formData.departamento);
-        if (isLider) {
-          // Lider placed it (no coordinador) → skip approval.
-          coordinadorBypassApproval = true;
+        // No coordinador → skip coordinador gate, check lider gate.
+        coordinadorBypassApproval = true;
+        const creatorIsLider = await isLiderForInternaApproval(formData.departamento);
+        if (creatorIsLider) {
+          liderBypassApproval = true;
         } else {
-          // Analyst placed it, no coordinador → needs lider fallback approval.
-          needsCoordinadorApproval = true;
+          needsLiderApproval = true;
         }
       } else {
         // Analyst placed it, department has coordinador → needs coordinador approval.
+        // The lider gate will be activated after the coordinador approves.
         needsCoordinadorApproval = true;
       }
     }
   }
+  // Externas: no approval gate at all.
 
   // Calculate totals for fixed items as requested (Cant is removed from UI, so we use 1)
   const totalTraslado = (formData.dias_traslado || 0) * (formData.costo_traslado || 0);
@@ -651,12 +639,13 @@ export async function createRequisicionRecord(
           nro_sesion: s.nro_sesion,
         }))
       : null,
-    // Externas require coordinador approval (or lider fallback) before reaching
-    // Administración. Internas never use coordinador_estatus.
-    coordinador_estatus: !isInterna && needsCoordinadorApproval ? "pendiente" : null,
-    // Internas placed by a coordinador require lider approval. Internas placed
-    // by the gerencia lider (no coordinador) skip approval (null). Externas
-    // never use lider_estatus.
+    // Internas require coordinador approval (when placed by an analyst in a
+    // department that has a coordinador) before reaching the lider gate.
+    // Externas never use coordinador_estatus.
+    coordinador_estatus: isInterna && needsCoordinadorApproval ? "pendiente" : null,
+    // Internas that skip the coordinador gate (placed by coordinador, or no
+    // coordinador in the department) need lider approval — unless the creator
+    // IS the approving lider. Externas never use lider_estatus.
     lider_estatus: isInterna && needsLiderApproval ? "pendiente" : null,
     // Locked at creation: rev.01 / 20/08/2026 for all new requisiciones.
     revision: "01",
@@ -707,19 +696,19 @@ export async function createRequisicionRecord(
   }
 
   // Notifications based on the workflow path:
-  // - Internas that skip the lider gate → notify Administración directly.
-  // - Internas placed by coordinador → notify the gerencia's lider to approve.
-  // - Externas placed by coordinador (or lider fallback) → notify Administración directly.
-  // - Externas placed by analyst → notify the department's coordinador (or lider fallback).
+  // - Internas that skip both gates (creator is lider) → notify Administración directly.
+  // - Internas that skip coordinador gate but need lider → notify the gerencia's lider.
+  // - Internas that need coordinador approval → notify the department's coordinador.
+  // - Externas → notify Administración directly (no approval gate).
   if (isInterna && liderBypassApproval) {
     await notifyAdminsOfNewRequisicion(data.id, formData.solicitante, "interna");
   } else if (isInterna && needsLiderApproval) {
     await notifyLiderOfPendingInterna(data.id, formData.solicitante, formData.departamento || "");
-  } else if (!isInterna && coordinadorBypassApproval) {
+  } else if (isInterna && needsCoordinadorApproval) {
+    await notifyCoordinadorOfPendingExterna(data.id, formData.solicitante, formData.departamento || "");
+  } else if (!isInterna) {
     const label = `de la OSI N° ${primaryOSI?.nro_osi || ""}`;
     await notifyAdminsOfNewRequisicion(data.id, formData.solicitante, label);
-  } else if (!isInterna && needsCoordinadorApproval) {
-    await notifyCoordinadorOfPendingExterna(data.id, formData.solicitante, formData.departamento || "");
   }
 
   // Revalidate both the shell and potentially the capacitacion app list if needed
@@ -1115,9 +1104,9 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
 
   // --- Approval queues for non-admin users ---
   // Liders see pending internas from their gerencia (awaiting their approval).
-  // Coordinadors see pending externas from their department (awaiting their approval).
-  // A gerencia lider whose department has no coordinador also sees that department's
-  // pending externas (fallback approver).
+  // Coordinadors see pending internas from their department (awaiting their
+  //   approval — the coordinador gate comes BEFORE the lider gate).
+  // Externas have no approval gate, so no queue is needed for them.
   const merged = [...(ownData || [])];
   const ownIds = new Set(merged.map((r: any) => r.id));
 
@@ -1143,16 +1132,14 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
   const historyUsuarioId = await getCurrentUserUsuarioId();
 
   // Fetch department lists for lider queries (cache-warm)
-  const [deptNames, noCoordDeptNames] = await Promise.all([
+  const [deptNames] = await Promise.all([
     isLider ? getDepartmentsInLedGerencias() : Promise.resolve([] as string[]),
-    isLider ? getCoordinatorlessDepartmentsInLedGerencias() : Promise.resolve([] as string[]),
   ]);
 
-  // Parallelize the 5 supplementary queries (all independent)
+  // Parallelize the 4 supplementary queries (all independent)
   const [
     pendingInternaResult,
-    pendingExternaResult,
-    pendingExternaFallbackResult,
+    pendingCoordinadorResult,
     liderHistoryResult,
     coordHistoryResult,
   ] = await Promise.all([
@@ -1168,31 +1155,19 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
           .in("departamento", deptNames)
           .order("id", { ascending: false })
       : Promise.resolve({ data: null, error: null }),
-    // 2) Coordinador: pending externas from EVERY department they coordinate
+    // 2) Coordinador: pending internas from EVERY department they coordinate
     isCoord
       ? supabase
           .from("requisiciones")
           .select(SELECT_RELATIONS)
-          .eq("tipo_solicitud", "Externo")
+          .eq("tipo_solicitud", "Interno")
           .eq("coordinador_estatus", "pendiente")
           .neq("created_by", userId)
           .is("deleted_at", null)
           .in("departamento", coordDepts)
           .order("id", { ascending: false })
       : Promise.resolve({ data: null, error: null }),
-    // 3) Gerencia Lider fallback: pending externas from departments with NO coordinador
-    isLider && noCoordDeptNames.length > 0
-      ? supabase
-          .from("requisiciones")
-          .select(SELECT_RELATIONS)
-          .eq("tipo_solicitud", "Externo")
-          .eq("coordinador_estatus", "pendiente")
-          .neq("created_by", userId)
-          .is("deleted_at", null)
-          .in("departamento", noCoordDeptNames)
-          .order("id", { ascending: false })
-      : Promise.resolve({ data: null, error: null }),
-    // 4) Lider history: internas the current user approved/rejected as lider.
+    // 3) Lider history: internas the current user approved/rejected as lider.
     isLider && historyUsuarioId
       ? supabase
           .from("requisiciones")
@@ -1203,12 +1178,12 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
           .is("deleted_at", null)
           .order("id", { ascending: false })
       : Promise.resolve({ data: null, error: null }),
-    // 5) Coordinador history: externas the current user approved/rejected as coordinador
+    // 4) Coordinador history: internas the current user approved/rejected as coordinador
     isCoord && userId
       ? supabase
           .from("requisiciones")
           .select(SELECT_RELATIONS)
-          .eq("tipo_solicitud", "Externo")
+          .eq("tipo_solicitud", "Interno")
           .eq("coordinador_por", userId)
           .in("coordinador_estatus", ["aprobada", "rechazada"])
           .is("deleted_at", null)
@@ -1240,7 +1215,7 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
     }
   };
 
-  // 1) Pending internas
+  // 1) Pending internas (lider)
   if (pendingInternaResult.error && (pendingInternaResult.error.message || "").includes("column") && (pendingInternaResult.error.message || "").includes("does not exist")) {
     console.warn("[getAllRequisiciones] lider_estatus column not found, skipping lider queue");
   } else if (pendingInternaResult.error) {
@@ -1249,25 +1224,16 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
     addPending(pendingInternaResult.data);
   }
 
-  // 2) Pending externas (coordinador)
-  if (pendingExternaResult.error && (pendingExternaResult.error.message || "").includes("column") && (pendingExternaResult.error.message || "").includes("does not exist")) {
+  // 2) Pending internas (coordinador)
+  if (pendingCoordinadorResult.error && (pendingCoordinadorResult.error.message || "").includes("column") && (pendingCoordinadorResult.error.message || "").includes("does not exist")) {
     console.warn("[getAllRequisiciones] coordinador_estatus column not found, skipping coordinador queue");
-  } else if (pendingExternaResult.error) {
-    console.error("[getAllRequisiciones] Error fetching pending externas for coordinador:", pendingExternaResult.error);
+  } else if (pendingCoordinadorResult.error) {
+    console.error("[getAllRequisiciones] Error fetching pending internas for coordinador:", pendingCoordinadorResult.error);
   } else {
-    addPending(pendingExternaResult.data);
+    addPending(pendingCoordinadorResult.data);
   }
 
-  // 3) Pending externas (lider fallback)
-  if (pendingExternaFallbackResult.error && (pendingExternaFallbackResult.error.message || "").includes("column") && (pendingExternaFallbackResult.error.message || "").includes("does not exist")) {
-    console.warn("[getAllRequisiciones] coordinador_estatus column not found, skipping lider-fallback queue");
-  } else if (pendingExternaFallbackResult.error) {
-    console.error("[getAllRequisiciones] Error fetching pending externas for lider fallback:", pendingExternaFallbackResult.error);
-  } else {
-    addPending(pendingExternaFallbackResult.data);
-  }
-
-  // 4) Lider history
+  // 3) Lider history
   if (liderHistoryResult.error && (liderHistoryResult.error.message || "").includes("column") && (liderHistoryResult.error.message || "").includes("does not exist")) {
     console.warn("[getAllRequisiciones] lider_por column not found, skipping lider history");
   } else if (liderHistoryResult.error) {
@@ -1276,7 +1242,7 @@ export async function getAllRequisiciones(isAdmin?: boolean) {
     addHistory(liderHistoryResult.data);
   }
 
-  // 5) Coordinador history
+  // 4) Coordinador history
   if (coordHistoryResult.error && (coordHistoryResult.error.message || "").includes("column") && (coordHistoryResult.error.message || "").includes("does not exist")) {
     console.warn("[getAllRequisiciones] coordinador_por column not found, skipping coordinador history");
   } else if (coordHistoryResult.error) {
@@ -1420,8 +1386,9 @@ export async function setRequisicionEstatus(
   revalidatePath("/dashboard/capacitacion/requisiciones");
 }
 
-// Coordinador (or gerencia Lider fallback) approves a pending EXTERNA. After
-// approval, Administración is notified (the requisicion becomes visible to them).
+// Coordinador approves a pending INTERNA. After approval, the requisicion
+// moves to the Lider gate (or straight to Administración if the creator IS the
+// approving lider).
 export async function approveRequisicionByCoordinador(id: number) {
   const supabase = await createClient();
   const userResponse = await supabase.auth.getUser();
@@ -1449,24 +1416,51 @@ export async function approveRequisicionByCoordinador(id: number) {
   }
 
   if (fetchError || !existing) throw new Error("Requisición no encontrada.");
-  if (existing.tipo_solicitud === "Interno") {
-    throw new Error("Las requisiciones internas se aprueban por el lider, no por el coordinador.");
+  if (existing.tipo_solicitud !== "Interno") {
+    throw new Error("Solo las requisiciones internas requieren aprobación del coordinador.");
   }
   if (existing.coordinador_estatus !== undefined && existing.coordinador_estatus !== "pendiente") {
-    throw new Error("Esta requisición externa ya fue procesada por el coordinador.");
+    throw new Error("Esta requisición interna ya fue procesada por el coordinador.");
   }
-  // Approver for externas: the department's coordinador, OR (if the department
-  // has no coordinador) the gerencia's lider.
+  // Verify the caller is the coordinador of the requisicion's department.
   if (existing.departamento) {
     const isCoord = await isCoordinadorForDepartment(existing.departamento);
     if (!isCoord) {
-      const hasCoord = await departmentHasCoordinador(existing.departamento);
-      if (hasCoord) {
-        throw new Error("Solo el coordinador del departamento puede aprobar esta requisición externa.");
-      }
-      const isLider = await isLiderForDepartmentGerencia(existing.departamento);
-      if (!isLider) {
-        throw new Error("Solo el lider de la gerencia puede aprobar esta requisición externa (el departamento no tiene coordinador).");
+      throw new Error("Solo el coordinador del departamento puede aprobar esta requisición interna.");
+    }
+  }
+
+  // After coordinador approval, check whether the Lider gate is needed.
+  // If the creator IS the approving lider, skip the lider gate and notify
+  // Administración directly. Otherwise, activate the lider gate.
+  let creatorIsLider = false;
+  let creatorUsuarioId: number | null = null;
+  if (existing.departamento) {
+    // Resolve the creator's usuarios.id from their auth UUID (created_by).
+    if (existing.created_by) {
+      const { data: creatorUser } = await admin
+        .from("usuarios")
+        .select("id")
+        .eq("id_auth", existing.created_by)
+        .maybeSingle();
+      creatorUsuarioId = creatorUser?.id ?? null;
+    }
+    if (creatorUsuarioId) {
+      const overrideGerencia = resolveInternaApprovalGerencia(existing.departamento);
+      const gerenciaName = overrideGerencia
+        ? overrideGerencia
+        : (await admin
+            .from("departamentos")
+            .select("gerencia")
+            .ilike("nombre", existing.departamento)
+            .maybeSingle()).data?.gerencia || null;
+      if (gerenciaName) {
+        const { data: gerencia } = await admin
+          .from("gerencias")
+          .select("lider")
+          .ilike("nombre", gerenciaName)
+          .maybeSingle();
+        creatorIsLider = gerencia?.lider === creatorUsuarioId;
       }
     }
   }
@@ -1474,13 +1468,25 @@ export async function approveRequisicionByCoordinador(id: number) {
   // Try updating with new columns; fall back to just notifying admin if they don't exist.
   // NOTE: coordinador_por is a UUID column (stores auth uid), unlike lider_por
   // which is int4 (stores usuarios.id). Use the auth UUID here.
+  const updateData: Record<string, any> = {
+    coordinador_estatus: "aprobada",
+    coordinador_por: userId,
+    coordinador_at: new Date().toISOString(),
+  };
+
+  if (creatorIsLider) {
+    // Creator is the lider → skip lider gate, go straight to Administración.
+    updateData.lider_estatus = "aprobada";
+    updateData.lider_por = creatorUsuarioId;
+    updateData.lider_at = new Date().toISOString();
+  } else {
+    // Activate the lider gate.
+    updateData.lider_estatus = "pendiente";
+  }
+
   const { error } = await admin
     .from("requisiciones")
-    .update({
-      coordinador_estatus: "aprobada",
-      coordinador_por: userId,
-      coordinador_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq("id", id);
 
   if (error && (error.message || "").includes("column") && (error.message || "").includes("does not exist")) {
@@ -1489,16 +1495,20 @@ export async function approveRequisicionByCoordinador(id: number) {
     throw error;
   }
 
-  // Now that the approver approved, surface the requisicion to Administración.
-  const requisicionLabel = `de la OSI N° ${(existing.v_osi_formato_completo as any)?.nro_osi || ""}`;
-  await notifyAdminsOfNewRequisicion(id, existing.solicitante || "", requisicionLabel);
+  if (creatorIsLider) {
+    // Both gates passed → surface to Administración.
+    await notifyAdminsOfNewRequisicion(id, existing.solicitante || "", "interna");
+  } else {
+    // Notify the lider that there is a pending interna to approve.
+    await notifyLiderOfPendingInterna(id, existing.solicitante || "", existing.departamento || "");
+  }
 
   revalidatePath("/dashboard/capacitacion/requisiciones");
   revalidatePath(`/dashboard/capacitacion/requisiciones/view/${id}`);
 }
 
-// Coordinador (or gerencia Lider fallback) rejects a pending EXTERNA with a
-// reason. The creator is notified and the requisicion is locked for further editing.
+// Coordinador rejects a pending INTERNA with a reason. The creator is notified
+// and the requisicion is locked for further editing.
 export async function rejectRequisicionByCoordinador(id: number, motivo: string) {
   if (!motivo?.trim()) {
     throw new Error("Debe indicar el motivo del rechazo.");
@@ -1530,25 +1540,17 @@ export async function rejectRequisicionByCoordinador(id: number, motivo: string)
   }
 
   if (fetchError || !existing) throw new Error("Requisición no encontrada.");
-  if (existing.tipo_solicitud === "Interno") {
-    throw new Error("Las requisiciones internas se rechazan por el lider, no por el coordinador.");
+  if (existing.tipo_solicitud !== "Interno") {
+    throw new Error("Solo las requisiciones internas requieren aprobación del coordinador.");
   }
   if (existing.coordinador_estatus !== undefined && existing.coordinador_estatus !== "pendiente") {
-    throw new Error("Esta requisición externa ya fue procesada por el coordinador.");
+    throw new Error("Esta requisición interna ya fue procesada por el coordinador.");
   }
-  // Approver for externas: the department's coordinador, OR (if the department
-  // has no coordinador) the gerencia's lider.
+  // Verify the caller is the coordinador of the requisicion's department.
   if (existing.departamento) {
     const isCoord = await isCoordinadorForDepartment(existing.departamento);
     if (!isCoord) {
-      const hasCoord = await departmentHasCoordinador(existing.departamento);
-      if (hasCoord) {
-        throw new Error("Solo el coordinador del departamento puede rechazar esta requisición externa.");
-      }
-      const isLider = await isLiderForDepartmentGerencia(existing.departamento);
-      if (!isLider) {
-        throw new Error("Solo el lider de la gerencia puede rechazar esta requisición externa (el departamento no tiene coordinador).");
-      }
+      throw new Error("Solo el coordinador del departamento puede rechazar esta requisición interna.");
     }
   }
 
@@ -1572,8 +1574,7 @@ export async function rejectRequisicionByCoordinador(id: number, motivo: string)
   }
 
   if (existing.created_by) {
-    const requisicionLabel = `de la OSI N° ${(existing.v_osi_formato_completo as any)?.nro_osi || ""}`;
-    await notifyCreatorOfCoordinadorRechazada(id, existing.created_by, requisicionLabel, motivo.trim());
+    await notifyCreatorOfCoordinadorRechazada(id, existing.created_by, "interna", motivo.trim());
   }
 
   revalidatePath("/dashboard/capacitacion/requisiciones");

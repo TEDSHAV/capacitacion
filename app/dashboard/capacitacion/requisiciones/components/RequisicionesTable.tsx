@@ -48,7 +48,6 @@ export default function RequisicionesTable({
   coordinadorDepts = [],
   isLider = false,
   liderDepts = [],
-  liderFallbackDepts = [],
 }: {
   records: any[];
   isAdminView: boolean;
@@ -57,7 +56,6 @@ export default function RequisicionesTable({
   coordinadorDepts?: string[];
   isLider?: boolean;
   liderDepts?: string[];
-  liderFallbackDepts?: string[];
 }) {
   const [filters, setFilters] = useState<RequisicionFilters>(EMPTY_FILTERS);
 
@@ -459,7 +457,6 @@ export default function RequisicionesTable({
                     coordinadorDepts={coordinadorDepts}
                     isLider={isLider}
                     liderDepts={liderDepts}
-                    liderFallbackDepts={liderFallbackDepts}
                   />
                 ))
               ) : (
