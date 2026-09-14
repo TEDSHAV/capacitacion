@@ -528,24 +528,30 @@ The app is configured for Docker deployment with `output: "standalone"` in `next
 ### Database Migrations
 
 All apps share the same Supabase project (ID `oboslhhemuvzvjnbqeih`), but
-migrations are split by ownership:
+migrations are organized by ownership — each module repo owns migrations for
+its own tables:
 
 - **Capacitacion-specific migrations** live in this repo at
   `supabase/migrations/` (e.g., proceso_steps, osi_notas, ficha_tecnica,
-  feriados, survey_settings, anulacion, niveles_habilidad, visibilidad_cliente).
-  Any new table/column/RLS that only this app uses goes here.
-- **Cross-cutting/shared migrations** (app registrations, shared tables like
-  `requisiciones`, `rh_solicitudes`, email templates, cross-app indexes) live
-  in `shell-app/supabase/migrations/`.
+  feriados, survey_settings, anulacion, niveles_habilidad, visibilidad_cliente,
+  requisiciones). Any new table/column/RLS that this app owns goes here —
+  including `requisiciones`, which is capacitacion-owned.
+- **Shell-level migrations** (authprisma app registrations, email templates,
+  notify schema, cross-app indexes) live in `shell-app/supabase/migrations/`.
+- Other modules' tables (RH, calidad) have migrations in their own repos — do
+  not put capacitacion migrations there.
 
 Migration naming: `YYYYMMDDHHMMSS_descriptive_name.sql`. Migrations are applied
 manually to the Supabase instance (no CI/CD applies them), so once a migration
 has been applied to the database it stays where it is — do not move applied
 migrations between repos.
 
-Note: `facilitador_evaluaciones` and `uso_portal_facilitador` were committed
-to shell-app before this convention was documented; they stay there since
-they're already applied to the database. New capacitacion migrations go in
+Note: `facilitador_evaluaciones`, `uso_portal_facilitador`, and the original
+`requisiciones` migrations (`requisiciones_revision_columns`,
+`requisiciones_selected_sesiones`, `add_requisiciones_indexes`,
+`clear_externa_coordinador_estatus`) were committed to shell-app before this
+convention was adopted; they stay there since they're already applied to the
+database. New capacitacion migrations (including new `requisiciones` ones) go in
 this repo.
 
 ---
