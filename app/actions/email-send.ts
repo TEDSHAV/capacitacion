@@ -1,8 +1,15 @@
 "use server";
 
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@/utils/supabase/server";
 import { sendMail, isEmailConfigured } from "@/lib/email/send";
-import type { EmailAttachmentInput, EmailLogStatus } from "@/types/email";
+import type { UploadedAttachment, EmailLogStatus } from "@/types/email";
+import {
+  storage,
+  STORAGE_BUCKET,
+  DIRECT_ATTACHMENT_LIMIT,
+} from "@/lib/b2-storage-client";
 
 /**
  * Client-callable check: is MXroute configured? Used by the assign modal to
@@ -10,6 +17,12 @@ import type { EmailAttachmentInput, EmailLogStatus } from "@/types/email";
  */
 export async function isEmailServerConfigured(): Promise<boolean> {
   return isEmailConfigured();
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /**
@@ -21,6 +34,11 @@ export async function isEmailServerConfigured(): Promise<boolean> {
  * SMTP server is not configured, the send is a soft no-op and the log records
  * `status = 'not_configured'` so there is still an audit trail.
  *
+ * Attachments are files already uploaded to Backblaze B2 via the
+ * `/api/email-attachments/upload` route. Small files (<10MB) are downloaded
+ * and attached directly to the email; large files (≥10MB) get a 7-day signed
+ * download URL appended to the email body.
+ *
  * @returns `{ status, logId, error? }` — never throws.
  */
 export async function sendAssignmentEmail(input: {
@@ -31,7 +49,8 @@ export async function sendAssignmentEmail(input: {
   subject: string;
   body: string;
   templateId?: number | null;
-  attachments?: EmailAttachmentInput[];
+  attachments?: UploadedAttachment[];
+  linkExpiryDays?: number;
 }): Promise<{ status: EmailLogStatus; logId: number | null; error?: string }> {
   const supabase = await createClient();
   const userRes = await supabase.auth.getUser();
@@ -41,31 +60,77 @@ export async function sendAssignmentEmail(input: {
     return { status: "failed", logId: null, error: "Faltan destinatario, asunto o cuerpo." };
   }
 
-  // Decode base64 attachments to Buffers for nodemailer. File content is never
-  // persisted — only metadata (filename, size) is logged below.
-  const decodedAttachments = input.attachments?.map((a) => ({
-    filename: a.filename,
-    content: Buffer.from(a.contentBase64, "base64"),
-    contentType: a.contentType,
-  }));
+  // Process attachments: small files are downloaded from B2 and attached
+  // directly; large files get a signed URL appended to the email body.
+  const directAttachments: Array<{
+    filename: string;
+    content: Buffer;
+    contentType?: string;
+  }> = [];
+  const largeFileLinks: Array<{ name: string; size: number; url: string; key: string }> = [];
+  const attachmentMeta: Array<{ key: string; name: string; size: number; url?: string }> = [];
+
+  for (const att of input.attachments ?? []) {
+    try {
+      if (att.size < DIRECT_ATTACHMENT_LIMIT) {
+        // Download from B2 and attach directly.
+        const { Body } = await storage.send(
+          new GetObjectCommand({
+            Bucket: STORAGE_BUCKET,
+            Key: att.key,
+          }),
+        );
+        if (Body) {
+          const buffer = Buffer.from(await Body.transformToByteArray());
+          directAttachments.push({
+            filename: att.name,
+            content: buffer,
+            contentType: att.contentType,
+          });
+        }
+        attachmentMeta.push({ key: att.key, name: att.name, size: att.size });
+      } else {
+        // Generate a 7-day signed download URL for the email body.
+        const command = new GetObjectCommand({
+          Bucket: STORAGE_BUCKET,
+          Key: att.key,
+          ResponseContentDisposition: `attachment; filename="${encodeURIComponent(att.name)}"`,
+        });
+        const url = await getSignedUrl(storage, command, {
+          expiresIn: (input.linkExpiryDays ?? 7) * 24 * 60 * 60,
+        });
+        largeFileLinks.push({ name: att.name, size: att.size, url, key: att.key });
+        attachmentMeta.push({ key: att.key, name: att.name, size: att.size, url });
+      }
+    } catch (err) {
+      console.error(`[sendAssignmentEmail] Error processing attachment "${att.name}":`, err);
+      // Record the failure in metadata but continue — the email should still send.
+      attachmentMeta.push({ key: att.key, name: att.name, size: att.size });
+    }
+  }
+
+  // Append large-file download links to the email body.
+  let emailBody = input.body;
+  if (largeFileLinks.length > 0) {
+    const expiryDays = input.linkExpiryDays ?? 7;
+    emailBody +=
+      "\n\n--- Archivos adjuntos grandes ---\n" +
+      `Los siguientes archivos están disponibles para descarga (enlace válido por ${expiryDays} ${expiryDays === 1 ? "día" : "días"}):\n\n` +
+      largeFileLinks
+        .map((f) => `• ${f.name} (${formatFileSize(f.size)}) — ${f.url}`)
+        .join("\n");
+  }
 
   // Send via MXroute (soft no-op when not configured).
   const result = await sendMail({
     to: input.to,
     subject: input.subject,
-    text: input.body,
-    attachments: decodedAttachments,
+    text: emailBody,
+    attachments: directAttachments.length > 0 ? directAttachments : undefined,
   });
 
   const status: EmailLogStatus =
     result.status === "sent" ? "sent" : result.status === "failed" ? "failed" : "not_configured";
-
-  // Log metadata only (filename + size) — never the file content.
-  const attachmentMeta = (input.attachments ?? []).map((a) => ({
-    key: "",
-    name: a.filename,
-    size: a.size,
-  }));
 
   // Always log the attempt.
   const { data: logRow, error: logErr } = await supabase
@@ -77,7 +142,7 @@ export async function sendAssignmentEmail(input: {
       template_id: input.templateId ?? null,
       to_email: input.to,
       subject: input.subject,
-      body_sent: input.body,
+      body_sent: emailBody,
       status,
       error_message: result.error ?? null,
       attachments: attachmentMeta,

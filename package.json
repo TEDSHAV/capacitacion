@@ -19,6 +19,8 @@
         "regenerate-qr": "node --experimental-strip-types --env-file=.env scripts/regenerate-qr-codes.ts"
     },
     "dependencies": {
+        "@aws-sdk/client-s3": "^3.1131.0",
+        "@aws-sdk/s3-request-presigner": "^3.1131.0",
         "@floating-ui/dom": "^1.7.6",
         "@react-pdf/renderer": "4.5.1",
         "@supabase/ssr": "^0.8.0",

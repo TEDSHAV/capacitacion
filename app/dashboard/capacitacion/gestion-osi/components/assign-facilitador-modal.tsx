@@ -33,7 +33,7 @@ import {
 import { sendAssignmentEmail, isEmailServerConfigured } from "@/app/actions/email-send";
 import { getEmailLogsForOSI } from "@/app/actions/email-log";
 import { renderTemplateBoth, emailContextToMap } from "@/lib/email/template-render";
-import type { EmailAttachmentInput, EmailContext, EmailLogEntry, EmailTemplateListItem } from "@/types/email";
+import type { UploadedAttachment, EmailContext, EmailLogEntry, EmailTemplateListItem } from "@/types/email";
 import {
   Select,
   SelectContent,
@@ -89,8 +89,9 @@ export default function AssignFacilitadorModal({
   const [emailConfigured, setEmailConfigured] = useState(true);
   const [sending, setSending] = useState(false);
   const [emailResult, setEmailResult] = useState<string | null>(null);
-  const [attachments, setAttachments] = useState<EmailAttachmentInput[]>([]);
+  const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [readingFiles, setReadingFiles] = useState(false);
+  const [linkExpiryDays, setLinkExpiryDays] = useState<string>("7");
   const [emailLogs, setEmailLogs] = useState<EmailLogEntry[]>([]);
 
   // Real session count fetched from v_osi_formato_completo on open. The list
@@ -269,42 +270,42 @@ export default function AssignFacilitadorModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emailContext]);
 
-  // Read a File as base64 (strips the data URL prefix).
-  function readFileAsBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        // Strip "data:<mime>;base64," prefix.
-        const base64 = result.includes(",") ? result.split(",")[1] : result;
-        resolve(base64);
-      };
-      reader.onerror = () => reject(reader.error || new Error("Error leyendo archivo"));
-      reader.readAsDataURL(file);
-    });
-  }
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     setReadingFiles(true);
     try {
-      const newAttachments: EmailAttachmentInput[] = [];
+      const newAttachments: UploadedAttachment[] = [];
       for (const file of Array.from(files)) {
-        const contentBase64 = await readFileAsBase64(file);
-        newAttachments.push({
-          filename: file.name,
-          contentBase64,
-          contentType: file.type || "application/octet-stream",
-          size: file.size,
+        // Upload to B2 via multipart API route (no server action body limit).
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/email-attachments/upload", {
+          method: "POST",
+          body: formData,
         });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          setError(
+            `Error al subir "${file.name}": ${err.error || "error desconocido"}`,
+          );
+          continue;
+        }
+        const data = await res.json();
+        if (data.success) {
+          newAttachments.push({
+            key: data.key,
+            name: data.name,
+            size: data.size,
+            contentType: data.contentType,
+          });
+        }
       }
-      setAttachments((prev) => [...prev, ...newAttachments]);
-    } catch {
-      setError("Error al leer uno o más archivos adjuntos.");
+      if (newAttachments.length > 0) {
+        setAttachments((prev) => [...prev, ...newAttachments]);
+      }
     } finally {
       setReadingFiles(false);
-      // Reset the input so the same file can be re-selected later.
       e.target.value = "";
     }
   };
@@ -319,24 +320,13 @@ export default function AssignFacilitadorModal({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // Total attachment size (raw bytes). Base64 encoding adds ~33% overhead,
-  // so we warn before hitting the 25MB server action body limit.
+  // Total attachment size (informational only — B2 has no practical limit).
   const totalAttachmentBytes = attachments.reduce((sum, a) => sum + a.size, 0);
   const totalAttachmentMB = totalAttachmentBytes / (1024 * 1024);
-  // Base64 overhead is ~33%, so 18MB raw ≈ 24MB encoded — leave room for the
-  // rest of the payload (subject, body, OSI data).
-  const MAX_ATTACHMENT_MB = 18;
-  const attachmentsTooLarge = totalAttachmentMB > MAX_ATTACHMENT_MB;
 
   const handleAssign = async (sendEmail: boolean) => {
     if (!selectedFacilitadorId) {
       setError("Seleccione un facilitador");
-      return;
-    }
-    if (attachmentsTooLarge) {
-      setError(
-        `Los adjuntos pesan ${totalAttachmentMB.toFixed(1)} MB. El límite es ${MAX_ATTACHMENT_MB} MB. Reduzca el tamaño o cantidad de archivos.`,
-      );
       return;
     }
     setAssigning(true);
@@ -387,6 +377,7 @@ export default function AssignFacilitadorModal({
             body: emailBody,
             templateId: selectedTemplateId ? parseInt(selectedTemplateId) : null,
             attachments: attachments.length > 0 ? attachments : undefined,
+            linkExpiryDays: parseInt(linkExpiryDays),
           });
           if (sendRes.status === "sent") {
             setEmailResult("Correo enviado exitosamente");
@@ -715,12 +706,12 @@ export default function AssignFacilitadorModal({
                     <div className="mt-2 space-y-1">
                       {attachments.map((a, i) => (
                         <div
-                          key={`${a.filename}-${i}`}
+                          key={`${a.name}-${i}`}
                           className="flex items-center justify-between p-2 bg-gray-50 rounded-md border border-gray-200 text-xs"
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <Paperclip className="w-3 h-3 text-gray-400 shrink-0" />
-                            <span className="text-gray-700 truncate">{a.filename}</span>
+                            <span className="text-gray-700 truncate">{a.name}</span>
                             <span className="text-gray-400 shrink-0">{formatFileSize(a.size)}</span>
                           </div>
                           <button
@@ -733,17 +724,35 @@ export default function AssignFacilitadorModal({
                         </div>
                       ))}
                       <div
-                        className={`text-xs mt-1 flex items-center gap-1 ${
-                          attachmentsTooLarge
-                            ? "text-red-600 font-medium"
-                            : "text-gray-500"
-                        }`}
+                        className="text-xs mt-1 flex items-center gap-1 text-gray-500"
                       >
                         <Paperclip className="w-3 h-3" />
                         Total: {totalAttachmentMB.toFixed(1)} MB
-                        {attachmentsTooLarge &&
-                          ` — excede el límite de ${MAX_ATTACHMENT_MB} MB`}
+                        {totalAttachmentMB >= 10 &&
+                          " — se enviará como enlace de descarga"}
                       </div>
+                      {totalAttachmentMB >= 10 && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <label className="text-xs text-gray-600">
+                            Enlaces válidos por:
+                          </label>
+                          <Select
+                            value={linkExpiryDays}
+                            onValueChange={setLinkExpiryDays}
+                          >
+                            <SelectTrigger className="h-8 w-32 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">1 día</SelectItem>
+                              <SelectItem value="3">3 días</SelectItem>
+                              <SelectItem value="7">7 días</SelectItem>
+                              <SelectItem value="14">14 días</SelectItem>
+                              <SelectItem value="30">30 días</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -786,7 +795,7 @@ export default function AssignFacilitadorModal({
             <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-200">
               <Button
                 onClick={() => handleAssign(true)}
-                disabled={!selectedFacilitadorId || assigning || sending || !canSendEmail || attachmentsTooLarge}
+                disabled={!selectedFacilitadorId || assigning || sending || !canSendEmail}
                 className="flex-1 bg-teal-600 hover:bg-teal-700"
               >
                 {assigning || sending ? (
@@ -803,7 +812,7 @@ export default function AssignFacilitadorModal({
               </Button>
               <Button
                 onClick={() => handleAssign(false)}
-                disabled={!selectedFacilitadorId || assigning || attachmentsTooLarge}
+                disabled={!selectedFacilitadorId || assigning}
                 variant="outline"
                 className="flex-1"
               >

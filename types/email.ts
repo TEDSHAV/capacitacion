@@ -128,10 +128,29 @@ export interface SendMailInput {
  * so it serializes cleanly over the server action boundary. The server decodes
  * it to a Buffer before handing it to nodemailer. File content is never
  * persisted — only metadata (filename, size) is recorded in the email log.
+ *
+ * @deprecated Prefer `UploadedAttachment` (B2-backed) for new code. This type
+ * is kept for backwards compatibility with any existing base64 flow.
  */
 export interface EmailAttachmentInput {
   filename: string;
   contentBase64: string;
   contentType: string;
   size: number;
+}
+
+/**
+ * Metadata for a file already uploaded to Backblaze B2 via the
+ * `/api/email-attachments/upload` route. The server action downloads the file
+ * from B2 at send time — small files (<10MB) are attached directly to the
+ * email, large files (≥10MB) get a 7-day signed download URL in the body.
+ *
+ * This replaces the base64 `EmailAttachmentInput` flow which was limited by
+ * the Next.js server action body size limit.
+ */
+export interface UploadedAttachment {
+  key: string; // B2 object key
+  name: string; // original filename
+  size: number; // bytes
+  contentType: string;
 }
