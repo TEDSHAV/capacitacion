@@ -100,7 +100,7 @@ export default function AssignOSIModal({
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFileItem[]>([]);
   const isUploading = uploadingFiles.some((u) => u.status === "uploading");
-  const [linkExpiryDays, setLinkExpiryDays] = useState<string>("7");
+  const [linkExpiryDays, setLinkExpiryDays] = useState<string>("0");
   const [emailLogs, setEmailLogs] = useState<EmailLogEntry[]>([]);
 
   // Track whether the user has manually edited the email fields
@@ -922,6 +922,7 @@ export default function AssignOSIModal({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="0">Sin vencimiento</SelectItem>
                               <SelectItem value="1">1 día</SelectItem>
                               <SelectItem value="3">3 días</SelectItem>
                               <SelectItem value="7">7 días</SelectItem>

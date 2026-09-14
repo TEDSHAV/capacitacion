@@ -90,15 +90,25 @@ export async function sendAssignmentEmail(input: {
         }
         attachmentMeta.push({ key: att.key, name: att.name, size: att.size });
       } else {
-        // Generate a 7-day signed download URL for the email body.
-        const command = new GetObjectCommand({
-          Bucket: STORAGE_BUCKET,
-          Key: att.key,
-          ResponseContentDisposition: `attachment; filename="${encodeURIComponent(att.name)}"`,
-        });
-        const url = await getSignedUrl(storage, command, {
-          expiresIn: (input.linkExpiryDays ?? 7) * 24 * 60 * 60,
-        });
+        // Generate a download URL for the email body.
+        const noExpiry = input.linkExpiryDays === 0;
+        let url: string;
+        if (noExpiry) {
+          // "No expiration": link to our public download route which generates
+          // a fresh presigned URL on each click. The link never expires.
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+          url = `${appUrl}/api/email-attachments/public-download?key=${encodeURIComponent(att.key)}&name=${encodeURIComponent(att.name)}`;
+        } else {
+          // Time-limited signed B2 URL.
+          const command = new GetObjectCommand({
+            Bucket: STORAGE_BUCKET,
+            Key: att.key,
+            ResponseContentDisposition: `attachment; filename="${encodeURIComponent(att.name)}"`,
+          });
+          url = await getSignedUrl(storage, command, {
+            expiresIn: (input.linkExpiryDays ?? 7) * 24 * 60 * 60,
+          });
+        }
         largeFileLinks.push({ name: att.name, size: att.size, url, key: att.key });
         attachmentMeta.push({ key: att.key, name: att.name, size: att.size, url });
       }
@@ -113,9 +123,13 @@ export async function sendAssignmentEmail(input: {
   let emailBody = input.body;
   if (largeFileLinks.length > 0) {
     const expiryDays = input.linkExpiryDays ?? 7;
+    const expiryText =
+      expiryDays === 0
+        ? "enlace sin vencimiento"
+        : `enlace válido por ${expiryDays} ${expiryDays === 1 ? "día" : "días"}`;
     emailBody +=
       "\n\n--- Archivos adjuntos grandes ---\n" +
-      `Los siguientes archivos están disponibles para descarga (enlace válido por ${expiryDays} ${expiryDays === 1 ? "día" : "días"}):\n\n` +
+      `Los siguientes archivos están disponibles para descarga (${expiryText}):\n\n` +
       largeFileLinks
         .map((f) => `• ${f.name} (${formatFileSize(f.size)}) — ${f.url}`)
         .join("\n");

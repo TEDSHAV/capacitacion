@@ -103,7 +103,7 @@ export default function AssignFacilitadorModal({
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFileItem[]>([]);
   const isUploading = uploadingFiles.some((u) => u.status === "uploading");
-  const [linkExpiryDays, setLinkExpiryDays] = useState<string>("7");
+  const [linkExpiryDays, setLinkExpiryDays] = useState<string>("0");
   const [emailLogs, setEmailLogs] = useState<EmailLogEntry[]>([]);
 
   // Real session count fetched from v_osi_formato_completo on open. The list
@@ -838,6 +838,7 @@ export default function AssignFacilitadorModal({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="0">Sin vencimiento</SelectItem>
                               <SelectItem value="1">1 día</SelectItem>
                               <SelectItem value="3">3 días</SelectItem>
                               <SelectItem value="7">7 días</SelectItem>
