@@ -399,7 +399,7 @@ export async function saveCertificatesToDatabase(
         nro_control: currentControlNumbers.nro_control,
 
         uso_portal_facilitador:
-          updatedCertificateData.uso_portal_facilitador ?? null,
+          updatedCertificateData.uso_verificacion_facilitador ?? null,
       };
 
       console.log(
@@ -1910,9 +1910,9 @@ export async function updateCertificateAction(
         calificacion: participant.score || 0,
         snapshot_contenido: finalSnapshot,
         uso_portal_facilitador:
-          certificateData.uso_portal_facilitador === undefined
+          certificateData.uso_verificacion_facilitador === undefined
             ? undefined
-            : certificateData.uso_portal_facilitador,
+            : certificateData.uso_verificacion_facilitador,
       })
       .eq("id", certificateId);
 

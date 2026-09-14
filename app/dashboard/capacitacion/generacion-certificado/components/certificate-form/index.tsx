@@ -58,7 +58,7 @@ export const CertificateForm = ({
     !!certificateData.date &&
     !!certificateData.horas_estimadas &&
     !!certificateData.facilitator_id &&
-    (isEditMode || certificateData.uso_portal_facilitador !== undefined);
+    (isEditMode || certificateData.uso_verificacion_facilitador !== undefined);
 
   const isCarnetValid =
     !selectedCourseTopic?.emite_carnet || !!certificateData.fecha_vencimiento;
@@ -110,9 +110,9 @@ export const CertificateForm = ({
     }
     if (
       !isEditMode &&
-      certificateData.uso_portal_facilitador === undefined
+      certificateData.uso_verificacion_facilitador === undefined
     ) {
-      const element = document.getElementById("field-uso_portal_facilitador");
+      const element = document.getElementById("field-uso_verificacion_facilitador");
       if (element) {
         element.scrollIntoView({ behavior: "smooth", block: "center" });
         return true;
@@ -160,10 +160,10 @@ export const CertificateForm = ({
       }
       if (
         !isEditMode &&
-        certificateData.uso_portal_facilitador === undefined
+        certificateData.uso_verificacion_facilitador === undefined
       ) {
         alert(
-          "Por favor indica si el facilitador usó el portal del facilitador para cargar la lista de participantes.",
+          "Por favor indica si el facilitador usó la herramienta de verificación en su portal.",
         );
         scrollToFirstMissingField();
         return;
@@ -600,18 +600,31 @@ export const CertificateForm = ({
         />
       </div>
 
-      {/* Uso del Portal del Facilitador */}
-      <div id="field-uso_portal_facilitador" className="mb-4">
+      {/* Participants */}
+      <div id="field-participants">
+        <ParticipantsSection
+          participants={certificateData.participants}
+          onChange={onParticipantsChange}
+          passing_grade={certificateData.passing_grade}
+          isEditMode={isEditMode}
+          osiId={selectedOSI?.id && !isNaN(parseInt(selectedOSI.id)) ? parseInt(selectedOSI.id) : undefined}
+          facilitadorId={certificateData.facilitator_id ? parseInt(certificateData.facilitator_id) : undefined}
+        />
+      </div>
+
+      {/* Verificación de Participantes */}
+      <div id="field-uso_verificacion_facilitador" className="mb-4 mt-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          ¿El facilitador usó el portal del facilitador para cargar la lista de
-          participantes?{!isEditMode ? " *" : ""}
+          ¿El facilitador usó la herramienta de verificación de participantes en
+          su portal?{!isEditMode ? " *" : ""}
         </label>
         <div className="flex items-center gap-6">
           {[
             { value: true, label: "Sí" },
             { value: false, label: "No" },
           ].map((opt) => {
-            const checked = certificateData.uso_portal_facilitador === opt.value;
+            const checked =
+              certificateData.uso_verificacion_facilitador === opt.value;
             return (
               <label
                 key={String(opt.value)}
@@ -622,18 +635,18 @@ export const CertificateForm = ({
                 } ${
                   hasAttemptedSubmission &&
                   !isEditMode &&
-                  certificateData.uso_portal_facilitador === undefined
+                  certificateData.uso_verificacion_facilitador === undefined
                     ? "border-amber-400 bg-amber-50"
                     : ""
                 }`}
               >
                 <input
                   type="radio"
-                  name="uso_portal_facilitador"
+                  name="uso_verificacion_facilitador"
                   value={String(opt.value)}
                   checked={checked}
                   onChange={() =>
-                    onDataChange("uso_portal_facilitador", opt.value)
+                    onDataChange("uso_verificacion_facilitador", opt.value)
                   }
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                 />
@@ -644,7 +657,7 @@ export const CertificateForm = ({
         </div>
         {hasAttemptedSubmission &&
           !isEditMode &&
-          certificateData.uso_portal_facilitador === undefined && (
+          certificateData.uso_verificacion_facilitador === undefined && (
             <p className="text-xs text-amber-700 font-medium mt-1 flex items-center gap-1">
               <svg
                 className="w-3.5 h-3.5"
@@ -663,20 +676,9 @@ export const CertificateForm = ({
             </p>
           )}
         <p className="text-xs text-gray-500 mt-1">
-          Se utiliza para calcular el promedio de uso del portal por facilitador.
+          Se utiliza para calcular el promedio de uso de la verificación de
+          participantes por facilitador.
         </p>
-      </div>
-
-      {/* Participants */}
-      <div id="field-participants">
-        <ParticipantsSection
-          participants={certificateData.participants}
-          onChange={onParticipantsChange}
-          passing_grade={certificateData.passing_grade}
-          isEditMode={isEditMode}
-          osiId={selectedOSI?.id && !isNaN(parseInt(selectedOSI.id)) ? parseInt(selectedOSI.id) : undefined}
-          facilitadorId={certificateData.facilitator_id ? parseInt(certificateData.facilitator_id) : undefined}
-        />
       </div>
 
       {/* Documentation Options */}

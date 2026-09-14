@@ -49,10 +49,10 @@ export interface EvaluacionPdfData extends EvaluacionPayload {
   facilitador_nombre?: string;
   facilitador_cedula?: string | null;
   facilitador_rif?: string | null;
-  /** Per-facilitador portal usage stats (read-only context, does NOT affect the score). */
+  /** Per-facilitador verification tool usage stats (read-only context, does NOT affect the score). */
   portalUsage?: {
     rate: number | null;
-    portalBatches: number;
+    verificacionBatches: number;
     totalBatches: number;
   } | null;
 }
@@ -991,14 +991,14 @@ export async function generateEvaluacionFacilitadorPdf(
 
   metrics.push({ label: "Condición", value: overallLabel });
 
-  // Portal usage (read-only context, does NOT affect the score)
+  // Verification usage (read-only context, does NOT affect the score)
   if (data.portalUsage) {
     const pu = data.portalUsage;
     metrics.push({
-      label: "Uso Portal Facilitador",
+      label: "Verificación Participantes",
       value:
         pu.rate != null
-          ? `${(pu.rate * 100).toFixed(0)}% (${pu.portalBatches}/${pu.totalBatches})`
+          ? `${(pu.rate * 100).toFixed(0)}% (${pu.verificacionBatches}/${pu.totalBatches})`
           : "Sin datos",
     });
   }

@@ -6,7 +6,7 @@ import {
   type EvaluacionPdfData,
 } from "@/lib/evaluacion-facilitador-pdf-generator";
 import type { EvaluacionPayload } from "@/app/actions/evaluacion-facilitadores";
-import { getPortalUsageByFacilitador } from "@/app/actions/portal-usage";
+import { getVerificacionUsageByFacilitador } from "@/app/actions/verificacion-usage";
 
 function sanitizeFilename(name: string): string {
   return (
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     }
 
     const facData = evaluacion.facilitadores as any;
-    const portalUsage = await getPortalUsageByFacilitador(
+    const verificacionUsage = await getVerificacionUsageByFacilitador(
       evaluacion.facilitador_id,
     );
     const pdfData: EvaluacionPdfData = {
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       facilitador_nombre: facData?.nombre_apellido || "",
       facilitador_cedula: facData?.cedula || null,
       facilitador_rif: facData?.rif || null,
-      portalUsage,
+      portalUsage: verificacionUsage,
     };
 
     const pdfBlob = await generateEvaluacionFacilitadorPdf(pdfData);
@@ -126,8 +126,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const portalUsage = body.facilitador_id
-      ? await getPortalUsageByFacilitador(Number(body.facilitador_id))
+    const verificacionUsage = body.facilitador_id
+      ? await getVerificacionUsageByFacilitador(Number(body.facilitador_id))
       : null;
 
     const pdfData: EvaluacionPdfData = {
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       facilitador_nombre: body.facilitador_nombre || "",
       facilitador_cedula: body.facilitador_cedula || null,
       facilitador_rif: body.facilitador_rif || null,
-      portalUsage,
+      portalUsage: verificacionUsage,
     };
 
     const pdfBlob = await generateEvaluacionFacilitadorPdf(pdfData);

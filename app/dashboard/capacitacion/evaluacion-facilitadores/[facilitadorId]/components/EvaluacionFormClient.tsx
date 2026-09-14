@@ -14,9 +14,9 @@ import {
   type FaseReevaluacion,
 } from "@/app/actions/evaluacion-facilitadores";
 import {
-  getPortalUsageByFacilitador,
-  type PortalUsageStats,
-} from "@/app/actions/portal-usage";
+  getVerificacionUsageByFacilitador,
+  type VerificacionUsageStats,
+} from "@/app/actions/verificacion-usage";
 import {
   computePuntajeInicial,
   classifyInicial,
@@ -87,7 +87,7 @@ export default function EvaluacionFormClient({
   const isNewMode = mode === "nueva" && !editId;
 
   const [facilitador, setFacilitador] = useState<Facilitador | null>(null);
-  const [portalUsage, setPortalUsage] = useState<PortalUsageStats | null>(null);
+  const [verificacionUsage, setVerificacionUsage] = useState<VerificacionUsageStats | null>(null);
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -137,14 +137,14 @@ export default function EvaluacionFormClient({
       const [facResult, histResult, usageResult] = await Promise.all([
         getFacilitatorByIdAction(String(facilitadorId)),
         getEvaluacionesByFacilitador(facilitadorId),
-        getPortalUsageByFacilitador(facilitadorId),
+        getVerificacionUsageByFacilitador(facilitadorId),
       ]);
 
       if (facResult.data) {
         setFacilitador(facResult.data as Facilitador);
       }
 
-      setPortalUsage(usageResult);
+      setVerificacionUsage(usageResult);
 
       if (histResult.evaluaciones) {
         setHistory(histResult.evaluaciones as unknown as HistoryRow[]);
@@ -526,13 +526,13 @@ export default function EvaluacionFormClient({
         <p className="text-xs text-gray-400 mt-1">RG-CAP-004</p>
       </div>
 
-      {/* Portal usage info banner (read-only, does NOT affect the score) */}
+      {/* Verification usage info banner (read-only, does NOT affect the score) */}
       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm flex items-center gap-2">
         <ClipboardCheck className="w-4 h-4 flex-shrink-0 text-blue-600" />
         <span>
-          <span className="font-semibold">Uso del portal del facilitador:</span>{" "}
-          {portalUsage && portalUsage.rate != null
-            ? `${(portalUsage.rate * 100).toFixed(0)}% (${portalUsage.portalBatches}/${portalUsage.totalBatches} generaciones)`
+          <span className="font-semibold">Verificación de participantes:</span>{" "}
+          {verificacionUsage && verificacionUsage.rate != null
+            ? `${(verificacionUsage.rate * 100).toFixed(0)}% (${verificacionUsage.verificacionBatches}/${verificacionUsage.totalBatches} generaciones)`
             : "Sin datos"}
           <span className="text-blue-600 ml-1">
             · Informativo, no afecta el puntaje.

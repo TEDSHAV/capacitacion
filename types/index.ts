@@ -392,7 +392,7 @@ export interface CertificateGeneration {
   manual_osi_data?: ManualOSIInput; // Manual OSI input data when in manual mode
   is_custom?: boolean; // Whether this is a custom-generated certificate (affects seal, SHA label, duration prefix)
   id_sede?: number | null; // Sede ID for certificate record (from OSI or manual selection)
-  uso_portal_facilitador?: boolean; // Whether the facilitador used the facilitador portal to upload participants
+  uso_verificacion_facilitador?: boolean; // Whether the facilitador used the verification tool in their portal (DB column: uso_portal_facilitador)
 }
 
 export interface CertificateParticipant {
