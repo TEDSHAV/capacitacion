@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 import { requireDashboardAuth } from "@/utils/api-auth";
 import { storage, STORAGE_BUCKET, EMAIL_ATTACHMENT_PREFIX } from "@/lib/b2-storage-client";
+
+// Large file uploads (700MB+) can take several minutes to stream to B2.
+// Allow up to 5 minutes.
+export const maxDuration = 300;
+// Must run in Node.js runtime (not Edge) for streaming and crypto.
+export const runtime = "nodejs";
 
 /**
  * Upload a single file to Backblaze B2 for use as an email attachment.
@@ -9,6 +15,9 @@ import { storage, STORAGE_BUCKET, EMAIL_ATTACHMENT_PREFIX } from "@/lib/b2-stora
  * Uses multipart/formData (not a server action) so the Next.js server action
  * body size limit doesn't apply — files of any size can be uploaded (B2 has
  * no practical per-object limit on the free tier).
+ *
+ * Uses @aws-sdk/lib-storage Upload (multipart) with file.stream() so the file
+ * is streamed to B2 in chunks rather than loaded entirely into memory.
  *
  * Returns { success, key, name, size, contentType } on success.
  */
@@ -35,16 +44,22 @@ export async function POST(request: NextRequest) {
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const key = `${EMAIL_ATTACHMENT_PREFIX}${timestamp}_${randomSuffix}_${sanitizedName}`;
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    await storage.send(
-      new PutObjectCommand({
+    // Stream the file to B2 using multipart upload — avoids loading the
+    // entire file into memory (critical for large files like 700MB+ PPTs).
+    const upload = new Upload({
+      client: storage,
+      params: {
         Bucket: STORAGE_BUCKET,
         Key: key,
-        Body: buffer,
+        Body: file.stream(),
         ContentType: file.type || "application/octet-stream",
-      }),
-    );
+      },
+      // 5MB is the minimum part size for S3-compatible APIs.
+      partSize: 5 * 1024 * 1024,
+      // Leave queueSize at default to avoid excessive memory usage.
+    });
+
+    await upload.done();
 
     return NextResponse.json({
       success: true,

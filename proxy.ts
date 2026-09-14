@@ -201,7 +201,9 @@ export const config = {
      * - api                 (API routes handle auth themselves)
      */
     "/((?!_next/static|_next/image|favicon\\.ico|verify-certificate|survey|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)",
-    // API routes — rate limiting only (auth handled per-route)
-    "/api/(.*)",
+    // API routes — rate limiting only (auth handled per-route).
+    // Exclude /api/email-attachments so large multipart uploads aren't
+    // truncated by the middleware body size limit.
+    "/api/((?!email-attachments).*)",
   ],
 };
