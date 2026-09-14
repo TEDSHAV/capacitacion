@@ -319,9 +319,24 @@ export default function AssignFacilitadorModal({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  // Total attachment size (raw bytes). Base64 encoding adds ~33% overhead,
+  // so we warn before hitting the 25MB server action body limit.
+  const totalAttachmentBytes = attachments.reduce((sum, a) => sum + a.size, 0);
+  const totalAttachmentMB = totalAttachmentBytes / (1024 * 1024);
+  // Base64 overhead is ~33%, so 18MB raw ≈ 24MB encoded — leave room for the
+  // rest of the payload (subject, body, OSI data).
+  const MAX_ATTACHMENT_MB = 18;
+  const attachmentsTooLarge = totalAttachmentMB > MAX_ATTACHMENT_MB;
+
   const handleAssign = async (sendEmail: boolean) => {
     if (!selectedFacilitadorId) {
       setError("Seleccione un facilitador");
+      return;
+    }
+    if (attachmentsTooLarge) {
+      setError(
+        `Los adjuntos pesan ${totalAttachmentMB.toFixed(1)} MB. El límite es ${MAX_ATTACHMENT_MB} MB. Reduzca el tamaño o cantidad de archivos.`,
+      );
       return;
     }
     setAssigning(true);
@@ -330,15 +345,24 @@ export default function AssignFacilitadorModal({
     setEmailResult(null);
 
     const nroSesion = selectedSession === "all" ? null : parseInt(selectedSession);
-    const result = await assignOSIToFacilitador(
-      osiId,
-      parseInt(selectedFacilitadorId),
-      "direct",
-      nroSesion,
-    );
+    let result;
+    try {
+      result = await assignOSIToFacilitador(
+        osiId,
+        parseInt(selectedFacilitadorId),
+        "direct",
+        nroSesion,
+      );
+    } catch (err) {
+      setError(
+        `Error al asignar el facilitador: ${err instanceof Error ? err.message : "error desconocido"}. Si adjuntó archivos pesados, intente con menos o más pequeños.`,
+      );
+      setAssigning(false);
+      return;
+    }
 
     if (result.error) {
-      setError(result.error);
+      setError(`Error al asignar: ${result.error}`);
       setAssigning(false);
       return;
     }
@@ -368,15 +392,15 @@ export default function AssignFacilitadorModal({
             setEmailResult("Correo enviado exitosamente");
             assignMsg += " y correo enviado";
           } else if (sendRes.status === "not_configured") {
-            setEmailResult("Servidor de correo no configurado — el correo no se envió.");
+            setEmailResult("Servidor de correo no configurado — el correo no se envió. Contacte al administrador.");
             assignMsg += " (correo omitido: no configurado)";
           } else {
-            setEmailResult(`Error al enviar correo: ${sendRes.error || "desconocido"}`);
+            setEmailResult(`Error al enviar correo: ${sendRes.error || "error desconocido"}. La asignación se completó correctamente.`);
             assignMsg += " (correo falló)";
           }
         } catch (err) {
           setEmailResult(
-            `Error al enviar correo: ${err instanceof Error ? err.message : "desconocido"}`,
+            `Error al enviar correo: ${err instanceof Error ? err.message : "error desconocido"}. La asignación se completó correctamente.`,
           );
           assignMsg += " (correo falló)";
         } finally {
@@ -708,6 +732,18 @@ export default function AssignFacilitadorModal({
                           </button>
                         </div>
                       ))}
+                      <div
+                        className={`text-xs mt-1 flex items-center gap-1 ${
+                          attachmentsTooLarge
+                            ? "text-red-600 font-medium"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        <Paperclip className="w-3 h-3" />
+                        Total: {totalAttachmentMB.toFixed(1)} MB
+                        {attachmentsTooLarge &&
+                          ` — excede el límite de ${MAX_ATTACHMENT_MB} MB`}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -750,7 +786,7 @@ export default function AssignFacilitadorModal({
             <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-200">
               <Button
                 onClick={() => handleAssign(true)}
-                disabled={!selectedFacilitadorId || assigning || sending || !canSendEmail}
+                disabled={!selectedFacilitadorId || assigning || sending || !canSendEmail || attachmentsTooLarge}
                 className="flex-1 bg-teal-600 hover:bg-teal-700"
               >
                 {assigning || sending ? (
@@ -767,7 +803,7 @@ export default function AssignFacilitadorModal({
               </Button>
               <Button
                 onClick={() => handleAssign(false)}
-                disabled={!selectedFacilitadorId || assigning}
+                disabled={!selectedFacilitadorId || assigning || attachmentsTooLarge}
                 variant="outline"
                 className="flex-1"
               >

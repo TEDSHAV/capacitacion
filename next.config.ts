@@ -51,10 +51,10 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizeCss: false,
     optimizePackageImports: ["@supabase/supabase-js", "lucide-react", "jspdf", "recharts"],
-    // Server Actions body size limit - allows mobile camera photo uploads
-    // Images are compressed client-side before upload, but this is a safety net
+    // Server Actions body size limit — allows email attachments (base64-encoded,
+    // ~33% overhead). 25MB matches common email provider limits (Gmail/Outlook).
     serverActions: {
-      bodySizeLimit: "10mb",
+      bodySizeLimit: "25mb",
     },
     // Client router cache: keep page segments in cache for 30s (dynamic) / 3min (static).
     // Repeat navigations within this window reuse cached segments (instant).
