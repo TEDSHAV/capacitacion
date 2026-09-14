@@ -32,6 +32,7 @@ import {
 } from "@/app/actions/email-templates";
 import { sendAssignmentEmail, isEmailServerConfigured } from "@/app/actions/email-send";
 import { getEmailLogsForOSI } from "@/app/actions/email-log";
+import { uploadFileDirectToB2 } from "@/lib/email/b2-direct-upload";
 import { renderTemplateBoth, emailContextToMap } from "@/lib/email/template-render";
 import type { UploadedAttachment, EmailContext, EmailLogEntry, EmailTemplateListItem } from "@/types/email";
 import {
@@ -41,6 +42,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+interface UploadingFileItem {
+  id: string;
+  name: string;
+  size: number;
+  percent: number;
+  status: "uploading" | "error";
+  error?: string;
+  controller: AbortController;
+}
 
 interface AssignFacilitadorModalProps {
   osiId: number;
@@ -90,7 +101,8 @@ export default function AssignFacilitadorModal({
   const [sending, setSending] = useState(false);
   const [emailResult, setEmailResult] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
-  const [readingFiles, setReadingFiles] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFileItem[]>([]);
+  const isUploading = uploadingFiles.some((u) => u.status === "uploading");
   const [linkExpiryDays, setLinkExpiryDays] = useState<string>("7");
   const [emailLogs, setEmailLogs] = useState<EmailLogEntry[]>([]);
 
@@ -273,41 +285,63 @@ export default function AssignFacilitadorModal({
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    setReadingFiles(true);
-    try {
-      const newAttachments: UploadedAttachment[] = [];
-      for (const file of Array.from(files)) {
-        // Upload to B2 via multipart API route (no server action body limit).
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch("/api/email-attachments/upload", {
-          method: "POST",
-          body: formData,
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          setError(
-            `Error al subir "${file.name}": ${err.error || "error desconocido"}`,
+    const fileList = Array.from(files);
+    e.target.value = "";
+
+    const newUploadItems: UploadingFileItem[] = fileList.map((file) => ({
+      id: `${file.name}-${Date.now()}-${Math.random()}`,
+      name: file.name,
+      size: file.size,
+      percent: 0,
+      status: "uploading",
+      controller: new AbortController(),
+    }));
+
+    setUploadingFiles((prev) => [...prev, ...newUploadItems]);
+
+    // Upload files directly to B2 in parallel
+    await Promise.all(
+      fileList.map(async (file, index) => {
+        const item = newUploadItems[index];
+        try {
+          const uploaded = await uploadFileDirectToB2(
+            file,
+            (progress) => {
+              setUploadingFiles((prev) =>
+                prev.map((u) =>
+                  u.id === item.id ? { ...u, percent: progress.percent } : u,
+                ),
+              );
+            },
+            item.controller.signal,
           );
-          continue;
+
+          // Success: add to attachments and remove from upload queue
+          setAttachments((prev) => [...prev, uploaded]);
+          setUploadingFiles((prev) => prev.filter((u) => u.id !== item.id));
+        } catch (err: unknown) {
+          const errorMsg =
+            err instanceof Error ? err.message : "Error al subir";
+          setUploadingFiles((prev) =>
+            prev.map((u) =>
+              u.id === item.id
+                ? { ...u, status: "error", error: errorMsg }
+                : u,
+            ),
+          );
         }
-        const data = await res.json();
-        if (data.success) {
-          newAttachments.push({
-            key: data.key,
-            name: data.name,
-            size: data.size,
-            contentType: data.contentType,
-          });
-        }
+      }),
+    );
+  };
+
+  const cancelUpload = (id: string) => {
+    setUploadingFiles((prev) => {
+      const item = prev.find((u) => u.id === id);
+      if (item && item.status === "uploading") {
+        item.controller.abort();
       }
-      if (newAttachments.length > 0) {
-        setAttachments((prev) => [...prev, ...newAttachments]);
-      }
-    } finally {
-      setReadingFiles(false);
-      e.target.value = "";
-    }
+      return prev.filter((u) => u.id !== id);
+    });
   };
 
   const removeAttachment = (index: number) => {
@@ -685,14 +719,20 @@ export default function AssignFacilitadorModal({
                     Adjuntos
                   </label>
                   <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-md text-xs text-gray-700 hover:bg-gray-50 hover:border-gray-400 cursor-pointer transition-colors">
+                    <label
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 border rounded-md text-xs transition-colors ${
+                        isUploading
+                          ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 cursor-pointer"
+                      }`}
+                    >
                       <Paperclip className="w-3.5 h-3.5" />
-                      {readingFiles ? "Leyendo..." : "Adjuntar archivos"}
+                      {isUploading ? "Subiendo..." : "Adjuntar archivos"}
                       <input
                         type="file"
                         multiple
                         onChange={handleFileSelect}
-                        disabled={readingFiles}
+                        disabled={isUploading}
                         className="hidden"
                       />
                     </label>
@@ -702,6 +742,59 @@ export default function AssignFacilitadorModal({
                       </span>
                     )}
                   </div>
+
+                  {/* Active uploads with progress bars */}
+                  {uploadingFiles.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {uploadingFiles.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-2.5 bg-blue-50/60 rounded-md border border-blue-200 text-xs"
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin shrink-0" />
+                              <span className="text-gray-800 font-medium truncate">
+                                {item.name}
+                              </span>
+                              <span className="text-gray-500 shrink-0">
+                                {formatFileSize(item.size)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {item.status === "uploading" ? (
+                                <span className="text-blue-700 font-semibold">
+                                  {item.percent}%
+                                </span>
+                              ) : (
+                                <span className="text-red-600 font-medium">
+                                  {item.error || "Error"}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => cancelUpload(item.id)}
+                                className="text-gray-400 hover:text-red-500 p-0.5 rounded transition-colors"
+                                title="Cancelar subida"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          {item.status === "uploading" && (
+                            <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="bg-blue-600 h-1.5 rounded-full transition-all duration-150 ease-out"
+                                style={{ width: `${item.percent}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Completed attachments list */}
                   {attachments.length > 0 && (
                     <div className="mt-2 space-y-1">
                       {attachments.map((a, i) => (
@@ -715,6 +808,7 @@ export default function AssignFacilitadorModal({
                             <span className="text-gray-400 shrink-0">{formatFileSize(a.size)}</span>
                           </div>
                           <button
+                            type="button"
                             onClick={() => removeAttachment(i)}
                             className="text-gray-400 hover:text-red-500 p-1 rounded transition-colors shrink-0"
                             title="Quitar adjunto"
@@ -795,7 +889,7 @@ export default function AssignFacilitadorModal({
             <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-200">
               <Button
                 onClick={() => handleAssign(true)}
-                disabled={!selectedFacilitadorId || assigning || sending || !canSendEmail}
+                disabled={!selectedFacilitadorId || assigning || sending || isUploading || !canSendEmail}
                 className="flex-1 bg-teal-600 hover:bg-teal-700"
               >
                 {assigning || sending ? (
@@ -812,7 +906,7 @@ export default function AssignFacilitadorModal({
               </Button>
               <Button
                 onClick={() => handleAssign(false)}
-                disabled={!selectedFacilitadorId || assigning}
+                disabled={!selectedFacilitadorId || assigning || isUploading}
                 variant="outline"
                 className="flex-1"
               >
