@@ -585,6 +585,7 @@ export type Database = {
           nro_osi: number | null
           qr_code: string | null
           snapshot_contenido: string | null
+          uso_portal_facilitador: boolean | null
         }
         Insert: {
           anulado_por?: string | null
@@ -612,6 +613,7 @@ export type Database = {
           nro_osi?: number | null
           qr_code?: string | null
           snapshot_contenido?: string | null
+          uso_portal_facilitador?: boolean | null
         }
         Update: {
           anulado_por?: string | null
@@ -639,6 +641,7 @@ export type Database = {
           nro_osi?: number | null
           qr_code?: string | null
           snapshot_contenido?: string | null
+          uso_portal_facilitador?: boolean | null
         }
         Relationships: [
           {

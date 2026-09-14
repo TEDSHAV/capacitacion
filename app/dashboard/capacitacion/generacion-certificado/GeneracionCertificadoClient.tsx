@@ -102,6 +102,7 @@ export default function GeneracionCertificadoClient({
       generate_documents: true, // Always true
       include_previous_participants: false,
       paperSize: "half-letter-custom", // New default format
+      uso_portal_facilitador: undefined,
     },
   );
 
@@ -286,6 +287,8 @@ export default function GeneracionCertificadoClient({
         plantilla_certificado_archivo:
           snapshot?.plantilla?.archivo_plantilla_certificado,
         generate_documents: false, // Default to false for single edit
+        uso_portal_facilitador:
+          certificate.uso_portal_facilitador ?? undefined,
       });
     }
   }, [editData, osis, courses]);

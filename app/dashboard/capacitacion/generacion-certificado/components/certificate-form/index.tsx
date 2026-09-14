@@ -57,7 +57,8 @@ export const CertificateForm = ({
     !!certificateData.location &&
     !!certificateData.date &&
     !!certificateData.horas_estimadas &&
-    !!certificateData.facilitator_id;
+    !!certificateData.facilitator_id &&
+    (isEditMode || certificateData.uso_portal_facilitador !== undefined);
 
   const isCarnetValid =
     !selectedCourseTopic?.emite_carnet || !!certificateData.fecha_vencimiento;
@@ -107,6 +108,16 @@ export const CertificateForm = ({
         return true;
       }
     }
+    if (
+      !isEditMode &&
+      certificateData.uso_portal_facilitador === undefined
+    ) {
+      const element = document.getElementById("field-uso_portal_facilitador");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        return true;
+      }
+    }
     if (certificateData.participants.length === 0) {
       const element = document.getElementById("field-participants");
       if (element) {
@@ -145,6 +156,16 @@ export const CertificateForm = ({
       }
       if (!certificateData.course_topic_id) {
         alert("Por favor selecciona un curso");
+        return;
+      }
+      if (
+        !isEditMode &&
+        certificateData.uso_portal_facilitador === undefined
+      ) {
+        alert(
+          "Por favor indica si el facilitador usó el portal del facilitador para cargar la lista de participantes.",
+        );
+        scrollToFirstMissingField();
         return;
       }
       // Scroll to first missing field in this form
@@ -577,6 +598,73 @@ export const CertificateForm = ({
           shaSignatureId={certificateData.sha_signature_id}
           onDataChange={onDataChange}
         />
+      </div>
+
+      {/* Uso del Portal del Facilitador */}
+      <div id="field-uso_portal_facilitador" className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          ¿El facilitador usó el portal del facilitador para cargar la lista de
+          participantes?{!isEditMode ? " *" : ""}
+        </label>
+        <div className="flex items-center gap-6">
+          {[
+            { value: true, label: "Sí" },
+            { value: false, label: "No" },
+          ].map((opt) => {
+            const checked = certificateData.uso_portal_facilitador === opt.value;
+            return (
+              <label
+                key={String(opt.value)}
+                className={`flex items-center gap-2 cursor-pointer px-3 py-2 rounded-md border transition-colors ${
+                  checked
+                    ? "border-blue-500 bg-blue-50 text-blue-800"
+                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                } ${
+                  hasAttemptedSubmission &&
+                  !isEditMode &&
+                  certificateData.uso_portal_facilitador === undefined
+                    ? "border-amber-400 bg-amber-50"
+                    : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="uso_portal_facilitador"
+                  value={String(opt.value)}
+                  checked={checked}
+                  onChange={() =>
+                    onDataChange("uso_portal_facilitador", opt.value)
+                  }
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <span className="text-sm font-medium">{opt.label}</span>
+              </label>
+            );
+          })}
+        </div>
+        {hasAttemptedSubmission &&
+          !isEditMode &&
+          certificateData.uso_portal_facilitador === undefined && (
+            <p className="text-xs text-amber-700 font-medium mt-1 flex items-center gap-1">
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+              Esta información es requerida.
+            </p>
+          )}
+        <p className="text-xs text-gray-500 mt-1">
+          Se utiliza para calcular el promedio de uso del portal por facilitador.
+        </p>
       </div>
 
       {/* Participants */}

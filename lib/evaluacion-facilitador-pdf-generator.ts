@@ -49,6 +49,12 @@ export interface EvaluacionPdfData extends EvaluacionPayload {
   facilitador_nombre?: string;
   facilitador_cedula?: string | null;
   facilitador_rif?: string | null;
+  /** Per-facilitador portal usage stats (read-only context, does NOT affect the score). */
+  portalUsage?: {
+    rate: number | null;
+    portalBatches: number;
+    totalBatches: number;
+  } | null;
 }
 
 // Letter page dimensions (mm)
@@ -984,6 +990,18 @@ export async function generateEvaluacionFacilitadorPdf(
   }
 
   metrics.push({ label: "Condición", value: overallLabel });
+
+  // Portal usage (read-only context, does NOT affect the score)
+  if (data.portalUsage) {
+    const pu = data.portalUsage;
+    metrics.push({
+      label: "Uso Portal Facilitador",
+      value:
+        pu.rate != null
+          ? `${(pu.rate * 100).toFixed(0)}% (${pu.portalBatches}/${pu.totalBatches})`
+          : "Sin datos",
+    });
+  }
 
   for (const m of metrics) {
     metricY = ensureSpace(pdf, metricY, 6);

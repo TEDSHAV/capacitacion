@@ -14,6 +14,10 @@ import {
   type FaseReevaluacion,
 } from "@/app/actions/evaluacion-facilitadores";
 import {
+  getPortalUsageByFacilitador,
+  type PortalUsageStats,
+} from "@/app/actions/portal-usage";
+import {
   computePuntajeInicial,
   classifyInicial,
   computeGestionPct,
@@ -83,6 +87,7 @@ export default function EvaluacionFormClient({
   const isNewMode = mode === "nueva" && !editId;
 
   const [facilitador, setFacilitador] = useState<Facilitador | null>(null);
+  const [portalUsage, setPortalUsage] = useState<PortalUsageStats | null>(null);
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -129,14 +134,17 @@ export default function EvaluacionFormClient({
     hasInitialized.current = true;
 
     async function load() {
-      const [facResult, histResult] = await Promise.all([
+      const [facResult, histResult, usageResult] = await Promise.all([
         getFacilitatorByIdAction(String(facilitadorId)),
         getEvaluacionesByFacilitador(facilitadorId),
+        getPortalUsageByFacilitador(facilitadorId),
       ]);
 
       if (facResult.data) {
         setFacilitador(facResult.data as Facilitador);
       }
+
+      setPortalUsage(usageResult);
 
       if (histResult.evaluaciones) {
         setHistory(histResult.evaluaciones as unknown as HistoryRow[]);
@@ -516,6 +524,20 @@ export default function EvaluacionFormClient({
           {facilitador.rif && ` · RIF ${facilitador.rif}`}
         </p>
         <p className="text-xs text-gray-400 mt-1">RG-CAP-004</p>
+      </div>
+
+      {/* Portal usage info banner (read-only, does NOT affect the score) */}
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm flex items-center gap-2">
+        <ClipboardCheck className="w-4 h-4 flex-shrink-0 text-blue-600" />
+        <span>
+          <span className="font-semibold">Uso del portal del facilitador:</span>{" "}
+          {portalUsage && portalUsage.rate != null
+            ? `${(portalUsage.rate * 100).toFixed(0)}% (${portalUsage.portalBatches}/${portalUsage.totalBatches} generaciones)`
+            : "Sin datos"}
+          <span className="text-blue-600 ml-1">
+            · Informativo, no afecta el puntaje.
+          </span>
+        </span>
       </div>
 
       {error && (

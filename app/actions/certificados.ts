@@ -53,6 +53,8 @@ export interface CertificateRecord {
   nro_linea?: number;
 
   nro_control?: number;
+
+  uso_portal_facilitador?: boolean | null;
 }
 
 export interface CertificateWithNumbers {
@@ -395,6 +397,9 @@ export async function saveCertificatesToDatabase(
         nro_linea: currentControlNumbers.nro_linea,
 
         nro_control: currentControlNumbers.nro_control,
+
+        uso_portal_facilitador:
+          updatedCertificateData.uso_portal_facilitador ?? null,
       };
 
       console.log(
@@ -1904,6 +1909,10 @@ export async function updateCertificateAction(
           certificateData.id_plantilla_certificado || null,
         calificacion: participant.score || 0,
         snapshot_contenido: finalSnapshot,
+        uso_portal_facilitador:
+          certificateData.uso_portal_facilitador === undefined
+            ? undefined
+            : certificateData.uso_portal_facilitador,
       })
       .eq("id", certificateId);
 

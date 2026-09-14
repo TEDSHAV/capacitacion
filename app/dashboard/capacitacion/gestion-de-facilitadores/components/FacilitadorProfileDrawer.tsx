@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { FacilitatorPoolItem } from "@/app/actions/facilitators-pool";
+import { getPortalUsageByFacilitador, type PortalUsageStats } from "@/app/actions/portal-usage";
 import { toTitleCase } from "@/utils/string-utils";
 import { useRouter } from "next/navigation";
 import {
@@ -44,6 +45,25 @@ export function FacilitadorProfileDrawer({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"competencias" | "trayectoria" | "evaluacion">("competencias");
   const [imgError, setImgError] = useState(false);
+  const [portalUsage, setPortalUsage] = useState<PortalUsageStats | null>(null);
+
+  // Fetch portal usage stats when the drawer opens for a facilitador
+  useEffect(() => {
+    if (!isOpen || !facilitador) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stats = await getPortalUsageByFacilitador(facilitador.id);
+        if (!cancelled) setPortalUsage(stats);
+      } catch (err) {
+        console.error("Failed to load portal usage stats:", err);
+        if (!cancelled) setPortalUsage(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, facilitador]);
 
   // Close on ESC key
   useEffect(() => {
@@ -526,6 +546,36 @@ export function FacilitadorProfileDrawer({
               </div>
             </div>
           )}
+
+          {/* Uso del Portal del Facilitador */}
+          <div className="space-y-4">
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="text-sm font-bold text-blue-900 mb-1">
+                Uso del Portal del Facilitador
+              </h4>
+              <p className="text-xs text-blue-700">
+                Promedio de generaciones de certificados donde el facilitador cargó la lista de participantes vía el portal del facilitador.
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-xs bg-white p-3 rounded-md border border-blue-100">
+                <div>
+                  <span className="text-gray-400 block text-[11px]">Promedio de Uso</span>
+                  <span className="font-bold text-sm text-gray-900">
+                    {portalUsage && portalUsage.rate != null
+                      ? `${(portalUsage.rate * 100).toFixed(0)}%`
+                      : "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block text-[11px]">Generaciones</span>
+                  <span className="font-bold text-sm text-blue-700">
+                    {portalUsage
+                      ? `${portalUsage.portalBatches}/${portalUsage.totalBatches}`
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Sticky Action Footer */}
