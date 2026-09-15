@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    // Get all active courses from catalogo_servicios for Capacitacion
+    // Get all active courses from catalogo_servicios for Capacitacion (tipo_servicio = 1)
     const { data, error } = await supabase
       .from("catalogo_servicios")
       .select(
@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
       )
       .eq("esta_activo", true)
       .eq("id_departamento_ejecutante", 3)
+      .eq("tipo_servicio", 1)
       .order("nombre", { ascending: true });
 
     if (error) {

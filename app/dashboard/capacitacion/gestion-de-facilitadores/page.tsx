@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FacilitadorCrud, FacilitatorForm } from "./components";
 import { getFacilitatorMetrics } from "@/app/actions/participants";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
-import { Users, MapPin, BookOpen, Star } from "lucide-react";
+import { Users, MapPin, BookOpen, Star, UserCheck } from "lucide-react";
 
 export default function GestionDeFacilitadoresPage() {
   const router = useRouter();
@@ -81,13 +82,22 @@ export default function GestionDeFacilitadoresPage() {
 
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Gestión de Facilitadores
-        </h1>
-        <p className="mt-2 text-gray-600">
-          Administra la información de los facilitadores de capacitación
-        </p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Gestión de Facilitadores
+          </h1>
+          <p className="mt-2 text-gray-600">
+            Administra la información de los facilitadores de capacitación
+          </p>
+        </div>
+        <Link
+          href="/dashboard/capacitacion/entrevista-facilitadores"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200 rounded-lg text-sm font-semibold transition-colors self-start sm:self-auto shadow-sm"
+        >
+          <UserCheck className="w-4 h-4" />
+          Entrevistas de Facilitadores
+        </Link>
       </div>
 
       {/* Metrics Row */}

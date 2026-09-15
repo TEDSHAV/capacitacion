@@ -65,6 +65,7 @@ export function EntrevistaFormClient({
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
   const [customTopicInput, setCustomTopicInput] = useState("");
+  const [catalogSearch, setCatalogSearch] = useState("");
 
   // Form State
   const [id, setId] = useState<number | undefined>(initialData?.id);
@@ -1158,29 +1159,44 @@ export function EntrevistaFormClient({
 
             {/* Catalog suggestions */}
             {courseTopics.length > 0 && (
-              <div className="pt-2 border-t border-gray-200">
-                <span className="text-xs text-gray-500 block mb-1.5">
-                  Catálogo de capacitación (clic para alternar):
-                </span>
-                <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto p-1 bg-white border border-gray-200 rounded-lg">
-                  {courseTopics.map((topic) => {
-                    const isSelected = temasCapacidades.includes(topic.nombre);
-                    return (
-                      <button
-                        key={topic.id}
-                        type="button"
-                        onClick={() => handleToggleTopic(topic.nombre)}
-                        className={`px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
-                          isSelected
-                            ? "bg-violet-600 text-white border-violet-600"
-                            : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
-                        }`}
-                      >
-                        {isSelected ? "✓ " : "+ "}
-                        {topic.nombre}
-                      </button>
-                    );
-                  })}
+              <div className="pt-2 border-t border-gray-200 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <span className="text-xs font-semibold text-gray-700">
+                    Catálogo de capacitación (clic para alternar):
+                  </span>
+                  <input
+                    type="text"
+                    value={catalogSearch}
+                    onChange={(e) => setCatalogSearch(e.target.value)}
+                    placeholder="Filtrar cursos de capacitación..."
+                    className="text-xs px-2.5 py-1 bg-white border border-gray-300 rounded-lg w-full sm:w-64 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-1 max-h-48 overflow-y-auto p-1.5 bg-white border border-gray-200 rounded-lg">
+                  {courseTopics
+                    .filter((topic) =>
+                      topic.nombre
+                        .toLowerCase()
+                        .includes(catalogSearch.toLowerCase().trim())
+                    )
+                    .map((topic) => {
+                      const isSelected = temasCapacidades.includes(topic.nombre);
+                      return (
+                        <button
+                          key={topic.id}
+                          type="button"
+                          onClick={() => handleToggleTopic(topic.nombre)}
+                          className={`px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
+                            isSelected
+                              ? "bg-violet-600 text-white border-violet-600 shadow-sm"
+                              : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                          }`}
+                        >
+                          {isSelected ? "✓ " : "+ "}
+                          {topic.nombre}
+                        </button>
+                      );
+                    })}
                 </div>
               </div>
             )}

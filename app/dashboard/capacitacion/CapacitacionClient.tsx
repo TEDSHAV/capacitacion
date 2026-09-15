@@ -204,6 +204,7 @@ export default function CapacitacionClient({
       accent: "violet",
       modules: [
         { id: "gestion-de-facilitadores", title: "Gestión", icon: UserCheck },
+        { id: "entrevista-facilitadores", title: "Entrevistas", icon: UserCheck },
         { id: "gestion-de-firmas", title: "Firmas", icon: Signature },
         { id: "gestion-asignaciones", title: "Asignaciones y Credenciales", icon: KeyRound },
         { id: "evaluacion-facilitadores", title: "Evaluación", icon: ClipboardCheck },

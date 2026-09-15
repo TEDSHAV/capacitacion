@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronLeft, ChevronRight, Wifi, WifiOff } from "lucide-react";
 import { getNavigationForContext, getContextInfo, type NavigationContext, type NavItem } from "@/lib/navigation/navigation-config";
@@ -27,6 +27,19 @@ export function PWANavDrawer({
   const badgeCounts = useBadgeCounts(context);
   const isOnline = useOnlineStatus();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  // Auto-expand any navigation group whose children contain the current active route
+  useEffect(() => {
+    const autoExpanded = new Set<string>();
+    navItems.forEach((item) => {
+      if (item.children?.some((child) => child.href !== "#" && currentPath.startsWith(child.href))) {
+        autoExpanded.add(item.id);
+      }
+    });
+    if (autoExpanded.size > 0) {
+      setExpandedItems((prev) => new Set([...prev, ...autoExpanded]));
+    }
+  }, [currentPath, navItems]);
 
   const toggleExpanded = (id: string) => {
     const newExpanded = new Set(expandedItems);
