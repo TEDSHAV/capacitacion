@@ -31,6 +31,7 @@ export type PortalDataType =
   | "dash_facilitadores"
   | "dash_asignaciones"
   | "dash_eval_facilitadores"
+  | "dash_entrevista_facilitadores"
   | "dash_gen_cert_refdata"
   | "survey_osi_data";
 

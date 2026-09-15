@@ -2160,3 +2160,5 @@ export interface FacilitadoresHorasResponse {
   facilitadores: FacilitadorHorasRow[];
   yearsDisponibles: number[];
 }
+
+export * from "./entrevistas-facilitadores";

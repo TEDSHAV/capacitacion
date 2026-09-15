@@ -16,6 +16,7 @@ import {
   ClipboardCheck,
   Mail,
   MailCheck,
+  UserCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -240,6 +241,13 @@ const DASHBOARD_NAV: NavItem[] = [
         label: "Gestión",
         href: "/dashboard/capacitacion/gestion-de-facilitadores",
         icon: Users,
+        offlineAvailable: true,
+      },
+      {
+        id: "entrevista-facilitadores",
+        label: "Entrevista de Facilitadores",
+        href: "/dashboard/capacitacion/entrevista-facilitadores",
+        icon: UserCheck,
         offlineAvailable: true,
       },
       {
