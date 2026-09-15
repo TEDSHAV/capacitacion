@@ -5,7 +5,6 @@ import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { notifySolicitanteOfFinalizacion } from "@/lib/diseno-servicio-notifications";
 import {
   isCapacitacionDept,
-  isServiciosTecnicosDept,
 } from "@/lib/requisiciones-gerencia";
 import type {
   BloqueRecursosRequisitos,
@@ -52,11 +51,9 @@ export async function getCurrentUserForDiseno() {
 
 // Get all solicitudes for list view
 //
-// Scope: only Capacitación and Servicios Técnicos users may manage these
-// services. Capacitación sees only services whose executing department is
-// Capacitación (id_departamento_ejecutante = 3), Servicios Técnicos sees only
-// those whose executing department is Servicios Técnicos (= 4). Any other
-// department gets an empty list (no access).
+// Scope: Strictly Capacitación (id_departamento_ejecutante = 3).
+// Only Capacitación users may view/manage these services.
+// Non-Capacitación users receive an empty list.
 export async function getDisenoServicioList(): Promise<DisenoServicioListItem[]> {
   // Resolve the current user's department via the user-scoped (RLS-aware) client.
   const userSupabase = await createClient();
@@ -74,19 +71,36 @@ export async function getDisenoServicioList(): Promise<DisenoServicioListItem[]>
     userDeptName = (usuario?.departamentos as any)?.nombre ?? null;
   }
 
-  // Determine the user's scope from their department name.
-  let scopeDeptId: number | null = null;
-  if (isCapacitacionDept(userDeptName)) {
-    scopeDeptId = DEPT_CAPACITACION;
-  } else if (isServiciosTecnicosDept(userDeptName)) {
-    scopeDeptId = DEPT_SERVICIOS_TECNICOS;
+  // Capacitación module strictly scopes to Capacitación services (dept 3).
+  // Non-Capacitación users get an empty list.
+  if (!isCapacitacionDept(userDeptName)) {
+    return [];
   }
+  const scopeDeptId = DEPT_CAPACITACION;
 
-  if (scopeDeptId === null) {
+  const supabase = await createAdminClient();
+
+  // Fetch the IDs of services owned by the user's executing department
+  // (small, indexed lookup on catalogo_servicios.id_departamento_ejecutante).
+  // PostgREST cannot filter on nested join columns, so we resolve the
+  // scoped service IDs first and then fetch only matching solicitudes via
+  // .in("id_servicio_relacionado", ...), which uses
+  // idx_solicitudes_servicio_rel. This avoids over-fetching rows from the
+  // other department and discarding them in JS.
+  const { data: scopedServices, error: scopedError } = await supabase
+    .from("catalogo_servicios")
+    .select("id")
+    .eq("id_departamento_ejecutante", scopeDeptId);
+
+  if (scopedError) {
+    console.error("Error fetching scoped catalogo_servicios:", JSON.stringify(scopedError, null, 2));
     return [];
   }
 
-  const supabase = await createAdminClient();
+  const scopedServiceIds = (scopedServices || []).map((s: any) => s.id as number);
+  if (scopedServiceIds.length === 0) {
+    return [];
+  }
 
   const { data, error } = await supabase
     .from("solicitudes_diseno_servicio")
@@ -102,6 +116,7 @@ export async function getDisenoServicioList(): Promise<DisenoServicioListItem[]>
       usuarios!solicitudes_diseno_servicio_id_solicitante_fkey(nombre_apellido, departamento),
       catalogo_servicios!solicitudes_diseno_servicio_id_servicio_relacionado_fkey(nombre, id_departamento_ejecutante)
     `)
+    .in("id_servicio_relacionado", scopedServiceIds)
     .order("id", { ascending: false });
 
   if (error) {
@@ -134,7 +149,7 @@ export async function getDisenoServicioList(): Promise<DisenoServicioListItem[]>
     }
   }
 
-  const allItems = (data || []).map((row: any) => ({
+  return (data || []).map((row: any) => ({
     id: row.id,
     nombre_sugerido: row.nombre_sugerido,
     tipo_solicitud: row.tipo_solicitud,
@@ -148,13 +163,6 @@ export async function getDisenoServicioList(): Promise<DisenoServicioListItem[]>
       departamentoMap.get((row.usuarios as any)?.departamento) || "",
     fecha_solicitud: row.fecha_solicitud,
   }));
-
-  // Filter by the user's executing department (id_departamento_ejecutante on
-  // the related catalogo_servicios row). 3 = Capacitación, 4 = Servicios
-  // Técnicos. Records without an executing department are excluded.
-  return allItems.filter(
-    (item) => item.id_departamento_ejecutante === scopeDeptId,
-  );
 }
 
 // Get single record by ID with all JSONB blocks
@@ -177,6 +185,17 @@ export async function getDisenoServicioById(id: number): Promise<DisenoServicioF
   }
 
   if (!data) return null;
+
+  // Guard: only expose records owned by Capacitación (dept 3).
+  // Prevents Capacitación users from accessing Servicios Técnicos-owned solicitudes via direct URL.
+  const deptoEjecutante =
+    (data.catalogo_servicios as any)?.id_departamento_ejecutante ?? null;
+  if (deptoEjecutante !== DEPT_CAPACITACION) {
+    console.warn(
+      `getDisenoServicioById: solicitud ${id} pertenece a dept ${deptoEjecutante}, acceso denegado para Capacitación.`,
+    );
+    return null;
+  }
 
   let aprobador_nombre = "";
   if (data.id_usuario_aprobador) {
@@ -232,9 +251,34 @@ async function ensureEnProceso(supabase: Awaited<ReturnType<typeof createClient>
   }
 }
 
+// Helper: verify the solicitud belongs to Capacitación (dept 3) before any write.
+// Throws if the record is missing or owned by another department (e.g., Servicios Técnicos).
+async function assertCapOwned(supabase: Awaited<ReturnType<typeof createClient>>, id: number) {
+  const { data, error } = await supabase
+    .from("solicitudes_diseno_servicio")
+    .select(`
+      id,
+      catalogo_servicios!solicitudes_diseno_servicio_id_servicio_relacionado_fkey(id_departamento_ejecutante)
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Solicitud ${id} no encontrada.`);
+  }
+
+  const depto = (data.catalogo_servicios as any)?.id_departamento_ejecutante ?? null;
+  if (depto !== DEPT_CAPACITACION) {
+    throw new Error(
+      `Solicitud ${id} no pertenece a Capacitación (dept ${depto}). Acción denegada.`,
+    );
+  }
+}
+
 // Partial save: Bloque Recursos y Requisitos
 export async function saveBloqueRecursos(id: number, data: BloqueRecursosRequisitos) {
   const supabase = await createClient();
+  await assertCapOwned(supabase, id);
   const { error } = await supabase
     .from("solicitudes_diseno_servicio")
     .update({ bloque_recursos_requisitos: data })
@@ -249,6 +293,7 @@ export async function saveBloqueRecursos(id: number, data: BloqueRecursosRequisi
 // Partial save: Bloque Higiene, Seguridad y Ambiente
 export async function saveBloqueHigieneSeguridad(id: number, data: BloqueHigieneSeguridadAmbiente) {
   const supabase = await createClient();
+  await assertCapOwned(supabase, id);
   const { error } = await supabase
     .from("solicitudes_diseno_servicio")
     .update({ bloque_higiene_seguridad_ambiente: data })
@@ -263,6 +308,7 @@ export async function saveBloqueHigieneSeguridad(id: number, data: BloqueHigiene
 // Partial save: Bloque Planificación y Factibilidad
 export async function saveBloquePlanificacion(id: number, data: BloquePlanificacionFactibilidad) {
   const supabase = await createClient();
+  await assertCapOwned(supabase, id);
   const { error } = await supabase
     .from("solicitudes_diseno_servicio")
     .update({ bloque_planificacion_factibilidad: data })
@@ -277,6 +323,7 @@ export async function saveBloquePlanificacion(id: number, data: BloquePlanificac
 // Partial save: Bloque Controles del Diseño
 export async function saveBloqueControles(id: number, data: BloqueControlesDiseno) {
   const supabase = await createClient();
+  await assertCapOwned(supabase, id);
   const { error } = await supabase
     .from("solicitudes_diseno_servicio")
     .update({ bloque_controles_diseno: data })
@@ -291,6 +338,7 @@ export async function saveBloqueControles(id: number, data: BloqueControlesDisen
 // Partial save: Bloque Salidas del Diseño
 export async function saveBloqueSalidas(id: number, data: BloqueSalidasDiseno) {
   const supabase = await createClient();
+  await assertCapOwned(supabase, id);
   const { error } = await supabase
     .from("solicitudes_diseno_servicio")
     .update({ bloque_salidas_diseno: data })
@@ -305,6 +353,7 @@ export async function saveBloqueSalidas(id: number, data: BloqueSalidasDiseno) {
 // Finalize solicitud: set status to completed + set approval fields
 export async function finalizarSolicitud(id: number) {
   const supabase = await createClient();
+  await assertCapOwned(supabase, id);
   const {
     data: { user },
   } = await supabase.auth.getUser();
