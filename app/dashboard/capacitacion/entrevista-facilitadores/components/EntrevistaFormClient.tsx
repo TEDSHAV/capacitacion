@@ -1162,7 +1162,7 @@ export function EntrevistaFormClient({
               <div className="pt-2 border-t border-gray-200 space-y-2">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <span className="text-xs font-semibold text-gray-700">
-                    Catálogo de capacitación (clic para alternar):
+                    Catálogo de capacitación:
                   </span>
                   <input
                     type="text"
