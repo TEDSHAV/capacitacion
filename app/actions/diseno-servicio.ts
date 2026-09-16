@@ -76,31 +76,8 @@ export async function getDisenoServicioList(): Promise<DisenoServicioListItem[]>
   if (!isCapacitacionDept(userDeptName)) {
     return [];
   }
-  const scopeDeptId = DEPT_CAPACITACION;
 
   const supabase = await createAdminClient();
-
-  // Fetch the IDs of services owned by the user's executing department
-  // (small, indexed lookup on catalogo_servicios.id_departamento_ejecutante).
-  // PostgREST cannot filter on nested join columns, so we resolve the
-  // scoped service IDs first and then fetch only matching solicitudes via
-  // .in("id_servicio_relacionado", ...), which uses
-  // idx_solicitudes_servicio_rel. This avoids over-fetching rows from the
-  // other department and discarding them in JS.
-  const { data: scopedServices, error: scopedError } = await supabase
-    .from("catalogo_servicios")
-    .select("id")
-    .eq("id_departamento_ejecutante", scopeDeptId);
-
-  if (scopedError) {
-    console.error("Error fetching scoped catalogo_servicios:", JSON.stringify(scopedError, null, 2));
-    return [];
-  }
-
-  const scopedServiceIds = (scopedServices || []).map((s: any) => s.id as number);
-  if (scopedServiceIds.length === 0) {
-    return [];
-  }
 
   const { data, error } = await supabase
     .from("solicitudes_diseno_servicio")
@@ -112,11 +89,12 @@ export async function getDisenoServicioList(): Promise<DisenoServicioListItem[]>
       fecha_solicitud,
       id_solicitante,
       id_servicio_relacionado,
+      bloque_recursos_requisitos,
       conf_estatus!solicitudes_diseno_servicio_id_estatus_fkey(nombre_estado),
       usuarios!solicitudes_diseno_servicio_id_solicitante_fkey(nombre_apellido, departamento),
       catalogo_servicios!solicitudes_diseno_servicio_id_servicio_relacionado_fkey(nombre, id_departamento_ejecutante)
     `)
-    .in("id_servicio_relacionado", scopedServiceIds)
+    .eq("bloque_recursos_requisitos->>tipo_naturaleza_servicio", "cap")
     .order("id", { ascending: false });
 
   if (error) {
@@ -186,13 +164,13 @@ export async function getDisenoServicioById(id: number): Promise<DisenoServicioF
 
   if (!data) return null;
 
-  // Guard: only expose records owned by Capacitación (dept 3).
+  // Guard: only expose records owned by Capacitación (cap).
   // Prevents Capacitación users from accessing Servicios Técnicos-owned solicitudes via direct URL.
-  const deptoEjecutante =
-    (data.catalogo_servicios as any)?.id_departamento_ejecutante ?? null;
-  if (deptoEjecutante !== DEPT_CAPACITACION) {
+  const tipoNaturaleza =
+    (data.bloque_recursos_requisitos as any)?.tipo_naturaleza_servicio ?? null;
+  if (tipoNaturaleza !== "cap") {
     console.warn(
-      `getDisenoServicioById: solicitud ${id} pertenece a dept ${deptoEjecutante}, acceso denegado para Capacitación.`,
+      `getDisenoServicioById: solicitud ${id} tiene tipo_naturaleza_servicio "${tipoNaturaleza}", acceso denegado para Capacitación.`,
     );
     return null;
   }
@@ -251,15 +229,12 @@ async function ensureEnProceso(supabase: Awaited<ReturnType<typeof createClient>
   }
 }
 
-// Helper: verify the solicitud belongs to Capacitación (dept 3) before any write.
+// Helper: verify the solicitud belongs to Capacitación (cap) before any write.
 // Throws if the record is missing or owned by another department (e.g., Servicios Técnicos).
 async function assertCapOwned(supabase: Awaited<ReturnType<typeof createClient>>, id: number) {
   const { data, error } = await supabase
     .from("solicitudes_diseno_servicio")
-    .select(`
-      id,
-      catalogo_servicios!solicitudes_diseno_servicio_id_servicio_relacionado_fkey(id_departamento_ejecutante)
-    `)
+    .select("id, bloque_recursos_requisitos")
     .eq("id", id)
     .single();
 
@@ -267,10 +242,10 @@ async function assertCapOwned(supabase: Awaited<ReturnType<typeof createClient>>
     throw new Error(`Solicitud ${id} no encontrada.`);
   }
 
-  const depto = (data.catalogo_servicios as any)?.id_departamento_ejecutante ?? null;
-  if (depto !== DEPT_CAPACITACION) {
+  const tipo = (data.bloque_recursos_requisitos as any)?.tipo_naturaleza_servicio ?? null;
+  if (tipo !== "cap") {
     throw new Error(
-      `Solicitud ${id} no pertenece a Capacitación (dept ${depto}). Acción denegada.`,
+      `Solicitud ${id} no pertenece a Capacitación (tipo: ${tipo}). Acción denegada.`,
     );
   }
 }
@@ -279,9 +254,13 @@ async function assertCapOwned(supabase: Awaited<ReturnType<typeof createClient>>
 export async function saveBloqueRecursos(id: number, data: BloqueRecursosRequisitos) {
   const supabase = await createClient();
   await assertCapOwned(supabase, id);
+  const payload: BloqueRecursosRequisitos = {
+    ...data,
+    tipo_naturaleza_servicio: "cap",
+  };
   const { error } = await supabase
     .from("solicitudes_diseno_servicio")
-    .update({ bloque_recursos_requisitos: data })
+    .update({ bloque_recursos_requisitos: payload })
     .eq("id", id);
 
   if (error) throw error;

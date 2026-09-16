@@ -50,8 +50,8 @@ export default async function DisenoServicioWizardPage({
   }
 
   // Guard: only Capacitación users may manage these services, and only
-  // solicitudes whose executing department is Capacitación
-  // (catalogo_servicios.id_departamento_ejecutante = 3). Anyone else or
+  // solicitudes whose service nature is Capacitación
+  // (bloque_recursos_requisitos.tipo_naturaleza_servicio = "cap"). Anyone else or
   // requests outside this scope are blocked.
   const userDeptName = (userData?.departamentos as any)?.nombre ?? null;
   const isCapUser = isCapacitacionDept(userDeptName);
@@ -60,8 +60,9 @@ export default async function DisenoServicioWizardPage({
     notFound();
   }
 
-  const ejecutanteId = solicitud.id_departamento_ejecutante;
-  if (ejecutanteId !== 3) {
+  const tipoNaturaleza =
+    (solicitud.bloque_recursos_requisitos as any)?.tipo_naturaleza_servicio ?? null;
+  if (tipoNaturaleza !== "cap") {
     notFound();
   }
 
