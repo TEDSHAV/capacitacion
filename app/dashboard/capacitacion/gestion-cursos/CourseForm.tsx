@@ -9,6 +9,7 @@ import {
   FileDown,
   X,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 
 const RichTextEditor = dynamic(
@@ -16,11 +17,19 @@ const RichTextEditor = dynamic(
   { ssr: false },
 );
 
+interface ExistingCursoRef {
+  id: number;
+  nombre: string;
+  esta_activo: boolean;
+}
+
 interface CourseFormProps {
   curso: Curso | null;
   onSubmit: (formData: any) => void;
   onCancel: () => void;
   isEdit: boolean;
+  existingCursos?: ExistingCursoRef[];
+  editingId?: number | null;
 }
 
 export default function CourseForm({
@@ -28,6 +37,8 @@ export default function CourseForm({
   onSubmit,
   onCancel,
   isEdit,
+  existingCursos = [],
+  editingId = null,
 }: CourseFormProps) {
   const [datosFormulario, setDatosFormulario] = useState({
     titulo: curso?.nombre || "",
@@ -46,7 +57,30 @@ export default function CourseForm({
 
   const [error, setError] = useState<string | null>(null);
   const [generandoPdf, setGenerandoPdf] = useState(false);
+  const [duplicateMatch, setDuplicateMatch] = useState<ExistingCursoRef | null>(
+    null,
+  );
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Debounced duplicate-name check (300ms) against the active course list.
+  // Excludes the course currently being edited so renaming to its own name
+  // doesn't trigger a false positive.
+  useEffect(() => {
+    const normalized = datosFormulario.titulo.trim().toUpperCase();
+    if (!normalized) {
+      setDuplicateMatch(null);
+      return;
+    }
+    const handle = setTimeout(() => {
+      const match = existingCursos.find(
+        (c) =>
+          c.nombre.trim().toUpperCase() === normalized &&
+          c.id !== editingId,
+      );
+      setDuplicateMatch(match || null);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [datosFormulario.titulo, existingCursos, editingId]);
 
   // Handle ESC key press
   useEffect(() => {
@@ -114,6 +148,15 @@ export default function CourseForm({
     if ((datosFormulario.contenido?.length || 0) > 2000) {
       alert(
         "El contenido excede el límite de 2000 caracteres. Por favor, reduce el contenido.",
+      );
+      return;
+    }
+
+    // Block submission if a duplicate name is detected client-side.
+    // The server-side guard is the authoritative backstop for stale lists.
+    if (duplicateMatch) {
+      setError(
+        `Ya existe un curso con el nombre "${duplicateMatch.nombre}" (ID: ${duplicateMatch.id}). Considera editarlo en su lugar o verifica si es una variante.`,
       );
       return;
     }
@@ -264,6 +307,20 @@ export default function CourseForm({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
                 placeholder="Ej: Introducción a la Seguridad Industrial"
               />
+              {duplicateMatch && (
+                <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+                  <p className="text-xs text-amber-800">
+                    Ya existe un curso con este nombre:{" "}
+                    <span className="font-semibold">
+                      "{duplicateMatch.nombre}"
+                    </span>{" "}
+                    (ID: {duplicateMatch.id}
+                    {!duplicateMatch.esta_activo && ", inactivo"}). Considera
+                    editarlo en su lugar o verifica si es una variante.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Subtitle */}

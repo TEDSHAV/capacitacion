@@ -174,6 +174,8 @@ export default function GestionCursosClient({
               onSubmit={creandoCurso ? handleCreateCourse : handleEditCourse}
               onCancel={cerrarModal}
               isEdit={!!editandoCurso}
+              existingCursos={cursosList}
+              editingId={editandoCurso}
             />
           </div>
         )}

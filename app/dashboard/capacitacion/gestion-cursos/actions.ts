@@ -11,6 +11,33 @@ function formatSupabaseError(error: any): string {
   return "Error desconocido de la base de datos";
 }
 
+// Helper: check for an existing Capacitacion course (tipo_servicio=1) with the
+// same uppercased trimmed name. Returns the existing row (any esta_activo) or
+// null. Used to block duplicate course creation.
+async function findDuplicateCurso(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  nombre: string,
+  excludeId?: string | number | null,
+): Promise<{ id: number; nombre: string; esta_activo: boolean } | null> {
+  const normalized = nombre.trim().toUpperCase();
+  if (!normalized) return null;
+
+  let query = supabase
+    .from("catalogo_servicios")
+    .select("id, nombre, esta_activo")
+    .eq("id_departamento_ejecutante", 3)
+    .eq("tipo_servicio", 1)
+    .ilike("nombre", normalized);
+
+  if (excludeId !== undefined && excludeId !== null) {
+    query = query.neq("id", excludeId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error || !data) return null;
+  return data as { id: number; nombre: string; esta_activo: boolean };
+}
+
 export async function createCurso(formData: FormData) {
   try {
     // Get form data with proper type checking
@@ -37,6 +64,16 @@ export async function createCurso(formData: FormData) {
 
     // Create the course in catalogo_servicios table
     const supabase = await createClient();
+
+    // Duplicate-name guard: block creation if another Capacitacion course
+    // (active or inactive) already has the same uppercased trimmed name.
+    const existing = await findDuplicateCurso(supabase, titulo);
+    if (existing) {
+      return {
+        error: `Ya existe un curso con el nombre "${existing.nombre}" (ID: ${existing.id}). Considera editarlo en su lugar o verifica si es una variante.`,
+        existingId: existing.id,
+      };
+    }
 
     console.log("Creating course:", {
       titulo,
@@ -130,6 +167,16 @@ export async function updateCurso(id: string, formData: FormData) {
 
     if (!contenido?.trim()) {
       return { error: "El contenido es requerido" };
+    }
+
+    // Duplicate-name guard: block rename if another Capacitacion course
+    // (active or inactive) already has the same uppercased trimmed name.
+    const existing = await findDuplicateCurso(supabase, titulo, id);
+    if (existing) {
+      return {
+        error: `Ya existe un curso con el nombre "${existing.nombre}" (ID: ${existing.id}). Considera editarlo en su lugar o verifica si es una variante.`,
+        existingId: existing.id,
+      };
     }
 
     // Update the course in catalogo_servicios table
