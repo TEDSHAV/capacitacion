@@ -12,8 +12,6 @@ import {
   StarHalf,
   FileText,
   History,
-  LayoutGrid,
-  Table as TableIcon,
   Share2,
 } from "lucide-react";
 import { toTitleCase } from "@/utils/string-utils";
@@ -356,30 +354,7 @@ export const FacilitadorCrud = ({
       {/* Header with Actions */}
       <div className="flex justify-between items-center flex-wrap gap-3">
         <h2 className="text-2xl font-bold text-gray-900">Gestión de Facilitadores</h2>
-        <div className="flex items-center gap-2">
-          {/* Layout toggle */}
-          <div className="flex items-center rounded-lg p-0.5 border border-gray-200 bg-white">
-            <button
-              onClick={() => setLayoutMode("pool")}
-              className={`p-1.5 rounded-md transition-colors ${
-                layoutMode === "pool" ? "bg-violet-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-              }`}
-              title="Vista de tarjetas / Pool"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setLayoutMode("table")}
-              className={`p-1.5 rounded-md transition-colors ${
-                layoutMode === "table" ? "bg-violet-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-              }`}
-              title="Vista de tabla clásica"
-            >
-              <TableIcon className="w-4 h-4" />
-            </button>
-          </div>
-          <Button onClick={handleCreate}>Nuevo Facilitador</Button>
-        </div>
+        <Button onClick={handleCreate}>Nuevo Facilitador</Button>
       </div>
 
       {/* POOL LAYOUT */}
