@@ -18,6 +18,7 @@ import {
   ExternalLink,
   ChevronRight,
   ShieldCheck,
+  Share2,
 } from "lucide-react";
 
 interface FacilitadorCardProps {
@@ -348,6 +349,16 @@ export function FacilitadorCard({
             title="Descargar Ficha Técnica PDF"
           >
             <FileText className="w-3.5 h-3.5" />
+          </a>
+
+          <a
+            href={`/api/generate-resumen-facilitador-pdf?id=${facilitador.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1.5 text-emerald-600 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-md transition-colors shadow-2xs"
+            title="Resumen PDF para compartir con Negocios"
+          >
+            <Share2 className="w-3.5 h-3.5" />
           </a>
         </div>
       </div>
