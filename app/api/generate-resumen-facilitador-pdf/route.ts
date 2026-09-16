@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(pdfBlob, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="resumen_facilitador_${sanitizeFilename(data.nombre_apellido)}.pdf"`,
+        "Content-Disposition": `inline; filename="resumen_facilitador_${sanitizeFilename(data.nombre_apellido)}.pdf"`,
         "Cache-Control": "no-store, max-age=0",
       },
     });

@@ -585,12 +585,14 @@ export async function generateResumenFacilitadorPdf(
       doc.setFontSize(8);
       if (row.avgRating > 0) {
         doc.setTextColor(AMBER_DARK[0], AMBER_DARK[1], AMBER_DARK[2]);
-        doc.text(
-          `★ ${row.avgRating.toFixed(1)}`,
-          colX[2] + colW[2] / 2,
-          rowY + rowH / 2 + 1,
-          { align: "center" },
-        );
+        const ratingText = row.avgRating.toFixed(1);
+        const textW = doc.getTextWidth(ratingText);
+        const starR = 1.3;
+        const starGap = 0.8;
+        const totalW = starR * 2 + starGap + textW;
+        const startX = colX[2] + colW[2] / 2 - totalW / 2;
+        drawStar(doc, startX + starR, rowY + rowH / 2, starR, starR * 0.4, AMBER);
+        doc.text(ratingText, startX + starR * 2 + starGap, rowY + rowH / 2 + 1);
       } else {
         doc.setTextColor(SLATE_400[0], SLATE_400[1], SLATE_400[2]);
         doc.text("—", colX[2] + colW[2] / 2, rowY + rowH / 2 + 1, {
@@ -627,18 +629,6 @@ export async function generateResumenFacilitadorPdf(
   doc.rect(tableX, tableTop, tableW, rowY - tableTop, "S");
 
   y = rowY + 6;
-
-  // --- Contact line ---
-  const contactParts: string[] = [];
-  if (data.email) contactParts.push(data.email);
-  if (data.telefono) contactParts.push(data.telefono);
-  if (contactParts.length > 0) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(SLATE_500[0], SLATE_500[1], SLATE_500[2]);
-    doc.text(`Contacto: ${contactParts.join("  ·  ")}`, MARGIN_X, y);
-    y += 5;
-  }
 
   // --- Footer ---
   const footerY = PAGE_H - 14;
