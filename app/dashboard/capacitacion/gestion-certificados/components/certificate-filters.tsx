@@ -311,10 +311,10 @@ function CertificateFiltersComponent({
         {hasActiveFilters && (
           <button
             onClick={handleClearFilters}
-            className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 px-2.5 py-1.5 rounded-md transition-all hover:bg-blue-200 hover:shadow-sm font-medium border border-blue-100"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-all shadow-2xs"
           >
-            <X className="h-3.5 w-3.5" />
-            Limpiar filtros
+            <X className="h-3.5 w-3.5 text-gray-400" />
+            Restablecer filtros
           </button>
         )}
       </div>

@@ -67,10 +67,10 @@ export default function OSIFilters({
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-all shadow-2xs"
             >
-              <X className="w-4 h-4" />
-              Limpiar todos
+              <X className="w-3.5 h-3.5 text-gray-400" />
+              Restablecer filtros
             </button>
           )}
         </div>

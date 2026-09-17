@@ -27,6 +27,7 @@ export interface FichaTecnicaData {
   emite_carnet: boolean | null;
   created_at: string | null;
   cursoId: number | null;
+  categoria?: string | null;
 }
 
 // Letter page dimensions (mm)

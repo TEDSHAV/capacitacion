@@ -81,8 +81,11 @@ export interface Curso {
   modalidad: string | null;
   objetivo_general: string | null;
   objetivo_especifico: string | null;
+  categoria?: string | null;
   empresas?: { razon_social: string; rif?: string | null } | null;
 }
+
+export type { CourseCategoryItem } from "@/lib/course-categories";
 
 export interface Servicio {
   id: number;

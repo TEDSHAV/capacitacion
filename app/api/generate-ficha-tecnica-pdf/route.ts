@@ -39,9 +39,7 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { data: course, error } = await supabase
       .from("catalogo_servicios")
-      .select(
-        "id, nombre, subtitulo, contenido_curso, carga_horaria_std, created_at, nota_aprobatoria, emite_carnet, para_quien, modalidad, objetivo_general, objetivo_especifico",
-      )
+      .select("*")
       .eq("id", cursoId)
       .single();
 
@@ -55,6 +53,7 @@ export async function GET(request: NextRequest) {
     const fichaData: FichaTecnicaData = {
       nombre: course.nombre,
       subtitulo: course.subtitulo,
+      categoria: ((course as Record<string, unknown>).categoria as string) || null,
       carga_horaria_std: course.carga_horaria_std,
       para_quien: course.para_quien,
       modalidad: course.modalidad,
@@ -105,6 +104,7 @@ export async function POST(request: NextRequest) {
     const fichaData: FichaTecnicaData = {
       nombre: body.nombre || body.titulo || "CURSO",
       subtitulo: body.subtitulo || null,
+      categoria: body.categoria || null,
       carga_horaria_std: body.carga_horaria_std ?? body.horas_estimadas ?? null,
       para_quien: body.para_quien || null,
       modalidad: body.modalidad || "Presencial",

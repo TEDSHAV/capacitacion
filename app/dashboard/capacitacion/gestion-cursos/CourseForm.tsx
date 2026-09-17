@@ -17,6 +17,12 @@ const RichTextEditor = dynamic(
   { ssr: false },
 );
 
+import {
+  CourseCategoryItem,
+  DEFAULT_COURSE_CATEGORIES,
+  getCategoryTheme,
+} from "@/lib/course-categories";
+
 interface ExistingCursoRef {
   id: number;
   nombre: string;
@@ -30,6 +36,7 @@ interface CourseFormProps {
   isEdit: boolean;
   existingCursos?: ExistingCursoRef[];
   editingId?: number | null;
+  categories?: CourseCategoryItem[];
 }
 
 export default function CourseForm({
@@ -39,10 +46,12 @@ export default function CourseForm({
   isEdit,
   existingCursos = [],
   editingId = null,
+  categories = DEFAULT_COURSE_CATEGORIES,
 }: CourseFormProps) {
   const [datosFormulario, setDatosFormulario] = useState({
     titulo: curso?.nombre || "",
     subtitulo: curso?.subtitulo || "",
+    categoria: curso?.categoria || "",
     contenido: curso?.contenido_curso || "",
     horas_estimadas: curso?.carga_horaria_std || 0,
     tipo_certificado:
@@ -182,6 +191,7 @@ export default function CourseForm({
       "objetivo_especifico",
       datosFormulario.objetivo_especifico,
     );
+    formData.append("categoria", datosFormulario.categoria);
 
     // Note: empresa_id is no longer stored in database as cliente_asociado column doesn't exist
     // if (datosFormulario.empresa_id) {
@@ -205,6 +215,7 @@ export default function CourseForm({
         body: JSON.stringify({
           nombre: datosFormulario.titulo,
           subtitulo: datosFormulario.subtitulo,
+          categoria: datosFormulario.categoria,
           horas_estimadas: datosFormulario.horas_estimadas,
           para_quien: datosFormulario.para_quien,
           modalidad: datosFormulario.modalidad,
@@ -342,6 +353,79 @@ export default function CourseForm({
               />
               <p className="text-xs text-gray-500 mt-1">
                 Subtítulo opcional que aparecerá en certificados y carnets
+              </p>
+            </div>
+
+            {/* Course Category Selector */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Categoría del Curso
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {/* Sin categoría option */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDatosFormulario((prev) => ({ ...prev, categoria: "" }))
+                  }
+                  className={`p-2.5 rounded-lg border text-left transition-all flex flex-col justify-between ${
+                    !datosFormulario.categoria
+                      ? "border-gray-900 bg-gray-50 ring-2 ring-gray-900 shadow-xs"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                >
+                  <span className="text-xs font-bold text-gray-700">
+                    Sin categoría
+                  </span>
+                  <span className="text-[10px] text-gray-400 mt-1">
+                    Por clasificar
+                  </span>
+                </button>
+
+                {/* Available categories */}
+                {categories
+                  .filter((c) => c.is_active !== false)
+                  .map((cat) => {
+                    const isSelected =
+                      datosFormulario.categoria?.toUpperCase() ===
+                      cat.codigo.toUpperCase();
+                    const theme = getCategoryTheme(cat.color);
+                    return (
+                      <button
+                        key={cat.codigo}
+                        type="button"
+                        onClick={() =>
+                          setDatosFormulario((prev) => ({
+                            ...prev,
+                            categoria: cat.codigo,
+                          }))
+                        }
+                        className={`p-2.5 rounded-lg border text-left transition-all flex flex-col justify-between ${
+                          isSelected
+                            ? `${theme.border} ${theme.bgLight} ring-2 ring-current shadow-xs`
+                            : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center space-x-1.5">
+                          <span
+                            className={`w-2 h-2 rounded-full ${theme.badgeDot}`}
+                          />
+                          <span className={`text-xs font-bold ${theme.text}`}>
+                            {cat.codigo}
+                          </span>
+                        </div>
+                        <span
+                          className="text-[10px] text-gray-600 line-clamp-1 mt-1 font-medium"
+                          title={cat.nombre}
+                        >
+                          {cat.nombre}
+                        </span>
+                      </button>
+                    );
+                  })}
+              </div>
+              <p className="text-xs text-gray-500 mt-1.5">
+                Define la clasificación y el filtro de este curso en el catálogo.
               </p>
             </div>
 

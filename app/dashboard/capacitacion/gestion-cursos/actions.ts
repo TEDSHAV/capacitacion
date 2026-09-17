@@ -52,6 +52,7 @@ export async function createCurso(formData: FormData) {
     const modalidad = formData.get("modalidad") as string;
     const objetivo_general = formData.get("objetivo_general") as string;
     const objetivo_especifico = formData.get("objetivo_especifico") as string;
+    const categoria = (formData.get("categoria") as string)?.trim().toUpperCase() || null;
 
     // Validate required fields
     if (!titulo?.trim()) {
@@ -86,32 +87,52 @@ export async function createCurso(formData: FormData) {
       modalidad,
       objetivo_general,
       objetivo_especifico,
+      categoria,
     });
 
-    const { data, error } = await supabase
+    const coursePayload: Record<string, unknown> = {
+      nombre: titulo.trim().toUpperCase(),
+      subtitulo: subtitulo?.trim() ? subtitulo.trim().toUpperCase() : null,
+      contenido_curso: contenido.trim(),
+      carga_horaria_std: horas_estimadas ? parseInt(horas_estimadas) : null,
+      created_at: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
+      esta_activo: true,
+      nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
+      emite_carnet: emite_carnet === "true", // Convert string to boolean
+      para_quien: para_quien?.trim() ? para_quien.trim() : null,
+      modalidad: modalidad || "Presencial",
+      objetivo_general: objetivo_general?.trim()
+        ? objetivo_general.trim()
+        : null,
+      objetivo_especifico: objetivo_especifico?.trim()
+        ? objetivo_especifico.trim()
+        : null,
+      id_departamento_ejecutante: 3, // Capacitacion department
+      tipo_servicio: 1,
+    };
+
+    if (categoria) {
+      coursePayload.categoria = categoria;
+    }
+
+    let { data, error } = await supabase
       .from("catalogo_servicios")
-      .insert({
-        nombre: titulo.trim().toUpperCase(),
-        subtitulo: subtitulo?.trim() ? subtitulo.trim().toUpperCase() : null,
-        contenido_curso: contenido.trim(),
-        carga_horaria_std: horas_estimadas ? parseInt(horas_estimadas) : null,
-        created_at: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
-        esta_activo: true,
-        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
-        emite_carnet: emite_carnet === "true", // Convert string to boolean
-        para_quien: para_quien?.trim() ? para_quien.trim() : null,
-        modalidad: modalidad || "Presencial",
-        objetivo_general: objetivo_general?.trim()
-          ? objetivo_general.trim()
-          : null,
-        objetivo_especifico: objetivo_especifico?.trim()
-          ? objetivo_especifico.trim()
-          : null,
-        id_departamento_ejecutante: 3, // Capacitacion department
-        tipo_servicio: 1,
-      })
+      .insert(coursePayload)
       .select("*")
       .single();
+
+    // Fallback if column 'categoria' does not exist yet in DB schema
+    if (error && error.code === "42703" && coursePayload.categoria) {
+      console.warn("Column 'categoria' not found in catalogo_servicios, retrying insert without it");
+      delete coursePayload.categoria;
+      const retry = await supabase
+        .from("catalogo_servicios")
+        .insert(coursePayload)
+        .select("*")
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error("Supabase error creating course:", error);
@@ -146,6 +167,7 @@ export async function updateCurso(id: string, formData: FormData) {
     const modalidad = formData.get("modalidad") as string;
     const objetivo_general = formData.get("objetivo_general") as string;
     const objetivo_especifico = formData.get("objetivo_especifico") as string;
+    const categoria = (formData.get("categoria") as string)?.trim().toUpperCase() || null;
 
     console.log(`Updating course ${id}:`, {
       titulo,
@@ -158,6 +180,7 @@ export async function updateCurso(id: string, formData: FormData) {
       modalidad,
       objetivo_general,
       objetivo_especifico,
+      categoria,
     });
 
     // Validate required fields
@@ -179,28 +202,44 @@ export async function updateCurso(id: string, formData: FormData) {
       };
     }
 
-    // Update the course in catalogo_servicios table
-    const { data, error } = await supabase
+    const updatePayload: Record<string, unknown> = {
+      nombre: titulo.trim().toUpperCase(),
+      subtitulo: subtitulo?.trim() ? subtitulo.trim().toUpperCase() : null,
+      contenido_curso: contenido.trim(),
+      carga_horaria_std: horas_estimadas ? parseInt(horas_estimadas) : null,
+      nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
+      emite_carnet: emite_carnet === "true", // Convert string to boolean
+      para_quien: para_quien?.trim() ? para_quien.trim() : null,
+      modalidad: modalidad || "Presencial",
+      objetivo_general: objetivo_general?.trim()
+        ? objetivo_general.trim()
+        : null,
+      objetivo_especifico: objetivo_especifico?.trim()
+        ? objetivo_especifico.trim()
+        : null,
+      categoria: categoria,
+    };
+
+    let { data, error } = await supabase
       .from("catalogo_servicios")
-      .update({
-        nombre: titulo.trim().toUpperCase(),
-        subtitulo: subtitulo?.trim() ? subtitulo.trim().toUpperCase() : null,
-        contenido_curso: contenido.trim(),
-        carga_horaria_std: horas_estimadas ? parseInt(horas_estimadas) : null,
-        nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
-        emite_carnet: emite_carnet === "true", // Convert string to boolean
-        para_quien: para_quien?.trim() ? para_quien.trim() : null,
-        modalidad: modalidad || "Presencial",
-        objetivo_general: objetivo_general?.trim()
-          ? objetivo_general.trim()
-          : null,
-        objetivo_especifico: objetivo_especifico?.trim()
-          ? objetivo_especifico.trim()
-          : null,
-      })
+      .update(updatePayload)
       .eq("id", id)
       .select("*")
       .single();
+
+    // Fallback if column 'categoria' does not exist yet in DB schema
+    if (error && error.code === "42703" && "categoria" in updatePayload) {
+      console.warn("Column 'categoria' not found in catalogo_servicios, retrying update without it");
+      delete updatePayload.categoria;
+      const retry = await supabase
+        .from("catalogo_servicios")
+        .update(updatePayload)
+        .eq("id", id)
+        .select("*")
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error("Supabase error updating course:", error);
@@ -238,27 +277,43 @@ export async function duplicateCurso(id: string) {
 
     console.log("Original course:", originalCourse);
 
-    // Create a duplicate in catalogo_servicios table
-    const { data, error } = await supabase
+    const duplicatePayload: Record<string, unknown> = {
+      nombre: `${originalCourse.nombre} (COPIA)`.toUpperCase(),
+      subtitulo: originalCourse.subtitulo || null,
+      contenido_curso: originalCourse.contenido_curso,
+      carga_horaria_std: originalCourse.carga_horaria_std,
+      created_at: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
+      esta_activo: true,
+      nota_aprobatoria: originalCourse.nota_aprobatoria || 14,
+      emite_carnet: originalCourse.emite_carnet || false,
+      para_quien: originalCourse.para_quien || null,
+      modalidad: originalCourse.modalidad || "Presencial",
+      objetivo_general: originalCourse.objetivo_general || null,
+      objetivo_especifico: originalCourse.objetivo_especifico || null,
+      id_departamento_ejecutante: 3, // Capacitacion department
+      tipo_servicio: 1,
+    };
+
+    if (originalCourse.categoria) {
+      duplicatePayload.categoria = originalCourse.categoria;
+    }
+
+    let { data, error } = await supabase
       .from("catalogo_servicios")
-      .insert({
-        nombre: `${originalCourse.nombre} (COPIA)`.toUpperCase(),
-        subtitulo: originalCourse.subtitulo || null,
-        contenido_curso: originalCourse.contenido_curso,
-        carga_horaria_std: originalCourse.carga_horaria_std,
-        created_at: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
-        esta_activo: true,
-        nota_aprobatoria: originalCourse.nota_aprobatoria || 14,
-        emite_carnet: originalCourse.emite_carnet || false,
-        para_quien: originalCourse.para_quien || null,
-        modalidad: originalCourse.modalidad || "Presencial",
-        objetivo_general: originalCourse.objetivo_general || null,
-        objetivo_especifico: originalCourse.objetivo_especifico || null,
-        id_departamento_ejecutante: 3, // Capacitacion department
-        tipo_servicio: 1,
-      })
+      .insert(duplicatePayload)
       .select("*")
       .single();
+
+    if (error && error.code === "42703" && duplicatePayload.categoria) {
+      delete duplicatePayload.categoria;
+      const retry = await supabase
+        .from("catalogo_servicios")
+        .insert(duplicatePayload)
+        .select("*")
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error("Error duplicating course:", error);

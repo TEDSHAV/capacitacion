@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import GestionCursosClient from "./GestionCursosClient";
 import { Empresa } from "@/types";
 import { getCursos } from "./actions";
+import { getCategoriasCursos } from "./category-actions";
 
 export default async function GestionCursosPage() {
   const supabase = await createClient();
@@ -13,6 +14,7 @@ export default async function GestionCursosPage() {
     },
     companiesResult,
     coursesResult,
+    categoriesResult,
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase
@@ -20,6 +22,7 @@ export default async function GestionCursosPage() {
       .select("id, razon_social, rif, direccion_fiscal, codigo_cliente")
       .order("razon_social"),
     getCursos(),
+    getCategoriasCursos(),
   ]);
 
   if (!user) {
@@ -43,6 +46,7 @@ export default async function GestionCursosPage() {
       user={user}
       empresas={companies || []}
       cursos={coursesResult.data || undefined}
+      initialCategories={categoriesResult.data}
     />
   );
 }

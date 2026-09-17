@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Curso, Empresa } from "@/types";
 import {
   createCurso,
@@ -12,24 +11,36 @@ import {
 import CourseForm from "./CourseForm";
 import CourseList from "./CourseList";
 import CreateCourseButton from "./CreateCourseButton";
+import CategoryManagementModal from "./CategoryManagementModal";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
+import {
+  CourseCategoryItem,
+  DEFAULT_COURSE_CATEGORIES,
+  resolveCourseCategory,
+} from "@/lib/course-categories";
+import { FolderOpen, AlertCircle } from "lucide-react";
 
 export default function GestionCursosClient({
   user,
   empresas = [],
   cursos = [],
+  initialCategories = DEFAULT_COURSE_CATEGORIES,
 }: {
-  user: any;
+  user: { id?: string; email?: string } | null;
   empresas: Empresa[];
   cursos: Curso[] | undefined;
+  initialCategories?: CourseCategoryItem[];
 }) {
-  const router = useRouter();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [creandoCurso, setCreandoCurso] = useState(false);
   const [editandoCurso, setEditandoCurso] = useState<number | null>(null);
+  const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cursosList, setCursosList] = useState<Curso[]>(cursos || []);
+  const [categoriesList, setCategoriesList] = useState<CourseCategoryItem[]>(
+    initialCategories || DEFAULT_COURSE_CATEGORIES,
+  );
   const hasInitialized = useRef(false);
 
   // Cache initial RSC data for offline use
@@ -42,6 +53,19 @@ export default function GestionCursosClient({
       }).catch(() => {});
     }
   }, [cursos, empresas]);
+
+  // Compute course count per category
+  const courseCountByCategory = useMemo(() => {
+    const counts: Record<string, number> = {};
+    cursosList.forEach((curso) => {
+      const cat = resolveCourseCategory(curso, categoriesList);
+      if (cat) {
+        const code = cat.codigo.toUpperCase();
+        counts[code] = (counts[code] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [cursosList, categoriesList]);
 
   if (!user) {
     return (
@@ -63,7 +87,7 @@ export default function GestionCursosClient({
     setError(null);
   };
 
-  const handleCreateCourse = async (formData: any) => {
+  const handleCreateCourse = async (formData: FormData) => {
     setError(null);
 
     try {
@@ -75,12 +99,12 @@ export default function GestionCursosClient({
         setCreandoCurso(false);
         setCursosList((prev) => [result.data, ...prev]); // Add new course to list
       }
-    } catch (err) {
+    } catch {
       setError("Error al crear el curso");
     }
   };
 
-  const handleEditCourse = async (formData: any) => {
+  const handleEditCourse = async (formData: FormData) => {
     if (!editandoCurso) return;
 
     setError(null);
@@ -98,7 +122,7 @@ export default function GestionCursosClient({
           ),
         ); // Update course in list
       }
-    } catch (err) {
+    } catch {
       setError("Error al actualizar el curso");
     }
   };
@@ -118,7 +142,7 @@ export default function GestionCursosClient({
               prev.filter((curso) => curso.id.toString() !== id),
             );
           }
-        } catch (err) {
+        } catch {
           setError("Error al eliminar el curso");
         }
       },
@@ -134,7 +158,7 @@ export default function GestionCursosClient({
       } else if (result.data) {
         if (result.data) setCursosList((prev) => [result.data!, ...prev]); // Add duplicated course to list
       }
-    } catch (err) {
+    } catch {
       setError("Error al duplicar el curso");
     }
   };
@@ -147,24 +171,51 @@ export default function GestionCursosClient({
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
       <div className="px-4 py-6 sm:px-0">
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between shadow-xs">
+            <div className="flex items-center space-x-2.5">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="text-xs font-semibold text-red-600 hover:text-red-800"
+            >
+              Descartar
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
                 Gestión de Cursos
               </h1>
-              <p className="mt-2 text-gray-600">
-                Crear y administrar contenidos de cursos
+              <p className="mt-1.5 text-sm text-gray-500">
+                Crear, categorizar y administrar contenidos de cursos y fichas técnicas
               </p>
             </div>
-            <CreateCourseButton onClick={() => setCreandoCurso(true)} />
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setGestionandoCategorias(true)}
+                className="inline-flex items-center space-x-2 px-3.5 py-2 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 rounded-lg text-sm font-semibold shadow-2xs transition-colors hover:border-gray-400"
+              >
+                <FolderOpen className="w-4 h-4 text-blue-600" />
+                <span>Gestionar Categorías</span>
+              </button>
+              <CreateCourseButton onClick={() => setCreandoCurso(true)} />
+            </div>
           </div>
         </div>
 
         {/* Create/Edit Course Modal */}
         {(creandoCurso || editandoCurso) && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
             <CourseForm
               curso={
                 editandoCurso !== null
@@ -176,9 +227,19 @@ export default function GestionCursosClient({
               isEdit={!!editandoCurso}
               existingCursos={cursosList}
               editingId={editandoCurso}
+              categories={categoriesList}
             />
           </div>
         )}
+
+        {/* Category Management Modal */}
+        <CategoryManagementModal
+          isOpen={gestionandoCategorias}
+          onClose={() => setGestionandoCategorias(false)}
+          categories={categoriesList}
+          onCategoriesChange={setCategoriesList}
+          courseCountByCategory={courseCountByCategory}
+        />
 
         {/* Courses List */}
         <CourseList
@@ -186,6 +247,7 @@ export default function GestionCursosClient({
           onEdit={abrirModalEdicion}
           onDelete={handleDeleteCourse}
           onDuplicate={handleDuplicateCourse}
+          categories={categoriesList}
         />
       </div>
       {confirmDialog}
