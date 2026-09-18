@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { RefreshCw } from "lucide-react";
 import type { OSIFilters, OSIManagement, OSIStatus } from "@/types";
 import { getOSIsForGestionOSI, getOSIFilterOptions, getManualOSIBatchesAction, getCertificadoImpresoBatch } from "@/app/actions/osi";
 import { CachedDataBanner } from "@/components/CachedDataBanner";
@@ -26,8 +27,11 @@ interface CacheEntry {
   timestamp: number;
 }
 const moduleCache = new Map<CacheKey, CacheEntry>();
-const FRESH_MS = 60_000;
 const MAX_CACHE = 20;
+
+export function clearGestionOsiCache(): void {
+  moduleCache.clear();
+}
 
 function cacheKey(filters: OSIFilters, page: number, itemsPerPage: number, tab: string): CacheKey {
   return JSON.stringify({ ...filters, page, itemsPerPage, tab });
@@ -74,6 +78,13 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
   // Track if filters have been loaded (for initial load detection)
   const filtersLoadedRef = useRef(false);
 
+  // Trigger manual or post-mutation refresh
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const refreshData = useCallback(() => {
+    moduleCache.clear();
+    setRefreshTrigger((prev) => prev + 1);
+  }, []);
+
   const getCached = useCallback((key: CacheKey): CacheEntry | null => {
     return moduleCache.get(key) || null;
   }, []);
@@ -105,34 +116,24 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     if (cached) {
       setOsis(cached.osis);
       setTotalCount(cached.totalCount);
-      if (Date.now() - cached.timestamp < FRESH_MS) {
-        setLoading(false);
-        setFetching(false);
-        if (!filtersLoadedRef.current) setLoadingFilters(false);
-      }
+      setLoading(false);
+      setFetching(true);
+      if (!filtersLoadedRef.current) setLoadingFilters(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, currentPage, itemsPerPage, activeTab]);
+  }, [filters, currentPage, itemsPerPage, activeTab, refreshTrigger]);
 
-  // --- Async fetch: runs after paint, only if data is stale or missing ---
+  // --- Async fetch: runs after paint, always revalidating with fresh server data ---
   useEffect(() => {
     let cancelled = false;
 
     const key = cacheKey(filters, currentPage, itemsPerPage, activeTab);
     const cached = getCached(key);
 
-    // If we have fresh cached data, skip the fetch entirely.
-    if (cached && Date.now() - cached.timestamp < FRESH_MS) {
-      return;
-    }
-
     const isInitialLoad = !filtersLoadedRef.current;
     const hasExistingData = osis.length > 0;
 
-    if (cached) {
-      setLoading(false);
-      setFetching(true);
-    } else if (hasExistingData || !isInitialLoad) {
+    if (cached || hasExistingData) {
       setLoading(false);
       setFetching(true);
     } else {
@@ -227,7 +228,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     loadAll();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, currentPage, itemsPerPage, activeTab]);
+  }, [filters, currentPage, itemsPerPage, activeTab, refreshTrigger]);
 
   // --- Prefetch next page in the background ---
   useEffect(() => {
@@ -324,11 +325,23 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
     <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8 bg-white">
       {fromCache && <div className="mb-4"><CachedDataBanner cachedAt={cachedAt} isOnline={isOnline} /></div>}
       <div className="mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Consulta de OSIs</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Visualiza y monitorea las Órdenes de Servicio Interna
-          </p>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Consulta de OSIs</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Visualiza y monitorea las Órdenes de Servicio Interna
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={refreshData}
+            disabled={fetching}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-60 transition-colors shadow-sm cursor-pointer"
+            title="Actualizar lista de OSIs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${fetching ? "animate-spin text-blue-600" : "text-gray-500"}`} />
+            <span className="hidden sm:inline">{fetching ? "Actualizando..." : "Actualizar"}</span>
+          </button>
         </div>
 
         {/* Tab Switcher */}
@@ -432,6 +445,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
           osiCompany={assignFacilitadorOSI.nombre_empresa}
           sessionCount={getSessionCount(assignFacilitadorOSI)}
           onClose={handleCloseAssignFacilitadorModal}
+          onSuccess={refreshData}
         />
       )}
     </div>

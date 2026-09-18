@@ -40,8 +40,15 @@ interface CacheEntry<T> {
   timestamp: number;
 }
 const moduleCache = new Map<string, CacheEntry<any>>();
-const FRESH_MS = 60_000; // 60 seconds
 const MAX_CACHE_ENTRIES = 50;
+
+export function clearSwrModuleCache(key?: string): void {
+  if (key) {
+    moduleCache.delete(key);
+  } else {
+    moduleCache.clear();
+  }
+}
 
 export interface UseSwrCachedDataResult<T> {
   data: T | null;
@@ -68,32 +75,23 @@ export function useSwrCachedData<T>(
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
 
-  // Sync-check module cache before first paint (useLayoutEffect would be ideal,
-  // but we use a ref + effect to avoid hydration mismatches)
+  // Sync-check module cache before first paint so cached data is shown instantly
   useEffect(() => {
     const cached = moduleCache.get(cacheKey);
     if (cached) {
       setData(cached.data);
       setCachedAt(cached.timestamp);
-      setFromCache(false); // module cache is always fresh
-      if (Date.now() - cached.timestamp < FRESH_MS) {
-        setLoading(false);
-        setFetching(false);
-        return; // Don't refetch if fresh
-      }
+      setFromCache(false);
+      setLoading(false);
     }
   }, [cacheKey]);
 
   const reload = useCallback(async () => {
     let cancelled = false;
 
-    // Check if we have fresh cached data
     const cached = moduleCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < FRESH_MS) {
-      return; // Already fresh, skip refetch
-    }
 
-    // If we have stale module cache, show it while fetching
+    // If we have cached data, keep showing it while revalidating in background
     if (cached) {
       setLoading(false);
       setFetching(true);

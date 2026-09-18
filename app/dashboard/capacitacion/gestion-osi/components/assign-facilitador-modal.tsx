@@ -60,6 +60,7 @@ interface AssignFacilitadorModalProps {
   /** Number of sessions for this OSI (used for per-session assignment). If <=1, hides the session selector. */
   sessionCount?: number;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 interface AssignmentRow {
@@ -80,6 +81,7 @@ export default function AssignFacilitadorModal({
   osiCompany,
   sessionCount = 1,
   onClose,
+  onSuccess,
 }: AssignFacilitadorModalProps) {
   const [loading, setLoading] = useState(true);
   const [currentAssignments, setCurrentAssignments] = useState<AssignmentRow[]>([]);
@@ -441,6 +443,7 @@ export default function AssignFacilitadorModal({
     setUserEditedTo(false);
     setAttachments([]);
     await loadData();
+    onSuccess?.();
     setTimeout(() => {
       setSuccess(null);
       setEmailResult(null);
@@ -456,6 +459,7 @@ export default function AssignFacilitadorModal({
       setError(result.error);
     } else {
       await loadData();
+      onSuccess?.();
     }
   };
 

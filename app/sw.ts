@@ -38,7 +38,7 @@ const serwist = new Serwist({
           url.pathname.startsWith("/verify-certificate/")),
       handler: new NetworkFirst({
         cacheName: "rsc-payloads",
-        networkTimeoutSeconds: 5,
+        networkTimeoutSeconds: 10,
         plugins: [
           {
             cacheWillUpdate: async ({ response }) => {
@@ -50,7 +50,7 @@ const serwist = new Serwist({
           },
           new ExpirationPlugin({
             maxEntries: 100,
-            maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+            maxAgeSeconds: 60 * 60 * 24, // 1 day
           }),
         ],
       }),
@@ -66,7 +66,7 @@ const serwist = new Serwist({
         request.mode === "navigate" && url.pathname === "/",
       handler: new NetworkFirst({
         cacheName: "root-pages",
-        networkTimeoutSeconds: 5,
+        networkTimeoutSeconds: 10,
         plugins: [
           {
             cacheWillUpdate: async ({ response }) => {
@@ -89,7 +89,7 @@ const serwist = new Serwist({
           url.pathname.startsWith("/portal/cliente")),
       handler: new NetworkFirst({
         cacheName: "portal-pages",
-        networkTimeoutSeconds: 5,
+        networkTimeoutSeconds: 10,
         plugins: [
           {
             cacheWillUpdate: async ({ response }) => {
@@ -110,7 +110,7 @@ const serwist = new Serwist({
         request.mode === "navigate" && url.pathname.startsWith("/dashboard"),
       handler: new NetworkFirst({
         cacheName: "dashboard-pages",
-        networkTimeoutSeconds: 5,
+        networkTimeoutSeconds: 10,
         plugins: [
           {
             cacheWillUpdate: async ({ response }) => {
@@ -132,7 +132,7 @@ const serwist = new Serwist({
           url.pathname.startsWith("/verify-certificate/")),
       handler: new NetworkFirst({
         cacheName: "public-pages",
-        networkTimeoutSeconds: 5,
+        networkTimeoutSeconds: 10,
         plugins: [
           {
             cacheWillUpdate: async ({ response }) => {
