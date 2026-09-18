@@ -1099,11 +1099,10 @@ export function EntrevistaFormClient({
             </div>
           </div>
 
-          {/* Temas del portafolio */}
+          {/* Temas a impartir */}
           <div className="p-4 bg-gray-50/70 rounded-xl border border-gray-200 space-y-3">
             <label className="block text-xs font-bold text-gray-800 uppercase">
-              Cuáles temas de los que forman parte del portafolio consideras
-              tener las capacidades para impartir:
+              Cuáles temas consideras tener las capacidades para impartir:
             </label>
 
             {/* Custom topic input */}
@@ -1118,7 +1117,7 @@ export function EntrevistaFormClient({
                     handleAddCustomTopic();
                   }
                 }}
-                placeholder="Escribe un tema o selecciona abajo del catálogo..."
+                placeholder="Escribe un tema o selecciona del catálogo..."
                 className="flex-1 text-sm px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
               <button

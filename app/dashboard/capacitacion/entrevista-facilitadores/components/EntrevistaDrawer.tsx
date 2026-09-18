@@ -510,7 +510,7 @@ export function EntrevistaDrawer({
 
                 <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-2">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase">
-                    Temas del portafolio que puede impartir
+                    Temas que considera tener las capacidades para impartir
                   </h4>
                   {Array.isArray(entrevista.temas_capacidades) && entrevista.temas_capacidades.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5 mt-2">
