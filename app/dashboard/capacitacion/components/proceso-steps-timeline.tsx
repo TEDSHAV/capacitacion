@@ -25,6 +25,7 @@ interface ProcesoStepsTimelineProps {
   onPreviewCalificacion?: (osiId: number) => void;
   onPreviewMaterialFotografico?: (osiId: number) => void;
   onPreviewEncuestas?: (osiId: number) => void;
+  onRequestUnmarkEnProceso?: (osiId: number) => void;
   compact?: boolean;
 }
 
@@ -39,6 +40,7 @@ export default function ProcesoStepsTimeline({
   onPreviewCalificacion,
   onPreviewMaterialFotografico,
   onPreviewEncuestas,
+  onRequestUnmarkEnProceso,
   compact = false,
 }: ProcesoStepsTimelineProps) {
   const router = useRouter();
@@ -73,6 +75,15 @@ export default function ProcesoStepsTimeline({
   ) => {
     if (!canEdit) return;
     if (isAuto && !isAutoUnmarkable) return;
+
+    // If unmarking en_proceso, intercept and request reason modal
+    if (stepKey === "en_proceso") {
+      const rec = completedSteps[stepKey];
+      if (rec?.completed && onRequestUnmarkEnProceso) {
+        onRequestUnmarkEnProceso(osiId);
+        return;
+      }
+    }
 
     // If step requires input and is not yet completed, show input prompt
     if (requiresInput) {

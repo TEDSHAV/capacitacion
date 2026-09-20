@@ -3,7 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { RefreshCw } from "lucide-react";
 import type { OSIFilters, OSIManagement, OSIStatus } from "@/types";
-import { getOSIsForGestionOSI, getOSIFilterOptions, getManualOSIBatchesAction, getCertificadoImpresoBatch } from "@/app/actions/osi";
+import { getOSIsForGestionOSI, getOSIFilterOptions, getManualOSIBatchesAction } from "@/app/actions/osi";
 import { CachedDataBanner } from "@/components/CachedDataBanner";
 import { useOnlineStatus } from "@/lib/offline/use-online-status";
 import { cachePortalData, getCachedPortalData } from "@/lib/offline/portal-data-cache";
@@ -15,8 +15,17 @@ import OSISurveyModal from "./components/osi-survey-modal";
 import AssignFacilitadorModal from "./components/assign-facilitador-modal";
 import { getSessionCount } from "@/lib/osi-utils";
 
+interface FilterOptions {
+  companies: { id_empresa: number; nombre_empresa: string }[];
+  ejecutivos: string[];
+  statuses: OSIStatus[];
+}
+
 interface GestionOSIClientProps {
   user: any;
+  initialOsis?: OSIManagement[];
+  initialTotalCount?: number;
+  initialFilterOptions?: FilterOptions;
 }
 
 // --- Module-level cache (survives navigation) ---
@@ -28,6 +37,7 @@ interface CacheEntry {
 }
 const moduleCache = new Map<CacheKey, CacheEntry>();
 const MAX_CACHE = 20;
+const STALE_TIME_MS = 30_000; // 30 seconds freshness window
 
 export function clearGestionOsiCache(): void {
   moduleCache.clear();
@@ -37,12 +47,17 @@ function cacheKey(filters: OSIFilters, page: number, itemsPerPage: number, tab: 
   return JSON.stringify({ ...filters, page, itemsPerPage, tab });
 }
 
-export default function GestionOSIClient({ user }: GestionOSIClientProps) {
+export default function GestionOSIClient({
+  user,
+  initialOsis,
+  initialTotalCount,
+  initialFilterOptions,
+}: GestionOSIClientProps) {
   const isOnline = useOnlineStatus();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialOsis);
   const [fetching, setFetching] = useState(false);
-  const [osis, setOsis] = useState<OSIManagement[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
+  const [osis, setOsis] = useState<OSIManagement[]>(initialOsis || []);
+  const [totalCount, setTotalCount] = useState(initialTotalCount || 0);
   const [filters, setFilters] = useState<OSIFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
@@ -55,10 +70,10 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
   // Filter options
   const [companies, setCompanies] = useState<
     { id_empresa: number; nombre_empresa: string }[]
-  >([]);
-  const [ejecutivos, setEjecutivos] = useState<string[]>([]);
-  const [statuses, setStatuses] = useState<OSIStatus[]>([]);
-  const [loadingFilters, setLoadingFilters] = useState(true);
+  >(initialFilterOptions?.companies || []);
+  const [ejecutivos, setEjecutivos] = useState<string[]>(initialFilterOptions?.ejecutivos || []);
+  const [statuses, setStatuses] = useState<OSIStatus[]>(initialFilterOptions?.statuses || []);
+  const [loadingFilters, setLoadingFilters] = useState(!initialFilterOptions);
 
   // Selected OSI for details modal
   const [selectedOSI, setSelectedOSI] = useState<OSIManagement | null>(null);
@@ -76,7 +91,34 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
   const [assignFacilitadorOSI, setAssignFacilitadorOSI] = useState<OSIManagement | null>(null);
 
   // Track if filters have been loaded (for initial load detection)
-  const filtersLoadedRef = useRef(false);
+  const filtersLoadedRef = useRef(Boolean(initialFilterOptions));
+  const isFirstRender = useRef(true);
+
+  // Seed moduleCache with initial SSR data if present
+  if (initialOsis && initialOsis.length > 0) {
+    const initialKey = cacheKey({}, 1, 20, "automatic");
+    if (!moduleCache.has(initialKey)) {
+      moduleCache.set(initialKey, {
+        osis: initialOsis,
+        totalCount: initialTotalCount ?? initialOsis.length,
+        timestamp: Date.now(),
+      });
+    }
+  }
+
+  // Cache initial RSC data to Dexie for offline use
+  useEffect(() => {
+    if (initialOsis && initialOsis.length > 0) {
+      const initialKey = cacheKey({}, 1, 20, "automatic");
+      cachePortalData(initialKey, "dash_osis", {
+        osis: initialOsis,
+        totalCount: initialTotalCount ?? initialOsis.length,
+      }).catch(() => {});
+    }
+    if (initialFilterOptions) {
+      cachePortalData("dash_osi_filters", "dash_osi_filters", initialFilterOptions).catch(() => {});
+    }
+  }, [initialOsis, initialTotalCount, initialFilterOptions]);
 
   // Trigger manual or post-mutation refresh
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -123,12 +165,30 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, currentPage, itemsPerPage, activeTab, refreshTrigger]);
 
-  // --- Async fetch: runs after paint, always revalidating with fresh server data ---
+  // --- Async fetch: runs after paint, revalidating with fresh server data ---
   useEffect(() => {
+    // If initial SSR data was provided, skip the very first client-side mount fetch
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      if (initialOsis && initialOsis.length > 0) {
+        return;
+      }
+    }
+
     let cancelled = false;
 
     const key = cacheKey(filters, currentPage, itemsPerPage, activeTab);
     const cached = getCached(key);
+
+    // If cache entry is fresh (< 30s old) and this is not a manual force-refresh, skip network call
+    const isFresh = cached && (Date.now() - cached.timestamp < STALE_TIME_MS);
+    if (isFresh && refreshTrigger === 0) {
+      setOsis(cached.osis);
+      setTotalCount(cached.totalCount);
+      setLoading(false);
+      setFetching(false);
+      return;
+    }
 
     const isInitialLoad = !filtersLoadedRef.current;
     const hasExistingData = osis.length > 0;
@@ -147,14 +207,14 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
       try {
         const promises: Promise<any>[] = [];
 
-        // Always load OSI data
+        // Always load OSI data (getOSIsForGestionOSI already includes certificado_impreso)
         promises.push(
           activeTab === "automatic"
             ? getOSIsForGestionOSI(filters, currentPage, itemsPerPage)
             : getManualOSIBatchesAction(filters, currentPage, itemsPerPage)
         );
 
-        // Only load filter options on initial mount (not on filter/page changes)
+        // Only load filter options on initial mount if not already loaded
         if (isInitialLoad) {
           promises.push(getOSIFilterOptions());
         }
@@ -164,19 +224,6 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
         if (cancelled) return;
 
         const dataResult = results[0];
-
-        // Fetch certificado_impreso flag for this page's OSIs (one lightweight
-        // query on the certificados table, ~20 integer values, 1 column). Only
-        // applies to the automatic tab — manual batches aren't real OSIs.
-        if (activeTab === "automatic" && dataResult.osis.length > 0) {
-          const certMap = await getCertificadoImpresoBatch(
-            dataResult.osis.map((o: OSIManagement) => ({ id_osi: o.id_osi, nro_osi: o.nro_osi })),
-          );
-          dataResult.osis = dataResult.osis.map((o: OSIManagement) => ({
-            ...o,
-            certificado_impreso: certMap.get(o.id_osi) ?? false,
-          }));
-        }
 
         setOsis(dataResult.osis);
         setTotalCount(dataResult.totalCount);
@@ -246,17 +293,7 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
           ? await getOSIsForGestionOSI(filters, nextPage, itemsPerPage)
           : await getManualOSIBatchesAction(filters, nextPage, itemsPerPage);
         if (cancelled) return;
-        // Merge certificado_impreso for prefetched automatic-tab OSIs
-        if (activeTab === "automatic" && result.osis.length > 0) {
-          const certMap = await getCertificadoImpresoBatch(
-            result.osis.map((o: OSIManagement) => ({ id_osi: o.id_osi, nro_osi: o.nro_osi })),
-          );
-          result.osis = result.osis.map((o: OSIManagement) => ({
-            ...o,
-            certificado_impreso: certMap.get(o.id_osi) ?? false,
-          }));
-        }
-        if (cancelled) return;
+        // getOSIsForGestionOSI already includes certificado_impreso
         setCached(nextKey, {
           osis: result.osis,
           totalCount: result.totalCount,
@@ -346,17 +383,17 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
 
         {/* Tab Switcher */}
         <div className="mt-4 sm:mt-6 flex justify-start">
-          <div className="inline-flex p-1 bg-gray-100 rounded-xl overflow-x-auto max-w-full">
+          <div className="inline-flex p-1 bg-gray-100/90 rounded-xl border border-gray-200/70 overflow-x-auto max-w-full gap-1 shadow-inner">
             <button
               onClick={() => {
                 setActiveTab("automatic");
                 setCurrentPage(1);
               }}
               className={`
-                whitespace-nowrap py-2 px-4 sm:px-6 rounded-lg font-medium text-sm transition-all duration-200
+                whitespace-nowrap py-2 px-4 sm:px-6 rounded-lg font-semibold text-sm transition-all duration-150
                 ${activeTab === "automatic"
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-200"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}
+                  ? "bg-white text-gray-900 shadow-xs border border-gray-200/80"
+                  : "text-gray-500 hover:text-gray-900 hover:bg-white/50"}
               `}
             >
               OSIs
@@ -367,10 +404,10 @@ export default function GestionOSIClient({ user }: GestionOSIClientProps) {
                 setCurrentPage(1);
               }}
               className={`
-                whitespace-nowrap mx-1 sm:mx-2 py-2 px-4 sm:px-6 rounded-lg font-medium text-sm transition-all duration-200
+                whitespace-nowrap py-2 px-4 sm:px-6 rounded-lg font-semibold text-sm transition-all duration-150
                 ${activeTab === "manual"
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-200"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"}
+                  ? "bg-white text-gray-900 shadow-xs border border-gray-200/80"
+                  : "text-gray-500 hover:text-gray-900 hover:bg-white/50"}
               `}
             >
               <span className="sm:hidden">Manuales</span>

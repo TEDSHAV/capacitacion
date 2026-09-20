@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/utils/supabase/server";
 import { syncOsiEjecutadoToShell } from "@/lib/sync/sync-osi-estatus";
+import { isPostServiceOrSubsequentStep } from "@/lib/proceso-steps";
 
 /**
  * POST /api/capacitacion/proceso-steps/toggle
@@ -61,6 +62,25 @@ export async function POST(request: NextRequest) {
     if (stepKey === "en_proceso") {
       await syncOsiEjecutadoToShell(osiId, nroSesion, desiredState).catch((err) =>
         console.error("[proceso-steps/toggle] syncOsiEjecutadoToShell failed:", err),
+      );
+    } else if (desiredState && isPostServiceOrSubsequentStep(stepKey)) {
+      // Guard clause: post-service step marked completed -> auto-mark en_proceso
+      await admin
+        .from("capacitacion_proceso_steps")
+        .upsert(
+          {
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: "ejecucion",
+            step_key: "en_proceso",
+            completed: true,
+            completed_at: new Date().toISOString(),
+            completed_by: null,
+          },
+          { onConflict: "osi_id,nro_sesion,phase,step_key" }
+        );
+      await syncOsiEjecutadoToShell(osiId, nroSesion, true).catch((err) =>
+        console.error("[proceso-steps/toggle] guard clause sync failed:", err)
       );
     }
 

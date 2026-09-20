@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
 import {
   Search,
   Loader2,
@@ -14,22 +14,27 @@ import {
   X,
   User,
   Clock,
+  CalendarClock,
+  AlertCircle,
 } from "lucide-react";
 import type { OSIManagement, OSISesion, OSIFilters, OSIStatus } from "@/types";
-import { getOSIsForManagement } from "@/app/actions/osi";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import {
   getAllProcesoStepsBatch,
   toggleUnifiedStep,
   ensureAllProcesoStepsExist,
   autoAdvanceEjecucionSteps,
+  getSeguimientoPageData,
   toggleAttachmentReceived,
+  unmarkEnProcesoStep,
+  restoreRescheduledToActivos,
   type ProcesoStepRecord,
 } from "@/app/actions/capacitacion-proceso-steps";
 import { ALL_STEPS, PLANIFICACION_STEPS, EJECUCION_STEPS } from "@/lib/proceso-steps";
 import ProcesoStepsTimeline from "../components/proceso-steps-timeline";
 import OSIPagination from "../gestion-osi/components/osi-pagination";
 import ListaAsistenciaPreview from "./components/lista-asistencia-preview";
+import UnmarkEnProcesoModal from "./components/UnmarkEnProcesoModal";
 import { formatDateOnly } from "@/lib/format-date";
 
 interface FilterOptions {
@@ -43,8 +48,44 @@ interface SeguimientoServiciosClientProps {
   initialTotalCount: number;
   initialStepsByOsi?: Record<string, Record<string, Record<string, ProcesoStepRecord>>>;
   initialSessionsByOsi?: Record<string, OSISesion[]>;
+  initialRescheduledOsiIds?: number[];
   filterOptions?: FilterOptions;
   statuses?: OSIStatus[];
+}
+
+// --- Module-level cache (survives client-side navigation) ---
+type CacheKey = string;
+interface CacheEntry {
+  osis: OSIManagement[];
+  totalCount: number;
+  stepsPlain: Record<string, Record<string, Record<string, ProcesoStepRecord>>>;
+  sessionsPlain: Record<string, OSISesion[]>;
+  timestamp: number;
+}
+const moduleCache = new Map<CacheKey, CacheEntry>();
+const MAX_CACHE = 25;
+const STALE_TIME_MS = 30_000; // 30 seconds freshness window
+
+export function clearSeguimientoCache(): void {
+  moduleCache.clear();
+}
+
+function cacheKey(
+  filters: OSIFilters,
+  searchQuery: string,
+  page: number,
+  itemsPerPage: number,
+  filterMode: string,
+  rescheduledCount: number,
+): CacheKey {
+  return JSON.stringify({
+    filters,
+    searchQuery: searchQuery.trim(),
+    page,
+    itemsPerPage,
+    filterMode,
+    rescheduledCount,
+  });
 }
 
 function plainToStepsMap(
@@ -89,9 +130,18 @@ export default function SeguimientoServiciosClient({
   initialTotalCount,
   initialStepsByOsi,
   initialSessionsByOsi,
+  initialRescheduledOsiIds = [],
   filterOptions,
   statuses = [],
 }: SeguimientoServiciosClientProps) {
+  const [filterMode, setFilterMode] = useState<"todos" | "activos" | "reagendados">("todos");
+  const [rescheduledOsiIds, setRescheduledOsiIds] = useState<number[]>(initialRescheduledOsiIds);
+  const [unmarkModal, setUnmarkModal] = useState<{
+    osiId: number;
+    nroOsi: string;
+    nroSesion: number;
+  } | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [osis, setOsis] = useState<OSIManagement[]>(initialOsis);
   const [totalCount, setTotalCount] = useState(initialTotalCount);
@@ -124,6 +174,37 @@ export default function SeguimientoServiciosClient({
 
   // Cache of all fetched OSIs for instant client-side search
   const cachedOsisRef = useRef<OSIManagement[]>(initialOsis);
+
+  // Manual or post-mutation refresh trigger
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Seed moduleCache with initial SSR data if present
+  if (initialOsis && initialOsis.length > 0) {
+    const initialKey = cacheKey({}, "", 1, 10, "todos", initialRescheduledOsiIds?.length || 0);
+    if (!moduleCache.has(initialKey)) {
+      moduleCache.set(initialKey, {
+        osis: initialOsis,
+        totalCount: initialTotalCount ?? initialOsis.length,
+        stepsPlain: initialStepsByOsi || {},
+        sessionsPlain: initialSessionsByOsi || {},
+        timestamp: Date.now(),
+      });
+    }
+  }
+
+  // --- Synchronous cache swap: runs before paint so cached pages appear instantly ---
+  useLayoutEffect(() => {
+    const key = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length);
+    const cached = moduleCache.get(key);
+    if (cached) {
+      setOsis(cached.osis);
+      setTotalCount(cached.totalCount);
+      setStepsByOsi(plainToStepsMap(cached.stepsPlain));
+      setSessionsByOsi(plainToSessionsMap(cached.sessionsPlain));
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, refreshTrigger]);
 
   // Cache initial RSC data for offline use
   useEffect(() => {
@@ -250,58 +331,147 @@ export default function SeguimientoServiciosClient({
   }, []);
 
   const fetchOSIs = useCallback(async () => {
-    setLoading(true);
+    const key = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length);
+    const cached = moduleCache.get(key);
+
+    // If cache entry is fresh (< 30s) and this is not a forced refresh, reuse without network call
+    const isFresh = cached && (Date.now() - cached.timestamp < STALE_TIME_MS);
+    if (isFresh && refreshTrigger === 0) {
+      setOsis(cached.osis);
+      setTotalCount(cached.totalCount);
+      setStepsByOsi(plainToStepsMap(cached.stepsPlain));
+      setSessionsByOsi(plainToSessionsMap(cached.sessionsPlain));
+      setLoading(false);
+      return;
+    }
+
+    if (!cached && osis.length === 0) {
+      setLoading(true);
+    }
+
     try {
-      // Search is now server-side; include the debounced search query in the filters
-      const result = await getOSIsForManagement(
-        { ...filters, search: searchQuery.trim() || undefined },
+      const filterPayload: OSIFilters = {
+        ...filters,
+        search: searchQuery.trim() || undefined,
+      };
+
+      if (filterMode === "reagendados") {
+        filterPayload.includeOsiIds = rescheduledOsiIds;
+      } else if (filterMode === "activos") {
+        if (rescheduledOsiIds.length > 0) {
+          filterPayload.excludeOsiIds = rescheduledOsiIds;
+        }
+      }
+
+      // Single server-side round-trip for OSIs + steps + sessions
+      const pageData = await getSeguimientoPageData(
+        filterPayload,
         currentPage,
         itemsPerPage,
       );
-      setOsis(result.osis);
-      setTotalCount(result.totalCount);
 
-      // Accumulate fetched OSIs into cache (dedup by id_osi)
+      setOsis(pageData.osis);
+      setTotalCount(pageData.totalCount);
+      setStepsByOsi(plainToStepsMap(pageData.stepsPlain));
+      setSessionsByOsi(plainToSessionsMap(pageData.sessionsPlain));
+
+      // Accumulate fetched OSIs into cache (dedup by id_osi) for service dropdown
       const existingIds = new Set(cachedOsisRef.current.map((o) => o.id_osi));
-      const newOnes = result.osis.filter((o) => !existingIds.has(o.id_osi));
+      const newOnes = pageData.osis.filter((o) => !existingIds.has(o.id_osi));
       if (newOnes.length > 0) {
         cachedOsisRef.current = [...cachedOsisRef.current, ...newOnes];
       }
 
-      if (result.osis.length > 0) {
-        // autoAdvanceEjecucionSteps now batches seeding into a single upsert and returns the
-        // steps + sessions maps it builds internally, so we no longer need separate
-        // getAllProcesoStepsBatch / per-OSI getOSISessions calls. This also fixes a latent
-        // race where steps were read before auto-advance's upserts landed.
-        const { stepsByOsi: stepsMap, sessionsByOsi: sessionsMap } = await autoAdvanceEjecucionSteps(
-          result.osis.map((o) => ({
-            id_osi: o.id_osi,
-            fecha_inicio_real: o.fecha_inicio_real ?? null,
-            desglose_recursos_sesiones: o.desglose_recursos_sesiones ?? null,
-            sesiones_programadas: o.sesiones_programadas ?? null,
-          })),
-        );
-
-        setStepsByOsi(stepsMap);
-        setSessionsByOsi(sessionsMap);
+      // Store in moduleCache
+      moduleCache.set(key, {
+        osis: pageData.osis,
+        totalCount: pageData.totalCount,
+        stepsPlain: pageData.stepsPlain,
+        sessionsPlain: pageData.sessionsPlain,
+        timestamp: Date.now(),
+      });
+      if (moduleCache.size > MAX_CACHE) {
+        const firstKey = moduleCache.keys().next().value;
+        if (firstKey) moduleCache.delete(firstKey);
       }
+
+      // Persist to Dexie for offline access
+      cachePortalData("dash_seguimiento", "dash_seguimiento", {
+        osis: pageData.osis,
+        totalCount: pageData.totalCount,
+        stepsByOsi: pageData.stepsPlain,
+        sessionsByOsi: pageData.sessionsPlain,
+        filterOptions,
+        statuses,
+      }).catch(() => {});
     } catch (err) {
       console.error("Error fetching OSIs for seguimiento:", err);
     } finally {
       setLoading(false);
     }
-  }, [filters, searchQuery, currentPage, itemsPerPage]);
+  }, [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds, refreshTrigger, filterOptions, statuses, osis.length]);
 
-  // Re-fetch when filters, search, or page changes (skip first render — server already loaded)
+  // Re-fetch when filters, search, page, or tab changes (skip first render — server already loaded)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-    // Reset to page 1 when search changes (avoids landing on an out-of-range page)
-    if (searchQuery) setCurrentPage(1);
     fetchOSIs();
-  }, [fetchOSIs, filters, searchQuery, currentPage]);
+  }, [fetchOSIs]);
+
+  // --- Prefetch next page in the background ---
+  useEffect(() => {
+    const totalPages = Math.ceil(totalCount / itemsPerPage);
+    if (currentPage >= totalPages) return;
+    const nextPage = currentPage + 1;
+    const nextKey = cacheKey(filters, searchQuery, nextPage, itemsPerPage, filterMode, rescheduledOsiIds.length);
+    if (moduleCache.has(nextKey)) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        const filterPayload: OSIFilters = {
+          ...filters,
+          search: searchQuery.trim() || undefined,
+        };
+        if (filterMode === "reagendados") {
+          filterPayload.includeOsiIds = rescheduledOsiIds;
+        } else if (filterMode === "activos") {
+          if (rescheduledOsiIds.length > 0) {
+            filterPayload.excludeOsiIds = rescheduledOsiIds;
+          }
+        }
+
+        const pageData = await getSeguimientoPageData(
+          filterPayload,
+          nextPage,
+          itemsPerPage,
+        );
+        if (cancelled) return;
+
+        moduleCache.set(nextKey, {
+          osis: pageData.osis,
+          totalCount: pageData.totalCount,
+          stepsPlain: pageData.stepsPlain,
+          sessionsPlain: pageData.sessionsPlain,
+          timestamp: Date.now(),
+        });
+        if (moduleCache.size > MAX_CACHE) {
+          const firstKey = moduleCache.keys().next().value;
+          if (firstKey) moduleCache.delete(firstKey);
+        }
+      } catch {
+        // Silently catch background prefetch errors
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [currentPage, totalCount, itemsPerPage, filters, searchQuery, filterMode, rescheduledOsiIds.length, rescheduledOsiIds]);
 
   const handleToggleStep = useCallback(
     async (osiId: number, nroSesion: number, stepKey: string, notes?: string) => {
@@ -312,7 +482,7 @@ export default function SeguimientoServiciosClient({
           const osiMap = newMap.get(osiId) || new Map();
           const sessionMap = osiMap.get(nroSesion) || {};
           const existing = sessionMap[stepKey];
-          osiMap.set(nroSesion, {
+          const updatedSessionMap: Record<string, ProcesoStepRecord> = {
             ...sessionMap,
             [stepKey]: {
               ...existing,
@@ -327,10 +497,78 @@ export default function SeguimientoServiciosClient({
               notes: result.completed ? (notes ?? existing?.notes ?? null) : null,
               step_metadata: result.completed && notes?.trim() ? { guia: notes.trim() } : existing?.step_metadata ?? null,
             },
-          });
+          };
+
+          // If marking this post-service step triggered guard clause to auto-complete en_proceso
+          if (result.autoCompletedEnProceso) {
+            const existingEnProceso = sessionMap["en_proceso"];
+            updatedSessionMap["en_proceso"] = {
+              ...existingEnProceso,
+              osi_id: osiId,
+              nro_sesion: nroSesion,
+              phase: "ejecucion",
+              step_key: "en_proceso",
+              id: existingEnProceso?.id ?? 0,
+              completed: true,
+              completed_at: new Date().toISOString(),
+              completed_by: existingEnProceso?.completed_by ?? null,
+              notes: existingEnProceso?.notes ?? null,
+              step_metadata: {
+                ...((existingEnProceso?.step_metadata as Record<string, unknown>) || {}),
+                auto_completed_by_guard: true,
+                unmarked_by_user: false,
+              },
+            };
+          }
+
+          osiMap.set(nroSesion, updatedSessionMap);
           newMap.set(osiId, osiMap);
           return newMap;
         });
+
+        // Update moduleCache for current key in place so returning to this page retains the toggle
+        const currentKey = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length);
+        const entry = moduleCache.get(currentKey);
+        if (entry) {
+          const osiKey = String(osiId);
+          const sesKey = String(nroSesion);
+          if (!entry.stepsPlain[osiKey]) entry.stepsPlain[osiKey] = {};
+          if (!entry.stepsPlain[osiKey][sesKey]) entry.stepsPlain[osiKey][sesKey] = {};
+          const existing = entry.stepsPlain[osiKey][sesKey][stepKey];
+          entry.stepsPlain[osiKey][sesKey][stepKey] = {
+            ...existing,
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: existing?.phase ?? "ejecucion",
+            step_key: stepKey,
+            id: existing?.id ?? 0,
+            completed: result.completed!,
+            completed_at: result.completed ? new Date().toISOString() : null,
+            completed_by: existing?.completed_by ?? null,
+            notes: result.completed ? (notes ?? existing?.notes ?? null) : null,
+            step_metadata: result.completed && notes?.trim() ? { guia: notes.trim() } : existing?.step_metadata ?? null,
+          };
+          if (result.autoCompletedEnProceso) {
+            const existingEnProceso = entry.stepsPlain[osiKey][sesKey]["en_proceso"];
+            entry.stepsPlain[osiKey][sesKey]["en_proceso"] = {
+              ...existingEnProceso,
+              osi_id: osiId,
+              nro_sesion: nroSesion,
+              phase: "ejecucion",
+              step_key: "en_proceso",
+              id: existingEnProceso?.id ?? 0,
+              completed: true,
+              completed_at: new Date().toISOString(),
+              completed_by: existingEnProceso?.completed_by ?? null,
+              notes: existingEnProceso?.notes ?? null,
+              step_metadata: {
+                ...((existingEnProceso?.step_metadata as Record<string, unknown>) || {}),
+                auto_completed_by_guard: true,
+                unmarked_by_user: false,
+              },
+            };
+          }
+        }
 
         // If toggling lista_asistencia, also toggle the per-OSI attachment_received flag
         if (stepKey === "lista_asistencia" && result.completed) {
@@ -338,7 +576,147 @@ export default function SeguimientoServiciosClient({
         }
       }
     },
-    [],
+    [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length],
+  );
+
+  const handleRequestUnmarkEnProceso = useCallback(
+    (osiId: number) => {
+      const osi = osis.find((o) => o.id_osi === osiId);
+      const currentSesion = selectedSession.get(osiId) ?? 1;
+      setUnmarkModal({
+        osiId,
+        nroOsi: osi?.nro_osi || `OSI-${osiId}`,
+        nroSesion: currentSesion,
+      });
+    },
+    [osis, selectedSession],
+  );
+
+  const handleConfirmUnmark = useCallback(
+    async (reason: string, isRescheduled: boolean, newDate?: string | null) => {
+      if (!unmarkModal) return;
+      const { osiId, nroSesion } = unmarkModal;
+      const res = await unmarkEnProcesoStep({
+        osiId,
+        nroSesion,
+        reason,
+        isRescheduled,
+        newDate,
+      });
+      if (!res.success) {
+        throw new Error(res.error || "Error al desmarcar el paso.");
+      }
+
+      // Update local state for steps
+      setStepsByOsi((prev) => {
+        const newMap = new Map(prev);
+        const osiMap = newMap.get(osiId) || new Map();
+        const sessionMap = osiMap.get(nroSesion) || {};
+        const existing = sessionMap["en_proceso"];
+        osiMap.set(nroSesion, {
+          ...sessionMap,
+          en_proceso: {
+            ...existing,
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: "ejecucion",
+            step_key: "en_proceso",
+            id: existing?.id ?? 0,
+            completed: false,
+            completed_at: null,
+            notes: reason,
+            step_metadata: {
+              ...((existing?.step_metadata as Record<string, unknown>) || {}),
+              unmark_reason: reason,
+              is_rescheduled: isRescheduled,
+              new_date: newDate || null,
+              date_confirmed: !!newDate,
+              unmarked_by_user: true,
+              unmarked_at: new Date().toISOString(),
+            },
+          },
+        });
+        newMap.set(osiId, osiMap);
+        return newMap;
+      });
+
+      // Update session date locally if newDate was provided
+      if (newDate) {
+        setSessionsByOsi((prev) => {
+          const newMap = new Map(prev);
+          const sessions = newMap.get(osiId) || [];
+          newMap.set(
+            osiId,
+            sessions.map((s) => (s.nro_sesion === nroSesion ? { ...s, fecha: newDate } : s)),
+          );
+          return newMap;
+        });
+      }
+
+      if (isRescheduled) {
+        setRescheduledOsiIds((prev) => (prev.includes(osiId) ? prev : [...prev, osiId]));
+        if (filterMode === "activos") {
+          setOsis((prev) => prev.filter((o) => o.id_osi !== osiId));
+          setTotalCount((prev) => Math.max(0, prev - 1));
+        }
+      }
+
+      // Clear cache so both tabs and active counts will re-fetch accurate server data
+      moduleCache.clear();
+    },
+    [unmarkModal, filterMode],
+  );
+
+  const handleRestoreToActivos = useCallback(
+    async (osiId: number, nroSesion: number) => {
+      const res = await restoreRescheduledToActivos(osiId, nroSesion);
+      if (!res.success) {
+        alert(res.error || "Error al restaurar a activos.");
+        return;
+      }
+
+      setStepsByOsi((prev) => {
+        const newMap = new Map(prev);
+        const osiMap = newMap.get(osiId) || new Map();
+        const sessionMap = osiMap.get(nroSesion) || {};
+        const existing = sessionMap["en_proceso"];
+        const existingMeta = (existing?.step_metadata as Record<string, unknown>) || {};
+        osiMap.set(nroSesion, {
+          ...sessionMap,
+          en_proceso: {
+            ...existing,
+            step_metadata: {
+              ...existingMeta,
+              is_rescheduled: false,
+            },
+          },
+        });
+        newMap.set(osiId, osiMap);
+
+        // Check if all sessions for this OSI are no longer rescheduled
+        let hasAnyRescheduled = false;
+        for (const sMap of osiMap.values()) {
+          const m = sMap["en_proceso"]?.step_metadata as Record<string, unknown> | undefined;
+          if (m?.is_rescheduled === true && !sMap["en_proceso"]?.completed) {
+            hasAnyRescheduled = true;
+            break;
+          }
+        }
+        if (!hasAnyRescheduled) {
+          setRescheduledOsiIds((rPrev) => rPrev.filter((id) => id !== osiId));
+          if (filterMode === "reagendados") {
+            setOsis((oPrev) => oPrev.filter((o) => o.id_osi !== osiId));
+            setTotalCount((tPrev) => Math.max(0, tPrev - 1));
+          }
+        }
+
+        return newMap;
+      });
+
+      // Clear cache so both tabs reflect the restoration immediately
+      moduleCache.clear();
+    },
+    [filterMode],
   );
 
   const handleBulkToggle = useCallback(
@@ -418,6 +796,30 @@ export default function SeguimientoServiciosClient({
 
   return (
     <div className="space-y-4">
+      {/* Sticky Warning Banner when there are rescheduled OSIs */}
+      {rescheduledOsiIds.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 px-4 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <p className="text-xs font-medium text-amber-900">
+              Hay <span className="font-bold">{rescheduledOsiIds.length}</span> servicio(s) re-agendado(s) pendientes de reprogramación.
+            </p>
+          </div>
+          {filterMode !== "reagendados" && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilterMode("reagendados");
+                setCurrentPage(1);
+              }}
+              className="text-xs font-semibold text-amber-800 hover:text-amber-950 underline flex items-center gap-1 flex-shrink-0"
+            >
+              Ver solo re-agendados &rarr;
+            </button>
+          )}
+        </div>
+      )}
+
       {/* OSI List */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {/* Header */}
@@ -444,6 +846,81 @@ export default function SeguimientoServiciosClient({
                 className="pl-8 pr-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Quick-Filter Segmented Tabs */}
+        <div className="px-4 py-2.5 border-b border-gray-200/80 bg-gray-50/40 flex items-center justify-between gap-4 flex-wrap">
+          <div className="inline-flex p-1 bg-gray-200/60 rounded-xl border border-gray-200/80 gap-1 shadow-inner">
+            <button
+              type="button"
+              onClick={() => {
+                if (filterMode !== "todos") {
+                  setFilterMode("todos");
+                  setCurrentPage(1);
+                }
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center gap-1.5 ${
+                filterMode === "todos"
+                  ? "bg-white text-gray-900 shadow-xs border border-gray-200/80"
+                  : "text-gray-500 hover:text-gray-900 hover:bg-white/40"
+              }`}
+            >
+              <span>Todos los servicios</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (filterMode !== "activos") {
+                  setFilterMode("activos");
+                  setCurrentPage(1);
+                }
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center gap-1.5 ${
+                filterMode === "activos"
+                  ? "bg-white text-emerald-800 shadow-xs border border-emerald-200/80"
+                  : "text-gray-500 hover:text-gray-900 hover:bg-white/40"
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  filterMode === "activos" ? "bg-emerald-500" : "bg-gray-400"
+                }`}
+              />
+              <span>Solo Activos</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (filterMode !== "reagendados") {
+                  setFilterMode("reagendados");
+                  setCurrentPage(1);
+                }
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center gap-1.5 ${
+                filterMode === "reagendados"
+                  ? "bg-white text-amber-900 shadow-xs border border-amber-200/80"
+                  : "text-gray-500 hover:text-gray-900 hover:bg-white/40"
+              }`}
+            >
+              <CalendarClock
+                className={`w-3.5 h-3.5 ${
+                  filterMode === "reagendados" ? "text-amber-600" : "text-gray-400"
+                }`}
+              />
+              <span>Solo Re-agendados</span>
+              {rescheduledOsiIds.length > 0 && (
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    filterMode === "reagendados"
+                      ? "bg-amber-100 text-amber-800 border border-amber-300/80"
+                      : "bg-gray-200/90 text-gray-700"
+                  }`}
+                >
+                  {rescheduledOsiIds.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -672,7 +1149,7 @@ export default function SeguimientoServiciosClient({
               </div>
             </div>
             <div className="divide-y divide-gray-100">
-            {filteredOsis.map((osi) => {
+              {filteredOsis.map((osi) => {
               const sessions = sessionsByOsi.get(osi.id_osi) || [];
               const hasMultipleSessions = sessions.length > 1;
               const isExpanded = expandedOsi === osi.id_osi;
@@ -680,6 +1157,15 @@ export default function SeguimientoServiciosClient({
               const currentNroSesion = selectedSession.get(osi.id_osi) ?? sessions[0]?.nro_sesion ?? 1;
               const sessionSteps: Record<string, ProcesoStepRecord> = osiStepsMap.get(currentNroSesion) || {};
               const completedCount = Object.values(sessionSteps).filter((s) => s.completed).length;
+
+              const isAnySessionRescheduled = Array.from(osiStepsMap.values()).some((sMap) => {
+                const meta = (sMap as Record<string, ProcesoStepRecord>)["en_proceso"]?.step_metadata as Record<string, unknown> | undefined;
+                return meta?.is_rescheduled === true && !(sMap as Record<string, ProcesoStepRecord>)["en_proceso"]?.completed;
+              });
+
+              const currentSessionMeta = (sessionSteps["en_proceso"]?.step_metadata as Record<string, unknown> | undefined) || {};
+              const isCurrentSessionRescheduled = currentSessionMeta.is_rescheduled === true && !sessionSteps["en_proceso"]?.completed;
+              const unmarkReason = (currentSessionMeta.unmark_reason as string) || (sessionSteps["en_proceso"]?.notes as string) || "";
 
               return (
                 <div key={osi.id_osi}>
@@ -699,9 +1185,17 @@ export default function SeguimientoServiciosClient({
                           <Building2 className="w-3 h-3 flex-shrink-0" />
                           <span className="truncate">{osi.nombre_empresa}</span>
                         </p>
-                        <p className="text-sm font-semibold text-gray-900 truncate">
-                          {osi.nro_osi}
-                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {osi.nro_osi}
+                          </p>
+                          {isAnySessionRescheduled && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                              <CalendarClock className="w-3 h-3 text-amber-600" />
+                              Re-agendado
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="hidden md:block min-w-0">
                         <p className="text-xs text-gray-500 truncate">{osi.servicio}</p>
@@ -739,32 +1233,94 @@ export default function SeguimientoServiciosClient({
                   {/* Expanded view */}
                   {isExpanded && (
                     <div className="px-4 pb-4 pt-2 bg-gray-50/30 border-t border-gray-100">
-                      {/* Session tabs (only for multi-session) */}
-                      {hasMultipleSessions && (
-                        <div className="flex items-center gap-2 mb-4 flex-wrap">
-                          {sessions.map((s) => (
-                            <button
-                              key={s.nro_sesion}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSessionSelect(osi.id_osi, s.nro_sesion ?? 1);
-                              }}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                                currentNroSesion === s.nro_sesion
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-                              }`}
-                            >
-                              <Layers className="w-3 h-3" />
-                              Sesión {s.nro_sesion}
-                              {s.fecha && (
-                                <span className="opacity-75 flex items-center gap-0.5">
-                                  <Calendar className="w-2.5 h-2.5" />
-                                  {formatDate(s.fecha)}
+                      {/* Rescheduled warning banner if current session is rescheduled */}
+                      {isCurrentSessionRescheduled && (
+                        <div className="mb-3 p-3 bg-amber-50/90 border border-amber-200 rounded-xl flex items-center justify-between gap-3 flex-wrap">
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            <CalendarClock className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                            <div className="text-xs min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                <span className="font-bold text-amber-900">
+                                  {hasMultipleSessions
+                                    ? `Sesión ${currentNroSesion} Re-agendada`
+                                    : "Servicio Re-agendado"}
+                                </span>
+                                {typeof currentSessionMeta.new_date === "string" && currentSessionMeta.new_date ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-900 font-semibold text-[11px]">
+                                    <Calendar className="w-3 h-3 text-amber-700" />
+                                    Nueva fecha: {formatDate(currentSessionMeta.new_date)}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] italic border border-amber-200">
+                                    Fecha por confirmar
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-amber-800 break-words mt-0.5">
+                                <span className="font-medium text-amber-900">Motivo: </span>
+                                {unmarkReason || "Pendiente de reprogramación"}
+                              </div>
+                              {typeof currentSessionMeta.unmarked_at === "string" && (
+                                <span className="block text-[10px] text-amber-700/80 mt-0.5">
+                                  Registrado el {formatDate(currentSessionMeta.unmarked_at)}
                                 </span>
                               )}
-                            </button>
-                          ))}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRestoreToActivos(osi.id_osi, currentNroSesion);
+                            }}
+                            className="text-xs font-semibold px-3 py-1 bg-white border border-amber-300 text-amber-800 hover:bg-amber-100 rounded-lg transition-colors shadow-sm flex-shrink-0"
+                          >
+                            Restaurar a Activos
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Session tabs (only for multi-session) */}
+                      {hasMultipleSessions && (
+                        <div className="mb-4">
+                          <div className="inline-flex p-1 bg-gray-100/90 rounded-xl border border-gray-200/70 gap-1 flex-wrap shadow-inner">
+                            {sessions.map((s) => {
+                              const sesSteps = osiStepsMap.get(s.nro_sesion) || {};
+                              const sesMeta = (sesSteps["en_proceso"]?.step_metadata as Record<string, unknown> | undefined) || {};
+                              const isSesRescheduled = sesMeta.is_rescheduled === true && !sesSteps["en_proceso"]?.completed;
+                              const isCurrent = currentNroSesion === s.nro_sesion;
+
+                              return (
+                                <button
+                                  key={s.nro_sesion}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSessionSelect(osi.id_osi, s.nro_sesion ?? 1);
+                                  }}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${
+                                    isCurrent
+                                      ? "bg-white text-gray-900 shadow-xs border border-gray-200/80 font-semibold"
+                                      : "text-gray-500 hover:text-gray-900 hover:bg-white/60"
+                                  }`}
+                                >
+                                  <Layers className={`w-3.5 h-3.5 ${isCurrent ? "text-indigo-600" : "text-gray-400"}`} />
+                                  <span>Sesión {s.nro_sesion}</span>
+                                  {isSesRescheduled && (
+                                    <span className="text-[9px] px-1.5 py-0.2 bg-amber-100 text-amber-800 border border-amber-200 rounded-md font-bold">
+                                      Re-agendada
+                                    </span>
+                                  )}
+                                  {s.fecha && (
+                                    <span className={`text-[11px] flex items-center gap-1 ${isCurrent ? "text-gray-600" : "text-gray-400"}`}>
+                                      <Calendar className="w-2.5 h-2.5 opacity-70" />
+                                      {formatDate(s.fecha)}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
 
@@ -783,6 +1339,9 @@ export default function SeguimientoServiciosClient({
                           }
                           onBulkToggle={(stepKeys) =>
                             handleBulkToggle(osi.id_osi, currentNroSesion, stepKeys)
+                          }
+                          onRequestUnmarkEnProceso={() =>
+                            handleRequestUnmarkEnProceso(osi.id_osi)
                           }
                           onPreviewListaAsistencia={(id) =>
                             setPreviewOsi({ osiId: id, nroOsi: osi.nro_osi || "", nroSesion: currentNroSesion })
@@ -840,6 +1399,18 @@ export default function SeguimientoServiciosClient({
               handleToggleStep(previewOsi.osiId, previewOsi.nroSesion, "lista_asistencia");
             }
           }}
+        />
+      )}
+
+      {/* Unmark En Proceso Modal */}
+      {unmarkModal && (
+        <UnmarkEnProcesoModal
+          isOpen={!!unmarkModal}
+          osiId={unmarkModal.osiId}
+          nroOsi={unmarkModal.nroOsi}
+          nroSesion={unmarkModal.nroSesion}
+          onClose={() => setUnmarkModal(null)}
+          onConfirm={handleConfirmUnmark}
         />
       )}
     </div>

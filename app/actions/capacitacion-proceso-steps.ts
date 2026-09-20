@@ -9,9 +9,30 @@ import {
   isAutoStepUnified,
   requiresStepInput,
   ALL_STEPS,
+  isPostServiceOrSubsequentStep,
 } from "@/lib/proceso-steps";
-import type { OSIAttachment, OSISesion } from "@/types";
-import { syncOsiEjecutadoToShell } from "@/lib/sync/sync-osi-estatus";
+import type { OSIAttachment, OSISesion, OSIManagement, OSIFilters } from "@/types";
+import { getOSIsForManagement } from "@/app/actions/osi";
+import {
+  syncOsiEjecutadoToShell,
+  recalcOsiEstatusFromSteps,
+  resolveOsiSesion,
+  getPreviousSessionStatus,
+  OSI_ESTATUS,
+} from "@/lib/sync/sync-osi-estatus";
+import { addOsiNota } from "@/app/actions/capacitacion-osi-notas";
+
+/**
+ * Returns current date in Venezuela timezone (America/Caracas, UTC-4) as YYYY-MM-DD.
+ */
+function getCaracasTodayStr(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Caracas",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -282,7 +303,7 @@ export async function toggleProcesoStep(
   stepKey: string,
   nroSesion: number = 1,
   notes?: string,
-): Promise<{ success: boolean; completed?: boolean; error?: string }> {
+): Promise<{ success: boolean; completed?: boolean; autoCompletedEnProceso?: boolean; error?: string }> {
   if (!Number.isFinite(osiId) || osiId <= 0) {
     return { success: false, error: "OSI inválido" };
   }
@@ -301,7 +322,7 @@ export async function toggleProcesoStep(
     // Fetch current state
     const { data: existing, error: fetchError } = await supabase
       .from("capacitacion_proceso_steps")
-      .select("id, completed")
+      .select("id, completed, step_metadata, notes")
       .eq("osi_id", osiId)
       .eq("phase", phase)
       .eq("nro_sesion", nroSesion)
@@ -322,12 +343,32 @@ export async function toggleProcesoStep(
       return { success: false, error: "Debe ingresar el número de guía" };
     }
 
-    // Clear notes when unmarking
-    const finalNotes = newCompleted ? (notes ?? null) : null;
-    // Store structured metadata for input-based steps (e.g. sobre_enviado_zoom → { guia: "..." })
-    const finalMetadata = newCompleted && notes?.trim()
-      ? { guia: notes.trim() }
-      : {};
+    const existingMeta = (existing?.step_metadata as Record<string, unknown> | null) || {};
+    let finalNotes: string | null = null;
+    const finalMetadata: Record<string, unknown> = { ...existingMeta };
+
+    if (newCompleted) {
+      finalNotes = notes ?? null;
+      if (notes?.trim()) {
+        finalMetadata.guia = notes.trim();
+      }
+      if (stepKey === "en_proceso") {
+        finalMetadata.unmarked_by_user = false;
+        finalMetadata.is_rescheduled = false;
+      }
+    } else {
+      // Unmarking
+      if (stepKey === "en_proceso") {
+        finalNotes = notes?.trim() || existing?.notes || "Desmarcado manual";
+        finalMetadata.unmarked_by_user = true;
+        finalMetadata.unmark_reason = finalNotes;
+        finalMetadata.unmarked_at = now;
+        finalMetadata.unmarked_by = userId;
+      } else {
+        finalNotes = null;
+        delete finalMetadata.guia;
+      }
+    }
 
     if (existing) {
       const { error: updateError } = await supabase
@@ -375,7 +416,50 @@ export async function toggleProcesoStep(
       );
     }
 
-    return { success: true, completed: newCompleted };
+    // Guard clause: if any post-service or subsequent execution step is marked completed,
+    // that is definitive proof the service took place. Auto-mark `en_proceso` as completed.
+    let autoCompletedEnProceso = false;
+    if (newCompleted && isPostServiceOrSubsequentStep(stepKey)) {
+      const { data: enProcesoRow } = await supabase
+        .from("capacitacion_proceso_steps")
+        .select("id, completed, step_metadata")
+        .eq("osi_id", osiId)
+        .eq("phase", "ejecucion")
+        .eq("nro_sesion", nroSesion)
+        .eq("step_key", "en_proceso")
+        .maybeSingle();
+
+      if (!enProcesoRow?.completed) {
+        const enProcesoMeta = (enProcesoRow?.step_metadata as Record<string, unknown> | null) || {};
+        await supabase
+          .from("capacitacion_proceso_steps")
+          .upsert(
+            {
+              osi_id: osiId,
+              nro_sesion: nroSesion,
+              phase: "ejecucion",
+              step_key: "en_proceso",
+              completed: true,
+              completed_at: now,
+              completed_by: userId,
+              step_metadata: {
+                ...enProcesoMeta,
+                unmarked_by_user: false,
+                is_rescheduled: false,
+                auto_completed_reason: `Guard clause triggered by ${stepKey}`,
+              },
+            },
+            { onConflict: "osi_id,nro_sesion,phase,step_key" },
+          );
+
+        await syncOsiEjecutadoToShell(osiId, nroSesion, true).catch((err) =>
+          console.error("[toggleProcesoStep] guard clause syncOsiEjecutadoToShell failed:", err),
+        );
+        autoCompletedEnProceso = true;
+      }
+    }
+
+    return { success: true, completed: newCompleted, autoCompletedEnProceso };
   } catch (err) {
     console.error("Unexpected error in toggleProcesoStep:", err);
     return { success: false, error: "Error inesperado" };
@@ -423,8 +507,7 @@ export async function autoAdvanceEjecucionSteps(
 
   try {
     const admin = await createAdminClient();
-    const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
+    const todayStr = getCaracasTodayStr();
 
     // Fetch osi_sesion rows as fallback for session dates
     const osiIds = osis.map((o) => o.id_osi);
@@ -531,7 +614,7 @@ export async function autoAdvanceEjecucionSteps(
         const nroSesion = session.nro_sesion;
         const sessionSteps = osiStepsMap.get(nroSesion) || new Map();
 
-        // Determine if this session's date is today or past (date-only comparison)
+        // Determine if this session's date is today or past (date-only comparison in Caracas timezone)
         let isTodayOrPast = false;
         if (session.fecha) {
           const sessionDateStr = session.fecha.split("T")[0];
@@ -542,13 +625,34 @@ export async function autoAdvanceEjecucionSteps(
           if (startDateStr <= todayStr) isTodayOrPast = true;
         }
 
-        // Auto-complete "en_proceso" (En proceso/Ejecutado) if date is today or past —
-        // but ONLY if no row exists yet (first time). If a row exists (even with
-        // completed=false, meaning the user manually unmarked it), don't re-auto-mark
-        // it. The user can manually re-mark it when the service resumes.
-        if (isTodayOrPast) {
-          const enProceso = sessionSteps.get("en_proceso");
-          if (!enProceso) {
+        // Guard clause: check if ANY post-service step is already completed
+        let anyPostServiceCompleted = false;
+        for (const [key, stepRec] of sessionSteps.entries()) {
+          if (key !== "en_proceso" && stepRec.completed && isPostServiceOrSubsequentStep(key)) {
+            anyPostServiceCompleted = true;
+            break;
+          }
+        }
+
+        const enProceso = sessionSteps.get("en_proceso");
+        const isAlreadyCompleted = !!enProceso?.completed;
+        const meta = (enProceso?.step_metadata as Record<string, unknown> | null) || {};
+        const isManuallyUnmarked = !!meta.unmarked_by_user;
+
+        // Auto-complete "en_proceso" (En proceso/Ejecutado) if:
+        // 1. Guard clause: a post-service step is completed (proof that service was executed).
+        // 2. Date is today or past, step is not completed, and was NOT manually unmarked by a user.
+        if (!isAlreadyCompleted) {
+          if (anyPostServiceCompleted) {
+            upserts.push({
+              osi_id: osi.id_osi,
+              nro_sesion: nroSesion,
+              phase: "ejecucion",
+              step_key: "en_proceso",
+              completed: true,
+              completed_at: enProceso?.completed_at || todayStr,
+            });
+          } else if (isTodayOrPast && !isManuallyUnmarked) {
             upserts.push({
               osi_id: osi.id_osi,
               nro_sesion: nroSesion,
@@ -646,6 +750,11 @@ export async function autoAdvanceEjecucionSteps(
         completed_at: u.completed_at,
         completed_by: prev?.completed_by ?? null,
         notes: prev?.notes ?? null,
+        step_metadata: {
+          ...((prev?.step_metadata as Record<string, unknown> | null) || {}),
+          unmarked_by_user: false,
+          is_rescheduled: false,
+        },
       });
     }
     // Also overlay seeded rows (id: 0 placeholders) so the return map includes them
@@ -737,6 +846,76 @@ export async function autoAdvanceEjecucionSteps(
     console.error("Unexpected error in autoAdvanceEjecucionSteps:", err);
     return emptyResult;
   }
+}
+
+// ─── Consolidated Page Data for Seguimiento ─────────────────────────────────
+
+export interface SeguimientoPageData {
+  osis: OSIManagement[];
+  totalCount: number;
+  stepsPlain: Record<string, Record<string, Record<string, ProcesoStepRecord>>>;
+  sessionsPlain: Record<string, OSISesion[]>;
+}
+
+function serializeAutoAdvanceResult(autoResult: AutoAdvanceResult): {
+  stepsPlain: Record<string, Record<string, Record<string, ProcesoStepRecord>>>;
+  sessionsPlain: Record<string, OSISesion[]>;
+} {
+  const stepsPlain: Record<string, Record<string, Record<string, ProcesoStepRecord>>> = {};
+  for (const [osiId, sessionMap] of autoResult.stepsByOsi.entries()) {
+    const sessionObj: Record<string, Record<string, ProcesoStepRecord>> = {};
+    for (const [nroSesion, steps] of sessionMap.entries()) {
+      sessionObj[String(nroSesion)] = steps;
+    }
+    stepsPlain[String(osiId)] = sessionObj;
+  }
+
+  const sessionsPlain: Record<string, OSISesion[]> = {};
+  for (const [osiId, sessions] of autoResult.sessionsByOsi.entries()) {
+    sessionsPlain[String(osiId)] = sessions;
+  }
+
+  return { stepsPlain, sessionsPlain };
+}
+
+/**
+ * Consolidated server action that fetches OSIs for management AND runs autoAdvanceEjecucionSteps
+ * in a single server-side operation, eliminating the client-side waterfall.
+ */
+export async function getSeguimientoPageData(
+  filters: OSIFilters = {},
+  page = 1,
+  limit = 10,
+): Promise<SeguimientoPageData> {
+  const result = await getOSIsForManagement(filters, page, limit);
+  const osis = (result.osis || []) as OSIManagement[];
+
+  if (osis.length === 0) {
+    return {
+      osis: [],
+      totalCount: result.totalCount || 0,
+      stepsPlain: {},
+      sessionsPlain: {},
+    };
+  }
+
+  const autoResult = await autoAdvanceEjecucionSteps(
+    osis.map((o) => ({
+      id_osi: o.id_osi,
+      fecha_inicio_real: o.fecha_inicio_real ?? null,
+      desglose_recursos_sesiones: o.desglose_recursos_sesiones ?? null,
+      sesiones_programadas: o.sesiones_programadas ?? null,
+    })),
+  );
+
+  const { stepsPlain, sessionsPlain } = serializeAutoAdvanceResult(autoResult);
+
+  return {
+    osis,
+    totalCount: result.totalCount,
+    stepsPlain,
+    sessionsPlain,
+  };
 }
 
 // ─── Lista Asistencia ────────────────────────────────────────────────────────
@@ -977,7 +1156,7 @@ export async function toggleUnifiedStep(
   stepKey: string,
   nroSesion: number = 1,
   notes?: string,
-): Promise<{ success: boolean; completed?: boolean; error?: string }> {
+): Promise<{ success: boolean; completed?: boolean; autoCompletedEnProceso?: boolean; error?: string }> {
   const phase = getPhaseForStep(stepKey);
   if (!phase) {
     return { success: false, error: "Paso no reconocido" };
@@ -986,6 +1165,225 @@ export async function toggleUnifiedStep(
     return { success: false, error: "Este paso es automático y no puede ser modificado manualmente" };
   }
   return toggleProcesoStep(osiId, phase, stepKey, nroSesion, notes);
+}
+
+/**
+ * Unmark "en_proceso" step with an obligatory reason/justification and optional rescheduled flag.
+ * Registers an audit note in capacitacion_osi_notas and syncs to shell as NO_EJECUTADA.
+ */
+export async function unmarkEnProcesoStep({
+  osiId,
+  nroSesion,
+  reason,
+  isRescheduled = false,
+  newDate = null,
+}: {
+  osiId: number;
+  nroSesion: number;
+  reason: string;
+  isRescheduled?: boolean;
+  newDate?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!Number.isFinite(osiId) || osiId <= 0) {
+    return { success: false, error: "OSI inválido" };
+  }
+  const trimmedReason = (reason || "").trim();
+  if (!trimmedReason) {
+    return { success: false, error: "Debe ingresar el motivo del desmarcado" };
+  }
+
+  const cleanNewDate = isRescheduled && newDate?.trim() ? newDate.trim() : null;
+
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id ?? null;
+    const now = new Date().toISOString();
+
+    // Ensure step rows exist
+    await ensureProcesoStepsExist(osiId, "ejecucion", nroSesion);
+
+    // If a new date was defined, update the planned date on osi_sesion
+    if (cleanNewDate) {
+      const admin = await createAdminClient();
+      await admin
+        .from("osi_sesion")
+        .update({ fecha: cleanNewDate })
+        .eq("id_osi", osiId)
+        .eq("nro_sesion", nroSesion);
+    }
+
+    // Get current record to preserve other metadata if present
+    const { data: existing } = await supabase
+      .from("capacitacion_proceso_steps")
+      .select("id, step_metadata")
+      .eq("osi_id", osiId)
+      .eq("phase", "ejecucion")
+      .eq("nro_sesion", nroSesion)
+      .eq("step_key", "en_proceso")
+      .maybeSingle();
+
+    const currentMeta = (existing?.step_metadata as Record<string, unknown> | null) || {};
+    const updatedMeta = {
+      ...currentMeta,
+      unmarked_by_user: true,
+      unmark_reason: trimmedReason,
+      unmarked_at: now,
+      unmarked_by: userId,
+      is_rescheduled: !!isRescheduled,
+      new_date: cleanNewDate,
+      date_confirmed: !!cleanNewDate,
+    };
+
+    const { error: updateError } = await supabase
+      .from("capacitacion_proceso_steps")
+      .upsert(
+        {
+          osi_id: osiId,
+          nro_sesion: nroSesion,
+          phase: "ejecucion",
+          step_key: "en_proceso",
+          completed: false,
+          completed_at: null,
+          completed_by: null,
+          notes: trimmedReason,
+          step_metadata: updatedMeta,
+        },
+        { onConflict: "osi_id,nro_sesion,phase,step_key" },
+      );
+
+    if (updateError) {
+      console.error("[unmarkEnProcesoStep] updateError:", updateError);
+      return { success: false, error: "Error al desmarcar el paso" };
+    }
+
+    // Sync to shell status as REAGENDADO (46) or NO_EJECUTADA (39)
+    await syncOsiEjecutadoToShell(osiId, nroSesion, false, cleanNewDate, isRescheduled).catch((err) =>
+      console.error("[unmarkEnProcesoStep] syncOsiEjecutadoToShell failed:", err),
+    );
+
+    // Add audit note to capacitacion_osi_notas
+    const noteText = isRescheduled
+      ? `[Desmarcado En proceso/Ejecutado - Sesión ${nroSesion}] Motivo: ${trimmedReason}. Re-agendado${
+          cleanNewDate ? ` para el: ${cleanNewDate}` : " (Fecha por confirmar)"
+        }`
+      : `[Desmarcado En proceso/Ejecutado - Sesión ${nroSesion}] Motivo: ${trimmedReason}`;
+    await addOsiNota(osiId, noteText).catch((err) =>
+      console.error("[unmarkEnProcesoStep] addOsiNota failed:", err),
+    );
+
+    return { success: true };
+  } catch (err) {
+    console.error("[unmarkEnProcesoStep] unexpected error:", err);
+    return { success: false, error: "Error inesperado al desmarcar el paso" };
+  }
+}
+
+/**
+ * Restore an OSI that was rescheduled back to Activos (clears is_rescheduled).
+ */
+export async function restoreRescheduledToActivos(
+  osiId: number,
+  nroSesion?: number,
+): Promise<{ success: boolean; error?: string }> {
+  if (!Number.isFinite(osiId) || osiId <= 0) {
+    return { success: false, error: "OSI inválido" };
+  }
+
+  try {
+    const supabase = await createClient();
+
+    let query = supabase
+      .from("capacitacion_proceso_steps")
+      .select("id, nro_sesion, step_metadata")
+      .eq("osi_id", osiId)
+      .eq("phase", "ejecucion")
+      .eq("step_key", "en_proceso");
+
+    if (nroSesion !== undefined) {
+      query = query.eq("nro_sesion", nroSesion);
+    }
+
+    const { data: rows, error } = await query;
+    if (error || !rows || rows.length === 0) {
+      return { success: false, error: "No se encontró el registro" };
+    }
+
+    for (const row of rows) {
+      const meta = (row.step_metadata as Record<string, unknown> | null) || {};
+      const updatedMeta = {
+        ...meta,
+        is_rescheduled: false,
+        unmarked_by_user: false,
+        restored_at: new Date().toISOString(),
+      };
+      await supabase
+        .from("capacitacion_proceso_steps")
+        .update({ step_metadata: updatedMeta })
+        .eq("id", row.id);
+    }
+
+    // Sync session and OSI-level status in shell back to PENDIENTE (10)
+    const admin = await createAdminClient();
+    for (const row of rows) {
+      const session = await resolveOsiSesion(admin, osiId, row.nro_sesion);
+      if (session) {
+        const prevStatusId = await getPreviousSessionStatus(admin, session.id);
+        await admin.from("historial_cambios_estado").insert({
+          tabla_afectada: "osi_sesion",
+          id_registro: session.id,
+          id_estatus_anterior: prevStatusId,
+          id_estatus_nuevo: OSI_ESTATUS.PENDIENTE,
+          fecha_cambio: new Date().toISOString(),
+          id_usuario_cambio: null,
+        });
+      }
+    }
+    await recalcOsiEstatusFromSteps(admin, osiId).catch((err) =>
+      console.error("[restoreRescheduledToActivos] recalcOsiEstatusFromSteps failed:", err),
+    );
+
+    // Add note to capacitacion_osi_notas
+    const noteText = nroSesion
+      ? `[Servicio reactivado - Sesión ${nroSesion}] La OSI ha sido retornada a la pestaña de Activos.`
+      : `[Servicio reactivado] La OSI ha sido retornada a la pestaña de Activos.`;
+    await addOsiNota(osiId, noteText).catch((err) =>
+      console.error("[restoreRescheduledToActivos] addOsiNota failed:", err),
+    );
+
+    return { success: true };
+  } catch (err) {
+    console.error("[restoreRescheduledToActivos] unexpected error:", err);
+    return { success: false, error: "Error inesperado" };
+  }
+}
+
+/**
+ * Fetch list of distinct osi_ids that have any session marked as rescheduled and not yet completed.
+ */
+export async function getRescheduledOsiIds(): Promise<number[]> {
+  try {
+    const admin = await createAdminClient();
+    const { data, error } = await admin
+      .from("capacitacion_proceso_steps")
+      .select("osi_id, step_metadata")
+      .eq("step_key", "en_proceso")
+      .eq("completed", false);
+
+    if (error || !data) return [];
+
+    const ids = new Set<number>();
+    for (const row of data) {
+      const meta = row.step_metadata as Record<string, unknown> | null;
+      if (meta?.is_rescheduled === true || meta?.is_rescheduled === "true") {
+        ids.add(row.osi_id);
+      }
+    }
+    return Array.from(ids);
+  } catch (err) {
+    console.error("Error fetching rescheduled OSI ids:", err);
+    return [];
+  }
 }
 
 // ─── Auto-mark from requisicion externa creation ─────────────────────────────

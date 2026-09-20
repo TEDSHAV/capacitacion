@@ -21,6 +21,7 @@ export const OSI_ESTATUS = {
   EN_PROCESO: 11,
   EJECUTADO: 12,
   NO_EJECUTADA: 39,
+  REAGENDADO: 46,
 } as const;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -46,7 +47,7 @@ function is_missing_column_error(error: {
  * (mirrors the shell's ensure_osi_sesiones_from_programadas behavior).
  * Returns { id, fecha, hora_inicio } or null if the session can't be resolved.
  */
-async function resolveOsiSesion(
+export async function resolveOsiSesion(
   admin: Awaited<ReturnType<typeof createAdminClient>>,
   osiId: number,
   nroSesion: number,
@@ -103,30 +104,16 @@ async function resolveOsiSesion(
         nro_sesion: nroSesion,
         fecha,
         hora_inicio: horaInicio,
-        hora_fin:
-          typeof source.hora_fin === "string" ? source.hora_fin : null,
+        created_at: new Date().toISOString(),
       },
-      { onConflict: "id_osi,nro_sesion", ignoreDuplicates: true },
+      { onConflict: "id_osi,nro_sesion" },
     )
     .select("id, fecha, hora_inicio")
-    .eq("id_osi", osiId)
-    .eq("nro_sesion", nroSesion)
     .maybeSingle();
 
   if (insertError || !inserted) {
-    // Fall back to a re-read in case ignoreDuplicates skipped the insert
-    const { data: refetched } = await admin
-      .from("osi_sesion")
-      .select("id, fecha, hora_inicio")
-      .eq("id_osi", osiId)
-      .eq("nro_sesion", nroSesion)
-      .maybeSingle();
-    if (!refetched) return null;
-    return {
-      id: refetched.id as number,
-      fecha: refetched.fecha as string | null,
-      hora_inicio: refetched.hora_inicio as string | null,
-    };
+    console.error("[sync-osi-estatus] Error materializing osi_sesion:", insertError);
+    return null;
   }
 
   return {
@@ -137,9 +124,9 @@ async function resolveOsiSesion(
 }
 
 /**
- * Look up the previous status id for a session from historial_cambios_estado.
+ * Get the most recent status ID for an osi_sesion row.
  */
-async function getPreviousSessionStatus(
+export async function getPreviousSessionStatus(
   admin: Awaited<ReturnType<typeof createAdminClient>>,
   sessionId: number,
 ): Promise<number | null> {
@@ -158,9 +145,12 @@ async function getPreviousSessionStatus(
  * Recalculate and update the OSI-level id_estatus based on how many sessions
  * have the `en_proceso` step (En proceso/Ejecutado) completed in capacitacion_proceso_steps.
  *
- *   ALL sessions en_proceso  → 12 (EJECUTADO)
- *   SOME sessions en_proceso → 11 (EN_PROCESO)
- *   NONE sessions en_proceso → 39 (NO_EJECUTADA)
+ *   ALL sessions en_proceso          → 12 (EJECUTADO)
+ *   SOME sessions en_proceso         → 11 (EN_PROCESO)
+ *   NONE sessions en_proceso:
+ *     - ANY session rescheduled      → 46 (REAGENDADO)
+ *     - ANY session unmarked by user → 39 (NO_EJECUTADA)
+ *     - Otherwise                    → 10 (PENDIENTE)
  *
  * Skipped (no-op) when there are no seeded `en_proceso` step rows for the OSI,
  * to avoid clobbering shell-managed pre-execution statuses for legacy OSIs.
@@ -173,7 +163,7 @@ export async function recalcOsiEstatusFromSteps(
     // Count distinct sessions with an `en_proceso` step row, and how many are completed
     const { data: rows, error } = await admin
       .from("capacitacion_proceso_steps")
-      .select("nro_sesion, completed")
+      .select("nro_sesion, completed, step_metadata")
       .eq("osi_id", osiId)
       .eq("step_key", "en_proceso");
 
@@ -193,12 +183,27 @@ export async function recalcOsiEstatusFromSteps(
     ).size;
 
     let newStatusId: number;
-    if (executedSessions === 0) {
-      newStatusId = OSI_ESTATUS.NO_EJECUTADA;
-    } else if (executedSessions === totalSessions) {
+    if (executedSessions === totalSessions) {
       newStatusId = OSI_ESTATUS.EJECUTADO;
-    } else {
+    } else if (executedSessions > 0) {
       newStatusId = OSI_ESTATUS.EN_PROCESO;
+    } else {
+      const anyRescheduled = rows.some((r) => {
+        const meta = r.step_metadata as Record<string, unknown> | null;
+        return meta?.is_rescheduled === true || meta?.is_rescheduled === "true";
+      });
+      const anyUnmarked = rows.some((r) => {
+        const meta = r.step_metadata as Record<string, unknown> | null;
+        return meta?.unmarked_by_user === true && !meta?.is_rescheduled;
+      });
+
+      if (anyRescheduled) {
+        newStatusId = OSI_ESTATUS.REAGENDADO;
+      } else if (anyUnmarked) {
+        newStatusId = OSI_ESTATUS.NO_EJECUTADA;
+      } else {
+        newStatusId = OSI_ESTATUS.PENDIENTE;
+      }
     }
 
     const now = new Date().toISOString();
@@ -225,12 +230,14 @@ export async function recalcOsiEstatusFromSteps(
  * @param completed     true = step was marked, false = step was unmarked
  * @param sessionDate   the session's planned date (ISO string or YYYY-MM-DD),
  *                      used as fecha_ejecutada when marking. Falls back to today.
+ * @param isRescheduled whether unmarking was due to rescheduling (sets status to REAGENDADO instead of NO_EJECUTADA)
  */
 export async function syncOsiEjecutadoToShell(
   osiId: number,
   nroSesion: number,
   completed: boolean,
   sessionDate?: string | null,
+  isRescheduled?: boolean,
 ): Promise<void> {
   if (!Number.isFinite(osiId) || osiId <= 0) return;
 
@@ -265,7 +272,14 @@ export async function syncOsiEjecutadoToShell(
 
       // 3. Insert status history row
       const prevStatusId = await getPreviousSessionStatus(admin, session.id);
-      const newStatusId = completed ? OSI_ESTATUS.EJECUTADO : OSI_ESTATUS.NO_EJECUTADA;
+      let newStatusId: number;
+      if (completed) {
+        newStatusId = OSI_ESTATUS.EJECUTADO;
+      } else if (isRescheduled) {
+        newStatusId = OSI_ESTATUS.REAGENDADO;
+      } else {
+        newStatusId = OSI_ESTATUS.NO_EJECUTADA;
+      }
 
       const { error: historyError } = await admin
         .from("historial_cambios_estado")

@@ -9,6 +9,7 @@ import { OSIAttachment } from "@/types";
 import { signSession, verifySession } from "@/lib/session-signing";
 import { getSessionCount } from "@/lib/osi-utils";
 import { notifyCapacitacionUsersOfUpload } from "./facilitador-notifications";
+import { syncOsiEjecutadoToShell } from "@/lib/sync/sync-osi-estatus";
 import {
   getClientIp,
   checkLoginRateLimit,
@@ -673,6 +674,25 @@ export async function uploadOSIAttachment(
           console.error("[uploadOSIAttachment] Step upsert error:", stepError);
         } else {
           console.log("[uploadOSIAttachment] ✅ Auto-marked step:", { stepKey, sessionForStep, osiId });
+
+          // Guard clause: uploaded attachment proves execution took place. Ensure en_proceso is completed.
+          await supabase
+            .from("capacitacion_proceso_steps")
+            .upsert(
+              {
+                osi_id: osiId,
+                nro_sesion: sessionForStep,
+                phase: "ejecucion",
+                step_key: "en_proceso",
+                completed: true,
+                completed_at: new Date().toISOString(),
+                completed_by: null,
+              },
+              { onConflict: "osi_id,nro_sesion,phase,step_key" },
+            );
+          await syncOsiEjecutadoToShell(osiId, sessionForStep, true).catch((err) =>
+            console.error("[uploadOSIAttachment] syncOsiEjecutadoToShell error:", err),
+          );
         }
       } catch (stepErr) {
         // Non-fatal: the upload succeeded, step marking is a bonus

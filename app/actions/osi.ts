@@ -336,6 +336,20 @@ export async function getOSIsForManagement(
       query = query.like("fecha_emision", `${filters.monthIssued}%`);
     }
 
+    if (filters.includeOsiIds !== undefined) {
+      if (filters.includeOsiIds.length === 0) {
+        return {
+          osis: [],
+          totalCount: 0,
+        };
+      }
+      query = query.in("id_osi", filters.includeOsiIds);
+    }
+
+    if (filters.excludeOsiIds && filters.excludeOsiIds.length > 0) {
+      query = query.not("id_osi", "in", `(${filters.excludeOsiIds.join(",")})`);
+    }
+
     // Apply pagination
     const offset = (page - 1) * limit;
     query = query.range(offset, offset + limit - 1);
@@ -546,10 +560,21 @@ export async function getOSIsForGestionOSI(
       codigo_cliente: osi.codigo_cliente || 0,
       id_estatus: osi.id_estatus || 0,
       participantes_ejecucion: osi.participantes_ejecucion,
+      certificado_impreso: false,
       // Fields not in v_osi_lista — defaults
       desglose_recursos_sesiones: null,
       sesiones_programadas: null,
     }) as OSIManagement);
+
+    // Enrich with certificado_impreso directly on the server to avoid a client-side roundtrip
+    if (enrichedOSIs.length > 0) {
+      const certMap = await getCertificadoImpresoBatch(
+        enrichedOSIs.map((o: any) => ({ id_osi: o.id_osi, nro_osi: o.nro_osi })),
+      );
+      for (const o of enrichedOSIs) {
+        o.certificado_impreso = certMap.get(o.id_osi) ?? false;
+      }
+    }
 
     return {
       osis: enrichedOSIs,

@@ -140,3 +140,20 @@ export function requiresStepInput(stepKey: string): boolean {
 export function getStepByKey(stepKey: string): StepDef | undefined {
   return ALL_STEPS.find((s) => s.key === stepKey);
 }
+
+// Check if a step belongs to post-service or subsequent execution steps
+// (any completed post-service step is proof that the service was executed)
+export function isPostServiceOrSubsequentStep(stepKey: string): boolean {
+  const postServiceKeys = [
+    "lista_asistencia",
+    "calificacion",
+    "material_fotografico",
+    "encuestas_satisfaccion_tabulacion",
+    "elaboracion_certificados",
+    "material_recibido_fisico",
+    "certificados_impresos",
+    "sobre_espera_autorizacion",
+    "sobre_enviado_zoom",
+  ];
+  return postServiceKeys.includes(stepKey);
+}

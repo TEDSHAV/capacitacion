@@ -1039,6 +1039,8 @@ export interface OSIFilters {
   numHoursMax?: number;
   location?: string;
   ejecutivo?: string;
+  includeOsiIds?: number[];
+  excludeOsiIds?: number[];
 }
 
 export type SurveyMode = "unique" | "per_session";

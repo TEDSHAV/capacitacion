@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { CourseSatisfactionSurvey } from "@/types";
+import { syncOsiEjecutadoToShell } from "@/lib/sync/sync-osi-estatus";
 
 /**
  * Core survey submission logic, shared by both the server action and the API route.
@@ -53,6 +54,24 @@ export async function submitSurveyCore(survey: CourseSatisfactionSurvey) {
           },
           { onConflict: "osi_id,nro_sesion,phase,step_key" },
         );
+
+      // Guard clause: survey submission proves service execution
+      await admin
+        .from("capacitacion_proceso_steps")
+        .upsert(
+          {
+            osi_id: survey.id_osi,
+            nro_sesion: sessionNum,
+            phase: "ejecucion",
+            step_key: "en_proceso",
+            completed: true,
+            completed_at: new Date().toISOString(),
+            completed_by: null,
+          },
+          { onConflict: "osi_id,nro_sesion,phase,step_key" },
+        );
+
+      await syncOsiEjecutadoToShell(survey.id_osi, sessionNum, true).catch(() => {});
     } catch (stepErr) {
       console.error("Failed to auto-mark encuestas step:", stepErr);
     }
