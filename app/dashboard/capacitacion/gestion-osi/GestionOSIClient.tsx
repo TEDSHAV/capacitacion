@@ -279,6 +279,7 @@ export default function GestionOSIClient({
 
   // --- Prefetch next page in the background ---
   useEffect(() => {
+    if (loading || fetching) return;
     const totalPages = Math.ceil(totalCount / itemsPerPage);
     if (currentPage >= totalPages) return;
     const nextPage = currentPage + 1;
@@ -306,7 +307,7 @@ export default function GestionOSIClient({
 
     return () => { cancelled = true; clearTimeout(timer); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, totalCount, itemsPerPage, filters, activeTab]);
+  }, [currentPage, totalCount, itemsPerPage, filters, activeTab, loading, fetching]);
 
   const handleFiltersChange = useCallback((newFilters: OSIFilters) => {
     setFilters(newFilters);

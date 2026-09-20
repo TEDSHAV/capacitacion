@@ -1,24 +1,13 @@
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import { createClient } from "@/utils/supabase/server";
 import CapacitacionClient from "./CapacitacionClient";
-import { CapacitacionStats } from "./CapacitacionStats";
-
-async function StatsWrapper() {
-  const stats = await CapacitacionStats({
-    firstDayOfMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      .toISOString()
-      .split("T")[0],
-  });
-  return stats;
-}
 
 /** Check if the current user is admin/superadmin for the capacitacion app. */
-async function isCapacitacionAdmin(): Promise<boolean> {
-  const supabase = await createClient();
-
-  // Fast path: shell-level admin/superadmin from JWT claims.
-  const { data: claimsData } = await supabase.auth.getClaims();
+async function isCapacitacionAdmin(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  claimsData: any,
+): Promise<boolean> {
+  // Fast path: shell-level admin/superadmin from pre-fetched JWT claims.
   const userRole =
     ((claimsData?.claims as Record<string, unknown> | undefined)?.user_role as string) ??
     ((claimsData?.claims?.app_metadata as Record<string, unknown> | undefined)?.role as string) ??
@@ -57,16 +46,7 @@ export default async function CapacitacionPage() {
     redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
   }
 
-  const isAdmin = await isCapacitacionAdmin();
+  const isAdmin = await isCapacitacionAdmin(supabase, claimsData);
 
-  return (
-    <Suspense fallback={<CapacitacionClient user={claimsData.claims as any} isAdmin={isAdmin} />}>
-      <CapacitacionClientWithStats user={claimsData.claims as any} isAdmin={isAdmin} />
-    </Suspense>
-  );
-}
-
-async function CapacitacionClientWithStats({ user, isAdmin }: { user: any; isAdmin: boolean }) {
-  const stats = await StatsWrapper();
-  return <CapacitacionClient user={user} stats={stats} isAdmin={isAdmin} />;
+  return <CapacitacionClient user={claimsData.claims as any} isAdmin={isAdmin} />;
 }

@@ -47,10 +47,10 @@ export default function OSIFiltersV2({
       if ((filters.nroOsi || "") !== localNroOsi) {
         onFiltersChange({
           ...filters,
-          nroOsi: localNroOsi || undefined,
+          nroOsi: localNroOsi.trim() || undefined,
         });
       }
-    }, 400);
+    }, 200);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localNroOsi]);
@@ -216,8 +216,32 @@ export default function OSIFiltersV2({
                   placeholder="Buscar..."
                   value={localNroOsi}
                   onChange={(e) => setLocalNroOsi(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      onFiltersChange({
+                        ...filters,
+                        nroOsi: localNroOsi.trim() || undefined,
+                      });
+                    }
+                  }}
+                  className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+                {localNroOsi && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocalNroOsi("");
+                      onFiltersChange({
+                        ...filters,
+                        nroOsi: undefined,
+                      });
+                    }}
+                    className="absolute inset-y-0 right-0 w-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
 

@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { CapacitacionClientProps } from "@/types";
+import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import {
   BookOpen,
   Award,
@@ -106,7 +108,13 @@ export default function CapacitacionClient({
   stats: _stats,
   isAdmin = false,
 }: CapacitacionClientProps) {
-  void _stats;
+  // Pre-cache dashboard structure and permissions for offline PWA navigation
+  useEffect(() => {
+    cachePortalData("dash_home", "dash_home", {
+      user: _user,
+      isAdmin,
+    }).catch(() => {});
+  }, [_user, isAdmin]);
 
   const mainCards: MainCard[] = [
     {

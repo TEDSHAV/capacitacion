@@ -223,9 +223,20 @@ export default function SeguimientoServiciosClient({
 
   // Debounce search input → searchQuery (sent to server)
   useEffect(() => {
-    const t = setTimeout(() => setSearchQuery(searchInput), 300);
+    const t = setTimeout(() => {
+      setSearchQuery(searchInput);
+      setCurrentPage(1);
+    }, 200);
     return () => clearTimeout(t);
   }, [searchInput]);
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setSearchQuery(searchInput);
+      setCurrentPage(1);
+    }
+  };
 
   // Client-side filtered OSIs: search is now server-side, so only the step filter
   // (which depends on the loaded steps data) is applied here on top of the server page.
@@ -422,6 +433,7 @@ export default function SeguimientoServiciosClient({
 
   // --- Prefetch next page in the background ---
   useEffect(() => {
+    if (loading) return;
     const totalPages = Math.ceil(totalCount / itemsPerPage);
     if (currentPage >= totalPages) return;
     const nextPage = currentPage + 1;
@@ -471,7 +483,7 @@ export default function SeguimientoServiciosClient({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [currentPage, totalCount, itemsPerPage, filters, searchQuery, filterMode, rescheduledOsiIds.length, rescheduledOsiIds]);
+  }, [currentPage, totalCount, itemsPerPage, filters, searchQuery, filterMode, rescheduledOsiIds.length, rescheduledOsiIds, loading]);
 
   const handleToggleStep = useCallback(
     async (osiId: number, nroSesion: number, stepKey: string, notes?: string) => {
@@ -843,8 +855,22 @@ export default function SeguimientoServiciosClient({
                 placeholder="Buscar por OSI o empresa..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-8 pr-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
+                onKeyDown={handleSearchKeyDown}
+                className="pl-8 pr-7 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
               />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearchQuery("");
+                    setCurrentPage(1);
+                  }}
+                  className="absolute inset-y-0 right-0 w-7 flex items-center justify-center text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
           </div>
         </div>

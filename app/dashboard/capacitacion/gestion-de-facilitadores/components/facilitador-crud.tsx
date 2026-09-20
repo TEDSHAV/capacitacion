@@ -18,11 +18,26 @@ import { toTitleCase } from "@/utils/string-utils";
 import { createClient } from "@/utils/supabase/client";
 import { getFacilitatorRatings } from "@/app/actions/facilitators";
 import { getFacilitatorPoolAction, FacilitatorPoolItem } from "@/app/actions/facilitators-pool";
+import { cachePortalData, getCachedPortalData } from "@/lib/offline/portal-data-cache";
 import { FacilitadorHistoryModal } from "./FacilitadorHistoryModal";
 import AssignOSIModal from "./assign-osi-modal";
 import { FacilitadorMatcherBar, ViewMode, SortMode, SkillLevel } from "./FacilitadorMatcherBar";
 import { FacilitadorPoolGrid } from "./FacilitadorPoolGrid";
 import { FacilitadorProfileDrawer } from "./FacilitadorProfileDrawer";
+
+// Module-level in-memory cache for facilitator pool (survives tab/page navigation)
+interface PoolCache {
+  facilitadores: FacilitatorPoolItem[];
+  allTopics: string[];
+  allCities: string[];
+  timestamp: number;
+}
+let poolMemoryCache: PoolCache | null = null;
+const POOL_STALE_TIME = 30_000;
+
+export function clearFacilitatorPoolCache(): void {
+  poolMemoryCache = null;
+}
 
 interface FacilitadorCrudProps {
   onFacilitadorSaved?: () => void;
@@ -38,11 +53,28 @@ export const FacilitadorCrud = ({
   onFacilitadorUpdated,
 }: FacilitadorCrudProps) => {
   const router = useRouter();
-  // Pool state
-  const [poolData, setPoolData] = useState<FacilitatorPoolItem[]>([]);
-  const [allTopics, setAllTopics] = useState<string[]>([]);
-  const [allCities, setAllCities] = useState<string[]>([]);
-  const [poolLoading, setPoolLoading] = useState(true);
+  // Pool state (seeded from in-memory cache if fresh)
+  const [poolData, setPoolData] = useState<FacilitatorPoolItem[]>(() => {
+    if (poolMemoryCache && Date.now() - poolMemoryCache.timestamp < POOL_STALE_TIME) {
+      return poolMemoryCache.facilitadores;
+    }
+    return [];
+  });
+  const [allTopics, setAllTopics] = useState<string[]>(() => {
+    if (poolMemoryCache && Date.now() - poolMemoryCache.timestamp < POOL_STALE_TIME) {
+      return poolMemoryCache.allTopics;
+    }
+    return [];
+  });
+  const [allCities, setAllCities] = useState<string[]>(() => {
+    if (poolMemoryCache && Date.now() - poolMemoryCache.timestamp < POOL_STALE_TIME) {
+      return poolMemoryCache.allCities;
+    }
+    return [];
+  });
+  const [poolLoading, setPoolLoading] = useState<boolean>(() => {
+    return !(poolMemoryCache && Date.now() - poolMemoryCache.timestamp < POOL_STALE_TIME);
+  });
   const [poolError, setPoolError] = useState<string | null>(null);
 
   // Legacy table state (kept as fallback view)
@@ -71,25 +103,71 @@ export const FacilitadorCrud = ({
   const isClient = typeof window !== "undefined";
 
   // ---------- Pool data loading ----------
-  const loadPool = useCallback(async () => {
-    setPoolLoading(true);
+  const loadPool = useCallback(async (forceRefresh = false) => {
+    if (!forceRefresh && poolMemoryCache && Date.now() - poolMemoryCache.timestamp < POOL_STALE_TIME) {
+      setPoolData(poolMemoryCache.facilitadores);
+      setAllTopics(poolMemoryCache.allTopics);
+      setAllCities(poolMemoryCache.allCities);
+      setPoolLoading(false);
+      return;
+    }
+
+    if (poolData.length === 0) {
+      setPoolLoading(true);
+    }
     setPoolError(null);
+
     try {
       const res = await getFacilitatorPoolAction();
       if (res.error) {
-        setPoolError(res.error);
+        throw new Error(res.error);
       } else {
         setPoolData(res.facilitadores);
         setAllTopics(res.allTopics);
         setAllCities(res.allCities);
+        poolMemoryCache = {
+          facilitadores: res.facilitadores,
+          allTopics: res.allTopics,
+          allCities: res.allCities,
+          timestamp: Date.now(),
+        };
+        // Persist to Dexie for offline access
+        cachePortalData("dash_facilitadores", "dash_facilitadores", {
+          pool: {
+            facilitadores: res.facilitadores,
+            allTopics: res.allTopics,
+            allCities: res.allCities,
+          },
+        }).catch(() => {});
       }
     } catch (err) {
-      console.error("FacilitadorCrud: Exception loading pool:", err);
+      console.warn("FacilitadorCrud: Network error loading pool, checking Dexie cache...", err);
+      // Attempt Dexie offline recovery
+      try {
+        const cached = await getCachedPortalData<{
+          pool?: {
+            facilitadores: FacilitatorPoolItem[];
+            allTopics: string[];
+            allCities: string[];
+          };
+        }>("dash_facilitadores");
+
+        if (cached?.data?.pool?.facilitadores?.length) {
+          setPoolData(cached.data.pool.facilitadores);
+          setAllTopics(cached.data.pool.allTopics || []);
+          setAllCities(cached.data.pool.allCities || []);
+          setPoolError(null);
+          return;
+        }
+      } catch (cacheErr) {
+        console.error("Dexie recovery failed:", cacheErr);
+      }
+
       setPoolError(err instanceof Error ? err.message : "Error al cargar el pool de facilitadores.");
     } finally {
       setPoolLoading(false);
     }
-  }, []);
+  }, [poolData.length]);
 
   // ---------- Legacy table loaders ----------
   const loadFacilitadores = async () => {
@@ -279,9 +357,10 @@ export const FacilitadorCrud = ({
 
       if (response.ok) {
         alert(`Facilitador ${action === "inhabilitar" ? "inhabilitado" : "habilitado"} exitosamente`);
+        clearFacilitatorPoolCache();
         // Refresh whichever view is active
         if (layoutMode === "pool") {
-          await loadPool();
+          await loadPool(true);
         } else {
           await loadFacilitadores();
         }

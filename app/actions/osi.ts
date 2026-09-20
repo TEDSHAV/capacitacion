@@ -360,6 +360,12 @@ export async function getOSIsForManagement(
       .order("id_osi", { ascending: false });
 
     if (error) {
+      if ((error as any).code === "PGRST103") {
+        return {
+          osis: [],
+          totalCount: count ?? 0,
+        };
+      }
       console.error("Error fetching OSIs for management:", error);
       return {
         osis: [],
@@ -533,6 +539,9 @@ export async function getOSIsForGestionOSI(
       .order("id_osi", { ascending: false });
 
     if (error) {
+      if ((error as any).code === "PGRST103") {
+        return { osis: [], totalCount: count ?? 0 };
+      }
       console.error("Error fetching OSIs for gestion-osi:", error);
       return { osis: [], totalCount: 0 };
     }
