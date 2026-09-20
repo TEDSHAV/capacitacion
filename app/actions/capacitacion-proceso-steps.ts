@@ -459,7 +459,12 @@ export async function toggleProcesoStep(
       }
     }
 
-    return { success: true, completed: newCompleted, autoCompletedEnProceso };
+    clearSeguimientoServerCache();
+    return {
+      success: true,
+      completed: newCompleted,
+      autoCompletedEnProceso,
+    };
   } catch (err) {
     console.error("Unexpected error in toggleProcesoStep:", err);
     return { success: false, error: "Error inesperado" };
@@ -509,31 +514,34 @@ export async function autoAdvanceEjecucionSteps(
     const admin = await createAdminClient();
     const todayStr = getCaracasTodayStr();
 
-    // Fetch osi_sesion rows as fallback for session dates
+    // Fetch osi_sesion rows and existing step rows in parallel for all OSIs
     const osiIds = osis.map((o) => o.id_osi);
     const osiSesionByOsi = new Map<number, { id: number; nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[]>();
+    let existingSteps: ProcesoStepRecord[] | null = null;
     try {
-      const { data: sesionRows } = await admin
-        .from("osi_sesion")
-        .select("id, id_osi, nro_sesion, fecha, hora_inicio, hora_fin")
-        .in("id_osi", osiIds)
-        .order("nro_sesion", { ascending: true });
-      if (sesionRows) {
-        for (const row of sesionRows as { id: number; id_osi: number; nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[]) {
+      const [sesionResult, stepsResult] = await Promise.all([
+        admin
+          .from("osi_sesion")
+          .select("id, id_osi, nro_sesion, fecha, hora_inicio, hora_fin")
+          .in("id_osi", osiIds)
+          .order("nro_sesion", { ascending: true }),
+        admin
+          .from("capacitacion_proceso_steps")
+          .select("*")
+          .in("osi_id", osiIds),
+      ]);
+
+      if (sesionResult.data) {
+        for (const row of sesionResult.data as { id: number; id_osi: number; nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[]) {
           const list = osiSesionByOsi.get(row.id_osi) || [];
           list.push({ id: row.id, nro_sesion: row.nro_sesion, fecha: row.fecha, hora_inicio: row.hora_inicio, hora_fin: row.hora_fin });
           osiSesionByOsi.set(row.id_osi, list);
         }
       }
+      existingSteps = stepsResult.data as ProcesoStepRecord[] | null;
     } catch (e) {
-      console.error("Error fetching osi_sesion for auto-advance:", e);
+      console.error("Error fetching osi_sesion or steps for auto-advance:", e);
     }
-
-    // Fetch existing step rows for all OSIs (both phases)
-    const { data: existingSteps } = await admin
-      .from("capacitacion_proceso_steps")
-      .select("*")
-      .in("osi_id", osiIds);
 
     // Build lookup: osiId → nroSesion → stepKey → record
     const stepsLookup = new Map<number, Map<number, Map<string, ProcesoStepRecord>>>();
@@ -878,6 +886,15 @@ function serializeAutoAdvanceResult(autoResult: AutoAdvanceResult): {
   return { stepsPlain, sessionsPlain };
 }
 
+// --- Server-side memory cache for default initial page load ---
+let _seguimientoDefaultCache: { data: SeguimientoPageData; expiresAt: number } | null = null;
+let _rescheduledOsiIdsCache: { data: number[]; expiresAt: number } | null = null;
+
+export async function clearSeguimientoServerCache(): Promise<void> {
+  _seguimientoDefaultCache = null;
+  _rescheduledOsiIdsCache = null;
+}
+
 /**
  * Consolidated server action that fetches OSIs for management AND runs autoAdvanceEjecucionSteps
  * in a single server-side operation, eliminating the client-side waterfall.
@@ -887,6 +904,15 @@ export async function getSeguimientoPageData(
   page = 1,
   limit = 10,
 ): Promise<SeguimientoPageData> {
+  const isDefaultQuery =
+    page === 1 &&
+    limit === 10 &&
+    (!filters || Object.keys(filters).length === 0 || Object.values(filters).every((v) => v === undefined || v === ""));
+
+  if (isDefaultQuery && _seguimientoDefaultCache && Date.now() < _seguimientoDefaultCache.expiresAt) {
+    return _seguimientoDefaultCache.data;
+  }
+
   const result = await getOSIsForManagement(filters, page, limit);
   const osis = (result.osis || []) as OSIManagement[];
 
@@ -910,12 +936,21 @@ export async function getSeguimientoPageData(
 
   const { stepsPlain, sessionsPlain } = serializeAutoAdvanceResult(autoResult);
 
-  return {
+  const pageData: SeguimientoPageData = {
     osis,
     totalCount: result.totalCount,
     stepsPlain,
     sessionsPlain,
   };
+
+  if (isDefaultQuery) {
+    _seguimientoDefaultCache = {
+      data: pageData,
+      expiresAt: Date.now() + 30_000,
+    };
+  }
+
+  return pageData;
 }
 
 // ─── Lista Asistencia ────────────────────────────────────────────────────────
@@ -1272,6 +1307,7 @@ export async function unmarkEnProcesoStep({
       console.error("[unmarkEnProcesoStep] addOsiNota failed:", err),
     );
 
+    clearSeguimientoServerCache();
     return { success: true };
   } catch (err) {
     console.error("[unmarkEnProcesoStep] unexpected error:", err);
@@ -1351,6 +1387,7 @@ export async function restoreRescheduledToActivos(
       console.error("[restoreRescheduledToActivos] addOsiNota failed:", err),
     );
 
+    clearSeguimientoServerCache();
     return { success: true };
   } catch (err) {
     console.error("[restoreRescheduledToActivos] unexpected error:", err);
@@ -1362,6 +1399,10 @@ export async function restoreRescheduledToActivos(
  * Fetch list of distinct osi_ids that have any session marked as rescheduled and not yet completed.
  */
 export async function getRescheduledOsiIds(): Promise<number[]> {
+  if (_rescheduledOsiIdsCache && Date.now() < _rescheduledOsiIdsCache.expiresAt) {
+    return _rescheduledOsiIdsCache.data;
+  }
+
   try {
     const admin = await createAdminClient();
     const { data, error } = await admin
@@ -1379,7 +1420,12 @@ export async function getRescheduledOsiIds(): Promise<number[]> {
         ids.add(row.osi_id);
       }
     }
-    return Array.from(ids);
+    const result = Array.from(ids);
+    _rescheduledOsiIdsCache = {
+      data: result,
+      expiresAt: Date.now() + 30_000,
+    };
+    return result;
   } catch (err) {
     console.error("Error fetching rescheduled OSI ids:", err);
     return [];

@@ -106,6 +106,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={geistSans.variable} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(window.self!==window.top){document.documentElement.classList.add('in-shell');}}catch(e){document.documentElement.classList.add('in-shell');}`,
+          }}
+        />
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `.in-shell .pwa-chrome{display:none!important;}`,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen overflow-x-hidden`}
         suppressHydrationWarning
