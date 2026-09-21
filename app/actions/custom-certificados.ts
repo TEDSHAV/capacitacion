@@ -356,24 +356,34 @@ export async function saveCustomCertificatesToDatabase(
           nro_control: certificateInsert.nro_control,
         });
 
-        // Fix snapshot with actual DB-returned control numbers (trigger overwrites app-supplied values)
-        try {
-          const snapshotObj = JSON.parse(snapshot);
-          snapshotObj.certificado.nro_libro = certificateInsert.nro_libro;
-          snapshotObj.certificado.nro_hoja = certificateInsert.nro_hoja;
-          snapshotObj.certificado.nro_linea = certificateInsert.nro_linea;
-          snapshotObj.certificado.nro_control = certificateInsert.nro_control;
-          const correctedSnapshot = JSON.stringify(snapshotObj, null, 2);
+        // Fix snapshot with actual DB-returned control numbers only if the
+        // trigger overwrote the app-supplied values. Skipping the UPDATE
+        // when nothing changed avoids a full TOAST rewrite of the snapshot.
+        const triggerChangedNumbers =
+          certificateInsert.nro_libro !== currentControlNumbers.nro_libro ||
+          certificateInsert.nro_hoja !== currentControlNumbers.nro_hoja ||
+          certificateInsert.nro_linea !== currentControlNumbers.nro_linea ||
+          certificateInsert.nro_control !== currentControlNumbers.nro_control;
 
-          const { error: snapshotFixError } = await supabase
-            .from("certificados")
-            .update({ snapshot_contenido: correctedSnapshot })
-            .eq("id", certificateInsert.id);
-          if (snapshotFixError) {
-            console.warn("WARNING: Failed to update snapshot with corrected control numbers:", snapshotFixError);
+        if (triggerChangedNumbers) {
+          try {
+            const snapshotObj = JSON.parse(snapshot);
+            snapshotObj.certificado.nro_libro = certificateInsert.nro_libro;
+            snapshotObj.certificado.nro_hoja = certificateInsert.nro_hoja;
+            snapshotObj.certificado.nro_linea = certificateInsert.nro_linea;
+            snapshotObj.certificado.nro_control = certificateInsert.nro_control;
+            const correctedSnapshot = JSON.stringify(snapshotObj, null, 2);
+
+            const { error: snapshotFixError } = await supabase
+              .from("certificados")
+              .update({ snapshot_contenido: correctedSnapshot })
+              .eq("id", certificateInsert.id);
+            if (snapshotFixError) {
+              console.warn("WARNING: Failed to update snapshot with corrected control numbers:", snapshotFixError);
+            }
+          } catch (parseError) {
+            console.warn("Failed to correct snapshot control numbers:", parseError);
           }
-        } catch (parseError) {
-          console.warn("Failed to correct snapshot control numbers:", parseError);
         }
       }
     }

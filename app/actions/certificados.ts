@@ -135,20 +135,6 @@ export async function saveCertificatesToDatabase(
 
     const afterFetchTime = Date.now();
 
-    console.log("After fetching facilitator and SHA data:");
-    console.log(
-      "facilitator_data present?",
-      !!updatedCertificateData.facilitator_data,
-    );
-    console.log(
-      "facilitator_data value:",
-      JSON.stringify(updatedCertificateData.facilitator_data, null, 2),
-    );
-    console.log(
-      "sha_signature_data present?",
-      !!updatedCertificateData.sha_signature_data,
-    );
-
     const supabase = await createClient();
 
     if (!certificateData.osi_data || !certificateData.course_topic_data) {
@@ -271,48 +257,7 @@ export async function saveCertificatesToDatabase(
         continue; // Skip this participant but continue with others
       }
 
-      // Verify participant was actually saved to database
 
-      const { data: verifyParticipant, error: verifyError } = await supabase
-
-        .from("participantes_certificados")
-
-        .select("id, nombre, cedula, nacionalidad, is_active")
-
-        .eq("id", participantId)
-
-        .single();
-
-      if (verifyError) {
-        console.error(
-          "FAILED: Could not verify participant was saved:",
-          verifyError,
-        );
-      } else {
-        console.log("VERIFIED: Participant exists in database:", {
-          id: verifyParticipant?.id,
-
-          nombre: verifyParticipant?.nombre,
-
-          cedula: verifyParticipant?.cedula,
-
-          nacionalidad: verifyParticipant?.nacionalidad,
-
-          is_active: verifyParticipant?.is_active,
-        });
-
-        console.log(
-          "DEBUG: Nationality in database:",
-          verifyParticipant?.nacionalidad,
-        );
-
-        console.log(
-          "DEBUG: Type of nationality in database:",
-          typeof verifyParticipant?.nacionalidad,
-        );
-      }
-
-      console.log("Participant details from database:");
 
       // Store the real database participant ID
 
@@ -349,8 +294,6 @@ export async function saveCertificatesToDatabase(
       };
 
       // 2. Prepare certificate record data with proper participant ID
-
-      console.log("Step 2: Preparing certificate record...");
 
       const certificateRecord: CertificateRecord = {
         id_participante: participantId || null,
@@ -402,10 +345,7 @@ export async function saveCertificatesToDatabase(
           updatedCertificateData.uso_verificacion_facilitador ?? null,
       };
 
-      console.log(
-        "Prepared certificate record:",
-        JSON.stringify(certificateRecord, null, 2),
-      );
+
 
       // Validate that we have required fields for OSI certificates
 
@@ -440,9 +380,6 @@ export async function saveCertificatesToDatabase(
       );
 
       // 3. Insert certificate record with snapshot already generated
-      console.log(
-        "Step 3: Inserting certificate record with pre-generated snapshot...",
-      );
 
       const certificateRecordWithSnapshot = {
         ...certificateRecord,
@@ -460,20 +397,12 @@ export async function saveCertificatesToDatabase(
         console.error(
           "FAILED: Certificate insertion error for participant:",
           participant.name,
-        );
-        console.error("Database error:", certificateError);
-        console.error(
-          "Error details:",
-          JSON.stringify(certificateError, null, 2),
-        );
-        console.error(
-          "Certificate record that failed:",
-          JSON.stringify(certificateRecordWithSnapshot, null, 2),
+          certificateError.message,
         );
         continue;
       }
 
-      console.log("SUCCESS: Certificate inserted:", certificateInsert);
+
 
       if (certificateInsert) {
         certificateIds.push(certificateInsert.id);
@@ -499,7 +428,6 @@ export async function saveCertificatesToDatabase(
         }
 
         // 4. Generate QR code with actual certificate ID and update
-        console.log("Step 4: Generating QR code with actual certificate ID...");
         try {
           const qrResult = await QRService.generateCertificateQR(
             certificateInsert.id,
@@ -511,7 +439,6 @@ export async function saveCertificatesToDatabase(
             },
           );
           const qrCodeDataUrl = qrResult.dataUrl;
-          console.log("QR code generated successfully");
 
           // Update snapshot with QR code for self-contained reproducibility
           let updatedSnapshotWithQR = correctedSnapshot;
@@ -537,10 +464,6 @@ export async function saveCertificatesToDatabase(
             console.warn(
               "WARNING: Failed to update certificate with QR code:",
               updateError,
-            );
-          } else {
-            console.log(
-              "SUCCESS: Certificate updated with QR code and snapshot",
             );
           }
         } catch (error) {
@@ -2239,16 +2162,25 @@ export async function getCertificatesForManagement(
 
  */
 
+// TTL cache — avoids rescanning the entire certificados table on every
+// page load. Same 5-minute pattern used by getOSIFilterOptions in osi.ts.
+let _companiesFilterCache: { data: { id: number; razon_social: string }[]; expiresAt: number } | null = null;
+const COMPANIES_FILTER_TTL_MS = 5 * 60 * 1000;
+
 export async function getCompaniesForFilters(): Promise<
   { id: number; razon_social: string }[]
 > {
+  if (_companiesFilterCache && Date.now() < _companiesFilterCache.expiresAt) {
+    return _companiesFilterCache.data;
+  }
+
   try {
     const supabase = await createClient();
 
     // Only return companies that have actual certificates
     const { data, error } = await supabase
       .from("certificados")
-      .select("empresas!inner(id, razon_social)", { count: "exact" })
+      .select("empresas!inner(id, razon_social)")
       .order("empresas(razon_social)");
 
     if (error) {
@@ -2267,10 +2199,13 @@ export async function getCompaniesForFilters(): Promise<
     });
 
     // Convert to array and sort by name
-    return Array.from(uniqueCompanies, ([id, razon_social]) => ({
+    const result = Array.from(uniqueCompanies, ([id, razon_social]) => ({
       id,
       razon_social,
     })).sort((a, b) => a.razon_social.localeCompare(b.razon_social));
+
+    _companiesFilterCache = { data: result, expiresAt: Date.now() + COMPANIES_FILTER_TTL_MS };
+    return result;
   } catch (error) {
     return [];
   }
@@ -2282,22 +2217,27 @@ export async function getCompaniesForFilters(): Promise<
 
  */
 
+let _coursesFilterCache: { data: { id: number; nombre: string }[]; expiresAt: number } | null = null;
+const COURSES_FILTER_TTL_MS = 5 * 60 * 1000;
+
 export async function getCoursesForFilters(): Promise<
   { id: number; nombre: string }[]
 > {
+  if (_coursesFilterCache && Date.now() < _coursesFilterCache.expiresAt) {
+    return _coursesFilterCache.data;
+  }
+
   try {
     const supabase = await createClient();
 
     // Only return courses that have actual certificates
     const { data, error } = await supabase
       .from("certificados")
-      .select("id_curso, catalogo_servicios!inner(id, nombre)", {
-        count: "exact",
-      })
+      .select("id_curso, catalogo_servicios!inner(id, nombre)")
       .order("catalogo_servicios(nombre)");
 
     if (error) {
-      console.error("[COURSES FILTER DEBUG] Error fetching courses:", error);
+      console.error("Error fetching courses for filter:", error);
       return [];
     }
 
@@ -2317,18 +2257,10 @@ export async function getCoursesForFilters(): Promise<
       nombre,
     })).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-    console.log(
-      "[COURSES FILTER DEBUG] Unique courses from certificates:",
-      result,
-    );
-    console.log(
-      "[COURSES FILTER DEBUG] Raw data sample (first 5):",
-      data?.slice(0, 5),
-    );
-
+    _coursesFilterCache = { data: result, expiresAt: Date.now() + COURSES_FILTER_TTL_MS };
     return result;
   } catch (error) {
-    console.error("[COURSES FILTER DEBUG] Exception:", error);
+    console.error("Error in getCoursesForFilters:", error);
     return [];
   }
 }
@@ -2529,10 +2461,11 @@ export async function batchUpdateCertificatesAction(
   try {
     const supabase = await createClient();
 
-    // 1. Fetch all certificates for this OSI (and course if provided)
+    // 1. Fetch only the columns we read/update — avoids pulling heavy
+    // TOAST blobs like qr_code that batchUpdate never touches.
     let query = supabase
       .from("certificados")
-      .select("*")
+      .select("id, snapshot_contenido, fecha_emision, fecha_vencimiento, id_facilitador")
       .eq("nro_osi", osiNumber)
       .eq("is_active", true);
 
@@ -2618,18 +2551,20 @@ export async function batchUpdateCertificatesAction(
           }
         }
 
-        // 3. Update certificate record
-        const { error: updateError } = await supabase
-          .from("certificados")
-          .update(dbUpdate)
-          .eq("id", cert.id);
+        // 3. Update certificate record — skip if nothing changed
+        if (Object.keys(dbUpdate).length > 0) {
+          const { error: updateError } = await supabase
+            .from("certificados")
+            .update(dbUpdate)
+            .eq("id", cert.id);
 
-        if (updateError) throw updateError;
+          if (updateError) throw updateError;
+        }
 
         // 4. Update associated carnet if it exists
         const { data: carnet } = await supabase
           .from("carnets")
-          .select("*")
+          .select("id, snapshot_contenido")
           .eq("id_certificado", cert.id)
           .maybeSingle();
 
@@ -2656,10 +2591,13 @@ export async function batchUpdateCertificatesAction(
             }
           }
 
-          await supabase
-            .from("carnets")
-            .update(carnetUpdate)
-            .eq("id", carnet.id);
+          // Skip carnet update if nothing changed
+          if (Object.keys(carnetUpdate).length > 0) {
+            await supabase
+              .from("carnets")
+              .update(carnetUpdate)
+              .eq("id", carnet.id);
+          }
         }
 
         updatedCount++;

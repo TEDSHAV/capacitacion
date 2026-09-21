@@ -134,8 +134,24 @@ export async function getCarnetsByFilters(
   try {
     const supabase = await createClient();
 
+    // Explicit columns — excludes heavy TOAST blobs (snapshot_contenido,
+    // qr_code) that are not rendered in the carnets management table.
     let query = supabase.from("carnets").select(`
-        *,
+        id,
+        id_certificado,
+        id_participante,
+        id_empresa,
+        id_curso,
+        id_osi,
+        fecha_emision,
+        fecha_vencimiento,
+        is_active,
+        created_at,
+        titulo_curso,
+        subtitulo_curso,
+        nombre_participante,
+        cedula_participante,
+        empresa_participante,
         certificado:certificados(
           id,
           calificacion,
@@ -145,8 +161,7 @@ export async function getCarnetsByFilters(
           nro_libro,
           nro_hoja,
           nro_linea,
-          nro_control,
-          qr_code
+          nro_control
         ),
         participante:participantes_certificados(
           id,
@@ -168,7 +183,7 @@ export async function getCarnetsByFilters(
           carga_horaria_std,
           emite_carnet
         )
-      `);
+      `, { count: "exact" });
 
     // Apply filters
     if (filters.searchTerm) {
@@ -213,21 +228,9 @@ export async function getCarnetsByFilters(
       query = query.not("fecha_vencimiento", "is", null);
     }
 
-    // Get total count
-    const { count: totalCount, error: countError } = await supabase
-      .from("carnets")
-      .select("*", { count: "exact", head: true });
-
-    if (countError) {
-      console.error("Error getting carnets count:", countError);
-      return {
-        success: false,
-        error: "Error getting carnets count",
-      };
-    }
-
-    // Execute main query
-    const { data: carnets, error } = await query.order("created_at", {
+    // Execute filtered query — count comes from the same filtered query,
+    // not a separate unfiltered scan of the whole table.
+    const { data: carnets, count: totalCount, error } = await query.order("created_at", {
       ascending: false,
     });
 
@@ -242,7 +245,7 @@ export async function getCarnetsByFilters(
     return {
       success: true,
       data: {
-        carnets: carnets as Carnet[],
+        carnets: carnets as unknown as Carnet[],
         totalCount: totalCount || 0,
       },
     };

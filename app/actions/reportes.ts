@@ -1340,43 +1340,23 @@ export async function getCarnetsMetrics(
   try {
     const supabase = await createClient();
 
-    // Build date filter
-    let dateFilter = "";
-    if (dateFrom && dateTo) {
-      dateFilter = `and fecha_emision.gte.${dateFrom},fecha_emission.lte.${dateTo}`;
-    } else if (dateFrom) {
-      dateFilter = `and fecha_emision.gte.${dateFrom}`;
-    } else if (dateTo) {
-      dateFilter = `and fecha_emision.lte.${dateTo}`;
-    }
-
-    // Get carnets data with related information
-    const { data: carnets, error: carnetsError } = await supabase
+    // Only fetch the columns needed for metrics — avoids reading heavy
+    // TOAST blobs (snapshot_contenido, qr_code) and unused joins.
+    let query = supabase
       .from("carnets")
-      .select(`
-        *,
-        certificado:certificados(id, created_at),
-        curso:catalogo_servicios(id, nombre)
-      `)
+      .select("id, fecha_emision, fecha_vencimiento, is_active, created_at")
       .order("created_at", { ascending: false });
+
+    // Push date filters to Postgres instead of filtering in JS
+    if (dateFrom) query = query.gte("fecha_emision", dateFrom);
+    if (dateTo) query = query.lte("fecha_emision", dateTo);
+
+    const { data: filteredCarnets, error: carnetsError } = await query;
 
     if (carnetsError) {
       console.error("Error fetching carnets:", carnetsError);
       return { error: "Error fetching carnets data" };
     }
-
-    console.log("🔍 getCarnetsMetrics - Raw carnets data:", carnets?.length || 0, "carnets");
-
-    // Apply date filtering if needed
-    const filteredCarnets = carnets?.filter(carnet => {
-      if (!dateFrom && !dateTo) return true;
-      const carnetDate = carnet.fecha_emision;
-      if (dateFrom && carnetDate < dateFrom) return false;
-      if (dateTo && carnetDate > dateTo) return false;
-      return true;
-    }) || [];
-
-    console.log("🔍 getCarnetsMetrics - Filtered carnets:", filteredCarnets.length, "carnets");
 
     // Calculate basic metrics
     const totalCarnets = filteredCarnets.length;
