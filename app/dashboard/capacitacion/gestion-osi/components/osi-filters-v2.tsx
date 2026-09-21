@@ -32,42 +32,68 @@ export default function OSIFiltersV2({
   const [companySelectedIndex, setCompanySelectedIndex] = useState(0);
   const companyInputRef = useRef<HTMLInputElement>(null);
   const companyDropdownRef = useRef<HTMLDivElement>(null);
+  const isSelectingCompanyRef = useRef(false);
 
+  // Keep a fresh reference to current filters to prevent debounced callbacks from overwriting active filters
+  const latestFiltersRef = useRef(filters);
   useEffect(() => {
+    latestFiltersRef.current = filters;
+  }, [filters]);
+
+  // Adjust local input state when filters prop changes (e.g. cleared externally)
+  const [prevFilters, setPrevFilters] = useState({
+    nroOsi: filters.nroOsi,
+    companyName: filters.companyName,
+  });
+
+  if (
+    filters.nroOsi !== prevFilters.nroOsi ||
+    filters.companyName !== prevFilters.companyName
+  ) {
+    setPrevFilters({
+      nroOsi: filters.nroOsi,
+      companyName: filters.companyName,
+    });
     setLocalNroOsi(filters.nroOsi || "");
-  }, [filters.nroOsi]);
-
-  // Sync local company input when filter is cleared externally
-  useEffect(() => {
     setLocalCompany(filters.companyName || "");
-  }, [filters.companyName]);
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if ((filters.nroOsi || "") !== localNroOsi) {
-        onFiltersChange({
-          ...filters,
-          nroOsi: localNroOsi.trim() || undefined,
-        });
+      const current = latestFiltersRef.current;
+      const cleanOsi = localNroOsi.trim() || undefined;
+      if ((current.nroOsi || undefined) !== cleanOsi) {
+        const updated = {
+          ...current,
+          nroOsi: cleanOsi,
+        };
+        latestFiltersRef.current = updated;
+        onFiltersChange(updated);
       }
-    }, 200);
+    }, 250);
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localNroOsi]);
+  }, [localNroOsi, onFiltersChange]);
 
   // Debounced company filter — applies after user stops typing
   useEffect(() => {
+    if (isSelectingCompanyRef.current) {
+      isSelectingCompanyRef.current = false;
+      return;
+    }
     const timer = setTimeout(() => {
-      if ((filters.companyName || "") !== localCompany) {
-        onFiltersChange({
-          ...filters,
-          companyName: localCompany || undefined,
-        });
+      const current = latestFiltersRef.current;
+      const cleanCompany = localCompany.trim() || undefined;
+      if ((current.companyName || undefined) !== cleanCompany) {
+        const updated = {
+          ...current,
+          companyName: cleanCompany,
+        };
+        latestFiltersRef.current = updated;
+        onFiltersChange(updated);
       }
-    }, 400);
+    }, 350);
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localCompany]);
+  }, [localCompany, onFiltersChange]);
 
   // Filtered company suggestions (case-insensitive, limited to 10)
   const filteredCompanies = useMemo(() => {
@@ -93,13 +119,16 @@ export default function OSIFiltersV2({
   }, []);
 
   const handleCompanySelect = (name: string) => {
+    isSelectingCompanyRef.current = true;
     setLocalCompany(name);
     setCompanyDropdownOpen(false);
     setCompanySelectedIndex(0);
-    onFiltersChange({
-      ...filters,
+    const updated = {
+      ...latestFiltersRef.current,
       companyName: name || undefined,
-    });
+    };
+    latestFiltersRef.current = updated;
+    onFiltersChange(updated);
   };
 
   const handleCompanyKeyDown = (e: React.KeyboardEvent) => {
@@ -141,14 +170,19 @@ export default function OSIFiltersV2({
     }
   };
 
-  const handleFilterChange = (key: keyof OSIFilters, value: any) => {
-    onFiltersChange({
-      ...filters,
+  const handleFilterChange = <K extends keyof OSIFilters>(key: K, value: OSIFilters[K]) => {
+    const updated = {
+      ...latestFiltersRef.current,
       [key]: value,
-    });
+    };
+    latestFiltersRef.current = updated;
+    onFiltersChange(updated);
   };
 
   const clearFilters = () => {
+    setLocalNroOsi("");
+    setLocalCompany("");
+    latestFiltersRef.current = {};
     onFiltersChange({});
   };
 
@@ -213,16 +247,18 @@ export default function OSIFiltersV2({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Buscar..."
+                  placeholder="Buscar N° OSI..."
                   value={localNroOsi}
                   onChange={(e) => setLocalNroOsi(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      onFiltersChange({
-                        ...filters,
+                      const updated = {
+                        ...latestFiltersRef.current,
                         nroOsi: localNroOsi.trim() || undefined,
-                      });
+                      };
+                      latestFiltersRef.current = updated;
+                      onFiltersChange(updated);
                     }
                   }}
                   className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -232,10 +268,12 @@ export default function OSIFiltersV2({
                     type="button"
                     onClick={() => {
                       setLocalNroOsi("");
-                      onFiltersChange({
-                        ...filters,
+                      const updated = {
+                        ...latestFiltersRef.current,
                         nroOsi: undefined,
-                      });
+                      };
+                      latestFiltersRef.current = updated;
+                      onFiltersChange(updated);
                     }}
                     className="absolute inset-y-0 right-0 w-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
                   >
@@ -272,9 +310,15 @@ export default function OSIFiltersV2({
                   <button
                     type="button"
                     onClick={() => {
+                      isSelectingCompanyRef.current = true;
                       setLocalCompany("");
                       setCompanyDropdownOpen(false);
-                      onFiltersChange({ ...filters, companyName: undefined });
+                      const updated = {
+                        ...latestFiltersRef.current,
+                        companyName: undefined,
+                      };
+                      latestFiltersRef.current = updated;
+                      onFiltersChange(updated);
                     }}
                     className="absolute inset-y-0 right-0 w-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
                   >

@@ -270,21 +270,27 @@ export async function getOSIsForManagement(
     }
 
     // Apply other filters
-    if (filters.companyName) {
-      query = query.ilike("nombre_empresa", `%${filters.companyName}%`);
+    if (filters.companyName && filters.companyName.trim()) {
+      query = query.ilike("nombre_empresa", `%${filters.companyName.trim()}%`);
     }
 
-    if (filters.nroOsi) {
-      query = query.ilike("nro_osi", `%${filters.nroOsi}%`);
+    if (filters.nroOsi && filters.nroOsi.trim()) {
+      const cleanOsi = filters.nroOsi.replace(/^#|^osi[\s-]/i, "").trim();
+      if (cleanOsi) {
+        query = query.ilike("nro_osi", `%${cleanOsi}%`);
+      }
     }
 
     if (filters.search && filters.search.trim()) {
-      const q = filters.search.trim();
-      query = query.or(`nro_osi.ilike.%${q}%,nombre_empresa.ilike.%${q}%`);
+      const safeQ = filters.search.trim().replace(/"/g, '""');
+      query = query.or(`nro_osi.ilike."%${safeQ}%",nombre_empresa.ilike."%${safeQ}%"`);
     }
 
     if (filters.status) {
-      query = query.eq("id_estatus", parseInt(filters.status));
+      const statusInt = parseInt(String(filters.status), 10);
+      if (!isNaN(statusInt)) {
+        query = query.eq("id_estatus", statusInt);
+      }
     }
 
     if (filters.dateServiceFrom) {
@@ -296,11 +302,11 @@ export async function getOSIsForManagement(
     }
 
     if (filters.dateIssuedFrom) {
-      query = query.gte("fecha_emision", filters.dateIssuedFrom);
+      query = query.gte("fecha_emision", `${filters.dateIssuedFrom}T00:00:00.000Z`);
     }
 
     if (filters.dateIssuedTo) {
-      query = query.lte("fecha_emision", filters.dateIssuedTo);
+      query = query.lte("fecha_emision", `${filters.dateIssuedTo}T23:59:59.999Z`);
     }
 
     if (filters.numSesionesMin !== undefined) {
@@ -319,21 +325,25 @@ export async function getOSIsForManagement(
       query = query.lte("horas_academicas_ejecucion", filters.numHoursMax);
     }
 
-    if (filters.location) {
-      query = query.ilike("direccion_ejecucion", `%${filters.location}%`);
+    if (filters.location && filters.location.trim()) {
+      query = query.ilike("direccion_ejecucion", `%${filters.location.trim()}%`);
     }
 
-    if (filters.ejecutivo) {
-      query = query.ilike("ejecutivo_negocios", `%${filters.ejecutivo}%`);
+    if (filters.ejecutivo && filters.ejecutivo.trim()) {
+      query = query.ilike("ejecutivo_negocios", `%${filters.ejecutivo.trim()}%`);
     }
 
-    if (filters.servicio) {
-      query = query.ilike("servicio", `%${filters.servicio}%`);
+    if (filters.servicio && filters.servicio.trim()) {
+      query = query.ilike("servicio", `%${filters.servicio.trim()}%`);
     }
 
     if (filters.monthIssued) {
-      // Filter by month issued (YYYY-MM format)
-      query = query.like("fecha_emision", `${filters.monthIssued}%`);
+      const parts = filters.monthIssued.split("-").map(Number);
+      if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        const start = new Date(Date.UTC(parts[0], parts[1] - 1, 1)).toISOString();
+        const end = new Date(Date.UTC(parts[0], parts[1], 1)).toISOString();
+        query = query.gte("fecha_emision", start).lt("fecha_emision", end);
+      }
     }
 
     if (filters.includeOsiIds !== undefined) {
@@ -473,21 +483,27 @@ export async function getOSIsForGestionOSI(
     query = query.not("nro_osi", "ilike", "%PEN-%");
 
     // Apply filters (same as getOSIsForManagement — all compatible with v_osi_lista)
-    if (filters.companyName) {
-      query = query.ilike("nombre_empresa", `%${filters.companyName}%`);
+    if (filters.companyName && filters.companyName.trim()) {
+      query = query.ilike("nombre_empresa", `%${filters.companyName.trim()}%`);
     }
 
-    if (filters.nroOsi) {
-      query = query.ilike("nro_osi", `%${filters.nroOsi}%`);
+    if (filters.nroOsi && filters.nroOsi.trim()) {
+      const cleanOsi = filters.nroOsi.replace(/^#|^osi[\s-]/i, "").trim();
+      if (cleanOsi) {
+        query = query.ilike("nro_osi", `%${cleanOsi}%`);
+      }
     }
 
     if (filters.search && filters.search.trim()) {
-      const q = filters.search.trim();
-      query = query.or(`nro_osi.ilike.%${q}%,nombre_empresa.ilike.%${q}%`);
+      const safeQ = filters.search.trim().replace(/"/g, '""');
+      query = query.or(`nro_osi.ilike."%${safeQ}%",nombre_empresa.ilike."%${safeQ}%"`);
     }
 
     if (filters.status) {
-      query = query.eq("id_estatus", parseInt(filters.status));
+      const statusInt = parseInt(String(filters.status), 10);
+      if (!isNaN(statusInt)) {
+        query = query.eq("id_estatus", statusInt);
+      }
     }
 
     if (filters.dateServiceFrom) {
@@ -498,20 +514,33 @@ export async function getOSIsForGestionOSI(
       query = query.lte("fecha_inicio_real", filters.dateServiceTo);
     }
 
-    if (filters.ejecutivo) {
-      query = query.ilike("ejecutivo_negocios", `%${filters.ejecutivo}%`);
+    if (filters.dateIssuedFrom) {
+      query = query.gte("fecha_emision", `${filters.dateIssuedFrom}T00:00:00.000Z`);
     }
 
-    if (filters.servicio) {
-      query = query.ilike("servicio", `%${filters.servicio}%`);
+    if (filters.dateIssuedTo) {
+      query = query.lte("fecha_emision", `${filters.dateIssuedTo}T23:59:59.999Z`);
+    }
+
+    if (filters.ejecutivo && filters.ejecutivo.trim()) {
+      query = query.ilike("ejecutivo_negocios", `%${filters.ejecutivo.trim()}%`);
+    }
+
+    if (filters.servicio && filters.servicio.trim()) {
+      query = query.ilike("servicio", `%${filters.servicio.trim()}%`);
     }
 
     if (filters.monthIssued) {
-      query = query.like("fecha_emision", `${filters.monthIssued}%`);
+      const parts = filters.monthIssued.split("-").map(Number);
+      if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        const start = new Date(Date.UTC(parts[0], parts[1] - 1, 1)).toISOString();
+        const end = new Date(Date.UTC(parts[0], parts[1], 1)).toISOString();
+        query = query.gte("fecha_emision", start).lt("fecha_emision", end);
+      }
     }
 
-    if (filters.location) {
-      query = query.ilike("direccion_ejecucion", `%${filters.location}%`);
+    if (filters.location && filters.location.trim()) {
+      query = query.ilike("direccion_ejecucion", `%${filters.location.trim()}%`);
     }
 
     if (filters.numSesionesMin !== undefined) {
@@ -528,6 +557,20 @@ export async function getOSIsForGestionOSI(
 
     if (filters.numHoursMax !== undefined) {
       query = query.lte("horas_academicas_ejecucion", filters.numHoursMax);
+    }
+
+    if (filters.includeOsiIds !== undefined) {
+      if (filters.includeOsiIds.length === 0) {
+        return {
+          osis: [],
+          totalCount: 0,
+        };
+      }
+      query = query.in("id_osi", filters.includeOsiIds);
+    }
+
+    if (filters.excludeOsiIds && filters.excludeOsiIds.length > 0) {
+      query = query.not("id_osi", "in", `(${filters.excludeOsiIds.join(",")})`);
     }
 
     // Pagination

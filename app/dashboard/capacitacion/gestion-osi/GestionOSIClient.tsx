@@ -44,7 +44,16 @@ export function clearGestionOsiCache(): void {
 }
 
 function cacheKey(filters: OSIFilters, page: number, itemsPerPage: number, tab: string): CacheKey {
-  return JSON.stringify({ ...filters, page, itemsPerPage, tab });
+  const cleanFilters: Record<string, unknown> = {};
+  (Object.keys(filters) as (keyof OSIFilters)[])
+    .sort()
+    .forEach((k) => {
+      const val = filters[k];
+      if (val !== undefined && val !== "" && val !== null) {
+        cleanFilters[k] = val;
+      }
+    });
+  return JSON.stringify({ ...cleanFilters, page, itemsPerPage, tab });
 }
 
 export default function GestionOSIClient({
