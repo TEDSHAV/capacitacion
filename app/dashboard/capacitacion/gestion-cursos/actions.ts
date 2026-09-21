@@ -27,6 +27,7 @@ async function findDuplicateCurso(
     .select("id, nombre, esta_activo")
     .eq("id_departamento_ejecutante", 3)
     .eq("tipo_servicio", 1)
+    .eq("esta_activo", true)
     .ilike("nombre", normalized);
 
   if (excludeId !== undefined && excludeId !== null) {
@@ -196,14 +197,25 @@ export async function updateCurso(id: string, formData: FormData) {
       return { error: "El título es requerido" };
     }
 
-    // Duplicate-name guard: block rename if another Capacitacion course
-    // (active or inactive) already has the same uppercased trimmed name.
-    const existing = await findDuplicateCurso(supabase, titulo, id);
-    if (existing) {
-      return {
-        error: `Ya existe un curso con el nombre "${existing.nombre}" (ID: ${existing.id}). Considera editarlo en su lugar o verifica si es una variante.`,
-        existingId: existing.id,
-      };
+    // Duplicate-name guard: only check if the title is actually being changed
+    const { data: currentCourse } = await supabase
+      .from("catalogo_servicios")
+      .select("nombre")
+      .eq("id", id)
+      .maybeSingle();
+
+    const isRenaming =
+      currentCourse &&
+      currentCourse.nombre.trim().toUpperCase() !== titulo.trim().toUpperCase();
+
+    if (isRenaming) {
+      const existing = await findDuplicateCurso(supabase, titulo, id);
+      if (existing) {
+        return {
+          error: `Ya existe un curso activo con el nombre "${existing.nombre}" (ID: ${existing.id}). Considera editarlo en su lugar o verifica si es una variante.`,
+          existingId: existing.id,
+        };
+      }
     }
 
     const updatePayload: Record<string, unknown> = {
