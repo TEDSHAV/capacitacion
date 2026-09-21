@@ -37,6 +37,8 @@ interface CourseFormProps {
   existingCursos?: ExistingCursoRef[];
   editingId?: number | null;
   categories?: CourseCategoryItem[];
+  serverError?: string | null;
+  isSubmitting?: boolean;
 }
 
 export default function CourseForm({
@@ -47,6 +49,8 @@ export default function CourseForm({
   existingCursos = [],
   editingId = null,
   categories = DEFAULT_COURSE_CATEGORIES,
+  serverError = null,
+  isSubmitting = false,
 }: CourseFormProps) {
   const [datosFormulario, setDatosFormulario] = useState<{
     titulo: string;
@@ -313,6 +317,26 @@ export default function CourseForm({
           <X className="h-6 w-6" />
         </button>
       </div>
+
+      {/* Error Alert inside Modal */}
+      {(error || serverError) && (
+        <div className="mx-6 mt-4 p-3.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-start justify-between shadow-xs">
+          <div className="flex items-start space-x-2.5">
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-red-800">Error al guardar</p>
+              <p className="text-xs text-red-700 mt-0.5">{error || serverError}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="text-xs font-semibold text-red-600 hover:text-red-800 ml-3 shrink-0"
+          >
+            Descartar
+          </button>
+        </div>
+      )}
 
       <form onSubmit={manejarEnvio} className="px-6 py-6 space-y-6">
         {/* Section 1: Información General */}
@@ -774,9 +798,11 @@ export default function CourseForm({
 
             <button
               type="submit"
-              className="px-6 py-2 rounded-md text-white font-medium transition-colors shadow-md hover:opacity-90"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 px-6 py-2 rounded-md text-white font-medium transition-colors shadow-md hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ backgroundColor: "var(--primary-blue)" }}
             >
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {isEdit ? "Actualizar Curso" : "Crear Curso"}
             </button>
           </div>

@@ -37,6 +37,7 @@ export default function GestionCursosClient({
   const [editandoCurso, setEditandoCurso] = useState<number | null>(null);
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
   const [cursosList, setCursosList] = useState<Curso[]>(cursos || []);
   const [categoriesList, setCategoriesList] = useState<CourseCategoryItem[]>(
     initialCategories || DEFAULT_COURSE_CATEGORIES,
@@ -89,6 +90,7 @@ export default function GestionCursosClient({
 
   const handleCreateCourse = async (formData: FormData) => {
     setError(null);
+    setGuardando(true);
 
     try {
       const result = await createCurso(formData);
@@ -101,6 +103,8 @@ export default function GestionCursosClient({
       }
     } catch {
       setError("Error al crear el curso");
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -108,6 +112,7 @@ export default function GestionCursosClient({
     if (!editandoCurso) return;
 
     setError(null);
+    setGuardando(true);
 
     try {
       const result = await updateCurso(editandoCurso.toString(), formData);
@@ -124,6 +129,8 @@ export default function GestionCursosClient({
       }
     } catch {
       setError("Error al actualizar el curso");
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -228,6 +235,8 @@ export default function GestionCursosClient({
               existingCursos={cursosList}
               editingId={editandoCurso}
               categories={categoriesList}
+              serverError={error}
+              isSubmitting={guardando}
             />
           </div>
         )}
