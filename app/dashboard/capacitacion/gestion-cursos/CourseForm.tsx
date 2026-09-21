@@ -48,12 +48,26 @@ export default function CourseForm({
   editingId = null,
   categories = DEFAULT_COURSE_CATEGORIES,
 }: CourseFormProps) {
-  const [datosFormulario, setDatosFormulario] = useState({
+  const [datosFormulario, setDatosFormulario] = useState<{
+    titulo: string;
+    subtitulo: string;
+    categoria: string;
+    contenido: string;
+    horas_estimadas: number | "";
+    tipo_certificado: string;
+    nota_aprobatoria: number;
+    emite_carnet: boolean;
+    para_quien: string;
+    modalidad: string;
+    objetivo_general: string;
+    objetivo_especifico: string;
+    mostrar_en_catalogo: boolean;
+  }>({
     titulo: curso?.nombre || "",
     subtitulo: curso?.subtitulo || "",
     categoria: curso?.categoria || "",
     contenido: curso?.contenido_curso || "",
-    horas_estimadas: curso?.carga_horaria_std || 0,
+    horas_estimadas: curso?.carga_horaria_std ?? 0,
     tipo_certificado:
       curso?.nota_aprobatoria === 0 ? "participacion" : "calificacion", // Certificate type
     nota_aprobatoria: curso?.nota_aprobatoria || 14, // Default to 14 for graded courses
@@ -132,13 +146,17 @@ export default function CourseForm({
     setDatosFormulario((prev) => ({
       ...prev,
       [name]:
-        name === "horas_estimadas" || name === "nota_aprobatoria"
+        name === "horas_estimadas"
           ? value === ""
-            ? 0
-            : Number(value.replace(/^0+/, ""))
-          : name === "titulo"
-            ? value.toUpperCase()
-            : value,
+            ? ""
+            : Math.max(0, parseInt(value, 10) || 0)
+          : name === "nota_aprobatoria"
+            ? value === ""
+              ? 0
+              : Math.max(0, parseInt(value, 10) || 0)
+            : name === "titulo"
+              ? value.toUpperCase()
+              : value,
     }));
   };
 
@@ -178,7 +196,11 @@ export default function CourseForm({
     formData.append("contenido", datosFormulario.contenido);
     formData.append(
       "horas_estimadas",
-      datosFormulario.horas_estimadas.toString(),
+      datosFormulario.horas_estimadas !== "" &&
+        datosFormulario.horas_estimadas !== null &&
+        datosFormulario.horas_estimadas !== undefined
+        ? datosFormulario.horas_estimadas.toString()
+        : "0",
     );
     formData.append(
       "nota_aprobatoria",
@@ -221,7 +243,7 @@ export default function CourseForm({
           nombre: datosFormulario.titulo,
           subtitulo: datosFormulario.subtitulo,
           categoria: datosFormulario.categoria,
-          horas_estimadas: datosFormulario.horas_estimadas,
+          horas_estimadas: Number(datosFormulario.horas_estimadas) || 0,
           para_quien: datosFormulario.para_quien,
           modalidad: datosFormulario.modalidad,
           objetivo_general: datosFormulario.objetivo_general,
@@ -449,13 +471,13 @@ export default function CourseForm({
                   name="horas_estimadas"
                   value={datosFormulario.horas_estimadas}
                   onChange={manejarCambioInput}
-                  min="2"
+                  min="0"
                   step="1"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
-                  placeholder="Ej: 40"
+                  placeholder="Ej: 40 (o 0 si no aplica)"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Duración estimada del curso en horas
+                  Duración estimada en horas (0 si no aplica)
                 </p>
               </div>
 

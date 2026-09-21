@@ -94,8 +94,13 @@ export async function createCurso(formData: FormData) {
     const coursePayload: Record<string, unknown> = {
       nombre: titulo.trim().toUpperCase(),
       subtitulo: subtitulo?.trim() ? subtitulo.trim().toUpperCase() : null,
-      contenido_curso: contenido.trim(),
-      carga_horaria_std: horas_estimadas ? parseInt(horas_estimadas) : null,
+      contenido_curso: contenido?.trim() ? contenido.trim() : "",
+      carga_horaria_std:
+        horas_estimadas !== null &&
+        horas_estimadas !== "" &&
+        !isNaN(parseInt(horas_estimadas, 10))
+          ? parseInt(horas_estimadas, 10)
+          : null,
       created_at: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
       esta_activo: true,
       nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
@@ -191,10 +196,6 @@ export async function updateCurso(id: string, formData: FormData) {
       return { error: "El título es requerido" };
     }
 
-    if (!contenido?.trim()) {
-      return { error: "El contenido es requerido" };
-    }
-
     // Duplicate-name guard: block rename if another Capacitacion course
     // (active or inactive) already has the same uppercased trimmed name.
     const existing = await findDuplicateCurso(supabase, titulo, id);
@@ -208,8 +209,13 @@ export async function updateCurso(id: string, formData: FormData) {
     const updatePayload: Record<string, unknown> = {
       nombre: titulo.trim().toUpperCase(),
       subtitulo: subtitulo?.trim() ? subtitulo.trim().toUpperCase() : null,
-      contenido_curso: contenido.trim(),
-      carga_horaria_std: horas_estimadas ? parseInt(horas_estimadas) : null,
+      contenido_curso: contenido?.trim() ? contenido.trim() : null,
+      carga_horaria_std:
+        horas_estimadas !== null &&
+        horas_estimadas !== "" &&
+        !isNaN(parseInt(horas_estimadas, 10))
+          ? parseInt(horas_estimadas, 10)
+          : null,
       nota_aprobatoria: nota_aprobatoria ? parseInt(nota_aprobatoria) : 14,
       emite_carnet: emite_carnet === "true", // Convert string to boolean
       para_quien: para_quien?.trim() ? para_quien.trim() : null,
