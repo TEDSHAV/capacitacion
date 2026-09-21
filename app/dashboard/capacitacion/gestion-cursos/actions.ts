@@ -53,6 +53,7 @@ export async function createCurso(formData: FormData) {
     const objetivo_general = formData.get("objetivo_general") as string;
     const objetivo_especifico = formData.get("objetivo_especifico") as string;
     const categoria = (formData.get("categoria") as string)?.trim().toUpperCase() || null;
+    const mostrar_en_catalogo = formData.get("mostrar_en_catalogo") !== "false";
 
     // Validate required fields
     if (!titulo?.trim()) {
@@ -109,6 +110,7 @@ export async function createCurso(formData: FormData) {
         : null,
       id_departamento_ejecutante: 3, // Capacitacion department
       tipo_servicio: 1,
+      mostrar_en_catalogo: mostrar_en_catalogo,
     };
 
     if (categoria) {
@@ -121,10 +123,10 @@ export async function createCurso(formData: FormData) {
       .select("*")
       .single();
 
-    // Fallback if column 'categoria' does not exist yet in DB schema
-    if (error && error.code === "42703" && coursePayload.categoria) {
-      console.warn("Column 'categoria' not found in catalogo_servicios, retrying insert without it");
+    // Fallback if column 'categoria' or 'mostrar_en_catalogo' does not exist yet in DB schema
+    if (error && error.code === "42703") {
       delete coursePayload.categoria;
+      delete coursePayload.mostrar_en_catalogo;
       const retry = await supabase
         .from("catalogo_servicios")
         .insert(coursePayload)
@@ -168,6 +170,7 @@ export async function updateCurso(id: string, formData: FormData) {
     const objetivo_general = formData.get("objetivo_general") as string;
     const objetivo_especifico = formData.get("objetivo_especifico") as string;
     const categoria = (formData.get("categoria") as string)?.trim().toUpperCase() || null;
+    const mostrar_en_catalogo = formData.get("mostrar_en_catalogo") !== "false";
 
     console.log(`Updating course ${id}:`, {
       titulo,
@@ -218,6 +221,7 @@ export async function updateCurso(id: string, formData: FormData) {
         ? objetivo_especifico.trim()
         : null,
       categoria: categoria,
+      mostrar_en_catalogo: mostrar_en_catalogo,
     };
 
     let { data, error } = await supabase
@@ -227,10 +231,10 @@ export async function updateCurso(id: string, formData: FormData) {
       .select("*")
       .single();
 
-    // Fallback if column 'categoria' does not exist yet in DB schema
-    if (error && error.code === "42703" && "categoria" in updatePayload) {
-      console.warn("Column 'categoria' not found in catalogo_servicios, retrying update without it");
+    // Fallback if column 'categoria' or 'mostrar_en_catalogo' does not exist yet in DB schema
+    if (error && error.code === "42703") {
       delete updatePayload.categoria;
+      delete updatePayload.mostrar_en_catalogo;
       const retry = await supabase
         .from("catalogo_servicios")
         .update(updatePayload)
@@ -298,14 +302,19 @@ export async function duplicateCurso(id: string) {
       duplicatePayload.categoria = originalCourse.categoria;
     }
 
+    if (originalCourse.mostrar_en_catalogo !== undefined) {
+      duplicatePayload.mostrar_en_catalogo = originalCourse.mostrar_en_catalogo ?? true;
+    }
+
     let { data, error } = await supabase
       .from("catalogo_servicios")
       .insert(duplicatePayload)
       .select("*")
       .single();
 
-    if (error && error.code === "42703" && duplicatePayload.categoria) {
+    if (error && error.code === "42703") {
       delete duplicatePayload.categoria;
+      delete duplicatePayload.mostrar_en_catalogo;
       const retry = await supabase
         .from("catalogo_servicios")
         .insert(duplicatePayload)

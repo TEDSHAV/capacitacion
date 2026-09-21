@@ -68,6 +68,15 @@ export default function CourseItem({
               <span className="text-[11px] font-mono text-gray-400">
                 #{courseCode}
               </span>
+
+              {curso.mostrar_en_catalogo === false && (
+                <span
+                  title="Este curso no se muestra en el catálogo disponible para facilitadores"
+                  className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200"
+                >
+                  Oculto en catálogo
+                </span>
+              )}
             </div>
 
             {/* Course Title */}

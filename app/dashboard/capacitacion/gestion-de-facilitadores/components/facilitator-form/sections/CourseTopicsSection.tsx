@@ -42,8 +42,26 @@ const levelLabel = (level: string | undefined): string => {
 export const CourseTopicsSection = ({ formData, handleInputChange, courseTopics, loadingCourseTopics }: CourseTopicsSectionProps) => {
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredTopics = courseTopics.filter(topic =>
-    topic.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+  // Combine courseTopics with any topics already assigned to this facilitator that might be hidden from catalog
+  const allTopics = React.useMemo(() => {
+    const catalogNames = new Set(courseTopics.map((t) => t.nombre.toUpperCase()));
+    const extraTopics: Array<{ id: string | number; nombre: string; isLegacy?: boolean }> = [];
+
+    (formData.temas_cursos || []).forEach((assignedName: string, idx: number) => {
+      if (!catalogNames.has(assignedName.toUpperCase())) {
+        extraTopics.push({
+          id: `legacy-${idx}-${assignedName}`,
+          nombre: assignedName,
+          isLegacy: true,
+        });
+      }
+    });
+
+    return [...courseTopics, ...extraTopics];
+  }, [courseTopics, formData.temas_cursos]);
+
+  const filteredTopics = allTopics.filter((topic) =>
+    topic.nombre.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const niveles = formData.niveles_habilidad || {};
@@ -108,6 +126,7 @@ export const CourseTopicsSection = ({ formData, handleInputChange, courseTopics,
               filteredTopics.map((topic) => {
                 const isChecked = formData.temas_cursos.includes(topic.nombre);
                 const nivel = niveles[topic.nombre];
+                const isLegacy = (topic as any).isLegacy;
                 return (
                   <div
                     key={topic.id}
@@ -123,6 +142,11 @@ export const CourseTopicsSection = ({ formData, handleInputChange, courseTopics,
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded shrink-0"
                       />
                       <span className="text-sm text-gray-700 truncate">{topic.nombre}</span>
+                      {isLegacy && (
+                        <span className="text-[10px] bg-amber-100 text-amber-800 font-medium px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
+                          No en catálogo
+                        </span>
+                      )}
                     </label>
 
                     {isChecked && (

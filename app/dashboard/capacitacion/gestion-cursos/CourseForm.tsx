@@ -62,6 +62,7 @@ export default function CourseForm({
     modalidad: curso?.modalidad || "Presencial",
     objetivo_general: curso?.objetivo_general || "",
     objetivo_especifico: curso?.objetivo_especifico || "",
+    mostrar_en_catalogo: curso?.mostrar_en_catalogo !== false, // Default to true
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -192,6 +193,10 @@ export default function CourseForm({
       datosFormulario.objetivo_especifico,
     );
     formData.append("categoria", datosFormulario.categoria);
+    formData.append(
+      "mostrar_en_catalogo",
+      datosFormulario.mostrar_en_catalogo ? "true" : "false",
+    );
 
     // Note: empresa_id is no longer stored in database as cliente_asociado column doesn't exist
     // if (datosFormulario.empresa_id) {
@@ -680,6 +685,30 @@ export default function CourseForm({
               </label>
               <p className="text-xs text-gray-500 pt-0.5">
                 Marca esta opción si el curso emite carnet además del certificado
+              </p>
+            </div>
+
+            {/* Mostrar en Catálogo Checkbox */}
+            <div className="flex items-start space-x-3 pt-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="mostrar_en_catalogo"
+                  checked={datosFormulario.mostrar_en_catalogo !== false}
+                  onChange={(e) =>
+                    setDatosFormulario((prev) => ({
+                      ...prev,
+                      mostrar_en_catalogo: e.target.checked,
+                    }))
+                  }
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-semibold text-gray-700">
+                  Mostrar en Catálogo
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 pt-0.5">
+                Disponible para asignación de facilitadores y catálogo general. Desmarca para cursos internos o especiales.
               </p>
             </div>
           </div>

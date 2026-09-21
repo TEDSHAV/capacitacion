@@ -512,6 +512,7 @@ export type Database = {
           nota_aprobatoria: number | null
           subtitulo: string | null
           tipo_servicio: number | null
+          mostrar_en_catalogo: boolean | null
         }
         Insert: {
           carga_horaria_std?: number | null
@@ -526,6 +527,7 @@ export type Database = {
           nota_aprobatoria?: number | null
           subtitulo?: string | null
           tipo_servicio?: number | null
+          mostrar_en_catalogo?: boolean | null
         }
         Update: {
           carga_horaria_std?: number | null
@@ -540,6 +542,7 @@ export type Database = {
           nota_aprobatoria?: number | null
           subtitulo?: string | null
           tipo_servicio?: number | null
+          mostrar_en_catalogo?: boolean | null
         }
         Relationships: [
           {

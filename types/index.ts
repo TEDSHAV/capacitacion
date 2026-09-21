@@ -82,6 +82,7 @@ export interface Curso {
   objetivo_general: string | null;
   objetivo_especifico: string | null;
   categoria?: string | null;
+  mostrar_en_catalogo?: boolean | null;
   empresas?: { razon_social: string; rif?: string | null } | null;
 }
 
@@ -218,6 +219,7 @@ export interface CourseTopic {
   emite_carnet?: boolean; // Whether course emits card/certificate from catalogo_servicios
   subtitulo?: string; // Subtitle from catalogo_servicios
   id_plantilla_certificado?: number; // Preferred certificate template for this course
+  mostrar_en_catalogo?: boolean;
 }
 
 export interface PersonalInfoSectionProps {
