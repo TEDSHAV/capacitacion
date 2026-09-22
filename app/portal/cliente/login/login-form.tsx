@@ -117,7 +117,7 @@ export function ClienteLoginForm() {
             height={128}
             className="w-32 h-32 object-contain mb-4"
           />
-          <h1 className="text-2xl  font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900">
             Portal de Clientes
           </h1>
           <p className="text-gray-600 text-center mt-2">
@@ -221,7 +221,9 @@ export function ClienteLoginForm() {
               mercadeo@shadevenezuela.com.ve
             </a>
             <a
-              href="tel:04122195393"
+              href="https://wa.me/584122195393"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 hover:underline"
             >
               <Phone className="w-4 h-4" />

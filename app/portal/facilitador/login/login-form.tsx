@@ -216,7 +216,12 @@ export function FacilitadorLoginForm() {
               <Mail className="w-4 h-4" />
               capacitacion@shadevenezuela.com.ve
             </a>
-            <a href="tel:04120449046" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:underline">
+            <a
+              href="https://wa.me/584120449046"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:underline"
+            >
               <Phone className="w-4 h-4" />
               0412-044-9046
             </a>
