@@ -19,6 +19,7 @@ interface FilterOptions {
   companies: { id_empresa: number; nombre_empresa: string }[];
   ejecutivos: string[];
   statuses: OSIStatus[];
+  cities?: { id: number; nombre_ciudad: string }[];
 }
 
 interface GestionOSIClientProps {
@@ -82,6 +83,9 @@ export default function GestionOSIClient({
   >(initialFilterOptions?.companies || []);
   const [ejecutivos, setEjecutivos] = useState<string[]>(initialFilterOptions?.ejecutivos || []);
   const [statuses, setStatuses] = useState<OSIStatus[]>(initialFilterOptions?.statuses || []);
+  const [cities, setCities] = useState<{ id: number; nombre_ciudad: string }[]>(
+    initialFilterOptions?.cities || [],
+  );
   const [loadingFilters, setLoadingFilters] = useState(!initialFilterOptions);
 
   // Selected OSI for details modal
@@ -252,6 +256,7 @@ export default function GestionOSIClient({
           setCompanies(filterOptions.companies);
           setEjecutivos(filterOptions.ejecutivos);
           setStatuses(filterOptions.statuses);
+          if (filterOptions.cities) setCities(filterOptions.cities);
           filtersLoadedRef.current = true;
           // Cache filter options too
           cachePortalData("dash_osi_filters", "dash_osi_filters", filterOptions).catch(() => {});
@@ -434,6 +439,7 @@ export default function GestionOSIClient({
         companies={companies}
         ejecutivos={ejecutivos}
         statuses={statuses}
+        cities={cities}
         loading={loadingFilters}
       />
 

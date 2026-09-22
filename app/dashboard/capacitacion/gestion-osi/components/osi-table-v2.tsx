@@ -1,7 +1,7 @@
 "use client";
 
 import { OSIManagement } from "@/types";
-import { Calendar, Building2, Clock, FileText, Download, ClipboardList, UserPlus } from "lucide-react";
+import { Calendar, Building2, Clock, FileText, Download, ClipboardList, UserPlus, MapPin } from "lucide-react";
 import type { OSIStatus } from "@/types";
 import { formatDateOnly } from "@/lib/format-date";
 
@@ -101,10 +101,18 @@ export default function OSITableV2({
                 <span>{formatDate(osi.fecha_inicio_real)}</span>
               </div>
             </div>
-            {/* Company */}
-            <div className="flex items-center gap-1.5 mb-1">
-              <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-              <span className="text-sm text-gray-700 truncate">{osi.nombre_empresa}</span>
+            {/* Company & City */}
+            <div className="flex items-center justify-between gap-1.5 mb-1">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                <span className="text-sm text-gray-700 truncate">{osi.nombre_empresa}</span>
+              </div>
+              {osi.ciudad_ejecucion && (
+                <div className="flex items-center gap-1 text-xs text-gray-500 flex-shrink-0" title={osi.ciudad_ejecucion}>
+                  <MapPin className="w-3 h-3 text-gray-400" />
+                  <span>{osi.ciudad_ejecucion}</span>
+                </div>
+              )}
             </div>
             {/* Service */}
             <div className="mb-3">
@@ -168,6 +176,9 @@ export default function OSITableV2({
                 Servicio
               </th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Ciudad
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Fecha
               </th>
               <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider w-32">
@@ -214,6 +225,14 @@ export default function OSITableV2({
                     </span>
                     <span className="text-[10px] text-gray-500 truncate max-w-[180px]">
                       {osi.tipo_servicio}
+                    </span>
+                  </div>
+                </td>
+                <td className="px-3 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-700">
+                    <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                    <span className="truncate max-w-[120px]" title={osi.ciudad_ejecucion || undefined}>
+                      {osi.ciudad_ejecucion || "-"}
                     </span>
                   </div>
                 </td>

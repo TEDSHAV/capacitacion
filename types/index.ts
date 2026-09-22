@@ -1040,6 +1040,7 @@ export interface OSIFilters {
   numHoursMin?: number;
   numHoursMax?: number;
   location?: string;
+  ciudad?: string;
   ejecutivo?: string;
   includeOsiIds?: number[];
   excludeOsiIds?: number[];
@@ -1062,6 +1063,8 @@ export interface OSIManagement {
   horas_academicas_ejecucion: number;
   sesiones_ejecucion: number;
   direccion_ejecucion: string;
+  id_ciudad_direccion_ejecucion_efectiva?: number | null;
+  ciudad_ejecucion?: string | null;
   contenido_servicio: string;
   codigo_cliente: number;
   nro_presupuesto: number;

@@ -329,6 +329,13 @@ export async function getOSIsForManagement(
       query = query.ilike("direccion_ejecucion", `%${filters.location.trim()}%`);
     }
 
+    if (filters.ciudad) {
+      const cityId = parseInt(String(filters.ciudad), 10);
+      if (!isNaN(cityId)) {
+        query = query.eq("id_ciudad_direccion_ejecucion_efectiva", cityId);
+      }
+    }
+
     if (filters.ejecutivo && filters.ejecutivo.trim()) {
       query = query.ilike("ejecutivo_negocios", `%${filters.ejecutivo.trim()}%`);
     }
@@ -543,6 +550,13 @@ export async function getOSIsForGestionOSI(
       query = query.ilike("direccion_ejecucion", `%${filters.location.trim()}%`);
     }
 
+    if (filters.ciudad) {
+      const cityId = parseInt(String(filters.ciudad), 10);
+      if (!isNaN(cityId)) {
+        query = query.eq("id_ciudad_direccion_ejecucion_efectiva", cityId);
+      }
+    }
+
     if (filters.numSesionesMin !== undefined) {
       query = query.gte("sesiones_ejecucion", filters.numSesionesMin);
     }
@@ -589,6 +603,12 @@ export async function getOSIsForGestionOSI(
       return { osis: [], totalCount: 0 };
     }
 
+    // Collect city IDs from the page's OSIs and resolve names using module cache
+    const cityIds = (data || [])
+      .map((osi: any) => osi.id_ciudad_direccion_ejecucion_efectiva)
+      .filter((id: any): id is number => typeof id === "number");
+    const cityMap = await getCityNameMap(cityIds);
+
     // Map v_osi_lista rows to OSIManagement with defaults for missing fields.
     // batch-download-utils uses certificate snapshots for OSI data (id_empresa,
     // id_ciudad, etc.); the OSIManagement object only needs id_osi, nro_osi,
@@ -608,6 +628,10 @@ export async function getOSIsForGestionOSI(
       horas_academicas_ejecucion: osi.horas_academicas_ejecucion || 0,
       sesiones_ejecucion: osi.sesiones_ejecucion || 0,
       direccion_ejecucion: osi.direccion_ejecucion || "",
+      id_ciudad_direccion_ejecucion_efectiva: osi.id_ciudad_direccion_ejecucion_efectiva ?? null,
+      ciudad_ejecucion: osi.id_ciudad_direccion_ejecucion_efectiva
+        ? cityMap.get(osi.id_ciudad_direccion_ejecucion_efectiva) ?? null
+        : null,
       contenido_servicio: "",
       codigo_cliente: osi.codigo_cliente || 0,
       id_estatus: osi.id_estatus || 0,
@@ -692,8 +716,45 @@ export async function getCertificadoImpresoBatch(
   return map;
 }
 
+// Module-level cache of city names from cat_ciudades (~67 rows)
+let _cityMapCache = new Map<number, string>();
+let _cityMapCacheExpiresAt = 0;
+const CITY_MAP_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+async function getCityNameMap(cityIds: number[]): Promise<Map<number, string>> {
+  if (cityIds.length === 0 && _cityMapCache.size > 0) {
+    return _cityMapCache;
+  }
+  const needsRefresh = _cityMapCache.size === 0 || Date.now() > _cityMapCacheExpiresAt;
+  const missingIds = needsRefresh
+    ? []
+    : cityIds.filter((id) => !_cityMapCache.has(id));
+
+  if (needsRefresh || missingIds.length > 0) {
+    try {
+      const supabase = await createClient();
+      const query = supabase.from("cat_ciudades").select("id, nombre_ciudad");
+      const { data } = needsRefresh
+        ? await query
+        : await query.in("id", missingIds);
+
+      if (needsRefresh) {
+        _cityMapCache = new Map((data || []).map((c: any) => [c.id, c.nombre_ciudad]));
+        _cityMapCacheExpiresAt = Date.now() + CITY_MAP_CACHE_TTL_MS;
+      } else {
+        for (const c of data || []) {
+          _cityMapCache.set(c.id, c.nombre_ciudad);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching city names:", err);
+    }
+  }
+  return _cityMapCache;
+}
+
 // Get filter options for OSI management (cached 5 minutes — reference data
-// that changes rarely: companies, ejecutivos, statuses)
+// that changes rarely: companies, ejecutivos, statuses, cities)
 //
 // Note: We can't use Next.js `unstable_cache` here because `createClient()`
 // calls `cookies()` (a dynamic data source), which is disallowed inside a
@@ -710,22 +771,33 @@ export async function getOSIFilterOptions() {
   try {
     const supabase = await createClient();
 
-    const { data, error } = await supabase.rpc("get_osi_filter_options");
+    const [filterRpcResult, citiesResult] = await Promise.all([
+      supabase.rpc("get_osi_filter_options"),
+      supabase
+        .from("cat_ciudades")
+        .select("id, nombre_ciudad")
+        .order("nombre_ciudad", { ascending: true }),
+    ]);
 
-    if (error || !data || data.length === 0) {
-      console.error("Error fetching OSI filter options:", error);
-      return {
-        companies: [],
-        ejecutivos: [],
-        statuses: [],
-      };
+    const rpcRows = filterRpcResult.data;
+    const row = rpcRows && rpcRows.length > 0 ? rpcRows[0] : null;
+
+    const cities = (citiesResult.data || []).map((c: any) => ({
+      id: c.id,
+      nombre_ciudad: c.nombre_ciudad,
+    }));
+
+    // Prime the city map cache
+    if (_cityMapCache.size === 0) {
+      _cityMapCache = new Map(cities.map((c) => [c.id, c.nombre_ciudad]));
+      _cityMapCacheExpiresAt = Date.now() + CITY_MAP_CACHE_TTL_MS;
     }
 
-    const row = data[0];
     const result = {
-      companies: row.companies || [],
-      ejecutivos: row.ejecutivos || [],
-      statuses: row.statuses || [],
+      companies: row?.companies || [],
+      ejecutivos: row?.ejecutivos || [],
+      statuses: row?.statuses || [],
+      cities,
     };
 
     _filterOptionsCache = {
@@ -740,6 +812,7 @@ export async function getOSIFilterOptions() {
       companies: [],
       ejecutivos: [],
       statuses: [],
+      cities: [],
     };
   }
 }
