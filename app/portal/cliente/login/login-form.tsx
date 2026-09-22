@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Key, Loader2, AlertCircle, WifiOff, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { User, Key, Loader2, AlertCircle, WifiOff, ArrowRight, Eye, EyeOff, Mail, Phone } from "lucide-react";
 import Image from "next/image";
 import { loginCliente } from "@/app/actions/cliente-portal";
 import { getClientSession, saveClientSession } from "@/lib/offline/client-session";
@@ -209,9 +209,25 @@ export function ClienteLoginForm() {
 
         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
           <p className="text-sm text-gray-500">
-            ¿No tienes acceso? <br />
-            Contacta a tu ejecutivo de cuenta.
+            ¿Tienes problemas para ingresar o no tienes acceso? <br />
+            Contacta a tu ejecutivo de ventas.
           </p>
+          <div className="mt-3 flex flex-col items-center gap-2 text-sm">
+            <a
+              href="mailto:mercadeo@shadevenezuela.com.ve"
+              className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 hover:underline"
+            >
+              <Mail className="w-4 h-4" />
+              mercadeo@shadevenezuela.com.ve
+            </a>
+            <a
+              href="tel:04122195393"
+              className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 hover:underline"
+            >
+              <Phone className="w-4 h-4" />
+              0412-2195393
+            </a>
+          </div>
         </div>
       </div>
     </div>
