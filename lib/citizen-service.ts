@@ -1,7 +1,4 @@
-/**
- * Citizen Service for fast ID lookup
- * Uses official API from cedula.com.ve
- */
+import { createAdminClient } from "@/utils/supabase/server";
 
 export interface CitizenLookupResult {
   success: boolean;
@@ -37,22 +34,56 @@ export class CitizenService {
   }
 
   /**
-   * Verify ID with cedula.com.ve API
+   * Verify ID with shared cat_cedulas_cache and cedula.com.ve API fallback
    */
   static async verifyWithSession(
     sessionId: string,
     idNumber: string,
     answer: string,
   ): Promise<CitizenLookupResult> {
-    console.log(`[CitizenService] API Lookup: ID=${idNumber}`);
+    console.log(`[CitizenService] Verification requested: ID=${idNumber}`);
 
+    const rawTrimmed = (idNumber || "").trim().toUpperCase();
+    const nac = rawTrimmed.startsWith("E") ? "E" : "V";
+    const digits = idNumber.replace(/\D/g, "");
+
+    if (!digits || digits.length < 5) {
+      return {
+        success: false,
+        error: "Número de cédula inválido",
+      };
+    }
+
+    // Step 1: Check shared Supabase cache (cat_cedulas_cache)
     try {
-      // Build the URL with query parameters
+      const supabase = await createAdminClient();
+      const { data: cached, error: dbError } = await supabase
+        .from("cat_cedulas_cache")
+        .select("nombre_completo, rif")
+        .eq("nacionalidad", nac)
+        .eq("cedula", digits)
+        .maybeSingle();
+
+      if (!dbError && cached?.nombre_completo) {
+        console.log(`[CitizenService] Cache HIT for ${nac}-${digits}: ${cached.nombre_completo}`);
+        return {
+          success: true,
+          name: cached.nombre_completo,
+          rif: cached.rif || undefined,
+        };
+      }
+    } catch (err) {
+      // Graceful degradation: if cache table doesn't exist yet, proceed to API
+      console.warn("[CitizenService] Cache lookup bypassed:", err);
+    }
+
+    // Step 2: Fallback to external cedula.com.ve API
+    try {
       const url = new URL(this.API_URL);
       url.searchParams.append("app_id", this.APP_ID);
       url.searchParams.append("token", this.TOKEN);
-      url.searchParams.append("nacionalidad", "V");
-      url.searchParams.append("cedula", idNumber.replace(/\D/g, "")); // Only digits
+      url.searchParams.append("nacionalidad", nac);
+      url.searchParams.append("cedula", digits);
 
       const response = await fetch(url.toString(), {
         method: "GET",
@@ -99,6 +130,25 @@ export class CitizenService {
           error: "No se pudo extraer el nombre del ciudadano",
         };
       }
+
+      // Step 3: Asynchronously persist to shared cat_cedulas_cache (fire-and-forget)
+      (async () => {
+        try {
+          const supabase = await createAdminClient();
+          await supabase.from("cat_cedulas_cache").upsert(
+            {
+              nacionalidad: nac,
+              cedula: digits,
+              nombre_completo: fullName,
+              rif: data.rif || null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "nacionalidad,cedula" },
+          );
+        } catch {
+          // Silently ignore if table doesn't exist yet
+        }
+      })();
 
       return {
         success: true,
