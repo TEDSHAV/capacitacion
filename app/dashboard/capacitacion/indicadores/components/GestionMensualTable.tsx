@@ -24,22 +24,22 @@ type RowDef = {
 const ROWS: RowDef[] = [
   {
     key: "recibidas",
-    label: "OSIs recibidas",
+    label: "OSIs recibidas (Negocios)",
     get: (m) => m.osisRecibidas,
   },
   {
     key: "planificadas",
-    label: "OSIs planificadas",
+    label: "OSIs programadas en calendario",
     get: (m) => m.osisPlanificadas,
   },
   {
     key: "ejecutadasEnSuMes",
-    label: "Ejecutadas en su mes",
+    label: "OSIs ejecutadas (del mes)",
     get: (m) => m.osisEjecutadasEnSuMes,
   },
   {
     key: "pendientes",
-    label: "Pendientes del mes",
+    label: "OSIs pendientes del mes",
     get: (m) => m.osisPendientes,
   },
   {
@@ -50,29 +50,29 @@ const ROWS: RowDef[] = [
   },
   {
     key: "rezagadas",
-    label: "Ejecutadas de meses anteriores",
+    label: "OSIs ejecutadas (de meses anteriores)",
     get: (m) => m.osisRezagadasEjecutadas,
   },
   {
     key: "participantesPlanificados",
-    label: "Participantes planificados",
+    label: "Participantes convocados (planificados)",
     get: (m) => m.participantesPlanificados,
     groupStart: true,
   },
   {
     key: "participantesLista",
-    label: "Participantes asistidos (por mes de ejecución)",
+    label: "Participantes certificados (cursos del mes)",
     get: (m) => m.participantesLista,
   },
   {
     key: "certificados",
-    label: "Certificados emitidos (por mes de emisión)",
+    label: "Certificados emitidos (en el mes)",
     get: (m) => m.certificados,
     groupStart: true,
   },
   {
     key: "pvc",
-    label: "PVC (carnets) emitidos",
+    label: "Carnets PVC emitidos",
     get: (m) => m.pvc,
   },
 ];

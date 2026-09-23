@@ -9,6 +9,8 @@ import {
   History,
   ExternalLink,
   MessageCircle,
+  CheckCircle2,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import type { OsiCarryRow, OsiNota } from "@/types";
@@ -26,26 +28,36 @@ interface Props {
   shellUrl: string;
 }
 
-type Population = "arrastradas" | "pasaran" | "rezagadas";
+type Population = "ejecutadas" | "arrastradas" | "pasaran" | "rezagadas" | "futuras";
 
 const POPULATION_DEFS: Record<
   Population,
   { label: string; icon: typeof Inbox; description: string }
 > = {
+  ejecutadas: {
+    label: "Ejecutadas en su mes",
+    icon: CheckCircle2,
+    description: "Planificadas y completadas dentro de este mes",
+  },
+  pasaran: {
+    label: "Pendientes del mes",
+    icon: ArrowRightCircle,
+    description: "Planificadas para este mes, aún pendientes de ejecución",
+  },
   arrastradas: {
     label: "Arrastradas de meses anteriores",
     icon: Inbox,
     description: "Planificadas antes de este mes, aún pendientes o ejecutadas después",
   },
-  pasaran: {
-    label: "Pasarán al próximo mes",
-    icon: ArrowRightCircle,
-    description: "Planificadas para este mes, aún pendientes o ejecutadas después",
-  },
   rezagadas: {
-    label: "Rezagadas ejecutadas este mes",
+    label: "De meses anteriores ejecutadas este mes",
     icon: History,
-    description: "Planificadas antes y ejecutadas durante este mes",
+    description: "Planificadas antes y completadas durante este mes",
+  },
+  futuras: {
+    label: "Planificadas próximos meses",
+    icon: Calendar,
+    description: "Programadas para fechas futuras en el año",
   },
 };
 
@@ -60,10 +72,7 @@ function computeDiasAtraso(
   const [year, month] = selectedMes.split("-").map(Number);
   if (!year || !month) return null;
 
-  // Last day of the month: first day of next month minus 1 day
-  const lastDayOfMonth = new Date(year, month, 0); // month is 1-indexed, so month-1 gives us the last day of the previous month
-  const refDate = new Date(year, month, 0); // This gives us the last day of the selected month
-
+  const refDate = new Date(year, month, 0); // Last day of selected month
   const planDate = new Date(ultimaFechaPlanificada);
   if (isNaN(planDate.getTime())) return null;
 
@@ -99,27 +108,31 @@ export default function CarryPanel({
   }, [osisList]);
 
   const groups = useMemo(() => {
+    const ejecutadas: OsiCarryRow[] = [];
     const arrastradas: OsiCarryRow[] = [];
     const pasaran: OsiCarryRow[] = [];
     const rezagadas: OsiCarryRow[] = [];
+    const futuras: OsiCarryRow[] = [];
 
     for (const o of osisList) {
-      // Arrastradas: planned before selectedMes AND (not executed OR executed after selectedMes)
-      if (
+      if (o.mesPlanificado > selectedMes) {
+        futuras.push(o);
+      } else if (
+        o.mesPlanificado === selectedMes &&
+        o.mesEjecucion === selectedMes
+      ) {
+        ejecutadas.push(o);
+      } else if (
         o.mesPlanificado < selectedMes &&
         (o.mesEjecucion == null || o.mesEjecucion > selectedMes)
       ) {
         arrastradas.push(o);
-      }
-      // Pasarán: planned for selectedMes AND (not executed OR executed after selectedMes)
-      else if (
+      } else if (
         o.mesPlanificado === selectedMes &&
         (o.mesEjecucion == null || o.mesEjecucion > selectedMes)
       ) {
         pasaran.push(o);
-      }
-      // Rezagadas: planned before selectedMes AND executed during selectedMes
-      else if (
+      } else if (
         o.mesPlanificado < selectedMes &&
         o.mesEjecucion === selectedMes
       ) {
@@ -140,25 +153,54 @@ export default function CarryPanel({
         a.ultimaFechaPlanificada ?? "",
       ),
     );
+    ejecutadas.sort((a, b) =>
+      (b.ultimaFechaPlanificada ?? "").localeCompare(
+        a.ultimaFechaPlanificada ?? "",
+      ),
+    );
+    futuras.sort((a, b) =>
+      (a.ultimaFechaPlanificada ?? "").localeCompare(
+        b.ultimaFechaPlanificada ?? "",
+      ),
+    );
 
-    return { arrastradas, pasaran, rezagadas };
+    return { ejecutadas, arrastradas, pasaran, rezagadas, futuras };
   }, [osisList, selectedMes]);
 
   const counts = {
-    arrastradas: groups.arrastradas.length,
+    ejecutadas: groups.ejecutadas.length,
     pasaran: groups.pasaran.length,
+    arrastradas: groups.arrastradas.length,
     rezagadas: groups.rezagadas.length,
+    futuras: groups.futuras.length,
   };
 
-  const totalCarry = counts.arrastradas + counts.pasaran + counts.rezagadas;
+  const totalOsisTracked =
+    counts.ejecutadas +
+    counts.arrastradas +
+    counts.pasaran +
+    counts.rezagadas +
+    counts.futuras;
+
+  // Auto-select tab if activeTab is empty
+  useEffect(() => {
+    if (counts[activeTab] === 0) {
+      if (counts.arrastradas > 0) setActiveTab("arrastradas");
+      else if (counts.pasaran > 0) setActiveTab("pasaran");
+      else if (counts.ejecutadas > 0) setActiveTab("ejecutadas");
+      else if (counts.rezagadas > 0) setActiveTab("rezagadas");
+      else if (counts.futuras > 0) setActiveTab("futuras");
+    }
+  }, [counts, activeTab]);
+
   const activeList = groups[activeTab];
 
   return (
     <>
-      <div className="rounded-xl">
+      <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-3">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-1 py-2 bg-transparent"
+          className="w-full flex items-center justify-between px-1 py-1 bg-transparent"
         >
           <div className="flex items-center gap-2">
             {open ? (
@@ -166,33 +208,49 @@ export default function CarryPanel({
             ) : (
               <ChevronRight className="w-4 h-4 text-gray-400" />
             )}
-            <h3 className="text-sm font-semibold text-gray-900">
-              Arrastre de OSIs · {selectedMesLabel}
+            <h3 className="text-sm font-bold text-gray-900">
+              Seguimiento Operativo de OSIs · {selectedMesLabel}
             </h3>
-            {totalCarry > 0 && (
-              <span className="ml-1 text-[11px] font-semibold text-gray-600">
-                {totalCarry} OSI{totalCarry === 1 ? "" : "s"}
+            {totalOsisTracked > 0 && (
+              <span className="ml-1 text-[11px] font-semibold text-gray-500">
+                ({totalOsisTracked} en seguimiento)
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 text-[11px] text-gray-500">
-            {counts.arrastradas > 0 && (
-              <span>{counts.arrastradas} arrastradas</span>
+          <div className="flex items-center gap-2.5 text-[11px] font-medium flex-wrap">
+            {counts.ejecutadas > 0 && (
+              <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                {counts.ejecutadas} ejecutadas
+              </span>
             )}
             {counts.pasaran > 0 && (
-              <span>{counts.pasaran} pendientes</span>
+              <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                {counts.pasaran} pendientes
+              </span>
+            )}
+            {counts.arrastradas > 0 && (
+              <span className="text-red-700 bg-red-50 px-2 py-0.5 rounded-full">
+                {counts.arrastradas} arrastradas
+              </span>
             )}
             {counts.rezagadas > 0 && (
-              <span>{counts.rezagadas} rezagadas</span>
+              <span className="text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full">
+                {counts.rezagadas} de meses anteriores
+              </span>
+            )}
+            {counts.futuras > 0 && (
+              <span className="text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">
+                {counts.futuras} próximas
+              </span>
             )}
           </div>
         </button>
 
         {open && (
-          <div className="border-t border-gray-100 mt-1">
-            {totalCarry === 0 ? (
+          <div className="border-t border-gray-100 mt-2">
+            {totalOsisTracked === 0 ? (
               <div className="px-1 py-6 text-center text-sm text-gray-400">
-                No hay OSIs en arrastre para {selectedMesLabel}.
+                No hay OSIs registradas para {selectedMesLabel}.
               </div>
             ) : (
               <>
@@ -288,6 +346,10 @@ export default function CarryPanel({
                                 >
                                   {diasAtraso}d
                                 </span>
+                              ) : activeTab === "ejecutadas" ? (
+                                <span className="text-emerald-600 text-xs font-medium">Al día</span>
+                              ) : activeTab === "futuras" ? (
+                                <span className="text-purple-600 text-xs font-medium">Programada</span>
                               ) : (
                                 <span className="text-gray-300">—</span>
                               )}
@@ -310,16 +372,24 @@ export default function CarryPanel({
                                 )}
                               </button>
                             </td>
-                            <td className="py-2">
-                              <a
-                                href={`${shellUrl}/consulta-osi?nro_osi=${encodeURIComponent(o.nroOsi)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-700"
-                              >
-                                Ver
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
+                            <td className="py-2 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <Link
+                                  href={`/dashboard/capacitacion/gestion-osi?search=${encodeURIComponent(o.nroOsi)}`}
+                                  className="text-[11px] text-sky-600 hover:text-sky-800 font-medium"
+                                >
+                                  OSI
+                                </Link>
+                                <a
+                                  href={`${shellUrl}/consulta-osi?nro_osi=${encodeURIComponent(o.nroOsi)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-0.5 text-[11px] text-gray-400 hover:text-gray-600"
+                                >
+                                  Shell
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              </div>
                             </td>
                           </tr>
                         );

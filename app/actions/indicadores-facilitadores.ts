@@ -37,21 +37,21 @@ async function fetchAllPages<T>(
   return all;
 }
 
+/** Like fetchAllPages, but splits `ids` into chunks and fetches them concurrently. */
 async function fetchChunkedIn<T>(
   ids: number[],
   build: (chunk: number[], from: number, to: number) => PromiseLike<PagedResult<T>>,
   label: string,
 ): Promise<T[]> {
-  const all: T[] = [];
+  if (ids.length === 0) return [];
+  const chunks: number[][] = [];
   for (let i = 0; i < ids.length; i += IN_CHUNK_SIZE) {
-    const chunk = ids.slice(i, i + IN_CHUNK_SIZE);
-    const rows = await fetchAllPages<T>(
-      (from, to) => build(chunk, from, to),
-      label,
-    );
-    all.push(...rows);
+    chunks.push(ids.slice(i, i + IN_CHUNK_SIZE));
   }
-  return all;
+  const results = await Promise.all(
+    chunks.map((chunk) => fetchAllPages<T>((from, to) => build(chunk, from, to), label)),
+  );
+  return results.flat();
 }
 
 /** "YYYY-MM" month key for a date-only string or timestamp, null if unusable. */

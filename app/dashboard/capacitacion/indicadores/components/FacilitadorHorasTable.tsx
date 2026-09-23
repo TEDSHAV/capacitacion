@@ -29,53 +29,6 @@ function formatMonto(v: number): string {
   })}`;
 }
 
-function escapeCsv(v: unknown): string {
-  const s = v == null ? "" : String(v);
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-function downloadCsv(lines: string[], filename: string) {
-  const blob = new Blob(["\uFEFF" + lines.join("\n")], {
-    type: "text/csv;charset=utf-8;",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-function exportCsv(data: FacilitadoresHorasResponse) {
-  // Only export tracked months — pre-cutoff columns would be all-zeros.
-  const monthIdxs = trackedMonthIndicesForYear(data.year);
-  const headers = [
-    "Facilitador",
-    ...monthIdxs.map((i) => MONTH_LABELS[i]),
-    "NRO TOTAL DE CURSOS EN EL AÑO",
-    "NRO TOTAL DE HORAS EN EL AÑO",
-    "MONTO TOTAL EN $",
-  ];
-  const lines = [headers.map(escapeCsv).join(",")];
-  for (const f of data.facilitadores) {
-    lines.push(
-      [
-        f.nombre,
-        ...monthIdxs.map((i) => f.horasPorMes[i]),
-        f.totalCursos,
-        f.totalHoras,
-        f.totalMonto.toFixed(2),
-      ]
-        .map(escapeCsv)
-        .join(","),
-    );
-  }
-  downloadCsv(lines, `indicadores-facilitadores-${data.year}.csv`);
-}
-
 export default function FacilitadorHorasTable({ data }: Props) {
   // Only tracked months get a column — pre-cutoff months are hidden.
   const monthIdxs = trackedMonthIndicesForYear(data.year);
@@ -103,14 +56,6 @@ export default function FacilitadorHorasTable({ data }: Props) {
             Horas según requisición · OSI como respaldo · monto = tarifa × horas
           </p>
         </div>
-        <button
-          onClick={() => exportCsv(data)}
-          disabled={data.facilitadores.length === 0}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Download className="w-3.5 h-3.5" />
-          CSV
-        </button>
       </div>
       <div>
         <table className="w-full text-sm border-collapse">

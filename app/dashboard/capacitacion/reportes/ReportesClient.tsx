@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
@@ -14,26 +14,12 @@ import {
   Calendar,
   X,
   CreditCard,
-  Info,
 } from "lucide-react";
 import { State } from "@/types";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
-import OverviewReport from "./components/OverviewReport";
-import CursosReport from "./components/CursosReport";
-import FacilitadoresReport from "./components/FacilitadoresReport";
-import EmpresasReport from "./components/EmpresasReport";
-import CarnetsReport from "./components/CarnetsReport";
-import TendenciasReport from "./components/TendenciasReport";
-import SurveysReport from "./components/SurveysReport";
+import ReportesV2View, { DimensionTab } from "./components/ReportesV2View";
 
-type ReportTab =
-  | "overview"
-  | "cursos"
-  | "facilitadores"
-  | "empresas"
-  | "carnets"
-  | "tendencias"
-  | "surveys";
+type ReportTab = DimensionTab;
 
 const NAV_ITEMS: {
   id: ReportTab;
@@ -56,7 +42,7 @@ const NAV_ITEMS: {
   {
     id: "facilitadores",
     label: "Facilitadores",
-    description: "Actividad y horas dictadas",
+    description: "Actividad, horas y honorarios",
     icon: Users,
   },
   {
@@ -80,8 +66,14 @@ const NAV_ITEMS: {
   {
     id: "tendencias",
     label: "Tendencias",
-    description: "Análisis temporal 24 meses",
+    description: "Análisis temporal de actividad",
     icon: TrendingUp,
+  },
+  {
+    id: "ubicaciones",
+    label: "Estados y Sedes",
+    description: "Distribución geográfica y cobertura",
+    icon: MapPin,
   },
 ];
 
@@ -128,17 +120,7 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
   const [customFromDate, setCustomFromDate] = useState("");
   const [customToDate, setCustomToDate] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
   const hasInitialized = useRef(false);
-
-  // Restore banner dismissal from localStorage on mount
-  useEffect(() => {
-    try {
-      if (localStorage.getItem("reportes_sample_banner_dismissed") === "1") {
-        setBannerDismissed(true);
-      }
-    } catch {}
-  }, []);
 
   // Cache states on mount
   useEffect(() => {
@@ -156,13 +138,13 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
-    if (tab && NAV_ITEMS.find(item => item.id === tab)) {
+    if (tab && NAV_ITEMS.find((item) => item.id === tab)) {
       setActiveTab(tab);
     }
-    if (date && DATE_PRESETS.find(item => item.value === date)) {
+    if (date && DATE_PRESETS.find((item) => item.value === date)) {
       setDatePreset(date);
     }
-    if (state && states.find(s => s.id.toString() === state)) {
+    if (state && states.find((s) => s.id.toString() === state)) {
       setSelectedState(state);
     }
     if (from && to) {
@@ -187,14 +169,17 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
     window.history.replaceState({}, "", newUrl);
   }, [activeTab, datePreset, selectedState, customFromDate, customToDate]);
 
-  const { from: dateFrom, to: dateTo } = datePreset === "custom" 
-    ? { from: customFromDate, to: customToDate }
-    : getDateRange(datePreset);
-  const activeNav = NAV_ITEMS.find((n) => n.id === activeTab)!;
+  const { from: dateFrom, to: dateTo } = useMemo(() => {
+    return datePreset === "custom"
+      ? { from: customFromDate, to: customToDate }
+      : getDateRange(datePreset);
+  }, [datePreset, customFromDate, customToDate]);
+
+  const activeNav = NAV_ITEMS.find((n) => n.id === activeTab) || NAV_ITEMS[0];
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
+      {/* Sidebar navigation */}
       <aside className="w-60 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
         <div className="px-5 py-5 border-b border-gray-100">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
@@ -246,7 +231,7 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
 
         <div className="p-4 border-t border-gray-100">
           <p className="text-[11px] text-gray-400 leading-snug">
-            Los datos se calculan en tiempo real desde la base de datos.
+            Los datos se calculan en tiempo real desde la base de datos de Capacitación.
           </p>
         </div>
       </aside>
@@ -293,7 +278,9 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
             {showDatePicker && (
               <div className="absolute top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50 min-w-[300px]">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">Rango de fechas personalizado</h3>
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Rango de fechas personalizado
+                  </h3>
                   <button
                     onClick={() => setShowDatePicker(false)}
                     className="text-gray-400 hover:text-gray-600"
@@ -303,7 +290,9 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
                 </div>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Desde</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Desde
+                    </label>
                     <input
                       type="date"
                       value={customFromDate}
@@ -312,7 +301,9 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Hasta</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Hasta
+                    </label>
                     <input
                       type="date"
                       value={customToDate}
@@ -370,73 +361,13 @@ export default function ReportesClient({ user, states }: ReportesClientProps) {
 
         {/* Report content */}
         <main className="flex-1 p-6 overflow-auto">
-          {!bannerDismissed && (
-            <div className="mb-4 flex items-start gap-2.5 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
-              <Info className="w-4 h-4 shrink-0 mt-0.5" />
-              <p className="flex-1 leading-relaxed">
-                Los datos mostrados en este módulo no reflejan
-                información actualizada. Esta sección es una demostración
-                para futuras implementaciones.
-              </p>
-              <button
-                onClick={() => {
-                  setBannerDismissed(true);
-                  try {
-                    localStorage.setItem("reportes_sample_banner_dismissed", "1");
-                  } catch {}
-                }}
-                className="shrink-0 text-amber-600 hover:text-amber-900 transition-colors"
-                aria-label="Cerrar aviso"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-          {activeTab === "overview" && (
-            <OverviewReport
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              selectedState={selectedState}
-            />
-          )}
-          {activeTab === "cursos" && (
-            <CursosReport
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              selectedState={selectedState}
-            />
-          )}
-          {activeTab === "facilitadores" && (
-            <FacilitadoresReport
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              selectedState={selectedState}
-            />
-          )}
-          {activeTab === "empresas" && (
-            <EmpresasReport
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              selectedState={selectedState}
-            />
-          )}
-          {activeTab === "carnets" && (
-            <CarnetsReport
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              selectedState={selectedState}
-            />
-          )}
-          {activeTab === "tendencias" && (
-            <TendenciasReport selectedState={selectedState} />
-          )}
-          {activeTab === "surveys" && (
-            <SurveysReport
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              selectedState={selectedState}
-            />
-          )}
+          <ReportesV2View
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            selectedState={selectedState}
+          />
         </main>
       </div>
     </div>

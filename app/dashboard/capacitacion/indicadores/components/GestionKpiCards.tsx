@@ -67,31 +67,31 @@ export default function GestionKpiCards({ mes }: Props) {
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <KpiCard
         icon={Inbox}
-        label="OSIs recibidas"
+        label="OSIs recibidas (Negocios)"
         value={mes.osisRecibidas}
-        sub="Por fecha de emisión de la OSI"
+        sub="Registradas por Negocios según fecha de emisión"
         color="bg-sky-100 text-sky-700"
       />
       <KpiCard
         icon={CalendarCheck}
-        label="Ejecutadas en su mes"
+        label="OSIs ejecutadas (del mes)"
         value={mes.osisEjecutadasEnSuMes}
         sub={
           cumplimiento
-            ? `${cumplimiento} de ${mes.osisPlanificadas} planificadas`
-            : "Sin OSIs planificadas este mes"
+            ? `${cumplimiento} de ${mes.osisPlanificadas} programadas`
+            : "Sin OSIs programadas este mes"
         }
         color="bg-emerald-100 text-emerald-700"
         valueColor="text-emerald-600"
       />
       <KpiCard
         icon={Hourglass}
-        label="Pendientes del mes"
+        label="OSIs pendientes del mes"
         value={mes.osisPendientes}
         sub={
           mes.osisPendientesVencidas > 0
-            ? `${mes.osisPendientesVencidas} con fecha ya pasada`
-            : "Ninguna con fecha pasada"
+            ? `${mes.osisPendientesVencidas} con fecha ya vencida`
+            : "Ninguna con fecha vencida"
         }
         color="bg-amber-100 text-amber-700"
         valueColor={mes.osisPendientes > 0 ? "text-amber-600" : undefined}
@@ -100,25 +100,25 @@ export default function GestionKpiCards({ mes }: Props) {
         icon={History}
         label="Ejecutadas de meses anteriores"
         value={mes.osisRezagadasEjecutadas}
-        sub="Planificadas antes, ejecutadas en este mes"
+        sub="Programadas antes, ejecutadas este mes"
         color="bg-indigo-100 text-indigo-700"
         valueColor="text-indigo-600"
       />
       <KpiCard
         icon={Users}
-        label="Participantes planificados"
+        label="Participantes convocados"
         value={mes.participantesPlanificados}
-        sub="Según las OSIs planificadas del mes"
+        sub="Cupos planificados de las OSIs ejecutadas"
         color="bg-gray-100 text-gray-600"
       />
       <KpiCard
         icon={ClipboardList}
-        label="Participantes asistidos"
+        label="Participantes certificados"
         value={mes.participantesLista}
         sub={
           asistencia
-            ? `${asistencia} de los planificados`
-            : "Certificados emitidos para OSIs del mes"
+            ? `${asistencia} de asistencia y aprobación`
+            : "Aprobados en cursos ejecutados este mes"
         }
         color="bg-violet-100 text-violet-700"
       />
@@ -126,14 +126,14 @@ export default function GestionKpiCards({ mes }: Props) {
         icon={Award}
         label="Certificados emitidos"
         value={mes.certificados}
-        sub="Por fecha de emisión del certificado"
+        sub="Trámites emitidos en el mes"
         color="bg-teal-100 text-teal-700"
       />
       <KpiCard
         icon={IdCard}
-        label="PVC (carnets) emitidos"
+        label="Carnets emitidos"
         value={mes.pvc}
-        sub="Por fecha de emisión del carnet"
+        sub="Carnets generados en el mes"
         color="bg-orange-100 text-orange-700"
       />
     </div>

@@ -3,17 +3,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Loader2, AlertCircle, Info, Settings, X, BarChart3, Clock, Users } from "lucide-react";
+import { Loader2, AlertCircle, Info, Settings, BarChart3, Clock } from "lucide-react";
 import type {
-  FacilitadoresHorasResponse,
   GestionMensualResponse,
-  IndicadorEstado,
   IndicadoresFilterOptions,
   IndicadoresResponse,
-  IndicadorOsiRow,
 } from "@/types";
 import { getIndicadoresCertificados72h } from "@/app/actions/indicadores-certificados";
-import { getIndicadoresFacilitadores } from "@/app/actions/indicadores-facilitadores";
 import { getIndicadoresGestionMensual } from "@/app/actions/indicadores-gestion";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import { fetchWithOfflineFallback } from "@/lib/offline/use-offline-data";
@@ -23,15 +19,12 @@ import {
   INDICADORES_START_YEAR,
   INDICADORES_START_MONTH,
   isMesTracked,
-  trackedMonthIndicesForYear,
 } from "@/lib/indicadores-cutoff";
 import { CachedDataBanner } from "@/components/CachedDataBanner";
 import FilterBar, { type IndicadoresFilterState } from "./components/FilterBar";
 import GestionMensualTable from "./components/GestionMensualTable";
 import CarryPanel from "./components/CarryPanel";
-import ComplianceGauge from "./components/ComplianceGauge";
-import FacilitadorHorasTable from "./components/FacilitadorHorasTable";
-import IndicadoresTable from "./components/IndicadoresTable";
+import Certificados72hView from "./components/Certificados72hView";
 
 interface Props {
   user: { id?: string } | null;
@@ -39,12 +32,7 @@ interface Props {
   shellUrl: string;
 }
 
-type IndicadorTab = "gestion" | "72h" | "facilitadores";
-
-const MONTH_LABELS_FULL = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
+type IndicadorTab = "gestion" | "72h";
 
 const TAB_DEFS: {
   id: IndicadorTab;
@@ -57,21 +45,14 @@ const TAB_DEFS: {
     label: "Gestión Mensual",
     icon: BarChart3,
     subtitle:
-      "Flujo mensual de OSIs: recibidas, ejecutadas, pendientes, participantes y certificados.",
+      "Flujo mensual de OSIs: programadas, ejecutadas, pendientes, participantes y emisión.",
   },
   {
     id: "72h",
     label: "Certificados 72h",
     icon: Clock,
     subtitle:
-      "Cumplimiento de emisión de certificados dentro de 3 días hábiles tras la ejecución.",
-  },
-  {
-    id: "facilitadores",
-    label: "Horas por Facilitador",
-    icon: Users,
-    subtitle:
-      "Horas de instructor y honorarios por facilitador, mes por mes.",
+      "Control de emisión de certificados dentro de 3 días hábiles tras la última sesión.",
   },
 ];
 
@@ -88,31 +69,21 @@ const DEFAULT_STATE: IndicadoresFilterState = {
 
 /** "YYYY-MM" of the month the cards should open on for a given year. */
 function defaultMesForYear(year: number): string {
-  // Clamp to the tracking cutoff — months before Ago 2026 are hidden, so
-  // we never want to land on them by default (e.g. when opening the page
-  // in Ene 2027, the default should be Ago 2026 if 2026 is selected, not
-  // Ene 2026).
   if (year < INDICADORES_START_YEAR) return INDICADORES_START_MES;
   const month = year === CURRENT_YEAR ? new Date().getMonth() + 1 : 12;
-  const clamped = year === INDICADORES_START_YEAR
-    ? Math.max(month, INDICADORES_START_MONTH)
-    : month;
+  const clamped =
+    year === INDICADORES_START_YEAR
+      ? Math.max(month, INDICADORES_START_MONTH)
+      : month;
   return `${year}-${String(clamped).padStart(2, "0")}`;
 }
 
 /**
- * The 72h section is scoped to the selected month (derived from
- * `selectedMes`), so the page has a single period control shared with the
- * monthly matrix highlight.
+ * The 72h section is scoped to the selected month (derived from `selectedMes`),
+ * so the page has a single period control shared with the monthly matrix highlight.
  */
-function build72hFilters(
-  state: IndicadoresFilterState,
-  selectedMes: string,
-) {
-  // "all" is only used on the facilitadores tab; return a no-op filter
-  // so the 72h fetch (which runs in parallel regardless of active tab)
-  // doesn't produce invalid date strings.
-  if (selectedMes === "all" || !/^\d{4}-\d{2}$/.test(selectedMes)) {
+function build72hFilters(state: IndicadoresFilterState, selectedMes: string) {
+  if (!/^\d{4}-\d{2}$/.test(selectedMes)) {
     return {
       osiIds: state.osiIds.length ? state.osiIds : undefined,
       fechaFrom: undefined,
@@ -126,13 +97,13 @@ function build72hFilters(
   const [yStr, mStr] = selectedMes.split("-");
   const y = parseInt(yStr, 10);
   const m = parseInt(mStr, 10);
-  // Last day of the selected month (clamped for month length, including
-  // leap-year February).
   const lastDay = new Date(y, m, 0).getDate();
+  const fechaFrom = `${selectedMes}-01`;
+  const fechaTo = `${selectedMes}-${String(lastDay).padStart(2, "0")}`;
   return {
     osiIds: state.osiIds.length ? state.osiIds : undefined,
-    fechaFrom: `${y}-${String(m).padStart(2, "0")}-01`,
-    fechaTo: `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
+    fechaFrom,
+    fechaTo,
     empresaId: state.empresaId || undefined,
     facilitadorId: state.facilitadorId || undefined,
     estadoId: state.estadoId || undefined,
@@ -149,175 +120,51 @@ function buildGestionFilters(state: IndicadoresFilterState) {
   };
 }
 
-function escapeCsv(v: unknown): string {
-  const s = v == null ? "" : String(v);
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
+interface IndicadoresCachedSnapshot {
+  gestion: GestionMensualResponse | null;
+  res72h: IndicadoresResponse | null;
+  error: string | null;
+  timestamp: number;
 }
 
-function downloadCsv(lines: string[], filename: string) {
-  const blob = new Blob(["\uFEFF" + lines.join("\n")], {
-    type: "text/csv;charset=utf-8;",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-/** Monthly matrix export: one row per indicator, one column per month. */
-function exportGestionCsv(gestion: GestionMensualResponse) {
-  const rows: { label: string; get: (m: (typeof gestion.meses)[number]) => number }[] = [
-    { label: "OSIs recibidas", get: (m) => m.osisRecibidas },
-    { label: "OSIs planificadas", get: (m) => m.osisPlanificadas },
-    { label: "Ejecutadas en su mes", get: (m) => m.osisEjecutadasEnSuMes },
-    { label: "Pendientes del mes", get: (m) => m.osisPendientes },
-    { label: "Pendientes con fecha ya pasada", get: (m) => m.osisPendientesVencidas },
-    { label: "Ejecutadas de meses anteriores", get: (m) => m.osisRezagadasEjecutadas },
-    { label: "Participantes planificados", get: (m) => m.participantesPlanificados },
-    { label: "Participantes asistidos (por mes de ejecución)", get: (m) => m.participantesLista },
-    { label: "Certificados emitidos (por mes de emisión)", get: (m) => m.certificados },
-    { label: "PVC (carnets) emitidos", get: (m) => m.pvc },
-  ];
-  const lines = [
-    ["Indicador", ...gestion.meses.map((m) => m.label), "Total"]
-      .map(escapeCsv)
-      .join(","),
-  ];
-  for (const r of rows) {
-    lines.push(
-      [r.label, ...gestion.meses.map((m) => r.get(m)), r.get(gestion.total)]
-        .map(escapeCsv)
-        .join(","),
-    );
-  }
-  downloadCsv(lines, `indicadores-gestion-mensual-${gestion.year}.csv`);
-}
-
-/** 72h detail export: one row per OSI. */
-function exportDetalleCsv(rows: IndicadorOsiRow[], periodLabel: string) {
-  const headers = [
-    "OSI",
-    "Empresa",
-    "Sede",
-    "Servicio",
-    "Fecha ejecucion",
-    "Fuente ejecucion",
-    "Fecha emision",
-    "Fuente emision",
-    "Dias habiles (max. 3)",
-    "Brecha (dias)",
-    "Facilitador emisor",
-    "Facilitador sesion",
-    "Estado",
-    "Sospechoso",
-  ];
-  const lines = [headers.join(",")];
-  for (const r of rows) {
-    lines.push(
-      [
-        r.nroOsi,
-        r.empresa,
-        r.sede,
-        r.servicio,
-        r.fechaEjecucion,
-        r.fuenteEjecucion,
-        r.fechaEmision,
-        r.fuenteEmision,
-        r.diasHabiles,
-        r.brechaDias,
-        r.facilitadorNombre,
-        r.facilitadorSesionNombre,
-        r.estado,
-        r.sospechoso ? "SI" : "No",
-      ]
-        .map(escapeCsv)
-        .join(","),
-    );
-  }
-  downloadCsv(lines, `indicadores-72-horas-${periodLabel}.csv`);
-}
-
-/** Facilitadores hours export: one row per facilitador. */
-function exportFacilitadoresCsv(data: FacilitadoresHorasResponse) {
-  // Only export tracked months — pre-cutoff columns would be all-zeros and
-  // misleading. Indices are 0-based month indices for `data.year`.
-  const monthIdxs = trackedMonthIndicesForYear(data.year);
-  const monthHeaders = monthIdxs.map((i) => MONTH_LABELS_FULL[i]);
-  const headers = [
-    "Facilitador",
-    ...monthHeaders,
-    "NRO TOTAL DE CURSOS EN EL AÑO",
-    "NRO TOTAL DE HORAS EN EL AÑO",
-    "MONTO TOTAL EN $",
-  ];
-  const lines = [headers.map(escapeCsv).join(",")];
-  for (const f of data.facilitadores) {
-    lines.push(
-      [
-        f.nombre,
-        ...monthIdxs.map((i) => f.horasPorMes[i]),
-        f.totalCursos,
-        f.totalHoras,
-        f.totalMonto.toFixed(2),
-      ]
-        .map(escapeCsv)
-        .join(","),
-    );
-  }
-  downloadCsv(lines, `indicadores-facilitadores-${data.year}.csv`);
-}
-
-// Drill-down: clicking a gauge slice filters the detail table to just that
-// estado, without triggering a new server fetch. Label map used for the
-// "showing X" banner above the table.
-const DRILLDOWN_LABELS: Record<IndicadorEstado, string> = {
-  dentro: "Dentro de 72h",
-  fuera: "Fuera de 72h",
-  pendiente: "Pendientes",
-  programada: "Programadas",
-  no_aplica: "No aplica",
-};
+// Module-level in-memory cache for instant navigation (0ms) across tabs and months
+const indicadoresMemCache = new Map<string, IndicadoresCachedSnapshot>();
 
 export default function IndicadoresClient({ user: _user, filterOptions, shellUrl }: Props) {
   void _user;
   const searchParams = useSearchParams();
   const isOnline = useOnlineStatus();
+  const defaultMes = defaultMesForYear(CURRENT_YEAR);
+  const initialMemKey = `${CURRENT_YEAR}_${defaultMes}_all_all_all_0`;
+  const initialCache = indicadoresMemCache.get(initialMemKey);
+
   const [filterState, setFilterState] = useState<IndicadoresFilterState>(DEFAULT_STATE);
-  const [selectedMes, setSelectedMes] = useState(defaultMesForYear(CURRENT_YEAR));
+  const [selectedMes, setSelectedMes] = useState(defaultMes);
   const [activeTab, setActiveTab] = useState<IndicadorTab>("gestion");
 
-  const [gestion, setGestion] = useState<GestionMensualResponse | null>(null);
+  const [gestion, setGestion] = useState<GestionMensualResponse | null>(
+    initialCache?.gestion ?? null
+  );
   const [gestionFromCache, setGestionFromCache] = useState(false);
   const [gestionCachedAt, setGestionCachedAt] = useState<number | null>(null);
 
-  const [facilitadoresHoras, setFacilitadoresHoras] =
-    useState<FacilitadoresHorasResponse | null>(null);
-  const [facilitadoresFromCache, setFacilitadoresFromCache] = useState(false);
-  const [facilitadoresCachedAt, setFacilitadoresCachedAt] = useState<
-    number | null
-  >(null);
+  const [data, setData] = useState<IndicadoresResponse | null>(
+    initialCache?.res72h ?? null
+  );
+  const [loading, setLoading] = useState(!initialCache);
+  const [error, setError] = useState<string | null>(initialCache?.error ?? null);
 
-  const [data, setData] = useState<IndicadoresResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  // Drill-down applied to the detail table only (estado bucket, or a
-  // specific OSI number). null = show all.
-  const [drilldown, setDrilldown] = useState<
-    { type: "estado"; value: IndicadorEstado } | { type: "osi"; value: string } | null
-  >(null);
-  const tableRef = useRef<HTMLDivElement>(null);
   const hasInitialized = useRef(false);
 
   // Cache filter options on mount
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true;
-      cachePortalData("dash_indicadores_filters", "dash_indicadores", filterOptions).catch(() => {});
+      cachePortalData(
+        "dash_indicadores_filters",
+        "dash_indicadores",
+        filterOptions
+      ).catch(() => {});
     }
   }, [filterOptions]);
 
@@ -330,7 +177,6 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
     const facilitador = searchParams.get("facilitador");
     const estado = searchParams.get("estado");
     const breach = searchParams.get("breach");
-    const vista = searchParams.get("vista");
     const tab = searchParams.get("tab");
 
     const next: IndicadoresFilterState = { ...DEFAULT_STATE };
@@ -347,23 +193,16 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
     if (estado) next.estadoId = estado;
     if (breach === "1") next.soloIncumplimientos = true;
     setFilterState(next);
-    // Clamp URL-provided month to a tracked one — pre-cutoff months are
-    // hidden, so landing on them would render an empty/invalid view.
+
     let initMes: string;
-    if (mes === "all") {
-      initMes = "all";
-    } else if (mes && /^\d{4}-\d{2}$/.test(mes)) {
+    if (mes && /^\d{4}-\d{2}$/.test(mes)) {
       initMes = isMesTracked(mes) ? mes : defaultMesForYear(next.year);
     } else {
       initMes = defaultMesForYear(next.year);
     }
     setSelectedMes(initMes);
-    if (vista?.startsWith("osi:")) {
-      setDrilldown({ type: "osi", value: vista.slice(4) });
-    } else if (vista && vista in DRILLDOWN_LABELS) {
-      setDrilldown({ type: "estado", value: vista as IndicadorEstado });
-    }
-    if (tab === "72h" || tab === "facilitadores" || tab === "gestion") {
+
+    if (tab === "72h" || tab === "gestion") {
       setActiveTab(tab);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -381,16 +220,12 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
       params.set("facilitador", filterState.facilitadorId);
     if (filterState.estadoId) params.set("estado", filterState.estadoId);
     if (filterState.soloIncumplimientos) params.set("breach", "1");
-    if (drilldown?.type === "estado") params.set("vista", drilldown.value);
-    else if (drilldown?.type === "osi") params.set("vista", `osi:${drilldown.value}`);
     if (activeTab !== "gestion") params.set("tab", activeTab);
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", newUrl);
-  }, [filterState, selectedMes, drilldown, activeTab]);
+  }, [filterState, selectedMes, activeTab]);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     const gestionFilters = buildGestionFilters(filterState);
     const filters72h = build72hFilters(filterState, selectedMes);
     const filterKey = JSON.stringify({
@@ -399,24 +234,25 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
       estadoId: gestionFilters.estadoId,
     });
 
-    // Facilitadores filters: same as gestion but with an optional month
-    // filter ("all" = no month filter, full year).
-    const facilitadoresFilters = {
-      ...gestionFilters,
-      mes: selectedMes !== "all" ? selectedMes : undefined,
-    };
-    const facilitadorFilterKey = JSON.stringify({
-      empresaId: facilitadoresFilters.empresaId,
-      facilitadorId: facilitadoresFilters.facilitadorId,
-      estadoId: facilitadoresFilters.estadoId,
-      mes: facilitadoresFilters.mes,
-    });
+    const memCacheKey = `${filterState.year}_${selectedMes}_${filterState.empresaId || "all"}_${filterState.facilitadorId || "all"}_${filterState.estadoId || "all"}_${filters72h.soloIncumplimientos ? "1" : "0"}`;
+    const cached = indicadoresMemCache.get(memCacheKey);
 
-    const [gestionRes, res72h, facilitadoresRes] = await Promise.all([
+    if (cached) {
+      setGestion(cached.gestion);
+      setData(cached.res72h);
+      setError(cached.error);
+      setLoading(false);
+    } else {
+      setLoading(true);
+      setError(null);
+    }
+
+    // Parallel fetch: Gestión Mensual + Certificados 72h
+    const [gestionRes, res72h] = await Promise.all([
       fetchWithOfflineFallback(
         `dash_indicadores_gestion_${filterState.year}_${filterKey}`,
         "dash_indicadores",
-        () => getIndicadoresGestionMensual(gestionFilters),
+        () => getIndicadoresGestionMensual(gestionFilters)
       ).catch((err) => {
         console.error("Error loading gestion mensual:", err);
         return null;
@@ -430,45 +266,43 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
           soloIncumplimientos: filters72h.soloIncumplimientos,
         })}`,
         "dash_indicadores",
-        () => getIndicadoresCertificados72h(filters72h),
+        () => getIndicadoresCertificados72h(filters72h)
       ).catch((err) => {
         console.error("Error loading indicadores 72h:", err);
         return null;
       }),
-      fetchWithOfflineFallback(
-        `dash_indicadores_facilitadores_${filterState.year}_${facilitadorFilterKey}`,
-        "dash_indicadores",
-        () => getIndicadoresFacilitadores(facilitadoresFilters),
-      ).catch((err) => {
-        console.error("Error loading indicadores facilitadores:", err);
-        return null;
-      }),
     ]);
 
-    if (gestionRes?.data.data) {
-      setGestion(gestionRes.data.data);
-      setGestionFromCache(gestionRes.fromCache);
-      setGestionCachedAt(gestionRes.cachedAt);
-    } else {
+    const newGestion = gestionRes?.data.data ?? null;
+    const newRes72h = res72h?.data.data ?? null;
+    const err = gestionRes?.data.error ?? res72h?.data.error ?? null;
+
+    if (newGestion) {
+      setGestion(newGestion);
+      setGestionFromCache(gestionRes?.fromCache ?? false);
+      setGestionCachedAt(gestionRes?.cachedAt ?? null);
+    } else if (!cached) {
       setGestion(null);
     }
 
-    if (facilitadoresRes?.data.data) {
-      setFacilitadoresHoras(facilitadoresRes.data.data);
-      setFacilitadoresFromCache(facilitadoresRes.fromCache);
-      setFacilitadoresCachedAt(facilitadoresRes.cachedAt);
-    } else {
-      setFacilitadoresHoras(null);
+    if (newRes72h) {
+      setData(newRes72h);
+    } else if (!cached) {
+      setData(null);
     }
 
-    const err =
-      gestionRes?.data.error ??
-      res72h?.data.error ??
-      facilitadoresRes?.data.error ??
-      null;
-    if (res72h?.data.data) setData(res72h.data.data);
-    else setData(null);
-    setError(err);
+    if (!cached || err) {
+      setError(err);
+    }
+
+    // Save snapshot in memory cache
+    indicadoresMemCache.set(memCacheKey, {
+      gestion: newGestion || (cached?.gestion ?? null),
+      res72h: newRes72h || (cached?.res72h ?? null),
+      error: err,
+      timestamp: Date.now(),
+    });
+
     setLoading(false);
   }, [filterState, selectedMes]);
 
@@ -477,12 +311,7 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
   }, [fetchData]);
 
   const aggregates = data?.aggregates;
-  const rows = useMemo(() => data?.rows ?? [], [data?.rows]);
 
-  // Years offered by the selector: whatever the server found, always
-  // including the current year and the one currently selected (so the
-  // control never renders an empty/invalid value). Pre-cutoff years are
-  // dropped — their data isn't tracked.
   const years = useMemo(() => {
     const set = new Set<number>();
     if (CURRENT_YEAR >= INDICADORES_START_YEAR) set.add(CURRENT_YEAR);
@@ -499,58 +328,15 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
     );
   }, [gestion, selectedMes]);
 
-  // Drill-down only filters the detail table below — the CSV export keeps
-  // reflecting the full toolbar-filtered dataset.
-  const tableRows = useMemo(() => {
-    if (!drilldown) return rows;
-    if (drilldown.type === "estado") {
-      return rows.filter((r) => r.estado === drilldown.value);
-    }
-    return rows.filter((r) => r.nroOsi === drilldown.value);
-  }, [rows, drilldown]);
-
-  const scrollToTable = useCallback(() => {
-    // Defer to the next tick so layout has settled (e.g. after a click that
-    // also changes visible content above the table).
-    setTimeout(() => {
-      tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 0);
+  const handleFilterChange = useCallback((next: IndicadoresFilterState) => {
+    setFilterState((cur) => {
+      if (next.year !== cur.year) setSelectedMes(defaultMesForYear(next.year));
+      return next;
+    });
   }, []);
 
-  const handleSelectEstado = useCallback(
-    (estado: IndicadorEstado | null) => {
-      setDrilldown((cur) => {
-        if (estado == null) return null;
-        if (cur?.type === "estado" && cur.value === estado) return null; // toggle off
-        return { type: "estado", value: estado };
-      });
-      if (estado != null) scrollToTable();
-    },
-    [scrollToTable],
-  );
-
-  // Changing the year moves the card selection to a month that exists in it.
-  const handleFilterChange = useCallback(
-    (next: IndicadoresFilterState) => {
-      setFilterState((cur) => {
-        if (next.year !== cur.year) setSelectedMes(defaultMesForYear(next.year));
-        return next;
-      });
-    },
-    [],
-  );
-
-  const drilldownLabel =
-    drilldown?.type === "estado"
-      ? DRILLDOWN_LABELS[drilldown.value]
-      : drilldown?.type === "osi"
-        ? `OSI ${drilldown.value}`
-        : null;
-
-  const activeTabDef = TAB_DEFS.find((t) => t.id === activeTab) ?? TAB_DEFS[0];
-
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50/50">
       <FilterBar
         options={filterOptions}
         state={filterState}
@@ -559,42 +345,18 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
         selectedMes={selectedMes}
         onSelectMes={setSelectedMes}
         activeTab={activeTab}
-        onExportGestionCsv={() => gestion && exportGestionCsv(gestion)}
-        onExportDetalleCsv={() => exportDetalleCsv(rows, selectedMes)}
-        onExportFacilitadoresCsv={() =>
-          facilitadoresHoras && exportFacilitadoresCsv(facilitadoresHoras)
-        }
       />
 
-      <main className="flex-1 p-6 overflow-auto">
-        <div className="mb-4">
-          <h1 className="text-xl font-bold text-gray-900">
-            Indicadores de Gestión · Capacitación {filterState.year}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">{activeTabDef.subtitle}</p>
-        </div>
-
-        {/* Tab bar */}
-        <div className="mb-6 border-b border-gray-200 flex gap-1 overflow-x-auto">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-gray-200 overflow-x-auto">
           {TAB_DEFS.map((tab) => {
             const Icon = tab.icon;
             const active = tab.id === activeTab;
             return (
               <button
                 key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  if (tab.id === "facilitadores") {
-                    // Default to "Todos los meses" so the full-year table
-                    // shows all months at first glance. The user can then
-                    // narrow to a specific month if needed.
-                    if (selectedMes !== "all") setSelectedMes("all");
-                  } else if (selectedMes === "all") {
-                    // "Todos los meses" is only valid on the facilitadores tab.
-                    // Reset to a real month when switching to gestión/72h.
-                    setSelectedMes(defaultMesForYear(filterState.year));
-                  }
-                }}
+                onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 -mb-px transition-colors whitespace-nowrap bg-transparent ${
                   active
                     ? "border-sky-600 text-sky-700 font-semibold"
@@ -629,7 +391,7 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
           </div>
         ) : (
           <div className="space-y-6">
-            {/* ── Gestión mensual ─────────────────────────────────────── */}
+            {/* ── Vista 1: Gestión Mensual ───────────────────────────── */}
             {activeTab === "gestion" && (
               <section className="space-y-4">
                 <div>
@@ -637,9 +399,8 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
                     Gestión mensual de OSIs
                   </h2>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Recibidas por fecha de emisión de la OSI · planificadas y
-                    ejecutadas por fecha de sesión · certificados y carnets por
-                    su propia fecha de emisión.
+                    Recibidas por fecha de emisión de la OSI · programadas y
+                    ejecutadas por fecha de sesión · emisión por fecha de registro.
                   </p>
                   <p className="text-[11px] text-gray-400 mt-1">
                     Los datos confiables comienzan en Ago {INDICADORES_START_YEAR};
@@ -657,8 +418,7 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
                   <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
                     <Info className="w-8 h-8 mb-2" />
                     <p className="text-sm">
-                      No hay datos de gestión para {filterState.year} con estos
-                      filtros.
+                      No hay datos de gestión para {filterState.year} con estos filtros.
                     </p>
                   </div>
                 ) : (
@@ -687,20 +447,18 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
               </section>
             )}
 
-            {/* ── Certificados en 72 horas ────────────────────────────── */}
+            {/* ── Vista 2: Certificados en 72 Horas ───────────────────── */}
             {activeTab === "72h" && (
               <section className="space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-base font-semibold text-gray-900">
-                      Certificados emitidos en 72 horas · {mesActual?.label}
+                      Certificados emitidos en 72 horas {mesActual ? `· ${mesActual.label}` : ""}
                     </h2>
                     <p className="text-xs text-gray-500 mt-0.5">
                       Mide si la emisión del certificado ocurre dentro de 3 días
                       hábiles (72 horas laborables, excluyendo fines de semana y
-                      feriados venezolanos) tras la última fecha de ejecución. El
-                      día de ejecución cuenta como día 1. Alcance: certificados
-                      emitidos en {mesActual?.label}.
+                      feriados venezolanos) tras la última fecha de ejecución.
                     </p>
                   </div>
                   <Link
@@ -712,86 +470,19 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
                   </Link>
                 </div>
 
-                {!aggregates || aggregates.totalOsis === 0 ? (
+                {!aggregates || aggregates.totalOsis === 0 || !data ? (
                   <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
                     <Info className="w-8 h-8 mb-2" />
                     <p className="text-sm">
-                      No hay OSIs de capacitación que coincidan con los filtros.
+                      No hay OSIs de capacitación que coincidan con los filtros en este período.
                     </p>
                   </div>
                 ) : (
-                  <>
-                    <div className="max-w-md">
-                      <ComplianceGauge
-                        aggregates={aggregates}
-                        activeEstado={
-                          drilldown?.type === "estado" ? drilldown.value : null
-                        }
-                        onSelectEstado={handleSelectEstado}
-                      />
-                    </div>
-
-                    <div ref={tableRef}>
-                      {drilldownLabel && (
-                        <div className="mb-3 flex items-center justify-between gap-3 bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5">
-                          <p className="text-sm text-gray-800">
-                            Mostrando: <strong>{drilldownLabel}</strong> (
-                            {tableRows.length}{" "}
-                            {tableRows.length === 1 ? "OSI" : "OSIs"})
-                          </p>
-                          <button
-                            onClick={() => setDrilldown(null)}
-                            className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            Limpiar
-                          </button>
-                        </div>
-                      )}
-                      <IndicadoresTable
-                        key={drilldown ? `${drilldown.type}:${drilldown.value}` : "all"}
-                        rows={tableRows}
-                        defaultSortByBrecha={
-                          drilldown?.type === "estado" &&
-                          drilldown.value === "pendiente"
-                        }
-                      />
-                    </div>
-                  </>
-                )}
-              </section>
-            )}
-
-            {/* ── Horas y honorarios por facilitador ───────────────────── */}
-            {activeTab === "facilitadores" && (
-              <section className="space-y-4">
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900">
-                    Horas y honorarios por facilitador · {filterState.year}
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Horas de instructor por fecha de ejecución de cada sesión ·
-                    cursos = OSIs distintas ejecutadas · monto desde
-                    costo_honorarios_instructor.
-                  </p>
-                </div>
-                {facilitadoresFromCache && (
-                  <CachedDataBanner
-                    cachedAt={facilitadoresCachedAt}
-                    isOnline={isOnline}
+                  <Certificados72hView
+                    aggregates={aggregates}
+                    rows={data.rows}
+                    mesLabel={mesActual?.label}
                   />
-                )}
-                {!facilitadoresHoras ||
-                facilitadoresHoras.facilitadores.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
-                    <Info className="w-8 h-8 mb-2" />
-                    <p className="text-sm">
-                      No hay sesiones ejecutadas en {filterState.year} con
-                      facilitador asignado.
-                    </p>
-                  </div>
-                ) : (
-                  <FacilitadorHorasTable data={facilitadoresHoras} />
                 )}
               </section>
             )}
