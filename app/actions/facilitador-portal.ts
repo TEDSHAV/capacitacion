@@ -17,6 +17,7 @@ import {
   clearLoginFailures,
 } from "@/lib/login-rate-limiter";
 import { hashPassword, verifyPassword, isBcryptHash } from "@/lib/password-hashing";
+import { isMaterialesEnabled } from "@/lib/materiales-flags";
 
 // Legacy SHA-256 hash for verifying old (unmigrated) credentials
 function legacySha256Hash(password: string): string {
@@ -259,35 +260,36 @@ export async function getAssignedOSIs(facilitadorId: number) {
       }
     }
 
-    // Fetch material existence for these OSIs / courses
-    const [materialsRes, coursesRes] = await Promise.all([
-      supabase
-        .from("capacitacion_material_didactico")
-        .select("id, id_curso, id_osi, tipo_material"),
-      supabase
-        .from("catalogo_servicios")
-        .select("id, nombre"),
-    ]);
-
-    const courseIdToNameMap = new Map<number, string>();
-    const courseNameToIdMap = new Map<string, number>();
-    for (const c of coursesRes.data || []) {
-      if (c.nombre) {
-        const norm = c.nombre.trim().toLowerCase();
-        courseIdToNameMap.set(c.id, norm);
-        courseNameToIdMap.set(norm, c.id);
-      }
-    }
-
+    const materialesActive = isMaterialesEnabled();
     const courseMaterialsMap = new Map<number, number>();
     const osiMaterialsMap = new Map<number, number>();
+    const courseNameToIdMap = new Map<string, number>();
 
-    for (const m of materialsRes.data || []) {
-      if (m.id_osi) {
-        osiMaterialsMap.set(m.id_osi, (osiMaterialsMap.get(m.id_osi) || 0) + 1);
+    if (materialesActive) {
+      // Fetch material existence for these OSIs / courses
+      const [materialsRes, coursesRes] = await Promise.all([
+        supabase
+          .from("capacitacion_material_didactico")
+          .select("id, id_curso, id_osi, tipo_material"),
+        supabase
+          .from("catalogo_servicios")
+          .select("id, nombre"),
+      ]);
+
+      for (const c of coursesRes.data || []) {
+        if (c.nombre) {
+          const norm = c.nombre.trim().toLowerCase();
+          courseNameToIdMap.set(norm, c.id);
+        }
       }
-      if (m.id_curso) {
-        courseMaterialsMap.set(m.id_curso, (courseMaterialsMap.get(m.id_curso) || 0) + 1);
+
+      for (const m of materialsRes.data || []) {
+        if (m.id_osi) {
+          osiMaterialsMap.set(m.id_osi, (osiMaterialsMap.get(m.id_osi) || 0) + 1);
+        }
+        if (m.id_curso) {
+          courseMaterialsMap.set(m.id_curso, (courseMaterialsMap.get(m.id_curso) || 0) + 1);
+        }
       }
     }
 
@@ -296,9 +298,10 @@ export async function getAssignedOSIs(facilitadorId: number) {
       const osiServicioNorm = (osi.servicio || "").trim().toLowerCase();
       const resolvedCourseId = osi.id_servicio || courseNameToIdMap.get(osiServicioNorm);
 
-      const matCount =
-        (osiMaterialsMap.get(osi.id_osi) || 0) +
-        (resolvedCourseId ? courseMaterialsMap.get(resolvedCourseId) || 0 : 0);
+      const matCount = materialesActive
+        ? (osiMaterialsMap.get(osi.id_osi) || 0) +
+          (resolvedCourseId ? courseMaterialsMap.get(resolvedCourseId) || 0 : 0)
+        : 0;
 
       return {
         ...osi,

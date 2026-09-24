@@ -21,6 +21,7 @@ import {
   resolveCourseCategory,
 } from "@/lib/course-categories";
 import { FolderOpen, AlertCircle } from "lucide-react";
+import { isMaterialesEnabled } from "@/lib/materiales-flags";
 
 export default function GestionCursosClient({
   user,
@@ -38,6 +39,7 @@ export default function GestionCursosClient({
   const [editandoCurso, setEditandoCurso] = useState<number | null>(null);
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
   const [managingMaterialsCourse, setManagingMaterialsCourse] = useState<Curso | null>(null);
+  const materialesEnabled = isMaterialesEnabled();
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [cursosList, setCursosList] = useState<Curso[]>(cursos || []);
@@ -254,7 +256,7 @@ export default function GestionCursosClient({
         />
 
         {/* Course Materials Modal */}
-        {managingMaterialsCourse && (
+        {materialesEnabled && managingMaterialsCourse && (
           <CourseMaterialsModal
             cursoId={managingMaterialsCourse.id}
             cursoNombre={managingMaterialsCourse.nombre}
@@ -269,7 +271,7 @@ export default function GestionCursosClient({
           onEdit={abrirModalEdicion}
           onDelete={handleDeleteCourse}
           onDuplicate={handleDuplicateCourse}
-          onManageMaterials={(c) => setManagingMaterialsCourse(c)}
+          onManageMaterials={materialesEnabled ? (c) => setManagingMaterialsCourse(c) : undefined}
           categories={categoriesList}
         />
       </div>

@@ -6,10 +6,11 @@ import { getOSIForControlServicios } from "@/app/actions/control-servicios";
 import { getMaterialKitForOSI } from "@/app/actions/material-didactico";
 import { createAdminClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, ClipboardList, Info, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Info, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { ParticipantForm } from "./participant-form";
 import { getSessionCount } from "@/lib/osi-utils";
+import { isMaterialesEnabled } from "@/lib/materiales-flags";
 import FacilitadorMaterialKit from "./FacilitadorMaterialKit";
 
 interface OSIPageProps {
@@ -24,10 +25,13 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
   const osiId = parseInt(resolvedParams.id);
   if (isNaN(osiId)) notFound();
 
+  const materialesEnabled = isMaterialesEnabled();
   const [osi, participants, materialKitRes] = await Promise.all([
     getOSIForControlServicios(osiId).catch(() => null),
     getOSIParticipants(osiId, session.facilitador_id),
-    getMaterialKitForOSI(osiId).catch(() => ({ data: null, error: null })),
+    materialesEnabled
+      ? getMaterialKitForOSI(osiId).catch(() => ({ data: null, error: null }))
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
 
@@ -131,7 +135,7 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
       </header>
 
       {/* Kit de Material Didáctico y Recursos Digitales */}
-      {materialKitRes.data && (
+      {materialesEnabled && materialKitRes.data && (
         <FacilitadorMaterialKit kit={materialKitRes.data} />
       )}
 

@@ -3,6 +3,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { requireDashboardAuth } from "@/utils/api-auth";
 import { storage, STORAGE_BUCKET, MATERIAL_DIDACTICO_PREFIX } from "@/lib/b2-storage-client";
+import { isMaterialesEnabled } from "@/lib/materiales-flags";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,13 @@ export const runtime = "nodejs";
  * and enabling live byte-level progress reporting.
  */
 export async function POST(request: NextRequest) {
+  if (!isMaterialesEnabled()) {
+    return NextResponse.json(
+      { error: "Endpoint no disponible en este entorno" },
+      { status: 403 },
+    );
+  }
+
   const auth = await requireDashboardAuth(request);
   if ("unauthorized" in auth) {
     return auth.unauthorized;

@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import type { EmailContext, EmailSessionInfo } from "@/types/email";
 import { buildEmailContext } from "@/lib/email/template-render";
+import { isMaterialesEnabled } from "@/lib/materiales-flags";
 
 /**
  * Fetch the OSI + facilitador + session data needed to render an "Asignación
@@ -126,17 +127,19 @@ export async function getOSIEmailContext(
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://capacitacion.shadevenezuela.com.ve";
   ctx.enlace_portal = `${baseUrl}/portal/facilitador/osi/${osiId}`;
 
-  // Check if course has digital presentation uploaded
-  try {
-    const { getMaterialKitForOSI } = await import("./material-didactico");
-    const kitRes = await getMaterialKitForOSI(osiId);
-    if (kitRes.data?.presentacionPptx?.download_url) {
-      ctx.enlace_presentacion = kitRes.data.presentacionPptx.download_url;
-    } else if (kitRes.data?.presentacionPdf?.download_url) {
-      ctx.enlace_presentacion = kitRes.data.presentacionPdf.download_url;
+  // Check if course has digital presentation uploaded (dev-only feature)
+  if (isMaterialesEnabled()) {
+    try {
+      const { getMaterialKitForOSI } = await import("./material-didactico");
+      const kitRes = await getMaterialKitForOSI(osiId);
+      if (kitRes.data?.presentacionPptx?.download_url) {
+        ctx.enlace_presentacion = kitRes.data.presentacionPptx.download_url;
+      } else if (kitRes.data?.presentacionPdf?.download_url) {
+        ctx.enlace_presentacion = kitRes.data.presentacionPdf.download_url;
+      }
+    } catch (err) {
+      console.warn("[getOSIEmailContext] Could not attach presentation link:", err);
     }
-  } catch (err) {
-    console.warn("[getOSIEmailContext] Could not attach presentation link:", err);
   }
 
   return { data: ctx, error: null };

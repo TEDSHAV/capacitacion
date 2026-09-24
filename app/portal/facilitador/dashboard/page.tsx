@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { DashboardTour } from "./DashboardTour";
 import { DashboardTourAutoStart as AutoStart } from "./DashboardTourAutoStart";
+import { isMaterialesEnabled } from "@/lib/materiales-flags";
 
 export default async function FacilitadorDashboardPage() {
   const session = await getFacilitatorSession();
@@ -21,6 +22,7 @@ export default async function FacilitadorDashboardPage() {
   }
 
   const { data: osis, error } = await getAssignedOSIs(session.facilitador_id);
+  const materialesEnabled = isMaterialesEnabled();
 
   return (
     <div className="max-w-5xl mx-auto py-4 sm:py-10 px-4">
@@ -84,7 +86,7 @@ export default async function FacilitadorDashboardPage() {
                         </div>
                       ) : null}
 
-                      {osi.has_material && (
+                      {materialesEnabled && osi.has_material && (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80 px-2 py-0.5 rounded-md">
                           <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                           Kit Material ({osi.material_count})

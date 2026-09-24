@@ -14,6 +14,7 @@ import {
   formatBytes,
 } from "@/lib/pptx-optimizer.server";
 import type { TipoMaterial, MaterialDidactico } from "@/types/material-didactico";
+import { isMaterialesEnabled } from "@/lib/materiales-flags";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs/promises";
@@ -30,6 +31,13 @@ export const maxDuration = 300; // 5 minutes
  * Eliminates all B2 download bandwidth consumption and egress costs.
  */
 export async function POST(request: NextRequest) {
+  if (!isMaterialesEnabled()) {
+    return NextResponse.json(
+      { error: "Endpoint no disponible en este entorno" },
+      { status: 403 },
+    );
+  }
+
   const auth = await requireDashboardAuth(request);
   if ("unauthorized" in auth) {
     return auth.unauthorized;

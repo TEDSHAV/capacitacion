@@ -19,6 +19,7 @@ import type {
   MaterialKitInfo,
   TipoMaterial,
 } from "@/types/material-didactico";
+import { isMaterialesEnabled } from "@/lib/materiales-flags";
 
 /**
  * Fetch all materials registered for a course (catalogo_servicios.id)
@@ -26,6 +27,9 @@ import type {
 export async function getMaterialesByCurso(
   cursoId: number,
 ): Promise<{ data: MaterialDidactico[]; error: string | null }> {
+  if (!isMaterialesEnabled()) {
+    return { data: [], error: null };
+  }
   try {
     const supabase = await createAdminClient();
     const { data, error } = await supabase
@@ -69,6 +73,9 @@ export async function getMaterialesByCurso(
 export async function getMaterialKitForOSI(
   osiId: number,
 ): Promise<{ data: MaterialKitInfo | null; error: string | null }> {
+  if (!isMaterialesEnabled()) {
+    return { data: null, error: null };
+  }
   try {
     const supabase = await createAdminClient();
 
@@ -179,6 +186,9 @@ export async function getMaterialKitForOSI(
 export async function uploadMaterialDidactico(
   formData: FormData,
 ): Promise<{ success: boolean; data?: MaterialDidactico; error?: string }> {
+  if (!isMaterialesEnabled()) {
+    return { success: false, error: "Función no disponible en producción" };
+  }
   try {
     const file = formData.get("file") as File | null;
     const cursoIdStr = formData.get("id_curso") as string | null;
@@ -323,6 +333,9 @@ export interface RegisterUploadedMaterialInput {
 export async function registerUploadedMaterial(
   input: RegisterUploadedMaterialInput,
 ): Promise<{ success: boolean; data?: MaterialDidactico; error?: string }> {
+  if (!isMaterialesEnabled()) {
+    return { success: false, error: "Función no disponible en producción" };
+  }
   try {
     const {
       cursoId,
@@ -449,6 +462,9 @@ export async function registerUploadedMaterial(
 export async function deleteMaterialDidactico(
   materialId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  if (!isMaterialesEnabled()) {
+    return { success: false, error: "Función no disponible en producción" };
+  }
   try {
     const supabase = await createAdminClient();
 
