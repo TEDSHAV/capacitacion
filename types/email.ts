@@ -101,8 +101,11 @@ export interface EmailContext {
   contacto: string;
   contacto_telefono: string;
   observaciones: string;
+  enlace_portal?: string;
+  enlace_presentacion?: string;
   sesiones: EmailSessionInfo[];
 }
+
 
 export type SendStatus = "sent" | "failed" | "not_configured";
 

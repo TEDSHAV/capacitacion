@@ -1,9 +1,19 @@
 import { Curso, CourseActionsProps } from '@/types';
-import { FileText } from 'lucide-react';
+import { FileText, Sparkles } from 'lucide-react';
 
-export default function CourseActions({ curso, onEdit, onDelete, onDuplicate }: CourseActionsProps) {
+export default function CourseActions({ curso, onEdit, onDelete, onDuplicate, onManageMaterials }: CourseActionsProps) {
   return (
-    <div className="flex space-x-2">
+    <div className="flex items-center space-x-2">
+      {onManageMaterials && (
+        <button
+          onClick={() => onManageMaterials(curso)}
+          className="inline-flex items-center px-2.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md hover:bg-indigo-100 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 transition-colors shadow-xs group"
+          title="Gestionar Presentación PPTX y Material Didáctico"
+        >
+          <Sparkles className="w-3.5 h-3.5 mr-1 text-indigo-600 group-hover:scale-110 transition-transform" />
+          Materiales
+        </button>
+      )}
       <a
         href={`/api/generate-ficha-tecnica-pdf?id=${curso.id}`}
         target="_blank"
@@ -43,3 +53,4 @@ export default function CourseActions({ curso, onEdit, onDelete, onDuplicate }: 
     </div>
   );
 }
+

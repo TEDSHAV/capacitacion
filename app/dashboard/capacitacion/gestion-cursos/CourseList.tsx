@@ -17,6 +17,7 @@ interface CourseListProps {
   onEdit: (curso: Curso) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onManageMaterials?: (curso: Curso) => void;
   categories?: CourseCategoryItem[];
 }
 
@@ -25,8 +26,10 @@ export default function CourseList({
   onEdit,
   onDelete,
   onDuplicate,
+  onManageMaterials,
   categories = DEFAULT_COURSE_CATEGORIES,
 }: CourseListProps) {
+
   const [busqueda, setBusqueda] = useState("");
   const [selectedCategoria, setSelectedCategoria] = useState<string>("ALL");
   const [currentPage, setCurrentPage] = useState(1);
@@ -290,10 +293,12 @@ export default function CourseList({
               onEdit={onEdit}
               onDelete={onDelete}
               onDuplicate={onDuplicate}
+              onManageMaterials={onManageMaterials}
               categories={categories}
             />
           ))}
         </div>
+
       )}
 
       {/* Pagination Footer */}

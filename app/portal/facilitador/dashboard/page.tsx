@@ -64,24 +64,33 @@ export default async function FacilitadorDashboardPage() {
                       {osi.nombre_empresa}
                     </h3>
 
-                    {/* Session assignment badges */}
-                    {osi.session_count === 1 ? (
-                      <span className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                        Sesión 1
-                      </span>
-                    ) : osi.assigned_all_sessions ? (
-                      <span className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                        Todas las sesiones
-                      </span>
-                    ) : osi.assigned_sessions && osi.assigned_sessions.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {osi.assigned_sessions.sort((a: number, b: number) => a - b).map((s: number) => (
-                          <span key={s} className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                            Sesión {s}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
+                    {/* Session and Material badges */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {osi.session_count === 1 ? (
+                        <span className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                          Sesión 1
+                        </span>
+                      ) : osi.assigned_all_sessions ? (
+                        <span className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                          Todas las sesiones
+                        </span>
+                      ) : osi.assigned_sessions && osi.assigned_sessions.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {osi.assigned_sessions.sort((a: number, b: number) => a - b).map((s: number) => (
+                            <span key={s} className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                              Sesión {s}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {osi.has_material && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80 px-2 py-0.5 rounded-md">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                          Kit Material ({osi.material_count})
+                        </span>
+                      )}
+                    </div>
 
                     <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                       <div className="flex items-center gap-1.5">
@@ -93,6 +102,7 @@ export default async function FacilitadorDashboardPage() {
                         <span>RIF: {osi.cliente_rif || 'N/A'}</span>
                       </div>
                     </div>
+
 
                     {/* Status badge visible on mobile */}
                     <div className="sm:hidden" id={osis.findIndex((o: any) => o.id_osi === osi.id_osi) === 0 ? "tour-status-badge-mobile" : undefined}>

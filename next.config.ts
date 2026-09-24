@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
   // Turbopack configuration - disabled during production build due to memory constraints
   turbopack: process.env.TURBOPACK_DISABLED === "1" ? undefined : {},
 
+  serverExternalPackages: [
+    "ffmpeg-static",
+    "fluent-ffmpeg",
+    "sharp",
+  ],
+
   // Security headers and optimizations
   poweredByHeader: false,
 
@@ -56,6 +62,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "25mb",
     },
+    middlewareClientMaxBodySize: "1000mb",
     // Client router cache: keep page segments in cache for 30s (dynamic) / 3min (static).
     // Repeat navigations within this window reuse cached segments (instant).
     // revalidatePath() on mutations still invalidates, so edits stay fresh.

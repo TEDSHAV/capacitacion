@@ -12,6 +12,7 @@ import CourseForm from "./CourseForm";
 import CourseList from "./CourseList";
 import CreateCourseButton from "./CreateCourseButton";
 import CategoryManagementModal from "./CategoryManagementModal";
+import CourseMaterialsModal from "./CourseMaterialsModal";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import {
@@ -36,6 +37,7 @@ export default function GestionCursosClient({
   const [creandoCurso, setCreandoCurso] = useState(false);
   const [editandoCurso, setEditandoCurso] = useState<number | null>(null);
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
+  const [managingMaterialsCourse, setManagingMaterialsCourse] = useState<Curso | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [cursosList, setCursosList] = useState<Curso[]>(cursos || []);
@@ -43,6 +45,7 @@ export default function GestionCursosClient({
     initialCategories || DEFAULT_COURSE_CATEGORIES,
   );
   const hasInitialized = useRef(false);
+
 
   // Cache initial RSC data for offline use
   useEffect(() => {
@@ -250,12 +253,23 @@ export default function GestionCursosClient({
           courseCountByCategory={courseCountByCategory}
         />
 
+        {/* Course Materials Modal */}
+        {managingMaterialsCourse && (
+          <CourseMaterialsModal
+            cursoId={managingMaterialsCourse.id}
+            cursoNombre={managingMaterialsCourse.nombre}
+            isOpen={true}
+            onClose={() => setManagingMaterialsCourse(null)}
+          />
+        )}
+
         {/* Courses List */}
         <CourseList
           cursos={cursosList}
           onEdit={abrirModalEdicion}
           onDelete={handleDeleteCourse}
           onDuplicate={handleDuplicateCourse}
+          onManageMaterials={(c) => setManagingMaterialsCourse(c)}
           categories={categoriesList}
         />
       </div>
@@ -263,3 +277,4 @@ export default function GestionCursosClient({
     </div>
   );
 }
+

@@ -202,8 +202,8 @@ export const config = {
      */
     "/((?!_next/static|_next/image|favicon\\.ico|verify-certificate|survey|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)",
     // API routes — rate limiting only (auth handled per-route).
-    // Exclude /api/email-attachments so large multipart uploads aren't
-    // truncated by the middleware body size limit.
-    "/api/((?!email-attachments).*)",
+    // Exclude /api/email-attachments and /api/materiales/upload so large multipart
+    // uploads aren't truncated by the middleware 10MB body size limit.
+    "/api/((?!email-attachments|materiales/upload).*)",
   ],
 };

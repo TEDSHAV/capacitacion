@@ -13,6 +13,7 @@ interface CourseItemProps {
   onEdit: (curso: Curso) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onManageMaterials?: (curso: Curso) => void;
   categories?: CourseCategoryItem[];
 }
 
@@ -21,8 +22,10 @@ export default function CourseItem({
   onEdit,
   onDelete,
   onDuplicate,
+  onManageMaterials,
   categories,
 }: CourseItemProps) {
+
   const category = resolveCourseCategory(curso, categories);
   const theme = category ? getCategoryTheme(category.color) : null;
   const courseCode = formatCourseDisplayCode(curso.id, category?.codigo);
@@ -113,9 +116,11 @@ export default function CourseItem({
             onEdit={onEdit}
             onDelete={onDelete}
             onDuplicate={onDuplicate}
+            onManageMaterials={onManageMaterials}
           />
         </div>
       </div>
     </div>
   );
 }
+

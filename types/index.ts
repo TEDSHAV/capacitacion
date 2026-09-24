@@ -851,7 +851,9 @@ export interface CourseActionsProps {
   onEdit: (curso: Curso) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onManageMaterials?: (curso: Curso) => void;
 }
+
 
 export interface OSISearchProps {
   osis: CertificateOSI[];

@@ -58,8 +58,11 @@ export function emailContextToMap(ctx: EmailContext): Record<string, string> {
     contacto: ctx.contacto,
     contacto_telefono: ctx.contacto_telefono,
     observaciones: ctx.observaciones,
+    enlace_portal: ctx.enlace_portal ?? "",
+    enlace_presentacion: ctx.enlace_presentacion ?? "",
   };
 }
+
 
 // ─── Date/time formatting helpers (es-VE) ───────────────────────────────────
 
