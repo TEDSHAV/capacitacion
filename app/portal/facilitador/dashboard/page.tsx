@@ -1,18 +1,6 @@
-import { getFacilitatorSession, getAssignedOSIs } from "@/app/actions/facilitador-portal";
+import { getFacilitatorSession, getFacilitatorPortalData } from "@/app/actions/facilitador-portal";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { toTitleCase } from "@/utils/string-utils";
-import {
-  ClipboardList,
-  Calendar,
-  Building2,
-  ChevronRight,
-  CheckCircle2,
-  Clock
-} from "lucide-react";
-import { DashboardTour } from "./DashboardTour";
-import { DashboardTourAutoStart as AutoStart } from "./DashboardTourAutoStart";
-import { isMaterialesEnabled } from "@/lib/materiales-flags";
+import FacilitadorDashboardClient from "./FacilitadorDashboardClient";
 
 export default async function FacilitadorDashboardPage() {
   const session = await getFacilitatorSession();
@@ -21,136 +9,13 @@ export default async function FacilitadorDashboardPage() {
     redirect("/portal/facilitador/login");
   }
 
-  const { data: osis, error } = await getAssignedOSIs(session.facilitador_id);
-  const materialesEnabled = isMaterialesEnabled();
+  const { data: portalData } = await getFacilitatorPortalData(session.facilitador_id);
 
   return (
-    <div className="max-w-5xl mx-auto py-4 sm:py-10 px-4">
-      <header className="mb-6 sm:mb-10" id="tour-welcome">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Bienvenido, {toTitleCase(session.nombre)}</h1>
-            <p className="text-gray-600">Aquí puedes gestionar tus servicios asignados.</p>
-          </div>
-          <DashboardTour />
-        </div>
-      </header>
-
-      <div className="grid gap-6">
-        <h2 className="text-xl font-semibold flex items-center gap-2" id="tour-osi-cards">
-          <ClipboardList className="w-6 h-6 text-blue-600" />
-          Servicios Asignados
-        </h2>
-
-        {osis && osis.length > 0 ? (
-          <div className="grid gap-4">
-            {osis.map((osi: any) => (
-              <Link 
-                key={osi.id_osi} 
-                href={`/portal/facilitador/osi/${osi.id_osi}`}
-                className="block bg-white border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-md transition-shadow group"
-                id={osis.findIndex((o: any) => o.id_osi === osi.id_osi) === 0 ? "tour-osi-card" : undefined}
-              >
-                <div className="flex justify-between items-start gap-2">
-                  <div className="space-y-3 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                        OSI #{osi.nro_osi}
-                      </span>
-                      <span className="text-sm text-gray-500 font-medium">
-                        {osi.servicio || "Servicio General"}
-                      </span>
-                    </div>
-
-                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">
-                      {osi.nombre_empresa}
-                    </h3>
-
-                    {/* Session and Material badges */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      {osi.session_count === 1 ? (
-                        <span className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                          Sesión 1
-                        </span>
-                      ) : osi.assigned_all_sessions ? (
-                        <span className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                          Todas las sesiones
-                        </span>
-                      ) : osi.assigned_sessions && osi.assigned_sessions.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {osi.assigned_sessions.sort((a: number, b: number) => a - b).map((s: number) => (
-                            <span key={s} className="inline-flex items-center text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                              Sesión {s}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-
-                      {materialesEnabled && osi.has_material && (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80 px-2 py-0.5 rounded-md">
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                          Kit Material ({osi.material_count})
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span>Emisión: {osi.fecha_emision ? new Date(osi.fecha_emision).toLocaleDateString() : 'N/A'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Building2 className="w-4 h-4 text-gray-400" />
-                        <span>RIF: {osi.cliente_rif || 'N/A'}</span>
-                      </div>
-                    </div>
-
-
-                    {/* Status badge visible on mobile */}
-                    <div className="sm:hidden" id={osis.findIndex((o: any) => o.id_osi === osi.id_osi) === 0 ? "tour-status-badge-mobile" : undefined}>
-                      {osi.participant_status === "final" ? (
-                        <div className="flex items-center gap-1 text-green-600 font-medium text-xs">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Listado Enviado</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-amber-600 font-medium text-xs">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>Pendiente Datos</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="text-right hidden sm:block" id={osis.findIndex((o: any) => o.id_osi === osi.id_osi) === 0 ? "tour-status-badge" : undefined}>
-                      <p className="text-xs text-gray-400 uppercase font-bold tracking-tight">Estado</p>
-                      {osi.participant_status === "final" ? (
-                        <div className="flex items-center gap-1 text-green-600 font-medium">
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Listado Enviado</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-amber-600 font-medium">
-                          <Clock className="w-4 h-4" />
-                          <span>Pendiente Datos</span>
-                        </div>
-                      )}
-                    </div>
-                    <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300 group-hover:text-blue-600 transition-colors" />
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white border border-dashed border-gray-300 rounded-xl py-16 flex flex-col items-center justify-center">
-            <ClipboardList className="w-12 h-12 text-gray-200 mb-4" />
-            <p className="text-gray-500">No tienes servicios asignados actualmente.</p>
-          </div>
-        )}
-      </div>
-      <AutoStart />
-    </div>
+    <FacilitadorDashboardClient
+      nombre={session.nombre}
+      initialData={portalData || null}
+      osis={portalData?.osis || []}
+    />
   );
 }

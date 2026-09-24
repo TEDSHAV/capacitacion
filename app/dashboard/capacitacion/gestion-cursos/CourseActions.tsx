@@ -1,19 +1,15 @@
 import { Curso, CourseActionsProps } from '@/types';
-import { FileText, Sparkles } from 'lucide-react';
+import { FileText, Presentation } from 'lucide-react';
 
-export default function CourseActions({ curso, onEdit, onDelete, onDuplicate, onManageMaterials }: CourseActionsProps) {
+export default function CourseActions({
+  curso,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  onManageMaterials,
+}: CourseActionsProps) {
   return (
     <div className="flex items-center space-x-2">
-      {onManageMaterials && (
-        <button
-          onClick={() => onManageMaterials(curso)}
-          className="inline-flex items-center px-2.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md hover:bg-indigo-100 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 transition-colors shadow-xs group"
-          title="Gestionar Presentación PPTX y Material Didáctico"
-        >
-          <Sparkles className="w-3.5 h-3.5 mr-1 text-indigo-600 group-hover:scale-110 transition-transform" />
-          Materiales
-        </button>
-      )}
       <a
         href={`/api/generate-ficha-tecnica-pdf?id=${curso.id}`}
         target="_blank"
@@ -23,6 +19,17 @@ export default function CourseActions({ curso, onEdit, onDelete, onDuplicate, on
       >
         <FileText className="w-4 h-4" />
       </a>
+      {onManageMaterials && (
+        <button
+          type="button"
+          onClick={() => onManageMaterials(curso)}
+          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 rounded-md hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 transition-colors"
+          title="Gestionar Recursos Digitales (PPTX, Guías, Evaluaciones)"
+        >
+          <Presentation className="w-3.5 h-3.5 mr-1 text-sky-600" />
+          Recursos
+        </button>
+      )}
       <button 
         onClick={() => onEdit(curso)}
         className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
@@ -53,4 +60,3 @@ export default function CourseActions({ curso, onEdit, onDelete, onDuplicate, on
     </div>
   );
 }
-

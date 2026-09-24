@@ -10,7 +10,10 @@ import {
   X,
   Loader2,
   AlertTriangle,
+  Presentation,
+  FolderSync,
 } from "lucide-react";
+import CourseMaterialsModal from "./CourseMaterialsModal";
 
 const RichTextEditor = dynamic(
   () => import("@/components/ui/rich-text-editor"),
@@ -84,6 +87,7 @@ export default function CourseForm({
   });
 
   const [error, setError] = useState<string | null>(null);
+  const [showMaterialsModal, setShowMaterialsModal] = useState(false);
   const [generandoPdf, setGenerandoPdf] = useState(false);
   const [duplicateMatch, setDuplicateMatch] = useState<ExistingCursoRef | null>(
     null,
@@ -759,6 +763,49 @@ export default function CourseForm({
             </div>
           </div>
         </section>
+
+        {/* Section 5: Material Didáctico y Recursos Digitales (Only for existing courses) */}
+        {isEdit && curso?.id && (
+          <section className="bg-gradient-to-r from-sky-50/60 via-blue-50/40 to-slate-50 rounded-xl p-5 border border-sky-100 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0 border border-sky-200">
+                  <Presentation className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    Material Didáctico y Presentaciones Digitales
+                    <span className="text-[10px] uppercase font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full border border-sky-200">
+                      PPTX / PDF / Guías
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-1 max-w-xl">
+                    Gestiona las diapositivas oficiales (PPTX), guías del participante, evaluaciones y controla su visibilidad o historial de versiones para los facilitadores.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowMaterialsModal(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-sm hover:shadow transition shrink-0"
+              >
+                <FolderSync className="w-4 h-4" />
+                <span>Gestionar Recursos Digitales</span>
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Course Materials Modal when opened from edit form */}
+        {isEdit && curso?.id && showMaterialsModal && (
+          <CourseMaterialsModal
+            cursoId={curso.id}
+            cursoNombre={datosFormulario.titulo || curso.nombre}
+            isOpen={showMaterialsModal}
+            onClose={() => setShowMaterialsModal(false)}
+          />
+        )}
 
         {/* Sticky Footer with action buttons */}
         <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 -mx-6 -mb-6 flex justify-between items-center gap-3 rounded-b-2xl">

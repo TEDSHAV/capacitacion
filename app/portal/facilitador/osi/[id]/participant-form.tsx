@@ -25,6 +25,7 @@ import { ParticipantVerificationResult, ExtractedParticipant, CertificatePartici
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import { HelpCircle } from "lucide-react";
+import ISOComplianceBanner from "./ISOComplianceBanner";
 
 interface Participant {
   nombre_apellido: string;
@@ -493,7 +494,7 @@ export const ParticipantForm = ({
         facilitadorId={facilitadorId}
         category="lista_asistencia"
         nroSesion={selectedSession}
-        title="Cargar Listas Físicas"
+        title="Lista de Asistencia"
         description="Sube fotos o PDFs de las listas de asistencia firmadas. Las imágenes se comprimen automáticamente."
         badge="Requerido"
         badgeColor="red"
@@ -723,6 +724,16 @@ export const ParticipantForm = ({
         <AttachmentUploadSection
           osiId={osiId}
           facilitadorId={facilitadorId}
+          category="hoja_calificacion"
+          nroSesion={selectedSession}
+          title="Hoja de Calificación"
+          description="Sube fotos o PDFs de las hojas de calificación firmadas."
+          badge="Opcional"
+          badgeColor="blue"
+        />
+        <AttachmentUploadSection
+          osiId={osiId}
+          facilitadorId={facilitadorId}
           category="material_fotografico"
           nroSesion={selectedSession}
           title="Registro Fotográfico"
@@ -731,16 +742,6 @@ export const ParticipantForm = ({
           badgeColor="blue"
           accept="image/*"
           imageOnly
-        />
-        <AttachmentUploadSection
-          osiId={osiId}
-          facilitadorId={facilitadorId}
-          category="hoja_calificacion"
-          nroSesion={selectedSession}
-          title="Hoja de Calificación"
-          description="Sube fotos o PDFs de las hojas de calificación firmadas."
-          badge="Opcional"
-          badgeColor="blue"
         />
       </div>
 
@@ -796,6 +797,9 @@ export const ParticipantForm = ({
             </div>
           </div>
         </div>
+
+        {/* ISO 14001 / SIG Compliance Banner (Placed at the bottom below the Disclaimer) */}
+        <ISOComplianceBanner />
 
         {isOffline && (
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-amber-800 text-sm">

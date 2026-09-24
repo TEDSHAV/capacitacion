@@ -8,7 +8,7 @@ import {
   MATERIAL_DIDACTICO_PREFIX,
   getPresignedDownloadUrl,
 } from "@/lib/b2-storage-client";
-import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import {
   optimizePPTXBuffer,
@@ -18,6 +18,8 @@ import type {
   MaterialDidactico,
   MaterialKitInfo,
   TipoMaterial,
+  MaterialSugerencia,
+  EstadoSugerencia,
 } from "@/types/material-didactico";
 import { isMaterialesEnabled } from "@/lib/materiales-flags";
 
@@ -26,25 +28,31 @@ import { isMaterialesEnabled } from "@/lib/materiales-flags";
  */
 export async function getMaterialesByCurso(
   cursoId: number,
+  options: { includeHistorical?: boolean } = {},
 ): Promise<{ data: MaterialDidactico[]; error: string | null }> {
   if (!isMaterialesEnabled()) {
     return { data: [], error: null };
   }
   try {
     const supabase = await createAdminClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from("capacitacion_material_didactico")
       .select("*")
       .eq("id_curso", cursoId)
-      .is("id_osi", null)
-      .order("created_at", { ascending: false });
+      .is("id_osi", null);
+
+    if (!options.includeHistorical) {
+      query = query.eq("is_latest", true);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
       console.error("[getMaterialesByCurso] error:", error);
       return { data: [], error: error.message };
     }
 
-    // Add presigned download URLs
+    // Add presigned download URLs & suggestion counts
     const items = await Promise.all(
       (data || []).map(async (item: any) => {
         try {
@@ -53,9 +61,26 @@ export async function getMaterialesByCurso(
             86400, // 24 hours
             item.archivo_nombre,
           );
-          return { ...item, download_url };
+
+          // Count pending suggestions
+          const { count } = await supabase
+            .from("capacitacion_material_sugerencias")
+            .select("id", { count: "exact", head: true })
+            .eq("id_material", item.id);
+
+          return {
+            ...item,
+            visible_facilitador: item.visible_facilitador !== false,
+            is_latest: item.is_latest !== false,
+            download_url,
+            sugerencias_count: count || 0,
+          };
         } catch {
-          return item;
+          return {
+            ...item,
+            visible_facilitador: item.visible_facilitador !== false,
+            is_latest: item.is_latest !== false,
+          };
         }
       }),
     );
@@ -69,6 +94,7 @@ export async function getMaterialesByCurso(
 /**
  * Fetch the complete "Kit de Ejecución" for an OSI.
  * Resolves course-level master materials and any OSI-specific overrides.
+ * Strictly respects `visible_facilitador = true` and `is_latest = true`.
  */
 export async function getMaterialKitForOSI(
   osiId: number,
@@ -104,13 +130,14 @@ export async function getMaterialKitForOSI(
       }
     }
 
-    // 2. Fetch both course materials and OSI-specific materials
-    let query = supabase
+    // 2. Fetch both course materials and OSI-specific materials (only active & visible to facilitators)
+    const query = supabase
       .from("capacitacion_material_didactico")
       .select("*")
       .or(`id_osi.eq.${osiId}${cursoId ? `,id_curso.eq.${cursoId}` : ""}`)
+      .eq("visible_facilitador", true)
+      .eq("is_latest", true)
       .order("created_at", { ascending: false });
-
 
     const { data: rawMaterials, error: matError } = await query;
     if (matError) {
@@ -181,280 +208,204 @@ export async function getMaterialKitForOSI(
 }
 
 /**
- * Upload and optionally optimize a course or OSI material to Backblaze B2.
+ * Toggle facilitator visibility for a specific material.
  */
-export async function uploadMaterialDidactico(
-  formData: FormData,
-): Promise<{ success: boolean; data?: MaterialDidactico; error?: string }> {
+export async function toggleMaterialVisibility(
+  materialId: string,
+  visible: boolean,
+): Promise<{ success: boolean; error?: string }> {
   if (!isMaterialesEnabled()) {
     return { success: false, error: "Función no disponible en producción" };
   }
   try {
-    const file = formData.get("file") as File | null;
-    const cursoIdStr = formData.get("id_curso") as string | null;
-    const osiIdStr = formData.get("id_osi") as string | null;
-    const tipoMaterial = (formData.get("tipo_material") as TipoMaterial) || "otro";
-    const titulo = (formData.get("titulo") as string) || file?.name || "Material";
-    const descripcion = (formData.get("descripcion") as string) || null;
-    const autoOptimize = formData.get("auto_optimize") !== "false";
-
-    if (!file) {
-      return { success: false, error: "No se proporcionó ningún archivo" };
-    }
-
-    const cursoId = cursoIdStr ? parseInt(cursoIdStr, 10) : null;
-    const osiId = osiIdStr ? parseInt(osiIdStr, 10) : null;
-
-    if (!cursoId && !osiId) {
-      return {
-        success: false,
-        error: "Debe especificar un Curso o una OSI para asociar el material",
-      };
-    }
-
-    const originalArrayBuffer = await file.arrayBuffer();
-    const originalBuffer = Buffer.from(originalArrayBuffer);
-    const originalSizeBytes = originalBuffer.length;
-
-    let finalBuffer: Uint8Array = new Uint8Array(originalArrayBuffer);
-    let finalSizeBytes = originalSizeBytes;
-    let esOptimizado = false;
-    let tamanoOriginalBytes: number | null = null;
-
-
-    const isPptx =
-      file.name.toLowerCase().endsWith(".pptx") ||
-      file.type ===
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-
-    // Perform server-side PPTX optimization if requested
-    if (isPptx && autoOptimize) {
-      try {
-        console.log(
-          `[uploadMaterialDidactico] Optimizing PPTX: ${file.name} (${formatBytes(originalSizeBytes)})...`,
-        );
-        const optResult = await optimizePPTXBuffer(originalBuffer);
-        finalBuffer = optResult.optimizedBuffer;
-        finalSizeBytes = optResult.optimizedSizeBytes;
-        esOptimizado = true;
-        tamanoOriginalBytes = originalSizeBytes;
-        console.log(
-          `[uploadMaterialDidactico] PPTX Optimized successfully: ${optResult.originalFormattedSize} -> ${optResult.optimizedFormattedSize} (-${optResult.reductionPercentage}%)`,
-        );
-      } catch (optError) {
-        console.warn(
-          "[uploadMaterialDidactico] Optimization skipped due to error, using original buffer:",
-          optError,
-        );
-      }
-    }
-
-    // Generate unique B2 Key
-    const timestamp = Date.now();
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const scopeFolder = cursoId ? `curso_${cursoId}` : `osi_${osiId}`;
-    const b2Key = `${MATERIAL_DIDACTICO_PREFIX}${scopeFolder}/${timestamp}_${sanitizedName}`;
-
-    // Upload to Backblaze B2 using S3 Multipart Upload
-    const parallelUploads3 = new Upload({
-      client: storage,
-      params: {
-        Bucket: STORAGE_BUCKET,
-        Key: b2Key,
-        Body: Uint8Array.from(finalBuffer),
-        ContentType: file.type || "application/octet-stream",
-      },
-    });
-
-
-    await parallelUploads3.done();
-
-    // Register record in Supabase
     const supabase = await createAdminClient();
-    const { data: record, error: dbError } = await supabase
+    const { error } = await supabase
       .from("capacitacion_material_didactico")
-      .insert({
-        id_curso: cursoId,
-        id_osi: osiId,
-        tipo_material: tipoMaterial,
-        titulo: titulo.trim(),
-        descripcion: descripcion?.trim() || null,
-        archivo_nombre: file.name,
-        b2_key: b2Key,
-        file_size_bytes: finalSizeBytes,
-        file_size_formatted: formatBytes(finalSizeBytes),
-        mime_type: file.type || null,
-        es_optimizado: esOptimizado,
-        tamano_original_bytes: tamanoOriginalBytes,
+      .update({
+        visible_facilitador: visible,
+        updated_at: new Date().toISOString(),
       })
-      .select()
-      .single();
+      .eq("id", materialId);
 
-    if (dbError) {
-      console.error("[uploadMaterialDidactico] DB insert error:", dbError);
-      return { success: false, error: dbError.message };
+    if (error) {
+      return { success: false, error: error.message };
     }
 
-    // Revalidate relevant paths
     revalidatePath("/dashboard/capacitacion/gestion-cursos");
-    if (cursoId) {
-      revalidatePath(`/dashboard/capacitacion/gestion-cursos/${cursoId}`);
-    }
     revalidatePath("/portal/facilitador/dashboard");
 
-    const download_url = await getPresignedDownloadUrl(b2Key, 86400, file.name);
-
-    return {
-      success: true,
-      data: { ...record, download_url },
-    };
+    return { success: true };
   } catch (err: any) {
-    console.error("[uploadMaterialDidactico] exception:", err);
-    return { success: false, error: err.message || "Error al subir material" };
+    return { success: false, error: err.message || "Error al actualizar visibilidad" };
   }
-}
-
-export interface RegisterUploadedMaterialInput {
-  cursoId?: number;
-  osiId?: number;
-  tipoMaterial: TipoMaterial;
-  titulo: string;
-  descripcion?: string;
-  archivoNombre: string;
-  b2Key: string;
-  fileSizeBytes: number;
-  mimeType?: string;
-  autoOptimize?: boolean;
 }
 
 /**
- * Register a file already uploaded directly to B2, and optionally optimize it.
+ * Fetch all versions in a material's history.
  */
-export async function registerUploadedMaterial(
-  input: RegisterUploadedMaterialInput,
-): Promise<{ success: boolean; data?: MaterialDidactico; error?: string }> {
+export async function getMaterialVersionHistory(
+  materialId: string,
+): Promise<{ data: MaterialDidactico[]; error?: string }> {
+  if (!isMaterialesEnabled()) {
+    return { data: [], error: "Función no disponible en producción" };
+  }
+  try {
+    const supabase = await createAdminClient();
+
+    // 1. Fetch current item to find parent or check if it's the root
+    const { data: item } = await supabase
+      .from("capacitacion_material_didactico")
+      .select("*")
+      .eq("id", materialId)
+      .single();
+
+    if (!item) {
+      return { data: [], error: "Material no encontrado" };
+    }
+
+    const rootId = item.parent_material_id || item.id;
+
+    // Fetch all versions linked to this root
+    const { data: versions, error } = await supabase
+      .from("capacitacion_material_didactico")
+      .select("*")
+      .or(`id.eq.${rootId},parent_material_id.eq.${rootId}`)
+      .order("version", { ascending: false });
+
+    if (error) {
+      return { data: [], error: error.message };
+    }
+
+    const enriched = await Promise.all(
+      (versions || []).map(async (v: any) => {
+        try {
+          const download_url = await getPresignedDownloadUrl(
+            v.b2_key,
+            86400,
+            v.archivo_nombre,
+          );
+          return { ...v, download_url };
+        } catch {
+          return v;
+        }
+      }),
+    );
+
+    return { data: enriched };
+  } catch (err: any) {
+    return { data: [], error: err.message || "Error al obtener historial de versiones" };
+  }
+}
+
+/**
+ * Facilitator Suggestion / Feedback System
+ */
+export async function submitMaterialSugerencia(payload: {
+  id_material: string;
+  id_curso?: number | null;
+  id_osi?: number | null;
+  facilitador_id?: number | null;
+  facilitador_nombre: string;
+  diapositiva_nro?: number | null;
+  tipo_sugerencia?: string;
+  comentario: string;
+}): Promise<{ success: boolean; error?: string }> {
   if (!isMaterialesEnabled()) {
     return { success: false, error: "Función no disponible en producción" };
   }
   try {
-    const {
-      cursoId,
-      osiId,
-      tipoMaterial,
-      titulo,
-      descripcion,
-      archivoNombre,
-      b2Key,
-      fileSizeBytes,
-      mimeType,
-      autoOptimize = true,
-    } = input;
-
-    if (!cursoId && !osiId) {
-      return {
-        success: false,
-        error: "Debe especificar un Curso o una OSI para asociar el material",
-      };
-    }
-
-    let finalSizeBytes = fileSizeBytes;
-    let esOptimizado = false;
-    let tamanoOriginalBytes: number | null = null;
-
-    const isPptx =
-      archivoNombre.toLowerCase().endsWith(".pptx") ||
-      mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-
-    // If PPTX optimization is requested, fetch from B2, optimize, and overwrite
-    if (isPptx && autoOptimize) {
-      try {
-        console.log(
-          `[registerUploadedMaterial] Fetching PPTX from B2 to optimize: ${archivoNombre} (${formatBytes(fileSizeBytes)})...`,
-        );
-        const { GetObjectCommand, PutObjectCommand } = await import("@aws-sdk/client-s3");
-        const getObjRes = await storage.send(
-          new GetObjectCommand({
-            Bucket: STORAGE_BUCKET,
-            Key: b2Key,
-          }),
-        );
-
-        if (getObjRes.Body) {
-          const rawByteArray = await getObjRes.Body.transformToByteArray();
-          const rawBuffer = Buffer.from(rawByteArray);
-
-          const optResult = await optimizePPTXBuffer(rawBuffer);
-          console.log(
-            `[registerUploadedMaterial] Optimization finished: ${optResult.originalFormattedSize} -> ${optResult.optimizedFormattedSize} (-${optResult.reductionPercentage}%)`,
-          );
-
-          // Overwrite with optimized version
-          await storage.send(
-            new PutObjectCommand({
-              Bucket: STORAGE_BUCKET,
-              Key: b2Key,
-              Body: optResult.optimizedBuffer,
-              ContentType: mimeType || "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            }),
-          );
-
-          finalSizeBytes = optResult.optimizedSizeBytes;
-          esOptimizado = true;
-          tamanoOriginalBytes = fileSizeBytes;
-        }
-      } catch (optError) {
-        console.warn(
-          "[registerUploadedMaterial] Optimization error, keeping original file:",
-          optError,
-        );
-      }
-    }
-
-    // Register record in Supabase
     const supabase = await createAdminClient();
-    const { data: record, error: dbError } = await supabase
-      .from("capacitacion_material_didactico")
-      .insert({
-        id_curso: cursoId || null,
-        id_osi: osiId || null,
-        tipo_material: tipoMaterial,
-        titulo: titulo.trim(),
-        descripcion: descripcion?.trim() || null,
-        archivo_nombre: archivoNombre,
-        b2_key: b2Key,
-        file_size_bytes: finalSizeBytes,
-        file_size_formatted: formatBytes(finalSizeBytes),
-        mime_type: mimeType || null,
-        es_optimizado: esOptimizado,
-        tamano_original_bytes: tamanoOriginalBytes,
-      })
-      .select()
-      .single();
+    const { error } = await supabase.from("capacitacion_material_sugerencias").insert({
+      id_material: payload.id_material,
+      id_curso: payload.id_curso || null,
+      id_osi: payload.id_osi || null,
+      facilitador_id: payload.facilitador_id || null,
+      facilitador_nombre: payload.facilitador_nombre.trim(),
+      diapositiva_nro: payload.diapositiva_nro || null,
+      tipo_sugerencia: payload.tipo_sugerencia || "mejora",
+      comentario: payload.comentario.trim(),
+      estado: "pendiente",
+    });
 
-    if (dbError) {
-      console.error("[registerUploadedMaterial] DB insert error:", dbError);
-      return { success: false, error: dbError.message };
+    if (error) {
+      console.error("[submitMaterialSugerencia] DB error:", error);
+      return { success: false, error: error.message };
     }
 
-    // Revalidate relevant paths
     revalidatePath("/dashboard/capacitacion/gestion-cursos");
-    if (cursoId) {
-      revalidatePath(`/dashboard/capacitacion/gestion-cursos/${cursoId}`);
-    }
-    revalidatePath("/portal/facilitador/dashboard");
-
-    const download_url = await getPresignedDownloadUrl(b2Key, 86400, archivoNombre);
-
-    return {
-      success: true,
-      data: { ...record, download_url },
-    };
+    return { success: true };
   } catch (err: any) {
-    console.error("[registerUploadedMaterial] exception:", err);
-    return { success: false, error: err.message || "Error al registrar material" };
+    return { success: false, error: err.message || "Error al enviar sugerencia" };
   }
 }
 
+/**
+ * Fetch suggestions received for a material or course.
+ */
+export async function getMaterialSugerencias(
+  materialId?: string,
+  cursoId?: number,
+): Promise<{ data: MaterialSugerencia[]; error?: string }> {
+  if (!isMaterialesEnabled()) {
+    return { data: [], error: "Función no disponible en producción" };
+  }
+  try {
+    const supabase = await createAdminClient();
+    let query = supabase
+      .from("capacitacion_material_sugerencias")
+      .select("*, capacitacion_material_didactico(titulo, archivo_nombre)");
+
+    if (materialId) {
+      query = query.eq("id_material", materialId);
+    } else if (cursoId) {
+      query = query.eq("id_curso", cursoId);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
+
+    if (error) {
+      return { data: [], error: error.message };
+    }
+
+    const mapped = (data || []).map((s: any) => ({
+      ...s,
+      material_titulo: s.capacitacion_material_didactico?.titulo,
+      archivo_nombre: s.capacitacion_material_didactico?.archivo_nombre,
+    }));
+
+    return { data: mapped };
+  } catch (err: any) {
+    return { data: [], error: err.message || "Error al obtener sugerencias" };
+  }
+}
+
+/**
+ * Update the review status of a facilitator suggestion.
+ */
+export async function updateMaterialSugerenciaEstado(
+  sugerenciaId: string,
+  estado: EstadoSugerencia,
+): Promise<{ success: boolean; error?: string }> {
+  if (!isMaterialesEnabled()) {
+    return { success: false, error: "Función no disponible en producción" };
+  }
+  try {
+    const supabase = await createAdminClient();
+    const { error } = await supabase
+      .from("capacitacion_material_sugerencias")
+      .update({ estado, updated_at: new Date().toISOString() })
+      .eq("id", sugerenciaId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/dashboard/capacitacion/gestion-cursos");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Error al actualizar estado" };
+  }
+}
 
 /**
  * Delete a material from Supabase and Backblaze B2.

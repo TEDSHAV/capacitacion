@@ -205,7 +205,7 @@ export const AttachmentUploadSection = ({
               </span>
             )}
             {nroSesion != null && (
-              <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded border border-sky-200">
                 Sesión {nroSesion}
               </span>
             )}

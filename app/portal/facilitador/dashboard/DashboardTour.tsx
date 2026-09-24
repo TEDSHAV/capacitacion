@@ -3,43 +3,44 @@
 import { useCallback } from "react";
 import { driver, type DriveStep } from "driver.js";
 import "driver.js/dist/driver.css";
-import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
 
-const TOUR_KEY = "facilitador-dashboard-tour";
+const TOUR_KEY = "facilitador-dashboard-tour-v2";
 
 const dashboardSteps: DriveStep[] = [
   {
     element: "#tour-welcome",
     popover: {
-      title: "Bienvenido al Portal de Facilitadores",
-      description: "Aquí puedes gestionar tus servicios asignados. Veamos cómo funciona.",
+      title: "Bienvenido a tu Portal de Facilitador",
+      description: "Tu espacio centralizado para gestionar servicios asignados, descargar material didáctico y consultar tu perfil profesional.",
+    },
+  },
+  {
+    element: "#tour-kpi-filters",
+    popover: {
+      title: "Resumen y Filtros Rápidos",
+      description: "Revisa el total de servicios, pendientes por cargar y finalizados. Haz clic en cualquier tarjeta para filtrar la lista instantáneamente.",
+    },
+  },
+  {
+    element: "#tour-nav-tabs",
+    popover: {
+      title: "Vistas del Portal",
+      description: "Alterna entre 'Mis Servicios' para trabajar en tus cursos activos y 'Mi Perfil' para revisar tu ficha técnica, temas acreditados y firma digital.",
     },
   },
   {
     element: "#tour-osi-cards",
     popover: {
       title: "Servicios Asignados",
-      description: "Estas son tus OSIs asignadas. Cada tarjeta muestra el número de OSI, la empresa y detalles del servicio.",
-    },
-  },
-  {
-    element: () => {
-      const mobile = document.querySelector("#tour-status-badge-mobile");
-      const desktop = document.querySelector("#tour-status-badge");
-      if (mobile && window.getComputedStyle(mobile).display !== "none") return mobile as Element;
-      return (desktop || mobile) as Element;
-    },
-    popover: {
-      title: "Estado del Listado",
-      description: "El estado indica si los documentos están pendientes de enviar (amarillo) o ya fueron enviados (verde).",
+      description: "Visualiza tus cursos asignados con la empresa, fecha de ejecución, sesiones programadas y disponibilidad de material didáctico.",
     },
   },
   {
     element: "#tour-osi-card",
     popover: {
-      title: "Abrir OSI",
-      description: "Toca una tarjeta para cargar la lista de asistencia, escanear participantes y completar las calificaciones.",
+      title: "Ejecución del Servicio",
+      description: "Haz clic en cualquier servicio para descargar la presentación oficial (.pptx), cargar listas de participantes y completar las calificaciones.",
     },
   },
 ];
@@ -52,7 +53,7 @@ export function DashboardTour() {
       allowClose: true,
       nextBtnText: "Siguiente",
       prevBtnText: "Anterior",
-      doneBtnText: "Entendido",
+      doneBtnText: "¡Listo!",
       onDestroyed: () => {
         localStorage.setItem(TOUR_KEY, "completed");
       },
@@ -61,15 +62,15 @@ export function DashboardTour() {
   }, []);
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
+    <button
+      type="button"
       onClick={startTour}
-      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold shadow-2xs transition-colors"
+      title="Iniciar tour guiado"
     >
-      <HelpCircle className="w-4 h-4 mr-2" />
-      <span className="hidden sm:inline">Tour</span>
-    </Button>
+      <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
+      <span className="hidden sm:inline">Guía Rápida</span>
+    </button>
   );
 }
 

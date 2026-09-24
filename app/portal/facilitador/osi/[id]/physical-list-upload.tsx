@@ -183,7 +183,7 @@ export const PhysicalListUpload = ({ osiId, facilitadorId, onAttachmentCountChan
         <div>
           <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
             <ImageIcon className="w-4 h-4 text-blue-600" />
-            Cargar Listas Físicas
+            Lista de Asistencia
             <span className="text-[10px] font-bold uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded ml-1">Requerido</span>
           </h3>
           <p className="text-[10px] text-gray-500 mt-0.5">

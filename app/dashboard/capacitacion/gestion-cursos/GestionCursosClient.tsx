@@ -37,8 +37,8 @@ export default function GestionCursosClient({
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [creandoCurso, setCreandoCurso] = useState(false);
   const [editandoCurso, setEditandoCurso] = useState<number | null>(null);
+  const [materialsCurso, setMaterialsCurso] = useState<Curso | null>(null);
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
-  const [managingMaterialsCourse, setManagingMaterialsCourse] = useState<Curso | null>(null);
   const materialesEnabled = isMaterialesEnabled();
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -255,13 +255,13 @@ export default function GestionCursosClient({
           courseCountByCategory={courseCountByCategory}
         />
 
-        {/* Course Materials Modal */}
-        {materialesEnabled && managingMaterialsCourse && (
+        {/* Standalone Course Materials Modal */}
+        {materialesEnabled && materialsCurso && (
           <CourseMaterialsModal
-            cursoId={managingMaterialsCourse.id}
-            cursoNombre={managingMaterialsCourse.nombre}
-            isOpen={true}
-            onClose={() => setManagingMaterialsCourse(null)}
+            cursoId={materialsCurso.id}
+            cursoNombre={materialsCurso.nombre}
+            isOpen={!!materialsCurso}
+            onClose={() => setMaterialsCurso(null)}
           />
         )}
 
@@ -271,7 +271,7 @@ export default function GestionCursosClient({
           onEdit={abrirModalEdicion}
           onDelete={handleDeleteCourse}
           onDuplicate={handleDuplicateCourse}
-          onManageMaterials={materialesEnabled ? (c) => setManagingMaterialsCourse(c) : undefined}
+          onManageMaterials={materialesEnabled ? (curso) => setMaterialsCurso(curso) : undefined}
           categories={categoriesList}
         />
       </div>

@@ -331,6 +331,226 @@ export async function getAssignedOSIs(facilitadorId: number) {
   return { data: enrichedData };
 }
 
+export interface FacilitadorFullData {
+  facilitador: {
+    id: number;
+    nombre_apellido: string;
+    cedula: string | null;
+    rif: string | null;
+    email: string | null;
+    telefono: string | null;
+    direccion: string | null;
+    nivel_educacion: string | null;
+    formacion_docente_certificada: boolean;
+    foto_perfil_url: string | null;
+    calificacion: number | null;
+    fecha_ingreso: string | null;
+    estado_nombre: string | null;
+    ciudad_nombre: string | null;
+    temas_cursos: any[];
+    niveles_habilidad: Record<string, string>;
+    tiene_firma: boolean;
+  };
+  osis: any[];
+  historial: Array<{
+    id_osi: number;
+    nro_osi: string | number;
+    empresa: string;
+    cliente_rif: string;
+    servicio: string;
+    fecha: string;
+    fecha_raw: string | null;
+    año: number;
+    mes: string;
+    ubicacion: string;
+    modalidad: string;
+    duracion_horas: number;
+    sesiones: number;
+    is_final: boolean;
+  }>;
+  stats: {
+    totalServicios: number;
+    totalFinalizados: number;
+    totalPendientes: number;
+    totalEmpresas: number;
+    totalHoras: number;
+    cursosUnicos: number;
+  };
+}
+
+export async function getFacilitatorPortalData(facilitadorId: number): Promise<{
+  data?: FacilitadorFullData;
+  error?: string;
+}> {
+  try {
+    const supabase = await createAdminClient();
+
+    // 1. Fetch facilitator record
+    const { data: facData, error: facErr } = await supabase
+      .from("facilitadores")
+      .select(`
+        id,
+        nombre_apellido,
+        cedula,
+        rif,
+        email,
+        telefono,
+        direccion,
+        nivel_educacion,
+        formacion_docente_certificada,
+        foto_perfil_url,
+        calificacion,
+        fecha_ingreso,
+        id_estado_geografico,
+        id_ciudad,
+        temas_cursos,
+        niveles_habilidad,
+        firma_id
+      `)
+      .eq("id", facilitadorId)
+      .single();
+
+    if (facErr) {
+      console.error("[getFacilitatorPortalData] Error fetching facilitator:", facErr);
+      return { error: facErr.message };
+    }
+
+    // Resolve state and city names
+    let estado_nombre: string | null = null;
+    let ciudad_nombre: string | null = null;
+
+    if (facData.id_estado_geografico) {
+      const { data: estadoData } = await supabase
+        .from("cat_estados")
+        .select("nombre")
+        .eq("id", facData.id_estado_geografico)
+        .single();
+      estado_nombre = estadoData?.nombre || null;
+    }
+
+    if (facData.id_ciudad) {
+      const { data: ciudadData } = await supabase
+        .from("ciudades")
+        .select("nombre")
+        .eq("id", facData.id_ciudad)
+        .single();
+      ciudad_nombre = ciudadData?.nombre || null;
+    }
+
+    // Resolve course topic names
+    let resolvedTemas: any[] = facData.temas_cursos || [];
+    if (Array.isArray(resolvedTemas) && resolvedTemas.length > 0) {
+      const numericIds = resolvedTemas.filter(
+        (t) => typeof t === "number" || (!isNaN(Number(t)) && Number(t) > 0),
+      );
+      if (numericIds.length > 0) {
+        const { data: catCursos } = await supabase
+          .from("catalogo_servicios")
+          .select("id, nombre")
+          .in("id", numericIds.map(Number));
+        if (catCursos && catCursos.length > 0) {
+          const map = new Map(catCursos.map((c) => [c.id, c.nombre]));
+          resolvedTemas = resolvedTemas.map((t) => map.get(Number(t)) || t);
+        }
+      }
+    }
+
+    // 2. Fetch assigned OSIs
+    const { data: osis = [] } = await getAssignedOSIs(facilitadorId);
+
+    // 3. Build comprehensive history of services
+    const historial = (osis || []).map((osi: any) => {
+      const dateStr = osi.fecha_inicio_real || osi.fecha_emision || osi.created_at;
+      let año = new Date().getFullYear();
+      let mes = "S/F";
+      let fechaFormatted = "Por definir";
+
+      if (dateStr) {
+        try {
+          const d = new Date(dateStr);
+          año = d.getFullYear();
+          mes = d.toLocaleString("es-VE", { month: "short" }).toUpperCase().replace(".", "");
+          fechaFormatted = d.toLocaleDateString("es-VE", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          });
+        } catch {
+          // fallback
+        }
+      }
+
+      const ubicacionArr = [osi.ciudad, osi.estado].filter(Boolean);
+      const ubicacion =
+        ubicacionArr.length > 0
+          ? ubicacionArr.join(", ")
+          : osi.direccion_servicio || "Instalaciones del Cliente";
+
+      return {
+        id_osi: osi.id_osi,
+        nro_osi: osi.nro_osi,
+        empresa: osi.nombre_empresa || "Empresa Cliente",
+        cliente_rif: osi.cliente_rif || "N/A",
+        servicio: osi.servicio || "Capacitación Técnica",
+        fecha: fechaFormatted,
+        fecha_raw: dateStr || null,
+        año,
+        mes,
+        ubicacion,
+        modalidad: osi.modalidad || "Presencial",
+        duracion_horas: Number(osi.duracion_horas) || Number(osi.horas_teoricas) || 8,
+        sesiones: osi.session_count || 1,
+        is_final: osi.participant_status === "final",
+      };
+    });
+
+    // 4. Calculate consolidated metrics
+    const totalServicios = historial.length;
+    const totalFinalizados = historial.filter((h) => h.is_final).length;
+    const totalPendientes = totalServicios - totalFinalizados;
+    const totalEmpresas = new Set(historial.map((h) => h.empresa)).size;
+    const totalHoras = historial.reduce((sum, h) => sum + (h.duracion_horas || 0), 0);
+    const cursosUnicos = new Set(historial.map((h) => h.servicio)).size;
+
+    return {
+      data: {
+        facilitador: {
+          id: facData.id,
+          nombre_apellido: facData.nombre_apellido,
+          cedula: facData.cedula || null,
+          rif: facData.rif || null,
+          email: facData.email || null,
+          telefono: facData.telefono || null,
+          direccion: facData.direccion || null,
+          nivel_educacion: facData.nivel_educacion || null,
+          formacion_docente_certificada: Boolean(facData.formacion_docente_certificada),
+          foto_perfil_url: facData.foto_perfil_url || null,
+          calificacion: facData.calificacion ? Number(facData.calificacion) : null,
+          fecha_ingreso: facData.fecha_ingreso || null,
+          estado_nombre,
+          ciudad_nombre,
+          temas_cursos: resolvedTemas,
+          niveles_habilidad: (facData.niveles_habilidad as Record<string, string>) || {},
+          tiene_firma: Boolean(facData.firma_id),
+        },
+        osis: osis || [],
+        historial,
+        stats: {
+          totalServicios,
+          totalFinalizados,
+          totalPendientes,
+          totalEmpresas,
+          totalHoras,
+          cursosUnicos,
+        },
+      },
+    };
+  } catch (err: any) {
+    console.error("[getFacilitatorPortalData] Unexpected error:", err);
+    return { error: err?.message || "Error al cargar datos del facilitador" };
+  }
+}
+
 export async function getOSIParticipants(osiId: number, facilitadorId?: number): Promise<{ data?: any[]; error?: string }> {
   const supabase = await createAdminClient();
   

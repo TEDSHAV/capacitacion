@@ -4,7 +4,7 @@ import { memo, useState, useEffect, useRef } from "react";
 import { toTitleCase } from "@/utils/string-utils";
 import { CertificateManagement } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Loader2, Pencil, Ban } from "lucide-react";
+import { Loader2, Pencil, Ban, RotateCcw } from "lucide-react";
 
 interface CertificateTableProps {
   certificates: CertificateManagement[];
@@ -14,6 +14,7 @@ interface CertificateTableProps {
   onVerifyCertificate?: (certificate: CertificateManagement) => void;
   onEditCertificate?: (certificate: CertificateManagement) => void;
   onAnularCertificate?: (certificate: CertificateManagement) => void;
+  onReactivarCertificate?: (certificate: CertificateManagement) => void;
   onScoreUpdate?: (
     certificateId: number,
     newScore: number,
@@ -29,6 +30,7 @@ function CertificateTableComponent({
   onVerifyCertificate,
   onEditCertificate,
   onAnularCertificate,
+  onReactivarCertificate,
   onScoreUpdate,
   headerActions,
 }: CertificateTableProps) {
@@ -476,6 +478,16 @@ function CertificateTableComponent({
                       >
                         <Ban className="h-3 w-3" />
                         Anular
+                      </button>
+                    )}
+                    {onReactivarCertificate && !certificate.is_active && (
+                      <button
+                        onClick={() => onReactivarCertificate(certificate)}
+                        className="w-full text-xs text-center py-1 px-2 rounded border border-emerald-300 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-100 hover:border-emerald-400 transition-colors flex items-center justify-center gap-1 font-medium"
+                        title="Reactivar certificado y carnet asociado"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Reactivar
                       </button>
                     )}
                   </div>

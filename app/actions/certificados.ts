@@ -1,6 +1,7 @@
 "use server";
 
 import { cache } from "react";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 
 import {
@@ -2732,3 +2733,91 @@ export async function anularCertificateAction(
     };
   }
 }
+
+/**
+ * Reactivate (un-void) a previously annulled certificate and its associated carnet.
+ * Restores is_active = true and clears the annulment metadata.
+ */
+export async function reactivarCertificateAction(
+  certificateId: number,
+): Promise<AnularResult> {
+  try {
+    const supabase = await createClient();
+
+    // 1. Reactivar el certificado (solo si está inactivo/anulado)
+    const { data: certUpdate, error: certError } = await supabase
+      .from("certificados")
+      .update({
+        is_active: true,
+        motivo_anulacion: null,
+        anulado_por: null,
+        fecha_anulacion: null,
+      })
+      .eq("id", certificateId)
+      .eq("is_active", false)
+      .select("id")
+      .maybeSingle();
+
+    if (certError) {
+      console.error("Error reactivando certificado:", certError);
+      return {
+        success: false,
+        message: `Error al reactivar el certificado: ${certError.message}`,
+      };
+    }
+
+    if (!certUpdate) {
+      return {
+        success: false,
+        message:
+          "No se encontró un certificado anulado con ese ID (puede que ya esté activo).",
+      };
+    }
+
+    // 2. Cascada: reactivar el carnet asociado (si existe)
+    const { data: carnetUpdate, error: carnetError } = await supabase
+      .from("carnets")
+      .update({
+        is_active: true,
+        motivo_anulacion: null,
+        anulado_por: null,
+        fecha_anulacion: null,
+      })
+      .eq("id_certificado", certificateId)
+      .eq("is_active", false)
+      .select("id")
+      .maybeSingle();
+
+    if (carnetError) {
+      console.warn("Error reactivando carnet asociado:", carnetError);
+      return {
+        success: true,
+        message:
+          "Certificado reactivado, pero ocurrió un aviso al reactivar el carnet asociado.",
+        annulledCertificates: 1,
+        annulledCarnets: 0,
+      };
+    }
+
+    revalidatePath("/dashboard/capacitacion/gestion-certificados");
+
+    return {
+      success: true,
+      message: carnetUpdate
+        ? "Certificado y carnet reactivados exitosamente."
+        : "Certificado reactivado exitosamente (no tenía carnet asociado).",
+      annulledCertificates: 1,
+      annulledCarnets: carnetUpdate ? 1 : 0,
+    };
+  } catch (error) {
+    console.error("Error in reactivarCertificateAction:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Error desconocido al reactivar el certificado.",
+    };
+  }
+}
+

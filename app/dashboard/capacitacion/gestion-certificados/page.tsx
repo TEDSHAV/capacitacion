@@ -8,6 +8,7 @@ import CertificateTableComponent from "./components/certificate-table";
 import CertificatePaginationComponent from "./components/certificate-pagination";
 import { BatchEditModal } from "./components/batch-edit-modal";
 import { AnularCertificateModal } from "./components/anular-certificate-modal";
+import { ReactivarCertificateModal } from "./components/reactivar-certificate-modal";
 import {
   getCertificatesForManagement,
   getCompaniesForFilters,
@@ -36,6 +37,11 @@ export default function GestionCertificadosPage() {
   // --- Anulación modal state ---
   const [isAnularOpen, setIsAnularOpen] = useState(false);
   const [anularCertificate, setAnularCertificate] =
+    useState<CertificateManagement | null>(null);
+
+  // --- Reactivación modal state ---
+  const [isReactivarOpen, setIsReactivarOpen] = useState(false);
+  const [reactivarCertificate, setReactivarCertificate] =
     useState<CertificateManagement | null>(null);
 
   // Filter options
@@ -195,6 +201,23 @@ export default function GestionCertificadosPage() {
     [reloadCerts, addToast],
   );
 
+  // --- Reactivación handlers ---
+  const handleReactivarCertificate = useCallback(
+    (certificate: CertificateManagement) => {
+      setReactivarCertificate(certificate);
+      setIsReactivarOpen(true);
+    },
+    [],
+  );
+
+  const handleReactivarSuccess = useCallback(
+    (result: { message: string; annulledCarnets?: number }) => {
+      reloadCerts();
+      addToast(result.message, "success", 5000);
+    },
+    [reloadCerts, addToast],
+  );
+
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
@@ -236,6 +259,7 @@ export default function GestionCertificadosPage() {
         onVerifyCertificate={handleVerifyCertificate}
         onEditCertificate={handleEditCertificate}
         onAnularCertificate={handleAnularCertificate}
+        onReactivarCertificate={handleReactivarCertificate}
         onScoreUpdate={handleScoreUpdate}
         headerActions={
           <Button
@@ -278,6 +302,14 @@ export default function GestionCertificadosPage() {
         onClose={() => setIsAnularOpen(false)}
         onSuccess={handleAnularSuccess}
         certificate={anularCertificate}
+      />
+
+      {/* Reactivar Certificate Modal */}
+      <ReactivarCertificateModal
+        isOpen={isReactivarOpen}
+        onClose={() => setIsReactivarOpen(false)}
+        onSuccess={handleReactivarSuccess}
+        certificate={reactivarCertificate}
       />
     </div>
   );
