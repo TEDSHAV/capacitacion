@@ -33,25 +33,41 @@ export class OCRService {
 
       // Call Mistral OCR API
       const isPdf = file.type === "application/pdf";
-      const response = await fetch(this.MISTRAL_API_URL, {
+      const requestPayload = JSON.stringify({
+        model: "mistral-ocr-latest",
+        document: isPdf
+          ? {
+              type: "document_url",
+              document_url: `data:${file.type};base64,${base64}`,
+            }
+          : {
+              type: "image_url",
+              image_url: `data:${file.type};base64,${base64}`,
+            },
+      });
+
+      let response = await fetch(this.MISTRAL_API_URL, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model: "mistral-ocr-latest",
-          document: isPdf
-            ? {
-                type: "document_url",
-                document_url: `data:${file.type};base64,${base64}`,
-              }
-            : {
-                type: "image_url",
-                image_url: `data:${file.type};base64,${base64}`,
-              },
-        }),
+        body: requestPayload,
       });
+
+      // Handle 429 Rate Limit from Mistral with a retry after 2 seconds
+      if (response.status === 429) {
+        console.warn("[OCRService] Mistral OCR rate-limited (429), retrying after 2s...");
+        await new Promise((r) => setTimeout(r, 2000));
+        response = await fetch(this.MISTRAL_API_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: requestPayload,
+        });
+      }
 
       if (!response.ok) {
         const error = await response
@@ -170,22 +186,37 @@ IMPORTANT STRICT RULES:
 
       const userMessage = `Extract participants from this OCR text of a handwritten Venezuelan training document:\n\n${ocrMarkdown}`;
 
-      const response = await fetch(this.MISTRAL_CHAT_URL, {
+      const chatPayload = JSON.stringify({
+        model: "mistral-small-latest",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+        temperature: 0.1,
+        max_tokens: 2048,
+      });
+
+      let response = await fetch(this.MISTRAL_CHAT_URL, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model: "mistral-small-latest",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage },
-          ],
-          temperature: 0.1,
-          max_tokens: 2048,
-        }),
+        body: chatPayload,
       });
+
+      if (response.status === 429) {
+        console.warn("[OCR AI] Mistral Chat rate-limited (429), retrying after 2s...");
+        await new Promise((r) => setTimeout(r, 2000));
+        response = await fetch(this.MISTRAL_CHAT_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: chatPayload,
+        });
+      }
 
       if (!response.ok) {
         console.error("[OCR AI] Chat API error:", response.statusText);

@@ -3,25 +3,24 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * In-memory API rate limiter.
  *
- * Limits requests per IP address per route group to prevent abuse.
+ * Limits requests per client (session/IP) per route group to prevent abuse
+ * while accommodating legitimate high-volume workflows like batch uploads,
+ * class roster verification, and multi-session OCR scanning.
  *
- * NOTE: In-memory like the login limiter — sufficient for single-instance
- * Docker deployments. For multi-instance, move to Redis/Upstash.
- *
- * Route groups and their limits (requests per minute per IP):
- *   - "ocr":      10/min  (expensive Mistral API calls)
- *   - "upload":   10/min  (file uploads)
- *   - "citizen":  20/min  (ID enumeration risk)
- *   - "default":  60/min  (general API routes)
+ * Route groups and their limits (requests per minute):
+ *   - "ocr":      60/min  (Mistral OCR & AI scanning)
+ *   - "upload":   120/min (File & image uploads)
+ *   - "citizen":  180/min (CNE / Seniat verification for entire classes)
+ *   - "default":  180/min (General API routes)
  */
 
 type RateLimitGroup = "ocr" | "upload" | "citizen" | "default";
 
 const LIMITS: Record<RateLimitGroup, { max: number; windowMs: number }> = {
-  ocr: { max: 10, windowMs: 60_000 },
-  upload: { max: 10, windowMs: 60_000 },
-  citizen: { max: 20, windowMs: 60_000 },
-  default: { max: 60, windowMs: 60_000 },
+  ocr: { max: 60, windowMs: 60_000 },
+  upload: { max: 120, windowMs: 60_000 },
+  citizen: { max: 180, windowMs: 60_000 },
+  default: { max: 180, windowMs: 60_000 },
 };
 
 interface Bucket {
@@ -42,10 +41,26 @@ function cleanup() {
   }
 }
 
-function getClientIpFromRequest(request: NextRequest): string {
+function getClientIdentifier(request: NextRequest): string {
+  // Check for session cookies first so authenticated users don't share a bucket on NAT/proxies
+  const facilitadorSession = request.cookies.get("facilitador_session")?.value;
+  if (facilitadorSession) {
+    return `session_fac:${facilitadorSession.substring(0, 24)}`;
+  }
+  const clienteSession = request.cookies.get("cliente_session")?.value;
+  if (clienteSession) {
+    return `session_cli:${clienteSession.substring(0, 24)}`;
+  }
+  const authSession = request.cookies.get("sb-shade-auth-token")?.value;
+  if (authSession) {
+    return `session_auth:${authSession.substring(0, 24)}`;
+  }
+
+  // Fallback to IP address, checking Cloudflare real IP header first
   return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("cf-connecting-ip")?.trim() ||
     request.headers.get("x-real-ip")?.trim() ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     "unknown"
   );
 }
@@ -63,8 +78,8 @@ export function checkApiRateLimit(
   group: RateLimitGroup = "default",
 ): NextResponse | null {
   cleanup();
-  const ip = getClientIpFromRequest(request);
-  const key = `${group}:${ip}`;
+  const clientId = getClientIdentifier(request);
+  const key = `${group}:${clientId}`;
   const now = Date.now();
   const limit = LIMITS[group];
 
