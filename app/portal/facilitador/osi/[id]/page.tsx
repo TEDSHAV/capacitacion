@@ -6,7 +6,7 @@ import { getOSIForControlServicios } from "@/app/actions/control-servicios";
 import { getMaterialKitForOSI } from "@/app/actions/material-didactico";
 import { createAdminClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, Building2, Calendar } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, MapPin } from "lucide-react";
 import Link from "next/link";
 import { ParticipantForm } from "./participant-form";
 import { getSessionCount } from "@/lib/osi-utils";
@@ -88,10 +88,12 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
         </h1>
 
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 pt-1 border-t border-slate-200/60">
-          <div className="flex items-center gap-1.5">
-            <Building2 className="w-4 h-4 text-slate-400" />
-            <span>RIF: <strong>{osi.cliente_rif || "N/A"}</strong></span>
-          </div>
+          {(osi.ciudad || osi.estado) && (
+            <div className="flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-slate-400" />
+              <span><strong>{[osi.ciudad, osi.estado].filter(Boolean).join(", ")}</strong></span>
+            </div>
+          )}
           {osi.fecha_emision && (
             <div className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-slate-400" />

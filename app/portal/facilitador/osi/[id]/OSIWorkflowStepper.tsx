@@ -12,29 +12,33 @@ export default function OSIWorkflowStepper({
   isFinal = false,
 }: OSIWorkflowStepperProps) {
   const steps = [
+    ...(hasMaterial
+      ? [
+          {
+            number: "1",
+            title: "Material Didáctico",
+            desc: "PPTX / Proyección",
+            icon: Presentation,
+            completed: false,
+          },
+        ]
+      : []),
     {
-      number: "1",
-      title: "Material Didáctico",
-      desc: "PPTX / Proyección",
-      icon: Presentation,
-      completed: false,
-    },
-    {
-      number: "2",
+      number: hasMaterial ? "2" : "1",
       title: "Lista de Asistencia",
       desc: "Foto o escaneo firmado",
       icon: FileSpreadsheet,
       completed: false,
     },
     {
-      number: "3",
+      number: hasMaterial ? "3" : "2",
       title: "Participantes",
       desc: "Asistencia y notas",
       icon: Users,
       completed: false,
     },
     {
-      number: "4",
+      number: hasMaterial ? "4" : "3",
       title: "Cierre y Envío",
       desc: isFinal ? "Listado enviado" : "Finalizar y transmitir",
       icon: isFinal ? CheckCircle2 : CheckCheck,
@@ -56,7 +60,7 @@ export default function OSIWorkflowStepper({
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className={`grid grid-cols-2 ${hasMaterial ? "sm:grid-cols-4" : "sm:grid-cols-3"} gap-3`}>
         {steps.map((step) => {
           const Icon = step.icon;
           const isDone = step.completed;
