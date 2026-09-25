@@ -372,13 +372,37 @@ export const ParticipantScannerModal = ({
 
               {/* Error Message */}
               {error && (
-                <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-red-900">
-                      Ocurrió un error
-                    </p>
-                    <p className="text-sm text-red-700">{error}</p>
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1 flex-1">
+                      <p className="text-sm font-semibold text-red-900">
+                        No se pudo extraer con IA automáticamente
+                      </p>
+                      <p className="text-sm text-red-700">{error}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-red-200/60 justify-end">
+                    {file && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleProcess(file)}
+                        className="text-xs bg-white text-gray-700 hover:bg-gray-50 border-gray-200"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                        Reintentar escaneo
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={onClose}
+                      className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Continuar e ingresar manualmente
+                    </Button>
                   </div>
                 </div>
               )}

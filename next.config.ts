@@ -62,7 +62,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "25mb",
     },
-    middlewareClientMaxBodySize: "1000mb",
+    proxyClientMaxBodySize: "1000mb",
     // Client router cache: keep page segments in cache for 30s (dynamic) / 3min (static).
     // Repeat navigations within this window reuse cached segments (instant).
     // revalidatePath() on mutations still invalidates, so edits stay fresh.

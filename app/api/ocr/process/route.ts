@@ -27,11 +27,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read API key from server-side env var (never from the client)
-    const apiKey = process.env.MISTRAL_API_KEY || process.env.NEXT_PUBLIC_MISTRAL_API_KEY || '';
-    if (!apiKey) {
+    // Read API keys from server-side env vars (prioritize Google Gemini for speed, free tier & accuracy)
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+    const mistralKey = process.env.MISTRAL_API_KEY || process.env.NEXT_PUBLIC_MISTRAL_API_KEY || '';
+
+    if (!geminiKey && !mistralKey) {
       return NextResponse.json(
-        { error: 'OCR API key is not configured on the server. Contact the administrator.' },
+        { error: 'No se ha configurado ninguna clave de API para OCR (GEMINI_API_KEY o MISTRAL_API_KEY). Contacta al administrador.' },
         { status: 503 }
       );
     }
@@ -63,15 +65,20 @@ export async function POST(request: NextRequest) {
     });
     console.log('Processing OCR for file:', file.name, 'type:', file.type, 'size:', file.size);
 
-    // Process the file with OCR
-    const result = await OCRService.processImage(file, apiKey, mode as "certificate" | "portal");
+    // Process the file with OCR (Gemini prioritized, Mistral fallback)
+    const result = await OCRService.processImage(
+      file,
+      { geminiKey: geminiKey || undefined, mistralKey: mistralKey || undefined },
+      mode as "certificate" | "portal"
+    );
 
     console.log('OCR result:', { success: !result.error, error: result.error, participantsCount: result.participants?.length });
 
     if (result.error) {
+      const isRateLimit = result.error.includes("429") || result.error.toLowerCase().includes("rate limit") || result.error.toLowerCase().includes("límite");
       return NextResponse.json(
         { error: result.error },
-        { status: 500 }
+        { status: isRateLimit ? 429 : 500 }
       );
     }
 

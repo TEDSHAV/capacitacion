@@ -714,6 +714,22 @@ export const ParticipantForm = ({
         ))}
       </div>
 
+      {/* Add Participant Button at the bottom for easy access while typing */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={addParticipant}
+          className="h-11 px-5 bg-blue-50/80 hover:bg-blue-100 text-blue-700 border-blue-200 font-semibold shadow-sm transition-all flex items-center justify-center"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Agregar Participante
+        </Button>
+        <span className="text-xs text-gray-500 self-center">
+          Total: <strong className="text-gray-700">{participants.length}</strong> participante(s)
+        </span>
+      </div>
+
       {/* Additional upload sections: photos & grading sheet */}
       <div className="flex items-center gap-2 mb-2 pt-4 border-t border-gray-100">
         <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">+</span>
@@ -868,9 +884,20 @@ export const ParticipantForm = ({
         )}
 
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-          <p className="text-xs text-gray-400 italic">
-            * Asegurate de guardar tus cambios antes de salir.
-          </p>
+          <div>
+            <p className="text-xs text-gray-400 italic">
+              * Asegúrate de guardar tus cambios antes de salir.
+            </p>
+            {!hasValidParticipants ? (
+              <p className="text-xs text-amber-600 mt-1 font-medium">
+                ⚠️ Ingresa al menos 1 participante con nombre y cédula para poder finalizar.
+              </p>
+            ) : !hasAcknowledged ? (
+              <p className="text-xs text-amber-600 mt-1 font-medium">
+                ⚠️ Marca la casilla de declaración de responsabilidad para habilitar el envío final.
+              </p>
+            ) : null}
+          </div>
           <div className="flex gap-3 flex-col sm:flex-row">
             <Button 
               variant="outline" 
@@ -891,8 +918,8 @@ export const ParticipantForm = ({
               disabled={saving || !hasAcknowledged || !hasValidParticipants}
               className={`w-full sm:w-auto h-12 transition-colors ${
                 hasAcknowledged && hasValidParticipants
-                  ? "bg-blue-600 hover:bg-blue-700" 
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  ? "bg-blue-600 hover:bg-blue-700 text-white font-semibold" 
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-200"
               }`}
             >
               {saving ? (

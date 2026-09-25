@@ -18,15 +18,236 @@ export interface ExtractedParticipant {
   confidence?: number;
 }
 
+export interface OCRConfig {
+  geminiKey?: string;
+  mistralKey?: string;
+}
+
 export class OCRService {
+  private static readonly GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
   private static readonly MISTRAL_API_URL = "https://api.mistral.ai/v1/ocr";
   private static readonly MISTRAL_CHAT_URL = "https://api.mistral.ai/v1/chat/completions";
+
+  /**
+   * Main entrypoint for OCR processing.
+   * Prioritizes Google Gemini (Gemini 2.0/1.5 Flash - fast, free tier, high accuracy),
+   * with automatic fallback to Mistral OCR if configured.
+   */
+  static async processImage(
+    file: File,
+    keys: string | OCRConfig,
+    mode: "certificate" | "portal" = "certificate"
+  ): Promise<OCRResult> {
+    const config: OCRConfig =
+      typeof keys === "string"
+        ? keys.startsWith("AIza")
+          ? { geminiKey: keys }
+          : { mistralKey: keys, geminiKey: undefined }
+        : keys;
+
+    // 1. Try Google Gemini first if key is available
+    if (config.geminiKey) {
+      console.log(`[OCRService] Processing with Google Gemini (${mode} mode)...`);
+      const geminiResult = await this.processWithGemini(file, config.geminiKey, mode);
+
+      if (!geminiResult.error) {
+        return geminiResult;
+      }
+
+      console.warn(`[OCRService] Gemini failed: ${geminiResult.error}. Checking fallback...`);
+
+      // If Gemini failed and we don't have Mistral key, return Gemini's error
+      if (!config.mistralKey) {
+        return geminiResult;
+      }
+
+      console.log("[OCRService] Falling back to Mistral OCR...");
+    }
+
+    // 2. Try Mistral OCR if key is available
+    if (config.mistralKey) {
+      return this.processWithMistral(file, config.mistralKey, mode);
+    }
+
+    return {
+      text: "",
+      error: "No se proporcionó ninguna clave de API válida para OCR (GEMINI_API_KEY o MISTRAL_API_KEY).",
+    };
+  }
+
+  /**
+   * Process document using Google Gemini (Gemini 2.0 Flash / 1.5 Flash)
+   * Direct multimodal visual understanding with structured JSON extraction.
+   */
+  static async processWithGemini(
+    file: File,
+    apiKey: string,
+    mode: "certificate" | "portal" = "certificate"
+  ): Promise<OCRResult> {
+    try {
+      const base64 = await this.fileToBase64(file);
+      const mimeType = file.type || "image/jpeg";
+
+      const systemPrompt = mode === "portal"
+        ? `You are an expert OCR and document analysis AI for Venezuelan training attendance lists (SHA de Venezuela).
+Analyze the attached document (image/PDF) which contains a handwritten attendance list ("LISTA DE ASISTENCIA").
+The document table columns are: NOMBRE Y APELLIDO, CÉDULA DE IDENTIDAD, CARGO, FIRMA.
+There is NO score column in this document.
+
+Extract all participant rows.
+Strict rules:
+1. "name": Full name in Title Case. Ignore CARGO (words like Analista, Supervisor, Gerente, Operador, Mecánico, Conductor, Pasante, Chofer, Obrero, Coordinador, etc. are job titles, NOT names).
+2. "cedula": Venezuelan national ID number. Digits ONLY (remove dots, dashes, spaces). Must be 6 to 10 digits.
+3. "nationality": "V" (venezolano) or "E" (extranjero). Default is "V".
+4. "score": Must be null.
+5. Skip header rows, company info (e.g. SHA de Venezuela, RIF J-31315131-9), facilitator names, and empty rows.
+
+Return a JSON object with:
+- "markdown": A markdown text representation of the extracted document content
+- "participants": Array of objects [{ "name": string, "cedula": string, "nationality": "V"|"E", "score": null }]`
+        : `You are an expert OCR and document analysis AI for Venezuelan training evaluation sheets (SHA de Venezuela).
+Analyze the attached document (image/PDF) which contains a handwritten participant list ("CALIFICACIÓN DE LOS PARTICIPANTES").
+The document table columns are: N°, NOMBRE Y APELLIDO, CÉDULA, PUNTUACIÓN / NOTA (0-20), CONDICIÓN.
+
+Extract all participant rows.
+Strict rules:
+1. "name": Full name in Title Case.
+2. "cedula": Venezuelan national ID number. Digits ONLY (remove dots, dashes, spaces). Must be 6 to 10 digits.
+3. "nationality": "V" (venezolano) or "E" (extranjero). Default is "V".
+4. "score": Number from 0 to 20 representing the grade, or null if not found.
+5. Skip header rows, company info, facilitator names, and empty rows.
+
+Return a JSON object with:
+- "markdown": A markdown text representation of the extracted document content
+- "participants": Array of objects [{ "name": string, "cedula": string, "nationality": "V"|"E", "score": number|null }]`;
+
+      const requestPayload = {
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64,
+                },
+              },
+              {
+                text: `${systemPrompt}\n\nRespond ONLY with a valid JSON object matching this schema:
+{
+  "markdown": "transcription text here",
+  "participants": [
+    {
+      "name": "Full Name",
+      "cedula": "12345678",
+      "nationality": "V",
+      "score": null
+    }
+  ]
+}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: "application/json",
+        },
+      };
+
+      // Available multimodal flash models in order of priority
+      const models = [
+        "gemini-3.7-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-3.8-flash",
+        "gemini-flash-latest",
+      ];
+      let lastError = "";
+
+      for (const model of models) {
+        const url = `${this.GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
+        const response = await this.fetchWithRetry(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestPayload),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          lastError = errData?.error?.message || response.statusText;
+          console.warn(`[OCR Gemini] Model ${model} returned status ${response.status}: ${lastError}`);
+          // On 404 (deprecated/unsupported) or 503 (high demand spike), try next model in cascade
+          if (response.status === 404 || response.status === 503 || response.status === 500) {
+            continue;
+          }
+          if (response.status === 429) {
+            continue; // Try next model or fallback
+          }
+          continue;
+        }
+
+        const data = await response.json();
+        const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!candidateText) {
+          return { text: "", error: "Google Gemini no devolvió contenido interpretable." };
+        }
+
+        let parsed: { markdown?: string; participants?: Array<{ name?: string; cedula?: string; nationality?: string; score?: number | null }> };
+        try {
+          parsed = JSON.parse(candidateText);
+        } catch {
+          const match = candidateText.match(/\{[\s\S]*\}/);
+          if (match) {
+            parsed = JSON.parse(match[0]);
+          } else {
+            return { text: candidateText, error: "No se pudo interpretar el formato JSON de Google Gemini." };
+          }
+        }
+
+        const rawParticipants = Array.isArray(parsed.participants) ? parsed.participants : [];
+
+        const participants: ExtractedParticipant[] = rawParticipants
+          .filter((p) => p && p.name && p.cedula)
+          .map((p) => {
+            const digits = String(p.cedula).replace(/\D/g, "");
+            return {
+              name: this.cleanName(String(p.name)),
+              idNumber: digits,
+              nationality: String(p.nationality).toUpperCase() === "E" ? ("extranjero" as const) : ("venezolano" as const),
+              score: typeof p.score === "number" && !isNaN(p.score) ? Math.round(p.score) : undefined,
+              confidence: 0.95,
+            };
+          })
+          .filter((p: ExtractedParticipant) => p.name.length > 2 && p.idNumber.length >= 6);
+
+        console.log(`[OCR Gemini] Extracted ${participants.length} participants using ${model}`);
+
+        return {
+          text: parsed.markdown || "",
+          markdown: parsed.markdown || "",
+          participants,
+        };
+      }
+
+      return {
+        text: "",
+        error: `Error procesando imagen con Google Gemini: ${lastError}`,
+      };
+    } catch (err) {
+      console.error("[OCR Gemini] Error:", err);
+      return {
+        text: "",
+        error: err instanceof Error ? err.message : "Error desconocido en Google Gemini",
+      };
+    }
+  }
 
   /**
    * Process an image file using Mistral OCR
    * mode: "certificate" (default, with scores) or "portal" (attendance list, no scores)
    */
-  static async processImage(file: File, apiKey: string, mode: "certificate" | "portal" = "certificate"): Promise<OCRResult> {
+  static async processWithMistral(file: File, apiKey: string, mode: "certificate" | "portal" = "certificate"): Promise<OCRResult> {
     try {
       // Convert file to base64
       const base64 = await this.fileToBase64(file);
@@ -46,7 +267,7 @@ export class OCRService {
             },
       });
 
-      let response = await fetch(this.MISTRAL_API_URL, {
+      const response = await this.fetchWithRetry(this.MISTRAL_API_URL, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -55,25 +276,19 @@ export class OCRService {
         body: requestPayload,
       });
 
-      // Handle 429 Rate Limit from Mistral with a retry after 2 seconds
-      if (response.status === 429) {
-        console.warn("[OCRService] Mistral OCR rate-limited (429), retrying after 2s...");
-        await new Promise((r) => setTimeout(r, 2000));
-        response = await fetch(this.MISTRAL_API_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: requestPayload,
-        });
-      }
-
       if (!response.ok) {
         const error = await response
           .json()
           .catch(() => ({ message: response.statusText }));
         console.error("Mistral API error:", error);
+
+        if (response.status === 429) {
+          return {
+            text: "",
+            error: "Límite de solicitudes de Mistral AI alcanzado (429). Por favor espera un momento o verifica los créditos de tu cuenta en Mistral Console.",
+          };
+        }
+
         return {
           text: "",
           error:
@@ -95,10 +310,6 @@ export class OCRService {
 
       console.log(`[OCR] Regex found ${regexParticipants.length} participants, buffered ${potentialNamesFound} potential names`);
 
-      // Fall back to AI extraction if:
-      // - Regex found 0 participants, OR
-      // - More names were buffered than participants found (column-by-column OCR, cursive)
-      // - Regex participants have very low confidence or seem to contain noise
       let participants = regexParticipants;
       
       const hasLowQualityRegex = regexParticipants.length > 0 && 
@@ -114,7 +325,6 @@ export class OCRService {
         console.log("[OCR] Falling back to AI extraction...");
         const aiParticipants = await this.extractWithAI(fullMarkdown, apiKey, mode);
         
-        // Use AI results if they found anything, as the prompt is now much stricter
         if (aiParticipants.length > 0) {
           console.log(`[OCR] AI extraction found ${aiParticipants.length} participants (regex had ${regexParticipants.length})`);
           participants = aiParticipants;
@@ -196,7 +406,7 @@ IMPORTANT STRICT RULES:
         max_tokens: 2048,
       });
 
-      let response = await fetch(this.MISTRAL_CHAT_URL, {
+      const response = await this.fetchWithRetry(this.MISTRAL_CHAT_URL, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -204,19 +414,6 @@ IMPORTANT STRICT RULES:
         },
         body: chatPayload,
       });
-
-      if (response.status === 429) {
-        console.warn("[OCR AI] Mistral Chat rate-limited (429), retrying after 2s...");
-        await new Promise((r) => setTimeout(r, 2000));
-        response = await fetch(this.MISTRAL_CHAT_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: chatPayload,
-        });
-      }
 
       if (!response.ok) {
         console.error("[OCR AI] Chat API error:", response.statusText);
@@ -630,4 +827,39 @@ IMPORTANT STRICT RULES:
       participant.idNumber.length <= 9
     );
   }
+
+  /**
+   * Helper to perform fetch with exponential backoff on 429 Rate Limit
+   */
+  private static async fetchWithRetry(
+    url: string,
+    options: RequestInit,
+    maxRetries = 3
+  ): Promise<Response> {
+    let attempt = 0;
+    let delay = 2000;
+
+    while (true) {
+      const response = await fetch(url, options);
+
+      if (response.status === 429 && attempt < maxRetries) {
+        attempt++;
+        const retryAfterHeader = response.headers.get("retry-after");
+        const retryAfterSeconds = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 0;
+        const waitTime = !isNaN(retryAfterSeconds) && retryAfterSeconds > 0
+          ? retryAfterSeconds * 1000
+          : delay;
+
+        console.warn(
+          `[OCRService] Mistral rate-limited (429), attempt ${attempt}/${maxRetries}. Retrying in ${waitTime}ms...`
+        );
+        await new Promise((r) => setTimeout(r, waitTime));
+        delay *= 2; // exponential backoff (2s -> 4s -> 8s)
+        continue;
+      }
+
+      return response;
+    }
+  }
 }
+

@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
  * class roster verification, and multi-session OCR scanning.
  *
  * Route groups and their limits (requests per minute):
- *   - "ocr":      60/min  (Mistral OCR & AI scanning)
+ *   - "ocr":      60/min  (Gemini / Mistral AI OCR document scanning)
  *   - "upload":   120/min (File & image uploads)
  *   - "citizen":  180/min (CNE / Seniat verification for entire classes)
  *   - "default":  180/min (General API routes)
