@@ -10,8 +10,6 @@ import { ArrowLeft, Building2, Calendar, MapPin } from "lucide-react";
 import Link from "next/link";
 import { ParticipantForm } from "./participant-form";
 import { getSessionCount } from "@/lib/osi-utils";
-import FacilitadorMaterialKit from "./FacilitadorMaterialKit";
-import OSIWorkflowStepper from "./OSIWorkflowStepper";
 
 interface OSIPageProps {
   params: Promise<{ id: string }>;
@@ -131,30 +129,20 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
         </div>
       </header>
 
-      {/* Stepper Workflow Guide */}
-      <OSIWorkflowStepper
-        hasMaterial={!!materialKitRes.data && materialKitRes.data.materiales.length > 0}
+      {/* Guided Wizard: Stepper, Material Kit, Attendance, Participants, Photos, and Final Review */}
+      <ParticipantForm
+        osiId={osiId}
+        facilitadorId={session.facilitador_id}
+        initialParticipants={participants.data || []}
+        materialKit={materialKitRes.data}
+        osi={osi}
+        assignedSession={assignedSession}
+        needsSessionPicker={needsSessionPicker}
+        sessionCount={sessionCount}
+        assignedSessions={specificSessions}
+        hasAllSessionsAssignment={hasAllSessionsAssignment}
         isFinal={isFinal}
       />
-
-      {/* Material Didáctico Kit */}
-      {materialKitRes.data && (
-        <FacilitadorMaterialKit kit={materialKitRes.data} />
-      )}
-
-      {/* Main Participant Registration Form (Contains Hoja de Calificación on top of Fotos, Disclaimer, and ISO Banner at the bottom) */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-        <ParticipantForm
-          osiId={osiId}
-          facilitadorId={session.facilitador_id}
-          initialParticipants={participants.data || []}
-          assignedSession={assignedSession}
-          needsSessionPicker={needsSessionPicker}
-          sessionCount={sessionCount}
-          assignedSessions={specificSessions}
-          hasAllSessionsAssignment={hasAllSessionsAssignment}
-        />
-      </div>
     </div>
   );
 }

@@ -136,7 +136,7 @@ export const PhysicalListUpload = ({ osiId, facilitadorId, onAttachmentCountChan
       // caused the flow to get stuck if that fetch was slow/hung.
       if (lastUploadedAttachment && lastUploadedFile) {
         console.log(`[Upload] Triggering scan: file=${lastUploadedFile.name}, hasOnFileReadyToScan=${!!onFileReadyToScan}`);
-        onStatusChange?.("Archivo listo. Abriendo escáner...");
+        onStatusChange?.(null);
         if (onFileReadyToScan) {
           onFileReadyToScan(lastUploadedFile, lastUploadedAttachment);
         } else {

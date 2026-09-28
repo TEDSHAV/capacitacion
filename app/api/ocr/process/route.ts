@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { OCRService } from '@/lib/ocr-service';
 import { requireApiAuth } from '@/utils/api-auth';
 
-// Increase max duration for OCR processing (Mistral OCR + AI fallback chat call
-// can take longer than the default serverless timeout, especially on larger images)
+// Increase max duration for OCR processing (Gemini multimodal can take
+// longer than the default serverless timeout on larger images/PDFs)
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
@@ -27,13 +27,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read API keys from server-side env vars (prioritize Google Gemini for speed, free tier & accuracy)
+    // Read Google Gemini API key from server-side env vars
     const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-    const mistralKey = process.env.MISTRAL_API_KEY || process.env.NEXT_PUBLIC_MISTRAL_API_KEY || '';
 
-    if (!geminiKey && !mistralKey) {
+    if (!geminiKey) {
       return NextResponse.json(
-        { error: 'No se ha configurado ninguna clave de API para OCR (GEMINI_API_KEY o MISTRAL_API_KEY). Contacta al administrador.' },
+        { error: 'No se ha configurado la clave de Google Gemini para OCR (GEMINI_API_KEY). Contacta al administrador.' },
         { status: 503 }
       );
     }
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
     if (!validTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Please upload a PDF, JPG, or PNG file.' },
+        { error: 'Tipo de archivo no soportado. Sube un archivo PDF, JPG o PNG.' },
         { status: 400 }
       );
     }
@@ -51,24 +50,22 @@ export async function POST(request: NextRequest) {
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'File size exceeds 10MB limit' },
+        { error: 'El archivo supera el tamaño máximo de 10MB.' },
         { status: 400 }
       );
     }
 
-    console.log('[OCR Route] FormData entries:', {
-      hasFile: !!file,
+    console.log('[OCR Route] Processing:', {
       fileName: file?.name,
       fileType: file?.type,
       fileSize: file?.size,
       mode,
     });
-    console.log('Processing OCR for file:', file.name, 'type:', file.type, 'size:', file.size);
 
-    // Process the file with OCR (Gemini prioritized, Mistral fallback)
+    // Process the file with Google Gemini OCR
     const result = await OCRService.processImage(
       file,
-      { geminiKey: geminiKey || undefined, mistralKey: mistralKey || undefined },
+      { geminiKey },
       mode as "certificate" | "portal"
     );
 

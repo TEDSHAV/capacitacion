@@ -12,7 +12,7 @@ const dashboardSteps: DriveStep[] = [
     element: "#tour-welcome",
     popover: {
       title: "Bienvenido a tu Portal de Facilitador",
-      description: "Tu espacio centralizado para gestionar servicios asignados, descargar material didáctico y consultar tu perfil profesional.",
+      description: "Tu espacio centralizado para gestionar tus servicios asignados, registrar participantes, cargar imágenes y consultar tu perfil.",
     },
   },
   {
@@ -26,21 +26,21 @@ const dashboardSteps: DriveStep[] = [
     element: "#tour-nav-tabs",
     popover: {
       title: "Vistas del Portal",
-      description: "Alterna entre 'Mis Servicios' para trabajar en tus cursos activos y 'Mi Perfil' para revisar tu ficha técnica, temas acreditados y firma digital.",
+      description: "Alterna entre 'Mis Servicios' para trabajar en tus cursos activos y 'Mi Perfil' para revisar tu ficha técnica.",
     },
   },
   {
     element: "#tour-osi-cards",
     popover: {
       title: "Servicios Asignados",
-      description: "Visualiza tus cursos asignados con la empresa, fecha de ejecución, sesiones programadas y disponibilidad de material didáctico.",
+      description: "Visualiza tus cursos asignados con los datos de la empresa, fecha de ejecución y sesiones programadas.",
     },
   },
   {
     element: "#tour-osi-card",
     popover: {
       title: "Ejecución del Servicio",
-      description: "Haz clic en cualquier servicio para descargar la presentación oficial (.pptx), cargar listas de participantes y completar las calificaciones.",
+      description: "Haz clic en cualquier servicio para cargar la lista de participantes, notas y fotos. Si el curso tiene presentación oficial cargada en plataforma podrás descargarla aquí; de lo contrario, te será enviada por correo electrónico por el equipo de Capacitación.",
     },
   },
 ];

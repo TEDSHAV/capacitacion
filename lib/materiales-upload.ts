@@ -47,7 +47,7 @@ export async function uploadMaterialDirectToB2(
     percent: 0,
     stage: "uploading",
     statusText: "Iniciando transferencia segura...",
-    detailText: "Conectando con el servidor para transmitir el archivo.",
+    detailText: "Conectando con el servidor para transferir el archivo.",
   });
 
   const formData = new FormData();

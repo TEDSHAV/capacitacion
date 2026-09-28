@@ -12,6 +12,7 @@ import {
   FileCheck,
   Lightbulb,
   MessageSquarePlus,
+  ArrowRight,
 } from "lucide-react";
 import type { MaterialKitInfo, MaterialDidactico } from "@/types/material-didactico";
 import SugerenciaMaterialModal from "./SugerenciaMaterialModal";
@@ -20,12 +21,14 @@ interface FacilitadorMaterialKitProps {
   kit: MaterialKitInfo;
   facilitadorId?: number;
   facilitadorNombre?: string;
+  onContinue?: () => void;
 }
 
 export default function FacilitadorMaterialKit({
   kit,
   facilitadorId,
   facilitadorNombre = "Facilitador",
+  onContinue,
 }: FacilitadorMaterialKitProps) {
   const [expanded, setExpanded] = useState(true);
   const [sugerenciaMaterial, setSugerenciaMaterial] = useState<MaterialDidactico | null>(null);
@@ -285,6 +288,19 @@ export default function FacilitadorMaterialKit({
               </button>
             )}
           </div>
+
+          {onContinue && (
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={onContinue}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-xs transition-all cursor-pointer"
+              >
+                <span>Continuar a Lista de Asistencia</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

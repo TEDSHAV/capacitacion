@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
           sendEvent({
             stage: "saving",
             subStage: "b2_upload",
-            message: `Transmitiendo a nube segura B2 (${Math.round((progress.loaded / progress.total) * 100)}%)...`,
+            message: `Subiendo a almacenamiento seguro (${Math.round((progress.loaded / progress.total) * 100)}%)...`,
             percent: b2Percent,
           });
         }

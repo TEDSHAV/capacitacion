@@ -1,33 +1,54 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Plus, 
-  Trash2, 
-  Save, 
-  Loader2, 
-  CheckCircle2, 
+import {
+  Plus,
+  Trash2,
+  Save,
+  Loader2,
+  CheckCircle2,
   AlertCircle,
   Search,
   AlertTriangle,
   X,
   ShieldCheck,
-  ClipboardCheck
+  ClipboardCheck,
+  ArrowLeft,
+  ArrowRight,
+  HelpCircle,
+  FileSpreadsheet,
+  Users,
+  Camera,
+  CheckCheck,
+  Sparkles,
+  Award,
+  BookOpen,
+  GraduationCap,
+  Building2,
+  Check,
 } from "lucide-react";
 import { saveParticipants } from "@/app/actions/facilitador-portal";
 import { enqueueOp } from "@/lib/offline/sync-queue";
 import { AttachmentUploadSection } from "./attachment-upload-section";
 import { SeniatVerificationPopover } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/SeniatVerificationPopover";
 import { ParticipantScannerModal } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/ParticipantScannerModal";
-import { ParticipantVerificationResult, ExtractedParticipant, CertificateParticipant, OSIAttachment } from "@/types";
+import {
+  ParticipantVerificationResult,
+  ExtractedParticipant,
+  CertificateParticipant,
+  OSIAttachment,
+} from "@/types";
+import type { MaterialKitInfo } from "@/types/material-didactico";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
-import { HelpCircle } from "lucide-react";
 import ISOComplianceBanner from "./ISOComplianceBanner";
+import FacilitadorMaterialKit from "./FacilitadorMaterialKit";
+import OSIWorkflowStepper, { WizardStepId, getWizardSteps } from "./OSIWorkflowStepper";
+import Link from "next/link";
 
-interface Participant {
+export interface Participant {
   nombre_apellido: string;
   cedula: string;
   score: string | number;
@@ -35,10 +56,13 @@ interface Participant {
   seniatVerification?: ParticipantVerificationResult;
 }
 
-interface ParticipantFormProps {
+export interface ParticipantFormProps {
   osiId: number;
   facilitadorId: number;
+  facilitadorNombre?: string;
   initialParticipants: Participant[];
+  materialKit?: MaterialKitInfo | null;
+  osi?: any;
   /** Specific session assigned to this facilitador, or null if they need to pick */
   assignedSession?: number | null;
   /** True if facilitador is assigned to all/multiple sessions and must choose per upload */
@@ -49,60 +73,48 @@ interface ParticipantFormProps {
   assignedSessions?: number[];
   /** True if facilitador has an all-sessions (NULL nro_sesion) assignment */
   hasAllSessionsAssignment?: boolean;
+  isFinal?: boolean;
 }
 
-const DISCLAIMER_TEXT = "Declaro bajo mi responsabilidad que he revisado exhaustivamente las calificaciones y datos de los participantes, y que la información aquí suministrada es veraz y ha sido contrastada con la lista de asistencia firmada.";
+const DISCLAIMER_TEXT =
+  "Declaro bajo mi responsabilidad que he revisado exhaustivamente las calificaciones y datos de los participantes, y que la información aquí suministrada es veraz y ha sido contrastada con la lista de asistencia firmada.";
 
 const OSI_TOUR_KEY = "facilitador-osi-tour";
 
 const osiTourSteps = [
   {
-    element: "#tour-upload-section",
+    element: "#tour-stepper",
     popover: {
-      title: "Paso 1: Cargar Lista de Asistencia",
-      description: "Sube una foto de la lista de asistencia firmada. Puedes tomar una foto directamente o subir un archivo.",
+      title: "Flujo Guiado Paso a Paso",
+      description: "Sigue los pasos para completar el registro del servicio. El material didáctico digital se muestra aquí cuando está disponible en plataforma (también puede ser enviado previamente por correo por Capacitación).",
     },
   },
   {
-    element: "#tour-upload-button",
+    element: "#tour-upload-section",
     popover: {
-      title: "Subir Archivo",
-      description: "Toca aquí para subir un archivo o tomar una foto de la lista física.",
+      title: "Paso: Cargar Lista de Asistencia",
+      description: "Sube una foto o PDF de la lista de asistencia firmada por los participantes.",
     },
   },
   {
     element: "#tour-scan-button",
     popover: {
-      title: "Escanear con OCR",
-      description: "Después de subir la foto, toca 'Escanear' para que el sistema extraiga automáticamente los datos de los participantes mediante OCR.",
-    },
-  },
-  {
-    element: "#tour-verify-button",
-    popover: {
-      title: "Verificar con CNE",
-      description: "Usa 'Verificar' para validar la cédula de cada participante contra el CNE y obtener su nombre completo en caso de que no sea legible en la lista.",
+      title: "Escanear con OCR (IA)",
+      description: "Extrae automáticamente los participantes mediante inteligencia artificial.",
     },
   },
   {
     element: "#tour-participant-list",
     popover: {
-      title: "Lista de Participantes",
-      description: "Los participantes importados aparecerán aquí. Puedes editar nombres, cédulas y agregar nuevos participantes manualmente.",
-    },
-  },
-  {
-    element: "#tour-score-input",
-    popover: {
-      title: "Ingresar Calificaciones",
-      description: "Ingresa la nota de cada participante en el rango de 0 a 20.",
+      title: "Registro y Calificaciones",
+      description: "Revisa los nombres, verifica cédulas con el CNE e ingresa las notas (0 a 20).",
     },
   },
   {
     element: "#tour-submit-button",
     popover: {
-      title: "Paso 2: Finalizar y Enviar",
-      description: "Revisa la declaración de responsabilidad, márcala como aceptada y presiona 'Finalizar y Enviar' para que el departamento de Capacitación reciba los datos para la emisión de certificados.",
+      title: "Revisión y Envío",
+      description: "Acepta la declaración de responsabilidad y finaliza el servicio.",
     },
   },
 ];
@@ -110,16 +122,28 @@ const osiTourSteps = [
 export const ParticipantForm = ({
   osiId,
   facilitadorId,
+  facilitadorNombre = "Facilitador",
   initialParticipants,
+  materialKit,
+  osi,
   assignedSession = null,
   needsSessionPicker = false,
   sessionCount = 1,
   assignedSessions = [],
   hasAllSessionsAssignment = false,
+  isFinal: initialIsFinal = false,
 }: ParticipantFormProps) => {
+  const hasMaterial = Boolean(materialKit && materialKit.materiales && materialKit.materiales.length > 0);
+  const steps = useMemo(() => getWizardSteps(hasMaterial), [hasMaterial]);
+
+  // Wizard active step state
+  const [activeStep, setActiveStep] = useState<WizardStepId>(
+    hasMaterial ? "material" : "asistencia"
+  );
+
   const [participants, setParticipants] = useState<Participant[]>(
-    initialParticipants.length > 0 
-      ? initialParticipants.map(p => ({
+    initialParticipants.length > 0
+      ? initialParticipants.map((p) => ({
           nombre_apellido: p.nombre_apellido,
           cedula: p.cedula,
           score: p.score || "",
@@ -127,29 +151,36 @@ export const ParticipantForm = ({
         }))
       : [{ nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" }]
   );
+
+  const [isFinal, setIsFinal] = useState(initialIsFinal);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [attachmentCount, setAttachmentCount] = useState(0);
+  const [attendanceCount, setAttendanceCount] = useState(0);
+  const [photoCount, setPhotoCount] = useState(0);
+  const [hojaCalificacionCount, setHojaCalificacionCount] = useState(0);
+
   const [activeVerificationIndex, setActiveVerificationIndex] = useState<number | null>(null);
-  // Session context: if needsSessionPicker, the facilitador selects which session they're uploading for.
-  // Default to session 1. If assignedSession is set, use that (no picker needed).
   const [selectedSession, setSelectedSession] = useState<number>(assignedSession ?? 1);
   const [showAttachmentWarning, setShowAttachmentWarning] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [selectedPortalFile, setSelectedPortalFile] = useState<File | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [isScanningAttachment, setIsScanningAttachment] = useState(false);
   const [hasAcknowledged, setHasAcknowledged] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const disclaimerRef = useRef<HTMLDivElement>(null);
-  const [isTourReady, setIsTourReady] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [pendingSync, setPendingSync] = useState(false);
 
+  // Network offline listener
   useEffect(() => {
     setIsOffline(!navigator.onLine);
-    const goOnline = () => { setIsOffline(false); setPendingSync(false); };
+    const goOnline = () => {
+      setIsOffline(false);
+      setPendingSync(false);
+    };
     const goOffline = () => setIsOffline(true);
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", goOffline);
@@ -160,53 +191,50 @@ export const ParticipantForm = ({
   }, []);
 
   useEffect(() => {
-    setIsTourReady(true);
-  }, []);
-
-  const startTour = useCallback(() => {
-    const driverInstance = driver({
-      steps: osiTourSteps,
-      showProgress: true,
-      allowClose: true,
-      nextBtnText: "Siguiente",
-      prevBtnText: "Anterior",
-      doneBtnText: "Entendido",
-      onDestroyed: () => {
-        localStorage.setItem(OSI_TOUR_KEY, "completed");
-      },
-    });
-    driverInstance.drive();
-  }, []);
-
-  useEffect(() => {
-    if (!isTourReady) return;
-    const completed = localStorage.getItem(OSI_TOUR_KEY);
-    if (!completed) {
-      const timer = setTimeout(() => {
-        startTour();
-      }, 600);
-      return () => clearTimeout(timer);
-    }
-  }, [isTourReady, startTour]);
-
-  useEffect(() => {
     if (success) {
       const timer = setTimeout(() => setSuccess(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [success]);
 
-  const hasOnlyEmptyRow = participants.length === 1 && !participants[0].nombre_apellido && !participants[0].cedula;
-  const hasValidParticipants = participants.some(p => p.nombre_apellido && p.cedula);
+  // Derived statistics
+  const hasOnlyEmptyRow =
+    participants.length === 1 && !participants[0].nombre_apellido && !participants[0].cedula;
+  const validParticipants = participants.filter((p) => p.nombre_apellido.trim() && p.cedula.trim());
+  const hasValidParticipants = validParticipants.length > 0;
 
-  useEffect(() => {
-    if (!hasValidParticipants && hasAcknowledged) {
-      setHasAcknowledged(false);
-    }
-  }, [hasValidParticipants, hasAcknowledged]);
+  const validCedulasCount = participants.filter((p) => p.cedula.trim()).length;
+  const aprobadosCount = participants.filter(
+    (p) => p.score !== "" && Number(p.score) >= 10
+  ).length;
+  const reprobadosCount = participants.filter(
+    (p) => p.score !== "" && Number(p.score) < 10
+  ).length;
+  const sinNotaCount = participants.filter((p) => p.score === "" || p.score === null).length;
+
+  // Step completion status for indicators
+  const completedSteps: Partial<Record<WizardStepId, boolean>> = {
+    material: hasMaterial,
+    asistencia: attendanceCount > 0,
+    participantes: hasValidParticipants && sinNotaCount === 0,
+    evidencias: photoCount > 0 || hojaCalificacionCount > 0,
+    envio: isFinal,
+  };
+
+  const currentStepIndex = steps.findIndex((s) => s.id === activeStep);
+  const nextStep = steps[currentStepIndex + 1]?.id;
+  const prevStep = steps[currentStepIndex - 1]?.id;
+
+  const goToStep = (stepId: WizardStepId) => {
+    setActiveStep(stepId);
+    window.scrollTo({ top: 120, behavior: "smooth" });
+  };
 
   const addParticipant = () => {
-    setParticipants([...participants, { nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" }]);
+    setParticipants([
+      ...participants,
+      { nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" },
+    ]);
     setSuccess(null);
   };
 
@@ -234,26 +262,25 @@ export const ParticipantForm = ({
   };
 
   const handleSave = async (status: "draft" | "final" = "draft") => {
-    // For final submission, validate that all rows are complete
     if (status === "final") {
-      const emptyRows = participants.some(p => !p.nombre_apellido || !p.cedula);
+      const emptyRows = participants.some((p) => !p.nombre_apellido || !p.cedula);
       if (emptyRows) {
         setError("Por favor completa el nombre y cédula de todos los participantes");
+        goToStep("participantes");
         return;
       }
-    }
 
-    // Require acknowledgment for final submission
-    if (status === "final" && !hasAcknowledged) {
-      setError("Debes confirmar la declaración para finalizar el envío.");
-      disclaimerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
+      if (!hasAcknowledged) {
+        setError("Debes confirmar la declaración para finalizar el envío.");
+        goToStep("envio");
+        disclaimerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
 
-    // Warn if no attachments uploaded (warn only, don't block)
-    if (status === "final" && attachmentCount === 0) {
-      setShowAttachmentWarning(true);
-      return;
+      if (attendanceCount === 0) {
+        setShowAttachmentWarning(true);
+        return;
+      }
     }
 
     setShowAttachmentWarning(false);
@@ -261,18 +288,17 @@ export const ParticipantForm = ({
     setError(null);
     setSuccess(null);
 
-    // For drafts, filter out empty rows so we don't send blank records
-    const participantsToSave = status === "draft"
-      ? participants.filter(p => p.nombre_apellido && p.cedula)
-      : participants;
+    const participantsToSave =
+      status === "draft"
+        ? participants.filter((p) => p.nombre_apellido && p.cedula)
+        : participants;
 
-    const mappedParticipants = participantsToSave.map(p => ({
+    const mappedParticipants = participantsToSave.map((p) => ({
       nombre_apellido: p.nombre_apellido,
       cedula: p.cedula,
       score: p.score === "" ? null : Number(p.score),
     }));
 
-    // Offline path: enqueue the save for later sync
     if (!navigator.onLine) {
       try {
         await enqueueOp(
@@ -285,12 +311,14 @@ export const ParticipantForm = ({
             status,
             acknowledged: status === "final" ? hasAcknowledged : false,
             disclaimerText: status === "final" ? DISCLAIMER_TEXT : undefined,
-          },
+          }
         );
         setPendingSync(true);
-        setSuccess(status === "final"
-          ? "Listado finalizado — pendiente de sincronización"
-          : "Borrador guardado — pendiente de sincronización"
+        if (status === "final") setIsFinal(true);
+        setSuccess(
+          status === "final"
+            ? "Listado finalizado — pendiente de sincronización"
+            : "Guardado — pendiente de sincronización"
         );
       } catch (err) {
         setError("Error al guardar offline: " + (err as Error).message);
@@ -299,7 +327,6 @@ export const ParticipantForm = ({
       return;
     }
 
-    // Online path: use server action as before
     const result = await saveParticipants(
       osiId,
       facilitadorId,
@@ -310,10 +337,42 @@ export const ParticipantForm = ({
     );
 
     if (result.success) {
-      setSuccess(status === "final"
-        ? "Listado finalizado y enviado exitosamente"
-        : "Borrador guardado correctamente"
+      if (status === "final") setIsFinal(true);
+      setSuccess(
+        status === "final"
+          ? "¡Listado finalizado y enviado exitosamente a Capacitación!"
+          : "Guardado correctamente"
       );
+    } else {
+      setError(result.error || "Error al guardar el listado");
+    }
+    setSaving(false);
+  };
+
+  const handleConfirmFinalizeAnyway = async () => {
+    setShowAttachmentWarning(false);
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    const mappedParticipants = participants.map((p) => ({
+      nombre_apellido: p.nombre_apellido,
+      cedula: p.cedula,
+      score: p.score === "" ? null : Number(p.score),
+    }));
+
+    const result = await saveParticipants(
+      osiId,
+      facilitadorId,
+      mappedParticipants,
+      "final",
+      hasAcknowledged,
+      DISCLAIMER_TEXT
+    );
+
+    if (result.success) {
+      setIsFinal(true);
+      setSuccess("Listado finalizado y enviado exitosamente");
     } else {
       setError(result.error || "Error al guardar el listado");
     }
@@ -330,15 +389,9 @@ export const ParticipantForm = ({
     setActiveVerificationIndex(null);
   };
 
-  const [isScanningAttachment, setIsScanningAttachment] = useState(false);
-
-  // Used when a file was JUST uploaded: we already have the File object in
-  // memory, so we skip re-downloading it from the public URL and open the
-  // scanner directly. This avoids a redundant network round-trip that was
-  // unreliable on slow mobile connections.
   const handleFileReadyToScan = (file: File, attachment: OSIAttachment) => {
     setScanError(null);
-    setUploadStatus("Archivo listo. Abriendo escáner...");
+    setUploadStatus(null);
     setSelectedPortalFile(file);
     setIsScannerOpen(true);
   };
@@ -364,7 +417,7 @@ export const ParticipantForm = ({
   };
 
   const handleAddScannedParticipants = (scanned: CertificateParticipant[]) => {
-    const mapped: Participant[] = scanned.map(p => ({
+    const mapped: Participant[] = scanned.map((p) => ({
       nombre_apellido: p.name,
       cedula: p.idNumber,
       score: p.score ?? "",
@@ -372,571 +425,871 @@ export const ParticipantForm = ({
       seniatVerification: p.seniatVerification,
     }));
 
-    const hasContent = participants.length === 1 && !participants[0].nombre_apellido && !participants[0].cedula;
-    if (hasContent) {
+    if (hasOnlyEmptyRow) {
       setParticipants(mapped);
     } else {
       setParticipants([...participants, ...mapped]);
     }
     setSelectedPortalFile(null);
     setSuccess(null);
-    setUploadStatus(mapped.length > 0 ? `✅ ${mapped.length} participante(s) extraídos correctamente` : null);
-  };
-
-  const handleConfirmFinalizeAnyway = async () => {
-    if (!hasAcknowledged) {
-      setError("Debes confirmar la declaración para finalizar el envío.");
-      disclaimerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      setShowAttachmentWarning(false);
-      return;
-    }
-    setShowAttachmentWarning(false);
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-
-    const result = await saveParticipants(
-      osiId,
-      facilitadorId,
-      participants.map(p => ({
-        nombre_apellido: p.nombre_apellido,
-        cedula: p.cedula,
-        score: p.score === "" ? null : Number(p.score),
-      })),
-      "final",
-      hasAcknowledged,
-      DISCLAIMER_TEXT
-    );
-
-    if (result.success) {
-      setSuccess("Listado finalizado y enviado exitosamente");
-    } else {
-      setError(result.error || "Error al guardar el listado");
-    }
-    setSaving(false);
+    setUploadStatus(mapped.length > 0 ? `✅ ${mapped.length} participante(s) extraídos correctamente con OCR` : null);
+    goToStep("participantes");
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      {/* Step 1: Upload & Scan / Edit Participants */}
-      <div className="flex items-center gap-2 mb-2" id="tour-upload-section">
-        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">1</span>
-        <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Cargar y Escanear Lista</h2>
-        <span className="text-[10px] font-bold uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">Requerido</span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={startTour}
-          className="ml-auto text-blue-600 border-blue-200 hover:bg-blue-50"
-        >
-          <HelpCircle className="w-4 h-4 mr-2" />
-          <span className="hidden sm:inline">Tour</span>
-        </Button>
+    <div className="space-y-6 pb-28 md:pb-8">
+      {/* ─── 1. TOP INTERACTIVE STEPPER ─── */}
+      <div id="tour-stepper">
+        <OSIWorkflowStepper
+          currentStepId={activeStep}
+          onStepSelect={goToStep}
+          hasMaterial={hasMaterial}
+          isFinal={isFinal}
+          completedSteps={completedSteps}
+        />
       </div>
 
-      {/* Session picker — shown whenever the OSI has more than 1 session.
-          If the facilitador is assigned to a single specific session, the picker is read-only
-          (only their assigned session is highlighted, others are disabled).
-          If assigned to all/multiple sessions, they can select which session to upload for. */}
-      {sessionCount > 1 && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <label className="block text-xs font-bold text-blue-900 mb-2 uppercase tracking-wide">
-            Sesión a cargar
-          </label>
-          <p className="text-xs text-blue-700 mb-2">
-            {assignedSession !== null
-              ? `Estás asignado a la Sesión ${assignedSession}. Los documentos se cargarán para esa sesión.`
-              : hasAllSessionsAssignment && assignedSessions.length === 0
-                ? "Estás asignado a todas las sesiones. Selecciona para qué sesión estás subiendo los documentos."
-                : assignedSessions.length > 1
-                  ? "Estás asignado a múltiples sesiones. Selecciona para qué sesión estás subiendo los documentos."
-                  : "Selecciona para qué sesión estás subiendo los documentos."}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {/* Determine which sessions to show and which are selectable */}
-            {(() => {
-              // Sessions the facilitador can upload to:
-              // - If assigned to all sessions (and no specific ones): all sessions
-              // - If assigned to specific sessions: only those
-              // - If assigned to a single specific session: only that one (read-only)
-              const selectableSessions = assignedSession !== null
-                ? [assignedSession]
-                : (hasAllSessionsAssignment && assignedSessions.length === 0)
-                  ? Array.from({ length: sessionCount }, (_, i) => i + 1)
-                  : [...assignedSessions].sort((a, b) => a - b);
-
-              const isReadOnly = assignedSession !== null;
-
-              return selectableSessions.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => !isReadOnly && setSelectedSession(n)}
-                  disabled={isReadOnly}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
-                    selectedSession === n
-                      ? "bg-blue-600 text-white"
-                      : isReadOnly
-                        ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
-                        : "bg-white text-blue-700 border border-blue-200 hover:bg-blue-100"
-                  }`}
-                >
-                  Sesión {n}
-                </button>
-              ));
-            })()}
+      {/* Global Alerts / Messages */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-800 text-xs sm:text-sm">
+          <AlertCircle className="w-5 h-5 shrink-0 text-red-600 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold">Atención requerida</p>
+            <p className="text-red-700 mt-0.5">{error}</p>
           </div>
-        </div>
-      )}
-
-      <AttachmentUploadSection
-        osiId={osiId}
-        facilitadorId={facilitadorId}
-        category="lista_asistencia"
-        nroSesion={selectedSession}
-        title="Lista de Asistencia"
-        description="Sube fotos o PDFs de las listas de asistencia firmadas. Las imágenes se comprimen automáticamente."
-        badge="Requerido"
-        badgeColor="red"
-        onAttachmentCountChange={setAttachmentCount}
-        onScanAttachment={handleSelectAttachment}
-        onFileReadyToScan={handleFileReadyToScan}
-        onStatusChange={setUploadStatus}
-        showScanButton
-        tourId="tour-upload-button"
-      />
-
-      {uploadStatus && (
-        <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-md border mt-3 ${
-          uploadStatus.startsWith("✅")
-            ? "text-green-700 bg-green-50 border-green-100"
-            : uploadStatus.startsWith("❌") || uploadStatus.toLowerCase().includes("error") || uploadStatus.toLowerCase().includes("no se pudo")
-            ? "text-red-700 bg-red-50 border-red-100"
-            : "text-blue-700 bg-blue-50 border-blue-100"
-        }`}>
-          {uploadStatus.startsWith("✅") ? (
-            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-          ) : uploadStatus.startsWith("❌") || uploadStatus.toLowerCase().includes("error") || uploadStatus.toLowerCase().includes("no se pudo") ? (
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-          ) : (
-            <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-          )}
-          <span className="flex-1">{uploadStatus}</span>
-          <button onClick={() => setUploadStatus(null)} className="shrink-0">
-            <X className="w-3 h-3" />
+          <button onClick={() => setError(null)} className="shrink-0 text-red-500 hover:text-red-700">
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      <div className="flex flex-col gap-3 mb-4 mt-4">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-          <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2 flex-wrap" id="tour-participant-list">
-            Participantes
-            <span className="text-sm font-normal text-gray-500">
-              ({participants.length})
-            </span>
-          </h3>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addParticipant}
-              className="h-11 px-4 text-blue-600 border-blue-200 hover:bg-blue-50 flex-1 sm:flex-none"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Agregar Participante
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowClearConfirm(true)}
-              disabled={hasOnlyEmptyRow}
-              className="h-11 px-4 text-red-600 border-red-200 hover:bg-red-50 flex-1 sm:flex-none"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Limpiar Todo
-            </Button>
+      {success && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 text-emerald-900 text-xs sm:text-sm">
+          <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold">Operación Exitosa</p>
+            <p className="text-emerald-800 mt-0.5">{success}</p>
           </div>
+          <button onClick={() => setSuccess(null)} className="shrink-0 text-emerald-600 hover:text-emerald-800">
+            <X className="w-4 h-4" />
+          </button>
         </div>
+      )}
 
-        {isScanningAttachment && (
-          <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-md border border-blue-100">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            <span>Cargando archivo para escanear...</span>
+      {/* ─── 2. ACTIVE STEP CONTAINER ─── */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden transition-all">
+        {/* STEP 1: MATERIAL DIDACTICO (IF APPLICABLE) */}
+        {activeStep === "material" && materialKit && (
+          <div className="p-4 sm:p-6 space-y-6">
+            <FacilitadorMaterialKit
+              kit={materialKit}
+              facilitadorId={facilitadorId}
+              facilitadorNombre={facilitadorNombre}
+              onContinue={() => goToStep("asistencia")}
+            />
           </div>
         )}
 
-        {scanError && (
-          <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 px-3 py-1.5 rounded-md border border-red-100">
-            <AlertCircle className="w-3.5 h-3.5" />
-            <span>{scanError}</span>
-            <button onClick={() => setScanError(null)} className="ml-auto">
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        {showClearConfirm && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-red-800 text-sm">
-            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-semibold mb-1">¿Eliminar todos los participantes?</p>
-              <p className="text-xs text-red-700 mb-3">
-                Se borrarán todos los participantes de la lista. Esta acción no se puede deshacer.
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleClearAll}
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                >
-                  Sí, limpiar todo
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowClearConfirm(false)}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-3">
-        {participants.map((p, index) => (
-          <div 
-            key={index} 
-            className="flex flex-col sm:flex-row gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 group transition-colors hover:border-blue-100 hover:bg-white"
-          >
-            <div className="flex-1 space-y-1">
-              <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Nombre Completo</label>
-              <Input
-                value={p.nombre_apellido}
-                onChange={(e) => updateParticipant(index, "nombre_apellido", e.target.value)}
-                placeholder="Nombre y Apellido"
-                className="bg-white"
-              />
-              {/* SENIAT Verification Status Badge */}
-              {p.seniatVerification && (
-                <div className="mt-1">
-                  {p.seniatVerification.status === "verified" ? (
-                    <span className="inline-flex items-center text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100 whitespace-nowrap">
-                      <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
-                      <span className="truncate max-w-[200px]" title={p.seniatVerification.seniatName}>
-                        {p.seniatVerification.seniatName}
-                      </span>
-                    </span>
-                  ) : p.seniatVerification.status === "not_found" ? (
-                    <span className="inline-flex items-center text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 whitespace-nowrap">
-                      <AlertCircle className="h-2.5 w-2.5 mr-1" />
-                      No encontrado
-                    </span>
-                  ) : null}
+        {/* STEP 2: LISTA DE ASISTENCIA & OCR */}
+        {activeStep === "asistencia" && (
+          <div className="p-4 sm:p-6 space-y-6">
+            {/* Step Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
+                    {hasMaterial ? "2" : "1"}
+                  </span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                    Cargar Lista de Asistencia Firmada
+                  </h2>
+                  <span className="text-[10px] font-bold uppercase text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">
+                    Requerido
+                  </span>
                 </div>
-              )}
-            </div>
-            <div className="w-full sm:w-48 space-y-1">
-              <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Cedula</label>
-              <div className="flex items-center gap-1">
-                <select
-                  value={p.nationality || "venezolano"}
-                  onChange={(e) => updateParticipant(index, "nationality", e.target.value)}
-                  className="w-16 px-2 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="venezolano">V-</option>
-                  <option value="extranjero">E-</option>
-                </select>
-                <Input
-                  value={p.cedula}
-                  onChange={(e) => updateParticipant(index, "cedula", e.target.value)}
-                  placeholder="12345678"
-                  className="bg-white flex-1"
-                />
+                <p className="text-xs sm:text-sm text-slate-600">
+                  Sube fotos legibles o el PDF de la lista física firmada por los participantes.
+                </p>
               </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsScannerOpen(true)}
+                className="h-10 text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 font-bold self-start sm:self-auto cursor-pointer"
+                id="tour-scan-button"
+              >
+                <Sparkles className="w-4 h-4 mr-1.5 text-sky-600" />
+                <span>Escanear con OCR (IA)</span>
+              </Button>
             </div>
-            <div className="w-full sm:w-24 space-y-1">
-              <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Nota</label>
-              <Input
-                type="number"
-                min="0"
-                max="20"
-                value={p.score}
-                onChange={(e) => updateParticipant(index, "score", e.target.value)}
-                placeholder="0-20"
-                className="bg-white text-center font-bold"
-                id={index === 0 ? "tour-score-input" : undefined}
+
+            {/* Session picker (if multi-session) */}
+            {sessionCount > 1 && (
+              <div className="p-4 bg-sky-50/70 border border-sky-200/80 rounded-xl space-y-2">
+                <label className="block text-xs font-bold text-sky-950 uppercase tracking-wide">
+                  Selección de Sesión
+                </label>
+                <p className="text-xs text-sky-800">
+                  {assignedSession !== null
+                    ? `Estás asignado a la Sesión ${assignedSession}. Los documentos se cargarán para esa sesión.`
+                    : "Selecciona para qué sesión estás subiendo los documentos:"}
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {(() => {
+                    const selectableSessions =
+                      assignedSession !== null
+                        ? [assignedSession]
+                        : hasAllSessionsAssignment && assignedSessions.length === 0
+                        ? Array.from({ length: sessionCount }, (_, i) => i + 1)
+                        : [...assignedSessions].sort((a, b) => a - b);
+                    const isReadOnly = assignedSession !== null;
+
+                    return selectableSessions.map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => !isReadOnly && setSelectedSession(n)}
+                        disabled={isReadOnly}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          selectedSession === n
+                            ? "bg-sky-600 text-white shadow-xs"
+                            : isReadOnly
+                            ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                            : "bg-white text-sky-800 border border-sky-200 hover:bg-sky-100"
+                        }`}
+                      >
+                        Sesión {n}
+                      </button>
+                    ));
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* Upload Area */}
+            <div id="tour-upload-section">
+              <AttachmentUploadSection
+                osiId={osiId}
+                facilitadorId={facilitadorId}
+                category="lista_asistencia"
+                nroSesion={selectedSession}
+                title="Lista de Asistencia Física"
+                description="Formatos JPG, PNG o PDF. Las imágenes se optimizan y comprimen automáticamente."
+                badge="Requerido"
+                badgeColor="red"
+                onAttachmentCountChange={setAttendanceCount}
+                onScanAttachment={handleSelectAttachment}
+                onFileReadyToScan={handleFileReadyToScan}
+                onStatusChange={setUploadStatus}
+                showScanButton
+                tourId="tour-upload-button"
               />
             </div>
-            <div className="flex items-end gap-2 pb-2 sm:flex-wrap">
-              <div className="relative">
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setActiveVerificationIndex(index)}
-                  disabled={activeVerificationIndex !== null}
-                  className="text-blue-600 hover:bg-blue-50 border border-blue-100 rounded-lg h-11 px-3 text-xs font-bold whitespace-nowrap w-full sm:w-auto min-w-[100px]"
-                  id={index === 0 ? "tour-verify-button" : undefined}
-                >
-                  <Search className="w-4 h-4 mr-1" />
-                  {p.seniatVerification ? "Re-validar" : "Verificar"}
-                </Button>
-                {activeVerificationIndex === index && (
-                  <SeniatVerificationPopover
-                    participant={
-                      {
-                        name: p.nombre_apellido,
-                        idNumber: p.cedula,
-                        nationality: p.nationality,
-                      } as ExtractedParticipant
-                    }
-                    onVerify={(result) => handleVerificationComplete(index, result)}
-                    onClose={() => setActiveVerificationIndex(null)}
-                    useFixedPosition
-                  />
+
+            {uploadStatus && (
+              <div
+                className={`flex items-center gap-2 text-xs px-3.5 py-2.5 rounded-xl border ${
+                  uploadStatus.startsWith("✅")
+                    ? "text-emerald-800 bg-emerald-50 border-emerald-200"
+                    : uploadStatus.startsWith("❌") || uploadStatus.toLowerCase().includes("error")
+                    ? "text-red-800 bg-red-50 border-red-200"
+                    : "text-sky-800 bg-sky-50 border-sky-200"
+                }`}
+              >
+                {uploadStatus.startsWith("✅") ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                ) : uploadStatus.startsWith("❌") || uploadStatus.toLowerCase().includes("error") ? (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                ) : (
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0 text-sky-600" />
+                )}
+                <span className="flex-1 font-medium">{uploadStatus}</span>
+                <button onClick={() => setUploadStatus(null)} className="shrink-0 text-slate-400 hover:text-slate-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Bottom step navigation callout */}
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="text-xs text-slate-500">
+                {attendanceCount > 0 ? (
+                  <span className="text-emerald-700 font-semibold inline-flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4" /> {attendanceCount} lista(s) física(s) cargada(s).
+                  </span>
+                ) : (
+                  <span className="text-slate-500">
+                    💡 Sube la lista física para habilitar el escaneo automático.
+                  </span>
                 )}
               </div>
-              <Button 
-                type="button" 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => removeParticipant(index)}
-                className="h-11 w-11 text-red-400 hover:text-red-600 hover:bg-red-50"
-                disabled={participants.length === 1}
+
+              <Button
+                type="button"
+                onClick={() => goToStep("participantes")}
+                className="w-full sm:w-auto h-11 px-6 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs cursor-pointer"
               >
-                <Trash2 className="w-4 h-4" />
+                <span>Continuar a Participantes</span>
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
           </div>
-        ))}
-      </div>
+        )}
 
-      {/* Add Participant Button at the bottom for easy access while typing */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={addParticipant}
-          className="h-11 px-5 bg-blue-50/80 hover:bg-blue-100 text-blue-700 border-blue-200 font-semibold shadow-sm transition-all flex items-center justify-center"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Agregar Participante
-        </Button>
-        <span className="text-xs text-gray-500 self-center">
-          Total: <strong className="text-gray-700">{participants.length}</strong> participante(s)
-        </span>
-      </div>
+        {/* STEP 3: PARTICIPANTES Y CALIFICACIONES */}
+        {activeStep === "participantes" && (
+          <div className="p-4 sm:p-6 space-y-6">
+            {/* Step Header & Live Metrics Strip */}
+            <div className="space-y-4 pb-4 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
+                      {hasMaterial ? "3" : "2"}
+                    </span>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                      Registro de Participantes y Notas
+                    </h2>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+                    Ingresa los datos de los asistentes, valida su cédula con el CNE y califica (0 a 20).
+                  </p>
+                </div>
 
-      {/* Additional upload sections: photos & grading sheet */}
-      <div className="flex items-center gap-2 mb-2 pt-4 border-t border-gray-100">
-        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">+</span>
-        <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Documentos Adicionales</h2>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4">
-        <AttachmentUploadSection
-          osiId={osiId}
-          facilitadorId={facilitadorId}
-          category="hoja_calificacion"
-          nroSesion={selectedSession}
-          title="Hoja de Calificación"
-          description="Sube fotos o PDFs de las hojas de calificación firmadas."
-          badge="Opcional"
-          badgeColor="blue"
-        />
-        <AttachmentUploadSection
-          osiId={osiId}
-          facilitadorId={facilitadorId}
-          category="material_fotografico"
-          nroSesion={selectedSession}
-          title="Registro Fotográfico"
-          description="Sube fotos de la actividad (imágenes se comprimen automáticamente)."
-          badge="Opcional"
-          badgeColor="blue"
-          accept="image/*"
-          imageOnly
-        />
-      </div>
-
-      {/* Step 2: Review & Submit */}
-      <div className="flex items-center gap-2 mb-2 pt-4 border-t border-gray-100">
-        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">2</span>
-        <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Revision y Envio</h2>
-      </div>
-
-      <div className="flex flex-col gap-4">
-        {/* Disclaimer / Acknowledgment Card */}
-        <div 
-          ref={disclaimerRef}
-          className={`rounded-xl border-2 transition-colors ${
-            hasAcknowledged 
-              ? "border-green-200 bg-green-50/50" 
-              : "border-amber-200 bg-amber-50/50"
-          }`}
-        >
-          <div className="p-4 sm:p-5">
-            <div className="flex items-start gap-3">
-              <div className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
-                hasAcknowledged ? "bg-green-100" : "bg-amber-100"
-              }`}>
-                <ShieldCheck className={`w-5 h-5 ${hasAcknowledged ? "text-green-600" : "text-amber-600"}`} />
+                <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsScannerOpen(true)}
+                    className="h-10 text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 font-bold cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 mr-1.5 text-sky-600" />
+                    <span>Escanear OCR</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={addParticipant}
+                    className="h-10 bg-sky-600 hover:bg-sky-700 text-white font-bold cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 mr-1.5" />
+                    <span>Agregar Fila</span>
+                  </Button>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-gray-900 mb-1.5 flex items-center gap-2">
-                  Declaracion de Responsabilidad
-                  <ClipboardCheck className="w-4 h-4 text-gray-400" />
-                </h4>
-                <p className="text-xs sm:text-sm text-gray-700 leading-relaxed mb-3">
-                  {DISCLAIMER_TEXT}
-                </p>
-                <label className={`flex items-start gap-2.5 group ${hasValidParticipants ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}>
-                  <input
-                    type="checkbox"
-                    checked={hasAcknowledged}
-                    disabled={!hasValidParticipants}
-                    onChange={(e) => {
-                      setHasAcknowledged(e.target.checked);
-                      setError(null);
-                    }}
-                    className="mt-0.5 w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer shrink-0 transition-colors"
-                  />
-                  <span className={`text-xs sm:text-sm font-medium select-none ${
-                    hasAcknowledged ? "text-green-700" : "text-gray-600"
-                  }`}>
-                    He leido y acepto la declaracion de responsabilidad
+
+              {/* Real-time KPI Metric Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-left">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Total Registrados
                   </span>
-                </label>
+                  <p className="text-lg font-bold text-slate-900 mt-0.5">{participants.length}</p>
+                </div>
+                <div className="p-3 bg-emerald-50/70 rounded-xl border border-emerald-200 text-left">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
+                    Aprobados (≥10)
+                  </span>
+                  <p className="text-lg font-bold text-emerald-800 mt-0.5">{aprobadosCount}</p>
+                </div>
+                <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-left">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
+                    Sin Nota Asignada
+                  </span>
+                  <p className="text-lg font-bold text-amber-800 mt-0.5">{sinNotaCount}</p>
+                </div>
+                <div className="p-3 bg-sky-50/70 rounded-xl border border-sky-200 text-left">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 block">
+                    Cédulas Válidas
+                  </span>
+                  <p className="text-lg font-bold text-sky-800 mt-0.5">{validCedulasCount}</p>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* ISO 14001 / SIG Compliance Banner (Placed at the bottom below the Disclaimer) */}
-        <ISOComplianceBanner />
+            {/* Clear All Confirmation Box */}
+            {showClearConfirm && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-900 text-xs sm:text-sm animate-in fade-in duration-150">
+                <AlertTriangle className="w-5 h-5 shrink-0 text-red-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-bold">¿Deseas vaciar la lista de participantes?</p>
+                  <p className="text-red-700 text-xs mt-0.5">
+                    Se borrarán todos los registros de la tabla actual. Esta acción no se puede deshacer.
+                  </p>
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      size="sm"
+                      onClick={handleClearAll}
+                      className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs"
+                    >
+                      Sí, vaciar lista
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowClearConfirm(false)}
+                      className="text-xs"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-        {isOffline && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-amber-800 text-sm">
-            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold">Sin conexión — modo offline</p>
-              <p className="text-xs text-amber-700 mt-0.5">
-                Tus cambios se guardarán localmente y se sincronizarán automáticamente cuando vuelva la conexión.
-              </p>
+            {/* Participant Cards / Rows */}
+            <div className="space-y-3" id="tour-participant-list">
+              {participants.map((p, index) => {
+                const isGradeValid = p.score !== "" && Number(p.score) >= 0 && Number(p.score) <= 20;
+                const isAprobado = isGradeValid && Number(p.score) >= 10;
+
+                return (
+                  <div
+                    key={index}
+                    className="p-3.5 sm:p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-sky-300 hover:bg-white transition-all space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-2xs">
+                        #{index + 1}
+                      </span>
+
+                      {/* Score status pill */}
+                      {p.score !== "" && (
+                        <span
+                          className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+                            isAprobado
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : "bg-red-50 text-red-800 border-red-200"
+                          }`}
+                        >
+                          {isAprobado ? "Aprobado" : "Reprobado"} ({p.score}/20)
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
+                      {/* Name input */}
+                      <div className="sm:col-span-5 space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-slate-400">
+                          Nombre y Apellido
+                        </label>
+                        <Input
+                          value={p.nombre_apellido}
+                          onChange={(e) => updateParticipant(index, "nombre_apellido", e.target.value)}
+                          placeholder="Ej: Carlos Eduardo Pérez"
+                          className="bg-white border-slate-200 text-sm font-medium"
+                        />
+                        {/* SENIAT verification status */}
+                        {p.seniatVerification && (
+                          <div className="mt-1">
+                            {p.seniatVerification.status === "verified" ? (
+                              <span className="inline-flex items-center text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
+                                <span className="truncate max-w-[220px]" title={p.seniatVerification.seniatName}>
+                                  {p.seniatVerification.seniatName}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                                <AlertCircle className="h-3 w-3 mr-1" /> No verificado en CNE
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Nationality & Cedula input */}
+                      <div className="sm:col-span-4 space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-slate-400">
+                          Cédula de Identidad
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={p.nationality || "venezolano"}
+                            onChange={(e) => updateParticipant(index, "nationality", e.target.value)}
+                            className="w-16 h-10 px-2 border border-slate-200 rounded-lg bg-white text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                          >
+                            <option value="venezolano">V-</option>
+                            <option value="extranjero">E-</option>
+                          </select>
+                          <Input
+                            value={p.cedula}
+                            onChange={(e) => updateParticipant(index, "cedula", e.target.value)}
+                            placeholder="12345678"
+                            className="bg-white border-slate-200 font-mono text-sm flex-1"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Score input */}
+                      <div className="sm:col-span-2 space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-slate-400">
+                          Nota (0-20)
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="20"
+                          value={p.score}
+                          onChange={(e) => updateParticipant(index, "score", e.target.value)}
+                          placeholder="0-20"
+                          className={`bg-white text-center font-bold text-sm ${
+                            isAprobado ? "text-emerald-700 border-emerald-300" : ""
+                          }`}
+                        />
+                      </div>
+
+                      {/* Verification and Delete Actions */}
+                      <div className="sm:col-span-1 flex items-center justify-end gap-1 pt-6">
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setActiveVerificationIndex(index)}
+                            disabled={activeVerificationIndex !== null}
+                            className="p-2 rounded-lg text-sky-700 hover:bg-sky-100 transition-colors border border-sky-200 bg-white"
+                            title="Verificar en CNE"
+                          >
+                            <Search className="w-4 h-4" />
+                          </button>
+                          {activeVerificationIndex === index && (
+                            <SeniatVerificationPopover
+                              participant={
+                                {
+                                  name: p.nombre_apellido,
+                                  idNumber: p.cedula,
+                                  nationality: p.nationality,
+                                } as ExtractedParticipant
+                              }
+                              onVerify={(result) => handleVerificationComplete(index, result)}
+                              onClose={() => setActiveVerificationIndex(null)}
+                              useFixedPosition
+                            />
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeParticipant(index)}
+                          disabled={participants.length === 1}
+                          className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Eliminar fila"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bottom Actions and Navigation */}
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addParticipant}
+                  className="h-10 text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 font-bold cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  <span>Agregar Otro Participante</span>
+                </Button>
+                {participants.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowClearConfirm(true)}
+                    className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1"
+                  >
+                    Limpiar Todo
+                  </button>
+                )}
+              </div>
+
+              <Button
+                type="button"
+                onClick={() => goToStep("evidencias")}
+                className="w-full sm:w-auto h-11 px-6 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs cursor-pointer"
+              >
+                <span>Continuar a Fotos y Evidencias</span>
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
             </div>
           </div>
         )}
 
-        {pendingSync && !isOffline && (
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3 text-blue-800 text-sm">
-            <Loader2 className="w-5 h-5 shrink-0 mt-0.5 animate-spin" />
-            <div>
-              <p className="font-semibold">Sincronizando cambios...</p>
-              <p className="text-xs text-blue-700 mt-0.5">
-                Enviando los datos guardados offline al servidor.
+        {/* STEP 4: FOTOS Y EVIDENCIAS (OPCIONAL) */}
+        {activeStep === "evidencias" && (
+          <div className="p-4 sm:p-6 space-y-6">
+            <div className="pb-4 border-b border-slate-100 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
+                  {hasMaterial ? "4" : "3"}
+                </span>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                  Registro Fotográfico y Documentos Adicionales
+                </h2>
+                <span className="text-[10px] font-bold uppercase text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                  Opcional
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-600">
+                Sube fotos de la capacitación y hojas de calificación para auditorías de calidad y soporte ISO 14001.
               </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+              <AttachmentUploadSection
+                osiId={osiId}
+                facilitadorId={facilitadorId}
+                category="material_fotografico"
+                nroSesion={selectedSession}
+                title="Registro Fotográfico de la Actividad"
+                description="Fotos de la sesión, facilitador y participantes (se comprimen automáticamente para ahorrar datos)."
+                badge="Opcional"
+                badgeColor="blue"
+                accept="image/*"
+                imageOnly
+                onAttachmentCountChange={setPhotoCount}
+              />
+
+              <AttachmentUploadSection
+                osiId={osiId}
+                facilitadorId={facilitadorId}
+                category="hoja_calificacion"
+                nroSesion={selectedSession}
+                title="Hoja de Calificación Adicional"
+                description="Sube fotos o PDFs de las evaluaciones o exámenes físicos firmados."
+                badge="Opcional"
+                badgeColor="blue"
+                onAttachmentCountChange={setHojaCalificacionCount}
+              />
+            </div>
+
+            {/* Bottom step navigation callout */}
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="text-xs text-slate-500">
+                {photoCount > 0 ? (
+                  <span className="text-emerald-700 font-semibold inline-flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4" /> {photoCount} foto(s) registrada(s).
+                  </span>
+                ) : (
+                  <span className="text-slate-500">
+                    Este paso es opcional. Puedes continuar directamente a la revisión final.
+                  </span>
+                )}
+              </div>
+
+              <Button
+                type="button"
+                onClick={() => goToStep("envio")}
+                className="w-full sm:w-auto h-11 px-6 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs cursor-pointer"
+              >
+                <span>Revisión y Envío Final</span>
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
             </div>
           </div>
         )}
 
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3 text-red-700 text-sm">
-            <AlertCircle className="w-5 h-5 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {success && (
-          <div className="p-4 bg-green-50 border border-green-100 rounded-lg flex items-start gap-3 text-green-700 text-sm">
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
-            <span>{success}</span>
-          </div>
-        )}
-
-        {showAttachmentWarning && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-amber-800 text-sm">
-            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-semibold mb-1">No has subido la lista fisica</p>
-              <p className="text-xs text-amber-700 mb-3">
-                Se recomienda subir al menos una foto de la lista de asistencia firmada antes de finalizar. Deseas continuar de todos modos?
+        {/* STEP 5: RESUMEN, DECLARACION Y ENVIO FINAL */}
+        {activeStep === "envio" && (
+          <div className="p-4 sm:p-6 space-y-6">
+            <div className="pb-4 border-b border-slate-100 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
+                  {hasMaterial ? "5" : "4"}
+                </span>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                  Resumen Ejecutivo y Declaración de Envío
+                </h2>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-600">
+                Revisa los datos consolidados antes de enviar la información al departamento de Capacitación.
               </p>
-              <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  onClick={handleConfirmFinalizeAnyway}
-                  className="bg-amber-600 hover:bg-amber-700 text-white"
-                >
-                  Si, finalizar sin foto
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => setShowAttachmentWarning(false)}
-                >
-                  Cancelar
-                </Button>
+            </div>
+
+            {/* Executive Summary Card */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-sky-50/30 border border-slate-200 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200/70">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Servicio a Finalizar
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900">{osi?.nombre_empresa || "Empresa"}</h3>
+                  <p className="text-xs text-slate-600">{osi?.servicio || "Curso de Capacitación"}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-bold uppercase px-2.5 py-1 rounded-md bg-sky-100 text-sky-800 border border-sky-200">
+                    OSI #{osi?.nro_osi}
+                  </span>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-left">
+                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Participantes</span>
+                  <p className="text-lg font-bold text-slate-900 mt-0.5">
+                    {validParticipants.length}{" "}
+                    <span className="text-xs font-normal text-slate-500">
+                      ({aprobadosCount} aprobados)
+                    </span>
+                  </p>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Lista de Asistencia</span>
+                  <p className="text-sm font-bold mt-0.5 flex items-center gap-1.5">
+                    {attendanceCount > 0 ? (
+                      <span className="text-emerald-700 inline-flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" /> {attendanceCount} archivo(s)
+                      </span>
+                    ) : (
+                      <span className="text-amber-700 inline-flex items-center gap-1">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" /> Sin lista física
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs col-span-2 sm:col-span-1">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Fotos y Soporte</span>
+                  <p className="text-sm font-bold text-slate-800 mt-0.5 flex items-center gap-1.5">
+                    <Camera className="w-4 h-4 text-slate-500" />
+                    {photoCount} fotos adjuntas
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
 
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-          <div>
-            <p className="text-xs text-gray-400 italic">
-              * Asegúrate de guardar tus cambios antes de salir.
-            </p>
-            {!hasValidParticipants ? (
-              <p className="text-xs text-amber-600 mt-1 font-medium">
-                ⚠️ Ingresa al menos 1 participante con nombre y cédula para poder finalizar.
-              </p>
-            ) : !hasAcknowledged ? (
-              <p className="text-xs text-amber-600 mt-1 font-medium">
-                ⚠️ Marca la casilla de declaración de responsabilidad para habilitar el envío final.
-              </p>
-            ) : null}
-          </div>
-          <div className="flex gap-3 flex-col sm:flex-row">
-            <Button 
-              variant="outline" 
-              onClick={() => handleSave("draft")}
-              disabled={saving}
-              className="w-full sm:w-auto h-12"
-            >
-              {saving ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Guardar Borrador
-            </Button>
-            <Button 
-              id="tour-submit-button"
-              onClick={() => handleSave("final")}
-              disabled={saving || !hasAcknowledged || !hasValidParticipants}
-              className={`w-full sm:w-auto h-12 transition-colors ${
-                hasAcknowledged && hasValidParticipants
-                  ? "bg-blue-600 hover:bg-blue-700 text-white font-semibold" 
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-200"
+            {/* Disclaimer / Responsibility Card */}
+            <div
+              ref={disclaimerRef}
+              className={`rounded-2xl border-2 transition-all p-5 ${
+                hasAcknowledged
+                  ? "border-emerald-300 bg-emerald-50/50"
+                  : "border-amber-200 bg-amber-50/40"
               }`}
             >
-              {saving ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-              )}
-              Finalizar y Enviar
+              <div className="flex items-start gap-3.5">
+                <div
+                  className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border ${
+                    hasAcknowledged
+                      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                      : "bg-amber-100 text-amber-700 border-amber-200"
+                  }`}
+                >
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-slate-900">
+                      Declaración de Responsabilidad y Veracidad
+                    </h4>
+                    <ClipboardCheck className="w-4 h-4 text-slate-400" />
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                    {DISCLAIMER_TEXT}
+                  </p>
+                  <label
+                    className={`flex items-center gap-3 pt-2 group ${
+                      hasValidParticipants ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={hasAcknowledged}
+                      disabled={!hasValidParticipants}
+                      onChange={(e) => {
+                        setHasAcknowledged(e.target.checked);
+                        setError(null);
+                      }}
+                      className="w-5 h-5 rounded border-2 border-slate-300 text-sky-600 focus:ring-2 focus:ring-sky-500 cursor-pointer shrink-0 transition-colors"
+                    />
+                    <span
+                      className={`text-xs sm:text-sm font-bold select-none ${
+                        hasAcknowledged ? "text-emerald-800" : "text-slate-700"
+                      }`}
+                    >
+                      He revisado exhaustivamente y acepto la declaración de responsabilidad
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* ISO 14001 Banner */}
+            <ISOComplianceBanner />
+
+            {/* Attachment Warning Modal/Alert */}
+            {showAttachmentWarning && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-amber-900 text-xs sm:text-sm">
+                <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
+                <div className="flex-1 space-y-2">
+                  <p className="font-bold">No has adjuntado foto de la lista de asistencia</p>
+                  <p className="text-amber-800 text-xs leading-relaxed">
+                    Se recomienda adjuntar la foto o escaneo de la lista firmada por los participantes antes de enviar el servicio. ¿Deseas enviar la información de todos modos?
+                  </p>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      onClick={handleConfirmFinalizeAnyway}
+                      className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
+                    >
+                      Sí, finalizar sin foto
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowAttachmentWarning(false)}
+                      className="text-xs"
+                    >
+                      Volver a cargar foto
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Submission Actions */}
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                {!hasValidParticipants ? (
+                  <p className="text-xs text-amber-600 font-medium">
+                    ⚠️ Debes registrar al menos 1 participante con nombre y cédula en el Paso 3.
+                  </p>
+                ) : !hasAcknowledged ? (
+                  <p className="text-xs text-amber-600 font-medium">
+                    ⚠️ Marca la casilla de declaración para habilitar el envío final.
+                  </p>
+                ) : (
+                  <p className="text-xs text-emerald-700 font-medium flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Todo listo para enviar.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => handleSave("draft")}
+                  disabled={saving}
+                  className="h-12 px-5 text-slate-700 font-bold cursor-pointer"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                  <span>Guardar</span>
+                </Button>
+
+                <Button
+                  id="tour-submit-button"
+                  onClick={() => handleSave("final")}
+                  disabled={saving || !hasAcknowledged || !hasValidParticipants}
+                  className={`h-12 px-6 font-bold rounded-xl shadow-xs transition-all cursor-pointer ${
+                    hasAcknowledged && hasValidParticipants
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
+                      : "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-200"
+                  }`}
+                >
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCheck className="w-4 h-4 mr-2" />
+                  )}
+                  <span>Finalizar y Enviar a Capacitación</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── 3. PERSISTENT WIZARD BOTTOM BAR (MOBILE & DESKTOP) ─── */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-4 py-3 shadow-lg">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          {/* Step Back Button */}
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => prevStep && goToStep(prevStep)}
+            disabled={!prevStep}
+            className="h-11 px-3 sm:px-4 text-slate-600 hover:text-slate-900 font-bold text-xs sm:text-sm disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Paso Anterior</span>
+            <span className="sm:hidden">Atrás</span>
+          </Button>
+
+          {/* Center Info / Offline / Save Status */}
+          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium truncate">
+            {isOffline ? (
+              <span className="text-amber-700 font-bold inline-flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" /> Modo Offline
+              </span>
+            ) : pendingSync ? (
+              <span className="text-sky-700 font-bold inline-flex items-center gap-1">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Sincronizando...
+              </span>
+            ) : (
+              <span className="hidden md:inline text-slate-400">
+                Paso {currentStepIndex + 1} de {steps.length}: <strong className="text-slate-700">{steps[currentStepIndex]?.title}</strong>
+              </span>
+            )}
+          </div>
+
+          {/* Right Actions: Draft Save & Next Step */}
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleSave("draft")}
+              disabled={saving}
+              className="h-11 px-3 sm:px-4 text-slate-700 border-slate-300 font-bold text-xs sm:text-sm cursor-pointer shadow-2xs"
+            >
+              {saving ? <Loader2 className="w-4 h-4 sm:mr-1.5 animate-spin" /> : <Save className="w-4 h-4 sm:mr-1.5" />}
+              <span className="hidden sm:inline">Guardar</span>
             </Button>
+
+            {nextStep ? (
+              <Button
+                type="button"
+                onClick={() => goToStep(nextStep)}
+                className="h-11 px-4 sm:px-6 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs cursor-pointer"
+              >
+                <span>Siguiente</span>
+                <ArrowRight className="w-4 h-4 ml-1.5" />
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => handleSave("final")}
+                disabled={saving || !hasAcknowledged || !hasValidParticipants}
+                className={`h-11 px-4 sm:px-6 font-bold rounded-xl text-xs sm:text-sm shadow-xs cursor-pointer ${
+                  hasAcknowledged && hasValidParticipants
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                }`}
+              >
+                <span>Finalizar</span>
+                <CheckCheck className="w-4 h-4 ml-1.5" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Participant Scanner Modal */}
+      {/* OCR Scanner Modal */}
       <ParticipantScannerModal
         isOpen={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
+        onClose={() => {
+          setIsScannerOpen(false);
+          setUploadStatus(null);
+        }}
         onAddParticipants={handleAddScannedParticipants}
         preselectedFile={selectedPortalFile}
         mode="portal"

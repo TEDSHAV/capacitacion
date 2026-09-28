@@ -372,24 +372,31 @@ export const ParticipantScannerModal = ({
 
               {/* Error Message */}
               {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col gap-3">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                    <div className="space-y-1 flex-1">
-                      <p className="text-sm font-semibold text-red-900">
-                        No se pudo extraer con IA automáticamente
+                <div className="p-5 bg-amber-50/90 border border-amber-200 rounded-2xl flex flex-col gap-4 shadow-2xs">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2 rounded-xl bg-amber-100 text-amber-700 shrink-0">
+                      <AlertCircle className="h-6 w-6" />
+                    </div>
+                    <div className="space-y-1.5 flex-1">
+                      <p className="text-sm font-bold text-slate-900">
+                        No se pudieron escanear los participantes automáticamente
                       </p>
-                      <p className="text-sm text-red-700">{error}</p>
+                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                        {error}
+                      </p>
+                      <p className="text-xs text-amber-800 font-semibold pt-1">
+                        💡 No te preocupes: puedes continuar e ingresar los participantes manualmente en la lista del Paso 3.
+                      </p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 pt-2 border-t border-red-200/60 justify-end">
+                  <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-amber-200/70 justify-end">
                     {file && (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => handleProcess(file)}
-                        className="text-xs bg-white text-gray-700 hover:bg-gray-50 border-gray-200"
+                        className="text-xs bg-white text-slate-700 hover:bg-slate-50 border-slate-300 font-semibold"
                       >
                         <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
                         Reintentar escaneo
@@ -399,7 +406,7 @@ export const ParticipantScannerModal = ({
                       type="button"
                       size="sm"
                       onClick={onClose}
-                      className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                      className="text-xs bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2 rounded-xl shadow-xs"
                     >
                       Continuar e ingresar manualmente
                     </Button>
@@ -832,30 +839,43 @@ export const ParticipantScannerModal = ({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-red-100 shadow-sm max-w-lg mx-auto mt-10 space-y-6">
-              <div className="bg-red-50 p-6 rounded-full">
-                <AlertCircle className="h-16 w-16 text-red-500" />
+            <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-amber-100 shadow-sm max-w-lg mx-auto mt-10 space-y-6 px-6">
+              <div className="bg-amber-50 p-5 rounded-full">
+                <AlertCircle className="h-14 w-14 text-amber-500" />
               </div>
               <div className="text-center space-y-2">
                 <h3 className="text-xl font-bold text-gray-900">
-                  No se pudo procesar
+                  No se pudo escanear el archivo
                 </h3>
-                <p className="text-gray-500 max-w-xs mx-auto">
+                <p className="text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">
                   {error ||
                     "Ocurrió un error inesperado al intentar procesar el archivo."}
                 </p>
+                <p className="text-xs text-amber-700 font-semibold pt-2">
+                  💡 No te preocupes: puedes ingresar los participantes manualmente en la lista.
+                </p>
               </div>
-              <Button
-                onClick={() => {
-                  setExtractedParticipants([]);
-                  setError("");
-                  setFile(null);
-                  setHasProcessed(false);
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 h-12 rounded-xl font-bold shadow-lg shadow-blue-200"
-              >
-                Intentar de nuevo
-              </Button>
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setExtractedParticipants([]);
+                    setError("");
+                    setFile(null);
+                    setHasProcessed(false);
+                  }}
+                  className="w-full sm:w-auto bg-white hover:bg-gray-50 text-gray-700 border-gray-300 px-6 h-12 rounded-xl font-semibold"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Intentar de nuevo
+                </Button>
+                <Button
+                  onClick={handleClose}
+                  className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 text-white px-6 h-12 rounded-xl font-bold shadow-lg shadow-sky-200"
+                >
+                  Continuar e ingresar manualmente
+                </Button>
+              </div>
             </div>
           )}
         </div>

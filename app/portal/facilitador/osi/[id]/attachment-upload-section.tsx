@@ -151,7 +151,7 @@ export const AttachmentUploadSection = ({
       setUploadSuccess(true);
 
       if (lastUploadedAttachment && lastUploadedFile && onFileReadyToScan) {
-        onStatusChange?.("Archivo listo. Abriendo escáner...");
+        onStatusChange?.(null);
         onFileReadyToScan(lastUploadedFile, lastUploadedAttachment);
       } else if (lastUploadedAttachment && onScanAttachment) {
         onScanAttachment(lastUploadedAttachment);
