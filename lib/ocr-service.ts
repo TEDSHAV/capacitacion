@@ -153,13 +153,11 @@ Return a JSON object with:
         },
       };
 
-      // Current Gemini 3.x multimodal flash models (2.x are deprecated)
+      // Current Gemini 3.x multimodal flash models
       const models = [
         "gemini-3.8-flash",
         "gemini-3.5-flash-lite",
         "gemini-3.7-flash",
-        "gemini-3.5-flash",
-        "gemini-3.1-flash-lite",
       ];
       let lastError = "";
 
@@ -167,19 +165,25 @@ Return a JSON object with:
         const url = `${this.GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
         console.log(`[OCR Gemini] Trying model: ${model}...`);
 
-        // Retry logic for transient errors (503 high demand, 429 rate limit)
-        const MAX_RETRIES = 2;
-        let retryDelay = 2000;
+        // Fast retry logic for transient errors (1 retry with 1s delay to fail fast)
+        const MAX_RETRIES = 1;
+        let retryDelay = 1000;
 
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
           let response: Response;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+
           try {
             response = await fetch(url, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(requestPayload),
+              signal: controller.signal,
             });
+            clearTimeout(timeoutId);
           } catch (fetchErr) {
+            clearTimeout(timeoutId);
             lastError = fetchErr instanceof Error ? fetchErr.message : "Network error";
             console.warn(`[OCR Gemini] Model ${model} fetch error: ${lastError}`);
             break; // Network error — skip to next model
@@ -202,11 +206,10 @@ Return a JSON object with:
           const errData = await response.json().catch(() => ({}));
           lastError = errData?.error?.message || response.statusText;
 
-          // Transient errors (503/429) — retry with backoff
+          // Transient errors (503/429) — 1 fast retry
           if ((response.status === 503 || response.status === 429) && attempt < MAX_RETRIES) {
-            console.warn(`[OCR Gemini] Model ${model} returned ${response.status} (attempt ${attempt + 1}/${MAX_RETRIES + 1}). Retrying in ${retryDelay}ms...`);
+            console.warn(`[OCR Gemini] Model ${model} returned ${response.status}. Fast retry in ${retryDelay}ms...`);
             await new Promise((r) => setTimeout(r, retryDelay));
-            retryDelay *= 2;
             continue;
           }
 
@@ -224,7 +227,7 @@ Return a JSON object with:
 
       return {
         text: "",
-        error: `No se pudo procesar la imagen. Todos los modelos de Google Gemini fallaron. Último error: ${lastError}`,
+        error: `No se pudo procesar la imagen automáticamente debido a alta demanda en Google Gemini. Último error: ${lastError}`,
       };
     } catch (err) {
       console.error("[OCR Gemini] Error:", err);
