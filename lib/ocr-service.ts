@@ -20,15 +20,19 @@ export interface ExtractedParticipant {
 
 export interface OCRConfig {
   geminiKey?: string;
+  groqKey?: string;
 }
 
 export class OCRService {
   private static readonly GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+  private static readonly GROQ_API_BASE = "https://api.groq.com/openai/v1/chat/completions";
 
   /**
    * Main entrypoint for OCR processing.
-   * Uses Google Gemini multimodal vision (fast, free tier, high accuracy).
-   * If Gemini fails, returns a clear user-facing error indicating manual entry is required.
+   * Priority cascade:
+   * 1. Groq Vision (Ultra-fast <1s, free, unblocked on production VPS)
+   * 2. Google Gemini Vision (Multimodal cascade with retries)
+   * If all fail, returns clear user-facing error indicating manual entry is required.
    */
   static async processImage(
     file: File,
@@ -40,28 +44,174 @@ export class OCRService {
         ? { geminiKey: keys }
         : keys;
 
-    if (!config.geminiKey) {
+    if (!config.geminiKey && !config.groqKey) {
       return {
         text: "",
-        error: "No se ha configurado la clave de Google Gemini para el escáner OCR. Contacta al administrador del sistema.",
+        error: "No se ha configurado ninguna clave de IA (Groq o Gemini) para el escáner OCR.",
       };
     }
 
-    console.log(`[OCRService] Processing with Google Gemini (${mode} mode)...`);
-    const geminiResult = await this.processWithGemini(file, config.geminiKey, mode);
-
-    if (!geminiResult.error && geminiResult.participants && geminiResult.participants.length > 0) {
-      return geminiResult;
+    // 1. Try Groq Vision first if available
+    if (config.groqKey) {
+      console.log(`[OCRService] Attempting Groq Vision (${mode} mode)...`);
+      try {
+        const groqResult = await this.processWithGroq(file, config.groqKey, mode);
+        if (!groqResult.error && groqResult.participants && groqResult.participants.length > 0) {
+          console.log(`[OCRService] Groq Vision succeeded with ${groqResult.participants.length} participants.`);
+          return groqResult;
+        }
+        console.warn(`[OCRService] Groq failed (${groqResult.error}). Falling back to Gemini...`);
+      } catch (groqErr) {
+        console.warn(`[OCRService] Groq unexpected error:`, groqErr);
+      }
     }
 
-    // Gemini failed — return a clear, friendly error so the facilitador knows to enter manually
-    console.warn(`[OCRService] Gemini failed or found no participants (${geminiResult.error || "0 participants"}).`);
+    // 2. Fallback to Google Gemini
+    if (config.geminiKey) {
+      console.log(`[OCRService] Processing with Google Gemini (${mode} mode)...`);
+      const geminiResult = await this.processWithGemini(file, config.geminiKey, mode);
+
+      if (!geminiResult.error && geminiResult.participants && geminiResult.participants.length > 0) {
+        return geminiResult;
+      }
+      console.warn(`[OCRService] Gemini failed (${geminiResult.error || "0 participants"}).`);
+    }
+
+    // All failed — return a clear, friendly error so the facilitador knows to enter manually
     return {
-      text: geminiResult.text || "",
-      markdown: geminiResult.markdown || "",
+      text: "",
+      markdown: "",
       participants: [],
       error: "No fue posible reconocer los participantes del archivo automáticamente. Deberás agregarlos manualmente en la lista.",
     };
+  }
+
+  /**
+   * Process document using Groq Vision (Llama 3.2 90B/11B Vision).
+   * Fast, reliable, high accuracy on Contabo VPS.
+   */
+  static async processWithGroq(
+    file: File,
+    apiKey: string,
+    mode: "certificate" | "portal" = "certificate"
+  ): Promise<OCRResult> {
+    try {
+      const base64 = await this.fileToBase64(file);
+      let mimeType = file.type || "image/jpeg";
+      if (!mimeType || mimeType === "application/octet-stream") {
+        const lowerName = file.name.toLowerCase();
+        if (lowerName.endsWith(".png")) mimeType = "image/png";
+        else if (lowerName.endsWith(".webp")) mimeType = "image/webp";
+        else mimeType = "image/jpeg";
+      }
+      if (mimeType === "image/jpg") mimeType = "image/jpeg";
+
+      const systemPrompt = mode === "portal"
+        ? `You are an expert OCR and document analysis AI for Venezuelan training attendance lists (SHA de Venezuela).
+Analyze the attached image which contains a handwritten attendance list ("LISTA DE ASISTENCIA").
+Extract all participant rows.
+Strict rules:
+1. "name": Full name in Title Case. Ignore job titles (words like Analista, Supervisor, Gerente, Operador, Mecánico, Conductor, Pasante, Chofer, Obrero, Coordinador, etc. are NOT names).
+2. "cedula": Venezuelan national ID number. Digits ONLY (remove dots, dashes, spaces). Must be 6 to 10 digits.
+3. "nationality": "V" (venezolano) or "E" (extranjero). Default is "V".
+4. "score": Must be null.
+5. Skip header rows, company info, and empty rows.
+
+Respond ONLY with a valid JSON object matching this schema:
+{
+  "markdown": "transcription text here",
+  "participants": [
+    {
+      "name": "Full Name",
+      "cedula": "12345678",
+      "nationality": "V",
+      "score": null
+    }
+  ]
+}`
+        : `You are an expert OCR and document analysis AI for Venezuelan training evaluation sheets (SHA de Venezuela).
+Analyze the attached image which contains a handwritten participant list ("CALIFICACIÓN DE LOS PARTICIPANTES").
+Extract all participant rows.
+Strict rules:
+1. "name": Full name in Title Case.
+2. "cedula": Venezuelan national ID number. Digits ONLY (remove dots, dashes, spaces). Must be 6 to 10 digits.
+3. "nationality": "V" (venezolano) or "E" (extranjero). Default is "V".
+4. "score": Number from 0 to 20 representing the grade, or null if not found.
+5. Skip header rows, company info, and empty rows.
+
+Respond ONLY with a valid JSON object matching this schema:
+{
+  "markdown": "transcription text here",
+  "participants": [
+    {
+      "name": "Full Name",
+      "cedula": "12345678",
+      "nationality": "V",
+      "score": 20
+    }
+  ]
+}`;
+
+      const models = ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview"];
+      let lastError = "";
+
+      for (const model of models) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+          const response = await fetch(this.GROQ_API_BASE, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: systemPrompt },
+                    {
+                      type: "image_url",
+                      image_url: {
+                        url: `data:${mimeType};base64,${base64}`,
+                      },
+                    },
+                  ],
+                },
+              ],
+              response_format: { type: "json_object" },
+              temperature: 0.1,
+              max_tokens: 2048,
+            }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            const data = await response.json();
+            const content = data?.choices?.[0]?.message?.content;
+            if (content) {
+              return this.parseJsonResponse(content, model);
+            }
+          } else {
+            const errData = await response.json().catch(() => ({}));
+            lastError = errData?.error?.message || response.statusText;
+            console.warn(`[OCR Groq] Model ${model} returned ${response.status}: ${lastError}`);
+          }
+        } catch (fetchErr) {
+          lastError = fetchErr instanceof Error ? fetchErr.message : "Network error";
+          console.warn(`[OCR Groq] Fetch error on ${model}: ${lastError}`);
+        }
+      }
+
+      return { text: "", error: `Groq error: ${lastError}` };
+    } catch (err) {
+      return { text: "", error: err instanceof Error ? err.message : "Groq error" };
+    }
   }
 
   /**
@@ -200,7 +350,7 @@ Return a JSON object with:
             }
 
             // Return early with parsed result
-            return this.parseGeminiResponse(candidateText, model);
+            return this.parseJsonResponse(candidateText, model);
           }
 
           const errData = await response.json().catch(() => ({}));
@@ -239,9 +389,9 @@ Return a JSON object with:
   }
 
   /**
-   * Parse the JSON text returned by Gemini and extract participants.
+   * Parse the JSON text returned by Groq/Gemini and extract participants.
    */
-  private static parseGeminiResponse(candidateText: string, model: string): OCRResult {
+  private static parseJsonResponse(candidateText: string, model: string): OCRResult {
     let parsed: { markdown?: string; participants?: Array<{ name?: string; cedula?: string; nationality?: string; score?: number | null }> };
     try {
       parsed = JSON.parse(candidateText);
@@ -251,10 +401,10 @@ Return a JSON object with:
         try {
           parsed = JSON.parse(match[0]);
         } catch {
-          return { text: candidateText, error: "No se pudo interpretar el formato JSON de Google Gemini." };
+          return { text: candidateText, error: "No se pudo interpretar el formato JSON del modelo de IA." };
         }
       } else {
-        return { text: candidateText, error: "No se pudo interpretar el formato JSON de Google Gemini." };
+        return { text: candidateText, error: "No se pudo interpretar el formato JSON del modelo de IA." };
       }
     }
 
@@ -274,7 +424,7 @@ Return a JSON object with:
       })
       .filter((p: ExtractedParticipant) => p.name.length > 2 && p.idNumber.length >= 6);
 
-    console.log(`[OCR Gemini] Extracted ${participants.length} participants using ${model}`);
+    console.log(`[OCR] Extracted ${participants.length} participants using ${model}`);
 
     return {
       text: parsed.markdown || "",

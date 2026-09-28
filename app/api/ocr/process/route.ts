@@ -27,12 +27,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read Google Gemini API key from server-side env vars
+    // Read AI API keys from server-side env vars
     const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+    const groqKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY || '';
 
-    if (!geminiKey) {
+    if (!geminiKey && !groqKey) {
       return NextResponse.json(
-        { error: 'No se ha configurado la clave de Google Gemini para OCR (GEMINI_API_KEY). Contacta al administrador.' },
+        { error: 'No se ha configurado la clave de OCR (GEMINI_API_KEY o GROQ_API_KEY). Contacta al administrador.' },
         { status: 503 }
       );
     }
@@ -62,10 +63,10 @@ export async function POST(request: NextRequest) {
       mode,
     });
 
-    // Process the file with Google Gemini OCR
+    // Process the file with AI OCR (Groq Vision + Gemini fallback)
     const result = await OCRService.processImage(
       file,
-      { geminiKey },
+      { geminiKey, groqKey },
       mode as "certificate" | "portal"
     );
 
