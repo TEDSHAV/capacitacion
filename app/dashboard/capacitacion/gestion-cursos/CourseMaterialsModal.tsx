@@ -395,9 +395,6 @@ export default function CourseMaterialsModal({
                 <h3 className="text-base font-bold text-slate-900">
                   Material Didáctico y Recursos Digitales
                 </h3>
-                <span className="text-[11px] font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full border border-sky-200">
-                  SaaS Enterprise
-                </span>
               </div>
               <p className="text-xs text-slate-500 truncate max-w-xl font-medium">
                 {osiNumber ? "Servicio: " : "Curso: "}

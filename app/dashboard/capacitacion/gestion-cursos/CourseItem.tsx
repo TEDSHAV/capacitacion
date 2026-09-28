@@ -13,7 +13,6 @@ interface CourseItemProps {
   onEdit: (curso: Curso) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
-  onManageMaterials?: (curso: Curso) => void;
   categories?: CourseCategoryItem[];
 }
 
@@ -22,7 +21,6 @@ export default function CourseItem({
   onEdit,
   onDelete,
   onDuplicate,
-  onManageMaterials,
   categories,
 }: CourseItemProps) {
 
@@ -116,7 +114,6 @@ export default function CourseItem({
             onEdit={onEdit}
             onDelete={onDelete}
             onDuplicate={onDuplicate}
-            onManageMaterials={onManageMaterials}
           />
         </div>
       </div>

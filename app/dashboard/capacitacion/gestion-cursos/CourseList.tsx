@@ -17,7 +17,6 @@ interface CourseListProps {
   onEdit: (curso: Curso) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
-  onManageMaterials?: (curso: Curso) => void;
   categories?: CourseCategoryItem[];
 }
 
@@ -26,7 +25,6 @@ export default function CourseList({
   onEdit,
   onDelete,
   onDuplicate,
-  onManageMaterials,
   categories = DEFAULT_COURSE_CATEGORIES,
 }: CourseListProps) {
 
@@ -293,7 +291,6 @@ export default function CourseList({
               onEdit={onEdit}
               onDelete={onDelete}
               onDuplicate={onDuplicate}
-              onManageMaterials={onManageMaterials}
               categories={categories}
             />
           ))}

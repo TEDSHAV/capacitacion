@@ -12,7 +12,6 @@ import CourseForm from "./CourseForm";
 import CourseList from "./CourseList";
 import CreateCourseButton from "./CreateCourseButton";
 import CategoryManagementModal from "./CategoryManagementModal";
-import CourseMaterialsModal from "./CourseMaterialsModal";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import {
@@ -21,7 +20,6 @@ import {
   resolveCourseCategory,
 } from "@/lib/course-categories";
 import { FolderOpen, AlertCircle } from "lucide-react";
-import { isMaterialesEnabled } from "@/lib/materiales-flags";
 
 export default function GestionCursosClient({
   user,
@@ -37,9 +35,7 @@ export default function GestionCursosClient({
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [creandoCurso, setCreandoCurso] = useState(false);
   const [editandoCurso, setEditandoCurso] = useState<number | null>(null);
-  const [materialsCurso, setMaterialsCurso] = useState<Curso | null>(null);
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
-  const materialesEnabled = isMaterialesEnabled();
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [cursosList, setCursosList] = useState<Curso[]>(cursos || []);
@@ -255,23 +251,12 @@ export default function GestionCursosClient({
           courseCountByCategory={courseCountByCategory}
         />
 
-        {/* Standalone Course Materials Modal */}
-        {materialesEnabled && materialsCurso && (
-          <CourseMaterialsModal
-            cursoId={materialsCurso.id}
-            cursoNombre={materialsCurso.nombre}
-            isOpen={!!materialsCurso}
-            onClose={() => setMaterialsCurso(null)}
-          />
-        )}
-
         {/* Courses List */}
         <CourseList
           cursos={cursosList}
           onEdit={abrirModalEdicion}
           onDelete={handleDeleteCourse}
           onDuplicate={handleDuplicateCourse}
-          onManageMaterials={materialesEnabled ? (curso) => setMaterialsCurso(curso) : undefined}
           categories={categoriesList}
         />
       </div>
