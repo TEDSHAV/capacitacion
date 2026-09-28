@@ -46,6 +46,28 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
     redirect("/portal/facilitador/dashboard");
   }
 
+  // Fetch course passing grade (nota_aprobatoria) from catalogo_servicios
+  let notaAprobatoria: number | null = null;
+  if (osi.id_servicio) {
+    const { data: curso } = await supabase
+      .from("catalogo_servicios")
+      .select("nota_aprobatoria")
+      .eq("id", osi.id_servicio)
+      .maybeSingle();
+    if (curso && curso.nota_aprobatoria !== null) {
+      notaAprobatoria = curso.nota_aprobatoria;
+    }
+  } else if (osi.servicio) {
+    const { data: curso } = await supabase
+      .from("catalogo_servicios")
+      .select("nota_aprobatoria")
+      .ilike("nombre", osi.servicio.trim())
+      .maybeSingle();
+    if (curso && curso.nota_aprobatoria !== null) {
+      notaAprobatoria = curso.nota_aprobatoria;
+    }
+  }
+
   const sessionAssignments = (assignments || []).map((a) => a.nro_sesion);
   const specificSessions = sessionAssignments.filter((s) => s !== null) as number[];
   const hasAllSessionsAssignment = sessionAssignments.some((s) => s === null);
@@ -142,6 +164,7 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
         assignedSessions={specificSessions}
         hasAllSessionsAssignment={hasAllSessionsAssignment}
         isFinal={isFinal}
+        notaAprobatoria={notaAprobatoria}
       />
     </div>
   );

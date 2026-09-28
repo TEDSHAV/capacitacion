@@ -74,6 +74,7 @@ export interface ParticipantFormProps {
   /** True if facilitador has an all-sessions (NULL nro_sesion) assignment */
   hasAllSessionsAssignment?: boolean;
   isFinal?: boolean;
+  notaAprobatoria?: number | null;
 }
 
 const DISCLAIMER_TEXT =
@@ -132,7 +133,11 @@ export const ParticipantForm = ({
   assignedSessions = [],
   hasAllSessionsAssignment = false,
   isFinal: initialIsFinal = false,
+  notaAprobatoria = 14,
 }: ParticipantFormProps) => {
+  const passingGrade = typeof notaAprobatoria === "number" ? notaAprobatoria : 14;
+  const isParticipationOnly = passingGrade === 0;
+
   const hasMaterial = Boolean(materialKit && materialKit.materiales && materialKit.materiales.length > 0);
   const steps = useMemo(() => getWizardSteps(hasMaterial), [hasMaterial]);
 
@@ -204,12 +209,23 @@ export const ParticipantForm = ({
   const hasValidParticipants = validParticipants.length > 0;
 
   const validCedulasCount = participants.filter((p) => p.cedula.trim()).length;
-  const aprobadosCount = participants.filter(
-    (p) => p.score !== "" && Number(p.score) >= 10
-  ).length;
-  const reprobadosCount = participants.filter(
-    (p) => p.score !== "" && Number(p.score) < 10
-  ).length;
+
+  const isPassing = (scoreVal: string | number) => {
+    if (scoreVal === "" || scoreVal === null || scoreVal === undefined) return false;
+    const num = Number(scoreVal);
+    if (isNaN(num) || num < 0 || num > 20) return false;
+    return isParticipationOnly ? true : num >= passingGrade;
+  };
+
+  const isFailing = (scoreVal: string | number) => {
+    if (scoreVal === "" || scoreVal === null || scoreVal === undefined) return false;
+    const num = Number(scoreVal);
+    if (isNaN(num) || num < 0 || num > 20) return false;
+    return isParticipationOnly ? false : num < passingGrade;
+  };
+
+  const aprobadosCount = participants.filter((p) => isPassing(p.score)).length;
+  const reprobadosCount = participants.filter((p) => isFailing(p.score)).length;
   const sinNotaCount = participants.filter((p) => p.score === "" || p.score === null).length;
 
   // Step completion status for indicators
@@ -691,16 +707,25 @@ export const ParticipantForm = ({
                 </div>
                 <div className="p-3 bg-emerald-50/70 rounded-xl border border-emerald-200 text-left">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
-                    Aprobados (≥10)
+                    {isParticipationOnly ? "Asistieron" : `Aprobados (≥${passingGrade})`}
                   </span>
                   <p className="text-lg font-bold text-emerald-800 mt-0.5">{aprobadosCount}</p>
                 </div>
-                <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-left">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
-                    Sin Nota Asignada
-                  </span>
-                  <p className="text-lg font-bold text-amber-800 mt-0.5">{sinNotaCount}</p>
-                </div>
+                {!isParticipationOnly && reprobadosCount > 0 ? (
+                  <div className="p-3 bg-red-50/70 rounded-xl border border-red-200 text-left">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 block">
+                      Reprobados (&lt;{passingGrade})
+                    </span>
+                    <p className="text-lg font-bold text-red-800 mt-0.5">{reprobadosCount}</p>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-left">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
+                      Sin Nota Asignada
+                    </span>
+                    <p className="text-lg font-bold text-amber-800 mt-0.5">{sinNotaCount}</p>
+                  </div>
+                )}
                 <div className="p-3 bg-sky-50/70 rounded-xl border border-sky-200 text-left">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 block">
                     Cédulas Válidas
@@ -744,7 +769,7 @@ export const ParticipantForm = ({
             <div className="space-y-3" id="tour-participant-list">
               {participants.map((p, index) => {
                 const isGradeValid = p.score !== "" && Number(p.score) >= 0 && Number(p.score) <= 20;
-                const isAprobado = isGradeValid && Number(p.score) >= 10;
+                const isAprobado = isGradeValid && (isParticipationOnly ? true : Number(p.score) >= passingGrade);
 
                 return (
                   <div
@@ -765,7 +790,11 @@ export const ParticipantForm = ({
                               : "bg-red-50 text-red-800 border-red-200"
                           }`}
                         >
-                          {isAprobado ? "Aprobado" : "Reprobado"} ({p.score}/20)
+                          {isParticipationOnly
+                            ? `Nota: ${p.score}/20 (Participación)`
+                            : isAprobado
+                            ? `Aprobado (${p.score}/20)`
+                            : `Reprobado (${p.score}/20 - Mín. ${passingGrade})`}
                         </span>
                       )}
                     </div>
@@ -827,7 +856,7 @@ export const ParticipantForm = ({
                       {/* Score input */}
                       <div className="sm:col-span-2 space-y-1">
                         <label className="text-[10px] font-bold uppercase text-slate-400">
-                          Nota (0-20)
+                          Nota (0-20){!isParticipationOnly ? ` • Mín ${passingGrade}` : ""}
                         </label>
                         <Input
                           type="number"

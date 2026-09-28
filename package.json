@@ -16,8 +16,9 @@
         "lint": "eslint",
         "release": "commit-and-tag-version",
         "update-types": "npx supabase gen types typescript --project-id oboslhhemuvzvjnbqeih > types/supabase.ts",
-        "regenerate-qr": "node --experimental-strip-types --env-file=.env scripts/regenerate-qr-codes.ts",
-        "test": "node --test scripts/test-facilitador-flow.mjs"
+        "test": "node --test scripts/test-facilitador-flow.mjs",
+        "seed:test-facilitador": "node --env-file=.env scripts/seed-test-facilitador.mjs",
+        "clean:test-facilitador": "node --env-file=.env scripts/cleanup-test-facilitador.mjs"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.1131.0",
