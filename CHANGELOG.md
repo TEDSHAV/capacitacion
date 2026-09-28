@@ -12,6 +12,101 @@ This project follows [Semantic Versioning](https://semver.org/) and
 > (an author-email change) and do not reflect when that work was actually done.
 > Only commits following the Conventional Commits format appear in the entries below.
 
+## [1.14.0](https://github.com/TEDSHAV/capacitacion/compare/v1.13.0...v1.14.0) (2026-09-28)
+
+### Features
+
+* add dev-only orphan batch visibility management for client portal ccfbbbe
+* add dismissible sample-data banner to reportes module b12887b
+* add Entrevista de Facilitadores module and candidate interview management 3bb3d4e
+* add facilitador email feature and fix multi-session selector in gestion-osi modals ec05f57
+* add facilitador pool with cards, smart topic matcher, and profile drawer 37c5fd2
+* add Lotes Huérfanos link to Certificados card on dashboard home (dev-only) ba31880
+* add no-expiration option for download links via public redirect route 8ad5fc9
+* add password visibility toggle to cliente and facilitador portal login forms 41bb541
+* add per-topic skill levels (niveles_habilidad) to facilitadores 32d9cb5
+* B2-backed email attachments with configurable link expiry (hybrid: attach small + link large) a1c2aa2
+* **catalogo:** add mostrar_en_catalogo column and facilitator course filtering 38d8aae
+* **citizen-service:** integrate shared cat_cedulas_cache with fallback 87b17ff
+* direct-to-B2 presigned browser uploads with real-time per-file progress bars 3cc6af4
+* email attachments, registro de correos, enable Lotes Huerfanos for admin in production 2031658
+* **facilitador:** enhance portal UX, materials versioning, tour and certificate reactivation d649bdf
+* **facilitador:** integrate dynamic passing grade from course catalog in participant form 6690b0f
+* **facilitador:** update gemini 3.x ocr cascade with retries and refine portal workflow 068f99f
+* filter catalog to capacitacion courses only and add dashboard and sidebar links for entrevistas 78d27fb
+* **gestion-cursos:** add course categories management and filter styling 65356e9
+* **gestion-cursos:** block duplicate course names on create/edit 40cd3dd
+* **gestion-facilitadores:** add Resumen PDF export + v_facilitador_resumen view 1d6d144
+* **gestion-osi:** add execution city column and filter 30af512
+* green stripe indicator for OSIs with certificates issued in gestion-osi 6e264a7
+* **materiales:** add course didactic materials hub, pptx optimizer and presentation mode 264afeb
+* **materiales:** restrict didactic materials and presentation optimizer to dev mode a83773f
+* **notificaciones:** add centro de notificaciones for pending certificates and integrate osi filter in seguimiento 46b3107
+* **ocr:** integrate Google Gemini multimodal OCR with fallback cascade and improve facilitator portal UX 4661211
+* **ocr:** integrate Groq Vision as primary engine with Gemini fallback 9cc4538
+* **portal-cliente:** add sales executive contact guidance to login form 0967a48
+* proper pagination and searchable Empresa filter in seguimiento-servicios cc6ecb1
+* replicate assign-OSI + send-email flow in gestion-de-facilitadores modal 61682e7
+* searchable company filter in gestion-certificados, remove metrics and Creado column from gestion-cursos 17a5213
+* sede assignment for orphan certificate batches in Lotes Huérfanos admin tool 49ab714
+* **seguimiento-servicios:** improve execution flow, add rescheduling status, audit modal and performance optimizations 02d7d1a
+* track facilitador portal usage in certificate generation and surface per-facilitador average b37ea68
+* unify evaluacion facilitadores into reevaluacion and fix chart character rendering 12916ba
+
+### Bug Fixes
+
+* check certificados table instead of certificado_impreso flag for OSI certificate indicator bc00355
+* clean up catalog label in entrevista form 1954e10
+* **diseno-servicio:** restrict strictly to capacitacion services 2b36211
+* **diseno-servicio:** scope by tipo_naturaleza_servicio JSONB tag 405d307
+* **entrevista-facilitadores:** improve PDF export format, wording and 2-page Letter layout 924bca8
+* **gestion-cursos:** allow 0 or empty horas_estimadas for non-course catalog items 5eabc2b
+* **gestion-cursos:** display error alerts inside course form modal and add submit loading state ec7d849
+* **gestion-cursos:** only enforce duplicate course name guard when renaming against active courses ffa45a7
+* **gestion-facilitadores:** add Resumen PDF button to legacy table view 6ae0796
+* **gestion-facilitadores:** remove redundant layout toggle next to Nuevo Facilitador 63e8284
+* **gestion-osi:** fix month and text filters for v_osi_lista and eliminate stale filter closures b85f061
+* **gestion-osi:** resolve stale cache delay with background revalidation and SW timeout tuning d780f4c
+* guard against undefined e.key in keyboard shortcuts handler 5b477e5
+* hide non-matching facilitadores when a course/topic filter is applied a4ebc62
+* increase server action body limit to 25MB, add attachment size validation and friendlier error messages in both assign modals 6f7916b
+* **ocr,certs:** update groq vision model and include osi sede in certificate generation 6c3def1
+* orphan batch query missing certificates beyond 1000-row default limit 228a1f8
+* paginate orphan batch queries to bypass Supabase 1000-row server-side limit af11648
+* **portal:** open whatsapp chat on phone link in facilitador and cliente login b5a20f5
+* **pwa:** preserve sidebar state on navigation and remove custom install prompt 3c98a4c
+* **rate-limit:** isolate per-session rate limits, expand thresholds, and add Mistral 429 retry 294f1ea
+* remove production guard from orphan batch server actions 8efe0fd
+* rename Lotes Huérfanos to Lotes sin OSI en PRISMA, style Cambiar dropdown button 52d02f4
+* **requisiciones:** correct inverted approval workflow — internas use coordinador gate, externas go straight to admin 50800bb
+* restore admin/superadmin gating for Lotes Huérfanos, drop dev-only clause 8b7d57e
+* **resumen-pdf:** remove contact info, fix star glyph rendering, view in browser ee2fcb9
+* skip root redirect when embedded in shell iframe to prevent URLSync conflicts 0c5ee50
+* stream large file uploads to B2 via multipart, exclude upload route from middleware body limit 242302d
+* **url-sync:** only send pathname to shell, not query params 08f649a
+* use app-specific admin role check (JWT + RPC) for Lotes Huérfanos gating f3786d1
+
+### Performance
+
+* **capacitacion:** optimize dashboard, facilitators and search filter responsiveness a82e636
+* **capacitacion:** optimize queries and add indexes to reduce disk IO a3f6245
+* **capacitacion:** optimize shell iframe loading and seguimiento de servicios server caching 83e5efb
+* **ocr:** optimize fail-fast timeout and reduce retries during upstream congestion 895c206
+* reduce supabase load — remove OfflineIndicator 2s poll, cache checkDepartments, 8s timeout on osi-list query 6c1abd5
+* replace v_osi_formato_completo with v_osi_lista in requisiciones, split getOSIsForManagement list+count from heavy LATERAL fields 7cac38d
+
+### Refactors
+
+* **capacitacion:** restructure reportes and redesign indicadores 72h 4b62ec7
+* **cursos:** confine material didactico to course editor and remove saas badge 446fa8b
+* **facilitador:** refine dashboard cards, badges and material didactico workflow eb48870
+* rename portal usage to verificacion usage, move radio after participants section 62c25d6
+* reorganize email nav, rename registro to historial, enable lotes huerfanos in prod, mark duracion as manual 8c5e6a7
+
+### Documentation
+
+* document database migration convention in AGENTS.md 218384a
+* update migration convention — requisiciones is capacitacion-owned, goes in this repo d20155d
 ## [1.13.0](https://github.com/TEDSHAV/capacitacion/compare/v1.12.0...v1.13.0) (2026-09-09)
 
 ### Features
