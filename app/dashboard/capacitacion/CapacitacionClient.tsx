@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { CapacitacionClientProps } from "@/types";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
+import { CertificadosNotificationsBanner } from "@/components/alerts/CertificadosNotificationsBanner";
 import {
   BookOpen,
   Award,
@@ -242,6 +243,9 @@ export default function CapacitacionClient({
             Gestión centralizada de los procesos de Capacitación
           </p>
         </div>
+
+        {/* Centro de Notificaciones de Certificados Pendientes */}
+        <CertificadosNotificationsBanner />
 
         {/* Main process cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

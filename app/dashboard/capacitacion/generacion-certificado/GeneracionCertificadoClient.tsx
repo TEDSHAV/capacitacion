@@ -36,12 +36,14 @@ interface GeneracionCertificadoClientProps {
   user: any;
   initialData: any;
   editData?: any;
+  initialOsiParam?: string | null;
 }
 
 export default function GeneracionCertificadoClient({
   user,
   initialData,
   editData,
+  initialOsiParam,
 }: GeneracionCertificadoClientProps) {
   const router = useRouter();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -307,6 +309,80 @@ export default function GeneracionCertificadoClient({
     }
   }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, editData]);
 
+/**
+ * Helper to match an OSI with its course topic using multi-stage matching:
+ * 1. Direct ID match (id_curso)
+ * 2. Exact normalized match (strip accents, punctuation, lowercase)
+ * 3. Substring inclusion
+ * 4. Multi-word token overlap
+ */
+function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): CourseTopic | null {
+  if (!allCourses || allCourses.length === 0) return null;
+
+  // 1. Direct ID match
+  if (osi.id_curso) {
+    const idStr = osi.id_curso.toString();
+    const matched = allCourses.find((c) => c.id === idStr);
+    if (matched) return matched;
+  }
+
+  // Normalization helper
+  const normalize = (str?: string | null): string => {
+    if (!str) return "";
+    return str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const rawTargets = [osi.curso_nombre, osi.detalle_capacitacion].filter(Boolean) as string[];
+  const targets = rawTargets.map(normalize).filter(Boolean);
+  if (targets.length === 0) return null;
+
+  // 2. Exact normalized match
+  for (const target of targets) {
+    const matched = allCourses.find((c) => {
+      const cNorm = normalize(c.nombre || c.name);
+      return cNorm === target;
+    });
+    if (matched) return matched;
+  }
+
+  // 3. Substring inclusion match (e.g. "trabajo en alturas" vs "trabajo seguro en alturas")
+  for (const target of targets) {
+    if (target.length < 4) continue;
+    const matched = allCourses.find((c) => {
+      const cNorm = normalize(c.nombre || c.name);
+      if (!cNorm) return false;
+      return cNorm.includes(target) || target.includes(cNorm);
+    });
+    if (matched) return matched;
+  }
+
+  // 4. Multi-word token overlap
+  for (const target of targets) {
+    const targetWords = target.split(" ").filter((w) => w.length > 3);
+    if (targetWords.length === 0) continue;
+    let bestCourse: CourseTopic | null = null;
+    let maxOverlap = 0;
+    for (const c of allCourses) {
+      const cNorm = normalize(c.nombre || c.name);
+      const cWords = new Set(cNorm.split(" ").filter((w) => w.length > 3));
+      const overlap = targetWords.filter((w) => cWords.has(w)).length;
+      if (overlap > maxOverlap && overlap >= Math.min(2, targetWords.length)) {
+        maxOverlap = overlap;
+        bestCourse = c;
+      }
+    }
+    if (bestCourse) return bestCourse;
+  }
+
+  return null;
+}
+
   const handleOSISelect = async (osi: CertificateOSI | null) => {
     if (osi && osi.has_certificates && !editData) {
       const confirmMsg = `La OSI ${osi.nro_osi} ya tiene certificados generados. ¿Estás seguro de que deseas generar otro lote de certificados para esta misma OSI?`;
@@ -333,31 +409,13 @@ export default function GeneracionCertificadoClient({
       const facilitatorResult = await getFacilitatorByOSI(parseInt(osi.id));
       console.log(`[GeneracionCertificado] Facilitator search result for OSI ${osi.id}:`, facilitatorResult);
 
-      // 3. Find matching course
-      let selectedCourse: CourseTopic | null = null;
-      if (osi.id_curso) {
-        selectedCourse =
-          courses.find(
-            (topic: CourseTopic) => topic.id === osi.id_curso!.toString(),
-          ) || null;
-      }
-      if (!selectedCourse && (osi.curso_nombre || osi.detalle_capacitacion)) {
-        const targetName = (
-          osi.curso_nombre ||
-          osi.detalle_capacitacion ||
-          ""
-        ).toLowerCase();
-        selectedCourse =
-          courses.find(
-            (topic: CourseTopic) =>
-              topic.nombre.toLowerCase() === targetName ||
-              topic.name.toLowerCase() === targetName,
-          ) || null;
-      }
+      // 3. Find matching course with smart multi-stage matching
+      const selectedCourse = findBestCourseMatch(osi, courses);
 
       // 4. Determine pre-population data with fallbacks
-      const title = selectedCourse?.name || osi.curso_nombre || osi.detalle_capacitacion || "";
+      const title = selectedCourse?.nombre || selectedCourse?.name || osi.curso_nombre || osi.detalle_capacitacion || "";
       const hours = selectedCourse?.horas_estimadas || osi.nro_horas || undefined;
+      const courseTemplateId = selectedCourse ? "original-course" : "";
       const location = (() => {
         if (osi.id_ciudad) {
           const city = cities.find((c) => c.id === osi.id_ciudad);
@@ -374,7 +432,7 @@ export default function GeneracionCertificadoClient({
         course_topic_id: selectedCourse?.id || "",
         course_topic_data: selectedCourse || undefined,
         course_content: selectedCourse?.contenido_curso || "",
-        course_template_id: "",
+        course_template_id: courseTemplateId,
         date: formattedDate,
         location: location,
         passing_grade: selectedCourse?.nota_aprobatoria ?? 14,
@@ -413,6 +471,25 @@ export default function GeneracionCertificadoClient({
       setSelectedCourseTopic(null);
     }
   };
+
+  // Auto-select OSI if passed via initialOsiParam (e.g. from alerts radar)
+  const hasAutoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (!initialOsiParam || editData || hasAutoSelectedRef.current) return;
+    if (!osis || osis.length === 0 || !courses || courses.length === 0) return;
+
+    const cleanParam = initialOsiParam.replace(/[^\d]/g, "");
+    const target = osis.find(
+      (o: CertificateOSI) =>
+        o.nro_osi?.toString() === initialOsiParam ||
+        o.id?.toString() === initialOsiParam ||
+        (cleanParam && o.nro_osi && o.nro_osi.toString().replace(/[^\d]/g, "") === cleanParam),
+    );
+    if (target) {
+      hasAutoSelectedRef.current = true;
+      handleOSISelect(target);
+    }
+  }, [initialOsiParam, osis, courses, editData]);
 
   const handleCertificateDataChange = (
     field: keyof CertificateGeneration,

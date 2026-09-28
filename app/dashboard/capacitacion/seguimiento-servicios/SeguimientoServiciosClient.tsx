@@ -835,43 +835,17 @@ export default function SeguimientoServiciosClient({
       {/* OSI List */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/50">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-blue-600" />
-              <h3 className="font-semibold text-sm text-gray-900">
-                Seguimiento de OSIs
-              </h3>
-              <span className="text-xs text-gray-500">
-                {searchQuery.trim()
-                  ? `(${totalCount} resultados)`
-                  : `(${totalCount} OSIs)`}
-              </span>
-            </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por OSI o empresa..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                className="pl-8 pr-7 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchInput("");
-                    setSearchQuery("");
-                    setCurrentPage(1);
-                  }}
-                  className="absolute inset-y-0 right-0 w-7 flex items-center justify-center text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/50 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Briefcase className="w-4 h-4 text-blue-600" />
+            <h3 className="font-semibold text-sm text-gray-900">
+              Seguimiento de OSIs
+            </h3>
+            <span className="text-xs text-gray-500">
+              {searchQuery.trim()
+                ? `(${totalCount} resultados)`
+                : `(${totalCount} OSIs)`}
+            </span>
           </div>
         </div>
 
@@ -957,17 +931,20 @@ export default function SeguimientoServiciosClient({
               <span className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5" />
                 Filtros
-                {(Object.values(filters).some((v) => v !== undefined && v !== "") || !!stepFilter) && (
+                {(Object.values(filters).some((v) => v !== undefined && v !== "") || !!stepFilter || !!searchInput.trim()) && (
                   <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
                     Activos
                   </span>
                 )}
               </span>
-              {(Object.values(filters).some((v) => v !== undefined && v !== "") || !!stepFilter) ? (
+              {(Object.values(filters).some((v) => v !== undefined && v !== "") || !!stepFilter || !!searchInput.trim()) ? (
                 <button
                   onClick={() => {
                     setFilters({});
                     setStepFilter("");
+                    setLocalCompany("");
+                    setSearchInput("");
+                    setSearchQuery("");
                     setCurrentPage(1);
                   }}
                   className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md hover:bg-red-100 transition-colors"
@@ -977,7 +954,39 @@ export default function SeguimientoServiciosClient({
                 </button>
               ) : null}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+                {/* Buscar por OSI */}
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-600 mb-1">
+                    Nro. OSI / Búsqueda
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Ej: 3543 o empresa..."
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={handleSearchKeyDown}
+                      className="w-full pl-8 pr-7 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white placeholder-gray-400"
+                    />
+                    {searchInput && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchInput("");
+                          setSearchQuery("");
+                          setCurrentPage(1);
+                        }}
+                        className="absolute inset-y-0 right-0 w-7 flex items-center justify-center text-gray-400 hover:text-gray-600"
+                        title="Borrar búsqueda"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Empresa — searchable combobox */}
                 <div>
                   <label className="block text-[10px] font-medium text-gray-600 mb-1">

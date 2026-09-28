@@ -9,11 +9,14 @@ export default async function GeneracionCertificadoPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { editId } = await searchParams;
+  const resolvedParams = await searchParams;
+  const { editId, osi, osiId } = resolvedParams;
 
   const supabase = await createClient();
   const editIdNum =
     editId && typeof editId === "string" ? parseInt(editId) : null;
+  const initialOsiParam =
+    typeof osi === "string" ? osi : typeof osiId === "string" ? osiId : null;
 
   const [
     { data: claimsData },
@@ -34,6 +37,7 @@ export default async function GeneracionCertificadoPage({
       user={claimsData.claims as any}
       initialData={certificateData}
       editData={editCertificateData}
+      initialOsiParam={initialOsiParam}
     />
   );
 }
