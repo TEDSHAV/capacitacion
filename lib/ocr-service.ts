@@ -96,6 +96,11 @@ export class OCRService {
     mode: "certificate" | "portal" = "certificate"
   ): Promise<OCRResult> {
     try {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (isPdf) {
+        return { text: "", error: "Groq no soporta archivos PDF directamente; pasando a Gemini." };
+      }
+
       const base64 = await this.fileToBase64(file);
       let mimeType = file.type || "image/jpeg";
       if (!mimeType || mimeType === "application/octet-stream") {
@@ -152,7 +157,8 @@ Respond ONLY with a valid JSON object matching this schema:
   ]
 }`;
 
-      const models = ["llama-3.2-90b-vision-preview", "llama-3.2-11b-vision-preview"];
+      // Current active multimodal/vision models on Groq
+      const models = ["qwen/qwen3.8-27b"];
       let lastError = "";
 
       for (const model of models) {

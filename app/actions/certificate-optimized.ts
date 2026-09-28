@@ -54,6 +54,8 @@ const getOptimizedCertificateData = cache(async () => {
       nro_horas: osi.horas_academicas_ejecucion,
       id_estado: osi.id_estado_direccion_ejecucion_efectiva,
       id_ciudad: osi.id_ciudad_direccion_ejecucion_efectiva,
+      id_sede: osi.id_sede || null,
+      sede: osi.sede || null,
       detalle_capacitacion: osi.contenido_servicio,
       codigo_cliente: osi.codigo_cliente,
       nro_presupuesto: osi.nro_presupuesto,

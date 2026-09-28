@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
     if (result.error) {
       const isRateLimit = result.error.includes("429") || result.error.toLowerCase().includes("rate limit") || result.error.toLowerCase().includes("límite");
       return NextResponse.json(
-        { error: result.error },
-        { status: isRateLimit ? 429 : 500 }
+        { success: false, error: result.error },
+        { status: isRateLimit ? 429 : 422 }
       );
     }
 
