@@ -797,16 +797,6 @@ export default function CourseForm({
           </section>
         )}
 
-        {/* Course Materials Modal when opened from edit form */}
-        {isEdit && curso?.id && showMaterialsModal && (
-          <CourseMaterialsModal
-            cursoId={curso.id}
-            cursoNombre={datosFormulario.titulo || curso.nombre}
-            isOpen={showMaterialsModal}
-            onClose={() => setShowMaterialsModal(false)}
-          />
-        )}
-
         {/* Sticky Footer with action buttons */}
         <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 -mx-6 -mb-6 flex justify-between items-center gap-3 rounded-b-2xl">
           <button
@@ -855,6 +845,16 @@ export default function CourseForm({
           </div>
         </div>
       </form>
+
+      {/* Course Materials Modal when opened from edit form */}
+      {isEdit && curso?.id && showMaterialsModal && (
+        <CourseMaterialsModal
+          cursoId={curso.id}
+          cursoNombre={datosFormulario.titulo || curso.nombre}
+          isOpen={showMaterialsModal}
+          onClose={() => setShowMaterialsModal(false)}
+        />
+      )}
     </div>
   );
 }
