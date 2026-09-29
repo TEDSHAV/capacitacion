@@ -100,8 +100,8 @@ const osiTourSteps = [
   {
     element: "#tour-scan-button",
     popover: {
-      title: "Escanear con OCR (IA)",
-      description: "Extrae automáticamente los participantes mediante inteligencia artificial.",
+      title: "Escanear Lista de Asistencia (OCR)",
+      description: "Extrae y transcribe automáticamente los participantes desde el documento escaneado.",
     },
   },
   {
@@ -536,8 +536,8 @@ export const ParticipantForm = ({
                 className="h-10 text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 font-bold self-start sm:self-auto cursor-pointer"
                 id="tour-scan-button"
               >
-                <Sparkles className="w-4 h-4 mr-1.5 text-sky-600" />
-                <span>Escanear con OCR (IA)</span>
+                <Camera className="w-4 h-4 mr-1.5 text-sky-600" />
+                <span>Escanear con OCR</span>
               </Button>
             </div>
 

@@ -37,7 +37,7 @@ interface CourseFormProps {
   onSubmit: (formData: any) => void;
   onCancel: () => void;
   isEdit: boolean;
-  existingCursos?: ExistingCursoRef[];
+  existingCursos?: Curso[];
   editingId?: number | null;
   categories?: CourseCategoryItem[];
   serverError?: string | null;
@@ -851,6 +851,9 @@ export default function CourseForm({
         <CourseMaterialsModal
           cursoId={curso.id}
           cursoNombre={datosFormulario.titulo || curso.nombre}
+          contenidoCurso={datosFormulario.contenido || curso.contenido_curso || ""}
+          cargaHorariaStd={Number(datosFormulario.horas_estimadas) || curso.carga_horaria_std || 8}
+          cursosCatalogo={existingCursos}
           isOpen={showMaterialsModal}
           onClose={() => setShowMaterialsModal(false)}
         />

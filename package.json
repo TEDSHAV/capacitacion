@@ -48,6 +48,7 @@
         "nodemailer": "^9.1.1",
         "pizzip": "^3.2.0",
         "postcss": "^8.5.15",
+        "pptxgenjs": "^4.0.1",
         "qrcode": "^1.5.4",
         "react": "19.2.3",
         "react-dom": "19.2.3",

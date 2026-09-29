@@ -48,10 +48,15 @@ import type {
   MaterialSugerencia,
   EstadoSugerencia,
 } from "@/types/material-didactico";
+import type { Curso } from "@/types";
+import PresentationStudioModal from "./PresentationStudioModal";
 
 interface CourseMaterialsModalProps {
   cursoId?: number;
   cursoNombre?: string;
+  contenidoCurso?: string;
+  cargaHorariaStd?: number;
+  cursosCatalogo?: Curso[];
   osiId?: number;
   osiNumber?: string;
   isOpen: boolean;
@@ -106,12 +111,16 @@ const TIPO_LABELS: Record<TipoMaterial, { label: string; icon: any; color: strin
 export default function CourseMaterialsModal({
   cursoId,
   cursoNombre,
+  contenidoCurso,
+  cargaHorariaStd,
+  cursosCatalogo,
   osiId,
   osiNumber,
   isOpen,
   onClose,
 }: CourseMaterialsModalProps) {
   const [activeTab, setActiveTab] = useState<"materials" | "sugerencias">("materials");
+  const [showStudioModal, setShowStudioModal] = useState(false);
   const [materials, setMaterials] = useState<MaterialDidactico[]>([]);
   const [sugerencias, setSugerencias] = useState<MaterialSugerencia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -473,6 +482,35 @@ export default function CourseMaterialsModal({
 
           {activeTab === "materials" && (
             <>
+              {/* Studio Banner */}
+              {cursoId && !osiId && (
+                <div className="p-4 bg-gradient-to-r from-sky-900 to-sky-950 rounded-2xl text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-sky-800/80 mb-1">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Presentation className="w-4 h-4 text-sky-400" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300">
+                        Estudio de Presentaciones Digitales
+                      </span>
+                    </div>
+                    <h4 className="text-sm font-bold text-white">
+                      ¿Deseas diseñar las diapositivas oficiales de este curso?
+                    </h4>
+                    <p className="text-xs text-sky-200/80 max-w-xl">
+                      Estructure láminas con identidad SHA de Venezuela, secuencias de seguridad, videos y notas del facilitador en formato PPTX nativo.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowStudioModal(true)}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-sky-950 font-bold text-xs transition shadow-sm shrink-0 cursor-pointer"
+                  >
+                    <Presentation className="w-4 h-4" />
+                    <span>Diseñar Presentación</span>
+                  </button>
+                </div>
+              )}
+
               {/* Light Upload Form Card */}
               <div className="p-5 bg-slate-50/70 rounded-xl border border-slate-200 shadow-2xs">
                 <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
@@ -1071,6 +1109,22 @@ export default function CourseMaterialsModal({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Presentation Studio Modal */}
+      {showStudioModal && (
+        <PresentationStudioModal
+          isOpen={showStudioModal}
+          onClose={() => setShowStudioModal(false)}
+          cursoId={cursoId}
+          cursoNombre={cursoNombre || "Curso"}
+          contenidoCurso={contenidoCurso || ""}
+          cargaHorariaStd={cargaHorariaStd || 8}
+          cursosCatalogo={cursosCatalogo}
+          onSuccess={() => {
+            loadAllData();
+          }}
+        />
       )}
     </div>
   );
