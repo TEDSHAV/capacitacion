@@ -55,27 +55,49 @@ export async function generarEstructuraPresentacion(
         ? `Enfócate exclusivamente en el módulo: "${params.moduloNombre}".`
         : `Estructura la presentación cubriendo el contenido completo del curso.`;
 
+    const normasTexto =
+      params.enfoquesNormativos && params.enfoquesNormativos.length > 0
+        ? params.enfoquesNormativos.join(", ")
+        : params.enfoqueNormativo || "COVENIN / LOPCYMAT / OSHA / Estándares Internacionales";
+
+    const targetSlides =
+      params.cantidadLaminasDeseada && params.cantidadLaminasDeseada >= 6
+        ? params.cantidadLaminasDeseada
+        : params.cargaHorariaStd <= 4
+        ? 12
+        : params.cargaHorariaStd <= 8
+        ? 18
+        : params.cargaHorariaStd <= 16
+        ? 26
+        : 34;
+
     const systemPrompt = `Eres el Director de Formación Técnica y Seguridad Industrial (HSEQ) de SHA de Venezuela.
 Tu labor es diseñar la estructura instruccional para una presentación de PowerPoint corporativa de alto impacto visual y pedagógico.
 
 NORMAS Y LINEAMIENTOS OBLIGATORIOS:
 1. Lenguaje: Español técnico, formal, claro y directo.
 2. Enfoque: Seguridad, prevención de accidentes, cumplimiento normativo y disciplina operacional.
-3. Estructura pedagógica recomendada (12 a 24 diapositivas según extensión):
-   - Portada (layout: "portada")
-   - Objetivos y Alcance (layout: "objetivos")
-   - Marco Legal / Normativo (layout: "normativa")
-   - Para cada tema o módulo:
+3. CANTIDAD DE DIAPOSITIVAS: Debes generar EXACTAMENTE ${targetSlides} diapositivas (un arreglo 'slides' con ${targetSlides} elementos).
+4. ESTRUCTURA PEDAGÓGICA Y SECUENCIA DE LÁMINAS (Distribuida en las ${targetSlides} diapositivas):
+   - Portada Oficial (layout: "portada") [Lámina 1]
+   - Objetivos y Alcance de Aprendizaje (layout: "objetivos") [Lámina 2]
+   - Marco Legal y Normativa Aplicable (layout: "normativa") [Lámina 3]
+   - Desarrollo secuencial de las unidades/módulos temáticos del curso:
      - Separador de unidad (layout: "modulo_divider")
      - Definición y Conceptos clave (layout: "concepto")
-     - Procedimiento o Secuencia en campo (layout: "proceso_pasos")
+     - Procedimiento operativo o Pasos en campo (layout: "proceso_pasos")
      - Alerta crítica / Regla que salva vidas / SWA (layout: "alerta_seguridad")
-     - Sugerencia de Recurso en Video (layout: "video_recurso") cuando aplique una demostración práctica
-     - Análisis de caso o taller (layout: "caso_practico")
-   - Evaluación y Preguntas de Cierre (layout: "evaluacion")
+     - Demostración audiovisual sugerida (layout: "video_recurso") cuando aplique práctica técnica
+     - Taller aplicativo o Análisis de caso real (layout: "caso_practico")
+   - Evaluación y Preguntas de Cierre (layout: "evaluacion") [Última lámina]
 
-4. Cada diapositiva DEBE incluir "notasFacilitador": 2 a 4 oraciones con guías prácticas para el instructor durante la clase.
-5. NO menciones herramientas digitales o inteligencia artificial en ningún texto visible ni en notas.
+5. INTEGRACIÓN OBLIGATORIA DE REQUERIMIENTOS:
+   a) Temario Oficial: Cada lámina debe desarrollar fielmente los temas indicados en el contenido programático.
+   b) Marco Normativo: Cita explícitamente artículos, directrices y regulaciones de las normas seleccionadas (${normasTexto}).
+   c) Estándar del Cliente (si se adjuntó PDF): Extrae obligatoriamente la terminología del cliente, procedimientos específicos y reglas obligatorias para reflejarlas en las diapositivas.
+   d) Directrices Adicionales: Aplica con exactitud el énfasis instruccional solicitado por el usuario.
+   e) Notas para el Facilitador: Cada diapositiva DEBE incluir "notasFacilitador" (2 a 4 oraciones con recomendaciones didácticas y preguntas detonantes para el instructor).
+6. NO menciones herramientas digitales o inteligencia artificial en ningún texto visible ni en notas.
 
 Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
 {
@@ -102,18 +124,19 @@ Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
 
     const userPrompt = `Curso: "${params.cursoNombre}"
 Duración Oficial: ${params.cargaHorariaStd} horas
+Objetivo de Láminas: EXACTAMENTE ${targetSlides} diapositivas
 Alcance del Documento: ${scopeText}
-Enfoque Normativo: ${params.enfoqueNormativo || "COVENIN / LOPCYMAT / OSHA / Estándares Internacionales"}
+Marco Normativo Requerido: ${normasTexto}
 Nivel de la Audiencia: ${params.audienciaNivel || "Personal Operativo y Supervisores Técnicos"}
-Directrices Adicionales: ${params.directricesAdicionales || "Ninguna"}
+Directrices Específicas / Énfasis Instruccional: ${params.directricesAdicionales || "Ninguna"}
 ${
   params.pdfEstandarNombre
     ? `\nNORMA / ESTÁNDAR ESPECÍFICO DEL CLIENTE ADJUNTO: "${params.pdfEstandarNombre}".
-Extrae obligatoriamente del documento PDF adjunto los procedimientos clave, terminología propia del cliente, reglas de seguridad y requisitos operacionales para reflejarlos fielmente en el diseño de las láminas.`
+INSTRUCCIÓN PRIORITARIA: Extrae obligatoriamente del documento PDF adjunto los procedimientos clave, terminología propia del cliente, reglas de seguridad que salvan vidas y requisitos operacionales para integrarlos de forma fidedigna en las láminas.`
     : ""
 }
 
-Contenido Programático / Temario:
+Contenido Programático / Temario del Curso:
 ${contenidoLimpio || "Desarrollar el temario según las mejores prácticas para este título de curso."}`;
 
     let jsonResponseText = "";
@@ -154,7 +177,7 @@ ${contenidoLimpio || "Desarrollar el temario según las mejores prácticas para 
                 generationConfig: {
                   responseMimeType: "application/json",
                   temperature: 0.3,
-                  maxOutputTokens: 6000,
+                  maxOutputTokens: 12000,
                 },
               }),
             },

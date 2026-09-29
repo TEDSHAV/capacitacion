@@ -43,9 +43,11 @@ export interface GeneracionPresentacionParams {
   cargaHorariaStd: number;
   alcance: "curso_completo" | "modulo_especifico";
   moduloNombre?: string;
+  enfoquesNormativos?: string[];
   enfoqueNormativo?: string;
   audienciaNivel?: string;
   directricesAdicionales?: string;
+  cantidadLaminasDeseada?: number;
   // Client-specific standard PDF
   pdfEstandarBase64?: string;
   pdfEstandarNombre?: string;
