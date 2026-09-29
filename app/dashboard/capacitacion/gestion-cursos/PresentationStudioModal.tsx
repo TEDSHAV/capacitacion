@@ -1199,6 +1199,17 @@ export default function PresentationStudioModal({
                     </span>
                   </div>
                 </div>
+
+                {/* Pedagogical recommendation for large presentations */}
+                <div className="flex items-start gap-2.5 p-3 bg-sky-50 border border-sky-200/80 rounded-xl">
+                  <Lightbulb className="w-4 h-4 text-sky-700 shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-700 leading-relaxed">
+                    <strong className="text-sky-950 font-bold">Recomendación para cursos extensos:</strong>{" "}
+                    Si el material requiere más de 35 a 40 láminas, es altamente aconsejable estructurar por{" "}
+                    <strong className="text-sky-800 font-semibold">Módulo Específico</strong> (en la Sección 5). 
+                    Generar unidad por unidad garantiza mayor profundidad en los procedimientos, alertas críticas y notas del facilitador.
+                  </div>
+                </div>
               </div>
 
               {/* CARD 5: SCOPE, AUDIENCE & DIRECTIVES */}

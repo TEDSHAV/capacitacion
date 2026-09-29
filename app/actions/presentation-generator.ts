@@ -154,9 +154,10 @@ ${contenidoLimpio || "Desarrollar el temario según las mejores prácticas para 
 
     let jsonResponseText = "";
 
-    // Dynamic timeout: 30s base, scaled up for large slide counts
-    const REQUEST_TIMEOUT_MS = Math.min(60000, Math.max(30000, targetSlides * 400));
-    const RETRY_DELAY_MS = 2000;
+    // Dynamic timeout: 75s base, scaled up for large slide counts (up to 120s)
+    // Ensures complex 20-50 slide JSON outputs never get aborted prematurely
+    const REQUEST_TIMEOUT_MS = Math.min(120000, Math.max(75000, targetSlides * 1000));
+    const RETRY_DELAY_MS = 1500;
     const MAX_RETRIES = 1;
 
     // ── Engine Priority ──
@@ -264,8 +265,8 @@ function safeParseJson(text: string): any | null {
 }
 
 /**
- * Try Groq engine (llama-3.3-70b-versatile).
- * Ultra-fast text generation, works on VPS (non-Venezuelan IP).
+ * Try Groq engine (multi-model cascade).
+ * Ultra-fast text generation, unblocked on production VPS.
  */
 async function tryGroq(
   apiKey: string,
@@ -278,65 +279,81 @@ async function tryGroq(
 ): Promise<string> {
   if (!apiKey) return "";
 
-  console.log("[presentation-generator] Attempting Groq (llama-3.3-70b-versatile)...");
+  // Cascade of active Groq text models
+  const groqModels = [
+    "llama-3.3-70b-specdec",
+    "llama-3.1-8b-instant",
+    "qwen/qwen3.8-27b",
+    "llama-3.3-70b-versatile",
+  ];
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  for (const model of groqModels) {
+    console.log(`[presentation-generator] Attempting Groq (${model})...`);
 
-    try {
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0.3,
-          max_tokens: Math.min(32768, Math.max(8192, targetSlides * 350)),
-        }),
-        signal: controller.signal,
-      });
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      clearTimeout(timeoutId);
+      try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.3,
+            max_tokens: Math.min(32768, Math.max(8192, targetSlides * 350)),
+          }),
+          signal: controller.signal,
+        });
 
-      if (response.ok) {
-        const result = await response.json();
-        const content = result.choices?.[0]?.message?.content || "";
-        if (content) {
-          console.log(`[presentation-generator] Groq succeeded (attempt ${attempt + 1}).`);
-          return content;
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const result = await response.json();
+          const content = result.choices?.[0]?.message?.content || "";
+          if (content) {
+            console.log(`[presentation-generator] Groq ${model} succeeded (attempt ${attempt + 1}).`);
+            return content;
+          }
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          const errMsg = errData?.error?.message || response.statusText;
+          console.warn(`[presentation-generator] Groq model ${model} returned ${response.status}: ${errMsg}`);
+
+          // 403 = geo-blocked (Venezuela IP) — immediately skip all Groq and use Gemini
+          if (response.status === 403) {
+            console.warn("[presentation-generator] Groq 403 (geo-blocked). Skipping to Gemini.");
+            return "";
+          }
+
+          // 404 = model not accessible on this key/tier — advance to next Groq model
+          if (response.status === 404) {
+            break;
+          }
+
+          // Retry on transient errors (429 rate limit, 503 overloaded)
+          if ((response.status === 429 || response.status === 503) && attempt < maxRetries) {
+            console.warn(`[presentation-generator] Groq retry in ${retryDelayMs}ms...`);
+            await new Promise((r) => setTimeout(r, retryDelayMs));
+            continue;
+          }
         }
-      } else {
-        const errData = await response.json().catch(() => ({}));
-        const errMsg = errData?.error?.message || response.statusText;
-        console.warn(`[presentation-generator] Groq returned ${response.status}: ${errMsg}`);
 
-        // Retry on transient errors (429 rate limit, 503 overloaded)
-        if ((response.status === 429 || response.status === 503) && attempt < maxRetries) {
-          console.warn(`[presentation-generator] Groq retry in ${retryDelayMs}ms...`);
-          await new Promise((r) => setTimeout(r, retryDelayMs));
-          continue;
-        }
-        // 403 = geo-blocked (Venezuela IP) — don't retry
-        if (response.status === 403) {
-          console.warn("[presentation-generator] Groq 403 (geo-blocked). Skipping.");
-          return "";
-        }
+        break;
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        const msg = fetchErr instanceof Error ? fetchErr.message : "Network error";
+        console.warn(`[presentation-generator] Groq ${model} fetch error: ${msg}`);
+        break;
       }
-
-      break; // Non-retryable error or success with empty content
-    } catch (fetchErr) {
-      clearTimeout(timeoutId);
-      const msg = fetchErr instanceof Error ? fetchErr.message : "Network error";
-      console.warn(`[presentation-generator] Groq fetch error: ${msg}`);
-      break;
     }
   }
 
@@ -359,11 +376,15 @@ async function tryGemini(
 ): Promise<string> {
   if (!apiKey) return "";
 
-  // Trimmed model cascade aligned with OCR service (3 proven models)
+  // Active Gemini models: 3.6-flash & 3.5-flash verified working
+  // 2.5-flash deprecated (404) removed; 3.8/3.7 included with instant 503 skip
   const geminiModels = [
-    "gemini-3.8-flash",
+    "gemini-3.6-flash",
     "gemini-3.5-flash",
-    "gemini-2.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-flash-latest",
   ];
 
   const userParts: any[] = [];
@@ -428,8 +449,14 @@ async function tryGemini(
         const errMsg = errData?.error?.message || response.statusText;
         console.warn(`[presentation-generator] Gemini ${model} returned ${response.status}: ${errMsg}`);
 
-        // Retry on transient errors (429 rate limit, 503 overloaded)
-        if ((response.status === 429 || response.status === 503) && attempt < maxRetries) {
+        // 503 = high demand spike on this specific model -> immediately advance to next model!
+        if (response.status === 503) {
+          console.warn(`[presentation-generator] Gemini ${model} overloaded (503). Skipping to next model in cascade.`);
+          break; // Advance immediately to next model in list!
+        }
+
+        // Retry on 429 rate limit
+        if (response.status === 429 && attempt < maxRetries) {
           console.warn(`[presentation-generator] Gemini ${model} retry in ${retryDelayMs}ms...`);
           await new Promise((r) => setTimeout(r, retryDelayMs));
           continue;
