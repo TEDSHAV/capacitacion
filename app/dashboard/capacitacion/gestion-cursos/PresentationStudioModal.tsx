@@ -827,6 +827,14 @@ export default function PresentationStudioModal({
                   </div>
                 </div>
 
+                {/* Recommendation notice */}
+                <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+                  <Lightbulb className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    <strong>Recomendación:</strong> Para obtener mejores resultados y mayor velocidad de generación, se recomienda <strong>pegar el texto</strong> copiado de la norma o estándar del cliente en lugar de cargar el PDF. El texto permite una integración más precisa del contenido en las diapositivas.
+                  </p>
+                </div>
+
                 {/* Option 2A: PDF file upload & library */}
                 {modoEstandar === "pdf" && (
                   <>
