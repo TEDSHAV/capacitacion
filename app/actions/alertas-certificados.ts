@@ -95,26 +95,30 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
   try {
     const supabase = await createAdminClient();
     
-    // Fetch Venezuelan holidays for accurate business day calculations
-    const { data: feriadosData } = await supabase
-      .from("cat_feriados_venezuela")
-      .select("fecha");
-    const holidays = new Set((feriadosData || []).map((r: { fecha: string }) => r.fecha));
+    // Fetch holidays and OSIs in parallel — they are independent queries
+    const [feriadosResult, osisResult] = await Promise.all([
+      // Venezuelan holidays for business day calculations
+      supabase.from("cat_feriados_venezuela").select("fecha"),
+      // Capacitacion OSIs (exclude pending PEN-)
+      // Order by fecha_inicio_real descending — most recent operational horizon (up to 400 OSIs)
+      supabase
+        .from("v_osi_formato_completo")
+        .select(
+          "id_osi, nro_osi, nombre_empresa, servicio, fecha_inicio_real, fecha_fin_real, tipo_servicio, id_estatus, sesiones_ejecucion",
+        )
+        .ilike("tipo_servicio", "%capacitacion%")
+        .not("nro_osi", "ilike", "%PEN-%")
+        .order("fecha_inicio_real", { ascending: false, nullsFirst: false })
+        .limit(400),
+    ]);
+
+    const holidays = new Set((feriadosResult.data || []).map((r: { fecha: string }) => r.fecha));
 
     const todayStr = getCaracasTodayStr();
     const todayDate = parseDate(todayStr);
 
-    // 1. Fetch capacitacion OSIs (exclude pending PEN-)
-    // We order by fecha_inicio_real descending to get the most recent operational horizon (up to 400 OSIs)
-    const { data: osisRaw, error: osisErr } = await supabase
-      .from("v_osi_formato_completo")
-      .select(
-        "id_osi, nro_osi, nombre_empresa, servicio, fecha_inicio_real, fecha_fin_real, tipo_servicio, id_estatus, sesiones_ejecucion",
-      )
-      .ilike("tipo_servicio", "%capacitacion%")
-      .not("nro_osi", "ilike", "%PEN-%")
-      .order("fecha_inicio_real", { ascending: false, nullsFirst: false })
-      .limit(400);
+    const osisRaw = osisResult.data;
+    const osisErr = osisResult.error;
 
     if (osisErr || !osisRaw || osisRaw.length === 0) {
       if (osisErr) console.error("[alertas-certificados] Error fetching OSIs:", osisErr);
