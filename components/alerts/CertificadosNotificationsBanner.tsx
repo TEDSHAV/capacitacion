@@ -124,7 +124,7 @@ export function CertificadosNotificationsBanner() {
 
       {/* Trendy colorful neon gradient border surrounding the entire card */}
       <div className="relative rounded-2xl p-[1.5px] bg-gradient-to-r from-amber-500 via-rose-500 via-purple-600 via-sky-500 to-emerald-400 shadow-sm group-hover:shadow-md transition-shadow">
-        <div className="rounded-[14.5px] bg-white text-slate-800 p-6 relative overflow-hidden">
+        <div className="rounded-[14.5px] bg-white text-slate-800 p-6 pr-12 relative overflow-hidden">
           {/* Dismiss button */}
           <button
             type="button"
