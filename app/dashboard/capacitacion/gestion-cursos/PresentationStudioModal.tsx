@@ -71,8 +71,9 @@ export interface SavedStandardPdf {
   id: string;
   nombre: string;
   sizeBytes: number;
-  base64: string;
   fechaGuardado: string;
+  // Note: base64 is NOT stored in localStorage (quota limit).
+  // The user must re-upload the file when selecting from the library.
 }
 
 const LAYOUT_LABELS: Record<SlideLayoutType, { label: string; icon: string }> = {
@@ -327,13 +328,12 @@ export default function PresentationStudioModal({
       setPdfEstandarSizeBytes(file.size);
       setErrorMsg(null);
 
-      // Save into reusable client standards library
+      // Save metadata (NOT base64) into reusable client standards library
       try {
         const newSaved: SavedStandardPdf = {
           id: `std-${Date.now()}`,
           nombre: file.name,
           sizeBytes: file.size,
-          base64,
           fechaGuardado: new Date().toLocaleDateString("es-VE"),
         };
         const filtered = standardsGuardados.filter((s) => s.nombre !== file.name);
@@ -351,9 +351,14 @@ export default function PresentationStudioModal({
   };
 
   const handleSeleccionarStandardGuardado = (std: SavedStandardPdf) => {
-    setPdfEstandarBase64(std.base64);
+    // Set the name so the user knows which standard they picked,
+    // then trigger the file picker so they re-upload the actual file.
     setPdfEstandarNombre(std.nombre);
     setPdfEstandarSizeBytes(std.sizeBytes);
+    // Trigger file picker for re-upload (base64 is not stored in localStorage)
+    if (pdfInputRef.current) {
+      pdfInputRef.current.click();
+    }
   };
 
   const handleEliminarStandardGuardado = (id: string, e: React.MouseEvent) => {
@@ -932,7 +937,7 @@ export default function PresentationStudioModal({
                       className="w-full text-xs rounded-xl border border-slate-300 bg-white p-3 text-slate-800 focus:ring-2 focus:ring-emerald-500 resize-none font-normal"
                     />
                     <div className="flex items-center justify-between text-[10px] text-slate-500">
-                      <span>Compatible con todos los motores (Gemini y Groq/LLaMA en VPS).</span>
+                      <span>Compatible con la generación de contenido en cualquier entorno.</span>
                       {textoEstandarCliente.trim().length > 0 && (
                         <span className="font-semibold text-emerald-700">
                           {textoEstandarCliente.trim().length} caracteres ingresados

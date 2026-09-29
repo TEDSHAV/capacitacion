@@ -39,8 +39,9 @@ export async function generarEstructuraPresentacion(
   params: GeneracionPresentacionParams,
 ): Promise<ResultadoGeneracionEstructura> {
   try {
-    const groqKey = process.env.GROQ_API_KEY;
-    const geminiKey = process.env.GEMINI_API_KEY;
+    // Read API keys with OCR-compatible fallback chain
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+    const groqKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY || "";
 
     if (!groqKey && !geminiKey) {
       return {
@@ -70,6 +71,9 @@ export async function generarEstructuraPresentacion(
         : params.cargaHorariaStd <= 16
         ? 26
         : 34;
+
+    // Whether a client standard PDF is attached (requires Gemini multimodal)
+    const hasPdfAttachment = !!(params.pdfEstandarBase64 && params.pdfEstandarNombre);
 
     const systemPrompt = `Eres el Director de Formación Técnica y Seguridad Industrial (HSEQ) de SHA de Venezuela.
 Tu labor es diseñar la estructura instruccional para una presentación de PowerPoint corporativa de alto impacto visual y pedagógico.
@@ -150,120 +154,51 @@ ${contenidoLimpio || "Desarrollar el temario según las mejores prácticas para 
 
     let jsonResponseText = "";
 
-    // 1. Primary Engine: Gemini (Multi-model cascade with verified available models)
-    // Supports native multimodal PDF parsing for client-specific standards
-    if (geminiKey) {
-      const geminiModels = [
-        "gemini-3.5-flash",
-        "gemini-2.5-flash",
-        "gemini-3.5-flash-lite",
-        "gemini-3-flash-preview",
-        "gemini-flash-latest",
-        "gemini-2.5-pro",
-      ];
-      const userParts: any[] = [];
+    // Dynamic timeout: 30s base, scaled up for large slide counts
+    const REQUEST_TIMEOUT_MS = Math.min(60000, Math.max(30000, targetSlides * 400));
+    const RETRY_DELAY_MS = 2000;
+    const MAX_RETRIES = 1;
 
-      // If client attached a specific standard PDF, include it directly as inlineData
-      if (params.pdfEstandarBase64) {
-        const cleanBase64 = params.pdfEstandarBase64.replace(/^data:[^;]+;base64,/, "");
-        userParts.push({
-          inlineData: {
-            mimeType: "application/pdf",
-            data: cleanBase64,
-          },
-        });
+    // ── Engine Priority ──
+    // When a client standard PDF is attached, Gemini runs first (multimodal PDF required).
+    // Otherwise, Groq runs first (dramatically faster text generation on VPS).
+    if (hasPdfAttachment) {
+      // PDF attached → Gemini first (multimodal), then Groq fallback (text-only)
+      jsonResponseText = await tryGemini(geminiKey, systemPrompt, userPrompt, params, targetSlides, REQUEST_TIMEOUT_MS, MAX_RETRIES, RETRY_DELAY_MS);
+      if (!jsonResponseText) {
+        jsonResponseText = await tryGroq(groqKey, systemPrompt, userPrompt, targetSlides, REQUEST_TIMEOUT_MS, MAX_RETRIES, RETRY_DELAY_MS);
       }
-
-      userParts.push({ text: `${systemPrompt}\n\n${userPrompt}` });
-
-      for (const model of geminiModels) {
-        try {
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [
-                  {
-                    role: "user",
-                    parts: userParts,
-                  },
-                ],
-                generationConfig: {
-                  responseMimeType: "application/json",
-                  temperature: 0.3,
-                  maxOutputTokens: Math.min(65536, Math.max(12000, targetSlides * 350)),
-                },
-              }),
-            },
-          );
-
-          if (response.ok) {
-            const result = await response.json();
-            jsonResponseText = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            if (jsonResponseText) break;
-          } else {
-            console.warn(`[presentation-generator] Gemini ${model} returned ${response.status}`);
-          }
-        } catch (geminiErr) {
-          console.warn(`[presentation-generator] Gemini ${model} error:`, geminiErr);
-        }
-      }
-    }
-
-    // 2. High-Speed Fallback Engine: Groq (llama-3.3-70b-versatile -> llama-3.1-8b-instant -> mixtral-8x7b-32768)
-    // Executes on VPS where non-Venezuelan IP avoids 403 geo-blocking.
-    // Handles full text prompts including pasted client standards.
-    if (!jsonResponseText && groqKey) {
-      const groqModels = [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
-        "mixtral-8x7b-32768",
-      ];
-      for (const gModel of groqModels) {
-        try {
-          const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${groqKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: gModel,
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt },
-              ],
-              response_format: { type: "json_object" },
-              temperature: 0.3,
-              max_tokens: Math.min(8192, Math.max(4096, targetSlides * 300)),
-            }),
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            jsonResponseText = result.choices?.[0]?.message?.content || "";
-            if (jsonResponseText) break;
-          } else {
-            console.warn(`[presentation-generator] Groq ${gModel} returned ${response.status}`);
-          }
-        } catch (groqErr) {
-          console.warn(`[presentation-generator] Groq ${gModel} error:`, groqErr);
-        }
+    } else {
+      // No PDF → Groq first (faster on VPS), then Gemini fallback
+      jsonResponseText = await tryGroq(groqKey, systemPrompt, userPrompt, targetSlides, REQUEST_TIMEOUT_MS, MAX_RETRIES, RETRY_DELAY_MS);
+      if (!jsonResponseText) {
+        jsonResponseText = await tryGemini(geminiKey, systemPrompt, userPrompt, params, targetSlides, REQUEST_TIMEOUT_MS, MAX_RETRIES, RETRY_DELAY_MS);
       }
     }
 
     if (!jsonResponseText) {
       return {
         success: false,
-        error: "No se pudo generar la estructura de la presentación en este momento.",
+        error: "No se pudo generar la estructura de la presentación en este momento. Verifique las claves de API del servidor e intente nuevamente.",
       };
     }
 
-    // Parse JSON safely
-    const parsed = JSON.parse(jsonResponseText);
+    // Parse JSON safely with regex fallback (matches OCR service robustness)
+    const parsed = safeParseJson(jsonResponseText);
+    if (!parsed) {
+      return {
+        success: false,
+        error: "El motor de diseño devolvió un formato no interpretable. Intente generar nuevamente.",
+      };
+    }
     const rawSlides: any[] = Array.isArray(parsed) ? parsed : parsed.slides || [];
+
+    if (rawSlides.length === 0) {
+      return {
+        success: false,
+        error: "El motor de diseño no generó diapositivas. Intente con menos láminas o revise los parámetros.",
+      };
+    }
 
     const slides: SlideDefinition[] = rawSlides.map((s, idx) => ({
       id: s.id || `slide-${idx + 1}`,
@@ -294,6 +229,229 @@ ${contenidoLimpio || "Desarrollar el temario según las mejores prácticas para 
       error: err.message || "Error al generar la estructura de presentación",
     };
   }
+}
+
+/**
+ * Safely parse JSON with fallback regex extraction for malformed LLM output
+ * (markdown fences, trailing text, etc.). Mirrors OCR service parseJsonResponse.
+ */
+function safeParseJson(text: string): any | null {
+  // Strip markdown code fences if present
+  const cleaned = text
+    .replace(/^```(?:json)?\s*\n?/i, "")
+    .replace(/\n?```\s*$/i, "")
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Regex fallback: extract the outermost JSON object
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        // final attempt: extract JSON array
+        const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+        if (arrMatch) {
+          try { return JSON.parse(arrMatch[0]); } catch { /* give up */ }
+        }
+      }
+    }
+    console.error("[presentation-generator] Failed to parse JSON response:", text.substring(0, 200));
+    return null;
+  }
+}
+
+/**
+ * Try Groq engine (llama-3.3-70b-versatile).
+ * Ultra-fast text generation, works on VPS (non-Venezuelan IP).
+ */
+async function tryGroq(
+  apiKey: string,
+  systemPrompt: string,
+  userPrompt: string,
+  targetSlides: number,
+  timeoutMs: number,
+  maxRetries: number,
+  retryDelayMs: number,
+): Promise<string> {
+  if (!apiKey) return "";
+
+  console.log("[presentation-generator] Attempting Groq (llama-3.3-70b-versatile)...");
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.3,
+          max_tokens: Math.min(32768, Math.max(8192, targetSlides * 350)),
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const result = await response.json();
+        const content = result.choices?.[0]?.message?.content || "";
+        if (content) {
+          console.log(`[presentation-generator] Groq succeeded (attempt ${attempt + 1}).`);
+          return content;
+        }
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData?.error?.message || response.statusText;
+        console.warn(`[presentation-generator] Groq returned ${response.status}: ${errMsg}`);
+
+        // Retry on transient errors (429 rate limit, 503 overloaded)
+        if ((response.status === 429 || response.status === 503) && attempt < maxRetries) {
+          console.warn(`[presentation-generator] Groq retry in ${retryDelayMs}ms...`);
+          await new Promise((r) => setTimeout(r, retryDelayMs));
+          continue;
+        }
+        // 403 = geo-blocked (Venezuela IP) — don't retry
+        if (response.status === 403) {
+          console.warn("[presentation-generator] Groq 403 (geo-blocked). Skipping.");
+          return "";
+        }
+      }
+
+      break; // Non-retryable error or success with empty content
+    } catch (fetchErr) {
+      clearTimeout(timeoutId);
+      const msg = fetchErr instanceof Error ? fetchErr.message : "Network error";
+      console.warn(`[presentation-generator] Groq fetch error: ${msg}`);
+      break;
+    }
+  }
+
+  return "";
+}
+
+/**
+ * Try Gemini engine (multi-model cascade).
+ * Supports native multimodal PDF parsing for client-specific standards.
+ */
+async function tryGemini(
+  apiKey: string,
+  systemPrompt: string,
+  userPrompt: string,
+  params: GeneracionPresentacionParams,
+  targetSlides: number,
+  timeoutMs: number,
+  maxRetries: number,
+  retryDelayMs: number,
+): Promise<string> {
+  if (!apiKey) return "";
+
+  // Trimmed model cascade aligned with OCR service (3 proven models)
+  const geminiModels = [
+    "gemini-3.8-flash",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
+  ];
+
+  const userParts: any[] = [];
+
+  // If client attached a specific standard PDF, include it directly as inlineData
+  if (params.pdfEstandarBase64) {
+    const cleanBase64 = params.pdfEstandarBase64.replace(/^data:[^;]+;base64,/, "");
+    userParts.push({
+      inlineData: {
+        mimeType: "application/pdf",
+        data: cleanBase64,
+      },
+    });
+  }
+
+  userParts.push({ text: `${systemPrompt}\n\n${userPrompt}` });
+
+  for (const model of geminiModels) {
+    console.log(`[presentation-generator] Trying Gemini model: ${model}...`);
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: "user",
+                  parts: userParts,
+                },
+              ],
+              generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.3,
+                maxOutputTokens: Math.min(65536, Math.max(12000, targetSlides * 350)),
+              },
+            }),
+            signal: controller.signal,
+          },
+        );
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const result = await response.json();
+          const content = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          if (content) {
+            console.log(`[presentation-generator] Gemini ${model} succeeded (attempt ${attempt + 1}).`);
+            return content;
+          }
+          console.warn(`[presentation-generator] Gemini ${model}: empty candidate text`);
+          break; // Empty response — skip to next model
+        }
+
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData?.error?.message || response.statusText;
+        console.warn(`[presentation-generator] Gemini ${model} returned ${response.status}: ${errMsg}`);
+
+        // Retry on transient errors (429 rate limit, 503 overloaded)
+        if ((response.status === 429 || response.status === 503) && attempt < maxRetries) {
+          console.warn(`[presentation-generator] Gemini ${model} retry in ${retryDelayMs}ms...`);
+          await new Promise((r) => setTimeout(r, retryDelayMs));
+          continue;
+        }
+
+        // 404 = deprecated model — skip immediately
+        if (response.status === 404) {
+          console.warn(`[presentation-generator] Gemini ${model} is deprecated (404). Skipping.`);
+          break;
+        }
+
+        break; // Other errors — skip to next model
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        const msg = fetchErr instanceof Error ? fetchErr.message : "Network error";
+        console.warn(`[presentation-generator] Gemini ${model} fetch error: ${msg}`);
+        break;
+      }
+    }
+  }
+
+  return "";
 }
 
 /**
