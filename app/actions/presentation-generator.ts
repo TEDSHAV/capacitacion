@@ -61,7 +61,7 @@ export async function generarEstructuraPresentacion(
         : params.enfoqueNormativo || "COVENIN / LOPCYMAT / OSHA / Estándares Internacionales";
 
     const targetSlides =
-      params.cantidadLaminasDeseada && params.cantidadLaminasDeseada >= 6
+      params.cantidadLaminasDeseada && params.cantidadLaminasDeseada >= 1
         ? params.cantidadLaminasDeseada
         : params.cargaHorariaStd <= 4
         ? 12
@@ -177,7 +177,7 @@ ${contenidoLimpio || "Desarrollar el temario según las mejores prácticas para 
                 generationConfig: {
                   responseMimeType: "application/json",
                   temperature: 0.3,
-                  maxOutputTokens: 12000,
+                  maxOutputTokens: Math.min(65536, Math.max(12000, targetSlides * 350)),
                 },
               }),
             },

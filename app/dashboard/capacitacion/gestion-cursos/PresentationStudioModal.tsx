@@ -31,6 +31,8 @@ import {
   FileCheck,
   Scale,
   SlidersHorizontal,
+  Bookmark,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +59,22 @@ interface PresentationStudioModalProps {
   onSuccess?: () => void;
 }
 
+export interface NormaItem {
+  id: string;
+  label: string;
+  desc: string;
+  categoria?: string;
+  esCustom?: boolean;
+}
+
+export interface SavedStandardPdf {
+  id: string;
+  nombre: string;
+  sizeBytes: number;
+  base64: string;
+  fechaGuardado: string;
+}
+
 const LAYOUT_LABELS: Record<SlideLayoutType, { label: string; icon: string }> = {
   portada: { label: "Portada Oficial", icon: "🏛️" },
   modulo_divider: { label: "Separador de Unidad", icon: "📑" },
@@ -70,16 +88,16 @@ const LAYOUT_LABELS: Record<SlideLayoutType, { label: string; icon: string }> = 
   evaluacion: { label: "Evaluación y Cierre", icon: "📝" },
 };
 
-const NORMAS_PREDEFINIDAS = [
-  { id: "covenin", label: "COVENIN (Venezuela)", desc: "Normas técnicas venezolanas" },
-  { id: "lopcymat", label: "LOPCYMAT y Reglamentos", desc: "Marco legal laboral SST" },
-  { id: "osha_1910", label: "OSHA 1910", desc: "Industria General" },
-  { id: "osha_1926", label: "OSHA 1926", desc: "Construcción y Obras Civiles" },
-  { id: "iogp", label: "IOGP", desc: "Petróleo, Gas y Operaciones Offshore" },
-  { id: "iso_45001", label: "ISO 45001", desc: "Sistemas de Gestión SST" },
-  { id: "nfpa", label: "NFPA", desc: "Protección Contra Incendios y Emergencias" },
-  { id: "asme_ansi", label: "ASME / ANSI", desc: "Izamiento, Grúas y Rigging" },
-  { id: "api", label: "API", desc: "American Petroleum Institute" },
+const NORMAS_PREDEFINIDAS_BASE: NormaItem[] = [
+  { id: "covenin", label: "COVENIN (Venezuela)", desc: "Normas técnicas venezolanas", categoria: "Nacional" },
+  { id: "lopcymat", label: "LOPCYMAT y Reglamentos", desc: "Marco legal laboral SST", categoria: "Nacional" },
+  { id: "osha_1910", label: "OSHA 1910", desc: "Industria General", categoria: "Internacional" },
+  { id: "osha_1926", label: "OSHA 1926", desc: "Construcción y Obras Civiles", categoria: "Internacional" },
+  { id: "iogp", label: "IOGP", desc: "Petróleo, Gas y Operaciones Offshore", categoria: "Petróleo/Gas" },
+  { id: "iso_45001", label: "ISO 45001", desc: "Sistemas de Gestión SST", categoria: "Gestión" },
+  { id: "nfpa", label: "NFPA", desc: "Protección Contra Incendios y Emergencias", categoria: "Emergencias" },
+  { id: "asme_ansi", label: "ASME / ANSI", desc: "Izamiento, Grúas y Rigging", categoria: "Técnica" },
+  { id: "api", label: "API", desc: "American Petroleum Institute", categoria: "Petróleo/Gas" },
 ];
 
 function calcularLaminasSugeridas(horas: number): number {
@@ -117,16 +135,21 @@ export default function PresentationStudioModal({
   const [pdfEstandarBase64, setPdfEstandarBase64] = useState<string | null>(null);
   const [pdfEstandarNombre, setPdfEstandarNombre] = useState<string | null>(null);
   const [pdfEstandarSizeBytes, setPdfEstandarSizeBytes] = useState<number | null>(null);
+  const [standardsGuardados, setStandardsGuardados] = useState<SavedStandardPdf[]>([]);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
-  // Multi-selection of Normative Frameworks
+  // Multi-selection of Normative Frameworks & Catalog Management
+  const [normasDisponibles, setNormasDisponibles] = useState<NormaItem[]>(NORMAS_PREDEFINIDAS_BASE);
   const [enfoquesNormativos, setEnfoquesNormativos] = useState<string[]>([
     "COVENIN (Venezuela)",
     "LOPCYMAT y Reglamentos",
   ]);
-  const [normaPersonalizada, setNormaPersonalizada] = useState<string>("");
+  const [mostrarModalGestionNormas, setMostrarModalGestionNormas] = useState(false);
+  const [nuevaNormaNombre, setNuevaNormaNombre] = useState("");
+  const [nuevaNormaDesc, setNuevaNormaDesc] = useState("");
+  const [nuevaNormaCategoria, setNuevaNormaCategoria] = useState("Empresarial");
 
-  // Slide Count Controls
+  // Slide Count Controls (freely editable, unbounded)
   const [cantidadLaminas, setCantidadLaminas] = useState<number>(() =>
     calcularLaminasSugeridas(cargaHorariaStd || 8),
   );
@@ -149,6 +172,29 @@ export default function PresentationStudioModal({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const videoInputRef = useRef<HTMLInputElement>(null);
+
+  // Load custom saved norms and standards library from localStorage
+  useEffect(() => {
+    try {
+      const storedNorms = localStorage.getItem("prisma_studio_normas_custom");
+      if (storedNorms) {
+        const parsed: NormaItem[] = JSON.parse(storedNorms);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setNormasDisponibles([...NORMAS_PREDEFINIDAS_BASE, ...parsed]);
+        }
+      }
+
+      const storedPdfs = localStorage.getItem("prisma_studio_saved_standards");
+      if (storedPdfs) {
+        const parsed: SavedStandardPdf[] = JSON.parse(storedPdfs);
+        if (Array.isArray(parsed)) {
+          setStandardsGuardados(parsed);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Filter catalog courses by search query
   const cursosFiltrados = (cursosCatalogo || []).filter((c) => {
@@ -222,7 +268,41 @@ export default function PresentationStudioModal({
     );
   };
 
-  // PDF upload handler
+  // Add custom norm to the library
+  const handleAgregarNorma = () => {
+    if (!nuevaNormaNombre.trim()) return;
+    const newNorma: NormaItem = {
+      id: `custom-${Date.now()}`,
+      label: nuevaNormaNombre.trim(),
+      desc: nuevaNormaDesc.trim() || "Estándar técnico personalizado",
+      categoria: nuevaNormaCategoria || "Personalizada",
+      esCustom: true,
+    };
+    const updated = [...normasDisponibles, newNorma];
+    setNormasDisponibles(updated);
+    setEnfoquesNormativos((prev) => [...prev, newNorma.label]);
+
+    try {
+      const onlyCustom = updated.filter((n) => n.esCustom);
+      localStorage.setItem("prisma_studio_normas_custom", JSON.stringify(onlyCustom));
+    } catch {}
+
+    setNuevaNormaNombre("");
+    setNuevaNormaDesc("");
+  };
+
+  // Remove custom norm
+  const handleEliminarNormaCustom = (id: string, label: string) => {
+    const updated = normasDisponibles.filter((n) => n.id !== id);
+    setNormasDisponibles(updated);
+    setEnfoquesNormativos((prev) => prev.filter((l) => l !== label));
+    try {
+      const onlyCustom = updated.filter((n) => n.esCustom);
+      localStorage.setItem("prisma_studio_normas_custom", JSON.stringify(onlyCustom));
+    } catch {}
+  };
+
+  // PDF upload handler with library save
   const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -239,15 +319,48 @@ export default function PresentationStudioModal({
 
     const reader = new FileReader();
     reader.onload = () => {
-      setPdfEstandarBase64(reader.result as string);
+      const base64 = reader.result as string;
+      setPdfEstandarBase64(base64);
       setPdfEstandarNombre(file.name);
       setPdfEstandarSizeBytes(file.size);
       setErrorMsg(null);
+
+      // Save into reusable client standards library
+      try {
+        const newSaved: SavedStandardPdf = {
+          id: `std-${Date.now()}`,
+          nombre: file.name,
+          sizeBytes: file.size,
+          base64,
+          fechaGuardado: new Date().toLocaleDateString("es-VE"),
+        };
+        const filtered = standardsGuardados.filter((s) => s.nombre !== file.name);
+        const updated = [newSaved, ...filtered].slice(0, 8);
+        setStandardsGuardados(updated);
+        localStorage.setItem("prisma_studio_saved_standards", JSON.stringify(updated));
+      } catch {
+        // quota limit, ignore
+      }
     };
     reader.onerror = () => {
       setErrorMsg("No se pudo leer el archivo PDF seleccionado.");
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleSeleccionarStandardGuardado = (std: SavedStandardPdf) => {
+    setPdfEstandarBase64(std.base64);
+    setPdfEstandarNombre(std.nombre);
+    setPdfEstandarSizeBytes(std.sizeBytes);
+  };
+
+  const handleEliminarStandardGuardado = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = standardsGuardados.filter((s) => s.id !== id);
+    setStandardsGuardados(updated);
+    try {
+      localStorage.setItem("prisma_studio_saved_standards", JSON.stringify(updated));
+    } catch {}
   };
 
   const handleRemovePdf = () => {
@@ -267,16 +380,12 @@ export default function PresentationStudioModal({
         return;
       }
 
-      // Consolidate all selected normative frameworks + custom norm if entered
-      const marcosFinales = [...enfoquesNormativos];
-      if (normaPersonalizada.trim() && !marcosFinales.includes(normaPersonalizada.trim())) {
-        marcosFinales.push(normaPersonalizada.trim());
-      }
-
-      if (marcosFinales.length === 0) {
+      if (enfoquesNormativos.length === 0) {
         setErrorMsg("Por favor seleccione al menos una norma o estándar en el marco normativo.");
         return;
       }
+
+      const targetSlides = cantidadLaminas && cantidadLaminas >= 1 ? cantidadLaminas : 18;
 
       setGenerating(true);
       setErrorMsg(null);
@@ -288,10 +397,10 @@ export default function PresentationStudioModal({
         cargaHorariaStd: effectiveCargaHoraria,
         alcance,
         moduloNombre: alcance === "modulo_especifico" ? moduloNombre : undefined,
-        enfoquesNormativos: marcosFinales,
+        enfoquesNormativos,
         audienciaNivel,
         directricesAdicionales: directrices,
-        cantidadLaminasDeseada: cantidadLaminas,
+        cantidadLaminasDeseada: targetSlides,
         pdfEstandarBase64: pdfEstandarBase64 || undefined,
         pdfEstandarNombre: pdfEstandarNombre || undefined,
       });
@@ -438,7 +547,7 @@ export default function PresentationStudioModal({
   };
 
   // Pace estimation
-  const minutosPorLamina = Math.max(1, Math.round((effectiveCargaHoraria * 60) / cantidadLaminas));
+  const minutosPorLamina = Math.max(1, Math.round((effectiveCargaHoraria * 60) / (cantidadLaminas || 18)));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
@@ -452,11 +561,8 @@ export default function PresentationStudioModal({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-slate-900">
-                  Estudio de Presentaciones Digitales
+                  Prisma Studio
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800">
-                  Formato PPTX Nativo
-                </span>
               </div>
               <p className="text-xs text-slate-500 font-medium">
                 {effectiveCursoNombre || "Nueva Presentación"} •{" "}
@@ -675,7 +781,7 @@ export default function PresentationStudioModal({
                 )}
               </div>
 
-              {/* CARD 2: CLIENT STANDARD PDF ATTACHMENT */}
+              {/* CARD 2: CLIENT STANDARD PDF ATTACHMENT & SAVED LIBRARY */}
               <div className="p-5 bg-slate-50/90 rounded-2xl border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -684,40 +790,80 @@ export default function PresentationStudioModal({
                       2. Norma Técnica o Estándar del Cliente (PDF Opcional)
                     </Label>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Si el cliente posee directrices o especificaciones propias (ej. Chevron HES, Repsol, PDVSA, etc.), adjunte el documento PDF. Los procedimientos obligatorios y reglas clave se integrarán fielmente.
+                      Si el cliente posee directrices o especificaciones propias (ej. Chevron HES, Repsol, PDVSA, etc.), adjunte o seleccione el documento PDF.
                     </p>
                   </div>
                   {pdfEstandarNombre && (
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
-                      Norma Adjunta
+                      Norma Activa
                     </span>
                   )}
                 </div>
 
                 {!pdfEstandarNombre ? (
-                  <div className="border-2 border-dashed border-slate-300 hover:border-sky-500 rounded-xl p-4 text-center bg-white transition-colors">
-                    <input
-                      ref={pdfInputRef}
-                      type="file"
-                      accept="application/pdf,.pdf"
-                      onChange={handlePdfUpload}
-                      className="hidden"
-                      id="pdf-standard-upload"
-                    />
-                    <label
-                      htmlFor="pdf-standard-upload"
-                      className="cursor-pointer flex flex-col items-center justify-center space-y-1.5"
-                    >
-                      <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                        <FileText className="w-5 h-5" />
+                  <div className="space-y-3">
+                    <div className="border-2 border-dashed border-slate-300 hover:border-sky-500 rounded-xl p-4 text-center bg-white transition-colors">
+                      <input
+                        ref={pdfInputRef}
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        onChange={handlePdfUpload}
+                        className="hidden"
+                        id="pdf-standard-upload"
+                      />
+                      <label
+                        htmlFor="pdf-standard-upload"
+                        className="cursor-pointer flex flex-col items-center justify-center space-y-1.5"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800 hover:text-sky-700">
+                          Cargar nuevo documento PDF con el Estándar del Cliente
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          Formatos aceptados: PDF (máx. 25 MB)
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* Previously saved client standards in library */}
+                    {standardsGuardados.length > 0 && (
+                      <div className="pt-1">
+                        <span className="text-[11px] font-bold text-slate-600 block mb-1.5">
+                          O seleccione de sus estándares guardados previamente:
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {standardsGuardados.map((std) => (
+                            <div
+                              key={std.id}
+                              onClick={() => handleSeleccionarStandardGuardado(std)}
+                              className="p-2.5 bg-white border border-slate-200 hover:border-emerald-500 rounded-xl flex items-center justify-between cursor-pointer transition-colors shadow-2xs group"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Bookmark className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <div className="min-w-0">
+                                  <span className="block text-xs font-semibold text-slate-800 truncate">
+                                    {std.nombre}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    {(std.sizeBytes / 1024 / 1024).toFixed(2)} MB • {std.fechaGuardado}
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => handleEliminarStandardGuardado(std.id, e)}
+                                className="p-1 text-slate-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Eliminar de la biblioteca"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <span className="text-xs font-bold text-slate-800 hover:text-sky-700">
-                        Cargar documento PDF con el Estándar del Cliente
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        Formatos aceptados: PDF (máx. 25 MB)
-                      </span>
-                    </label>
+                    )}
                   </div>
                 ) : (
                   <div className="p-3 bg-white border border-emerald-200 rounded-xl flex items-center justify-between">
@@ -746,7 +892,7 @@ export default function PresentationStudioModal({
                 )}
               </div>
 
-              {/* CARD 3: MARCO NORMATIVO (MULTI-SELECTION) */}
+              {/* CARD 3: MARCO NORMATIVO (MULTI-SELECTION & CATALOG MANAGEMENT) */}
               <div className="p-5 bg-slate-50/90 rounded-2xl border border-slate-200 space-y-3.5">
                 <div className="flex items-center justify-between">
                   <div>
@@ -755,84 +901,131 @@ export default function PresentationStudioModal({
                       3. Marco Normativo Aplicable (Selección Múltiple)
                     </Label>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Seleccione todas las normas y estándares que deben respaldar y citarse en las diapositivas técnicas.
+                      Seleccione las normas de referencia. Puede agregar nuevas normas técnicas a su catálogo permanente.
                     </p>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 shrink-0">
-                    {enfoquesNormativos.length} seleccionada(s)
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMostrarModalGestionNormas(!mostrarModalGestionNormas)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-sky-700 bg-sky-100 hover:bg-sky-200 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{mostrarModalGestionNormas ? "Ocultar Gestor" : "Gestionar Normas"}</span>
+                    </button>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 shrink-0">
+                      {enfoquesNormativos.length} seleccionada(s)
+                    </span>
+                  </div>
                 </div>
 
+                {/* Form to add custom norm to permanent catalog */}
+                {mostrarModalGestionNormas && (
+                  <div className="p-3.5 bg-white border border-sky-200 rounded-xl space-y-2.5 animate-in fade-in">
+                    <span className="text-xs font-bold text-sky-900 block">
+                      Agregar Nueva Norma al Catálogo
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="sm:col-span-1">
+                        <Input
+                          value={nuevaNormaNombre}
+                          onChange={(e) => setNuevaNormaNombre(e.target.value)}
+                          placeholder="Código / Título (ej. NFPA 70E)"
+                          className="h-8 text-xs bg-white"
+                        />
+                      </div>
+                      <div className="sm:col-span-2 flex gap-2">
+                        <Input
+                          value={nuevaNormaDesc}
+                          onChange={(e) => setNuevaNormaDesc(e.target.value)}
+                          placeholder="Descripción breve (ej. Seguridad Eléctrica)"
+                          className="h-8 text-xs bg-white flex-1"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleAgregarNorma}
+                          className="h-8 px-3 text-xs bg-sky-700 hover:bg-sky-800 text-white font-bold"
+                        >
+                          Guardar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  {NORMAS_PREDEFINIDAS.map((norma) => {
+                  {normasDisponibles.map((norma) => {
                     const isSelected = enfoquesNormativos.includes(norma.label);
                     return (
-                      <button
+                      <div
                         key={norma.id}
-                        type="button"
-                        onClick={() => toggleNorma(norma.label)}
-                        className={`p-2.5 rounded-xl border text-left transition-all flex items-start gap-2 ${
+                        className={`p-2.5 rounded-xl border text-left transition-all flex items-start justify-between gap-2 ${
                           isSelected
                             ? "border-sky-500 bg-sky-50/80 text-sky-950 ring-1 ring-sky-500/20 shadow-2xs"
                             : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/50"
                         }`}
                       >
-                        <div
-                          className={`w-4 h-4 mt-0.5 rounded flex items-center justify-center shrink-0 border transition-colors ${
-                            isSelected
-                              ? "bg-sky-600 border-sky-600 text-white"
-                              : "border-slate-300 bg-white"
-                          }`}
+                        <button
+                          type="button"
+                          onClick={() => toggleNorma(norma.label)}
+                          className="flex items-start gap-2 flex-1 text-left min-w-0"
                         >
-                          {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="block text-xs font-bold truncate">
-                            {norma.label}
-                          </span>
-                          <span className="block text-[10px] text-slate-500 truncate">
-                            {norma.desc}
-                          </span>
-                        </div>
-                      </button>
+                          <div
+                            className={`w-4 h-4 mt-0.5 rounded flex items-center justify-center shrink-0 border transition-colors ${
+                              isSelected
+                                ? "bg-sky-600 border-sky-600 text-white"
+                                : "border-slate-300 bg-white"
+                            }`}
+                          >
+                            {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="block text-xs font-bold truncate">
+                              {norma.label}
+                            </span>
+                            <span className="block text-[10px] text-slate-500 truncate">
+                              {norma.desc}
+                            </span>
+                          </div>
+                        </button>
+
+                        {norma.esCustom && (
+                          <button
+                            type="button"
+                            onClick={() => handleEliminarNormaCustom(norma.id, norma.label)}
+                            className="p-1 text-slate-400 hover:text-rose-600 shrink-0"
+                            title="Eliminar norma personalizada"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
-
-                {/* Custom standard text input */}
-                <div className="pt-1">
-                  <Label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                    Norma o Especificación Adicional (Opcional):
-                  </Label>
-                  <Input
-                    value={normaPersonalizada}
-                    onChange={(e) => setNormaPersonalizada(e.target.value)}
-                    placeholder="Ej. SI-S-04 PDVSA / API RP 54 / Procedimiento Interno Planta"
-                    className="h-8 text-xs bg-white"
-                  />
-                </div>
               </div>
 
-              {/* CARD 4: SLIDE COUNT & PEDAGOGICAL DURATION */}
+              {/* CARD 4: SLIDE COUNT (FREELY EDITABLE & UNBOUNDED) */}
               <div className="p-5 bg-slate-50/90 rounded-2xl border border-slate-200 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
                       <SlidersHorizontal className="w-4 h-4 text-sky-700" />
-                      4. Cantidad de Diapositivas Objetivo
+                      4. Cantidad de Diapositivas Objetivo (Totalmente Libre)
                     </Label>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      El generador distribuirá equitativamente los módulos y contenidos según el número exacto de láminas que decida.
+                      Indique exactamente cuántas láminas desea generar. Puede escribir cualquier número (ej. 15, 30, 80, 150).
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-lg font-black text-sky-800">{cantidadLaminas}</span>
-                    <span className="text-[11px] text-slate-500 font-semibold ml-1">láminas</span>
+                    <span className="text-2xl font-black text-sky-800">{cantidadLaminas}</span>
+                    <span className="text-xs text-slate-500 font-bold ml-1">láminas</span>
                   </div>
                 </div>
 
                 {/* Preset shortcuts */}
-                <div className="grid grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -855,7 +1048,7 @@ export default function PresentationStudioModal({
                       setCantidadLaminas(laminasSugeridas);
                       setSlideCountModificadoManualmente(true);
                     }}
-                    className={`py-2 px-3 rounded-xl border text-center transition-all relative ${
+                    className={`py-2 px-3 rounded-xl border text-center transition-all ${
                       cantidadLaminas === laminasSugeridas
                         ? "border-sky-600 bg-sky-50 text-sky-900 font-bold ring-1 ring-sky-500/20"
                         : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
@@ -868,31 +1061,45 @@ export default function PresentationStudioModal({
                   <button
                     type="button"
                     onClick={() => {
-                      setCantidadLaminas(Math.min(45, laminasSugeridas + 8));
+                      setCantidadLaminas(50);
                       setSlideCountModificadoManualmente(true);
                     }}
                     className={`py-2 px-3 rounded-xl border text-center transition-all ${
-                      cantidadLaminas === Math.min(45, laminasSugeridas + 8)
+                      cantidadLaminas === 50
                         ? "border-sky-600 bg-sky-50 text-sky-900 font-bold ring-1 ring-sky-500/20"
                         : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                     }`}
                   >
-                    <span className="block text-xs font-semibold">Detallada</span>
-                    <span className="block text-[10px] text-slate-400">
-                      {Math.min(45, laminasSugeridas + 8)} láminas
-                    </span>
+                    <span className="block text-xs font-semibold">Extensa</span>
+                    <span className="block text-[10px] text-slate-400">50 láminas</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCantidadLaminas(100);
+                      setSlideCountModificadoManualmente(true);
+                    }}
+                    className={`py-2 px-3 rounded-xl border text-center transition-all ${
+                      cantidadLaminas === 100
+                        ? "border-sky-600 bg-sky-50 text-sky-900 font-bold ring-1 ring-sky-500/20"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    }`}
+                  >
+                    <span className="block text-xs font-semibold">Master / Curso Completo</span>
+                    <span className="block text-[10px] text-slate-400">100 láminas</span>
                   </button>
                 </div>
 
                 {/* Range Slider & Direct Input */}
-                <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2">
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2.5">
                   <div className="flex items-center gap-4">
                     <input
                       type="range"
-                      min={8}
-                      max={45}
+                      min={5}
+                      max={150}
                       step={1}
-                      value={cantidadLaminas}
+                      value={Math.min(150, Math.max(5, cantidadLaminas))}
                       onChange={(e) => {
                         setCantidadLaminas(Number(e.target.value));
                         setSlideCountModificadoManualmente(true);
@@ -902,29 +1109,28 @@ export default function PresentationStudioModal({
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Input
                         type="number"
-                        min={8}
-                        max={45}
+                        min={1}
                         value={cantidadLaminas}
                         onChange={(e) => {
                           const val = Number(e.target.value);
-                          if (val >= 6 && val <= 60) {
+                          if (val >= 1) {
                             setCantidadLaminas(val);
                             setSlideCountModificadoManualmente(true);
                           }
                         }}
-                        className="w-16 h-8 text-center text-xs font-bold"
+                        className="w-20 h-9 text-center text-sm font-bold bg-white"
                       />
-                      <span className="text-[10px] text-slate-400 font-semibold">láminas</span>
+                      <span className="text-xs text-slate-500 font-semibold">láminas</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-500 pt-1.5 border-t border-slate-100 gap-1">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-sky-600" />
                       Ritmo estimado: <strong>~{minutosPorLamina} min por lámina</strong>
                     </span>
                     <span className="text-[10px] text-slate-400">
-                      (Sugerencia oficial: ~{laminasSugeridas} láminas para {effectiveCargaHoraria}h)
+                      (Sugerencia pedagógica base: ~{laminasSugeridas} láminas para {effectiveCargaHoraria}h)
                     </span>
                   </div>
                 </div>
@@ -1047,12 +1253,12 @@ export default function PresentationStudioModal({
                   {generating ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Estructurando {cantidadLaminas} láminas técnicas con normas y directrices...</span>
+                      <span>Estructurando {cantidadLaminas} láminas en Prisma Studio...</span>
                     </>
                   ) : (
                     <>
                       <Presentation className="w-5 h-5" />
-                      <span>Diseñar Estructura ({cantidadLaminas} Láminas)</span>
+                      <span>Diseñar en Prisma Studio ({cantidadLaminas} Láminas)</span>
                     </>
                   )}
                 </Button>

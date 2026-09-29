@@ -489,14 +489,14 @@ export default function CourseMaterialsModal({
                     <div className="flex items-center gap-2">
                       <Presentation className="w-4 h-4 text-sky-400" />
                       <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300">
-                        Estudio de Presentaciones Digitales
+                        Prisma Studio
                       </span>
                     </div>
                     <h4 className="text-sm font-bold text-white">
                       ¿Deseas diseñar las diapositivas oficiales de este curso?
                     </h4>
                     <p className="text-xs text-sky-200/80 max-w-xl">
-                      Estructure láminas con identidad SHA de Venezuela, secuencias de seguridad, videos y notas del facilitador en formato PPTX nativo.
+                      Estructure láminas con identidad corporativa SHA de Venezuela, secuencias pedagógicas de seguridad, videos y notas del facilitador.
                     </p>
                   </div>
 
@@ -506,7 +506,7 @@ export default function CourseMaterialsModal({
                     className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-sky-950 font-bold text-xs transition shadow-sm shrink-0 cursor-pointer"
                   >
                     <Presentation className="w-4 h-4" />
-                    <span>Diseñar Presentación</span>
+                    <span>Diseñar en Prisma Studio</span>
                   </button>
                 </div>
               )}

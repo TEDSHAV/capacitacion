@@ -216,7 +216,7 @@ export default function GestionCursosClient({
                 className="inline-flex items-center space-x-2 px-3.5 py-2 border border-sky-300 text-sky-800 bg-sky-50 hover:bg-sky-100 rounded-lg text-sm font-semibold shadow-2xs transition-colors hover:border-sky-400"
               >
                 <Presentation className="w-4 h-4 text-sky-700" />
-                <span>Estudio de Presentaciones</span>
+                <span>Prisma Studio</span>
               </button>
               <button
                 type="button"
