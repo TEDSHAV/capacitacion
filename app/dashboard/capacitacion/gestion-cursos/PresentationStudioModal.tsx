@@ -131,7 +131,9 @@ export default function PresentationStudioModal({
   const [contenidoCursoInput, setContenidoCursoInput] = useState<string>(contenidoCurso || "");
   const [busquedaCurso, setBusquedaCurso] = useState<string>("");
 
-  // Client-specific standard PDF
+  // Client-specific standard PDF or raw pasted text
+  const [modoEstandar, setModoEstandar] = useState<"pdf" | "texto">("pdf");
+  const [textoEstandarCliente, setTextoEstandarCliente] = useState<string>("");
   const [pdfEstandarBase64, setPdfEstandarBase64] = useState<string | null>(null);
   const [pdfEstandarNombre, setPdfEstandarNombre] = useState<string | null>(null);
   const [pdfEstandarSizeBytes, setPdfEstandarSizeBytes] = useState<number | null>(null);
@@ -403,6 +405,7 @@ export default function PresentationStudioModal({
         cantidadLaminasDeseada: targetSlides,
         pdfEstandarBase64: pdfEstandarBase64 || undefined,
         pdfEstandarNombre: pdfEstandarNombre || undefined,
+        textoEstandarCliente: textoEstandarCliente.trim() || undefined,
       });
 
       if (res.success && res.slides && res.slides.length > 0) {
@@ -781,116 +784,165 @@ export default function PresentationStudioModal({
                 )}
               </div>
 
-              {/* CARD 2: CLIENT STANDARD PDF ATTACHMENT & SAVED LIBRARY */}
-              <div className="p-5 bg-slate-50/90 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
+              {/* CARD 2: CLIENT STANDARD PDF ATTACHMENT & SAVED LIBRARY / RAW TEXT */}
+              <div className="p-5 bg-slate-50/90 rounded-2xl border border-slate-200 space-y-3.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <Label className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
                       <FileUp className="w-4 h-4 text-emerald-700" />
-                      2. Norma Técnica o Estándar del Cliente (PDF Opcional)
+                      2. Norma Técnica o Estándar del Cliente (Opcional)
                     </Label>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Si el cliente posee directrices o especificaciones propias (ej. Chevron HES, Repsol, PDVSA, etc.), adjunte o seleccione el documento PDF.
+                      Si el cliente posee directrices o especificaciones propias (ej. Chevron, Repsol, PDVSA), puede adjuntar el documento PDF o pegar el texto directamente.
                     </p>
                   </div>
-                  {pdfEstandarNombre && (
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
-                      Norma Activa
-                    </span>
-                  )}
-                </div>
-
-                {!pdfEstandarNombre ? (
-                  <div className="space-y-3">
-                    <div className="border-2 border-dashed border-slate-300 hover:border-sky-500 rounded-xl p-4 text-center bg-white transition-colors">
-                      <input
-                        ref={pdfInputRef}
-                        type="file"
-                        accept="application/pdf,.pdf"
-                        onChange={handlePdfUpload}
-                        className="hidden"
-                        id="pdf-standard-upload"
-                      />
-                      <label
-                        htmlFor="pdf-standard-upload"
-                        className="cursor-pointer flex flex-col items-center justify-center space-y-1.5"
-                      >
-                        <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                          <FileText className="w-5 h-5" />
-                        </div>
-                        <span className="text-xs font-bold text-slate-800 hover:text-sky-700">
-                          Cargar nuevo documento PDF con el Estándar del Cliente
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          Formatos aceptados: PDF (máx. 25 MB)
-                        </span>
-                      </label>
-                    </div>
-
-                    {/* Previously saved client standards in library */}
-                    {standardsGuardados.length > 0 && (
-                      <div className="pt-1">
-                        <span className="text-[11px] font-bold text-slate-600 block mb-1.5">
-                          O seleccione de sus estándares guardados previamente:
-                        </span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {standardsGuardados.map((std) => (
-                            <div
-                              key={std.id}
-                              onClick={() => handleSeleccionarStandardGuardado(std)}
-                              className="p-2.5 bg-white border border-slate-200 hover:border-emerald-500 rounded-xl flex items-center justify-between cursor-pointer transition-colors shadow-2xs group"
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Bookmark className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                <div className="min-w-0">
-                                  <span className="block text-xs font-semibold text-slate-800 truncate">
-                                    {std.nombre}
-                                  </span>
-                                  <span className="text-[10px] text-slate-400">
-                                    {(std.sizeBytes / 1024 / 1024).toFixed(2)} MB • {std.fechaGuardado}
-                                  </span>
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={(e) => handleEliminarStandardGuardado(std.id, e)}
-                                className="p-1 text-slate-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Eliminar de la biblioteca"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="p-3 bg-white border border-emerald-200 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                        <FileCheck className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="block text-xs font-bold text-slate-800 truncate">
-                          {pdfEstandarNombre}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {pdfEstandarSizeBytes ? `${(pdfEstandarSizeBytes / 1024 / 1024).toFixed(2)} MB` : "Documento analizado"}
-                        </span>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-xs self-start sm:self-auto shrink-0">
                     <button
                       type="button"
-                      onClick={handleRemovePdf}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100"
-                      title="Quitar documento"
+                      onClick={() => setModoEstandar("pdf")}
+                      className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                        modoEstandar === "pdf"
+                          ? "bg-white text-emerald-800 shadow-2xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      Documento PDF
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setModoEstandar("texto")}
+                      className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                        modoEstandar === "texto"
+                          ? "bg-white text-emerald-800 shadow-2xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      Pegar Texto / Extracto
+                    </button>
+                  </div>
+                </div>
+
+                {/* Option 2A: PDF file upload & library */}
+                {modoEstandar === "pdf" && (
+                  <>
+                    {!pdfEstandarNombre ? (
+                      <div className="space-y-3">
+                        <div className="border-2 border-dashed border-slate-300 hover:border-sky-500 rounded-xl p-4 text-center bg-white transition-colors">
+                          <input
+                            ref={pdfInputRef}
+                            type="file"
+                            accept="application/pdf,.pdf"
+                            onChange={handlePdfUpload}
+                            className="hidden"
+                            id="pdf-standard-upload"
+                          />
+                          <label
+                            htmlFor="pdf-standard-upload"
+                            className="cursor-pointer flex flex-col items-center justify-center space-y-1.5"
+                          >
+                            <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <span className="text-xs font-bold text-slate-800 hover:text-sky-700">
+                              Cargar nuevo documento PDF con el Estándar del Cliente
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              Formatos aceptados: PDF (máx. 25 MB)
+                            </span>
+                          </label>
+                        </div>
+
+                        {/* Previously saved client standards in library */}
+                        {standardsGuardados.length > 0 && (
+                          <div className="pt-1">
+                            <span className="text-[11px] font-bold text-slate-600 block mb-1.5">
+                              O seleccione de sus estándares guardados previamente:
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {standardsGuardados.map((std) => (
+                                <div
+                                  key={std.id}
+                                  onClick={() => handleSeleccionarStandardGuardado(std)}
+                                  className="p-2.5 bg-white border border-slate-200 hover:border-emerald-500 rounded-xl flex items-center justify-between cursor-pointer transition-colors shadow-2xs group"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <Bookmark className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                    <div className="min-w-0">
+                                      <span className="block text-xs font-semibold text-slate-800 truncate">
+                                        {std.nombre}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400">
+                                        {(std.sizeBytes / 1024 / 1024).toFixed(2)} MB • {std.fechaGuardado}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleEliminarStandardGuardado(std.id, e)}
+                                    className="p-1 text-slate-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Eliminar de la biblioteca"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-white border border-emerald-200 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                            <FileCheck className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block text-xs font-bold text-slate-800 truncate">
+                              {pdfEstandarNombre}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {pdfEstandarSizeBytes ? `${(pdfEstandarSizeBytes / 1024 / 1024).toFixed(2)} MB` : "Documento analizado"}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemovePdf}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100"
+                          title="Quitar documento"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Option 2B: Raw pasted text */}
+                {modoEstandar === "texto" && (
+                  <div className="space-y-1.5 animate-in fade-in">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Texto del Estándar o Procedimiento Copiado
+                    </Label>
+                    <textarea
+                      value={textoEstandarCliente}
+                      onChange={(e) => setTextoEstandarCliente(e.target.value)}
+                      rows={5}
+                      placeholder="Pegue aquí el texto copiado de la norma o estándar técnico del cliente (ej. Reglas obligatorias de seguridad, procedimientos de permiso de trabajo, EPP exigido, tolerancias y directrices de campo)..."
+                      className="w-full text-xs rounded-xl border border-slate-300 bg-white p-3 text-slate-800 focus:ring-2 focus:ring-emerald-500 resize-none font-normal"
+                    />
+                    <div className="flex items-center justify-between text-[10px] text-slate-500">
+                      <span>Compatible con todos los motores (Gemini y Groq/LLaMA en VPS).</span>
+                      {textoEstandarCliente.trim().length > 0 && (
+                        <span className="font-semibold text-emerald-700">
+                          {textoEstandarCliente.trim().length} caracteres ingresados
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
+
 
               {/* CARD 3: MARCO NORMATIVO (MULTI-SELECTION & CATALOG MANAGEMENT) */}
               <div className="p-5 bg-slate-50/90 rounded-2xl border border-slate-200 space-y-3.5">

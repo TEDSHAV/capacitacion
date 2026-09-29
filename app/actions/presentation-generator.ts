@@ -131,8 +131,17 @@ Nivel de la Audiencia: ${params.audienciaNivel || "Personal Operativo y Supervis
 Directrices Específicas / Énfasis Instruccional: ${params.directricesAdicionales || "Ninguna"}
 ${
   params.pdfEstandarNombre
-    ? `\nNORMA / ESTÁNDAR ESPECÍFICO DEL CLIENTE ADJUNTO: "${params.pdfEstandarNombre}".
+    ? `\nNORMA / ESTÁNDAR ESPECÍFICO DEL CLIENTE ADJUNTO (PDF): "${params.pdfEstandarNombre}".
 INSTRUCCIÓN PRIORITARIA: Extrae obligatoriamente del documento PDF adjunto los procedimientos clave, terminología propia del cliente, reglas de seguridad que salvan vidas y requisitos operacionales para integrarlos de forma fidedigna en las láminas.`
+    : ""
+}
+${
+  params.textoEstandarCliente
+    ? `\nNORMA / ESTÁNDAR INTERNO DEL CLIENTE (TEXTO COPIADO O EXTRACTO):
+"""
+${params.textoEstandarCliente}
+"""
+INSTRUCCIÓN PRIORITARIA: Aplica de forma estricta los procedimientos, reglas de seguridad, terminología y directrices operacionales transcritas arriba.`
     : ""
 }
 
@@ -141,13 +150,20 @@ ${contenidoLimpio || "Desarrollar el temario según las mejores prácticas para 
 
     let jsonResponseText = "";
 
-    // 1. Primary Engine: Gemini (3.5-flash -> 3-flash-preview -> 3.8-flash)
+    // 1. Primary Engine: Gemini (Multi-model cascade with verified available models)
     // Supports native multimodal PDF parsing for client-specific standards
     if (geminiKey) {
-      const geminiModels = ["gemini-3.5-flash", "gemini-3-flash-preview", "gemini-3.8-flash"];
+      const geminiModels = [
+        "gemini-3.5-flash",
+        "gemini-2.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3-flash-preview",
+        "gemini-flash-latest",
+        "gemini-2.5-pro",
+      ];
       const userParts: any[] = [];
 
-      // If client attached a specific standard PDF, include it directly
+      // If client attached a specific standard PDF, include it directly as inlineData
       if (params.pdfEstandarBase64) {
         const cleanBase64 = params.pdfEstandarBase64.replace(/^data:[^;]+;base64,/, "");
         userParts.push({
@@ -196,33 +212,45 @@ ${contenidoLimpio || "Desarrollar el temario según las mejores prácticas para 
       }
     }
 
-    // 2. Fallback Engine: Groq (if no PDF was attached and Gemini was not available)
-    if (!jsonResponseText && groqKey && !params.pdfEstandarBase64) {
-      try {
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${groqKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            response_format: { type: "json_object" },
-            temperature: 0.3,
-            max_tokens: 6000,
-          }),
-        });
+    // 2. High-Speed Fallback Engine: Groq (llama-3.3-70b-versatile -> llama-3.1-8b-instant -> mixtral-8x7b-32768)
+    // Executes on VPS where non-Venezuelan IP avoids 403 geo-blocking.
+    // Handles full text prompts including pasted client standards.
+    if (!jsonResponseText && groqKey) {
+      const groqModels = [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+      ];
+      for (const gModel of groqModels) {
+        try {
+          const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${groqKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: gModel,
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt },
+              ],
+              response_format: { type: "json_object" },
+              temperature: 0.3,
+              max_tokens: Math.min(8192, Math.max(4096, targetSlides * 300)),
+            }),
+          });
 
-        if (response.ok) {
-          const result = await response.json();
-          jsonResponseText = result.choices?.[0]?.message?.content || "";
+          if (response.ok) {
+            const result = await response.json();
+            jsonResponseText = result.choices?.[0]?.message?.content || "";
+            if (jsonResponseText) break;
+          } else {
+            console.warn(`[presentation-generator] Groq ${gModel} returned ${response.status}`);
+          }
+        } catch (groqErr) {
+          console.warn(`[presentation-generator] Groq ${gModel} error:`, groqErr);
         }
-      } catch (groqErr) {
-        console.warn("[presentation-generator] Groq fallback failed:", groqErr);
       }
     }
 

@@ -48,9 +48,10 @@ export interface GeneracionPresentacionParams {
   audienciaNivel?: string;
   directricesAdicionales?: string;
   cantidadLaminasDeseada?: number;
-  // Client-specific standard PDF
+  // Client-specific standard PDF or pasted raw text
   pdfEstandarBase64?: string;
   pdfEstandarNombre?: string;
+  textoEstandarCliente?: string;
 }
 
 export interface ResultadoGeneracionEstructura {
