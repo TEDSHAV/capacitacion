@@ -1249,6 +1249,7 @@ export interface BatchUpdateData {
   location?: string;
   horas_estimadas?: string;
   id_facilitador?: string;
+  course_content?: string;
 }
 
 export interface BatchUpdateResult {

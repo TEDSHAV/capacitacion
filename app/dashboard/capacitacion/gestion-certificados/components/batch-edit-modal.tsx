@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,22 @@ import {
   getBatchCertificateDetailsAction,
   getFacilitatorsForFilters,
 } from "@/app/actions/certificados";
-import { Loader2, X, AlertCircle, Info, Search, ChevronDown, Check } from "lucide-react";
+import {
+  Loader2,
+  X,
+  AlertCircle,
+  Info,
+  Search,
+  ChevronDown,
+  Check,
+  RefreshCw,
+  BookOpen,
+} from "lucide-react";
+
+const RichTextEditor = dynamic(
+  () => import("@/components/ui/rich-text-editor"),
+  { ssr: false },
+);
 
 interface BatchEditModalProps {
   isOpen: boolean;
@@ -51,6 +67,8 @@ export function BatchEditModal({
   const [isFacilitatorDropdownOpen, setIsFacilitatorDropdownOpen] = useState(false);
   const [selectedFacilitator, setSelectedFacilitator] = useState<FacilitatorLookup | null>(null);
 
+  const [catalogCourseContent, setCatalogCourseContent] = useState("");
+
   const [updates, setUpdates] = useState<BatchUpdateData>({
     certificate_title: "",
     certificate_subtitle: "",
@@ -59,6 +77,7 @@ export function BatchEditModal({
     location: "",
     horas_estimadas: "",
     id_facilitador: "",
+    course_content: "",
   });
 
   // Load OSIs on mount
@@ -115,6 +134,7 @@ export function BatchEditModal({
           ? facilitators.find(f => f.id.toString() === facilitatorId)
           : null;
         setSelectedFacilitator(foundFacilitator || null);
+        setCatalogCourseContent(result.data.catalog_course_content || "");
         setUpdates({
           certificate_title: result.data.certificate_title || "",
           certificate_subtitle: result.data.certificate_subtitle || "",
@@ -123,6 +143,7 @@ export function BatchEditModal({
           location: result.data.location || "",
           horas_estimadas: result.data.horas_estimadas || "",
           id_facilitador: facilitatorId,
+          course_content: result.data.course_content || "",
         });
       }
     } catch (error) {
@@ -210,7 +231,9 @@ export function BatchEditModal({
           location: "",
           horas_estimadas: "",
           id_facilitador: "",
+          course_content: "",
         });
+        setCatalogCourseContent("");
         setSelectedOsiData(null);
         setSelectedFacilitator(null);
         setOsiNumber("");
@@ -231,7 +254,7 @@ export function BatchEditModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-all">
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
@@ -515,6 +538,73 @@ export function BatchEditModal({
                     )}
                   </div>
                 </div>
+
+                {/* Course Content Editor */}
+                <div className="space-y-2 pt-3 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="course_content" className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                      <BookOpen className="h-4 w-4 text-blue-600" />
+                      Contenido Programático del Curso
+                    </Label>
+                    {catalogCourseContent && (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateChange("course_content", catalogCourseContent)}
+                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-semibold hover:underline bg-blue-50 px-2.5 py-1 rounded-md transition-colors"
+                        title="Sobrescribir con el contenido más reciente del catálogo de cursos"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        Cargar desde catálogo
+                      </button>
+                    )}
+                  </div>
+
+                  {catalogCourseContent && updates.course_content !== catalogCourseContent && (
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between text-xs text-amber-800 gap-2">
+                      <span className="flex items-center gap-1.5">
+                        <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                        El contenido actual en los certificados difiere del registrado en el catálogo de cursos.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateChange("course_content", catalogCourseContent)}
+                        className="font-bold underline text-amber-900 hover:text-amber-700 shrink-0"
+                      >
+                        Actualizar al del catálogo
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="relative">
+                    <RichTextEditor
+                      value={updates.course_content || ""}
+                      onChange={(html) => handleUpdateChange("course_content", html)}
+                      rows={6}
+                    />
+                    {loadingDetails && (
+                      <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] flex items-center justify-center rounded-lg">
+                        <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center text-[11px] text-gray-500">
+                    <span>
+                      Este contenido se imprimirá en el reverso de los certificados seleccionados.
+                    </span>
+                    <span
+                      className={`font-semibold ${
+                        (updates.course_content?.length || 0) > 2000
+                          ? "text-red-600"
+                          : (updates.course_content?.length || 0) > 1800
+                            ? "text-yellow-600"
+                            : "text-gray-400"
+                      }`}
+                    >
+                      {updates.course_content?.length || 0} / 2000 caracteres
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </form>
@@ -534,7 +624,9 @@ export function BatchEditModal({
                 location: "",
                 horas_estimadas: "",
                 id_facilitador: "",
+                course_content: "",
               });
+              setCatalogCourseContent("");
               setSelectedOsiData(null);
               setSelectedFacilitator(null);
               setOsiNumber("");

@@ -2362,7 +2362,8 @@ export async function getBatchCertificateDetailsAction(osiNumber: number, course
         fecha_emision, 
         fecha_vencimiento,
         id_facilitador,
-        catalogo_servicios(nombre)
+        id_curso,
+        catalogo_servicios(nombre, contenido_curso)
       `)
       .eq("nro_osi", osiNumber)
       .eq("is_active", true);
@@ -2415,6 +2416,28 @@ export async function getBatchCertificateDetailsAction(osiNumber: number, course
       snapshotData.firmas?.facilitator_id?.toString() || 
       "";
 
+    const course_content =
+      snapshotData.certificado_detalles?.course_content ||
+      snapshotData.curso?.contenido ||
+      "";
+
+    let catalog_course_content =
+      (Array.isArray(data.catalogo_servicios)
+        ? data.catalogo_servicios[0]?.contenido_curso
+        : (data.catalogo_servicios as any)?.contenido_curso) || "";
+
+    const effectiveCourseId = courseId || (data as any).id_curso;
+    if (!catalog_course_content && effectiveCourseId) {
+      const { data: cursoRow } = await supabase
+        .from("catalogo_servicios")
+        .select("contenido_curso")
+        .eq("id", effectiveCourseId)
+        .maybeSingle();
+      if (cursoRow?.contenido_curso) {
+        catalog_course_content = cursoRow.contenido_curso;
+      }
+    }
+
     // Helper to ensure date is YYYY-MM-DD without timezone shifts
     const formatDate = (dateInput: any) => {
       if (!dateInput) return "";
@@ -2443,6 +2466,8 @@ export async function getBatchCertificateDetailsAction(osiNumber: number, course
         location,
         horas_estimadas,
         id_facilitador,
+        course_content,
+        catalog_course_content,
       }
     };
   } catch (error) {
@@ -2542,6 +2567,14 @@ export async function batchUpdateCertificatesAction(
                   facilitator_id: parseInt(updates.id_facilitador),
                   facilitator_data: facilitatorData,
                 };
+              }
+            }
+            if ('course_content' in updates && updates.course_content !== undefined) {
+              if (snapshotObj.certificado_detalles) {
+                snapshotObj.certificado_detalles.course_content = updates.course_content;
+              }
+              if (snapshotObj.curso) {
+                snapshotObj.curso.contenido = updates.course_content;
               }
             }
             
