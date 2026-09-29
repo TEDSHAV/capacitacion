@@ -22,6 +22,7 @@ import { DashboardTour } from "./DashboardTour";
 import { DashboardTourAutoStart as AutoStart } from "./DashboardTourAutoStart";
 import { toTitleCase } from "@/utils/string-utils";
 import type { FacilitadorFullData } from "@/app/actions/facilitador-portal";
+import { ComplianceBanner } from "@/components/compliance/ComplianceBanner";
 
 interface OSIItem {
   id_osi: number;
@@ -45,18 +46,21 @@ interface FacilitadorDashboardClientProps {
   nombre: string;
   initialData?: FacilitadorFullData | null;
   osis?: OSIItem[];
+  facilitadorId?: number;
 }
 
 export default function FacilitadorDashboardClient({
   nombre,
   initialData,
   osis = [],
+  facilitadorId,
 }: FacilitadorDashboardClientProps) {
   const [mainView, setMainView] = useState<"servicios" | "perfil">("servicios");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTab, setFilterTab] = useState<"todos" | "pendientes" | "finalizados">("todos");
 
   const facilitador = initialData?.facilitador;
+  const effectiveFacilitadorId = facilitadorId ?? facilitador?.id;
   const stats = initialData?.stats || {
     totalServicios: osis.length,
     totalFinalizados: osis.filter((o) => o.participant_status === "final").length,
@@ -218,6 +222,15 @@ export default function FacilitadorDashboardClient({
           </div>
         </div>
       </header>
+
+      {/* Compliance / Normativas Corporativas Banner */}
+      {effectiveFacilitadorId && (
+        <ComplianceBanner
+          facilitadorId={effectiveFacilitadorId}
+          facilitadorNombre={facilitador?.nombre_apellido || nombre || "Facilitador"}
+          facilitadorCedula={facilitador?.cedula || ""}
+        />
+      )}
 
       {/* ========================================================================= */}
       {/* VIEW 1: MIS SERVICIOS */}

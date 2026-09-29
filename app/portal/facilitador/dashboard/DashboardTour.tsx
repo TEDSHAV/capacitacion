@@ -40,7 +40,7 @@ const dashboardSteps: DriveStep[] = [
     element: "#tour-osi-card",
     popover: {
       title: "Ejecución del Servicio",
-      description: "Haz clic en cualquier servicio para cargar la lista de participantes, notas y fotos. Si el curso tiene presentación oficial cargada en plataforma podrás descargarla aquí; de lo contrario, te será enviada por correo electrónico por el equipo de Capacitación.",
+      description: "Haz clic en cualquier servicio para registrar participantes, calificaciones, fotos y tu factura de honorarios. Si el curso tiene presentación oficial cargada en plataforma podrás descargarla aquí; de lo contrario, te será enviada por correo electrónico por el equipo de Capacitación.",
     },
   },
 ];

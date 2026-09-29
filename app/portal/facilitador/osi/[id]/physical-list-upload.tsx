@@ -2,22 +2,22 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  Upload, 
-  Trash2, 
-  FileText, 
-  Image as ImageIcon, 
-  Loader2, 
+import {
+  Upload,
+  Trash2,
+  FileText,
+  Image as ImageIcon,
+  Loader2,
   X,
   Plus,
   AlertCircle,
   CheckCircle2,
   ScanLine
 } from "lucide-react";
-import { 
-  uploadOSIAttachment, 
-  getOSIAttachments, 
-  deleteOSIAttachment 
+import {
+  uploadOSIAttachment,
+  getOSIAttachments,
+  deleteOSIAttachment
 } from "@/app/actions/facilitador-portal";
 import { compressImage } from "@/lib/image-compression.client";
 import { OSIAttachment } from "@/types";
@@ -187,10 +187,10 @@ export const PhysicalListUpload = ({ osiId, facilitadorId, onAttachmentCountChan
             <span className="text-[10px] font-bold uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded ml-1">Requerido</span>
           </h3>
           <p className="text-[10px] text-gray-500 mt-0.5">
-            Sube fotos o PDFs de las listas de asistencia firmadas. Las imágenes se comprimen automáticamente.
+            Sube fotos o PDFs de las listas de asistencia firmadas.
           </p>
         </div>
-        
+
         <div className="relative w-full sm:w-auto" id="tour-upload-button">
           <input
             type="file"
@@ -200,9 +200,9 @@ export const PhysicalListUpload = ({ osiId, facilitadorId, onAttachmentCountChan
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             disabled={uploading}
           />
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             disabled={uploading}
             className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50 h-8 text-xs w-full sm:w-auto"
           >
@@ -256,7 +256,7 @@ export const PhysicalListUpload = ({ osiId, facilitadorId, onAttachmentCountChan
         ) : (
           <div className="grid grid-cols-1 gap-3">
             {attachments.map((att) => (
-              <div 
+              <div
                 key={att.id}
                 className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-blue-200 transition-colors group"
               >
@@ -267,8 +267,8 @@ export const PhysicalListUpload = ({ osiId, facilitadorId, onAttachmentCountChan
                       <FileText className="w-5 h-5 text-red-400" />
                     </div>
                   ) : att.publicUrl ? (
-                    <img 
-                      src={att.publicUrl} 
+                    <img
+                      src={att.publicUrl}
                       alt={att.file_name}
                       className="w-full h-full object-cover"
                       loading="lazy"
@@ -286,9 +286,9 @@ export const PhysicalListUpload = ({ osiId, facilitadorId, onAttachmentCountChan
                     {att.file_name}
                   </p>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <a 
-                      href={att.publicUrl} 
-                      target="_blank" 
+                    <a
+                      href={att.publicUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-[10px] text-blue-600 hover:underline"
                     >

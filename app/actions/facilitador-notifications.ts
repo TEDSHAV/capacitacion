@@ -10,6 +10,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   hoja_calificacion: "hoja de calificación",
   material_fotografico: "material fotográfico",
   lista_participantes: "listado de participantes",
+  factura: "factura de honorarios",
 };
 
 /**

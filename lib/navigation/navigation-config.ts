@@ -17,6 +17,7 @@ import {
   Mail,
   MailCheck,
   UserCheck,
+  ShieldCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -241,6 +242,13 @@ const DASHBOARD_NAV: NavItem[] = [
         label: "Gestión",
         href: "/dashboard/capacitacion/gestion-de-facilitadores",
         icon: Users,
+        offlineAvailable: true,
+      },
+      {
+        id: "cumplimiento-facilitadores",
+        label: "Cumplimiento y Normativas",
+        href: "/dashboard/capacitacion/cumplimiento-facilitadores",
+        icon: ShieldCheck,
         offlineAvailable: true,
       },
       {

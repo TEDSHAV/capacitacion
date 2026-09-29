@@ -7,7 +7,7 @@ import { FacilitadorCrud, FacilitatorForm } from "./components";
 import { clearFacilitatorPoolCache } from "./components/facilitador-crud";
 import { getFacilitatorMetrics } from "@/app/actions/participants";
 import { cachePortalData, getCachedPortalData } from "@/lib/offline/portal-data-cache";
-import { Users, MapPin, BookOpen, Star, UserCheck } from "lucide-react";
+import { Users, MapPin, BookOpen, Star, UserCheck, ShieldCheck } from "lucide-react";
 
 // Module-level in-memory cache for facilitator metrics (survives client-side navigation)
 interface MetricsCache {
@@ -125,13 +125,22 @@ export default function GestionDeFacilitadoresPage() {
             Administra la información de los facilitadores de capacitación
           </p>
         </div>
-        <Link
-          href="/dashboard/capacitacion/entrevista-facilitadores"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200 rounded-lg text-sm font-semibold transition-colors self-start sm:self-auto shadow-sm"
-        >
-          <UserCheck className="w-4 h-4" />
-          Entrevistas de Facilitadores
-        </Link>
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          <Link
+            href="/dashboard/capacitacion/cumplimiento-facilitadores"
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-lg text-sm font-semibold transition-colors shadow-2xs"
+          >
+            <ShieldCheck className="w-4 h-4 text-sky-600" />
+            Cumplimiento y Normativas
+          </Link>
+          <Link
+            href="/dashboard/capacitacion/entrevista-facilitadores"
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200 rounded-lg text-sm font-semibold transition-colors shadow-2xs"
+          >
+            <UserCheck className="w-4 h-4" />
+            Entrevistas de Facilitadores
+          </Link>
+        </div>
       </div>
 
       {/* Metrics Row (rendered or skeleton to eliminate layout shift) */}

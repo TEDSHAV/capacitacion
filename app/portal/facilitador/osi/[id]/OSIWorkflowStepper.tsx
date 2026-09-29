@@ -5,13 +5,13 @@ import {
   FileSpreadsheet,
   Users,
   Camera,
+  Receipt,
+  HelpCircle,
   CheckCheck,
   CheckCircle2,
-  ChevronRight,
-  Sparkles,
 } from "lucide-react";
 
-export type WizardStepId = "material" | "asistencia" | "participantes" | "evidencias" | "envio";
+export type WizardStepId = "material" | "asistencia" | "participantes" | "evidencias" | "factura" | "envio";
 
 export interface WizardStep {
   id: WizardStepId;
@@ -20,7 +20,6 @@ export interface WizardStep {
   shortTitle: string;
   desc: string;
   icon: typeof Presentation;
-  isOptional?: boolean;
 }
 
 interface OSIWorkflowStepperProps {
@@ -29,6 +28,7 @@ interface OSIWorkflowStepperProps {
   hasMaterial?: boolean;
   isFinal?: boolean;
   completedSteps?: Partial<Record<WizardStepId, boolean>>;
+  onStartTour?: () => void;
 }
 
 export function getWizardSteps(hasMaterial: boolean): WizardStep[] {
@@ -71,7 +71,15 @@ export function getWizardSteps(hasMaterial: boolean): WizardStep[] {
     shortTitle: "Fotos",
     desc: "Registro fotográfico",
     icon: Camera,
-    isOptional: true,
+  });
+
+  steps.push({
+    id: "factura",
+    number: num++,
+    title: "Factura de Honorarios",
+    shortTitle: "Factura de Honorarios",
+    desc: "Carga de factura",
+    icon: Receipt,
   });
 
   steps.push({
@@ -92,6 +100,7 @@ export default function OSIWorkflowStepper({
   hasMaterial = true,
   isFinal = false,
   completedSteps = {},
+  onStartTour,
 }: OSIWorkflowStepperProps) {
   const steps = getWizardSteps(hasMaterial);
   const currentIndex = steps.findIndex((s) => s.id === currentStepId);
@@ -104,11 +113,24 @@ export default function OSIWorkflowStepper({
       <div className="md:hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="space-y-0.5 min-w-0">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200 inline-block">
-              Paso {currentStep.number} de {steps.length}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200 inline-block">
+                Paso {currentStep.number} de {steps.length}
+              </span>
+              {onStartTour && (
+                <button
+                  type="button"
+                  onClick={onStartTour}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-[10px] font-bold transition-colors cursor-pointer"
+                  title="Iniciar tour guiado"
+                >
+                  <HelpCircle className="w-3 h-3 text-sky-600" />
+                  <span>Guía</span>
+                </button>
+              )}
+            </div>
             <h3 className="text-sm font-bold text-slate-900 truncate">
-              {currentStep.title} {currentStep.isOptional && <span className="text-xs font-normal text-slate-400">(Opcional)</span>}
+              {currentStep.title}
             </h3>
           </div>
           {isFinal ? (
@@ -140,6 +162,7 @@ export default function OSIWorkflowStepper({
             return (
               <button
                 key={step.id}
+                id={`tour-step-mobile-${step.id}`}
                 type="button"
                 onClick={() => onStepSelect(step.id)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer ${
@@ -159,12 +182,25 @@ export default function OSIWorkflowStepper({
         </div>
       </div>
 
-      {/* Desktop Stepper Matrix (4 or 5 responsive cards) */}
+      {/* Desktop Stepper Matrix */}
       <div className="hidden md:block p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Flujo Guiado de Ejecución del Servicio
-          </p>
+          <div className="flex items-center gap-2.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Flujo Guiado de Ejecución del Servicio
+            </p>
+            {onStartTour && (
+              <button
+                type="button"
+                onClick={onStartTour}
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-[11px] font-semibold transition-colors cursor-pointer"
+                title="Iniciar tour guiado"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-sky-600" />
+                <span>Guía Rápida</span>
+              </button>
+            )}
+          </div>
           {isFinal && (
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -173,7 +209,15 @@ export default function OSIWorkflowStepper({
           )}
         </div>
 
-        <div className={`grid grid-cols-2 lg:grid-cols-${steps.length} gap-2.5`}>
+        <div
+          className={`grid grid-cols-2 ${
+            steps.length >= 6
+              ? "lg:grid-cols-6"
+              : steps.length === 5
+              ? "lg:grid-cols-5"
+              : "lg:grid-cols-4"
+          } gap-2.5`}
+        >
           {steps.map((step) => {
             const Icon = step.icon;
             const isActive = step.id === currentStepId;
@@ -182,6 +226,7 @@ export default function OSIWorkflowStepper({
             return (
               <button
                 key={step.id}
+                id={`tour-step-${step.id}`}
                 type="button"
                 onClick={() => onStepSelect(step.id)}
                 className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
@@ -230,7 +275,7 @@ export default function OSIWorkflowStepper({
                         : "text-slate-500"
                     }`}
                   >
-                    {step.isOptional ? `${step.desc} (Opcional)` : step.desc}
+                    {step.desc}
                   </p>
                 </div>
               </button>

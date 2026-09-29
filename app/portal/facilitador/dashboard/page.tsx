@@ -16,6 +16,7 @@ export default async function FacilitadorDashboardPage() {
       nombre={session.nombre}
       initialData={portalData || null}
       osis={portalData?.osis || []}
+      facilitadorId={session.facilitador_id}
     />
   );
 }

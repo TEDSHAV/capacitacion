@@ -13,6 +13,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ScanLine,
+  Receipt,
 } from "lucide-react";
 import {
   uploadOSIAttachment,
@@ -39,6 +40,7 @@ interface AttachmentUploadSectionProps {
   onStatusChange?: (status: string | null) => void;
   showScanButton?: boolean;
   tourId?: string;
+  disabled?: boolean;
 }
 
 export const AttachmentUploadSection = ({
@@ -58,6 +60,7 @@ export const AttachmentUploadSection = ({
   onStatusChange,
   showScanButton = false,
   tourId,
+  disabled = false,
 }: AttachmentUploadSectionProps) => {
   const [attachments, setAttachments] = useState<OSIAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -85,8 +88,21 @@ export const AttachmentUploadSection = ({
   }, [osiId, facilitadorId, category, nroSesion, onAttachmentCountChange]);
 
   useEffect(() => {
-    fetchAttachments();
-  }, [fetchAttachments]);
+    let ignore = false;
+    getOSIAttachments(osiId, facilitadorId, category, nroSesion).then((result) => {
+      if (ignore) return;
+      if (result.data) {
+        setAttachments(result.data as OSIAttachment[]);
+        onAttachmentCountChange?.(result.data.length);
+      } else {
+        onAttachmentCountChange?.(0);
+      }
+      setLoading(false);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [osiId, facilitadorId, category, nroSesion, onAttachmentCountChange]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -197,7 +213,11 @@ export const AttachmentUploadSection = ({
       <div className="p-3 sm:p-4 bg-gray-50/50 border-b border-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
           <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 flex-wrap">
-            <ImageIcon className="w-4 h-4 text-blue-600" />
+            {category === "factura" ? (
+              <Receipt className="w-4 h-4 text-sky-600" />
+            ) : (
+              <ImageIcon className="w-4 h-4 text-blue-600" />
+            )}
             {title}
             {badge && (
               <span className={`text-[10px] font-bold uppercase ${badgeClasses[badgeColor]} px-1.5 py-0.5 rounded ml-1`}>
@@ -219,14 +239,18 @@ export const AttachmentUploadSection = ({
             multiple
             accept={accept}
             onChange={handleFileUpload}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            disabled={uploading}
+            className={`absolute inset-0 w-full h-full opacity-0 ${disabled ? "cursor-not-allowed pointer-events-none" : "cursor-pointer"}`}
+            disabled={uploading || disabled}
           />
           <Button
             variant="outline"
             size="sm"
-            disabled={uploading}
-            className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50 h-11 text-sm w-full sm:w-auto"
+            disabled={uploading || disabled}
+            className={`h-11 text-sm w-full sm:w-auto transition-colors ${
+              disabled
+                ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+                : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+            }`}
           >
             {uploading ? (
               <>
