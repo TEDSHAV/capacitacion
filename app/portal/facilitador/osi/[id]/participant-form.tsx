@@ -18,7 +18,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Camera,
-  Receipt,
   CheckCheck,
   Sparkles,
 } from "lucide-react";
@@ -117,7 +116,6 @@ export const ParticipantForm = ({
   const [success, setSuccess] = useState<string | null>(null);
   const [attendanceCount, setAttendanceCount] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
-  const [invoiceCount, setInvoiceCount] = useState(0);
 
   const [activeVerificationIndex, setActiveVerificationIndex] = useState<number | null>(null);
   const [selectedSession, setSelectedSession] = useState<number>(assignedSession ?? 1);
@@ -161,12 +159,10 @@ export const ParticipantForm = ({
     Promise.all([
       getOSIAttachments(osiId, facilitadorId, "lista_asistencia", selectedSession),
       getOSIAttachments(osiId, facilitadorId, "material_fotografico", selectedSession),
-      getOSIAttachments(osiId, facilitadorId, "factura", selectedSession),
     ])
-      .then(([asistenciaRes, photoRes, facturaRes]) => {
+      .then(([asistenciaRes, photoRes]) => {
         if (asistenciaRes.data) setAttendanceCount(asistenciaRes.data.length);
         if (photoRes.data) setPhotoCount(photoRes.data.length);
-        if (facturaRes.data) setInvoiceCount(facturaRes.data.length);
       })
       .catch((err) => {
         console.error("[ParticipantForm] Error fetching initial attachment counts:", err);
@@ -213,12 +209,11 @@ export const ParticipantForm = ({
     (p) => !p.nombre_apellido.trim() || !p.cedula.trim()
   );
 
-  // Prerequisites helpers for Factura step submission
+  // Prerequisites helpers for finalizing service
   const hasCompletedAttendance = attendanceCount > 0;
   const hasCompletedPhotos = photoCount > 0;
   const hasCompletedParticipants = hasValidParticipants && sinNotaCount === 0 && !hasIncompleteRows;
-  const canSubmitFactura = hasCompletedAttendance && hasCompletedPhotos && hasCompletedParticipants;
-  const canFinalize = hasAcknowledged && canSubmitFactura && invoiceCount > 0;
+  const canFinalize = hasAcknowledged && hasCompletedAttendance && hasCompletedPhotos && hasCompletedParticipants;
 
   // Step completion status for indicators
   const completedSteps: Partial<Record<WizardStepId, boolean>> = {
@@ -226,7 +221,6 @@ export const ParticipantForm = ({
     asistencia: hasCompletedAttendance,
     participantes: hasCompletedParticipants,
     evidencias: hasCompletedPhotos,
-    factura: canSubmitFactura && invoiceCount > 0,
     envio: isFinal,
   };
 
@@ -289,14 +283,6 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: "#tour-step-factura",
-        popover: {
-          title: "Factura de Honorarios",
-          description:
-            "Carga tu factura de honorarios (PDF o imagen) para tramitar el cobro de tu servicio.",
-        },
-      },
-      {
         element: "#tour-step-envio",
         popover: {
           title: "Revisión y Envío Final",
@@ -326,7 +312,6 @@ export const ParticipantForm = ({
         else if (el === "#tour-step-asistencia") setActiveStep("asistencia");
         else if (el === "#tour-step-participantes") setActiveStep("participantes");
         else if (el === "#tour-step-evidencias") setActiveStep("evidencias");
-        else if (el === "#tour-step-factura") setActiveStep("factura");
         else if (el === "#tour-step-envio") setActiveStep("envio");
       },
     });
@@ -397,12 +382,6 @@ export const ParticipantForm = ({
       if (!hasCompletedPhotos) {
         setError("Debes adjuntar al menos una foto de la actividad como soporte de ejecución.");
         goToStep("evidencias");
-        return;
-      }
-
-      if (invoiceCount === 0) {
-        setError("Debes adjuntar tu Factura de Honorarios para poder finalizar el servicio.");
-        goToStep("factura");
         return;
       }
 
@@ -1173,228 +1152,9 @@ export const ParticipantForm = ({
 
               <Button
                 type="button"
-                onClick={() => goToStep("factura")}
+                onClick={() => goToStep("envio")}
                 disabled={photoCount === 0}
                 className={`w-full sm:w-auto h-11 px-6 font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all ${photoCount > 0
-                  ? "bg-sky-600 hover:bg-sky-700 text-white cursor-pointer"
-                  : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-                  }`}
-              >
-                <span>Siguiente: Factura de Honorarios</span>
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 5 (or 4): FACTURA DE HONORARIOS */}
-        {activeStep === "factura" && (
-          <div className="p-4 sm:p-6 space-y-6" id="tour-factura-section">
-            <div className="pb-4 border-b border-slate-100 space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
-                  {hasMaterial ? "5" : "4"}
-                </span>
-                <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                  Factura de Honorarios
-                </h2>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-600">
-                Adjunta tu factura de honorarios en formato PDF o imagen para tramitar el cobro de tu servicio.
-              </p>
-            </div>
-
-            {/* Subtle Prerequisites Banner */}
-            {!canSubmitFactura && (
-              <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/90 text-xs space-y-3 shadow-2xs">
-                <div className="flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <p className="font-bold text-amber-950">
-                      Requisitos previos para adjuntar tu Factura de Honorarios
-                    </p>
-                    <p className="text-amber-800 text-[11px] leading-relaxed">
-                      Para habilitar la carga de tu factura, debes haber completado previamente la lista de asistencia física, el registro de participantes con su nota (al menos uno) y el registro fotográfico:
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-                  {/* Requisito 1: Lista de Asistencia */}
-                  <div className={`p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition-all ${hasCompletedAttendance
-                    ? "bg-white/80 border-emerald-200 text-emerald-950 shadow-2xs"
-                    : "bg-white border-amber-300 text-amber-950 shadow-2xs"
-                    }`}>
-                    <div className="flex items-start gap-2">
-                      {hasCompletedAttendance ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                      )}
-                      <div className="min-w-0">
-                        <span className="font-bold block text-xs truncate">1. Lista de Asistencia</span>
-                        <span className="text-[11px] text-slate-500 block mt-0.5">
-                          {hasCompletedAttendance
-                            ? `Cargada (${attendanceCount} archivo)`
-                            : "Falta subir lista firmada"}
-                        </span>
-                      </div>
-                    </div>
-                    {!hasCompletedAttendance && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => goToStep("asistencia")}
-                        className="h-7 text-[11px] font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border-sky-200 w-full cursor-pointer"
-                      >
-                        Subir lista de asistencia
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Requisito 2: Participantes con nota */}
-                  <div className={`p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition-all ${hasCompletedParticipants
-                    ? "bg-white/80 border-emerald-200 text-emerald-950 shadow-2xs"
-                    : "bg-white border-amber-300 text-amber-950 shadow-2xs"
-                    }`}>
-                    <div className="flex items-start gap-2">
-                      {hasCompletedParticipants ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                      )}
-                      <div className="min-w-0">
-                        <span className="font-bold block text-xs truncate">2. Participantes y Notas</span>
-                        <span className="text-[11px] text-slate-500 block mt-0.5">
-                          {hasCompletedParticipants
-                            ? `${validParticipants.length} calificado(s)`
-                            : !hasValidParticipants
-                              ? "Registra al menos 1 participante"
-                              : `${sinNotaCount} pendiente(s) de nota`}
-                        </span>
-                      </div>
-                    </div>
-                    {!hasCompletedParticipants && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => goToStep("participantes")}
-                        className="h-7 text-[11px] font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border-sky-200 w-full cursor-pointer"
-                      >
-                        Completar participantes
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Requisito 3: Registro Fotográfico */}
-                  <div className={`p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition-all ${hasCompletedPhotos
-                    ? "bg-white/80 border-emerald-200 text-emerald-950 shadow-2xs"
-                    : "bg-white border-amber-300 text-amber-950 shadow-2xs"
-                    }`}>
-                    <div className="flex items-start gap-2">
-                      {hasCompletedPhotos ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                      )}
-                      <div className="min-w-0">
-                        <span className="font-bold block text-xs truncate">3. Registro Fotográfico</span>
-                        <span className="text-[11px] text-slate-500 block mt-0.5">
-                          {hasCompletedPhotos
-                            ? `Cargado (${photoCount} foto(s))`
-                            : "Falta subir fotos del curso"}
-                        </span>
-                      </div>
-                    </div>
-                    {!hasCompletedPhotos && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => goToStep("evidencias")}
-                        className="h-7 text-[11px] font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border-sky-200 w-full cursor-pointer"
-                      >
-                        Subir fotos
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-1 text-[11px] text-amber-900/80 border-t border-amber-200/60">
-                  <Save className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                  <span>
-                    Puedes guardar tu avance con <strong>&ldquo;Guardar borrador&rdquo;</strong> en cualquier momento y retomar este paso cuando lo desees.
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Information Callout Card */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-sky-50/80 via-blue-50/50 to-indigo-50/30 border border-sky-100 text-xs text-sky-900 space-y-2">
-              <div className="flex items-center gap-2 font-bold text-sky-950">
-                <Receipt className="w-4 h-4 text-sky-600" />
-                <span>Instrucciones de Facturación</span>
-              </div>
-              <p className="text-sky-800 leading-relaxed text-xs">
-                Asegúrate de que la factura esté emitida con tus datos fiscales correctos, número de control/factura visible y descripción correspondiente a este servicio de capacitación.
-              </p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-[11px] text-sky-700 font-medium border-t border-sky-200/50">
-                <span>Empresa: <strong>{String(osi?.nombre_empresa || "Empresa")}</strong></span>
-                <span>OSI: <strong>#{String(osi?.nro_osi || "")}</strong></span>
-                {selectedSession && <span>Sesión: <strong>{selectedSession}</strong></span>}
-              </div>
-            </div>
-
-            {/* Upload Section */}
-            <div className="grid grid-cols-1 gap-6">
-              <AttachmentUploadSection
-                osiId={osiId}
-                facilitadorId={facilitadorId}
-                category="factura"
-                nroSesion={selectedSession}
-                title="Factura de Honorarios"
-                description={
-                  isFinal
-                    ? "Factura de honorarios remitida (solo lectura)."
-                    : canSubmitFactura
-                    ? "Sube tu archivo en formato PDF o imagen (JPG, PNG). Tamaño máximo 15MB."
-                    : "Completa primero la lista de asistencia, el registro fotográfico y los participantes con su nota para habilitar la carga."
-                }
-                badge={invoiceCount > 0 ? `${invoiceCount} Cargada(s)` : undefined}
-                badgeColor={invoiceCount > 0 ? "green" : "blue"}
-                accept="application/pdf,image/*"
-                onAttachmentCountChange={setInvoiceCount}
-                tourId="tour-factura-upload"
-                disabled={!canSubmitFactura || isFinal}
-              />
-            </div>
-
-            {/* Bottom step navigation callout */}
-            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="text-xs text-slate-500">
-                {!canSubmitFactura ? (
-                  <span className="text-amber-700 font-semibold inline-flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-                    Completa los requisitos previos arriba indicados para adjuntar tu factura y continuar.
-                  </span>
-                ) : invoiceCount > 0 ? (
-                  <span className="text-emerald-700 font-semibold inline-flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> Factura adjuntada correctamente ({invoiceCount} archivo(s)).
-                  </span>
-                ) : (
-                  <span className="text-slate-500">
-                    Adjunta tu Factura de Honorarios para continuar a la revisión final.
-                  </span>
-                )}
-              </div>
-
-              <Button
-                type="button"
-                onClick={() => goToStep("envio")}
-                disabled={!canSubmitFactura || invoiceCount === 0}
-                className={`w-full sm:w-auto h-11 px-6 font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all ${canSubmitFactura && invoiceCount > 0
                   ? "bg-sky-600 hover:bg-sky-700 text-white cursor-pointer"
                   : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
                   }`}
@@ -1412,7 +1172,7 @@ export const ParticipantForm = ({
             <div className="pb-4 border-b border-slate-100 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
-                  {hasMaterial ? "6" : "5"}
+                  {hasMaterial ? "5" : "4"}
                 </span>
                 <h2 className="text-base sm:text-lg font-bold text-slate-900">
                   Resumen Ejecutivo y Declaración de Envío
@@ -1476,15 +1236,15 @@ export const ParticipantForm = ({
                 </div>
 
                 <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Factura de Honorarios</span>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Soportes de Servicio</span>
                   <p className="text-sm font-bold mt-0.5 flex items-center gap-1.5">
-                    {invoiceCount > 0 ? (
+                    {hasCompletedAttendance && hasCompletedPhotos && hasCompletedParticipants ? (
                       <span className="text-emerald-700 inline-flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" /> {invoiceCount} archivo(s)
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Completos
                       </span>
                     ) : (
-                      <span className="text-slate-500 inline-flex items-center gap-1">
-                        <Receipt className="w-4 h-4 text-slate-400" /> Pendiente
+                      <span className="text-amber-700 inline-flex items-center gap-1">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" /> Incompletos
                       </span>
                     )}
                   </p>
@@ -1592,17 +1352,13 @@ export const ParticipantForm = ({
                   <p className="text-xs text-amber-600 font-medium">
                     ⚠️ Falta cargar fotos de la actividad como soporte de ejecución.
                   </p>
-                ) : invoiceCount === 0 ? (
-                  <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Debes adjuntar tu Factura de Honorarios en el paso anterior.
-                  </p>
                 ) : !hasAcknowledged ? (
                   <p className="text-xs text-amber-600 font-medium">
                     ⚠️ Marca la casilla de declaración para habilitar el envío final.
                   </p>
                 ) : (
                   <p className="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Todo listo para enviar.
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Todo listo para enviar a Capacitación.
                   </p>
                 )}
               </div>

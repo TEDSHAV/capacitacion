@@ -17,12 +17,15 @@ import {
   Star,
   ShieldCheck,
   IdCard,
+  Receipt,
 } from "lucide-react";
 import { DashboardTour } from "./DashboardTour";
 import { DashboardTourAutoStart as AutoStart } from "./DashboardTourAutoStart";
 import { toTitleCase } from "@/utils/string-utils";
 import type { FacilitadorFullData } from "@/app/actions/facilitador-portal";
 import { ComplianceBanner } from "@/components/compliance/ComplianceBanner";
+import { FacilitadorFacturacionView } from "./FacilitadorFacturacionView";
+import type { FacilitadorPurchaseOrder } from "@/app/actions/facilitador-facturacion";
 
 interface OSIItem {
   id_osi: number;
@@ -47,6 +50,8 @@ interface FacilitadorDashboardClientProps {
   initialData?: FacilitadorFullData | null;
   osis?: OSIItem[];
   facilitadorId?: number;
+  initialOrders?: FacilitadorPurchaseOrder[];
+  initialView?: "servicios" | "facturacion" | "perfil";
 }
 
 export default function FacilitadorDashboardClient({
@@ -54,12 +59,16 @@ export default function FacilitadorDashboardClient({
   initialData,
   osis = [],
   facilitadorId,
+  initialOrders = [],
+  initialView = "servicios",
 }: FacilitadorDashboardClientProps) {
-  const [mainView, setMainView] = useState<"servicios" | "perfil">("servicios");
+  const [mainView, setMainView] = useState<"servicios" | "facturacion" | "perfil">(initialView);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTab, setFilterTab] = useState<"pendientes" | "finalizados">("pendientes");
 
   const facilitador = initialData?.facilitador;
+  const rating = facilitador?.rating ?? facilitador?.calificacion ?? null;
+  const reviewCount = facilitador?.review_count ?? 0;
   const effectiveFacilitadorId = facilitadorId ?? facilitador?.id;
   const stats = initialData?.stats || {
     totalServicios: osis.length,
@@ -74,6 +83,7 @@ export default function FacilitadorDashboardClient({
   const totalCount = osis.length;
   const finalizadosCount = osis.filter((o) => o.participant_status === "final").length;
   const pendientesCount = totalCount - finalizadosCount;
+  const pendingOrdersCount = initialOrders.filter((o) => o.status === "pendiente_factura").length;
 
   // Filtered active OSIs list
   const filteredOSIs = useMemo(() => {
@@ -125,34 +135,77 @@ export default function FacilitadorDashboardClient({
         id="tour-welcome"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-          <div className="flex items-center gap-4">
-            {/* Facilitator Avatar */}
-            <div className="relative shrink-0">
-              {facilitador?.foto_perfil_url ? (
-                <img
-                  src={facilitador.foto_perfil_url}
-                  alt={nombre}
-                  className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover border border-slate-200 shadow-2xs"
-                />
-              ) : (
-                <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-slate-800 text-white flex items-center justify-center font-bold text-xl sm:text-2xl shadow-2xs border border-slate-200">
-                  {getInitials(nombre)}
+          <div className="flex items-center gap-4 sm:gap-5">
+            {/* Facilitator Avatar & Rating Badge */}
+            <div className="flex flex-col items-center shrink-0">
+              <div className="relative">
+                {facilitador?.foto_perfil_url ? (
+                  <img
+                    src={facilitador.foto_perfil_url}
+                    alt={nombre}
+                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover border border-slate-200 shadow-2xs"
+                  />
+                ) : (
+                  <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-slate-800 text-white flex items-center justify-center font-bold text-xl sm:text-2xl shadow-2xs border border-slate-200">
+                    {getInitials(nombre)}
+                  </div>
+                )}
+                <div
+                  className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center shadow-2xs"
+                  title="Facilitador Activo"
+                >
+                  <CheckCircle2 className="w-3 h-3 text-white stroke-[3]" />
                 </div>
-              )}
+              </div>
+
+              {/* Rating pill below profile pic */}
               <div
-                className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center shadow-2xs"
-                title="Facilitador Activo"
+                className={`mt-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold shadow-2xs transition-colors cursor-default ${
+                  rating && rating > 0
+                    ? "bg-amber-50 text-amber-900 border border-amber-200/90 hover:bg-amber-100/80"
+                    : "bg-slate-50 text-slate-500 border border-slate-200/80"
+                }`}
+                title={
+                  rating && rating > 0
+                    ? `Calificación promedio: ${rating.toFixed(1)} / 5.0${
+                        reviewCount > 0
+                          ? ` (${reviewCount} ${reviewCount === 1 ? "evaluación de satisfacción" : "evaluaciones de satisfacción"})`
+                          : ""
+                      }`
+                    : "Sin evaluaciones de satisfacción registradas aún"
+                }
               >
-                <CheckCircle2 className="w-3 h-3 text-white stroke-[3]" />
+                <Star
+                  className={`w-3.5 h-3.5 shrink-0 ${
+                    rating && rating > 0 ? "fill-amber-400 text-amber-500" : "text-slate-400"
+                  }`}
+                />
+                <span>{rating && rating > 0 ? rating.toFixed(1) : "Nuevo"}</span>
+                {reviewCount > 0 && (
+                  <span className="text-[10px] font-semibold text-amber-700/80">
+                    ({reviewCount})
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="space-y-1 min-w-0">
+            <div className="space-y-1.5 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80">
                   <Sparkles className="w-3 h-3 text-emerald-600" />
                   Facilitador Autorizado
                 </span>
+                {rating && rating > 0 && (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200/80">
+                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                    <span>{rating.toFixed(1)} / 5.0</span>
+                    {reviewCount > 0 && (
+                      <span className="text-amber-700/80 font-normal text-[11px]">
+                        • {reviewCount} {reviewCount === 1 ? "evaluación" : "evaluaciones"}
+                      </span>
+                    )}
+                  </span>
+                )}
               </div>
 
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 truncate">
@@ -207,8 +260,25 @@ export default function FacilitadorDashboardClient({
 
               <button
                 type="button"
+                onClick={() => setMainView("facturacion")}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${mainView === "facturacion"
+                    ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40"
+                  }`}
+              >
+                <Receipt className="w-4 h-4 text-slate-500" />
+                <span>Órdenes y Facturación</span>
+                {pendingOrdersCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-200 animate-pulse">
+                    {pendingOrdersCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setMainView("perfil")}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${mainView === "perfil"
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${mainView === "perfil"
                     ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40"
                   }`}
@@ -478,12 +548,22 @@ export default function FacilitadorDashboardClient({
       )}
 
       {/* ========================================================================= */}
-      {/* VIEW 2: MI PERFIL (CLEAN PROFILE DETAILS WITHOUT HERO REPETITION) */}
+      {/* VIEW 2: ÓRDENES DE COMPRA Y FACTURACIÓN */}
+      {/* ========================================================================= */}
+      {mainView === "facturacion" && (
+        <FacilitadorFacturacionView
+          initialOrders={initialOrders}
+          facilitadorId={effectiveFacilitadorId || 44}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* VIEW 3: MI PERFIL (CLEAN PROFILE DETAILS WITHOUT HERO REPETITION) */}
       {/* ========================================================================= */}
       {mainView === "perfil" && (
         <div className="space-y-5">
           {/* Career Summary Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Servicios</span>
               <span className="text-xl font-bold text-slate-900 mt-0.5 block">{stats.totalServicios}</span>
@@ -500,6 +580,22 @@ export default function FacilitadorDashboardClient({
               <span className="text-[10px] uppercase font-bold text-slate-400 block">Empresas Atendidas</span>
               <span className="text-xl font-bold text-slate-900 mt-0.5 block">{stats.totalEmpresas}</span>
             </div>
+            <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs col-span-2 sm:col-span-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Calificación</span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Star
+                  className={`w-4 h-4 ${
+                    rating && rating > 0 ? "fill-amber-400 text-amber-500" : "text-slate-300"
+                  }`}
+                />
+                <span className="text-xl font-bold text-slate-900">
+                  {rating && rating > 0 ? rating.toFixed(1) : "N/D"}
+                </span>
+                {rating && rating > 0 && (
+                  <span className="text-xs text-slate-400 font-medium">/ 5.0</span>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Profile Details Container */}
@@ -513,11 +609,23 @@ export default function FacilitadorDashboardClient({
                 </p>
               </div>
 
-              {facilitador?.calificacion && (
+              {rating && rating > 0 ? (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50/80 border border-amber-200/90 rounded-xl self-start sm:self-auto shadow-2xs">
+                  <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
+                  <span className="text-xs font-bold text-amber-900">
+                    Calificación: {rating.toFixed(1)} / 5.0
+                  </span>
+                  {reviewCount > 0 && (
+                    <span className="text-[11px] font-medium text-amber-700">
+                      ({reviewCount} {reviewCount === 1 ? "evaluación" : "evaluaciones"})
+                    </span>
+                  )}
+                </div>
+              ) : (
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl self-start sm:self-auto">
-                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  <span className="text-xs font-bold text-slate-800">
-                    Calificación: {facilitador.calificacion.toFixed(1)} / 5.0
+                  <Star className="w-4 h-4 text-slate-300" />
+                  <span className="text-xs font-medium text-slate-500">
+                    Sin evaluaciones de satisfacción registradas
                   </span>
                 </div>
               )}

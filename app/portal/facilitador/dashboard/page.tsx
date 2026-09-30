@@ -1,22 +1,36 @@
 import { getFacilitatorSession, getFacilitatorPortalData } from "@/app/actions/facilitador-portal";
+import { getFacilitadorPurchaseOrders } from "@/app/actions/facilitador-facturacion";
 import { redirect } from "next/navigation";
 import FacilitadorDashboardClient from "./FacilitadorDashboardClient";
 
-export default async function FacilitadorDashboardPage() {
+interface FacilitadorDashboardPageProps {
+  searchParams?: Promise<{ view?: string }>;
+}
+
+export default async function FacilitadorDashboardPage({ searchParams }: FacilitadorDashboardPageProps) {
   const session = await getFacilitatorSession();
 
   if (!session) {
     redirect("/portal/facilitador/login");
   }
 
-  const { data: portalData } = await getFacilitatorPortalData(session.facilitador_id);
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const initialView = resolvedSearchParams?.view === "facturacion" ? "facturacion" : "servicios";
+
+  const [portalDataRes, poOrdersRes] = await Promise.all([
+    getFacilitatorPortalData(session.facilitador_id),
+    getFacilitadorPurchaseOrders(session.facilitador_id),
+  ]);
 
   return (
     <FacilitadorDashboardClient
       nombre={session.nombre}
-      initialData={portalData || null}
-      osis={portalData?.osis || []}
+      initialData={portalDataRes.data || null}
+      osis={portalDataRes.data?.osis || []}
       facilitadorId={session.facilitador_id}
+      initialOrders={poOrdersRes.data || []}
+      initialView={initialView}
     />
   );
 }
+

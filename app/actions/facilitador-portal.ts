@@ -344,6 +344,8 @@ export interface FacilitadorFullData {
     formacion_docente_certificada: boolean;
     foto_perfil_url: string | null;
     calificacion: number | null;
+    rating: number | null;
+    review_count: number;
     fecha_ingreso: string | null;
     estado_nombre: string | null;
     ciudad_nombre: string | null;
@@ -385,35 +387,54 @@ export async function getFacilitatorPortalData(facilitadorId: number): Promise<{
   try {
     const supabase = await createAdminClient();
 
-    // 1. Fetch facilitator record
-    const { data: facData, error: facErr } = await supabase
-      .from("facilitadores")
-      .select(`
-        id,
-        nombre_apellido,
-        cedula,
-        rif,
-        email,
-        telefono,
-        direccion,
-        nivel_educacion,
-        formacion_docente_certificada,
-        foto_perfil_url,
-        calificacion,
-        fecha_ingreso,
-        id_estado_geografico,
-        id_ciudad,
-        temas_cursos,
-        niveles_habilidad,
-        firma_id
-      `)
-      .eq("id", facilitadorId)
-      .single();
+    // 1. Fetch facilitator record, ratings from v_facilitador_resumen, and assigned OSIs in parallel
+    const [facResult, resumenResult, osisResult] = await Promise.all([
+      supabase
+        .from("facilitadores")
+        .select(`
+          id,
+          nombre_apellido,
+          cedula,
+          rif,
+          email,
+          telefono,
+          direccion,
+          nivel_educacion,
+          formacion_docente_certificada,
+          foto_perfil_url,
+          calificacion,
+          fecha_ingreso,
+          id_estado_geografico,
+          id_ciudad,
+          temas_cursos,
+          niveles_habilidad,
+          firma_id
+        `)
+        .eq("id", facilitadorId)
+        .single(),
+      supabase
+        .from("v_facilitador_resumen")
+        .select("overall_rating, review_count")
+        .eq("id", facilitadorId)
+        .maybeSingle(),
+      getAssignedOSIs(facilitadorId),
+    ]);
 
-    if (facErr) {
+    const { data: facData, error: facErr } = facResult;
+    if (facErr || !facData) {
       console.error("[getFacilitatorPortalData] Error fetching facilitator:", facErr);
-      return { error: facErr.message };
+      return { error: facErr?.message || "Facilitador no encontrado" };
     }
+
+    // Resolve overall rating and review count from satisfaction surveys (fallback to facilitador.calificacion)
+    const numResumenRating = Number(resumenResult.data?.overall_rating);
+    const reviewCount = Number(resumenResult.data?.review_count) || 0;
+    const rating =
+      numResumenRating > 0
+        ? numResumenRating
+        : facData.calificacion && Number(facData.calificacion) > 0
+        ? Number(facData.calificacion)
+        : null;
 
     // Resolve state and city names
     let estado_nombre: string | null = null;
@@ -455,8 +476,8 @@ export async function getFacilitatorPortalData(facilitadorId: number): Promise<{
       }
     }
 
-    // 2. Fetch assigned OSIs
-    const { data: osis = [] } = await getAssignedOSIs(facilitadorId);
+    // 2. Assigned OSIs loaded in parallel
+    const { data: osis = [] } = osisResult;
 
     // 3. Build comprehensive history of services
     const historial = (osis || []).map((osi: any) => {
@@ -526,6 +547,8 @@ export async function getFacilitatorPortalData(facilitadorId: number): Promise<{
           formacion_docente_certificada: Boolean(facData.formacion_docente_certificada),
           foto_perfil_url: facData.foto_perfil_url || null,
           calificacion: facData.calificacion ? Number(facData.calificacion) : null,
+          rating,
+          review_count: reviewCount,
           fecha_ingreso: facData.fecha_ingreso || null,
           estado_nombre,
           ciudad_nombre,
@@ -742,7 +765,7 @@ export async function saveParticipants(
         osiId,
         nroOsi: osiInfo?.nro_osi ?? `ID ${osiId}`,
         facilitadorName: session.nombre,
-        category: "lista_participantes",
+        category: "servicio_finalizado",
       });
     } catch (notifErr) {
       console.error("[saveParticipants] Notification error (non-fatal):", notifErr);

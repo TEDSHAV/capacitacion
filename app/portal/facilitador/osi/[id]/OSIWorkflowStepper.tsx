@@ -5,13 +5,12 @@ import {
   FileSpreadsheet,
   Users,
   Camera,
-  Receipt,
   HelpCircle,
   CheckCheck,
   CheckCircle2,
 } from "lucide-react";
 
-export type WizardStepId = "material" | "asistencia" | "participantes" | "evidencias" | "factura" | "envio";
+export type WizardStepId = "material" | "asistencia" | "participantes" | "evidencias" | "envio";
 
 export interface WizardStep {
   id: WizardStepId;
@@ -71,15 +70,6 @@ export function getWizardSteps(hasMaterial: boolean): WizardStep[] {
     shortTitle: "Fotos",
     desc: "Registro fotográfico",
     icon: Camera,
-  });
-
-  steps.push({
-    id: "factura",
-    number: num++,
-    title: "Factura de Honorarios",
-    shortTitle: "Factura de Honorarios",
-    desc: "Carga de factura",
-    icon: Receipt,
   });
 
   steps.push({

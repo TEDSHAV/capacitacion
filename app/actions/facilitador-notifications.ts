@@ -10,6 +10,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   hoja_calificacion: "hoja de calificación",
   material_fotografico: "material fotográfico",
   lista_participantes: "listado de participantes",
+  servicio_finalizado: "documentación completa y finalización de servicio",
   factura: "factura de honorarios",
 };
 
@@ -67,8 +68,16 @@ export async function notifyCapacitacionUsersOfUpload(params: {
     const categoryLabel = CATEGORY_LABELS[category] || category;
     const sessionSuffix = nroSesion ? ` (Sesión ${nroSesion})` : "";
 
-    const title = "Facilitador subió documentación";
-    const body = `El facilitador ${facilitadorName} subió ${categoryLabel} para la OSI ${nroOsi}${sessionSuffix}.`;
+    let title = "Facilitador subió documentación";
+    let body = `El facilitador ${facilitadorName} subió ${categoryLabel} para la OSI ${nroOsi}${sessionSuffix}.`;
+
+    if (category === "servicio_finalizado" || category === "lista_participantes") {
+      title = "Servicio Finalizado y Soportes Remitidos";
+      body = `El facilitador ${facilitadorName} ha finalizado el servicio y remitido lista de asistencia, notas y evidencias para la OSI ${nroOsi}${sessionSuffix}.`;
+    } else if (category === "factura") {
+      title = "Factura de Honorarios Remitida";
+      body = `El facilitador ${facilitadorName} ha cargado la factura de honorarios correspondiente a la OSI ${nroOsi}${sessionSuffix}.`;
+    }
 
     const rows = recipientIds.map((recipientIdAuth) => ({
       app_slug: APP_SLUG,

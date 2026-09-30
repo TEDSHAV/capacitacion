@@ -18,6 +18,7 @@ import {
   MailCheck,
   UserCheck,
   ShieldCheck,
+  Receipt,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -60,9 +61,16 @@ export interface NavigationConfig {
 const FACILITADOR_NAV: NavItem[] = [
   {
     id: "dashboard",
-    label: "Dashboard",
+    label: "Mis Servicios",
     href: "/portal/facilitador/dashboard",
     icon: Home,
+    offlineAvailable: true,
+  },
+  {
+    id: "facturacion",
+    label: "Órdenes y Facturación",
+    href: "/portal/facilitador/dashboard?view=facturacion",
+    icon: Receipt,
     offlineAvailable: true,
   },
 ];
