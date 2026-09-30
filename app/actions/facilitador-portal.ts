@@ -242,11 +242,19 @@ export async function getAssignedOSIs(facilitadorId: number) {
   // Fetch participant submission status for each OSI
   let enrichedData = data || [];
   if (allOsiIds.length > 0) {
-    const { data: participantsData } = await supabase
-      .from("ejecucion_osi_participantes")
-      .select("osi_id, status")
-      .in("osi_id", allOsiIds);
+    const [participantsRes, osiSessionsRes] = await Promise.all([
+      supabase
+        .from("ejecucion_osi_participantes")
+        .select("osi_id, status")
+        .in("osi_id", allOsiIds),
+      supabase
+        .from("osi_sesion")
+        .select("id_osi, nro_sesion, fecha, fecha_ejecutada, hora_inicio, hora_fin")
+        .in("id_osi", allOsiIds)
+        .order("nro_sesion", { ascending: true }),
+    ]);
 
+    const participantsData = participantsRes.data;
 
     const osiStatusMap = new Map<number, string>();
     if (participantsData && participantsData.length > 0) {
@@ -258,6 +266,20 @@ export async function getAssignedOSIs(facilitadorId: number) {
           osiStatusMap.set(p.osi_id, "draft");
         }
       }
+    }
+
+    const sessionsListByOsi = new Map<number, Array<{
+      nro_sesion: number;
+      fecha: string | null;
+      fecha_ejecutada: string | null;
+      hora_inicio?: string | null;
+      hora_fin?: string | null;
+    }>>();
+
+    for (const s of osiSessionsRes.data || []) {
+      const list = sessionsListByOsi.get(s.id_osi) || [];
+      list.push(s);
+      sessionsListByOsi.set(s.id_osi, list);
     }
 
     const materialesActive = isMaterialesEnabled();
@@ -303,6 +325,48 @@ export async function getAssignedOSIs(facilitadorId: number) {
           (resolvedCourseId ? courseMaterialsMap.get(resolvedCourseId) || 0 : 0)
         : 0;
 
+      const allSessionsForOsi = sessionsListByOsi.get(osi.id_osi) || [];
+      const relevantSessions =
+        sessionInfo && !sessionInfo.hasAllSessions && sessionInfo.specificSessions.length > 0
+          ? allSessionsForOsi.filter((s) => sessionInfo.specificSessions.includes(s.nro_sesion))
+          : allSessionsForOsi;
+
+      let display_date: string | null = null;
+      let display_date_label: string | null = null;
+      let display_date_type: "single" | "next_pending" | "last_executed" | "fallback" = "fallback";
+
+      if (relevantSessions.length === 1) {
+        // Single session: exact execution date (planned or executed)
+        const s = relevantSessions[0];
+        display_date = s.fecha_ejecutada || s.fecha || osi.fecha_inicio_real || osi.fecha_emision || null;
+        display_date_label = "Sesión 1";
+        display_date_type = "single";
+      } else if (relevantSessions.length > 1) {
+        // Multiple sessions: next session to execute, or last session executed if all finished
+        const unexecuted = relevantSessions.filter((s) => !s.fecha_ejecutada);
+        if (unexecuted.length > 0) {
+          const next = unexecuted[0];
+          display_date = next.fecha || next.fecha_ejecutada || osi.fecha_inicio_real || null;
+          display_date_label = `Próx: Sesión ${next.nro_sesion}`;
+          display_date_type = "next_pending";
+        } else {
+          const last = relevantSessions[relevantSessions.length - 1];
+          display_date = last.fecha_ejecutada || last.fecha || osi.fecha_fin_real || osi.fecha_inicio_real || null;
+          display_date_label = `Últ: Sesión ${last.nro_sesion}`;
+          display_date_type = "last_executed";
+        }
+      }
+
+      // Safe fallback if osi_sesion rows were missing
+      if (!display_date) {
+        display_date =
+          osi.fecha_inicio_real ||
+          (Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[0]?.fecha) ||
+          osi.fecha_emision ||
+          null;
+        display_date_type = "fallback";
+      }
+
       return {
         ...osi,
         participant_status: osiStatusMap.get(osi.id_osi) || null,
@@ -311,6 +375,10 @@ export async function getAssignedOSIs(facilitadorId: number) {
         session_count: getSessionCount(osi),
         has_material: matCount > 0,
         material_count: matCount,
+        display_date,
+        display_date_label,
+        display_date_type,
+        sessions_list: relevantSessions,
       };
     });
   }
