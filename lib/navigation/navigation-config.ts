@@ -19,6 +19,7 @@ import {
   UserCheck,
   ShieldCheck,
   Receipt,
+  Bell,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -191,6 +192,13 @@ const DASHBOARD_NAV: NavItem[] = [
     icon: Award,
     offlineAvailable: true,
     children: [
+      {
+        id: "notifications",
+        label: "Notificaciones (72h)",
+        href: "/dashboard/capacitacion/notificaciones",
+        icon: Bell,
+        offlineAvailable: true,
+      },
       {
         id: "generation",
         label: "Generación",

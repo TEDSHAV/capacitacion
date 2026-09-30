@@ -1,6 +1,5 @@
 import { PWALayout } from "@/components/PWALayout";
 import VersionBadge from "@/components/VersionBadge";
-import { CertificadosAlertCenter } from "@/components/alerts/CertificadosAlertCenter";
 import { createClient } from "@/utils/supabase/server";
 import { handleLogout } from "@/app/actions/auth";
 
@@ -24,8 +23,6 @@ export default async function DashboardLayout({
       }}
     >
       {children}
-      {/* Centro de notificaciones para emisión de certificados e indicador de 72 horas */}
-      <CertificadosAlertCenter />
       {/* The dashboard is embedded in the PRISMA shell and renders no chrome of
           its own, so the build version is surfaced here instead of in a footer. */}
       <VersionBadge />

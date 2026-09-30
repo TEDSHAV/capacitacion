@@ -161,43 +161,39 @@ export function CertificadosNotificationsBanner() {
 
               {/* Metric Badges */}
               <div className="flex items-center gap-2.5 mt-4 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => openNotifications("lista_para_emitir")}
+                <Link
+                  href="/dashboard/capacitacion/notificaciones?tab=lista_para_emitir"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold transition-all shadow-2xs"
                 >
                   <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
                   <span>{totalListasParaEmitir} listas para emitir</span>
-                </button>
+                </Link>
 
-                <button
-                  type="button"
-                  onClick={() => openNotifications("vencida_72h")}
+                <Link
+                  href="/dashboard/capacitacion/notificaciones?tab=vencida_72h"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 text-xs font-semibold transition-all shadow-2xs"
                 >
                   <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
                   <span>{totalVencidas72h} fuera de plazo (&gt;72h)</span>
-                </button>
+                </Link>
 
                 {totalEnRiesgo > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => openNotifications("en_riesgo")}
+                  <Link
+                    href="/dashboard/capacitacion/notificaciones?tab=en_riesgo"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-semibold transition-all shadow-2xs"
                   >
                     <Clock className="w-3.5 h-3.5 text-amber-600" />
                     <span>{totalEnRiesgo} en riesgo</span>
-                  </button>
+                  </Link>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => openNotifications()}
+                <Link
+                  href="/dashboard/capacitacion/notificaciones"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-300 text-xs font-semibold transition-all shadow-2xs ml-1"
                 >
                   <span>Ver todas ({totalPendientes})</span>
                   <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -207,13 +203,12 @@ export function CertificadosNotificationsBanner() {
                 <span className="font-bold uppercase tracking-wider text-slate-700">
                   3 OSIs más antiguas pendientes por emitir
                 </span>
-                <button
-                  type="button"
-                  onClick={() => openNotifications()}
+                <Link
+                  href="/dashboard/capacitacion/notificaciones"
                   className="text-blue-600 hover:text-blue-800 font-semibold transition-colors"
                 >
                   Ver todas →
-                </button>
+                </Link>
               </div>
 
               {oldestItems.map((item) => {
