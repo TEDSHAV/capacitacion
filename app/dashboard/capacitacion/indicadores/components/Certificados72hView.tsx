@@ -504,7 +504,9 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
                         {r.fechaEmision ? (
                           formatDate(r.fechaEmision)
                         ) : (
-                          <span className="text-gray-400 italic">Pendiente</span>
+                          <span className="text-amber-700/90 font-medium italic">
+                            Pendiente por generar certificados
+                          </span>
                         )}
                       </td>
 
@@ -525,7 +527,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
                         {r.estado === "pendiente" && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">
                             <Hourglass className="w-3 h-3 text-amber-600" />
-                            Sin emitir ({r.brechaDias != null ? `${r.brechaDias}d transcurridos` : "Pendiente"})
+                            Sin emitir ({r.brechaDias != null ? `${r.brechaDias}d transcurridos` : "Pendiente por generar"})
                           </span>
                         )}
                         {r.estado === "programada" && (

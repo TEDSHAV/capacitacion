@@ -527,6 +527,7 @@ export function ComplianceModal({
 
                     <Button
                       type="button"
+                      variant={hasAgreed ? "default" : "secondary"}
                       onClick={handleAcknowledge}
                       disabled={submitting || !hasAgreed}
                       className={`h-10 px-5 text-xs font-bold rounded-xl shadow-xs transition-all ${hasAgreed

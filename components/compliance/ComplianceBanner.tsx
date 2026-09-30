@@ -165,11 +165,12 @@ export function ComplianceBanner({
           <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
             <Button
               type="button"
+              variant={isFullyCompliant ? "outline" : "default"}
               onClick={() => setModalOpen(true)}
               className={`h-10 px-4 text-xs font-bold rounded-xl shadow-xs cursor-pointer ${
                 isFullyCompliant
-                  ? "bg-white hover:bg-slate-50 text-slate-700 border border-slate-300"
-                  : "bg-sky-600 hover:bg-sky-700 text-white shadow-sky-600/20"
+                  ? "bg-white hover:bg-slate-50 text-slate-800 border-slate-300 hover:border-slate-400"
+                  : "bg-sky-600 hover:bg-sky-700 text-white border-0 shadow-sky-600/20"
               }`}
             >
               <span>{isFullyCompliant ? "Ver Documentos Firmados" : "Revisar y Firmar"}</span>
