@@ -259,6 +259,7 @@ export default function FacilitadorDashboardClient({
               </button>
 
               <button
+                id="tour-tab-facturacion"
                 type="button"
                 onClick={() => setMainView("facturacion")}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${mainView === "facturacion"

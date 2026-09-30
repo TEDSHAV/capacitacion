@@ -33,6 +33,7 @@ export function FacilitadorTour({ tourKey, steps, autoStart = true }: Facilitado
     if (!autoStart) return;
     const completed = localStorage.getItem(tourKey);
     if (!completed) {
+      localStorage.setItem(tourKey, "completed");
       const timer = setTimeout(() => {
         startTour();
       }, 500);

@@ -71,7 +71,7 @@ export interface ParticipantFormProps {
 const DISCLAIMER_TEXT =
   "Declaro bajo mi responsabilidad que he revisado exhaustivamente las calificaciones y datos de los participantes, y que la información aquí suministrada es veraz y ha sido contrastada con la lista de asistencia firmada.";
 
-const OSI_TOUR_KEY = "facilitador-osi-tour-v2";
+const OSI_TOUR_KEY = "facilitador-osi-tour-v3";
 
 export const ParticipantForm = ({
   osiId,
@@ -287,7 +287,7 @@ export const ParticipantForm = ({
         popover: {
           title: "Revisión y Envío Final",
           description:
-            "Revisa el resumen consolidado de los datos, confirma la declaración de veracidad y envía el servicio al departamento de Capacitación.",
+            "Revisa el resumen consolidado de los datos, confirma la declaración jurada de veracidad y remite el servicio al departamento de Capacitación. La factura correspondiente la cargarás posteriormente desde 'Órdenes y Facturación' una vez emitida tu orden de compra.",
         },
       }
     );
@@ -321,6 +321,8 @@ export const ParticipantForm = ({
   useEffect(() => {
     const completed = localStorage.getItem(OSI_TOUR_KEY);
     if (!completed) {
+      // Mark as seen immediately so it never auto-triggers again on reloads or tab switches
+      localStorage.setItem(OSI_TOUR_KEY, "completed");
       const timer = setTimeout(() => {
         startTour();
       }, 700);

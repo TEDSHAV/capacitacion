@@ -9,6 +9,9 @@ export function DashboardTourAutoStart() {
   useEffect(() => {
     const completed = localStorage.getItem(DASHBOARD_TOUR_KEY);
     if (!completed) {
+      // Mark as seen immediately so it never auto-triggers again on reloads or tab switches
+      localStorage.setItem(DASHBOARD_TOUR_KEY, "completed");
+
       const timer = setTimeout(() => {
         const driverInstance = driver({
           steps: dashboardSteps,
