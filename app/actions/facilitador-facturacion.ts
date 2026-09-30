@@ -68,9 +68,30 @@ export async function getFacilitadorPurchaseOrders(
     const poList: FacilitadorPurchaseOrder[] = [];
 
     // 2. Future integration hook:
-    // Once the companion team releases the `ordenes_compra` table, read active POs here:
-    // e.g.:
-    // const { data: realPOs } = await supabase.from("ordenes_compra").select(...)...
+    // -----------------------------------------------------------------------------------------
+    // ARCHITECTURE NOTE & INTEGRATION ROADMAP:
+    // Once the companion team releases the `ordenes_compra` table / module in Supabase:
+    //
+    // 1. Query: Read active and processed purchase orders matching `facilitador_id = facilitadorId`:
+    //    const { data: realPOs, error: poErr } = await supabase
+    //      .from("ordenes_compra")
+    //      .select("id, numero_orden, osi_id, nro_osi, empresa_nombre, servicio_nombre, fecha_servicio, created_at, notas, status")
+    //      .eq("facilitador_id", facilitadorId)
+    //      .order("created_at", { ascending: false });
+    //
+    // 2. Correlation with Invoices:
+    //    For each PO, match against `invoicesByOsi.get(po.osi_id)` (or by `po_id` if linked directly).
+    //    Determine status: if invoice exists -> "factura_enviada", else -> "pendiente_factura".
+    //
+    // 3. PRIVACY & FINANCIAL CONSTRAINTS (CRITICAL):
+    //    - Do NOT query or reference `requisiciones` for this view.
+    //    - Do NOT expose honorarios rates, hourly calculations, or internal USD costs to facilitadores.
+    //    - The facilitador view is strictly operational: PO number, client name, service description,
+    //      service date, and invoice upload status.
+    //
+    // 4. Decommissioning Sample POs:
+    //    Once `realPOs` is wired in, delete or disable the fallback block for test facilitator 44 below.
+    // -----------------------------------------------------------------------------------------
 
     // 3. Fallback / Test Sample POs (Active & History) STRICTLY for test facilitator (44)
     // Only displayed for testing purposes for facilitator 44 while real `ordenes_compra` are delivered.
