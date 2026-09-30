@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   IdCard,
   Receipt,
+  Calendar,
 } from "lucide-react";
 import { DashboardTour } from "./DashboardTour";
 import { DashboardTourAutoStart as AutoStart } from "./DashboardTourAutoStart";
@@ -37,6 +38,9 @@ interface OSIItem {
   estado?: string;
   direccion_servicio?: string;
   fecha_emision?: string;
+  fecha_inicio_real?: string;
+  fecha_fin_real?: string;
+  sesiones_programadas?: Array<{ fecha?: string; hora_inicio?: string; hora_fin?: string }>;
   session_count?: number;
   assigned_all_sessions?: boolean;
   assigned_sessions?: number[];
@@ -110,6 +114,13 @@ export default function FacilitadorDashboardClient({
   const formatDateDayMonth = (dateStr?: string) => {
     if (!dateStr) return { day: "--", month: "---" };
     try {
+      // Safe parse for YYYY-MM-DD date strings to avoid UTC-to-local timezone day shift
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const [year, monthNum, day] = dateStr.split("-");
+        const dateObj = new Date(Number(year), Number(monthNum) - 1, Number(day));
+        const month = dateObj.toLocaleString("es-VE", { month: "short" }).toUpperCase().replace(".", "");
+        return { day, month };
+      }
       const d = new Date(dateStr);
       const day = d.getDate().toString().padStart(2, "0");
       const month = d.toLocaleString("es-VE", { month: "short" }).toUpperCase().replace(".", "");
@@ -405,7 +416,11 @@ export default function FacilitadorDashboardClient({
             <div className="grid gap-3.5" id="tour-osi-cards">
               {filteredOSIs.map((osi, idx) => {
                 const isFirst = idx === 0;
-                const dateInfo = formatDateDayMonth(osi.fecha_emision);
+                const effectiveDate =
+                  osi.fecha_inicio_real ||
+                  (Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[0]?.fecha) ||
+                  osi.fecha_emision;
+                const dateInfo = formatDateDayMonth(effectiveDate);
                 const isFinal = osi.participant_status === "final";
 
                 return (
@@ -444,6 +459,12 @@ export default function FacilitadorDashboardClient({
 
                           {/* Session & Metadata Badges */}
                           <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-slate-500">
+                            {/* Mobile Calendar Date Badge */}
+                            <div className="sm:hidden inline-flex items-center gap-1 text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                              <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                              <span>{dateInfo.day} {dateInfo.month}</span>
+                            </div>
+
                             {osi.session_count === 1 ? (
                               <span className="inline-flex items-center text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-md">
                                 Sesión 1

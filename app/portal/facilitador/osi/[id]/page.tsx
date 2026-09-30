@@ -114,12 +114,28 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
               <span><strong>{[osi.ciudad, osi.estado].filter(Boolean).join(", ")}</strong></span>
             </div>
           )}
-          {osi.fecha_emision && (
-            <div className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-slate-400" />
-              <span>Emisión: <strong>{new Date(osi.fecha_emision).toLocaleDateString()}</strong></span>
-            </div>
-          )}
+          {(() => {
+            const dateStr =
+              osi.fecha_inicio_real ||
+              (Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[0]?.fecha) ||
+              osi.fecha_emision;
+            if (!dateStr) return null;
+            let formattedDate = dateStr;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+              const [y, m, d] = dateStr.split("-");
+              formattedDate = `${d}/${m}/${y}`;
+            } else {
+              try {
+                formattedDate = new Date(dateStr).toLocaleDateString("es-VE");
+              } catch {}
+            }
+            return (
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-slate-400" />
+                <span>Fecha: <strong>{formattedDate}</strong></span>
+              </div>
+            );
+          })()}
 
           {/* Session assignment badges (Light Sky/Teal) */}
           <div className="flex items-center gap-1.5">
