@@ -864,3 +864,36 @@ export async function getManualOSIBatchesAction(
     };
   }
 }
+
+/**
+ * Fetch full OSI record from v_osi_formato_completo by id_osi
+ * for rendering the official OSI preview format in-place without navigating away.
+ */
+export async function getOsiParaFormatoCompleto(osiId: number): Promise<{
+  data: OSIManagement | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("v_osi_formato_completo")
+      .select("*")
+      .eq("id_osi", osiId)
+      .maybeSingle();
+
+    if (error || !data) {
+      return {
+        data: null,
+        error: error?.message || "No se encontró el formato completo de la OSI",
+      };
+    }
+
+    return { data: data as OSIManagement, error: null };
+  } catch (err) {
+    console.error("Error in getOsiParaFormatoCompleto:", err);
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "Error inesperado al cargar la OSI",
+    };
+  }
+}

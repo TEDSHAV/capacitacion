@@ -29,6 +29,7 @@ import {
   type CategoriaAlerta,
   getAlertasCertificadosPendientes,
 } from "@/app/actions/alertas-certificados";
+import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
@@ -51,6 +52,7 @@ export default function NotificacionesClient({ initialResumen }: Props) {
   const [loading, setLoading] = useState(false);
   const [selectedTab, setSelectedTab] = useState<TabType>("todas");
   const [searchQuery, setSearchQuery] = useState("");
+  const [previewOsi, setPreviewOsi] = useState<{ id: number; number: string } | null>(null);
 
   // Enhanced filters
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>("");
@@ -682,14 +684,15 @@ export default function NotificacionesClient({ initialResumen }: Props) {
 
                 {/* Footer Action Buttons */}
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                  <Link
-                    href={`/dashboard/capacitacion/gestion-osi?id=${item.osiId}`}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => setPreviewOsi({ id: item.osiId, number: item.nroOsi })}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+                    title="Ver formato oficial de la OSI"
                   >
+                    <FileText className="w-3.5 h-3.5 text-slate-500" />
                     <span>Ver OSI</span>
-                    <ExternalLink className="w-3 h-3 text-slate-400" />
-                  </Link>
+                  </button>
 
                   <Link
                     href={`/dashboard/capacitacion/generacion-certificado?osi=${encodeURIComponent(item.nroOsi)}`}
@@ -708,6 +711,14 @@ export default function NotificacionesClient({ initialResumen }: Props) {
           })}
         </div>
       )}
+
+      {/* ─── In-place Official OSI Preview Modal ─── */}
+      <OsiPreviewModal
+        isOpen={Boolean(previewOsi)}
+        osiId={previewOsi?.id ?? null}
+        osiNumber={previewOsi?.number}
+        onClose={() => setPreviewOsi(null)}
+      />
     </div>
   );
 }
