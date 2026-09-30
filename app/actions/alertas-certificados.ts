@@ -52,9 +52,32 @@ function getCaracasTodayStr(): string {
 }
 
 const PLAZO_BUSINESS_DAYS = 3;
-const IN_CHUNK_SIZE = 300;
+const IN_CHUNK_SIZE = 100;
+
+function formatChunkError(err: unknown): string {
+  if (!err) return "Unknown error";
+  if (err instanceof Error) {
+    return `${err.name}: ${err.message}${err.stack ? `\n${err.stack}` : ""}`;
+  }
+  if (typeof err === "object") {
+    const o = err as Record<string, unknown>;
+    const parts: string[] = [];
+    if (o.message) parts.push(`message: ${o.message}`);
+    if (o.code) parts.push(`code: ${o.code}`);
+    if (o.details) parts.push(`details: ${o.details}`);
+    if (o.hint) parts.push(`hint: ${o.hint}`);
+    if (parts.length > 0) return parts.join(" | ");
+    try {
+      return JSON.stringify(err, Object.getOwnPropertyNames(err));
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
+}
 
 async function chunkedIn<T>(
+  label: string,
   ids: number[],
   fetcher: (chunk: number[]) => PromiseLike<{ data: T[] | null; error: unknown }>,
 ): Promise<T[]> {
@@ -64,13 +87,29 @@ async function chunkedIn<T>(
     chunks.push(ids.slice(i, i + IN_CHUNK_SIZE));
   }
   const results = await Promise.all(
-    chunks.map(async (chunk) => {
-      const { data, error } = await fetcher(chunk);
-      if (error) {
-        console.error("[alertas-certificados] chunk error:", error);
+    chunks.map(async (chunk, index) => {
+      try {
+        let res = await fetcher(chunk);
+        if (res.error) {
+          // Fast retry once after brief delay for transient network/socket glitches
+          await new Promise((r) => setTimeout(r, 200));
+          res = await fetcher(chunk);
+        }
+        if (res.error) {
+          console.error(
+            `[alertas-certificados] chunk error on '${label}' (chunk ${index + 1}/${chunks.length}, ${chunk.length} items):`,
+            formatChunkError(res.error),
+          );
+          return [];
+        }
+        return res.data || [];
+      } catch (err) {
+        console.error(
+          `[alertas-certificados] chunk exception on '${label}' (chunk ${index + 1}/${chunks.length}):`,
+          formatChunkError(err),
+        );
         return [];
       }
-      return data || [];
     }),
   );
   return results.flat();
@@ -131,6 +170,7 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
     // 2. Map osiId -> numeric nro_osi_secuencial (used by certificados.nro_osi)
     const numericOsiByOsiId = new Map<number, number>();
     const ejecRows = await chunkedIn<{ id: number; nro_osi_secuencial: string | number | null }>(
+      "ejecucion_osi",
       osiIds,
       (chunk) =>
         supabase.from("ejecucion_osi").select("id, nro_osi_secuencial").in("id", chunk),
@@ -150,6 +190,7 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
     const [sesionRows, certRows, uploadRows, assignmentRows, stepRows] = await Promise.all([
       // Sessions
       chunkedIn<{ id_osi: number; nro_sesion: number; fecha: string | null; fecha_ejecutada: string | null }>(
+        "osi_sesion",
         osiIds,
         (chunk) =>
           supabase
@@ -159,12 +200,14 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
       ),
       // Existing Certificates
       chunkedIn<{ nro_osi: number | null }>(
+        "certificados",
         numericOsis,
         (chunk) =>
           supabase.from("certificados").select("nro_osi").in("nro_osi", chunk),
       ),
       // Uploaded attachments by facilitator (ejecucion_osi_asistencia)
       chunkedIn<{ osi_id: number; category: string; file_name: string }>(
+        "ejecucion_osi_asistencia",
         osiIds,
         (chunk) =>
           supabase
@@ -179,6 +222,7 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
         attachment_received: boolean | null;
         facilitadores: any;
       }>(
+        "facilitador_osi_assignments",
         osiIds,
         (chunk) =>
           supabase
@@ -188,6 +232,7 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
       ),
       // Proceso steps (lista_asistencia, calificacion, elaboracion_certificados)
       chunkedIn<{ osi_id: number; step_key: string; completed: boolean }>(
+        "capacitacion_proceso_steps",
         osiIds,
         (chunk) =>
           supabase
