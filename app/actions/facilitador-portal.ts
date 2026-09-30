@@ -668,6 +668,18 @@ export async function saveParticipants(
 
   const supabase = await createAdminClient();
 
+  // Guard: if already finalized, prevent any further edits
+  const { data: existingFinal } = await supabase
+    .from("ejecucion_osi_participantes")
+    .select("id")
+    .eq("osi_id", osiId)
+    .eq("status", "final")
+    .limit(1);
+
+  if (existingFinal && existingFinal.length > 0) {
+    return { error: "Este servicio ya ha sido finalizado y sus datos no pueden ser modificados." };
+  }
+
   // Delete existing ones for this OSI/Facilitator to overwrite
   const { error: deleteError } = await supabase
     .from("ejecucion_osi_participantes")
@@ -819,6 +831,19 @@ export async function uploadOSIAttachment(
   }
 
   const supabase = await createAdminClient();
+
+  // Guard: if already finalized, prevent new uploads
+  const { data: finalParts } = await supabase
+    .from("ejecucion_osi_participantes")
+    .select("id")
+    .eq("osi_id", osiId)
+    .eq("status", "final")
+    .limit(1);
+
+  if (finalParts && finalParts.length > 0) {
+    return { error: "No se pueden subir archivos a un servicio que ya ha sido finalizado." };
+  }
+
   const file = formData.get("file") as File;
   console.log("[uploadOSIAttachment] File from formData:", file ? { name: file.name, type: file.type, size: file.size } : "NULL");
 
@@ -1063,12 +1088,26 @@ export async function deleteOSIAttachment(id: string, storagePath: string): Prom
     // Verify ownership: the attachment must belong to this facilitador
     const { data: att } = await supabase
       .from("ejecucion_osi_asistencia")
-      .select("facilitador_id")
+      .select("facilitador_id, osi_id")
       .eq("id", id)
       .single();
 
     if (!att || att.facilitador_id !== session.facilitador_id) {
       return { error: "No autorizado" };
+    }
+
+    // Guard: if OSI is already finalized, prevent deletion
+    if (att.osi_id) {
+      const { data: finalParts } = await supabase
+        .from("ejecucion_osi_participantes")
+        .select("id")
+        .eq("osi_id", att.osi_id)
+        .eq("status", "final")
+        .limit(1);
+
+      if (finalParts && finalParts.length > 0) {
+        return { error: "No se pueden eliminar archivos de un servicio que ya ha sido finalizado." };
+      }
     }
 
     // 1. Delete from storage

@@ -192,6 +192,7 @@ export const AttachmentUploadSection = ({
   };
 
   const handleDelete = async (id: string, path: string) => {
+    if (disabled) return;
     if (!confirm("¿Estás seguro de que deseas eliminar este archivo?")) return;
 
     const result = await deleteOSIAttachment(id, path);
@@ -229,19 +230,26 @@ export const AttachmentUploadSection = ({
                 Sesión {nroSesion}
               </span>
             )}
+            {disabled && (
+              <span className="text-[10px] font-bold uppercase bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+                Solo Lectura
+              </span>
+            )}
           </h3>
           <p className="text-[10px] text-gray-500 mt-0.5">{description}</p>
         </div>
 
         <div className="relative w-full sm:w-auto" id={tourId}>
-          <input
-            type="file"
-            multiple
-            accept={accept}
-            onChange={handleFileUpload}
-            className={`absolute inset-0 w-full h-full opacity-0 ${disabled ? "cursor-not-allowed pointer-events-none" : "cursor-pointer"}`}
-            disabled={uploading || disabled}
-          />
+          {!disabled && (
+            <input
+              type="file"
+              multiple
+              accept={accept}
+              onChange={handleFileUpload}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              disabled={uploading}
+            />
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -249,10 +257,12 @@ export const AttachmentUploadSection = ({
             className={`h-11 text-sm w-full sm:w-auto transition-colors ${
               disabled
                 ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
-                : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                : "bg-white border-blue-200 text-blue-700 hover:bg-blue-50 cursor-pointer"
             }`}
           >
-            {uploading ? (
+            {disabled ? (
+              <span>Carga Bloqueada</span>
+            ) : uploading ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
                 Subiendo...
@@ -347,21 +357,24 @@ export const AttachmentUploadSection = ({
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
-                  {showScanButton && onScanAttachment && (
+                  {showScanButton && onScanAttachment && !disabled && (
                     <button
                       onClick={() => onScanAttachment(att)}
-                      className="flex items-center gap-1 px-3 py-2.5 h-10 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-md transition-colors whitespace-nowrap"
+                      className="flex items-center gap-1 px-3 py-2.5 h-10 text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-md transition-colors whitespace-nowrap cursor-pointer"
                     >
                       <ScanLine className="w-4 h-4" />
                       Escanear
                     </button>
                   )}
-                  <button
-                    onClick={() => handleDelete(att.id, att.storage_path)}
-                    className="p-2.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {!disabled && (
+                    <button
+                      onClick={() => handleDelete(att.id, att.storage_path)}
+                      className="p-2.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                      title="Eliminar archivo"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

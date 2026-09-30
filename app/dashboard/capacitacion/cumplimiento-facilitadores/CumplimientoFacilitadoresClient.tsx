@@ -548,12 +548,12 @@ export function CumplimientoFacilitadoresClient({
                               {d2?.fisico_entregado ? (
                                 <>
                                   <Check className="w-3 h-3 text-emerald-700" />
-                                  <span>Físico en Sede</span>
+                                  <span>Entregado en Físico</span>
                                 </>
                               ) : (
                                 <>
                                   <FileWarning className="w-3 h-3 text-indigo-500" />
-                                  <span>Registrar Físico</span>
+                                  <span>Marcar entregado en Físico</span>
                                 </>
                               )}
                             </button>
@@ -593,12 +593,12 @@ export function CumplimientoFacilitadoresClient({
                               {d3?.fisico_entregado ? (
                                 <>
                                   <Check className="w-3 h-3 text-emerald-700" />
-                                  <span>Físico en Sede</span>
+                                  <span>Entregado en Físico</span>
                                 </>
                               ) : (
                                 <>
                                   <FileWarning className="w-3 h-3 text-indigo-500" />
-                                  <span>Registrar Físico</span>
+                                  <span>Marcar entregado en Físico</span>
                                 </>
                               )}
                             </button>

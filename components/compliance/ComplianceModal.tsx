@@ -230,22 +230,20 @@ export function ComplianceModal({
                   key={code}
                   type="button"
                   onClick={() => handleSelectDoc(code)}
-                  className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-2.5 ${
-                    isSelected
+                  className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-2.5 ${isSelected
                       ? "bg-sky-50/80 border-sky-400 ring-2 ring-sky-200/60 shadow-2xs"
                       : isDone
-                      ? "bg-white hover:bg-emerald-50/40 border-slate-200/80"
-                      : "bg-white hover:bg-slate-50 border-slate-200/80"
-                  }`}
+                        ? "bg-white hover:bg-emerald-50/40 border-slate-200/80"
+                        : "bg-white hover:bg-slate-50 border-slate-200/80"
+                    }`}
                 >
                   <div
-                    className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
-                      isDone
+                    className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${isDone
                         ? "bg-emerald-600 text-white"
                         : isSelected
-                        ? "bg-sky-600 text-white"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
+                          ? "bg-sky-600 text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
                   >
                     {isDone ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
                   </div>
@@ -258,23 +256,21 @@ export function ComplianceModal({
                     </p>
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                          isDone
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isDone
                             ? "bg-emerald-100 text-emerald-800"
                             : "bg-amber-100 text-amber-800"
-                        }`}
+                          }`}
                       >
                         {isDone ? "Firmado Digital" : "Pendiente"}
                       </span>
                       {def.requiresPhysicalDelivery ? (
                         <span
-                          className={`text-[9px] font-medium px-1.5 py-0.5 rounded border ${
-                            rec?.fisico_entregado
+                          className={`text-[9px] font-medium px-1.5 py-0.5 rounded border ${rec?.fisico_entregado
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                               : "bg-slate-50 text-slate-600 border-slate-200"
-                          }`}
+                            }`}
                         >
-                          {rec?.fisico_entregado ? "Físico Consignado" : "Requiere Físico"}
+                          {rec?.fisico_entregado ? "Entregado en Físico" : "Requiere Físico"}
                         </span>
                       ) : (
                         <span className="text-[9px] font-medium px-1.5 py-0.5 rounded border bg-slate-50 text-slate-500 border-slate-200">
@@ -361,7 +357,7 @@ export function ComplianceModal({
                     Documento Oficial Original
                     {activeCode === "identificacion_peligros" && (
                       <span className="text-[10px] font-bold text-sky-800 bg-sky-100/80 px-2 py-0.5 rounded-full ml-1">
-                        13 Páginas Íntegras • NT-03-2016
+                        13 Páginas • NT-03-2016
                       </span>
                     )}
                   </span>
@@ -442,7 +438,7 @@ export function ComplianceModal({
                       <strong>
                         {activeDocDef.requiresPhysicalDelivery
                           ? activeRecord?.fisico_entregado
-                            ? "✓ Consignado en sede"
+                            ? "✓ Entregado en Físico"
                             : "⏳ Pendiente de entrega física en oficina"
                           : "No aplica (Solo digital)"}
                       </strong>
@@ -533,11 +529,10 @@ export function ComplianceModal({
                       type="button"
                       onClick={handleAcknowledge}
                       disabled={submitting || !hasAgreed}
-                      className={`h-10 px-5 text-xs font-bold rounded-xl shadow-xs transition-all ${
-                        hasAgreed
+                      className={`h-10 px-5 text-xs font-bold rounded-xl shadow-xs transition-all ${hasAgreed
                           ? "bg-sky-600 hover:bg-sky-700 text-white cursor-pointer"
                           : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                      }`}
+                        }`}
                     >
                       {submitting ? (
                         <>

@@ -57,7 +57,7 @@ export default function FacilitadorDashboardClient({
 }: FacilitadorDashboardClientProps) {
   const [mainView, setMainView] = useState<"servicios" | "perfil">("servicios");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterTab, setFilterTab] = useState<"todos" | "pendientes" | "finalizados">("todos");
+  const [filterTab, setFilterTab] = useState<"pendientes" | "finalizados">("pendientes");
 
   const facilitador = initialData?.facilitador;
   const effectiveFacilitadorId = facilitadorId ?? facilitador?.id;
@@ -237,60 +237,56 @@ export default function FacilitadorDashboardClient({
       {/* ========================================================================= */}
       {mainView === "servicios" && (
         <div className="space-y-5">
-          {/* 3 Interactive KPI Filter Cards (Clean Light Aesthetics with subtle active state) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5" id="tour-kpi-filters">
-            {/* Total Asignados */}
-            <button
-              type="button"
-              onClick={() => setFilterTab("todos")}
-              className={`p-4 sm:p-5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-4 bg-white ${filterTab === "todos"
-                  ? "border-slate-400 shadow-xs ring-2 ring-slate-200/80 bg-slate-50/40"
-                  : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/30"
-                }`}
-            >
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-slate-100 text-slate-700 border border-slate-200">
-                <ClipboardList className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Servicios</p>
-                <p className="text-2xl font-bold text-slate-900">{totalCount}</p>
-              </div>
-            </button>
-
+          {/* 2 Interactive KPI Filter Cards (Strict separation: Pendientes vs Finalizados) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5" id="tour-kpi-filters">
             {/* Pendientes por Cargar */}
             <button
               type="button"
               onClick={() => setFilterTab("pendientes")}
-              className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-3.5 bg-white ${filterTab === "pendientes"
-                  ? "border-amber-400 shadow-xs ring-2 ring-amber-200/80 bg-amber-50/30"
+              className={`p-4 sm:p-5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between bg-white ${filterTab === "pendientes"
+                  ? "border-amber-400 shadow-xs ring-2 ring-amber-200/80 bg-amber-50/25"
                   : "border-slate-200 hover:border-amber-300 hover:bg-slate-50/30"
                 }`}
             >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-700 border border-amber-200">
-                <Clock className="w-5 h-5" />
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-700 border border-amber-200">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pendientes de Carga</p>
+                  <p className="text-2xl font-bold text-amber-900">{pendientesCount}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pendientes Carga</p>
-                <p className="text-xl font-bold text-amber-900">{pendientesCount}</p>
-              </div>
+              {filterTab === "pendientes" && (
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 px-2.5 py-1 rounded-full border border-amber-200 hidden sm:inline-block">
+                  Activo
+                </span>
+              )}
             </button>
 
             {/* Finalizados */}
             <button
               type="button"
               onClick={() => setFilterTab("finalizados")}
-              className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-3.5 bg-white ${filterTab === "finalizados"
-                  ? "border-emerald-400 shadow-xs ring-2 ring-emerald-200/80 bg-emerald-50/30"
+              className={`p-4 sm:p-5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between bg-white ${filterTab === "finalizados"
+                  ? "border-emerald-400 shadow-xs ring-2 ring-emerald-200/80 bg-emerald-50/25"
                   : "border-slate-200 hover:border-emerald-300 hover:bg-slate-50/30"
                 }`}
             >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <CheckCircle2 className="w-5 h-5" />
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Finalizados / Enviados</p>
+                  <p className="text-2xl font-bold text-emerald-900">{finalizadosCount}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Finalizados / Enviados</p>
-                <p className="text-xl font-bold text-emerald-900">{finalizadosCount}</p>
-              </div>
+              {filterTab === "finalizados" && (
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-full border border-emerald-200 hidden sm:inline-block">
+                  Activo
+                </span>
+              )}
             </button>
           </div>
 
@@ -300,18 +296,8 @@ export default function FacilitadorDashboardClient({
             <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs self-start">
               <button
                 type="button"
-                onClick={() => setFilterTab("todos")}
-                className={`px-3.5 py-1.5 rounded-lg transition-all ${filterTab === "todos"
-                    ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40 font-medium"
-                  }`}
-              >
-                Todos ({totalCount})
-              </button>
-              <button
-                type="button"
                 onClick={() => setFilterTab("pendientes")}
-                className={`px-3.5 py-1.5 rounded-lg transition-all ${filterTab === "pendientes"
+                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${filterTab === "pendientes"
                     ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40 font-medium"
                   }`}
@@ -321,7 +307,7 @@ export default function FacilitadorDashboardClient({
               <button
                 type="button"
                 onClick={() => setFilterTab("finalizados")}
-                className={`px-3.5 py-1.5 rounded-lg transition-all ${filterTab === "finalizados"
+                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${filterTab === "finalizados"
                     ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40 font-medium"
                   }`}

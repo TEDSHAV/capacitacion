@@ -64,18 +64,12 @@ export function ComplianceBanner({
     (c) => COMPLIANCE_DOCUMENTS[c].requiresPhysicalDelivery && !records[c]?.fisico_entregado
   ).length;
 
-  if (loading) {
-    return (
-      <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs animate-pulse flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-100" />
-          <div className="space-y-1.5">
-            <div className="w-48 h-3.5 bg-slate-100 rounded" />
-            <div className="w-32 h-2.5 bg-slate-100 rounded" />
-          </div>
-        </div>
-      </div>
-    );
+  // Once all 3 documents are signed and physical copies marked as delivered in office,
+  // the banner disappears completely from the dashboard
+  const isFullyDelivered = isFullyCompliant && pendingPhysical === 0;
+
+  if (loading || isFullyDelivered) {
+    return null;
   }
 
   return (

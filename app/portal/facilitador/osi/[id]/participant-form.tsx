@@ -126,7 +126,7 @@ export const ParticipantForm = ({
   const [selectedPortalFile, setSelectedPortalFile] = useState<File | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [isScanningAttachment, setIsScanningAttachment] = useState(false);
-  const [hasAcknowledged, setHasAcknowledged] = useState(false);
+  const [hasAcknowledged, setHasAcknowledged] = useState(initialIsFinal);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const disclaimerRef = useRef<HTMLDivElement>(null);
@@ -629,6 +629,28 @@ export const ParticipantForm = ({
         </div>
       )}
 
+      {/* Finalized Service Notice Banner */}
+      {isFinal && (
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-50 via-emerald-50/80 to-teal-50/60 border border-emerald-200/90 rounded-2xl flex items-start gap-3.5 text-emerald-950 shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+            <CheckCheck className="w-5 h-5" />
+          </div>
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm font-bold text-emerald-950">
+                Servicio Finalizado y Enviado
+              </h4>
+              <span className="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                Solo Lectura
+              </span>
+            </div>
+            <p className="text-xs text-emerald-800 leading-relaxed">
+              Los datos de participantes, calificaciones y soportes físicos/fotográficos fueron formalmente enviados a Capacitación. Por integridad del registro oficial, este servicio se encuentra bloqueado para edición y eliminación de archivos.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ─── 2. ACTIVE STEP CONTAINER ─── */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden transition-all">
         {/* STEP 1: MATERIAL DIDACTICO (IF APPLICABLE) */}
@@ -735,8 +757,9 @@ export const ParticipantForm = ({
                 onScanAttachment={handleSelectAttachment}
                 onFileReadyToScan={handleFileReadyToScan}
                 onStatusChange={setUploadStatus}
-                showScanButton
+                showScanButton={!isFinal}
                 tourId="tour-upload-button"
+                disabled={isFinal}
               />
             </div>
 
@@ -809,27 +832,29 @@ export const ParticipantForm = ({
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsScannerOpen(true)}
-                    className="h-10 text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 font-bold cursor-pointer"
-                  >
-                    <Sparkles className="w-4 h-4 mr-1.5 text-sky-600" />
-                    <span>Escanear OCR</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={addParticipant}
-                    className="h-10 bg-sky-600 hover:bg-sky-700 text-white font-bold cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4 mr-1.5" />
-                    <span>Agregar Fila</span>
-                  </Button>
-                </div>
+                {!isFinal && (
+                  <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsScannerOpen(true)}
+                      className="h-10 text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 font-bold cursor-pointer"
+                    >
+                      <Sparkles className="w-4 h-4 mr-1.5 text-sky-600" />
+                      <span>Escanear OCR</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={addParticipant}
+                      className="h-10 bg-sky-600 hover:bg-sky-700 text-white font-bold cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4 mr-1.5" />
+                      <span>Agregar Fila</span>
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Real-time KPI Metric Pills */}
@@ -943,7 +968,8 @@ export const ParticipantForm = ({
                           value={p.nombre_apellido}
                           onChange={(e) => updateParticipant(index, "nombre_apellido", e.target.value)}
                           placeholder="Ej: Carlos Eduardo Pérez"
-                          className="bg-white border-slate-200 text-sm font-medium"
+                          disabled={isFinal}
+                          className="bg-white border-slate-200 text-sm font-medium disabled:bg-slate-50 disabled:text-slate-700"
                         />
                         {/* SENIAT verification status */}
                         {p.seniatVerification && (
@@ -973,7 +999,8 @@ export const ParticipantForm = ({
                           <select
                             value={p.nationality || "venezolano"}
                             onChange={(e) => updateParticipant(index, "nationality", e.target.value)}
-                            className="w-16 h-10 px-2 border border-slate-200 rounded-lg bg-white text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            disabled={isFinal}
+                            className="w-16 h-10 px-2 border border-slate-200 rounded-lg bg-white text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-slate-50 disabled:text-slate-600"
                           >
                             <option value="venezolano">V-</option>
                             <option value="extranjero">E-</option>
@@ -982,7 +1009,8 @@ export const ParticipantForm = ({
                             value={p.cedula}
                             onChange={(e) => updateParticipant(index, "cedula", e.target.value)}
                             placeholder="12345678"
-                            className="bg-white border-slate-200 font-mono text-sm flex-1"
+                            disabled={isFinal}
+                            className="bg-white border-slate-200 font-mono text-sm flex-1 disabled:bg-slate-50 disabled:text-slate-700"
                           />
                         </div>
                       </div>
@@ -999,7 +1027,8 @@ export const ParticipantForm = ({
                           value={p.score}
                           onChange={(e) => updateParticipant(index, "score", e.target.value)}
                           placeholder="0-20"
-                          className={`bg-white text-center font-bold text-sm ${isAprobado ? "text-emerald-700 border-emerald-300" : ""
+                          disabled={isFinal}
+                          className={`bg-white text-center font-bold text-sm disabled:bg-slate-50 disabled:text-slate-800 ${isAprobado ? "text-emerald-700 border-emerald-300" : ""
                             }`}
                         />
                       </div>
@@ -1010,8 +1039,8 @@ export const ParticipantForm = ({
                           <button
                             type="button"
                             onClick={() => setActiveVerificationIndex(index)}
-                            disabled={activeVerificationIndex !== null}
-                            className="p-2 rounded-lg text-sky-700 hover:bg-sky-100 transition-colors border border-sky-200 bg-white"
+                            disabled={activeVerificationIndex !== null || isFinal}
+                            className="p-2 rounded-lg text-sky-700 hover:bg-sky-100 transition-colors border border-sky-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Verificar cédula"
                           >
                             <Search className="w-4 h-4" />
@@ -1032,15 +1061,17 @@ export const ParticipantForm = ({
                           )}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => removeParticipant(index)}
-                          disabled={participants.length === 1}
-                          className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Eliminar fila"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {!isFinal && (
+                          <button
+                            type="button"
+                            onClick={() => removeParticipant(index)}
+                            disabled={participants.length === 1}
+                            className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                            title="Eliminar fila"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1051,24 +1082,28 @@ export const ParticipantForm = ({
             {/* Bottom Actions and Navigation */}
             <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addParticipant}
-                  className="h-10 text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 font-bold cursor-pointer"
-                >
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  <span>Agregar Otro Participante</span>
-                </Button>
-                {participants.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowClearConfirm(true)}
-                    className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1"
-                  >
-                    Limpiar Todo
-                  </button>
+                {!isFinal && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addParticipant}
+                      className="h-10 text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 font-bold cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4 mr-1.5" />
+                      <span>Agregar Otro Participante</span>
+                    </Button>
+                    {participants.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowClearConfirm(true)}
+                        className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1 cursor-pointer"
+                      >
+                        Limpiar Todo
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -1117,6 +1152,7 @@ export const ParticipantForm = ({
                 accept="image/*"
                 imageOnly
                 onAttachmentCountChange={setPhotoCount}
+                disabled={isFinal}
               />
             </div>
 
@@ -1320,7 +1356,9 @@ export const ParticipantForm = ({
                 nroSesion={selectedSession}
                 title="Factura de Honorarios"
                 description={
-                  canSubmitFactura
+                  isFinal
+                    ? "Factura de honorarios remitida (solo lectura)."
+                    : canSubmitFactura
                     ? "Sube tu archivo en formato PDF o imagen (JPG, PNG). Tamaño máximo 15MB."
                     : "Completa primero la lista de asistencia, el registro fotográfico y los participantes con su nota para habilitar la carga."
                 }
@@ -1329,7 +1367,7 @@ export const ParticipantForm = ({
                 accept="application/pdf,image/*"
                 onAttachmentCountChange={setInvoiceCount}
                 tourId="tour-factura-upload"
-                disabled={!canSubmitFactura}
+                disabled={!canSubmitFactura || isFinal}
               />
             </div>
 
@@ -1482,18 +1520,18 @@ export const ParticipantForm = ({
                     {DISCLAIMER_TEXT}
                   </p>
                   <label
-                    className={`flex items-center gap-3 pt-2 group ${hasValidParticipants ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+                    className={`flex items-center gap-3 pt-2 group ${hasValidParticipants && !isFinal ? "cursor-pointer" : "cursor-not-allowed opacity-75"
                       }`}
                   >
                     <input
                       type="checkbox"
                       checked={hasAcknowledged}
-                      disabled={!hasValidParticipants}
+                      disabled={!hasValidParticipants || isFinal}
                       onChange={(e) => {
                         setHasAcknowledged(e.target.checked);
                         setError(null);
                       }}
-                      className="w-5 h-5 rounded border-2 border-slate-300 text-sky-600 focus:ring-2 focus:ring-sky-500 cursor-pointer shrink-0 transition-colors"
+                      className="w-5 h-5 rounded border-2 border-slate-300 text-sky-600 focus:ring-2 focus:ring-sky-500 cursor-pointer shrink-0 transition-colors disabled:cursor-not-allowed"
                     />
                     <span
                       className={`text-xs sm:text-sm font-bold select-none ${hasAcknowledged ? "text-emerald-800" : "text-slate-700"
@@ -1570,32 +1608,44 @@ export const ParticipantForm = ({
               </div>
 
               <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => handleSave("draft")}
-                  disabled={saving}
-                  className="h-12 px-5 text-slate-700 font-bold cursor-pointer"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                  <span>Guardar borrador</span>
-                </Button>
+                {isFinal ? (
+                  <Button
+                    disabled
+                    className="h-12 px-6 font-bold rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 cursor-not-allowed shadow-2xs"
+                  >
+                    <CheckCheck className="w-4 h-4 mr-2 text-emerald-600" />
+                    <span>Servicio Finalizado y Enviado</span>
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleSave("draft")}
+                      disabled={saving}
+                      className="h-12 px-5 text-slate-700 font-bold cursor-pointer"
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                      <span>Guardar borrador</span>
+                    </Button>
 
-                <Button
-                  id="tour-submit-button"
-                  onClick={() => handleSave("final")}
-                  disabled={saving || !canFinalize}
-                  className={`h-12 px-6 font-bold rounded-xl shadow-xs transition-all cursor-pointer ${canFinalize
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
-                    : "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-200"
-                    }`}
-                >
-                  {saving ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <CheckCheck className="w-4 h-4 mr-2" />
-                  )}
-                  <span>Finalizar y Enviar a Capacitación</span>
-                </Button>
+                    <Button
+                      id="tour-submit-button"
+                      onClick={() => handleSave("final")}
+                      disabled={saving || !canFinalize}
+                      className={`h-12 px-6 font-bold rounded-xl shadow-xs transition-all cursor-pointer ${canFinalize
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
+                        : "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-200"
+                        }`}
+                    >
+                      {saving ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCheck className="w-4 h-4 mr-2" />
+                      )}
+                      <span>Finalizar y Enviar a Capacitación</span>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1637,17 +1687,19 @@ export const ParticipantForm = ({
 
           {/* Right Actions: Draft Save & Next Step */}
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleSave("draft")}
-              disabled={saving}
-              className="h-11 px-3 sm:px-4 text-slate-700 border-slate-300 font-bold text-xs sm:text-sm cursor-pointer shadow-2xs"
-            >
-              {saving ? <Loader2 className="w-4 h-4 sm:mr-1.5 animate-spin" /> : <Save className="w-4 h-4 sm:mr-1.5" />}
-              <span className="hidden sm:inline">Guardar</span>
-            </Button>
+            {!isFinal && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleSave("draft")}
+                disabled={saving}
+                className="h-11 px-3 sm:px-4 text-slate-700 border-slate-300 font-bold text-xs sm:text-sm cursor-pointer shadow-2xs"
+              >
+                {saving ? <Loader2 className="w-4 h-4 sm:mr-1.5 animate-spin" /> : <Save className="w-4 h-4 sm:mr-1.5" />}
+                <span className="hidden sm:inline">Guardar</span>
+              </Button>
+            )}
 
             {nextStep ? (
               <Button
@@ -1657,6 +1709,15 @@ export const ParticipantForm = ({
               >
                 <span>Siguiente</span>
                 <ArrowRight className="w-4 h-4 ml-1.5" />
+              </Button>
+            ) : isFinal ? (
+              <Button
+                type="button"
+                disabled
+                className="h-11 px-4 sm:px-6 font-bold rounded-xl text-xs sm:text-sm shadow-xs bg-emerald-100 text-emerald-800 border border-emerald-200 cursor-not-allowed"
+              >
+                <span>Finalizado</span>
+                <CheckCheck className="w-4 h-4 ml-1.5" />
               </Button>
             ) : (
               <Button
