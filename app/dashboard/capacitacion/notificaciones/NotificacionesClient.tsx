@@ -23,6 +23,7 @@ import {
   X,
   SlidersHorizontal,
   Info,
+  MapPin,
 } from "lucide-react";
 import {
   type AlertasCertificadosResumen,
@@ -57,6 +58,7 @@ export default function NotificacionesClient({ initialResumen }: Props) {
   // Enhanced filters
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>("");
   const [selectedFacilitador, setSelectedFacilitador] = useState<string>("");
+  const [selectedCiudad, setSelectedCiudad] = useState<string>("");
   const [fechaDesde, setFechaDesde] = useState<string>("");
   const [fechaHasta, setFechaHasta] = useState<string>("");
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
@@ -102,6 +104,14 @@ export default function NotificacionesClient({ initialResumen }: Props) {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [data.items]);
 
+  const uniqueCiudades = useMemo(() => {
+    const set = new Set<string>();
+    data.items.forEach((item) => {
+      if (item.ciudad) set.add(item.ciudad.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [data.items]);
+
   // Handle Quick Date Presets
   const applyDatePreset = (preset: DatePreset) => {
     setDatePreset(preset);
@@ -136,6 +146,7 @@ export default function NotificacionesClient({ initialResumen }: Props) {
     setSearchQuery("");
     setSelectedEmpresa("");
     setSelectedFacilitador("");
+    setSelectedCiudad("");
     setFechaDesde("");
     setFechaHasta("");
     setDatePreset("all");
@@ -146,6 +157,7 @@ export default function NotificacionesClient({ initialResumen }: Props) {
     searchQuery.trim() ||
     selectedEmpresa ||
     selectedFacilitador ||
+    selectedCiudad ||
     fechaDesde ||
     fechaHasta
   );
@@ -176,6 +188,11 @@ export default function NotificacionesClient({ initialResumen }: Props) {
       list = list.filter((i) => i.facilitadorNombre?.trim() === selectedFacilitador);
     }
 
+    // Ciudad filter
+    if (selectedCiudad) {
+      list = list.filter((i) => i.ciudad?.trim() === selectedCiudad);
+    }
+
     // Execution Date range filter
     if (fechaDesde) {
       list = list.filter((i) => i.fechaEjecucion >= fechaDesde);
@@ -192,7 +209,8 @@ export default function NotificacionesClient({ initialResumen }: Props) {
           i.nroOsi.toLowerCase().includes(q) ||
           i.nombreEmpresa.toLowerCase().includes(q) ||
           i.servicio.toLowerCase().includes(q) ||
-          (i.facilitadorNombre && i.facilitadorNombre.toLowerCase().includes(q))
+          (i.facilitadorNombre && i.facilitadorNombre.toLowerCase().includes(q)) ||
+          (i.ciudad && i.ciudad.toLowerCase().includes(q))
       );
     }
 
@@ -202,6 +220,7 @@ export default function NotificacionesClient({ initialResumen }: Props) {
     selectedTab,
     selectedEmpresa,
     selectedFacilitador,
+    selectedCiudad,
     fechaDesde,
     fechaHasta,
     searchQuery,
@@ -430,9 +449,9 @@ export default function NotificacionesClient({ initialResumen }: Props) {
           </div>
         </div>
 
-        {/* Row 2: Secondary Dropdown Filters (Empresa, Facilitador, Execution Date Range) */}
+        {/* Row 2: Secondary Dropdown Filters (Empresa, Facilitador, Ciudad, Execution Date Range) */}
         <div className="pt-3 border-t border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 flex-1">
             {/* Empresa Dropdown */}
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
@@ -466,6 +485,25 @@ export default function NotificacionesClient({ initialResumen }: Props) {
                 {uniqueFacilitadores.map((fac) => (
                   <option key={fac} value={fac}>
                     {fac}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Ciudad Dropdown */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-slate-400" /> Ciudad
+              </label>
+              <select
+                value={selectedCiudad}
+                onChange={(e) => setSelectedCiudad(e.target.value)}
+                className="w-full h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white"
+              >
+                <option value="">Todas las ciudades ({uniqueCiudades.length})</option>
+                {uniqueCiudades.map((ciudad) => (
+                  <option key={ciudad} value={ciudad}>
+                    {ciudad}
                   </option>
                 ))}
               </select>
@@ -656,15 +694,19 @@ export default function NotificacionesClient({ initialResumen }: Props) {
                     </p>
                   </div>
 
-                  {/* Secondary Info: Execution Date & Facilitator */}
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+                  {/* Secondary Info: Execution Date, Facilitator & City */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
                     <div className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span>Ejecución: <strong>{formatDate(item.fechaEjecucion)}</strong></span>
                     </div>
                     <div className="flex items-center gap-1 truncate">
                       <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="truncate">Fac.: <strong>{item.facilitadorNombre || "—"}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-1 truncate">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">Ciudad: <strong>{item.ciudad || "—"}</strong></span>
                     </div>
                   </div>
                 </div>

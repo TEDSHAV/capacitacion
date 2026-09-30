@@ -16,6 +16,7 @@ export interface OsiAlertaCertificado {
   nroOsi: string;
   nombreEmpresa: string;
   servicio: string;
+  ciudad: string | null;
   fechaEjecucion: string; // YYYY-MM-DD
   diasHabiles: number;
   diasCalendario: number;
@@ -134,16 +135,18 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
   try {
     const supabase = await createAdminClient();
     
-    // Fetch holidays and OSIs in parallel — they are independent queries
-    const [feriadosResult, osisResult] = await Promise.all([
+    // Fetch holidays, cities catalog, and OSIs in parallel — they are independent queries
+    const [feriadosResult, ciudadesResult, osisResult] = await Promise.all([
       // Venezuelan holidays for business day calculations
       supabase.from("cat_feriados_venezuela").select("fecha"),
+      // Venezuelan cities catalog for resolving city names
+      supabase.from("cat_ciudades").select("id, nombre_ciudad"),
       // Capacitacion OSIs (exclude pending PEN-)
       // Order by fecha_inicio_real descending — most recent operational horizon (up to 400 OSIs)
       supabase
         .from("v_osi_formato_completo")
         .select(
-          "id_osi, nro_osi, nombre_empresa, servicio, fecha_inicio_real, fecha_fin_real, tipo_servicio, id_estatus, sesiones_ejecucion",
+          "id_osi, nro_osi, nombre_empresa, servicio, fecha_inicio_real, fecha_fin_real, tipo_servicio, id_estatus, sesiones_ejecucion, id_ciudad_direccion_ejecucion_efectiva, id_ciudad_direccion_contrato",
         )
         .ilike("tipo_servicio", "%capacitacion%")
         .not("nro_osi", "ilike", "%PEN-%")
@@ -152,6 +155,9 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
     ]);
 
     const holidays = new Set((feriadosResult.data || []).map((r: { fecha: string }) => r.fecha));
+    const cityMap = new Map<number, string>(
+      (ciudadesResult.data || []).map((c: { id: number; nombre_ciudad: string }) => [c.id, c.nombre_ciudad]),
+    );
 
     const todayStr = getCaracasTodayStr();
     const todayDate = parseDate(todayStr);
@@ -404,11 +410,18 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
         prioridad = "normal";
       }
 
+      const cityId =
+        (osi as any).id_ciudad_direccion_ejecucion_efectiva ??
+        (osi as any).id_ciudad_direccion_contrato ??
+        null;
+      const ciudad = cityId ? cityMap.get(cityId) || null : null;
+
       alertItems.push({
         osiId,
         nroOsi: osi.nro_osi || `OSI-${osiId}`,
         nombreEmpresa: osi.nombre_empresa || "Sin Empresa",
         servicio: osi.servicio || "Servicio de Capacitación",
+        ciudad,
         fechaEjecucion,
         diasHabiles,
         diasCalendario,

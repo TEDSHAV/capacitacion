@@ -749,31 +749,6 @@ export default function FacilitadorDashboardClient({
                 </div>
               </div>
             )}
-
-            {/* Digital Signature Status */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shrink-0">
-                  <FileCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-slate-900">Firma Digital para Certificados</h5>
-                  <p className="text-[11px] text-slate-500">
-                    {facilitador?.tiene_firma
-                      ? "Tu firma digital está registrada y verificada para la emisión de certificados oficiales."
-                      : "No posees firma digital vinculada. Comunícate con el departamento de Capacitación para digitalizar tu firma."}
-                  </p>
-                </div>
-              </div>
-              <span
-                className={`text-xs font-bold px-3 py-1 rounded-lg border shrink-0 self-start sm:self-auto ${facilitador?.tiene_firma
-                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                    : "bg-amber-50 text-amber-800 border-amber-200"
-                  }`}
-              >
-                {facilitador?.tiene_firma ? "Firma Activa" : "Pendiente"}
-              </span>
-            </div>
           </div>
         </div>
       )}
