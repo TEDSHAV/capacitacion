@@ -1,3 +1,4 @@
+// @ts-ignore
 import PptxGenJS from "pptxgenjs";
 import { SlideDefinition, CompilacionPresentacionParams } from "@/types/presentation-studio";
 

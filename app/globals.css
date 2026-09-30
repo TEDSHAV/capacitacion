@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../lib/osi-formato/osi-formato.css";
 
 :root {
   color-scheme: light;

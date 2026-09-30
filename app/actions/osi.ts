@@ -13,6 +13,12 @@ import {
   OSIMetrics,
   OSIManagement,
 } from "@/types";
+import {
+  build_osi_preview_data,
+  has_cap_cierre_certificados_step,
+  type BuildOsiPreviewInput,
+  type OsiPreviewData,
+} from "@/lib/osi-formato";
 
 // Cached server actions for better performance
 const getCachedOSIUsuarios = cache(async () => {
@@ -865,35 +871,170 @@ export async function getManualOSIBatchesAction(
   }
 }
 
+function as_mask_record(value: unknown): Record<string, boolean> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 0) return null;
+  const out: Record<string, boolean> = {};
+  for (const [key, raw] of entries) {
+    out[key] = Boolean(raw);
+  }
+  return out;
+}
+
+function resolve_public_cost_mask(
+  recursos_rows: Array<{
+    id_sesion?: number | null;
+    public_cost_mask?: unknown;
+  }>,
+  desglose: unknown,
+): Record<string, boolean> {
+  const global_row = recursos_rows.find((r) => r.id_sesion == null);
+  const from_global = as_mask_record(global_row?.public_cost_mask);
+  if (from_global) return from_global;
+
+  for (const row of recursos_rows) {
+    const mask = as_mask_record(row.public_cost_mask);
+    if (mask) return mask;
+  }
+
+  if (Array.isArray(desglose)) {
+    for (const item of desglose) {
+      if (!item || typeof item !== "object") continue;
+      const mask = as_mask_record(
+        (item as Record<string, unknown>).public_cost_mask,
+      );
+      if (mask) return mask;
+    }
+  }
+
+  return {};
+}
+
 /**
- * Fetch full OSI record from v_osi_formato_completo by id_osi
- * for rendering the official OSI preview format in-place without navigating away.
+ * Fetch and construct the canonical OSI preview data matching Shell's consulta-osi/preview
  */
-export async function getOsiParaFormatoCompleto(osiId: number): Promise<{
-  data: OSIManagement | null;
-  error: string | null;
-}> {
+export async function getOsiPreviewData(
+  osiId: number,
+): Promise<{ data: OsiPreviewData | null; error: string | null }> {
+  if (!Number.isFinite(osiId) || osiId <= 0) {
+    return { data: null, error: "ID de OSI inválido" };
+  }
+
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("v_osi_formato_completo")
-      .select("*")
-      .eq("id_osi", osiId)
-      .maybeSingle();
 
-    if (error || !data) {
+    const [
+      viewRowResult,
+      baseRowResult,
+      recursosResult,
+      sesionesResult,
+      stepsResult,
+      serviciosResult,
+    ] = await Promise.all([
+      supabase
+        .from("v_osi_formato_completo")
+        .select("*")
+        .eq("id_osi", osiId)
+        .single(),
+      supabase
+        .from("ejecucion_osi")
+        .select("id, pretenciones_adicionales_osi, observaciones_adicionales_osi")
+        .eq("id", osiId)
+        .maybeSingle(),
+      supabase
+        .from("osi_recursos_estimados")
+        .select("id_sesion, public_cost_mask")
+        .eq("id_osi", osiId)
+        .limit(50),
+      supabase
+        .from("osi_sesion")
+        .select("nro_sesion, fecha, hora_inicio, fecha_ejecutada, hora_ejecutada")
+        .eq("id_osi", osiId)
+        .order("nro_sesion", { ascending: true }),
+      supabase
+        .from("capacitacion_proceso_steps")
+        .select("step_key, completed")
+        .eq("osi_id", osiId),
+      supabase
+        .from("catalogo_servicios")
+        .select("id, nombre")
+        .limit(500),
+    ]);
+
+    const view_row = viewRowResult.data;
+    if (viewRowResult.error || !view_row) {
       return {
         data: null,
-        error: error?.message || "No se encontró el formato completo de la OSI",
+        error: viewRowResult.error?.message || "No se encontró la información de la OSI",
       };
     }
 
-    return { data: data as OSIManagement, error: null };
+    const osi_base_row = baseRowResult.data;
+    const recursos_rows = (recursosResult.data ?? []) as Array<{
+      id_sesion?: number | null;
+      public_cost_mask?: unknown;
+    }>;
+
+    const servicio_nombre_by_id: Record<number, string> = {};
+    for (const row of serviciosResult.data ?? []) {
+      const id = Number(row.id ?? 0);
+      const nombre = String(row.nombre ?? "").trim();
+      if (id > 0 && nombre) {
+        servicio_nombre_by_id[id] = nombre;
+      }
+    }
+
+    const public_cost_mask = resolve_public_cost_mask(
+      recursos_rows,
+      (view_row as Record<string, unknown>).desglose_recursos_sesiones,
+    );
+
+    const id_ecc = Number(
+      (view_row as Record<string, unknown>).id_ecc_actual ??
+        (view_row as Record<string, unknown>).id_ecc_origen ??
+        0,
+    );
+
+    let ecc_children: Record<string, unknown>[] = [];
+    if (id_ecc > 0) {
+      const { data: children } = await supabase
+        .from("ecc_encabezado")
+        .select(
+          "servicio_id, numero_areas, numero_trabajadores, numero_puntos_evaluar, pretenciones_cliente, observaciones_cliente",
+        )
+        .eq("id_ecc_consolidada", id_ecc);
+      ecc_children = (children ?? []) as Record<string, unknown>[];
+    }
+
+    const cap_proceso_steps = stepsResult.data;
+    const cap_cierre_certificados_step_completed = has_cap_cierre_certificados_step(
+      (cap_proceso_steps ?? []) as Array<{
+        step_key?: unknown;
+        completed?: unknown;
+      }>,
+    );
+
+    const bundle: BuildOsiPreviewInput = {
+      view_row: view_row as Record<string, unknown>,
+      osi_base_row: (osi_base_row ?? null) as Record<string, unknown> | null,
+      ecc_children,
+      servicio_nombre_by_id,
+      public_cost_mask,
+      can_reveal_st_monetary: true,
+      st_monetary_public_view: true,
+      can_see_private_costs: true,
+      cap_cierre_certificados_step_completed,
+      osi_sesiones: (sesionesResult.data ?? []) as Array<Record<string, unknown>>,
+    };
+
+    const previewData = build_osi_preview_data(bundle);
+    return { data: previewData, error: null };
   } catch (err) {
-    console.error("Error in getOsiParaFormatoCompleto:", err);
+    console.error("Error in getOsiPreviewData:", err);
     return {
       data: null,
-      error: err instanceof Error ? err.message : "Error inesperado al cargar la OSI",
+      error: err instanceof Error ? err.message : "Error al procesar el formato de la OSI",
     };
   }
 }

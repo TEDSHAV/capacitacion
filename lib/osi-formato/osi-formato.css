@@ -1,0 +1,188 @@
+/* Shared OSI document styles (SGestion + Shell). */
+@import url(
+  "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+);
+@import "./osi-document-utilities.css";
+
+.print-document-palette {
+  --primary: #0c3f69;
+  --primary-foreground: #ffffff;
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+  --color-blue-900: #1e3a8a;
+  --color-blue-950: #172554;
+}
+
+.rich-html-content ul {
+  list-style-type: disc;
+  list-style-position: outside;
+  margin: 0.35em 0;
+  padding-left: 1.5rem;
+}
+
+.rich-html-content ol {
+  list-style-type: decimal;
+  list-style-position: outside;
+  margin: 0.35em 0;
+  padding-left: 1.5rem;
+}
+
+.rich-html-content li {
+  display: list-item;
+}
+
+.rich-html-content li > p {
+  margin: 0;
+}
+
+.rich-html-content p {
+  margin: 0.35em 0;
+}
+
+.rich-html-content p:first-child {
+  margin-top: 0;
+}
+
+.rich-html-content p:last-child {
+  margin-bottom: 0;
+}
+
+.solped-rich-sep {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.osi-document-root {
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+/* ponytail: plain CSS so SGestion (TW v4) and Shell (TW v3) match without arbitrary text-[Npx] */
+.osi-document-root [data-osi-table] .osi-label-xs {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.osi-document-root [data-osi-table] .osi-label-sm {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.osi-document-root [data-osi-table] .osi-label-md {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.osi-document-root [data-osi-table] .osi-doc-value {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.osi-document-root [data-osi-table] .osi-boolean-value {
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.osi-document-root [data-osi-table] .osi-cert-table th,
+.osi-document-root [data-osi-table] .osi-cert-table td {
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.osi-document-root [data-osi-table] .osi-cert-table th.osi-cert-label {
+  font-size: 12px;
+  line-height: 1.3;
+  padding: 4px 2px;
+}
+
+.osi-document-root [data-osi-table] td,
+.osi-document-root [data-osi-table] th {
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  box-sizing: border-box;
+}
+
+.osi-document-root [data-osi-table] table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.osi-document-root [data-osi-table] table th,
+.osi-document-root [data-osi-table] table td {
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: normal;
+  hyphens: none;
+  text-align: center;
+  vertical-align: middle;
+  padding: 4px 2px;
+  box-sizing: border-box;
+  text-transform: uppercase;
+}
+
+.osi-document-root [data-osi-table] .osi-th-nowrap {
+  white-space: nowrap;
+}
+
+.osi-document-root [data-osi-table] .osi-nested-table col.osi-col-dias {
+  width: 44%;
+}
+
+.osi-document-root [data-osi-table] .osi-nested-table col.osi-col-costo {
+  width: 22%;
+}
+
+.osi-document-root [data-osi-table] .osi-nested-table col.osi-col-total {
+  width: 34%;
+}
+
+.osi-document-root [data-osi-table] .osi-long-text {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  text-transform: uppercase;
+}
+
+.osi-document-root [data-osi-table] .osi-rich-html,
+.osi-document-root .rich-html-content {
+  text-transform: uppercase;
+}
+
+@media print {
+  body:has(.osi-document-root) header,
+  body:has(.osi-document-root) aside,
+  body:has(.osi-document-root) nav,
+  body:has(.osi-document-root) .osi-preview-chrome {
+    display: none !important;
+  }
+
+  body:has(.osi-document-root) .h-screen,
+  body:has(.osi-document-root) .overflow-hidden,
+  body:has(.osi-document-root) .overflow-auto {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  body:has(.osi-document-root) main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  body:has(.osi-document-root) {
+    background: white !important;
+  }
+}
