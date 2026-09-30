@@ -72,9 +72,9 @@ export async function getFacilitadorPurchaseOrders(
     // e.g.:
     // const { data: realPOs } = await supabase.from("ordenes_compra").select(...)...
 
-    // 3. Fallback / Test Sample POs (Active & History) for test facilitator (44) or if list is empty
-    // Provides immediate visual clarity while the companion PO feature is delivered.
-    if (poList.length === 0 || facilitadorId === 44) {
+    // 3. Fallback / Test Sample POs (Active & History) STRICTLY for test facilitator (44)
+    // Only displayed for testing purposes for facilitator 44 while real `ordenes_compra` are delivered.
+    if (facilitadorId === 44) {
       // Check if sample active PO has a real uploaded invoice in DB
       const sample1Invoice = invoicesByOsi.get(108);
 
