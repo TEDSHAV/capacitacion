@@ -105,12 +105,6 @@ export function CertificadosNotificationsBanner() {
 
   const { totalPendientes, totalListasParaEmitir, totalVencidas72h, totalEnRiesgo, items } = data;
 
-  const openNotifications = (tab?: string) => {
-    window.dispatchEvent(
-      new CustomEvent("open-cert-notifications", { detail: { tab } }),
-    );
-  };
-
   // Top 3 oldest pending items (sorted by elapsed business days since execution)
   const oldestItems = items.slice(0, 3);
 
