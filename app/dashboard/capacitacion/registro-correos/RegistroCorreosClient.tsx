@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { getEmailLogs } from "@/app/actions/email-log";
 import type { EmailLogEntry, EmailLogStatus } from "@/types/email";
+import { toTitleCase } from "@/utils/string-utils";
 
 const STATUS_LABELS: Record<EmailLogStatus, string> = {
   sent: "Enviado",
@@ -196,7 +197,7 @@ export default function RegistroCorreosClient() {
                         {log.osi_id ? `#${log.osi_id}` : "—"}
                       </td>
                       <td className="px-4 py-3 text-gray-700">
-                        {log.facilitadores?.nombre_apellido || "—"}
+                        {log.facilitadores?.nombre_apellido ? toTitleCase(log.facilitadores.nombre_apellido) : "—"}
                       </td>
                       <td className="px-4 py-3 text-gray-600 truncate max-w-[180px]">
                         {log.to_email}

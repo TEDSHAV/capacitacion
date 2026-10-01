@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/utils/supabase/server";
 import { businessDaysInclusive, parseDate } from "@/lib/business-days";
+import { toTitleCase } from "@/utils/string-utils";
 
 export type AlertaPrioridad = "urgente" | "alta" | "media" | "normal";
 
@@ -288,9 +289,10 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
     >();
     for (const a of assignmentRows) {
       const existing = assignmentInfoByOsi.get(a.osi_id);
-      const facName = Array.isArray(a.facilitadores)
+      const rawFacName = Array.isArray(a.facilitadores)
         ? a.facilitadores[0]?.nombre_apellido || null
         : a.facilitadores?.nombre_apellido || null;
+      const facName = rawFacName ? toTitleCase(rawFacName) : null;
       const isReceived = !!a.attachment_received;
       if (!existing) {
         assignmentInfoByOsi.set(a.osi_id, {

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import { toTitleCase } from "@/utils/string-utils";
 import EvaluacionFormClient from "../components/EvaluacionFormClient";
 
 export default async function NuevaEvaluacionPage({
@@ -31,7 +32,7 @@ export default async function NuevaEvaluacionPage({
       .eq("id_auth", user.id)
       .single();
     if (usuario) {
-      evaluadorNombre = usuario.nombre_apellido || "";
+      evaluadorNombre = toTitleCase(usuario.nombre_apellido || "");
       evaluadorCargo = usuario.cargo || "";
     }
   }

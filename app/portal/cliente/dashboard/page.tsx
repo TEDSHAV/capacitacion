@@ -5,6 +5,7 @@ import type { ClienteMetrics, ClienteBatchSummary, ClienteFilterOptions, HiddenB
 import { createClient } from "@/utils/supabase/server";
 import Image from "next/image";
 import { Building2 } from "lucide-react";
+import { toTitleCase } from "@/utils/string-utils";
 
 export default async function ClienteDashboardPage() {
   const session = await getClienteSession();
@@ -86,7 +87,7 @@ export default async function ClienteDashboardPage() {
             </h1>
             <p className="text-gray-600 text-sm sm:text-base">
               {session.display_name
-                ? `Bienvenido, ${session.display_name}`
+                ? `Bienvenido, ${toTitleCase(session.display_name)}`
                 : "Consulta de certificados y carnets"}
             </p>
           </div>

@@ -33,6 +33,7 @@ import {
 } from "@/app/actions/certificados";
 import { ChevronDown, ChevronUp, Loader2, FileText, Award, CheckCircle, AlertCircle, Eye, AlertTriangle, Upload } from "lucide-react";
 import { createTemplateRecord } from "@/app/actions/template-actions";
+import { toTitleCase } from "@/utils/string-utils";
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
 import { QRService } from "@/lib/qr-service";
 
@@ -674,7 +675,7 @@ export function GeneracionPersonalizadaClient({
                 <option value="">Seleccionar facilitador...</option>
                 {facilitadores.map((f: any) => (
                   <option key={f.id} value={f.id}>
-                    {f.nombre_apellido}
+                    {toTitleCase(f.nombre_apellido)}
                   </option>
                 ))}
               </select>

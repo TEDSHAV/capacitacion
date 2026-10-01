@@ -498,8 +498,8 @@ export function EntrevistaListClient() {
                             {(item.nombre_apellido || "A")[0].toUpperCase()}
                           </div>
                           <div>
-                            <span className="font-semibold text-gray-900 capitalize block">
-                              {item.nombre_apellido}
+                            <span className="font-semibold text-gray-900 block">
+                              {toTitleCase(item.nombre_apellido)}
                             </span>
                             <span className="text-[11px] text-gray-500">
                               C.I. {item.cedula || "—"}
@@ -678,8 +678,8 @@ export function EntrevistaListClient() {
                         {(item.nombre_apellido || "A")[0].toUpperCase()}
                       </div>
                       <div>
-                        <h3 className="font-bold text-gray-900 capitalize text-sm leading-tight">
-                          {item.nombre_apellido}
+                        <h3 className="font-bold text-gray-900 text-sm leading-tight">
+                          {toTitleCase(item.nombre_apellido)}
                         </h3>
                         <p className="text-xs text-gray-500 mt-0.5">
                           C.I. {item.cedula || "No registrada"}

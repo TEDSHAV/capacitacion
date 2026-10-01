@@ -18,6 +18,7 @@ import {
 } from "@/lib/login-rate-limiter";
 import { hashPassword, verifyPassword, isBcryptHash } from "@/lib/password-hashing";
 import { isMaterialesEnabled } from "@/lib/materiales-flags";
+import { toTitleCase } from "@/utils/string-utils";
 
 // Legacy SHA-256 hash for verifying old (unmigrated) credentials
 function legacySha256Hash(password: string): string {
@@ -154,7 +155,7 @@ export async function loginFacilitator(username: string, password: string) {
   const sessionData = {
     id: creds.id,
     facilitador_id: creds.facilitador_id,
-    nombre: creds.facilitadores.nombre_apellido,
+    nombre: toTitleCase(creds.facilitadores.nombre_apellido),
     username: creds.username,
   };
 
@@ -179,12 +180,17 @@ export async function getFacilitatorSession(): Promise<{
   const cookieStore = await cookies();
   const session = cookieStore.get("facilitador_session");
   if (!session) return null;
-  return verifySession<{
+  const data = verifySession<{
     id: number;
     facilitador_id: number;
     nombre: string;
     username: string;
   }>(session.value);
+  if (!data) return null;
+  return {
+    ...data,
+    nombre: toTitleCase(data.nombre),
+  };
 }
 
 export async function logoutFacilitator() {

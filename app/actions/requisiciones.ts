@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { cache } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/server";
+import { toTitleCase } from "@/utils/string-utils";
 import {
   RequisicionFormData,
   OSIFullData,
@@ -2130,7 +2131,10 @@ export const getFacilitatorsForDropdown = unstable_cache(
       .order("nombre_apellido");
 
     if (error) throw error;
-    return data;
+    return (data || []).map((f) => ({
+      ...f,
+      nombre_apellido: toTitleCase(f.nombre_apellido),
+    }));
   },
   ["facilitators-for-dropdown"],
   { tags: ["facilitators"], revalidate: 300 }

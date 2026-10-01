@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { saveParticipants, getOSIAttachments } from "@/app/actions/facilitador-portal";
 import { enqueueOp } from "@/lib/offline/sync-queue";
+import { toTitleCase } from "@/utils/string-utils";
 import { AttachmentUploadSection } from "./attachment-upload-section";
 import { SeniatVerificationPopover } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/SeniatVerificationPopover";
 import { ParticipantScannerModal } from "@/app/dashboard/capacitacion/generacion-certificado/components/certificate-form/ParticipantScannerModal";
@@ -102,7 +103,7 @@ export const ParticipantForm = ({
   const [participants, setParticipants] = useState<Participant[]>(
     initialParticipants.length > 0
       ? initialParticipants.map((p) => ({
-        nombre_apellido: p.nombre_apellido,
+        nombre_apellido: toTitleCase(p.nombre_apellido),
         cedula: p.cedula,
         score: p.score || "",
         nationality: p.nationality || "venezolano",
@@ -406,7 +407,7 @@ export const ParticipantForm = ({
         : participants;
 
     const mappedParticipants = participantsToSave.map((p) => ({
-      nombre_apellido: p.nombre_apellido,
+      nombre_apellido: toTitleCase(p.nombre_apellido.trim()),
       cedula: p.cedula,
       score: p.score === "" ? null : Number(p.score),
     }));
@@ -468,7 +469,7 @@ export const ParticipantForm = ({
     setSuccess(null);
 
     const mappedParticipants = participants.map((p) => ({
-      nombre_apellido: p.nombre_apellido,
+      nombre_apellido: toTitleCase(p.nombre_apellido.trim()),
       cedula: p.cedula,
       score: p.score === "" ? null : Number(p.score),
     }));
@@ -530,7 +531,7 @@ export const ParticipantForm = ({
 
   const handleAddScannedParticipants = (scanned: CertificateParticipant[]) => {
     const mapped: Participant[] = scanned.map((p) => ({
-      nombre_apellido: p.name,
+      nombre_apellido: toTitleCase(p.name),
       cedula: p.idNumber,
       score: p.score ?? "",
       nationality: p.nationality || "venezolano",

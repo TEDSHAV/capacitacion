@@ -43,6 +43,7 @@ import {
   getAdminComplianceOverview,
   togglePhysicalDelivery,
 } from "@/app/actions/facilitador-compliance";
+import { toTitleCase } from "@/utils/string-utils";
 
 interface CumplimientoFacilitadoresClientProps {
   initialStats: ComplianceGlobalStats;
@@ -493,7 +494,7 @@ export function CumplimientoFacilitadoresClient({
                             {f.nombre_apellido.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900 leading-snug">{f.nombre_apellido}</p>
+                            <p className="font-bold text-slate-900 leading-snug">{toTitleCase(f.nombre_apellido)}</p>
                             <p className="text-[11px] text-slate-400 font-mono">
                               CI: {f.cedula || "No registrada"}
                             </p>
@@ -660,7 +661,7 @@ export function CumplimientoFacilitadoresClient({
                 Registro Oficial de Auditoría y Cumplimiento
               </div>
               <DialogTitle className="text-xl font-black text-white mt-1">
-                {selectedFacilitator.nombre_apellido}
+                {toTitleCase(selectedFacilitator.nombre_apellido)}
               </DialogTitle>
               <p className="text-xs text-slate-400">
                 Cédula: {selectedFacilitator.cedula || "No registrada"} • ID #{selectedFacilitator.facilitador_id}

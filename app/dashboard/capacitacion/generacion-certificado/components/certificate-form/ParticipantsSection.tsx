@@ -8,6 +8,7 @@ import { SeniatVerificationPopover } from "./SeniatVerificationPopover";
 import { Button } from "@/components/ui/button";
 import { X, Camera, CheckCircle2, AlertCircle, Download, Loader2, FileSearch, Search, Database } from "lucide-react";
 import { getOSIParticipants, getOSIAttachments } from "@/app/actions/facilitador-portal";
+import { toTitleCase } from "@/utils/string-utils";
 
 export const ParticipantsSection = ({
   participants,
@@ -94,7 +95,7 @@ export const ParticipantsSection = ({
         setImportError(result.error);
       } else if (result.data && result.data.length > 0) {
         const portalParticipants = result.data.map((p: any) => ({
-          name: p.nombre_apellido,
+          name: toTitleCase(p.nombre_apellido),
           idNumber: p.cedula,
           score: p.score,
           nationality: "venezolano" as const, // Fixed TS error: string not assignable to union

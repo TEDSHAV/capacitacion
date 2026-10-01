@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { ParticipanteCertificado, ParticipantFormData } from "@/types";
+import { toTitleCase } from "@/utils/string-utils";
 
 export async function getParticipantsPaginated(
   page: number = 1,
@@ -33,7 +34,13 @@ export async function getParticipantsPaginated(
 
     if (error) throw error;
 
-    return { participants: data || [], total: count || 0 };
+    return {
+      participants: (data || []).map((p) => ({
+        ...p,
+        nombre: toTitleCase(p.nombre),
+      })),
+      total: count || 0,
+    };
   } catch (error) {
     console.error("Error en participantes:", error);
     return {
@@ -64,7 +71,12 @@ export async function getParticipants(): Promise<{
       throw error;
     }
 
-    return { participants: participants || [] };
+    return {
+      participants: (participants || []).map((p) => ({
+        ...p,
+        nombre: toTitleCase(p.nombre),
+      })),
+    };
   } catch (error) {
     console.error("Error en participantes:", error);
     return {
@@ -101,7 +113,14 @@ export async function getParticipantByCedula(
 
     if (error) throw error;
 
-    return { participant: data || null };
+    return {
+      participant: data
+        ? {
+            ...data,
+            nombre: toTitleCase(data.nombre),
+          }
+        : null,
+    };
   } catch (error) {
     console.error("Error en getParticipantByCedula:", error);
     return {

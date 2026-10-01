@@ -6,6 +6,7 @@ import Image from "next/image";
 import { LogOut } from "lucide-react";
 import { PWAGlobalSearch } from "./PWAGlobalSearch";
 import { getContextInfo, type NavigationContext } from "@/lib/navigation/navigation-config";
+import { toTitleCase } from "@/utils/string-utils";
 
 interface PWATopNavProps {
   title?: string;
@@ -84,7 +85,7 @@ export function PWATopNav({
                   </span>
                 </div>
                 <span className="hidden sm:inline text-sm font-medium text-gray-700">
-                  {userName ? userName.split(" ")[0] : "Usuario"}
+                  {userName ? toTitleCase(userName.split(" ")[0]) : "Usuario"}
                 </span>
               </button>
 
@@ -93,7 +94,7 @@ export function PWATopNav({
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                   {userName && (
                     <div className="px-4 py-2 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900">{userName}</p>
+                      <p className="text-sm font-medium text-gray-900">{toTitleCase(userName)}</p>
                       <p className="text-xs text-gray-500 capitalize">
                         {context.replace("portal-", "").replace("-", " ")}
                       </p>

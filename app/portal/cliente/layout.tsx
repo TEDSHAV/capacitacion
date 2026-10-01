@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { PWALayout } from "@/components/PWALayout";
 import PortalFooter from "@/components/PortalFooter";
 import { getClienteSession, logoutCliente } from "@/app/actions/cliente-portal";
+import { toTitleCase } from "@/utils/string-utils";
 
 export const metadata: Metadata = {
   title: "Portal de Clientes",
@@ -20,7 +21,8 @@ export default async function ClientePortalLayout({
   children: React.ReactNode;
 }) {
   const session = await getClienteSession();
-  const userName = session?.display_name || session?.empresa_nombre || undefined;
+  const rawUserName = session?.display_name || session?.empresa_nombre || undefined;
+  const userName = rawUserName ? toTitleCase(rawUserName) : undefined;
 
   return (
     <PWALayout

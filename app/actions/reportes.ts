@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { toTitleCase } from "@/utils/string-utils";
 import {
   OverviewMetrics,
   CursoReportItem,
@@ -896,7 +897,7 @@ export async function getFacilitadoresReport(
         const hasRequisicion = facilitadoresConRequisicion.has(f.id);
         return {
           id: f.id,
-          nombre_apellido: f.nombre_apellido,
+          nombre_apellido: toTitleCase(f.nombre_apellido),
           is_active: f.is_active,
           estado_nombre:
             stateNames.get(f.id_estado_geografico ?? -1) || "No definido",

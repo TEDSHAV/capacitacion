@@ -3,6 +3,7 @@
 import { cache } from "react";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { toTitleCase } from "@/utils/string-utils";
 
 import {
   CertificateGeneration,
@@ -2290,7 +2291,10 @@ export async function getFacilitatorsForFilters(): Promise<
     if (error) {
       return [];
     }
-    return data || [];
+    return (data || []).map((f) => ({
+      ...f,
+      nombre_apellido: toTitleCase(f.nombre_apellido),
+    }));
   } catch (error) {
     return [];
   }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { toTitleCase } from "@/utils/string-utils";
 import {
   ControlServiciosEjecutados,
   ControlServiciosFormData,
@@ -356,5 +357,8 @@ export async function getFacilitatorsForDropdown() {
     .order("nombre_apellido");
 
   if (error) throw error;
-  return data;
+  return (data || []).map((f) => ({
+    ...f,
+    nombre_apellido: toTitleCase(f.nombre_apellido),
+  }));
 }

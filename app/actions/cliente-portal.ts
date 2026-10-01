@@ -13,6 +13,7 @@ import {
   clearLoginFailures,
 } from "@/lib/login-rate-limiter";
 import { hashPassword, verifyPassword, isBcryptHash } from "@/lib/password-hashing";
+import { toTitleCase } from "@/utils/string-utils";
 import type {
   ClienteCredential,
   ClienteSession,
@@ -243,7 +244,7 @@ export async function loginCliente(
     empresa_id: creds.empresa_id,
     empresa_nombre: creds.empresas?.razon_social || "Empresa",
     username: creds.username,
-    display_name: creds.display_name,
+    display_name: creds.display_name ? toTitleCase(creds.display_name) : creds.display_name,
     id_ciudad: creds.id_ciudad ?? null,
     id_sede: creds.id_sede ?? null,
     logo_url: creds.empresas?.empresa_logos?.logo_url ?? null,
@@ -265,7 +266,12 @@ export async function getClienteSession(): Promise<ClienteSession | null> {
   const cookieStore = await cookies();
   const session = cookieStore.get("cliente_session");
   if (!session) return null;
-  return verifySession<ClienteSession>(session.value);
+  const data = verifySession<ClienteSession>(session.value);
+  if (!data) return null;
+  return {
+    ...data,
+    display_name: data.display_name ? toTitleCase(data.display_name) : data.display_name,
+  };
 }
 
 export async function logoutCliente(): Promise<{ success: boolean }> {

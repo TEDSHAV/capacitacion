@@ -1,6 +1,7 @@
 "use client";
 
 import { getOfflineDB, type ClientSession } from "./db";
+import { toTitleCase } from "@/utils/string-utils";
 
 const SESSION_DURATION = 60 * 60 * 24 * 30 * 1000; // 30 days in ms
 
@@ -33,7 +34,7 @@ export async function saveClientSession(
   await db.clientSession.add({
     portal,
     userId,
-    nombre,
+    nombre: toTitleCase(nombre),
     loggedInAt: now,
     expiresAt: now + SESSION_DURATION,
   });
@@ -57,7 +58,10 @@ export async function getClientSession(
     if (session.id) await db.clientSession.delete(session.id);
     return null;
   }
-  return session;
+  return {
+    ...session,
+    nombre: toTitleCase(session.nombre),
+  };
 }
 
 /**

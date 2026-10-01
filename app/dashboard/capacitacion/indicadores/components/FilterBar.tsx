@@ -17,6 +17,7 @@ import type {
   IndicadoresFilterOptions,
 } from "@/types";
 import { trackedMonthIndicesForYear } from "@/lib/indicadores-cutoff";
+import { toTitleCase } from "@/utils/string-utils";
 
 export interface IndicadoresFilterState {
   osiIds: number[];
@@ -236,7 +237,7 @@ export default function FilterBar({
           placeholder="Todos los facilitadores"
           options={options.facilitadores.map((f) => ({
             value: f.id.toString(),
-            label: f.nombre_apellido,
+            label: toTitleCase(f.nombre_apellido),
           }))}
         />
 

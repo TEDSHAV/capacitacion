@@ -3,6 +3,7 @@ import { PWALayout } from "@/components/PWALayout";
 import PortalFooter from "@/components/PortalFooter";
 import { getFacilitatorSession } from "@/app/actions/facilitador-portal";
 import { logoutFacilitator } from "@/app/actions/facilitador-portal";
+import { toTitleCase } from "@/utils/string-utils";
 
 export const metadata: Metadata = {
   title: "Portal de Facilitadores",
@@ -24,7 +25,7 @@ export default async function FacilitadorPortalLayout({
 
   return (
     <PWALayout
-      userName={session?.nombre}
+      userName={session?.nombre ? toTitleCase(session.nombre) : undefined}
       onLogout={async () => {
         "use server";
         await logoutFacilitator();

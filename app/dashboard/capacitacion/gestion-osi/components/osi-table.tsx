@@ -4,6 +4,7 @@ import { OSIManagement } from "@/types";
 import { Calendar, Building2, User, Clock, MapPin, FileText, Eye } from "lucide-react";
 import OSILifecycle from "./osi-lifecycle";
 import type { OSIStatus } from "@/types";
+import { toTitleCase } from "@/utils/string-utils";
 
 interface OSITableProps {
   osis: OSIManagement[];
@@ -174,7 +175,7 @@ export default function OSITable({
                   <div className="flex items-center text-sm text-gray-900">
                     <User className="w-4 h-4 text-gray-400 mr-2" />
                     <span className="max-w-xs truncate">
-                      {osi.ejecutivo_negocios}
+                      {osi.ejecutivo_negocios ? toTitleCase(osi.ejecutivo_negocios) : "-"}
                     </span>
                   </div>
                 </td>

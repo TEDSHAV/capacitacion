@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toTitleCase } from "@/utils/string-utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -519,7 +520,7 @@ function RequisicionFormContent({
     setFormData((prev) => ({
       ...prev,
       cod_facilitador: facilitatorId,
-      facilitador: facilitator?.nombre_apellido || "",
+      facilitador: facilitator?.nombre_apellido ? toTitleCase(facilitator.nombre_apellido) : "",
       cedula_facilitador: facilitator?.cedula || "",
       rif_facilitador: facilitator?.rif || "",
       telefono_facilitador: facilitator?.telefono || "",
@@ -1392,7 +1393,7 @@ function RequisicionFormContent({
                   <SelectContent>
                     {facilitators.map((f) => (
                       <SelectItem key={f.id} value={f.id.toString()}>
-                        {f.nombre_apellido}
+                        {toTitleCase(f.nombre_apellido)}
                       </SelectItem>
                     ))}
                   </SelectContent>

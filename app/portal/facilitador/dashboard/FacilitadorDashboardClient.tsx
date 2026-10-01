@@ -156,12 +156,12 @@ export default function FacilitadorDashboardClient({
                 {facilitador?.foto_perfil_url ? (
                   <img
                     src={facilitador.foto_perfil_url}
-                    alt={nombre}
+                    alt={toTitleCase(nombre)}
                     className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover border border-slate-200 shadow-2xs"
                   />
                 ) : (
                   <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-slate-800 text-white flex items-center justify-center font-bold text-xl sm:text-2xl shadow-2xs border border-slate-200">
-                    {getInitials(nombre)}
+                    {getInitials(toTitleCase(nombre))}
                   </div>
                 )}
                 <div
@@ -312,7 +312,7 @@ export default function FacilitadorDashboardClient({
       {effectiveFacilitadorId && (
         <ComplianceBanner
           facilitadorId={effectiveFacilitadorId}
-          facilitadorNombre={facilitador?.nombre_apellido || nombre || "Facilitador"}
+          facilitadorNombre={toTitleCase(facilitador?.nombre_apellido || nombre || "Facilitador")}
           facilitadorCedula={facilitador?.cedula || ""}
         />
       )}

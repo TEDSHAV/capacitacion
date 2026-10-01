@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import { toTitleCase } from "@/utils/string-utils";
 import { EntrevistaFormClient } from "../components/EntrevistaFormClient";
 
 export const metadata = {
@@ -29,7 +30,7 @@ export default async function NuevaEntrevistaPage() {
       .single();
 
     if (usuario?.nombre_apellido) {
-      currentUserNombre = usuario.nombre_apellido;
+      currentUserNombre = toTitleCase(usuario.nombre_apellido);
     }
   }
 

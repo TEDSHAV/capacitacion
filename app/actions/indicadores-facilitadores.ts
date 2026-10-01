@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { toTitleCase } from "@/utils/string-utils";
 import type {
   FacilitadoresHorasResponse,
   FacilitadorHorasRow,
@@ -300,7 +301,7 @@ export async function getIndicadoresFacilitadores(
       "facilitadores",
     );
     const facilitadorNombre = new Map<number, string>(
-      facilitadoresRows.map((f) => [f.id, f.nombre_apellido]),
+      facilitadoresRows.map((f) => [f.id, toTitleCase(f.nombre_apellido)]),
     );
 
     // ── 6. Aggregate per facilitador ───────────────────────────────────────

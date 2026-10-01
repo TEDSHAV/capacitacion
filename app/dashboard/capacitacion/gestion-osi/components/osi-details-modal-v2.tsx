@@ -17,6 +17,7 @@ import {
   downloadBatchAction,
   DownloadChoice,
 } from "@/lib/batch-download-utils";
+import { toTitleCase } from "@/utils/string-utils";
 
 interface OSIDetailsModalV2Props {
   osi: OSIManagement | null;
@@ -208,7 +209,7 @@ export default function OSIDetailsModalV2({
                   {acknowledgment ? (
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-md border border-green-100" title={`Confirmado el ${new Date(acknowledgment.acknowledged_at).toLocaleString()}`}>
                       <ShieldCheck className="w-3 h-3" />
-                      Disclaimer confirmado por {acknowledgment.facilitadores?.nombre_apellido || "N/A"}
+                      Disclaimer confirmado por {acknowledgment.facilitadores?.nombre_apellido ? toTitleCase(acknowledgment.facilitadores.nombre_apellido) : "N/A"}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">

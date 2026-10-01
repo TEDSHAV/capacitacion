@@ -12,6 +12,7 @@ import {
   getBatchCertificateDetailsAction,
   getFacilitatorsForFilters,
 } from "@/app/actions/certificados";
+import { toTitleCase } from "@/utils/string-utils";
 import {
   Loader2,
   X,
@@ -482,7 +483,7 @@ export function BatchEditModal({
                     >
                       <div className="flex flex-col truncate">
                         {selectedFacilitator ? (
-                          <span className="text-sm font-medium text-gray-900 truncate">{selectedFacilitator.nombre_apellido}</span>
+                          <span className="text-sm font-medium text-gray-900 truncate">{toTitleCase(selectedFacilitator.nombre_apellido)}</span>
                         ) : (
                           <span className="text-sm text-gray-400">Seleccionar...</span>
                         )}
@@ -521,7 +522,7 @@ export function BatchEditModal({
                                 }`}
                               >
                                 <span className={`text-sm font-medium ${updates.id_facilitador === facilitator.id.toString() ? "text-blue-700" : "text-gray-900"}`}>
-                                  {facilitator.nombre_apellido}
+                                  {toTitleCase(facilitator.nombre_apellido)}
                                 </span>
                                 {updates.id_facilitador === facilitator.id.toString() && (
                                   <Check className="h-4 w-4 text-blue-600 shrink-0" />

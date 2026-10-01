@@ -3,6 +3,7 @@
 import { memo, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { CertificateFilters } from "@/types";
 import { X, Search, ChevronDown, Check, Building2 } from "lucide-react";
+import { toTitleCase } from "@/utils/string-utils";
 
 interface SearchableSelectProps {
   label: string;
@@ -423,7 +424,7 @@ function CertificateFiltersComponent({
           placeholder="Todos los facilitadores"
           options={facilitators.map((f) => ({
             id: f.id,
-            label: f.nombre_apellido,
+            label: toTitleCase(f.nombre_apellido),
           }))}
           value={localFilters.facilitatorId}
           onChange={(val) => handleFilterChange("facilitatorId", val)}

@@ -166,7 +166,7 @@ export default function CourseStats({
                       {course.facilitadores.length > 0 && (
                         <span className="text-xs text-gray-500">
                           {course.facilitadores
-                            .map((f) => f.nombre_apellido)
+                            .map((f) => toTitleCase(f.nombre_apellido))
                             .slice(0, 2)
                             .join(", ")}
                           {course.facilitadores.length > 2 &&

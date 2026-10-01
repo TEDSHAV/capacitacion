@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { submitMaterialSugerencia } from "@/app/actions/material-didactico";
 import type { MaterialDidactico, TipoSugerencia } from "@/types/material-didactico";
+import { toTitleCase } from "@/utils/string-utils";
 
 interface SugerenciaMaterialModalProps {
   material: MaterialDidactico;
@@ -172,7 +173,7 @@ export default function SugerenciaMaterialModal({
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                 <span className="text-[11px] text-slate-500">
-                  Emitida por: <strong>{facilitadorNombre}</strong>
+                  Emitida por: <strong>{toTitleCase(facilitadorNombre)}</strong>
                 </span>
                 <div className="flex items-center gap-2">
                   <button

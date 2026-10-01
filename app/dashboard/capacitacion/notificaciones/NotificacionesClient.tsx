@@ -31,6 +31,7 @@ import {
   getAlertasCertificadosPendientes,
 } from "@/app/actions/alertas-certificados";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
+import { toTitleCase } from "@/utils/string-utils";
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
@@ -99,7 +100,7 @@ export default function NotificacionesClient({ initialResumen }: Props) {
   const uniqueFacilitadores = useMemo(() => {
     const set = new Set<string>();
     data.items.forEach((item) => {
-      if (item.facilitadorNombre) set.add(item.facilitadorNombre.trim());
+      if (item.facilitadorNombre) set.add(toTitleCase(item.facilitadorNombre.trim()));
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [data.items]);
@@ -185,7 +186,7 @@ export default function NotificacionesClient({ initialResumen }: Props) {
 
     // Facilitador filter
     if (selectedFacilitador) {
-      list = list.filter((i) => i.facilitadorNombre?.trim() === selectedFacilitador);
+      list = list.filter((i) => toTitleCase(i.facilitadorNombre?.trim() || "") === selectedFacilitador);
     }
 
     // Ciudad filter
@@ -702,7 +703,7 @@ export default function NotificacionesClient({ initialResumen }: Props) {
                     </div>
                     <div className="flex items-center gap-1 truncate">
                       <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">Fac.: <strong>{item.facilitadorNombre || "—"}</strong></span>
+                      <span className="truncate">Fac.: <strong>{item.facilitadorNombre ? toTitleCase(item.facilitadorNombre) : "—"}</strong></span>
                     </div>
                     <div className="flex items-center gap-1 truncate">
                       <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />

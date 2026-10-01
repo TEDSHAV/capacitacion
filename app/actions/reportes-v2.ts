@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { toTitleCase } from "@/utils/string-utils";
 
 const PAGE_SIZE = 1000;
 
@@ -830,7 +831,7 @@ export async function getReportesV2Data(
 
         return {
           id: f.id,
-          nombreApellido: f.nombre_apellido,
+          nombreApellido: toTitleCase(f.nombre_apellido),
           cedula: f.cedula,
           email: f.email,
           estadoNombre: statesMap.get(f.id_estado_geografico ?? -1) || "No asignado",

@@ -142,7 +142,7 @@ export default function FacilitadorHoursStats({
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">
-                      {facilitador.nombre_apellido}
+                      {toTitleCase(facilitador.nombre_apellido)}
                     </p>
                     <p className="text-sm text-gray-500">
                       {facilitador.estado_nombre} •{" "}
@@ -208,7 +208,7 @@ export default function FacilitadorHoursStats({
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {facilitador.nombre_apellido}
+                        {toTitleCase(facilitador.nombre_apellido)}
                       </p>
                       <p className="text-xs text-gray-500">
                         {facilitador.estatus_nombre}

@@ -3,6 +3,8 @@ import { getFacilitadorPurchaseOrders } from "@/app/actions/facilitador-facturac
 import { redirect } from "next/navigation";
 import FacilitadorDashboardClient from "./FacilitadorDashboardClient";
 
+import { toTitleCase } from "@/utils/string-utils";
+
 interface FacilitadorDashboardPageProps {
   searchParams?: Promise<{ view?: string }>;
 }
@@ -24,7 +26,7 @@ export default async function FacilitadorDashboardPage({ searchParams }: Facilit
 
   return (
     <FacilitadorDashboardClient
-      nombre={session.nombre}
+      nombre={toTitleCase(session.nombre)}
       initialData={portalDataRes.data || null}
       osis={portalDataRes.data?.osis || []}
       facilitadorId={session.facilitador_id}

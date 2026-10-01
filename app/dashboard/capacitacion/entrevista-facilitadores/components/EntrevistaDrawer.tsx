@@ -169,8 +169,8 @@ export function EntrevistaDrawer({
                 {initials}
               </div>
               <div>
-                <h2 className="text-xl font-bold leading-tight capitalize">
-                  {entrevista.nombre_apellido}
+                <h2 className="text-xl font-bold leading-tight">
+                  {toTitleCase(entrevista.nombre_apellido)}
                 </h2>
                 <div className="flex items-center gap-2 mt-1 text-sm text-violet-200">
                   <span>C.I. {entrevista.cedula || "No registrada"}</span>

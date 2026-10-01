@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { CertificateParticipant } from "@/types";
 import { getParticipantByCedula } from "@/app/actions/participants";
+import { toTitleCase } from "@/utils/string-utils";
 
 const initialParticipant = {
   name: "",
@@ -48,7 +49,7 @@ export const useParticipants = (
         if (!userEditedNameRef.current) {
           setNewParticipant((prev) => ({
             ...prev,
-            name: dbParticipant.nombre,
+            name: toTitleCase(dbParticipant.nombre),
             dbId: dbParticipant.id,
             dbOriginalName: dbParticipant.nombre,
             dbOriginalIdNumber: dbParticipant.cedula,
@@ -96,7 +97,7 @@ export const useParticipants = (
 
       const participant: CertificateParticipant = {
         id: Date.now().toString(),
-        name: newParticipant.name.trim(),
+        name: toTitleCase(newParticipant.name.trim()),
         idNumber: newParticipant.idNumber.trim(),
         score: score,
         nationality: newParticipant.nationality || "venezolano",

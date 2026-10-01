@@ -9,6 +9,7 @@ import { User, Key, Loader2, AlertCircle, WifiOff, ArrowRight, Eye, EyeOff, Mail
 import Image from "next/image";
 import { loginCliente } from "@/app/actions/cliente-portal";
 import { getClientSession, saveClientSession } from "@/lib/offline/client-session";
+import { toTitleCase } from "@/utils/string-utils";
 
 export function ClienteLoginForm() {
   const router = useRouter();
@@ -85,7 +86,7 @@ export function ClienteLoginForm() {
             <h1 className="text-xl font-bold text-gray-900">Sin conexión</h1>
           </div>
           <p className="text-gray-600 mb-1">
-            Hola, <strong>{offlineSession.nombre}</strong>.
+            Hola, <strong>{toTitleCase(offlineSession.nombre)}</strong>.
           </p>
           <p className="text-gray-500 text-sm mb-6">
             No se puede iniciar sesión sin conexión, pero puedes acceder a tu

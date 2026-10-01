@@ -200,7 +200,7 @@ export const SignatureListOptimized = ({
                 </div>
                 <div className="space-y-2">
                   <p className="font-medium text-gray-900">
-                    {item.nombre_apellido}
+                    {toTitleCase(item.nombre_apellido)}
                   </p>
                   <p className="text-sm text-gray-500">
                     {item.email || "Sin email"}

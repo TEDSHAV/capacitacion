@@ -24,6 +24,7 @@ import {
   type CategoriaAlerta,
 } from "@/app/actions/alertas-certificados";
 import { subscribe, requestData, getCached } from "@/lib/alertas-certificados-cache";
+import { toTitleCase } from "@/utils/string-utils";
 
 export function CertificadosAlertCenter() {
   const [isOpen, setIsOpen] = useState(false);
@@ -543,7 +544,7 @@ function OsiAlertCard({ item, onNavigate }: OsiAlertCardProps) {
           <span className="truncate">
             Facilitador:{" "}
             <strong className="text-slate-800 truncate">
-              {item.facilitadorNombre || "No asignado"}
+              {item.facilitadorNombre ? toTitleCase(item.facilitadorNombre) : "No asignado"}
             </strong>
           </span>
         </div>

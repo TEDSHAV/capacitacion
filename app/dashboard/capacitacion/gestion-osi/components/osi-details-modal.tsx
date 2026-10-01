@@ -3,6 +3,7 @@
 import { OSIManagement, OSIStatus } from "@/types";
 import { X, Building2, User, Calendar, Clock, MapPin, FileText, CheckCircle2 } from "lucide-react";
 import OSILifecycle from "./osi-lifecycle";
+import { toTitleCase } from "@/utils/string-utils";
 
 interface OSIDetailsModalProps {
   osi: OSIManagement | null;
@@ -135,7 +136,7 @@ export default function OSIDetailsModal({ osi, onClose, statuses }: OSIDetailsMo
                   <dl className="space-y-2">
                     <div>
                       <dt className="text-sm text-gray-500">Nombre</dt>
-                      <dd className="text-sm font-medium text-gray-900">{osi.ejecutivo_negocios || "-"}</dd>
+                      <dd className="text-sm font-medium text-gray-900">{osi.ejecutivo_negocios ? toTitleCase(osi.ejecutivo_negocios) : "-"}</dd>
                     </div>
                   </dl>
                 </div>

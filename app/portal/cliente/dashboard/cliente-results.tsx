@@ -2,6 +2,7 @@
 
 import { Download, Award, FileText, Eye } from "lucide-react";
 import { ClienteCertificateRow } from "@/types";
+import { toTitleCase } from "@/utils/string-utils";
 
 interface ClienteResultsProps {
   certificates: ClienteCertificateRow[];
@@ -68,7 +69,7 @@ export function ClienteResults({
               {certificates.map((cert) => (
                 <tr key={cert.id} className="hover:bg-gray-50/50">
                   <td className="px-4 py-3 font-medium text-gray-900">
-                    {cert.participant_nombre}
+                    {toTitleCase(cert.participant_nombre)}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {cert.participant_nacionalidad === "extranjero" ? "E-" : "V-"}

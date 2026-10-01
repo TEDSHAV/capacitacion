@@ -10,12 +10,12 @@ export function toLowerCase(str: string): string {
  * Convert a string to title case (first letter of each word capitalized)
  * Example: "juan perez" -> "Juan Perez"
  */
-export function toTitleCase(str: string): string {
-  if (!str) return str;
+export function toTitleCase(str: string | null | undefined): string {
+  if (!str) return "";
   return str
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .trim()
+    .split(/\s+/)
+    .map(word => (word.length > 0 ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : ""))
     .join(' ');
 }
 

@@ -4,6 +4,7 @@ import { Calendar, Users, ChevronDown, ChevronRight, FileStack, Download, Loader
 import { useState } from "react";
 import { ClienteBatchSummary, ClienteCertificateRow } from "@/types";
 import { cacheDocument, isDocumentCached } from "@/lib/offline/offline-documents";
+import { toTitleCase } from "@/utils/string-utils";
 
 interface ClienteBatchesProps {
   batches: ClienteBatchSummary[];
@@ -216,7 +217,7 @@ export function ClienteBatches({
                           {expandedCertificates.map((cert) => (
                             <tr key={cert.id} className="hover:bg-gray-50/50">
                               <td className="px-4 py-3 font-medium text-gray-900">
-                                {cert.participant_nombre}
+                                {toTitleCase(cert.participant_nombre)}
                               </td>
                               <td className="px-4 py-3 text-gray-600">
                                 {cert.participant_nacionalidad === "extranjero" ? "E-" : "V-"}
@@ -293,7 +294,7 @@ function CertificateOfflineButton({ cert }: { cert: ClienteCertificateRow }) {
     const result = await cacheDocument(url, {
       type: "certificate",
       id: cert.id,
-      label: `Certificado — ${cert.participant_nombre} (V-${cert.participant_cedula})`,
+      label: `Certificado — ${toTitleCase(cert.participant_nombre)} (V-${cert.participant_cedula})`,
     });
     if (result.success) {
       setCached(true);

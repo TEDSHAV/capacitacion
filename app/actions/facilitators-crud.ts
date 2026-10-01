@@ -3,7 +3,7 @@
 import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { cache } from "react";
 import { revalidatePath } from "next/cache";
-import { toLowerCase } from "@/utils/string-utils";
+import { toLowerCase, toTitleCase } from "@/utils/string-utils";
 import {
   saveOptimizedSignature,
   optimizeProfilePhoto,
@@ -171,7 +171,13 @@ const getFacilitators = cache(async () => {
       return { error: error.message, data: [] };
     }
 
-    return { data: data || [], error: null };
+    return {
+      data: (data || []).map((f) => ({
+        ...f,
+        nombre_apellido: toTitleCase(f.nombre_apellido),
+      })),
+      error: null,
+    };
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Unknown error",
@@ -204,6 +210,9 @@ const getFacilitatorById = cache(async (id: string) => {
       facilitator.tipo_cuenta = bankInfo.tipo_cuenta;
       facilitator.telefono_pago_movil = bankInfo.telefono_pago_movil;
       facilitator.cedula_titular = bankInfo.cedula_titular;
+    }
+    if (facilitator.nombre_apellido) {
+      facilitator.nombre_apellido = toTitleCase(facilitator.nombre_apellido);
     }
 
     return { data: facilitator, error: null };

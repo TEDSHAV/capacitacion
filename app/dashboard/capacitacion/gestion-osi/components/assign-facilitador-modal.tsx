@@ -33,6 +33,7 @@ import {
 import { sendAssignmentEmail, isEmailServerConfigured } from "@/app/actions/email-send";
 import { getEmailLogsForOSI } from "@/app/actions/email-log";
 import { uploadFileDirectToB2 } from "@/lib/email/b2-direct-upload";
+import { toTitleCase } from "@/utils/string-utils";
 import { renderTemplateBoth, emailContextToMap } from "@/lib/email/template-render";
 import type { UploadedAttachment, EmailContext, EmailLogEntry, EmailTemplateListItem } from "@/types/email";
 import {
@@ -519,7 +520,7 @@ export default function AssignFacilitadorModal({
                     >
                       <div className="flex flex-col">
                         <span className="text-sm font-medium text-gray-900">
-                          {a.facilitadores?.nombre_apellido}
+                          {a.facilitadores?.nombre_apellido ? toTitleCase(a.facilitadores.nombre_apellido) : ""}
                         </span>
                         <span className="text-xs text-gray-500">
                           Cédula: {a.facilitadores?.cedula || "N/A"}
@@ -589,7 +590,7 @@ export default function AssignFacilitadorModal({
                   <SelectContent>
                     {facilitators.map((f) => (
                       <SelectItem key={f.id} value={f.id.toString()}>
-                        {f.nombre_apellido}
+                        {toTitleCase(f.nombre_apellido)}
                         {f.cedula ? ` — ${f.cedula}` : ""}
                       </SelectItem>
                     ))}

@@ -9,6 +9,7 @@ import { Key, User, Loader2, AlertCircle, Mail, Phone, WifiOff, ArrowRight, Eye,
 import Image from "next/image";
 import { loginFacilitator } from "@/app/actions/facilitador-portal";
 import { getClientSession, saveClientSession } from "@/lib/offline/client-session";
+import { toTitleCase } from "@/utils/string-utils";
 
 export function FacilitadorLoginForm() {
   const router = useRouter();
@@ -90,7 +91,7 @@ export function FacilitadorLoginForm() {
             <h1 className="text-xl font-bold text-gray-900">Sin conexión</h1>
           </div>
           <p className="text-gray-600 mb-1">
-            Hola, <strong>{offlineSession.nombre}</strong>.
+            Hola, <strong>{toTitleCase(offlineSession.nombre)}</strong>.
           </p>
           <p className="text-gray-500 text-sm mb-6">
             No se puede iniciar sesión sin conexión, pero puedes acceder a tu

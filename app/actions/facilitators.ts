@@ -37,7 +37,12 @@ export async function getFacilitators() {
 
     if (error) throw error;
 
-    return { facilitadores: data || [] };
+    return {
+      facilitadores: (data || []).map((f) => ({
+        ...f,
+        nombre_apellido: toTitleCase(f.nombre_apellido),
+      })),
+    };
   } catch (err) {
     console.error("Error en facilitadores:", err);
     return {

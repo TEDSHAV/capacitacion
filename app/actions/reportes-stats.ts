@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { cache } from "react";
+import { toTitleCase } from "@/utils/string-utils";
 
 // Get facilitator hours stats
 const getFacilitatorHoursStats = cache(
@@ -85,7 +86,7 @@ const getFacilitatorHoursStats = cache(
         // Store facilitator info
         if (!facilitatorInfoMap.has(facilitatorId) && facilitatorData) {
           facilitatorInfoMap.set(facilitatorId, {
-            nombre_apellido: facilitatorData.nombre_apellido || "Desconocido",
+            nombre_apellido: toTitleCase(facilitatorData.nombre_apellido || "Desconocido"),
             id_estado_geografico: facilitatorData.id_estado_geografico,
             is_active: facilitatorData.is_active ?? true,
           });
@@ -321,7 +322,7 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
       if (!course.facilitadores.has(cert.id_facilitador)) {
         course.facilitadores.set(cert.id_facilitador, {
           id: cert.id_facilitador,
-          nombre_apellido: facilitatorData.nombre_apellido || "Desconocido",
+          nombre_apellido: toTitleCase(facilitatorData.nombre_apellido || "Desconocido"),
           totalHours: 0,
           totalCertificates: 0,
           estado_nombre: getStateName(
