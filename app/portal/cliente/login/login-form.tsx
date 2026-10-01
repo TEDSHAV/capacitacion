@@ -31,6 +31,9 @@ export function ClienteLoginForm() {
     getClientSession("cliente").then((s) => {
       if (s) setOfflineSession({ nombre: s.nombre });
     });
+    try {
+      localStorage.setItem("pwa_install_path", "/portal/cliente/dashboard");
+    } catch {}
     return () => {
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", goOffline);

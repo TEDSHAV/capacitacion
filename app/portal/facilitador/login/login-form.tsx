@@ -33,6 +33,9 @@ export function FacilitadorLoginForm() {
     getClientSession("facilitador").then((s) => {
       if (s) setOfflineSession({ nombre: s.nombre });
     });
+    try {
+      localStorage.setItem("pwa_install_path", "/portal/facilitador/dashboard");
+    } catch {}
     return () => {
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", goOffline);

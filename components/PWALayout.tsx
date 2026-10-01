@@ -45,6 +45,15 @@ export function PWALayout({
   // Initialize navigation caching on first load
   useInitNavigation();
 
+  // Track last active portal path for standalone PWA launch routing
+  useEffect(() => {
+    if (pathname && pathname.startsWith("/portal")) {
+      try {
+        localStorage.setItem("pwa_install_path", pathname);
+      } catch {}
+    }
+  }, [pathname]);
+
   // Detect if we're embedded in the PRISMA shell iframe.
   // When in the shell, the shell provides its own sidebar/nav — hide PWA chrome.
   useEffect(() => {
