@@ -93,9 +93,11 @@ export async function deleteFacilitatorCredentials(facilitadorId: number) {
 export async function loginFacilitator(username: string, password: string) {
   const supabase = await createAdminClient();
 
+  const cleanUsername = username.trim().toLowerCase();
+
   // Rate limiting: check before hitting the DB
   const ip = await getClientIp();
-  const rateLimit = await checkLoginRateLimit(ip, username);
+  const rateLimit = await checkLoginRateLimit(ip, cleanUsername);
   if (!rateLimit.allowed) {
     const minutes = Math.ceil(rateLimit.retryAfterMs / 60000);
     return {
@@ -103,14 +105,29 @@ export async function loginFacilitator(username: string, password: string) {
     };
   }
 
-  // Fetch credentials by username only (bcrypt hashes are non-deterministic,
-  // so we can't query WHERE password_hash = ? like the old SHA-256 flow)
-  const { data: creds, error: credError } = await supabase
+  // Fetch credentials by username (case-insensitive)
+  // Also try without dots if user entered a dot (e.g., "carlos.castro" -> "carloscastro")
+  let { data: creds, error: credError } = await supabase
     .from("facilitador_credenciales")
     .select("*, facilitadores(nombre_apellido)")
-    .eq("username", username)
+    .ilike("username", cleanUsername)
     .eq("is_active", true)
     .maybeSingle();
+
+  if (!creds && cleanUsername.includes(".")) {
+    const noDotUsername = cleanUsername.replace(/\./g, "");
+    const retryRes = await supabase
+      .from("facilitador_credenciales")
+      .select("*, facilitadores(nombre_apellido)")
+      .ilike("username", noDotUsername)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (retryRes.data) {
+      creds = retryRes.data;
+      credError = null;
+    }
+  }
 
   if (credError) {
     console.error("[Portal Login] Database error:", credError);
@@ -118,7 +135,7 @@ export async function loginFacilitator(username: string, password: string) {
   }
 
   if (!creds) {
-    await recordLoginFailure(ip, username);
+    await recordLoginFailure(ip, cleanUsername);
     return { error: "Credenciales inválidas o cuenta inactiva" };
   }
 
@@ -144,18 +161,20 @@ export async function loginFacilitator(username: string, password: string) {
   }
 
   if (!passwordValid) {
-    await recordLoginFailure(ip, username);
+    await recordLoginFailure(ip, cleanUsername);
     return { error: "Credenciales inválidas o cuenta inactiva" };
   }
 
   // Clear rate-limit counter on successful login
-  await clearLoginFailures(ip, username);
+  await clearLoginFailures(ip, cleanUsername);
+
+  const formattedName = toTitleCase(creds.facilitadores.nombre_apellido);
 
   // Set a session cookie (simplified for this custom auth)
   const sessionData = {
     id: creds.id,
     facilitador_id: creds.facilitador_id,
-    nombre: toTitleCase(creds.facilitadores.nombre_apellido),
+    nombre: formattedName,
     username: creds.username,
   };
 
@@ -168,7 +187,7 @@ export async function loginFacilitator(username: string, password: string) {
     path: "/",
   });
 
-  return { success: true };
+  return { success: true, nombre: formattedName, facilitadorId: creds.facilitador_id };
 }
 
 export async function getFacilitatorSession(): Promise<{
@@ -187,6 +206,25 @@ export async function getFacilitatorSession(): Promise<{
     username: string;
   }>(session.value);
   if (!data) return null;
+
+  // Validate that the credentials record is still active in the database
+  try {
+    const supabase = await createAdminClient();
+    const { data: cred, error } = await supabase
+      .from("facilitador_credenciales")
+      .select("is_active")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    if (error || !cred || cred.is_active === false) {
+      cookieStore.delete("facilitador_session");
+      return null;
+    }
+  } catch (err) {
+    // If DB check encounters a transient network error, proceed with cryptographic verification
+    console.warn("[getFacilitatorSession] Transient DB check error, relying on cryptographic signature:", err);
+  }
+
   return {
     ...data,
     nombre: toTitleCase(data.nombre),

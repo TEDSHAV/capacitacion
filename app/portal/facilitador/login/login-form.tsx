@@ -56,9 +56,11 @@ export function FacilitadorLoginForm() {
 
       if (result.success) {
         // Save client-side session mirror for offline access
-        // We don't have the facilitador_id here, but we can use 0 as placeholder
-        // The real auth is the httpOnly cookie — this is just a hint
-        saveClientSession("facilitador", 0, username).catch(() => {});
+        saveClientSession(
+          "facilitador",
+          result.facilitadorId || 0,
+          result.nombre || username
+        ).catch(() => {});
         router.push("/portal/facilitador/dashboard");
       } else {
         setError(result.error || "Error al iniciar sesión");
@@ -151,7 +153,7 @@ export function FacilitadorLoginForm() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="pl-10"
-                placeholder="nombre.apellido"
+                placeholder="ej: carloscastro"
                 autoComplete="username"
                 disabled={loading}
               />
