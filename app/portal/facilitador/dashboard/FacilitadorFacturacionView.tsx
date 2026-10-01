@@ -216,31 +216,32 @@ export function FacilitadorFacturacionView({
 
       {/* Segmented Filter Pills */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setFilterTab("pendientes")}
-            className={`px-4 py-2 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 font-semibold ${
               filterTab === "pendientes"
                 ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40 font-medium"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40"
             }`}
           >
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>Por Facturar ({pendientes.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setFilterTab("historial")}
-            className={`px-4 py-2 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 font-semibold ${
               filterTab === "historial"
                 ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40 font-medium"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40"
             }`}
           >
-            <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Facturas Enviadas / Historial ({historial.length})</span>
+            <FileCheck2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="hidden sm:inline">Facturas Enviadas ({historial.length})</span>
+            <span className="sm:hidden">Enviadas ({historial.length})</span>
           </button>
         </div>
 

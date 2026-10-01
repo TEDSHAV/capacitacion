@@ -94,11 +94,12 @@ export function DashboardTour() {
     <button
       type="button"
       onClick={startTour}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold shadow-2xs transition-colors"
+      className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
       title="Iniciar tour guiado"
     >
-      <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
+      <HelpCircle className="w-3.5 h-3.5 text-slate-500 shrink-0" />
       <span className="hidden sm:inline">Guía Rápida</span>
+      <span className="sm:hidden text-[11px]">Guía</span>
     </button>
   );
 }

@@ -143,23 +143,25 @@ export default function FacilitadorDashboardClient({
   return (
     <div className="max-w-7xl mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8 space-y-6">
       {/* Top Identity Header with Navigation Tabs Integrated */}
+      {/* Top Identity Header with Navigation Tabs Integrated */}
       <header
-        className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-5"
+        className="p-4 sm:p-6 lg:p-7 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-4 sm:space-y-5"
         id="tour-welcome"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-          <div className="flex items-center gap-4 sm:gap-5">
-            {/* Facilitator Avatar & Rating Badge */}
-            <div className="flex flex-col items-center shrink-0">
-              <div className="relative">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-5">
+          {/* Top Row on Mobile: Facilitator Profile Information + Mobile Tour Button */}
+          <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
+              {/* Facilitator Avatar */}
+              <div className="relative shrink-0">
                 {facilitador?.foto_perfil_url ? (
                   <img
                     src={facilitador.foto_perfil_url}
                     alt={toTitleCase(nombre)}
-                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover border border-slate-200 shadow-2xs"
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border border-slate-200 shadow-2xs"
                   />
                 ) : (
-                  <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-slate-800 text-white flex items-center justify-center font-bold text-xl sm:text-2xl shadow-2xs border border-slate-200">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800 text-white flex items-center justify-center font-bold text-xl sm:text-2xl shadow-2xs border border-slate-200">
                     {getInitials(toTitleCase(nombre))}
                   </div>
                 )}
@@ -171,92 +173,69 @@ export default function FacilitadorDashboardClient({
                 </div>
               </div>
 
-              {/* Rating pill below profile pic */}
-              <div
-                className={`mt-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold shadow-2xs transition-colors cursor-default ${
-                  rating && rating > 0
-                    ? "bg-amber-50 text-amber-900 border border-amber-200/90 hover:bg-amber-100/80"
-                    : "bg-slate-50 text-slate-500 border border-slate-200/80"
-                }`}
-                title={
-                  rating && rating > 0
-                    ? `Calificación promedio: ${rating.toFixed(1)} / 5.0${
-                        reviewCount > 0
-                          ? ` (${reviewCount} ${reviewCount === 1 ? "evaluación de satisfacción" : "evaluaciones de satisfacción"})`
-                          : ""
-                      }`
-                    : "Sin evaluaciones de satisfacción registradas aún"
-                }
-              >
-                <Star
-                  className={`w-3.5 h-3.5 shrink-0 ${
-                    rating && rating > 0 ? "fill-amber-400 text-amber-500" : "text-slate-400"
-                  }`}
-                />
-                <span>{rating && rating > 0 ? rating.toFixed(1) : "Nuevo"}</span>
-                {reviewCount > 0 && (
-                  <span className="text-[10px] font-semibold text-amber-700/80">
-                    ({reviewCount})
+              {/* Name, Badges & Metadata */}
+              <div className="space-y-1 min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 shrink-0">
+                    <Sparkles className="w-3 h-3 text-emerald-600 shrink-0" />
+                    <span>Facilitador Autorizado</span>
                   </span>
-                )}
+                  {rating && rating > 0 ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200/80 shrink-0">
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500 shrink-0" />
+                      <span>{rating.toFixed(1)} / 5.0</span>
+                      {reviewCount > 0 && (
+                        <span className="text-amber-700/80 font-normal text-[11px]">
+                          • {reviewCount} {reviewCount === 1 ? "evaluación" : "evaluaciones"}
+                        </span>
+                      )}
+                    </span>
+                  ) : null}
+                </div>
+
+                <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-slate-900 leading-snug break-words">
+                  {toTitleCase(nombre)}
+                </h1>
+
+                <div className="flex items-center gap-2.5 sm:gap-3 text-xs text-slate-500 flex-wrap">
+                  {facilitador?.cedula && (
+                    <span className="inline-flex items-center gap-1 font-mono text-slate-600">
+                      <IdCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      CI: {facilitador.cedula}
+                    </span>
+                  )}
+                  {(facilitador?.ciudad_nombre || facilitador?.estado_nombre) && (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{[facilitador.ciudad_nombre, facilitador.estado_nombre].filter(Boolean).join(", ")}</span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1.5 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80">
-                  <Sparkles className="w-3 h-3 text-emerald-600" />
-                  Facilitador Autorizado
-                </span>
-                {rating && rating > 0 && (
-                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200/80">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
-                    <span>{rating.toFixed(1)} / 5.0</span>
-                    {reviewCount > 0 && (
-                      <span className="text-amber-700/80 font-normal text-[11px]">
-                        • {reviewCount} {reviewCount === 1 ? "evaluación" : "evaluaciones"}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 truncate">
-                {toTitleCase(nombre)}
-              </h1>
-
-              <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
-                {facilitador?.cedula && (
-                  <span className="inline-flex items-center gap-1 font-mono text-slate-600">
-                    <IdCard className="w-3.5 h-3.5 text-slate-400" />
-                    CI: {facilitador.cedula}
-                  </span>
-                )}
-                {(facilitador?.ciudad_nombre || facilitador?.estado_nombre) && (
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                    {[facilitador.ciudad_nombre, facilitador.estado_nombre].filter(Boolean).join(", ")}
-                  </span>
-                )}
-              </div>
+            {/* Mobile Tour Button (top right of header) */}
+            <div className="xl:hidden shrink-0">
+              <DashboardTour />
             </div>
           </div>
 
-          <div className="flex items-center gap-3 self-start sm:self-center">
-            {/* Clean Segmented Navigation (White Active Card on Light Gray Track) */}
+          {/* Navigation Tabs + Desktop Tour Button */}
+          <div className="flex items-center gap-3 w-full xl:w-auto">
             <div
-              className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs"
+              className="grid grid-cols-3 sm:flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs w-full xl:w-auto"
               id="tour-nav-tabs"
             >
               <button
                 type="button"
                 onClick={() => setMainView("servicios")}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${mainView === "servicios"
+                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  mainView === "servicios"
                     ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40"
-                  }`}
+                }`}
               >
-                <ClipboardList className="w-4 h-4 text-slate-500" />
+                <ClipboardList className="w-4 h-4 text-slate-500 shrink-0" />
                 <span>Mis Servicios</span>
                 {pendientesCount > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-200">
@@ -269,13 +248,15 @@ export default function FacilitadorDashboardClient({
                 id="tour-tab-facturacion"
                 type="button"
                 onClick={() => setMainView("facturacion")}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${mainView === "facturacion"
+                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                  mainView === "facturacion"
                     ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40"
-                  }`}
+                }`}
               >
-                <Receipt className="w-4 h-4 text-slate-500" />
-                <span>Órdenes y Facturación</span>
+                <Receipt className="w-4 h-4 text-slate-500 shrink-0" />
+                <span className="hidden sm:inline">Órdenes y Facturación</span>
+                <span className="sm:hidden">Facturación</span>
                 {pendingOrdersCount > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-200 animate-pulse">
                     {pendingOrdersCount}
@@ -286,17 +267,21 @@ export default function FacilitadorDashboardClient({
               <button
                 type="button"
                 onClick={() => setMainView("perfil")}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${mainView === "perfil"
+                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                  mainView === "perfil"
                     ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40"
-                  }`}
+                }`}
               >
-                <UserCheck className="w-4 h-4 text-slate-500" />
+                <UserCheck className="w-4 h-4 text-slate-500 shrink-0" />
                 <span>Mi Perfil</span>
               </button>
             </div>
 
-            <DashboardTour />
+            {/* Desktop Tour Button (>= xl) */}
+            <div className="hidden xl:block shrink-0">
+              <DashboardTour />
+            </div>
           </div>
         </div>
       </header>
@@ -373,13 +358,13 @@ export default function FacilitadorDashboardClient({
           {/* Filter Pills & Search Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             {/* Segmented Filter Pills (White Active Pill on Light Gray Track) */}
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs self-start">
+            <div className="grid grid-cols-2 sm:inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setFilterTab("pendientes")}
-                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${filterTab === "pendientes"
+                className={`px-3 py-2 sm:px-3.5 sm:py-1.5 rounded-lg transition-all cursor-pointer text-center font-semibold ${filterTab === "pendientes"
                     ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40 font-medium"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40"
                   }`}
               >
                 Pendientes ({pendientesCount})
@@ -387,9 +372,9 @@ export default function FacilitadorDashboardClient({
               <button
                 type="button"
                 onClick={() => setFilterTab("finalizados")}
-                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${filterTab === "finalizados"
+                className={`px-3 py-2 sm:px-3.5 sm:py-1.5 rounded-lg transition-all cursor-pointer text-center font-semibold ${filterTab === "finalizados"
                     ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40 font-medium"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40"
                   }`}
               >
                 Finalizados ({finalizadosCount})
