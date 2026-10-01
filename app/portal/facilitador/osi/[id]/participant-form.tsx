@@ -245,7 +245,7 @@ export const ParticipantForm = ({
         popover: {
           title: "Flujo Guiado Paso a Paso",
           description:
-            "Este asistente te acompaña en orden secuencial para registrar y finalizar tu capacitación. Puedes guardar tu avance en cualquier momento con 'Guardar borrador' sin perder ningún dato.",
+            "Este flujo guiado te acompaña en orden secuencial para registrar y finalizar tu capacitación. Puedes guardar tu avance en cualquier momento con 'Guardar borrador' sin perder ningún dato.",
         },
       },
     ];
@@ -306,7 +306,7 @@ export const ParticipantForm = ({
         popover: {
           title: `Paso ${partStepNum}: Participantes y Calificaciones`,
           description:
-            "Aquí revisas la nómina de participantes, corriges datos si es necesario y asignas las calificaciones de cada asistente.",
+            "Aquí revisas la nómina de participantes, corriges datos si es necesario y asignas las calificaciones de cada participante.",
         },
       },
       {
@@ -362,7 +362,7 @@ export const ParticipantForm = ({
         popover: {
           title: "Declaración Jurada de Veracidad",
           description:
-            "Lee atentamente la declaración legal y marca obligatoriamente esta casilla para certificar la veracidad de la información y la asistencia real de los alumnos.",
+            "Lee atentamente la declaración legal y marca obligatoriamente esta casilla para certificar la veracidad de la información y la asistencia real de los participantes.",
         },
       },
       {
@@ -905,7 +905,7 @@ export const ParticipantForm = ({
                     </h2>
                   </div>
                   <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                    Ingresa los datos de los asistentes, valida sus datos y califica (escala de 0 a 20).
+                    Ingresa los datos de los participantes, valida sus datos y califica (escala de 0 a 20).
                   </p>
                 </div>
 

@@ -13,7 +13,6 @@ import {
   BookOpen,
   UserCheck,
   MapPin,
-  FileCheck,
   Star,
   ShieldCheck,
   IdCard,
@@ -237,12 +236,6 @@ export default function FacilitadorDashboardClient({
                   <span className="inline-flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-slate-400" />
                     {[facilitador.ciudad_nombre, facilitador.estado_nombre].filter(Boolean).join(", ")}
-                  </span>
-                )}
-                {facilitador?.tiene_firma && (
-                  <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
-                    <FileCheck className="w-3.5 h-3.5" />
-                    Firma Vinculada
                   </span>
                 )}
               </div>
@@ -661,7 +654,7 @@ export default function FacilitadorDashboardClient({
               <div>
                 <h3 className="text-base font-bold text-slate-900">Ficha Técnica del Facilitador</h3>
                 <p className="text-xs text-slate-500 font-medium">
-                  {facilitador?.nivel_educacion || "Instructor Técnico Especialista"} • ID #{facilitador?.id || "---"}
+                  {facilitador?.nivel_educacion || "Facilitador Técnico Especialista"} • ID #{facilitador?.id || "---"}
                 </p>
               </div>
 

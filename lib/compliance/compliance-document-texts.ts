@@ -201,7 +201,7 @@ export const IDENTIFICACION_PELIGROS_MATRIZ: MatrixRow[] = [
     controlesTrabajador: [
       "Conservar la calma y orientar al grupo de participantes hacia la salida de emergencia.",
       "Seguir estrictamente las órdenes de la brigada de emergencias del centro o cliente.",
-      "Reunirse en el punto de encuentro seguro y verificar que todos los alumnos hayan evacuado.",
+      "Reunirse en el punto de encuentro seguro y verificar que todos los participantes hayan evacuado.",
     ],
   },
 ];

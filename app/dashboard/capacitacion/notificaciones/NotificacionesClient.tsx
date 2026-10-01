@@ -374,7 +374,7 @@ export default function NotificacionesClient({ initialResumen }: Props) {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-2">
-            Pendiente carga de asistencias y notas por el instructor
+            Pendiente carga de asistencia y notas por el facilitador
           </p>
         </button>
       </div>

@@ -61,7 +61,7 @@ const dashboardSteps: DriveStep[] = [
     popover: {
       title: "Ejecución y Cierre del Servicio",
       description:
-        "Haz clic en cualquier servicio para abrir el asistente paso a paso. Allí podrás descargar el material didáctico oficial, subir la lista de asistencia física, extraer participantes con OCR, registrar calificaciones (0 a 20) y adjuntar fotos de la sesión.",
+        "Haz clic en cualquier servicio para abrir el flujo paso a paso. Allí podrás descargar el material didáctico oficial, subir la lista de asistencia física, extraer participantes con OCR, registrar calificaciones (0 a 20) y adjuntar fotos de la sesión.",
     },
   },
   {
