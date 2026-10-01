@@ -153,7 +153,7 @@ export function FacilitadorLoginForm() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="pl-10"
-                placeholder="ej: carloscastro"
+                placeholder="ej: juanperez"
                 autoComplete="username"
                 disabled={loading}
               />
