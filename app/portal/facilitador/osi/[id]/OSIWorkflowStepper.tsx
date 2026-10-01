@@ -153,6 +153,7 @@ export default function OSIWorkflowStepper({
               <button
                 key={step.id}
                 id={`tour-step-mobile-${step.id}`}
+                data-tour-step={step.id}
                 type="button"
                 onClick={() => onStepSelect(step.id)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer ${
@@ -217,6 +218,7 @@ export default function OSIWorkflowStepper({
               <button
                 key={step.id}
                 id={`tour-step-${step.id}`}
+                data-tour-step={step.id}
                 type="button"
                 onClick={() => onStepSelect(step.id)}
                 className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${

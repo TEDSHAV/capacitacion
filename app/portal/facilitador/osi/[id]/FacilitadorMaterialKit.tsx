@@ -42,7 +42,7 @@ export default function FacilitadorMaterialKit({
   }
 
   return (
-    <div className="mb-6 rounded-2xl bg-white border border-slate-200 shadow-2xs overflow-hidden">
+    <div id="tour-material-content" className="mb-6 rounded-2xl bg-white border border-slate-200 shadow-2xs overflow-hidden">
       {/* Header Bar */}
       <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
         <div className="space-y-1">

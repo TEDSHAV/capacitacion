@@ -310,11 +310,13 @@ export default function FacilitadorDashboardClient({
 
       {/* Compliance / Normativas Corporativas Banner */}
       {effectiveFacilitadorId && (
-        <ComplianceBanner
-          facilitadorId={effectiveFacilitadorId}
-          facilitadorNombre={toTitleCase(facilitador?.nombre_apellido || nombre || "Facilitador")}
-          facilitadorCedula={facilitador?.cedula || ""}
-        />
+        <div id="tour-compliance-banner">
+          <ComplianceBanner
+            facilitadorId={effectiveFacilitadorId}
+            facilitadorNombre={toTitleCase(facilitador?.nombre_apellido || nombre || "Facilitador")}
+            facilitadorCedula={facilitador?.cedula || ""}
+          />
+        </div>
       )}
 
       {/* ========================================================================= */}
@@ -402,7 +404,7 @@ export default function FacilitadorDashboardClient({
             </div>
 
             {/* Search Box */}
-            <div className="relative flex-1 sm:max-w-xs">
+            <div className="relative flex-1 sm:max-w-xs" id="tour-search-bar">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"

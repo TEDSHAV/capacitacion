@@ -72,7 +72,7 @@ export interface ParticipantFormProps {
 const DISCLAIMER_TEXT =
   "Declaro bajo mi responsabilidad que he revisado exhaustivamente las calificaciones y datos de los participantes, y que la información aquí suministrada es veraz y ha sido contrastada con la lista de asistencia firmada.";
 
-const OSI_TOUR_KEY = "facilitador-osi-tour-v3";
+const OSI_TOUR_KEY = "facilitador-osi-tour-v4";
 
 export const ParticipantForm = ({
   osiId,
@@ -236,59 +236,141 @@ export const ParticipantForm = ({
 
   // Interactive Guided Tour definition
   const tourSteps = useMemo<DriveStep[]>(() => {
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+    const stepEl = (stepId: string) => isMobile ? `#tour-step-mobile-${stepId}` : `#tour-step-${stepId}`;
+
     const list: DriveStep[] = [
       {
         element: "#tour-stepper",
         popover: {
           title: "Flujo Guiado Paso a Paso",
           description:
-            "Sigue los pasos secuenciales para completar el servicio. Puedes guardar tu progreso en cualquier momento con el botón 'Guardar borrador' y retomarlo cuando lo desees sin perder datos.",
+            "Este asistente te acompaña en orden secuencial para registrar y finalizar tu capacitación. Puedes guardar tu avance en cualquier momento con 'Guardar borrador' sin perder ningún dato.",
         },
       },
     ];
 
     if (hasMaterial) {
-      list.push({
-        element: "#tour-step-material",
-        popover: {
-          title: "Material Didáctico Oficial",
-          description:
-            "Consulta y descarga la presentación y guías didácticas del curso cuando estén disponibles en plataforma.",
+      list.push(
+        {
+          element: stepEl("material"),
+          popover: {
+            title: "Paso 1: Material Didáctico Oficial",
+            description:
+              "Accede a los recursos preparados para este curso antes de iniciar o durante la sesión.",
+          },
         },
-      });
+        {
+          element: "#tour-material-content",
+          popover: {
+            title: "Descarga de Presentación y Guías",
+            description:
+              "Aquí puedes descargar la presentación PPTX optimizada en alta definición y las guías del participante. Si observas alguna oportunidad de mejora en el contenido, utiliza el botón 'Sugerir mejora' para notificar al equipo técnico.",
+          },
+        }
+      );
     }
+
+    const asistenciaStepNum = hasMaterial ? "2" : "1";
+    const partStepNum = hasMaterial ? "3" : "2";
+    const evidStepNum = hasMaterial ? "4" : "3";
+    const envioStepNum = hasMaterial ? "5" : "4";
 
     list.push(
       {
-        element: "#tour-step-asistencia",
+        element: stepEl("asistencia"),
         popover: {
-          title: "Lista de Asistencia Física",
+          title: `Paso ${asistenciaStepNum}: Lista de Asistencia Física`,
           description:
-            "Sube la fotografía o PDF de la lista firmada por los participantes y utiliza la herramienta de OCR para escanear y transcribir automáticamente los nombres.",
+            "En esta sección debes cargar la lista de asistencia en papel firmada por los participantes durante la capacitación.",
         },
       },
       {
-        element: "#tour-step-participantes",
+        element: "#tour-upload-section",
         popover: {
-          title: "Participantes y Calificaciones",
+          title: "Cargar Archivo de Asistencia",
           description:
-            "Revisa los participantes extraídos, valida sus nombres, cédulas y asigna las calificaciones de cada alumno (escala de 0 a 20).",
+            "Sube fotos nítidas o un archivo PDF de la lista firmada. Asegúrate de que las firmas, nombres y cédulas sean perfectamente legibles.",
         },
       },
       {
-        element: "#tour-step-evidencias",
+        element: "#tour-scan-button",
         popover: {
-          title: "Fotos y Evidencias",
+          title: "¡Escanear con OCR Inteligente!",
           description:
-            "Adjunta fotos de la actividad como soporte de ejecución.",
+            "¡Ahorra tiempo de digitación! Presiona este botón para que el sistema escanee la foto de la lista de asistencia y extraiga automáticamente los nombres y cédulas directamente a la nómina de participantes.",
         },
       },
       {
-        element: "#tour-step-envio",
+        element: stepEl("participantes"),
         popover: {
-          title: "Revisión y Envío Final",
+          title: `Paso ${partStepNum}: Participantes y Calificaciones`,
           description:
-            "Revisa el resumen consolidado de los datos, confirma la declaración jurada de veracidad y remite el servicio al departamento de Capacitación. La factura correspondiente la cargarás posteriormente desde 'Órdenes y Facturación' una vez emitida tu orden de compra.",
+            "Aquí revisas la nómina de participantes, corriges datos si es necesario y asignas las calificaciones de cada asistente.",
+        },
+      },
+      {
+        element: "#tour-participant-actions",
+        popover: {
+          title: "Acciones de Participantes",
+          description:
+            "Puedes usar 'Escanear OCR' para procesar otra hoja de asistencia, o 'Agregar Fila' para añadir participantes manualmente si faltó alguno.",
+        },
+      },
+      {
+        element: "#tour-participant-list",
+        popover: {
+          title: "Validación y Calificaciones (Escala 0 a 20)",
+          description:
+            "Verifica que el nombre y cédula sean correctos e ingresa la nota (0 a 20). El sistema te indicará en tiempo real si el participante aprueba (según la nota mínima del curso) o reprueba para la emisión de su certificado.",
+        },
+      },
+      {
+        element: stepEl("evidencias"),
+        popover: {
+          title: `Paso ${evidStepNum}: Registro Fotográfico`,
+          description:
+            "Respaldo visual obligatorio de la realización del curso para los departamentos de Calidad y Capacitación.",
+        },
+      },
+      {
+        element: "#tour-evidencias-section",
+        popover: {
+          title: "Fotos de la Actividad (Obligatorio)",
+          description:
+            "Adjunta al menos una foto clara de la sesión presencial o virtual (participantes, facilitador impartiendo el tema, o dinámicas). Sin al menos 1 foto, el sistema no permitirá enviar el servicio.",
+        },
+      },
+      {
+        element: stepEl("envio"),
+        popover: {
+          title: `Paso ${envioStepNum}: Revisión y Envío Final`,
+          description:
+            "Consolidación final de todos los soportes y remisión oficial del servicio.",
+        },
+      },
+      {
+        element: "#tour-summary-card",
+        popover: {
+          title: "Resumen del Servicio",
+          description:
+            "Verifica el resumen: cantidad de participantes registrados, total de aprobados, lista de asistencia y fotos adjuntas.",
+        },
+      },
+      {
+        element: "#tour-disclaimer",
+        popover: {
+          title: "Declaración Jurada de Veracidad",
+          description:
+            "Lee atentamente la declaración legal y marca obligatoriamente esta casilla para certificar la veracidad de la información y la asistencia real de los alumnos.",
+        },
+      },
+      {
+        element: "#tour-submission-actions",
+        popover: {
+          title: "Guardar Borrador y Envío a Capacitación",
+          description:
+            "Usa 'Guardar borrador' si deseas guardar tu progreso para continuar después. Cuando todo esté completo y verificado, haz clic en 'Finalizar y Enviar a Capacitación'.\n\n📌 NOTA IMPORTANTE: La factura fiscal NO se sube aquí. La facturación se realiza en la pestaña 'Órdenes y Facturación' una vez que Administración revise los soportes y emita tu Orden de Compra.",
         },
       }
     );
@@ -309,11 +391,24 @@ export const ParticipantForm = ({
       },
       onHighlightStarted: (element, step) => {
         const el = typeof step.element === "string" ? step.element : "";
-        if (el === "#tour-step-material") setActiveStep("material");
-        else if (el === "#tour-step-asistencia") setActiveStep("asistencia");
-        else if (el === "#tour-step-participantes") setActiveStep("participantes");
-        else if (el === "#tour-step-evidencias") setActiveStep("evidencias");
-        else if (el === "#tour-step-envio") setActiveStep("envio");
+        if (el.includes("material")) {
+          setActiveStep("material");
+        } else if (el.includes("asistencia") || el.includes("upload") || el.includes("scan")) {
+          setActiveStep("asistencia");
+        } else if (el.includes("participante")) {
+          setActiveStep("participantes");
+        } else if (el.includes("evidencia") || el.includes("photo")) {
+          setActiveStep("evidencias");
+        } else if (
+          el.includes("envio") ||
+          el.includes("summary") ||
+          el.includes("disclaimer") ||
+          el.includes("submission") ||
+          el.includes("submit") ||
+          el.includes("draft")
+        ) {
+          setActiveStep("envio");
+        }
       },
     });
     driverInstance.drive();
@@ -815,7 +910,7 @@ export const ParticipantForm = ({
                 </div>
 
                 {!isFinal && (
-                  <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                  <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap" id="tour-participant-actions">
                     <Button
                       type="button"
                       variant="outline"
@@ -1121,7 +1216,7 @@ export const ParticipantForm = ({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-6" id="tour-evidencias-section">
               <AttachmentUploadSection
                 osiId={osiId}
                 facilitadorId={facilitadorId}
@@ -1187,7 +1282,7 @@ export const ParticipantForm = ({
             </div>
 
             {/* Executive Summary Card */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-sky-50/30 border border-slate-200 space-y-4">
+            <div id="tour-summary-card" className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-sky-50/30 border border-slate-200 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-200/70">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
@@ -1258,6 +1353,7 @@ export const ParticipantForm = ({
             {/* Disclaimer / Responsibility Card */}
             <div
               ref={disclaimerRef}
+              id="tour-disclaimer"
               className={`rounded-2xl border-2 transition-all p-5 ${hasAcknowledged
                 ? "border-emerald-300 bg-emerald-50/50"
                 : "border-amber-200 bg-amber-50/40"
@@ -1366,7 +1462,7 @@ export const ParticipantForm = ({
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3" id="tour-submission-actions">
                 {isFinal ? (
                   <Button
                     disabled
@@ -1378,6 +1474,7 @@ export const ParticipantForm = ({
                 ) : (
                   <>
                     <Button
+                      id="tour-draft-button"
                       variant="outline"
                       onClick={() => handleSave("draft")}
                       disabled={saving}

@@ -5,49 +5,71 @@ import { driver, type DriveStep } from "driver.js";
 import "driver.js/dist/driver.css";
 import { HelpCircle } from "lucide-react";
 
-const TOUR_KEY = "facilitador-dashboard-tour-v3";
+const TOUR_KEY = "facilitador-dashboard-tour-v4";
 
 const dashboardSteps: DriveStep[] = [
   {
     element: "#tour-welcome",
     popover: {
       title: "Bienvenido a tu Portal de Facilitador",
-      description: "Tu espacio centralizado para gestionar tus servicios asignados, registrar participantes, subir evidencias y gestionar tu facturación.",
+      description:
+        "Tu plataforma operativa centralizada para gestionar cursos asignados, registrar asistencia y participantes, subir evidencias fotográficas y cargar tus facturas fiscales.",
     },
   },
   {
-    element: "#tour-kpi-filters",
+    element: "#tour-compliance-banner",
     popover: {
-      title: "Resumen y Filtros Rápidos",
-      description: "Revisa el total de servicios pendientes por cargar y finalizados. Haz clic en cualquier tarjeta para filtrar la lista instantáneamente.",
+      title: "Normativas y Cumplimiento Legal",
+      description:
+        "Aquí puedes consultar el estado de tus documentos legales y de auditoría (Ficha Técnica, Declaración de Salud, etc.) requeridos para el cumplimiento de normativas ISO y LOPCYMAT.",
     },
   },
   {
     element: "#tour-nav-tabs",
     popover: {
       title: "Vistas del Portal",
-      description: "Navega entre 'Mis Servicios' para trabajar en cursos asignados, 'Órdenes y Facturación' para consultar órdenes de compra y adjuntar facturas, y 'Mi Perfil' para ver tu ficha técnica.",
+      description:
+        "Navega fácilmente entre:\n• Mis Servicios: Tus capacitaciones asignadas para ejecución.\n• Órdenes y Facturación: Consulta de OCs y carga de facturas fiscales.\n• Mi Perfil: Estadísticas de carrera y datos personales.",
     },
   },
   {
-    element: "#tour-tab-facturacion",
+    element: "#tour-kpi-filters",
     popover: {
-      title: "Órdenes de Compra y Facturación",
-      description: "Una vez concluido el servicio y validados los soportes por Administración, aquí podrás consultar las Órdenes de Compra emitidas y adjuntar tu factura fiscal con sus datos de control.",
+      title: "Resumen y Filtros Rápidos",
+      description:
+        "Revisa cuántos servicios tienes pendientes por cargar soporte y cuántos han sido finalizados. Haz clic en cualquiera de las tarjetas para alternar la vista al instante.",
+    },
+  },
+  {
+    element: "#tour-search-bar",
+    popover: {
+      title: "Búsqueda Inmediata",
+      description:
+        "Localiza rápidamente cualquier capacitación escribiendo el número de OSI (#), nombre de la empresa cliente o título del curso.",
     },
   },
   {
     element: "#tour-osi-cards",
     popover: {
-      title: "Servicios Asignados",
-      description: "Visualiza tus cursos asignados con los datos de la empresa cliente, fecha de ejecución y sesiones programadas.",
+      title: "Tus Servicios Asignados",
+      description:
+        "Cada tarjeta contiene la información esencial del servicio: cliente, curso, ciudad, fecha y número de sesiones programadas.",
     },
   },
   {
     element: "#tour-osi-card",
     popover: {
-      title: "Ejecución del Servicio",
-      description: "Haz clic en cualquier servicio para registrar la lista de asistencia firmada, notas de participantes y fotos de la sesión. Si el curso cuenta con material oficial cargado, podrás descargarlo aquí.",
+      title: "Ejecución y Cierre del Servicio",
+      description:
+        "Haz clic en cualquier servicio para abrir el asistente paso a paso. Allí podrás descargar el material didáctico oficial, subir la lista de asistencia física, extraer participantes con OCR, registrar calificaciones (0 a 20) y adjuntar fotos de la sesión.",
+    },
+  },
+  {
+    element: "#tour-tab-facturacion",
+    popover: {
+      title: "Fase 2: Órdenes de Compra y Facturación",
+      description:
+        "¡Recuerda! La factura NO se carga dentro del servicio. Una vez que remites el servicio y Administración valida los soportes, se emite tu Orden de Compra (OC). En esta pestaña podrás consultar tu OC y adjuntar tu factura fiscal en PDF con su número y número de control.",
     },
   },
 ];
