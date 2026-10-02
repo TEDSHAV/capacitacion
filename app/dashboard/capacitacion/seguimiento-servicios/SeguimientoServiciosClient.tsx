@@ -652,19 +652,6 @@ export default function SeguimientoServiciosClient({
         return newMap;
       });
 
-      // Update session date locally if newDate was provided
-      if (newDate) {
-        setSessionsByOsi((prev) => {
-          const newMap = new Map(prev);
-          const sessions = newMap.get(osiId) || [];
-          newMap.set(
-            osiId,
-            sessions.map((s) => (s.nro_sesion === nroSesion ? { ...s, fecha: newDate } : s)),
-          );
-          return newMap;
-        });
-      }
-
       if (isRescheduled) {
         setRescheduledOsiIds((prev) => (prev.includes(osiId) ? prev : [...prev, osiId]));
         if (filterMode === "activos") {

@@ -851,6 +851,7 @@ export interface CourseActionsProps {
   onEdit: (curso: Curso) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onToggleMostrar?: (id: string, mostrar: boolean) => void;
 }
 
 
@@ -2078,6 +2079,21 @@ export interface GestionMesIndicadores {
   pvc: number;
 }
 
+export interface IndicadorOsiItem {
+  id: number;
+  nroOsi: string;
+  empresa: string;
+  servicio: string;
+  fechaEmision: string | null;
+  fechaPlanificada: string | null;
+  fechaEjecutada: string | null;
+  participantesPlanificados: number;
+  participantesCertificados: number;
+  certificadosCount: number;
+  carnetsCount: number;
+  estatus: string;
+}
+
 export interface GestionMensualResponse {
   year: number;
   /** Always 12 entries, Ene → Dic of `year`. */
@@ -2093,6 +2109,11 @@ export interface GestionMensualResponse {
    * for the selected month without a second server fetch.
    */
   osisList: OsiCarryRow[];
+  /**
+   * Drill-down details keyed by `${rowKey}_${mes}` or `${rowKey}_total`.
+   * e.g. "recibidas_2026-08", "ejecutadasEnSuMes_2026-08", "recibidas_total".
+   */
+  metricOsis?: Record<string, IndicadorOsiItem[]>;
 }
 
 /**

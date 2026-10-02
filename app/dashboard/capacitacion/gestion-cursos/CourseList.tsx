@@ -17,6 +17,7 @@ interface CourseListProps {
   onEdit: (curso: Curso) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onToggleMostrar?: (id: string, mostrar: boolean) => void;
   categories?: CourseCategoryItem[];
 }
 
@@ -25,6 +26,7 @@ export default function CourseList({
   onEdit,
   onDelete,
   onDuplicate,
+  onToggleMostrar,
   categories = DEFAULT_COURSE_CATEGORIES,
 }: CourseListProps) {
 
@@ -291,6 +293,7 @@ export default function CourseList({
               onEdit={onEdit}
               onDelete={onDelete}
               onDuplicate={onDuplicate}
+              onToggleMostrar={onToggleMostrar}
               categories={categories}
             />
           ))}

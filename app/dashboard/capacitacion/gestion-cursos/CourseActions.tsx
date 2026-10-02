@@ -1,14 +1,26 @@
 import { Curso, CourseActionsProps } from '@/types';
-import { FileText } from 'lucide-react';
+import { FileText, EyeOff } from 'lucide-react';
 
 export default function CourseActions({
   curso,
   onEdit,
   onDelete,
   onDuplicate,
+  onToggleMostrar,
 }: CourseActionsProps) {
   return (
     <div className="flex items-center space-x-2">
+      {onToggleMostrar && (
+        <button 
+          type="button"
+          onClick={() => onToggleMostrar(curso.id.toString(), false)}
+          className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-300 rounded-md hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 transition-colors shadow-2xs"
+          title="Ocultar este curso del catálogo"
+        >
+          <EyeOff className="w-3.5 h-3.5 mr-1 text-amber-600" />
+          Ocultar
+        </button>
+      )}
       <a
         href={`/api/generate-ficha-tecnica-pdf?id=${curso.id}`}
         target="_blank"

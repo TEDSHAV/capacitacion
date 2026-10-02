@@ -25,6 +25,10 @@ import FilterBar, { type IndicadoresFilterState } from "./components/FilterBar";
 import GestionMensualTable from "./components/GestionMensualTable";
 import CarryPanel from "./components/CarryPanel";
 import Certificados72hView from "./components/Certificados72hView";
+import IndicadorDetailModal from "./components/IndicadorDetailModal";
+import ExportIndicadoresModal from "./components/ExportIndicadoresModal";
+import type { IndicadorOsiItem } from "@/types";
+import { Download } from "lucide-react";
 
 interface Props {
   user: { id?: string } | null;
@@ -153,6 +157,21 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
   );
   const [loading, setLoading] = useState(!initialCache);
   const [error, setError] = useState<string | null>(initialCache?.error ?? null);
+
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [detailModalState, setDetailModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    periodLabel: string;
+    items: IndicadorOsiItem[];
+    metricKey: string;
+  }>({
+    isOpen: false,
+    title: "",
+    periodLabel: "",
+    items: [],
+    metricKey: "",
+  });
 
   const hasInitialized = useRef(false);
 
@@ -345,6 +364,7 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
         selectedMes={selectedMes}
         onSelectMes={setSelectedMes}
         activeTab={activeTab}
+        onOpenExport={() => setIsExportModalOpen(true)}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -394,19 +414,31 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
             {/* ── Vista 1: Gestión Mensual ───────────────────────────── */}
             {activeTab === "gestion" && (
               <section className="space-y-4">
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900">
-                    Gestión mensual de OSIs
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Recibidas por fecha de emisión de la OSI · programadas y
-                    ejecutadas por fecha de sesión · emisión por fecha de registro.
-                  </p>
-                  <p className="text-[11px] text-gray-400 mt-1">
-                    Los datos confiables comienzan en Ago {INDICADORES_START_YEAR};
-                    los meses anteriores no se muestran porque el sistema de
-                    seguimiento aún no estaba en uso.
-                  </p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      Gestión mensual de OSIs
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Recibidas por fecha de emisión de la OSI · programadas y
+                      ejecutadas por fecha de sesión · emisión por fecha de registro.
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Los datos confiables comienzan en Ago {INDICADORES_START_YEAR};
+                      los meses anteriores no se muestran porque el sistema de
+                      seguimiento aún no estaba en uso.
+                    </p>
+                  </div>
+                  {gestion && (
+                    <button
+                      onClick={() => setIsExportModalOpen(true)}
+                      className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-gray-200 text-gray-700 hover:border-sky-300 hover:text-sky-700 hover:bg-sky-50 transition-all shadow-sm self-start sm:self-auto"
+                      title="Exportar Indicador de calidad (PDF / XLSX)"
+                    >
+                      <Download className="w-4 h-4 text-sky-600" />
+                      <span>Indicador de calidad</span>
+                    </button>
+                  )}
                 </div>
                 {gestionFromCache && (
                   <CachedDataBanner
@@ -435,6 +467,12 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
                       data={gestion}
                       selectedMes={mesActual.mes}
                       onSelectMes={setSelectedMes}
+                      onSelectDetail={(info) =>
+                        setDetailModalState({
+                          isOpen: true,
+                          ...info,
+                        })
+                      }
                     />
                     <CarryPanel
                       osisList={gestion.osisList}
@@ -489,6 +527,26 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
           </div>
         )}
       </main>
+
+      {/* Detail Drill-down Modal */}
+      <IndicadorDetailModal
+        isOpen={detailModalState.isOpen}
+        onClose={() => setDetailModalState((prev) => ({ ...prev, isOpen: false }))}
+        title={detailModalState.title}
+        periodLabel={detailModalState.periodLabel}
+        items={detailModalState.items}
+        metricKey={detailModalState.metricKey}
+      />
+
+      {/* Export Calidad (IC-GS-DC-01) Modal */}
+      {gestion && (
+        <ExportIndicadoresModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          data={gestion}
+          initialMes={mesActual ? mesActual.mes : selectedMes}
+        />
+      )}
     </div>
   );
 }

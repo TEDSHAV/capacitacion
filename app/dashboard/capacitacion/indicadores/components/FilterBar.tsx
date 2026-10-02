@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   CalendarRange,
   CalendarDays,
+  FileDown,
 } from "lucide-react";
 import type {
   IndicadorOsiOption,
@@ -64,6 +65,7 @@ interface Props {
   onSelectMes: (mes: string) => void;
   /** Active tab — controls which filter controls and export options are shown. */
   activeTab: "gestion" | "72h";
+  onOpenExport?: () => void;
 }
 
 export default function FilterBar({
@@ -74,6 +76,7 @@ export default function FilterBar({
   selectedMes,
   onSelectMes,
   activeTab,
+  onOpenExport,
 }: Props) {
   const [osiDropdownOpen, setOsiDropdownOpen] = useState(false);
   const [osiSearch, setOsiSearch] = useState("");
@@ -270,6 +273,19 @@ export default function FilterBar({
           >
             <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
             Solo incumplimientos
+          </button>
+        )}
+
+        {/* Exportar Indicador de calidad button */}
+        {activeTab === "gestion" && onOpenExport && (
+          <button
+            type="button"
+            onClick={onOpenExport}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 hover:border-sky-300 transition-colors shadow-sm ml-auto"
+            title="Exportar Indicador de calidad (PDF / XLSX)"
+          >
+            <FileDown className="w-3.5 h-3.5 text-sky-600" />
+            <span>Indicador de calidad</span>
           </button>
         )}
       </div>

@@ -1,12 +1,18 @@
 "use client";
 
-import type { GestionMesIndicadores, GestionMensualResponse } from "@/types";
+import type { GestionMesIndicadores, GestionMensualResponse, IndicadorOsiItem } from "@/types";
 
 interface Props {
   data: GestionMensualResponse;
   /** "YYYY-MM" of the highlighted column. */
   selectedMes: string;
   onSelectMes: (mes: string) => void;
+  onSelectDetail?: (info: {
+    title: string;
+    periodLabel: string;
+    items: IndicadorOsiItem[];
+    metricKey: string;
+  }) => void;
 }
 
 type RowDef = {
@@ -55,7 +61,7 @@ const ROWS: RowDef[] = [
   },
   {
     key: "participantesPlanificados",
-    label: "Participantes convocados (planificados)",
+    label: "Participantes según OSI",
     get: (m) => m.participantesPlanificados,
     groupStart: true,
   },
@@ -81,16 +87,19 @@ export default function GestionMensualTable({
   data,
   selectedMes,
   onSelectMes,
+  onSelectDetail,
 }: Props) {
   return (
     <div className="bg-white rounded-xl border border-gray-200">
-      <div className="px-5 py-4 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-900">
-          Matriz mensual · {data.year}
-        </h3>
-        <p className="text-xs text-gray-400 mt-0.5">
-          Clic en un mes para ver sus tarjetas arriba
-        </p>
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">
+            Matriz mensual · {data.year}
+          </h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Clic en un mes para ver sus tarjetas arriba · Clic en cualquier número para ver el detalle de la OSI
+          </p>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
@@ -146,20 +155,70 @@ export default function GestionMensualTable({
                 {data.meses.map((m) => {
                   const value = row.get(m);
                   const active = m.mes === selectedMes;
+                  const cellKey = `${row.key}_${m.mes}`;
+                  const items = data.metricOsis?.[cellKey] ?? [];
+                  const isClickable = value > 0 && items.length > 0 && Boolean(onSelectDetail);
+
                   return (
                     <td
                       key={m.mes}
-                      className={`px-2 py-2 text-center tabular-nums ${
+                      className={`px-1 py-1.5 text-center tabular-nums ${
                         active ? "bg-sky-50 font-semibold text-gray-900" : ""
                       } ${value === 0 ? "text-gray-300" : "text-gray-700"}`}
                     >
-                      {value}
+                      {isClickable ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onSelectDetail?.({
+                              title: row.label,
+                              periodLabel: `${m.label} ${data.year}`,
+                              items,
+                              metricKey: row.key,
+                            })
+                          }
+                          className="w-full py-0.5 px-1 rounded hover:bg-sky-100 text-sky-700 hover:text-sky-900 font-semibold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer"
+                          title={`Ver ${items.length} OSI asociadas a este valor`}
+                        >
+                          {value}
+                        </button>
+                      ) : (
+                        <span className="py-0.5 px-1 block">{value}</span>
+                      )}
                     </td>
                   );
                 })}
-                <td className="px-4 py-2 text-right tabular-nums font-semibold text-gray-900 border-l border-gray-200">
-                  {row.get(data.total)}
-                </td>
+                {(() => {
+                  const totalValue = row.get(data.total);
+                  const totalKey = `${row.key}_total`;
+                  const totalItems = data.metricOsis?.[totalKey] ?? [];
+                  const isTotalClickable =
+                    totalValue > 0 && totalItems.length > 0 && Boolean(onSelectDetail);
+
+                  return (
+                    <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-gray-900 border-l border-gray-200">
+                      {isTotalClickable ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onSelectDetail?.({
+                              title: row.label,
+                              periodLabel: `Total Anual ${data.year}`,
+                              items: totalItems,
+                              metricKey: row.key,
+                            })
+                          }
+                          className="py-0.5 px-1.5 rounded hover:bg-sky-100 text-sky-800 hover:text-sky-950 font-bold underline decoration-dotted underline-offset-2 transition-colors cursor-pointer inline-block"
+                          title={`Ver ${totalItems.length} OSI asociadas al total anual`}
+                        >
+                          {totalValue}
+                        </button>
+                      ) : (
+                        <span>{totalValue}</span>
+                      )}
+                    </td>
+                  );
+                })()}
               </tr>
             ))}
           </tbody>

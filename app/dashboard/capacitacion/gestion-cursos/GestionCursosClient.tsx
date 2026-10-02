@@ -7,6 +7,7 @@ import {
   updateCurso,
   duplicateCurso,
   deleteCurso,
+  toggleMostrarEnCatalogo,
 } from "./actions";
 import CourseForm from "./CourseForm";
 import CourseList from "./CourseList";
@@ -19,7 +20,7 @@ import {
   DEFAULT_COURSE_CATEGORIES,
   resolveCourseCategory,
 } from "@/lib/course-categories";
-import { FolderOpen, AlertCircle, Presentation } from "lucide-react";
+import { FolderOpen, AlertCircle, Presentation, EyeOff } from "lucide-react";
 import PresentationStudioModal from "./PresentationStudioModal";
 
 export default function GestionCursosClient({
@@ -102,7 +103,9 @@ export default function GestionCursosClient({
         setError(result.error);
       } else if (result.data) {
         setCreandoCurso(false);
-        setCursosList((prev) => [result.data, ...prev]); // Add new course to list
+        if (result.data.mostrar_en_catalogo !== false) {
+          setCursosList((prev) => [result.data!, ...prev]); // Add new course to list if visible in catalog
+        }
       }
     } catch {
       setError("Error al crear el curso");
@@ -124,11 +127,18 @@ export default function GestionCursosClient({
         setError(result.error);
       } else if (result.data) {
         setEditandoCurso(null);
-        setCursosList((prev) =>
-          prev.map((curso) =>
-            curso.id === editandoCurso ? result.data! : curso,
-          ),
-        ); // Update course in list
+        if (result.data.mostrar_en_catalogo === false) {
+          // If updated course is no longer shown in catalog, remove it from list
+          setCursosList((prev) =>
+            prev.filter((curso) => curso.id !== editandoCurso),
+          );
+        } else {
+          setCursosList((prev) =>
+            prev.map((curso) =>
+              curso.id === editandoCurso ? result.data! : curso,
+            ),
+          ); // Update course in list
+        }
       }
     } catch {
       setError("Error al actualizar el curso");
@@ -166,10 +176,51 @@ export default function GestionCursosClient({
       if (result.error) {
         setError(result.error);
       } else if (result.data) {
-        if (result.data) setCursosList((prev) => [result.data!, ...prev]); // Add duplicated course to list
+        if (result.data.mostrar_en_catalogo !== false) {
+          setCursosList((prev) => [result.data!, ...prev]); // Add duplicated course to list if visible in catalog
+        }
       }
     } catch {
       setError("Error al duplicar el curso");
+    }
+  };
+
+  const [lastHiddenCourse, setLastHiddenCourse] = useState<{
+    id: string;
+    nombre: string;
+  } | null>(null);
+
+  const handleToggleMostrar = async (id: string, mostrar: boolean) => {
+    const courseToHide = cursosList.find((c) => c.id.toString() === id);
+    try {
+      // Optimistically remove from list if hiding
+      setCursosList((prev) => prev.filter((curso) => curso.id.toString() !== id));
+      if (!mostrar && courseToHide) {
+        setLastHiddenCourse({ id, nombre: courseToHide.nombre });
+      }
+
+      const result = await toggleMostrarEnCatalogo(id, mostrar);
+      if (result.error) {
+        setError(result.error);
+      }
+    } catch {
+      setError("Error al actualizar visibilidad del curso");
+    }
+  };
+
+  const handleUndoHide = async () => {
+    if (!lastHiddenCourse) return;
+    const { id } = lastHiddenCourse;
+    setLastHiddenCourse(null);
+    try {
+      const result = await toggleMostrarEnCatalogo(id, true);
+      if (result.error) {
+        setError(result.error);
+      } else if (result.data) {
+        setCursosList((prev) => [result.data!, ...prev]);
+      }
+    } catch {
+      setError("Error al restaurar el curso");
     }
   };
 
@@ -181,6 +232,34 @@ export default function GestionCursosClient({
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
       <div className="px-4 py-6 sm:px-0">
+        {/* Undo Hidden Course Notification */}
+        {lastHiddenCourse && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900 flex items-center justify-between shadow-xs animate-in fade-in duration-200">
+            <div className="flex items-center space-x-2.5">
+              <EyeOff className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>
+                Curso <strong>{lastHiddenCourse.nombre}</strong> ocultado del catálogo.
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleUndoHide}
+                className="text-xs font-bold text-amber-900 hover:text-amber-950 bg-amber-200/70 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Deshacer
+              </button>
+              <button
+                type="button"
+                onClick={() => setLastHiddenCourse(null)}
+                className="text-xs font-semibold text-amber-700 hover:text-amber-900"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Error Alert */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between shadow-xs">
@@ -276,6 +355,7 @@ export default function GestionCursosClient({
           onEdit={abrirModalEdicion}
           onDelete={handleDeleteCourse}
           onDuplicate={handleDuplicateCourse}
+          onToggleMostrar={handleToggleMostrar}
           categories={categoriesList}
         />
       </div>

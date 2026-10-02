@@ -13,6 +13,7 @@ interface CourseItemProps {
   onEdit: (curso: Curso) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onToggleMostrar?: (id: string, mostrar: boolean) => void;
   categories?: CourseCategoryItem[];
 }
 
@@ -21,6 +22,7 @@ export default function CourseItem({
   onEdit,
   onDelete,
   onDuplicate,
+  onToggleMostrar,
   categories,
 }: CourseItemProps) {
 
@@ -114,6 +116,7 @@ export default function CourseItem({
             onEdit={onEdit}
             onDelete={onDelete}
             onDuplicate={onDuplicate}
+            onToggleMostrar={onToggleMostrar}
           />
         </div>
       </div>

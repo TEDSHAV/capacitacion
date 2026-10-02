@@ -1238,15 +1238,9 @@ export async function unmarkEnProcesoStep({
     // Ensure step rows exist
     await ensureProcesoStepsExist(osiId, "ejecucion", nroSesion);
 
-    // If a new date was defined, update the planned date on osi_sesion
-    if (cleanNewDate) {
-      const admin = await createAdminClient();
-      await admin
-        .from("osi_sesion")
-        .update({ fecha: cleanNewDate })
-        .eq("id_osi", osiId)
-        .eq("nro_sesion", nroSesion);
-    }
+    // Note: Do NOT overwrite osi_sesion.fecha with cleanNewDate to maintain
+    // historical auditability and planned vs actual SLA metrics. The rescheduled
+    // date is tracked in step_metadata.new_date and capacitacion_osi_notas.
 
     // Get current record to preserve other metadata if present
     const { data: existing } = await supabase

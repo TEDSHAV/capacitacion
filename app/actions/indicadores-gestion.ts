@@ -6,6 +6,7 @@ import type {
   GestionMensualResponse,
   IndicadoresGestionFilters,
   OsiCarryRow,
+  IndicadorOsiItem,
 } from "@/types";
 import { OSI_ESTATUS } from "@/lib/sync/sync-osi-estatus";
 import { parseDate, toDateStr } from "@/lib/business-days";
@@ -110,6 +111,7 @@ function emptyBucket(mes: string, label: string): GestionMesIndicadores {
 type OsiRow = {
   id_osi: number | null;
   nro_osi: string | null;
+  servicio: string | null;
   fecha_emision: string | null;
   fecha_inicio_real: string | null;
   fecha_fin_real: string | null;
@@ -161,7 +163,7 @@ export async function getIndicadoresGestionMensual(
       let q = supabase
         .from("v_osi_formato_completo")
         .select(
-          "id_osi, nro_osi, fecha_emision, fecha_inicio_real, fecha_fin_real, participantes_ejecucion, participantes_max_solped, id_empresa, id_estatus, nombre_empresa",
+          "id_osi, nro_osi, servicio, fecha_emision, fecha_inicio_real, fecha_fin_real, participantes_ejecucion, participantes_max_solped, id_empresa, id_estatus, nombre_empresa",
         )
         .ilike("tipo_servicio", "%capacitacion%")
         .not("nro_osi", "ilike", "%PEN-%");
@@ -262,6 +264,11 @@ export async function getIndicadoresGestionMensual(
     }
     const numericOsis = Array.from(new Set(numericOsiByOsiId.values()));
 
+    const osiIdByNumeric = new Map<number, number>();
+    for (const [osiId, num] of numericOsiByOsiId) {
+      osiIdByNumeric.set(num, osiId);
+    }
+
     // osiId → raw count of certificates issued for that OSI (not distinct
     // participants — the user doesn't care about uniqueness, just how many
     // certificates were issued = how many people attended).
@@ -282,11 +289,7 @@ export async function getIndicadoresGestionMensual(
             .range(from, to),
         "certificados (by nro_osi)",
       );
-      // Reverse map: numericOsi → osiId (for joining back).
-      const osiIdByNumeric = new Map<number, number>();
-      for (const [osiId, num] of numericOsiByOsiId) {
-        osiIdByNumeric.set(num, osiId);
-      }
+
       for (const c of certRows) {
         if (c.nro_osi == null || c.id_participante == null) continue;
         const osiId = osiIdByNumeric.get(c.nro_osi);
@@ -300,10 +303,11 @@ export async function getIndicadoresGestionMensual(
       id: number;
       fecha_emision: string | null;
       id_participante: number | null;
+      nro_osi: number | null;
     }>((from, to) => {
       let q = supabase
         .from("certificados")
-        .select("id, fecha_emision, id_participante")
+        .select("id, fecha_emision, id_participante, nro_osi")
         .eq("is_active", true)
         .gte("fecha_emision", yearStart)
         .lte("fecha_emision", yearEnd);
@@ -333,7 +337,29 @@ export async function getIndicadoresGestionMensual(
       return q.order("id", { ascending: true }).range(from, to);
     }, "carnets");
 
-    // ── 7. Buckets ───────────────────────────────────────────────────────
+    const osiById = new Map<number, OsiRow>();
+    for (const o of osiRows) {
+      if (o.id_osi != null) osiById.set(o.id_osi, o);
+    }
+
+    const carnetCountByOsi = new Map<number, number>();
+    const certOsiIdMap = new Map<number, number>();
+    for (const c of certs) {
+      if (c.nro_osi != null) {
+        const osiId = osiIdByNumeric.get(c.nro_osi);
+        if (osiId != null) certOsiIdMap.set(c.id, osiId);
+      }
+    }
+    for (const c of carnets) {
+      if (c.id_certificado != null) {
+        const osiId = certOsiIdMap.get(c.id_certificado);
+        if (osiId != null) {
+          carnetCountByOsi.set(osiId, (carnetCountByOsi.get(osiId) ?? 0) + 1);
+        }
+      }
+    }
+
+    // ── 7. Buckets & Metric OSI Details ──────────────────────────────────
     // Only build buckets for tracked months. The seguimiento system went
     // live in Ago 2026; months before that have no reliable session data, so
     // they're hidden entirely (matrix columns, carry panel, facilitadores).
@@ -348,6 +374,52 @@ export async function getIndicadoresGestionMensual(
     }
     const yearsSet = new Set<number>([year]);
     const osisList: OsiCarryRow[] = [];
+    const metricOsis: Record<string, IndicadorOsiItem[]> = {};
+
+    function addOsiToMetric(metricKey: string, mesKey: string, o: OsiRow) {
+      const osiId = o.id_osi;
+      if (osiId == null) return;
+      const agg = aggByOsi.get(osiId);
+      const fechaPlanificadaInicio = agg?.minFecha ?? o.fecha_inicio_real;
+      let fechaEjecucionFinal: string | null = null;
+      if (agg && agg.total > 0) {
+        if (agg.ejecutadas === agg.total) fechaEjecucionFinal = agg.maxEjecutada;
+      } else if (o.id_estatus === OSI_ESTATUS.EJECUTADO) {
+        fechaEjecucionFinal = o.fecha_fin_real;
+      }
+
+      const isCertMetric = metricKey === "certificados";
+      const isPvcMetric = metricKey === "pvc";
+
+      const baseItem: IndicadorOsiItem = {
+        id: osiId,
+        nroOsi: o.nro_osi ?? `OSI-${osiId}`,
+        empresa: o.nombre_empresa?.trim() || "—",
+        servicio: o.servicio?.trim() || "—",
+        fechaEmision: o.fecha_emision,
+        fechaPlanificada: fechaPlanificadaInicio,
+        fechaEjecutada: fechaEjecucionFinal,
+        participantesPlanificados: o.participantes_ejecucion ?? o.participantes_max_solped ?? 0,
+        participantesCertificados: certCountByOsi.get(osiId) ?? 0,
+        certificadosCount: isCertMetric ? 1 : (certCountByOsi.get(osiId) ?? 0),
+        carnetsCount: isPvcMetric ? 1 : (carnetCountByOsi.get(osiId) ?? 0),
+        estatus: o.id_estatus != null ? ESTATUS_LABELS[o.id_estatus] ?? String(o.id_estatus) : "—",
+      };
+
+      const registerInList = (listKey: string) => {
+        if (!metricOsis[listKey]) metricOsis[listKey] = [];
+        const existing = metricOsis[listKey].find((x) => x.id === baseItem.id);
+        if (existing) {
+          if (isCertMetric) existing.certificadosCount = (existing.certificadosCount || 0) + 1;
+          if (isPvcMetric) existing.carnetsCount = (existing.carnetsCount || 0) + 1;
+        } else {
+          metricOsis[listKey].push({ ...baseItem });
+        }
+      };
+
+      registerInList(`${metricKey}_${mesKey}`);
+      registerInList(`${metricKey}_total`);
+    }
 
     for (const o of osiRows) {
       const osiId = o.id_osi;
@@ -360,7 +432,10 @@ export async function getIndicadoresGestionMensual(
       if (anioRecepcion != null) yearsSet.add(anioRecepcion);
       if (mesRecepcion) {
         const b = buckets.get(mesRecepcion);
-        if (b) b.osisRecibidas += 1;
+        if (b) {
+          b.osisRecibidas += 1;
+          addOsiToMetric("recibidas", mesRecepcion, o);
+        }
       }
 
       // Planned month — earliest session date, fallback fecha_inicio_real
@@ -389,14 +464,18 @@ export async function getIndicadoresGestionMensual(
         const b = buckets.get(mesPlanificado);
         if (b) {
           b.osisPlanificadas += 1;
+          addOsiToMetric("planificadas", mesPlanificado, o);
           if (mesEjecucion === mesPlanificado) {
             b.osisEjecutadasEnSuMes += 1;
+            addOsiToMetric("ejecutadasEnSuMes", mesPlanificado, o);
           } else if (!fechaEjecucionFinal) {
             b.osisPendientes += 1;
+            addOsiToMetric("pendientes", mesPlanificado, o);
             const ultimaPlanificada =
               agg?.maxFecha ?? o.fecha_inicio_real ?? o.fecha_fin_real ?? null;
             if (ultimaPlanificada && ultimaPlanificada < todayStr) {
               b.osisPendientesVencidas += 1;
+              addOsiToMetric("pendientesVencidas", mesPlanificado, o);
             }
           }
         }
@@ -416,6 +495,8 @@ export async function getIndicadoresGestionMensual(
           b.participantesPlanificados +=
             o.participantes_ejecucion ?? o.participantes_max_solped ?? 0;
           b.participantesLista += certCountByOsi.get(osiId) ?? 0;
+          addOsiToMetric("participantesPlanificados", mesEjecucion, o);
+          addOsiToMetric("participantesLista", mesEjecucion, o);
         }
       }
 
@@ -424,7 +505,10 @@ export async function getIndicadoresGestionMensual(
       // valid chronological comparison across years.
       if (mesEjecucion && mesPlanificado && mesPlanificado < mesEjecucion) {
         const b = buckets.get(mesEjecucion);
-        if (b) b.osisRezagadasEjecutadas += 1;
+        if (b) {
+          b.osisRezagadasEjecutadas += 1;
+          addOsiToMetric("rezagadas", mesEjecucion, o);
+        }
       }
 
       // Carry-over detail: include OSIs planned in the selected year, OR
@@ -464,6 +548,13 @@ export async function getIndicadoresGestionMensual(
       const b = buckets.get(mes);
       if (!b) continue;
       b.certificados += 1;
+      if (c.nro_osi != null) {
+        const osiId = osiIdByNumeric.get(c.nro_osi);
+        const osi = osiId != null ? osiById.get(osiId) : null;
+        if (osi) {
+          addOsiToMetric("certificados", mes, osi);
+        }
+      }
     }
 
     for (const c of carnets) {
@@ -474,6 +565,13 @@ export async function getIndicadoresGestionMensual(
       if (!mes) continue;
       const b = buckets.get(mes);
       if (b) b.pvc += 1;
+      if (c.id_certificado != null) {
+        const osiId = certOsiIdMap.get(c.id_certificado);
+        const osi = osiId != null ? osiById.get(osiId) : null;
+        if (osi) {
+          addOsiToMetric("pvc", mes, osi);
+        }
+      }
     }
 
     // ── 8. Year totals ───────────────────────────────────────────────────
@@ -496,7 +594,7 @@ export async function getIndicadoresGestionMensual(
       .sort((a, b) => b - a);
 
     return {
-      data: { year, meses, total, yearsDisponibles, osisList },
+      data: { year, meses, total, yearsDisponibles, osisList, metricOsis },
       error: null,
     };
   } catch (err) {

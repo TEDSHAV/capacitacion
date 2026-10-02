@@ -182,38 +182,42 @@ export async function recalcOsiEstatusFromSteps(
       rows.filter((r) => r.completed === true).map((r) => r.nro_sesion as number),
     ).size;
 
-    let newStatusId: number;
-    if (executedSessions === totalSessions) {
+    let newStatusId: number | null = null;
+    if (executedSessions === totalSessions && totalSessions > 0) {
       newStatusId = OSI_ESTATUS.EJECUTADO;
     } else if (executedSessions > 0) {
       newStatusId = OSI_ESTATUS.EN_PROCESO;
     } else {
-      const anyRescheduled = rows.some((r) => {
-        const meta = r.step_metadata as Record<string, unknown> | null;
-        return meta?.is_rescheduled === true || meta?.is_rescheduled === "true";
-      });
-      const anyUnmarked = rows.some((r) => {
-        const meta = r.step_metadata as Record<string, unknown> | null;
-        return meta?.unmarked_by_user === true && !meta?.is_rescheduled;
-      });
+      // When NO sessions are completed, do NOT touch ejecucion_osi with REAGENDADO or NO_EJECUTADA.
+      // Rescheduling/unmarking states belong strictly in capacitacion_proceso_steps and capacitacion_osi_notas.
+      // Only revert to PENDIENTE if it was previously marked as EJECUTADO or EN_PROCESO.
+      const { data: currentOsi } = await admin
+        .from("ejecucion_osi")
+        .select("id_estatus")
+        .eq("id", osiId)
+        .maybeSingle();
 
-      if (anyRescheduled) {
-        newStatusId = OSI_ESTATUS.REAGENDADO;
-      } else if (anyUnmarked) {
-        newStatusId = OSI_ESTATUS.NO_EJECUTADA;
-      } else {
+      if (
+        currentOsi?.id_estatus === OSI_ESTATUS.EJECUTADO ||
+        currentOsi?.id_estatus === OSI_ESTATUS.EN_PROCESO
+      ) {
         newStatusId = OSI_ESTATUS.PENDIENTE;
+      } else {
+        // Leave ejecucion_osi untouched
+        return;
       }
     }
 
-    const now = new Date().toISOString();
-    const { error: updateError } = await admin
-      .from("ejecucion_osi")
-      .update({ id_estatus: newStatusId, status_changed_at: now })
-      .eq("id", osiId);
+    if (newStatusId !== null) {
+      const now = new Date().toISOString();
+      const { error: updateError } = await admin
+        .from("ejecucion_osi")
+        .update({ id_estatus: newStatusId, status_changed_at: now })
+        .eq("id", osiId);
 
-    if (updateError) {
-      console.error("[sync-osi-estatus] Error updating ejecucion_osi.id_estatus:", updateError);
+      if (updateError) {
+        console.error("[sync-osi-estatus] Error updating ejecucion_osi.id_estatus:", updateError);
+      }
     }
   } catch (err) {
     console.error("[sync-osi-estatus] Unexpected error in recalcOsiEstatusFromSteps:", err);

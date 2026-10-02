@@ -106,9 +106,9 @@ export default function GestionKpiCards({ mes }: Props) {
       />
       <KpiCard
         icon={Users}
-        label="Participantes convocados"
+        label="Participantes según OSI"
         value={mes.participantesPlanificados}
-        sub="Cupos planificados de las OSIs ejecutadas"
+        sub="Cupos planificados de las OSI ejecutadas"
         color="bg-gray-100 text-gray-600"
       />
       <KpiCard

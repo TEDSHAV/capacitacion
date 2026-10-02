@@ -389,14 +389,32 @@ export async function getCursos() {
   try {
     const supabase = await createClient();
 
-    // Get all active services from catalogo_servicios where id_departamento_ejecutante = 3 (capacitacion)
-    const { data, error } = await supabase
+    // Get all active services from catalogo_servicios where id_departamento_ejecutante = 3 (capacitacion) and mostrar_en_catalogo = true
+    let { data, error } = await supabase
       .from("catalogo_servicios")
       .select("*")
       .eq("esta_activo", true)
       .eq("id_departamento_ejecutante", 3)
       .eq("tipo_servicio", 1)
+      .eq("mostrar_en_catalogo", true)
       .order("id", { ascending: false });
+
+    // Fallback if column 'mostrar_en_catalogo' does not exist yet in DB schema
+    if (
+      error &&
+      (error.code === "42703" ||
+        error.message?.includes("mostrar_en_catalogo"))
+    ) {
+      const retry = await supabase
+        .from("catalogo_servicios")
+        .select("*")
+        .eq("esta_activo", true)
+        .eq("id_departamento_ejecutante", 3)
+        .eq("tipo_servicio", 1)
+        .order("id", { ascending: false });
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       return {
@@ -406,6 +424,33 @@ export async function getCursos() {
 
     return { success: true, data: data || [] };
   } catch (error) {
+    return { error: "Error interno del servidor" };
+  }
+}
+
+export async function toggleMostrarEnCatalogo(id: string, mostrar: boolean) {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("catalogo_servicios")
+      .update({ mostrar_en_catalogo: mostrar })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (error) {
+      console.error("Error toggling mostrar_en_catalogo:", error);
+      return {
+        error: `Error al actualizar visibilidad: ${formatSupabaseError(error)}`,
+      };
+    }
+
+    revalidatePath("/dashboard/capacitacion/gestion-cursos");
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Unexpected error in toggleMostrarEnCatalogo:", error);
     return { error: "Error interno del servidor" };
   }
 }
