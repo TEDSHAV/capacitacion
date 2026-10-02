@@ -45,9 +45,13 @@ export function PWALayout({
   // Initialize navigation caching on first load
   useInitNavigation();
 
-  // Track last active portal path for standalone PWA launch routing
+  // Track last active portal or dashboard path for standalone PWA launch routing
   useEffect(() => {
-    if (pathname && pathname.startsWith("/portal")) {
+    if (
+      pathname &&
+      (pathname.startsWith("/portal") || pathname.startsWith("/dashboard")) &&
+      !pathname.endsWith("/login")
+    ) {
       try {
         localStorage.setItem("pwa_install_path", pathname);
       } catch {}
@@ -139,6 +143,15 @@ export function PWALayout({
     return <>{children}</>;
   }
 
+  const handleLogout = async () => {
+    try {
+      localStorage.removeItem("pwa_install_path");
+    } catch {}
+    if (onLogout) {
+      await onLogout();
+    }
+  };
+
   return (
     <div className="pwa-chrome h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Top Navigation */}
@@ -146,7 +159,7 @@ export function PWALayout({
         title={pageTitle}
         context={context}
         userName={userName}
-        onLogout={onLogout}
+        onLogout={handleLogout}
         onSearchOpen={() => setIsMenuOpen(false)}
       />
 

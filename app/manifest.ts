@@ -45,6 +45,13 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       {
+        name: "Dashboard de Administración",
+        short_name: "Dashboard",
+        description: "Gestión administrativa del módulo de capacitación",
+        url: "/dashboard/capacitacion",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
+      },
+      {
         name: "Portal de Facilitadores",
         short_name: "Facilitadores",
         description: "Acceso para facilitadores del portal de capacitación",

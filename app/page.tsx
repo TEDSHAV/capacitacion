@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getClientSession } from "@/lib/offline/client-session";
+import { createClient } from "@/utils/supabase/client";
 
 const INSTALL_PATH_KEY = "pwa_install_path";
 
@@ -21,16 +22,19 @@ export default function Home() {
         window.matchMedia("(display-mode: standalone)").matches ||
         (window.navigator as any).standalone === true;
 
-      // 1. Check if there's a stored portal path from recent activity
+      // 1. Check if there's a stored portal or dashboard path from recent activity
       try {
         const storedPath = localStorage.getItem(INSTALL_PATH_KEY);
-        if (storedPath && storedPath.startsWith("/portal")) {
+        if (
+          storedPath &&
+          (storedPath.startsWith("/portal") || storedPath.startsWith("/dashboard"))
+        ) {
           router.replace(storedPath);
           return;
         }
       } catch {}
 
-      // 2. Check offline/cached sessions
+      // 2. Check offline/cached portal sessions
       try {
         const [facSession, cliSession] = await Promise.all([
           getClientSession("facilitador"),
@@ -47,14 +51,24 @@ export default function Home() {
         }
       } catch {}
 
-      // 3. For installed standalone PWAs, default to facilitador portal
-      // (Admins access through PRISMA shell; field users use the standalone PWA)
+      // 3. Check for active Supabase session (internal PRISMA / Admin user)
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          router.replace("/dashboard/capacitacion");
+          return;
+        }
+      } catch {}
+
+      // 4. For installed standalone PWAs without prior session:
+      // Default to facilitador portal login (field users)
       if (standalone) {
         router.replace("/portal/facilitador/login");
         return;
       }
 
-      // 4. Default for direct web browser accesses (e.g. admin direct navigation)
+      // 5. Default for direct web browser accesses (e.g. admin direct navigation)
       router.replace("/dashboard/capacitacion");
     }
 
