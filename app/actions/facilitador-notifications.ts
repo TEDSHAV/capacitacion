@@ -78,6 +78,9 @@ export async function notifyCapacitacionUsersOfUpload(params: {
     } else if (category === "factura") {
       title = "Factura de Honorarios Remitida";
       body = `El facilitador ${facilitadorName} ha cargado la factura de honorarios correspondiente a la OSI ${nroOsi}${sessionSuffix}.`;
+    } else if (category === "orden_compra") {
+      title = "Orden de Compra Consignada";
+      body = `Se ha consignado la orden de compra para la OSI ${nroOsi}${sessionSuffix} (${facilitadorName}).`;
     }
 
     const rows = recipientIds.map((recipientIdAuth) => ({
