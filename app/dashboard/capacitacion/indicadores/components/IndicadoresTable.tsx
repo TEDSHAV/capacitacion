@@ -34,8 +34,12 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
     cls: "bg-red-50 text-red-700 border-red-200",
   },
   pendiente: {
-    label: "Pendiente",
+    label: "Demora en emisión",
     cls: "bg-amber-50 text-amber-700 border-amber-200",
+  },
+  pendiente_ejecucion: {
+    label: "Pendiente por ejecución",
+    cls: "bg-violet-50 text-violet-700 border-violet-200",
   },
   programada: {
     label: "Programada",
@@ -116,14 +120,15 @@ export default function IndicadoresTable({ rows, defaultSortByBrecha }: Props) {
   // Breakdown by estado so the footer reconciles with the KPI cards above
   // (this table shows all estados, not just evaluated OSIs).
   const breakdown = useMemo(() => {
-    let evaluadas = 0, pendientes = 0, programadas = 0, noAplica = 0;
+    let evaluadas = 0, pendientes = 0, pendientesEjecucion = 0, programadas = 0, noAplica = 0;
     for (const r of rows) {
       if (r.estado === "dentro" || r.estado === "fuera") evaluadas += 1;
       else if (r.estado === "pendiente") pendientes += 1;
+      else if (r.estado === "pendiente_ejecucion") pendientesEjecucion += 1;
       else if (r.estado === "programada") programadas += 1;
       else if (r.estado === "no_aplica") noAplica += 1;
     }
-    return { evaluadas, pendientes, programadas, noAplica };
+    return { evaluadas, pendientes, pendientesEjecucion, programadas, noAplica };
   }, [rows]);
 
   const columns: { key: SortKey; label: string; className?: string }[] = [
@@ -148,8 +153,8 @@ export default function IndicadoresTable({ rows, defaultSortByBrecha }: Props) {
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
             {sorted.length} OSI(s) · {breakdown.evaluadas} evaluadas ·{" "}
-            {breakdown.pendientes} pendientes · {breakdown.programadas} programadas
-            · {breakdown.noAplica} no aplica · clic en encabezado para ordenar
+            {breakdown.pendientes} demora emisión · {breakdown.pendientesEjecucion} pend. ejecución ·{" "}
+            {breakdown.programadas} programadas · {breakdown.noAplica} no aplica · clic en encabezado para ordenar
           </p>
         </div>
       </div>

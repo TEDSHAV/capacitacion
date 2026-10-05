@@ -86,6 +86,7 @@ function emptyAggregates(): IndicadoresAggregates {
     dentro72: 0,
     fuera72: 0,
     pendientes: 0,
+    pendientesEjecucion: 0,
     programadas: 0,
     noAplica: 0,
     pctCumplimiento: null,
@@ -264,12 +265,16 @@ export async function getIndicadoresCertificados72h(
     const numericOsis = Array.from(new Set(numericOsiByOsiId.values()));
 
     // 2. Batch fetch osi_sesion dates → compute the clock start date per OSI.
-    //    For each session, prefer fecha_ejecutada (actual) and fall back to
-    //    fecha (planned) on a PER-SESSION basis. Then take the MAX across all
-    //    sessions. This ensures that if only some sessions have
-    //    fecha_ejecutada populated, we don't ignore the latest session's
-    //    planned date — which would inflate the gap.
-    //    Final fallback: fecha_fin_real from the OSI view.
+    //    For each session, track planned date and actual execution date.
+    //    An OSI is fully executed when EVERY session has fecha_ejecutada populated.
+    type SesionAggInfo = {
+      totalSesiones: number;
+      ejecutadasSesiones: number;
+      maxFechaEjecutada: string | null;
+      maxFechaPlanificada: string | null;
+      allSessionsExecuted: boolean;
+    };
+    const sesionAggByOsi = new Map<number, SesionAggInfo>();
     const maxSesionFechaByOsi = new Map<number, string>();
     const usedFechaEjecutadaByOsi = new Set<number>();
     // Per-session dates (nro_sesion + effective date), used below to
@@ -288,6 +293,29 @@ export async function getIndicadoresCertificados72h(
         "osi_sesion",
       );
       for (const s of sesionRows) {
+        const agg = sesionAggByOsi.get(s.id_osi) ?? {
+          totalSesiones: 0,
+          ejecutadasSesiones: 0,
+          maxFechaEjecutada: null,
+          maxFechaPlanificada: null,
+          allSessionsExecuted: false,
+        };
+        agg.totalSesiones += 1;
+        if (s.fecha) {
+          if (!agg.maxFechaPlanificada || s.fecha > agg.maxFechaPlanificada) {
+            agg.maxFechaPlanificada = s.fecha;
+          }
+        }
+        if (s.fecha_ejecutada) {
+          agg.ejecutadasSesiones += 1;
+          if (!agg.maxFechaEjecutada || s.fecha_ejecutada > agg.maxFechaEjecutada) {
+            agg.maxFechaEjecutada = s.fecha_ejecutada;
+          }
+        }
+        agg.allSessionsExecuted =
+          agg.totalSesiones > 0 && agg.ejecutadasSesiones === agg.totalSesiones;
+        sesionAggByOsi.set(s.id_osi, agg);
+
         // Per-session: prefer fecha_ejecutada, fall back to fecha
         const sessionDate = s.fecha_ejecutada ?? s.fecha;
         if (!sessionDate) continue;
@@ -457,21 +485,11 @@ export async function getIndicadoresCertificados72h(
       const osiId = o.id_osi ?? 0;
       const fechaFinReal = o.fecha_fin_real ?? null;
 
-      // Clock start: MAX(per-session fecha_ejecutada ?? fecha) || fecha_fin_real
-      const maxSesionFecha = maxSesionFechaByOsi.get(osiId) ?? null;
-      const usedFechaEjecutada = usedFechaEjecutadaByOsi.has(osiId);
-      let fechaEjecucion: string | null;
-      let fuenteEjecucion: IndicadorFuenteEjecucion | null;
-      if (maxSesionFecha) {
-        fechaEjecucion = maxSesionFecha;
-        fuenteEjecucion = usedFechaEjecutada ? "fecha_ejecutada" : "sesiones";
-      } else if (fechaFinReal) {
-        fechaEjecucion = fechaFinReal;
-        fuenteEjecucion = "fecha_fin_real";
-      } else {
-        fechaEjecucion = null;
-        fuenteEjecucion = null;
-      }
+      const agg = sesionAggByOsi.get(osiId);
+      const isEjecutada =
+        agg && agg.totalSesiones > 0
+          ? agg.allSessionsExecuted
+          : o.id_estatus === 12; // OSI_ESTATUS.EJECUTADO
 
       // Clock end: MIN(fecha_emision) (primary) || MIN(created_at) (fallback)
       const numericOsi = numericOsiByOsiId.get(osiId) ?? null;
@@ -492,6 +510,54 @@ export async function getIndicadoresCertificados72h(
         fuenteEmision = "created_at";
       }
 
+      // Clock start / execution reference date:
+      // If certificates were already issued, we prefer maxFechaEjecutada and fall back to
+      // maxFechaPlanificada / fecha_fin_real (legacy / unrecorded execution steps).
+      // If certificates have NOT been issued:
+      // - When isEjecutada: execution date is maxFechaEjecutada || fechaFinReal
+      // - When !isEjecutada: execution is still pending; the reference date is the planned date (maxFechaPlanificada || fechaFinReal)
+      let fechaEjecucion: string | null;
+      let fuenteEjecucion: IndicadorFuenteEjecucion | null;
+      if (fechaEmision) {
+        if (agg?.maxFechaEjecutada) {
+          fechaEjecucion = agg.maxFechaEjecutada;
+          fuenteEjecucion = "fecha_ejecutada";
+        } else if (agg?.maxFechaPlanificada) {
+          fechaEjecucion = agg.maxFechaPlanificada;
+          fuenteEjecucion = "sesiones";
+        } else if (fechaFinReal) {
+          fechaEjecucion = fechaFinReal;
+          fuenteEjecucion = "fecha_fin_real";
+        } else {
+          fechaEjecucion = null;
+          fuenteEjecucion = null;
+        }
+      } else {
+        if (isEjecutada) {
+          if (agg?.maxFechaEjecutada) {
+            fechaEjecucion = agg.maxFechaEjecutada;
+            fuenteEjecucion = "fecha_ejecutada";
+          } else if (fechaFinReal) {
+            fechaEjecucion = fechaFinReal;
+            fuenteEjecucion = "fecha_fin_real";
+          } else {
+            fechaEjecucion = null;
+            fuenteEjecucion = null;
+          }
+        } else {
+          if (agg?.maxFechaPlanificada) {
+            fechaEjecucion = agg.maxFechaPlanificada;
+            fuenteEjecucion = "sesiones";
+          } else if (fechaFinReal) {
+            fechaEjecucion = fechaFinReal;
+            fuenteEjecucion = "fecha_fin_real";
+          } else {
+            fechaEjecucion = null;
+            fuenteEjecucion = null;
+          }
+        }
+      }
+
       let diasHabiles: number | null = null;
       let estado: IndicadorEstado;
       let brechaDias: number | null = null;
@@ -501,21 +567,24 @@ export async function getIndicadoresCertificados72h(
         estado = "no_aplica";
       } else {
         const execDate = parseDate(fechaEjecucion);
-        // "programada": execution date is in the future — the 72h clock
-        // hasn't started yet. These OSIs are NOT pending cert issuance
-        // (they haven't been executed), so they must be classified
-        // separately from "pendiente" to avoid inflating the pending
-        // count and the "en riesgo" metric.
         if (execDate > nowDate) {
+          // "programada": execution date is in the future — the 72h clock
+          // hasn't started yet.
           estado = "programada";
         } else if (!fechaEmision) {
-          estado = "pendiente";
-          // Business days elapsed since execution, relative to today, minus
-          // the deadline. Positive = already past the 72h plazo and still
-          // waiting on a certificate (useful for sorting the pending
-          // backlog worst-first); can be negative/zero if still on time.
-          brechaDias =
-            businessDaysInclusive(execDate, nowDate, holidays) - PLAZO_BUSINESS_DAYS;
+          if (!isEjecutada) {
+            // Service has NOT been provided / execution is still pending.
+            // These OSIs are pending certificate issuance purely because the
+            // training hasn't occurred yet, not due to administrative issuance delays.
+            estado = "pendiente_ejecucion";
+            brechaDias = null;
+          } else {
+            // Service WAS executed, but certificates have NOT been issued yet.
+            // Active delay in certificate issuance (72h clock is ticking from execution date).
+            estado = "pendiente";
+            brechaDias =
+              businessDaysInclusive(execDate, nowDate, holidays) - PLAZO_BUSINESS_DAYS;
+          }
         } else {
           const certDate = parseDate(fechaEmision);
           diasHabiles = businessDaysInclusive(execDate, certDate, holidays);
@@ -575,6 +644,7 @@ export async function getIndicadoresCertificados72h(
         facilitadorSesionNombre,
         sesiones: o.sesiones_ejecucion ?? null,
         sospechoso,
+        isEjecutada,
       };
     });
 
@@ -614,15 +684,15 @@ export async function getIndicadoresCertificados72h(
     const dentro = evaluadas.filter((r) => r.estado === "dentro").length;
     const fuera = evaluadas.filter((r) => r.estado === "fuera").length;
     const pendientes = rows.filter((r) => r.estado === "pendiente");
+    const pendientesEjecucion = rows.filter((r) => r.estado === "pendiente_ejecucion").length;
     const programadas = rows.filter((r) => r.estado === "programada").length;
     const noAplica = rows.filter((r) => r.estado === "no_aplica").length;
 
-    // Pending in risk: already past the 72h plazo and still not issued. Each
-    // pendiente row carries its own brechaDias (computed at row-build
-    // time above), so we count the ones already overdue.
+    // Pending in risk: already past the 72h plazo and still not issued, ONLY among
+    // OSIs where the service was actually executed (delay in issuance).
     const enRiesgo = pendientes.filter((r) => (r.brechaDias ?? -Infinity) > 0).length;
 
-    // Evaluated OSIs for 72h compliance = on-time (dentro) + late (fuera) + overdue pending (enRiesgo).
+    // Evaluated OSIs for 72h compliance = on-time (dentro) + late (fuera) + overdue pending with executed service (enRiesgo).
     // An OSI that executed and already exceeded 72 business hours without certificates
     // is an active breach and must be factored into the compliance denominator.
     const totalEvaluadas = dentro + fuera + enRiesgo;
@@ -647,6 +717,7 @@ export async function getIndicadoresCertificados72h(
       dentro72: dentro,
       fuera72: fuera,
       pendientes: pendientes.length,
+      pendientesEjecucion,
       programadas,
       noAplica,
       pctCumplimiento: pct,

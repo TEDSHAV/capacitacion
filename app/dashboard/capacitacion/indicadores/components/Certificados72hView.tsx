@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import {
   CheckCircle2,
   AlertTriangle,
@@ -141,8 +140,8 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
 
   return (
     <div className="space-y-6">
-      {/* ── 1. Tres Tarjetas Ejecutivas de Cumplimiento ────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* ── 1. Cuatro Tarjetas Ejecutivas de Cumplimiento ────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: % de Cumplimiento */}
         <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col justify-between shadow-sm">
           <div className="flex items-start justify-between">
@@ -210,15 +209,26 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
           </div>
         </div>
 
-        {/* Card 3: Atención Inmediata (Fuera de Plazo + Pendientes) */}
+        {/* Card 3: Demora en Emisión (Fuera de Plazo + Pendientes de Emisión tras Ejecución) */}
         <div
-          onClick={() => setFilterEstado(aggregates.fuera72 > 0 ? "fuera" : "pendiente")}
-          className="cursor-pointer bg-white hover:bg-gray-50/80 rounded-xl border border-gray-200 p-5 flex flex-col justify-between shadow-sm transition-all"
+          onClick={() => {
+            if (filterEstado === "fuera" || filterEstado === "pendiente") {
+              setFilterEstado("all");
+            } else {
+              setFilterEstado(aggregates.fuera72 > 0 ? "fuera" : "pendiente");
+            }
+          }}
+          className={`cursor-pointer bg-white hover:bg-gray-50/80 rounded-xl border p-5 flex flex-col justify-between shadow-sm transition-all ${
+            filterEstado === "fuera" || filterEstado === "pendiente"
+              ? "ring-2 ring-red-500 border-red-300"
+              : "border-gray-200"
+          }`}
+          title="OSIs con servicio impartido pero con demora o pendientes de emisión de certificados"
         >
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                OSIs que Requieren Atención
+                Demora en Emisión
               </p>
               <h3
                 className={`text-3xl font-extrabold mt-1 tracking-tight ${
@@ -248,12 +258,60 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
               )}
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-2 text-xs">
+          <div className="mt-4 flex flex-wrap items-center gap-1.5 text-xs">
             <span className="font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded">
               {aggregates.fuera72} fuera de plazo
             </span>
             <span className="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
               {aggregates.pendientes} pendientes
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Pendiente por Ejecución (Servicio No Impartido) */}
+        <div
+          onClick={() => {
+            setFilterEstado(filterEstado === "pendiente_ejecucion" ? "all" : "pendiente_ejecucion");
+          }}
+          className={`cursor-pointer bg-white hover:bg-gray-50/80 rounded-xl border p-5 flex flex-col justify-between shadow-sm transition-all ${
+            filterEstado === "pendiente_ejecucion"
+              ? "ring-2 ring-violet-500 border-violet-300"
+              : "border-gray-200"
+          }`}
+          title="OSIs planificadas en el período cuyo servicio no ha sido ejecutado aún"
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Pendiente por Ejecución
+              </p>
+              <h3
+                className={`text-3xl font-extrabold mt-1 tracking-tight ${
+                  aggregates.pendientesEjecucion > 0 ? "text-violet-700" : "text-gray-900"
+                }`}
+              >
+                {aggregates.pendientesEjecucion}
+              </h3>
+            </div>
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                aggregates.pendientesEjecucion > 0
+                  ? "bg-violet-50 text-violet-600"
+                  : "bg-gray-100 text-gray-500"
+              }`}
+            >
+              <Calendar className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4 flex items-center gap-1.5 text-xs">
+            <span
+              className={`font-semibold px-2 py-0.5 rounded ${
+                aggregates.pendientesEjecucion > 0
+                  ? "text-violet-700 bg-violet-50 border border-violet-200/60"
+                  : "text-gray-500 bg-gray-100"
+              }`}
+            >
+              {aggregates.pendientesEjecucion > 0 ? "Servicio no impartido" : "Al día"}
             </span>
           </div>
         </div>
@@ -293,7 +351,18 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
             }`}
           >
             <Hourglass className="w-3.5 h-3.5" />
-            Pendientes ({aggregates.pendientes})
+            Demora en emisión ({aggregates.pendientes})
+          </button>
+          <button
+            onClick={() => setFilterEstado("pendiente_ejecucion")}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
+              filterEstado === "pendiente_ejecucion"
+                ? "bg-violet-600 text-white font-semibold"
+                : "bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200/60"
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            Pendiente por ejecución ({aggregates.pendientesEjecucion})
           </button>
           <button
             onClick={() => setFilterEstado("dentro")}
@@ -462,13 +531,20 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
                 sortedRows.map((r) => {
                   const facilitador = r.facilitadorSesionNombre || r.facilitadorNombre || "—";
                   const isBreach = r.estado === "fuera";
-                  const isPending = r.estado === "pendiente";
+                  const isPendingIssuance = r.estado === "pendiente";
+                  const isPendingExecution = r.estado === "pendiente_ejecucion";
 
                   return (
                     <tr
                       key={r.osiId}
                       className={`hover:bg-gray-50/80 transition-colors ${
-                        isBreach ? "bg-red-50/30" : isPending ? "bg-amber-50/20" : ""
+                        isBreach
+                          ? "bg-red-50/30"
+                          : isPendingIssuance
+                            ? "bg-amber-50/20"
+                            : isPendingExecution
+                              ? "bg-violet-50/20"
+                              : ""
                       }`}
                     >
                       {/* OSI */}
@@ -496,13 +572,24 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
 
                       {/* Fecha de Ejecución */}
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
-                        {formatDate(r.fechaEjecucion)}
+                        {r.estado === "pendiente_ejecucion" ? (
+                          <div className="flex flex-col">
+                            <span className="text-gray-900 font-medium">{formatDate(r.fechaEjecucion)}</span>
+                            <span className="text-[10px] text-violet-600 font-medium italic">(Planificada · Sin ejecutar)</span>
+                          </div>
+                        ) : (
+                          formatDate(r.fechaEjecucion)
+                        )}
                       </td>
 
                       {/* Fecha Emisión */}
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
                         {r.fechaEmision ? (
                           formatDate(r.fechaEmision)
+                        ) : r.estado === "pendiente_ejecucion" ? (
+                          <span className="text-violet-700/90 font-medium italic">
+                            En espera de ejecución del servicio
+                          </span>
                         ) : (
                           <span className="text-amber-700/90 font-medium italic">
                             Pendiente por generar certificados
@@ -527,7 +614,13 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
                         {r.estado === "pendiente" && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">
                             <Hourglass className="w-3 h-3 text-amber-600" />
-                            Sin emitir ({r.brechaDias != null ? `${r.brechaDias}d transcurridos` : "Pendiente por generar"})
+                            Demora en emisión ({r.brechaDias != null && r.brechaDias > 0 ? `+${r.brechaDias}d retraso` : "En plazo"})
+                          </span>
+                        )}
+                        {r.estado === "pendiente_ejecucion" && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 font-semibold border border-violet-200">
+                            <Clock className="w-3 h-3 text-violet-600" />
+                            Pendiente por ejecución (Servicio no impartido)
                           </span>
                         )}
                         {r.estado === "programada" && (

@@ -401,11 +401,15 @@ Measures whether certificate issuance (`certificados.created_at`, with
 session execution date. Business days exclude weekends and Venezuelan holidays
 (`cat_feriados_venezuela` table, via `lib/business-days.ts`).
 
-Trimmed from the previous SLA dashboard to only show:
-- Compliance percentage gauge (`ComplianceGauge.tsx`) with compact stats
-- Detail table (`IndicadoresTable.tsx`) of every certificate issued in the
-  selected month (scoped via `fechaFrom`/`fechaTo` derived from `selectedMes`)
+Differentiates pending OSIs (`!fechaEmision`):
+- **Demora en emisión** (`estado: "pendiente"`): The training service was executed
+  (all sessions have `fecha_ejecutada`, or OSI is marked executed), but certificates
+  have not been issued. Counted as `enRiesgo` when business days > 3.
+- **Pendiente por ejecución** (`estado: "pendiente_ejecucion"`): The training service
+  was NOT executed yet (`fecha_ejecutada` is null). Clearly differentiated from issuance
+  delays so they do not falsely penalize certificate issuance compliance.
 
+Components: Executive cards and detail table in `Certificados72hView.tsx`.
 The `PLAZO_BUSINESS_DAYS` constant (= 3) lives in `indicadores-certificados.ts`.
 The `slaDeadline` helper in `lib/business-days.ts` is still named as-is (callers
 unchanged) but doc comments refer to "plazo" rather than "SLA".

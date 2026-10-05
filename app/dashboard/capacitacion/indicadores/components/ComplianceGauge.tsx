@@ -24,7 +24,8 @@ export default function ComplianceGauge({
   const allSlices: SliceDatum[] = [
     { name: "Dentro", value: dentro72, color: "#10b981", estado: "dentro" },
     { name: "Fuera", value: fuera72, color: "#ef4444", estado: "fuera" },
-    { name: "Pendientes", value: pendientes, color: "#f59e0b", estado: "pendiente" },
+    { name: "Pendientes emisión", value: pendientes, color: "#f59e0b", estado: "pendiente" },
+    { name: "Pendientes ejecución", value: aggregates.pendientesEjecucion ?? 0, color: "#8b5cf6", estado: "pendiente_ejecucion" },
     { name: "Programadas", value: programadas, color: "#6366f1", estado: "programada" },
     { name: "No aplica", value: noAplica, color: "#9ca3af", estado: "no_aplica" },
   ];

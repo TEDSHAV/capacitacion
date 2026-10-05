@@ -372,6 +372,8 @@ export default function IndicadorDetailModal({
                               ? "bg-sky-100 text-sky-800"
                               : item.estatus === "No ejecutada"
                               ? "bg-rose-100 text-rose-800"
+                              : item.estatus === "Reagendada" || item.estatus === "Reagendado"
+                              ? "bg-purple-100 text-purple-800"
                               : "bg-amber-100 text-amber-800"
                           }`}
                         >

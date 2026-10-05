@@ -32,6 +32,7 @@ const ESTATUS_LABELS: Record<number, string> = {
   [OSI_ESTATUS.EN_PROCESO]: "En proceso",
   [OSI_ESTATUS.EJECUTADO]: "Ejecutado",
   [OSI_ESTATUS.NO_EJECUTADA]: "No ejecutada",
+  [OSI_ESTATUS.REAGENDADO]: "Reagendada",
 };
 
 type PagedResult<T> = { data: T[] | null; error: { message: string } | null };
@@ -131,6 +132,7 @@ type SesionRow = {
 type SesionAgg = {
   minFecha: string | null;
   maxFecha: string | null;
+  lastUnexecutedFecha: string | null;
   total: number;
   ejecutadas: number;
   maxEjecutada: string | null;
@@ -215,7 +217,7 @@ export async function getIndicadoresGestionMensual(
     for (const s of sesiones) {
       const agg =
         aggByOsi.get(s.id_osi) ??
-        { minFecha: null, maxFecha: null, total: 0, ejecutadas: 0, maxEjecutada: null };
+        { minFecha: null, maxFecha: null, lastUnexecutedFecha: null, total: 0, ejecutadas: 0, maxEjecutada: null };
       agg.total += 1;
       if (s.fecha) {
         if (!agg.minFecha || s.fecha < agg.minFecha) agg.minFecha = s.fecha;
@@ -225,6 +227,10 @@ export async function getIndicadoresGestionMensual(
         agg.ejecutadas += 1;
         if (!agg.maxEjecutada || s.fecha_ejecutada > agg.maxEjecutada) {
           agg.maxEjecutada = s.fecha_ejecutada;
+        }
+      } else if (s.fecha) {
+        if (!agg.lastUnexecutedFecha || s.fecha > agg.lastUnexecutedFecha) {
+          agg.lastUnexecutedFecha = s.fecha;
         }
       }
       aggByOsi.set(s.id_osi, agg);
@@ -380,7 +386,12 @@ export async function getIndicadoresGestionMensual(
       const osiId = o.id_osi;
       if (osiId == null) return;
       const agg = aggByOsi.get(osiId);
-      const fechaPlanificadaInicio = agg?.minFecha ?? o.fecha_inicio_real;
+      // For multi-session OSIs with pending execution, show the date of the
+      // session not marked as executed (last unexecuted session date).
+      const fechaPlanificadaDisplay =
+        agg && agg.ejecutadas < agg.total && agg.lastUnexecutedFecha
+          ? agg.lastUnexecutedFecha
+          : (agg?.minFecha ?? o.fecha_inicio_real);
       let fechaEjecucionFinal: string | null = null;
       if (agg && agg.total > 0) {
         if (agg.ejecutadas === agg.total) fechaEjecucionFinal = agg.maxEjecutada;
@@ -397,7 +408,7 @@ export async function getIndicadoresGestionMensual(
         empresa: o.nombre_empresa?.trim() || "—",
         servicio: o.servicio?.trim() || "—",
         fechaEmision: o.fecha_emision,
-        fechaPlanificada: fechaPlanificadaInicio,
+        fechaPlanificada: fechaPlanificadaDisplay,
         fechaEjecutada: fechaEjecucionFinal,
         participantesPlanificados: o.participantes_ejecucion ?? o.participantes_max_solped ?? 0,
         participantesCertificados: certCountByOsi.get(osiId) ?? 0,

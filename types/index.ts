@@ -1957,6 +1957,7 @@ export type IndicadorEstado =
   | "dentro"
   | "fuera"
   | "pendiente"
+  | "pendiente_ejecucion"
   | "no_aplica"
   | "programada";
 
@@ -1987,6 +1988,7 @@ export interface IndicadorOsiRow {
   facilitadorSesionNombre: string | null;
   sesiones: number | null;
   sospechoso: boolean;
+  isEjecutada?: boolean;
 }
 
 export interface IndicadoresAggregates {
@@ -1998,6 +2000,7 @@ export interface IndicadoresAggregates {
   dentro72: number;
   fuera72: number;
   pendientes: number;
+  pendientesEjecucion: number;
   programadas: number;
   noAplica: number;
   pctCumplimiento: number | null;
