@@ -62,7 +62,7 @@ const ROWS: RowDef[] = [
   },
   {
     key: "pendientesProximoMes",
-    label: "Pasarán al próximo mes",
+    label: "OSIs pendientes para el próximo mes",
     get: (m) => m.osisPendientesProximoMes,
   },
   {
