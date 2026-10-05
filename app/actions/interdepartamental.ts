@@ -313,26 +313,59 @@ export async function uploadPurchaseOrderDocument(formData: FormData): Promise<{
       .from("facilitador-uploads")
       .getPublicUrl(storagePath);
 
-    // 2. Insert record into ejecucion_osi_asistencia with category = 'orden_compra'
-    const { data: dbData, error: dbError } = await admin
-      .from("ejecucion_osi_asistencia")
-      .insert({
-        osi_id: osiId,
-        facilitador_id: facilitadorId,
-        storage_path: storagePath,
-        file_name: file.name,
-        file_type: file.type || "application/pdf",
-        file_size: buffer.length,
-        category: "orden_compra",
-        nro_sesion: 1,
-      })
-      .select()
-      .single();
+    // 2. Insert record into dedicated ordenes_compra table (with fallback to ejecucion_osi_asistencia)
+    let dbRecordId: string = "";
+    let dbCreatedAt: string | null = new Date().toISOString();
 
-    if (dbError) {
-      console.error("[uploadPurchaseOrderDocument] DB insert error:", dbError);
-      await admin.storage.from("facilitador-uploads").remove([storagePath]);
-      return { success: false, error: "Error al registrar la orden de compra en la base de datos." };
+    const ocInsertPayload = {
+      po_number: cleanPo,
+      osi_id: osiId,
+      facilitador_id: facilitadorId,
+      fecha_emision: fechaEmision || new Date().toISOString().split("T")[0],
+      observaciones: observaciones || null,
+      file_name: file.name,
+      file_type: file.type || "application/pdf",
+      file_size: buffer.length,
+      storage_provider: "supabase",
+      storage_path: storagePath,
+      uploaded_by: authUser.id,
+      uploaded_by_nombre: userName,
+      uploaded_by_departamento: deptName,
+    };
+
+    const { data: ocData, error: ocError } = await admin
+      .from("ordenes_compra")
+      .insert(ocInsertPayload)
+      .select()
+      .maybeSingle();
+
+    if (ocError) {
+      console.warn("[uploadPurchaseOrderDocument] ordenes_compra insert failed, falling back to ejecucion_osi_asistencia:", ocError.message);
+      const { data: dbData, error: dbError } = await admin
+        .from("ejecucion_osi_asistencia")
+        .insert({
+          osi_id: osiId,
+          facilitador_id: facilitadorId,
+          storage_path: storagePath,
+          file_name: file.name,
+          file_type: file.type || "application/pdf",
+          file_size: buffer.length,
+          category: "orden_compra",
+          nro_sesion: 1,
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        console.error("[uploadPurchaseOrderDocument] DB insert error:", dbError);
+        await admin.storage.from("facilitador-uploads").remove([storagePath]);
+        return { success: false, error: "Error al registrar la orden de compra en la base de datos." };
+      }
+      dbRecordId = String(dbData.id);
+      dbCreatedAt = dbData.created_at;
+    } else if (ocData) {
+      dbRecordId = String(ocData.id);
+      dbCreatedAt = ocData.created_at;
     }
 
     // 3. Register audit note in capacitacion_osi_notas
@@ -383,7 +416,7 @@ export async function uploadPurchaseOrderDocument(formData: FormData): Promise<{
     return {
       success: true,
       record: {
-        id: dbData.id,
+        id: dbRecordId,
         osi_id: osiId,
         facilitador_id: facilitadorId,
         file_name: file.name,
@@ -391,7 +424,7 @@ export async function uploadPurchaseOrderDocument(formData: FormData): Promise<{
         file_type: file.type || "application/pdf",
         public_url: publicUrlData?.publicUrl || "",
         storage_path: storagePath,
-        created_at: dbData.created_at,
+        created_at: dbCreatedAt,
         po_number: poNumber,
       },
     };
@@ -410,20 +443,74 @@ export async function uploadPurchaseOrderDocument(formData: FormData): Promise<{
 export async function getRecentPurchaseOrders(limit = 10): Promise<PurchaseOrderRecord[]> {
   try {
     const admin = await createAdminClient();
-    const { data: rows, error } = await admin
-      .from("ejecucion_osi_asistencia")
-      .select("id, osi_id, facilitador_id, storage_path, file_name, file_type, file_size, created_at")
-      .eq("category", "orden_compra")
+
+    // 1. Try dedicated ordenes_compra table first
+    const { data: ocRows, error: ocErr } = await admin
+      .from("ordenes_compra")
+      .select("id, po_number, osi_id, facilitador_id, storage_path, file_name, file_type, file_size, created_at, fecha_emision")
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (error || !rows) {
+    let rowsToProcess: {
+      id: string | number;
+      osi_id: number | null;
+      facilitador_id: number | null;
+      storage_path: string;
+      file_name: string;
+      file_type: string;
+      file_size: number | null;
+      created_at: string | null;
+      po_number?: string;
+    }[] = [];
+
+    if (!ocErr && ocRows && ocRows.length > 0) {
+      rowsToProcess = ocRows.map((r) => ({
+        id: String(r.id),
+        osi_id: r.osi_id,
+        facilitador_id: r.facilitador_id,
+        storage_path: r.storage_path,
+        file_name: r.file_name,
+        file_type: r.file_type,
+        file_size: r.file_size,
+        created_at: r.created_at,
+        po_number: r.po_number,
+      }));
+    } else {
+      // Fallback to ejecucion_osi_asistencia
+      const { data: legacyRows, error: legacyErr } = await admin
+        .from("ejecucion_osi_asistencia")
+        .select("id, osi_id, facilitador_id, storage_path, file_name, file_type, file_size, created_at")
+        .eq("category", "orden_compra")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (!legacyErr && legacyRows) {
+        rowsToProcess = legacyRows.map((r) => {
+          const pathSegments = r.storage_path.split("/");
+          const extractedPo =
+            pathSegments.length > 3 ? decodeURIComponent(pathSegments[2]) : undefined;
+          return {
+            id: String(r.id),
+            osi_id: r.osi_id,
+            facilitador_id: r.facilitador_id,
+            storage_path: r.storage_path,
+            file_name: r.file_name,
+            file_type: r.file_type,
+            file_size: r.file_size,
+            created_at: r.created_at,
+            po_number: extractedPo,
+          };
+        });
+      }
+    }
+
+    if (rowsToProcess.length === 0) {
       return [];
     }
 
     // Collect osi IDs and facilitador IDs
-    const osiIds = [...new Set(rows.map((r) => r.osi_id).filter(Boolean))] as number[];
-    const facIds = [...new Set(rows.map((r) => r.facilitador_id).filter(Boolean))] as number[];
+    const osiIds = [...new Set(rowsToProcess.map((r) => r.osi_id).filter(Boolean))] as number[];
+    const facIds = [...new Set(rowsToProcess.map((r) => r.facilitador_id).filter(Boolean))] as number[];
 
     // Fetch OSI metadata
     const osiMap = new Map<number, { nro_osi: string; empresa: string }>();
@@ -454,7 +541,7 @@ export async function getRecentPurchaseOrders(limit = 10): Promise<PurchaseOrder
       });
     }
 
-    return rows.map((r) => {
+    return rowsToProcess.map((r) => {
       const { data: urlData } = admin.storage
         .from("facilitador-uploads")
         .getPublicUrl(r.storage_path);
@@ -462,12 +549,8 @@ export async function getRecentPurchaseOrders(limit = 10): Promise<PurchaseOrder
       const osiInfo = r.osi_id ? osiMap.get(r.osi_id) : undefined;
       const facName = r.facilitador_id ? facMap.get(r.facilitador_id) : undefined;
 
-      const pathSegments = r.storage_path.split("/");
-      const extractedPo =
-        pathSegments.length > 3 ? decodeURIComponent(pathSegments[2]) : undefined;
-
       return {
-        id: r.id,
+        id: String(r.id),
         osi_id: r.osi_id,
         facilitador_id: r.facilitador_id,
         facilitador_nombre: facName,
@@ -479,7 +562,7 @@ export async function getRecentPurchaseOrders(limit = 10): Promise<PurchaseOrder
         public_url: urlData?.publicUrl || "",
         storage_path: r.storage_path,
         created_at: r.created_at,
-        po_number: extractedPo,
+        po_number: r.po_number,
       };
     });
   } catch (err) {

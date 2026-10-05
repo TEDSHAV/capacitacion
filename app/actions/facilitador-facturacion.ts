@@ -77,7 +77,7 @@ export async function getFacilitadorPurchaseOrders(
 
     const poList: FacilitadorPurchaseOrder[] = [];
 
-    // 2. Query real Purchase Orders from ejecucion_osi_asistencia
+    // 2. Query dedicated ordenes_compra table (with fallback to ejecucion_osi_asistencia)
     // Check OSIs where this facilitator is assigned
     const { data: assignments } = await supabase
       .from("facilitador_osi_assignments")
@@ -89,29 +89,88 @@ export async function getFacilitadorPurchaseOrders(
       .map((a) => a.osi_id)
       .filter((id): id is number => typeof id === "number");
 
-    let poQuery = supabase
-      .from("ejecucion_osi_asistencia")
-      .select("id, osi_id, facilitador_id, storage_path, file_name, file_size, file_type, created_at")
-      .eq("category", "orden_compra");
+    // 2a. Attempt query from dedicated `ordenes_compra` table
+    let dedicatedPoQuery = supabase
+      .from("ordenes_compra")
+      .select("id, po_number, osi_id, facilitador_id, storage_path, file_name, file_size, file_type, created_at, fecha_emision, observaciones, estatus");
 
     if (assignedOsiIds.length > 0) {
-      poQuery = poQuery.or(
+      dedicatedPoQuery = dedicatedPoQuery.or(
         `facilitador_id.eq.${facilitadorId},osi_id.in.(${assignedOsiIds.join(",")})`
       );
     } else {
-      poQuery = poQuery.eq("facilitador_id", facilitadorId);
+      dedicatedPoQuery = dedicatedPoQuery.eq("facilitador_id", facilitadorId);
     }
 
-    const { data: realPOs, error: poErr } = await poQuery.order("created_at", {
+    const { data: dedicatedPOs, error: dedicatedErr } = await dedicatedPoQuery.order("created_at", {
       ascending: false,
     });
 
-    if (poErr) {
-      console.warn("[getFacilitadorPurchaseOrders] Real PO query warning:", poErr);
+    let rawPOs: {
+      id: string | number;
+      osi_id: number | null;
+      facilitador_id: number | null;
+      storage_path: string;
+      file_name: string;
+      created_at: string | null;
+      po_number?: string;
+      fecha_emision?: string | null;
+      observaciones?: string | null;
+      estatus?: string | null;
+    }[] = [];
+
+    if (!dedicatedErr && dedicatedPOs && dedicatedPOs.length > 0) {
+      rawPOs = dedicatedPOs.map((p) => ({
+        id: p.id,
+        osi_id: p.osi_id,
+        facilitador_id: p.facilitador_id,
+        storage_path: p.storage_path,
+        file_name: p.file_name,
+        created_at: p.created_at,
+        po_number: p.po_number,
+        fecha_emision: p.fecha_emision,
+        observaciones: p.observaciones,
+        estatus: p.estatus,
+      }));
+    } else {
+      // 2b. Fallback query to `ejecucion_osi_asistencia`
+      let poQuery = supabase
+        .from("ejecucion_osi_asistencia")
+        .select("id, osi_id, facilitador_id, storage_path, file_name, file_size, file_type, created_at")
+        .eq("category", "orden_compra");
+
+      if (assignedOsiIds.length > 0) {
+        poQuery = poQuery.or(
+          `facilitador_id.eq.${facilitadorId},osi_id.in.(${assignedOsiIds.join(",")})`
+        );
+      } else {
+        poQuery = poQuery.eq("facilitador_id", facilitadorId);
+      }
+
+      const { data: legacyPOs } = await poQuery.order("created_at", {
+        ascending: false,
+      });
+
+      if (legacyPOs && legacyPOs.length > 0) {
+        rawPOs = legacyPOs.map((p) => {
+          const pathParts = p.storage_path.split("/");
+          const extractedPo =
+            pathParts.length > 3 ? decodeURIComponent(pathParts[2]) : undefined;
+          return {
+            id: p.id,
+            osi_id: p.osi_id,
+            facilitador_id: p.facilitador_id,
+            storage_path: p.storage_path,
+            file_name: p.file_name,
+            created_at: p.created_at,
+            po_number: extractedPo,
+          };
+        });
+      }
     }
 
-    if (realPOs && realPOs.length > 0) {
-      const osiIds = [...new Set(realPOs.map((r) => r.osi_id).filter(Boolean))] as number[];
+    if (rawPOs.length > 0) {
+      const osiIds = [...new Set(rawPOs.map((r) => r.osi_id).filter(Boolean))] as number[];
       const osiMap = new Map<
         number,
         { nro_osi: string; empresa: string; servicio: string; fecha_servicio?: string }
@@ -133,17 +192,13 @@ export async function getFacilitadorPurchaseOrders(
         });
       }
 
-      for (const po of realPOs) {
+      for (const po of rawPOs) {
         const osi = po.osi_id ? osiMap.get(po.osi_id) : undefined;
         const matchingInvoice = po.osi_id ? invoicesByOsi.get(po.osi_id) : undefined;
 
-        // Extract PO number from storage path or filename
-        const pathParts = po.storage_path.split("/");
-        const extractedPo =
-          pathParts.length > 3 ? decodeURIComponent(pathParts[2]) : undefined;
         const poNumber =
-          extractedPo && extractedPo !== "OC"
-            ? extractedPo
+          po.po_number && po.po_number !== "OC"
+            ? po.po_number
             : `OC-${osi?.nro_osi || po.osi_id || "S/N"}`;
 
         const poItem: FacilitadorPurchaseOrder = {
@@ -164,8 +219,8 @@ export async function getFacilitadorPurchaseOrders(
                 uploadedAt: matchingInvoice.created_at || undefined,
               }
             : undefined,
-          issuedAt: po.created_at || undefined,
-          observaciones: "Orden de compra emitida y disponible para adjuntar factura.",
+          issuedAt: po.fecha_emision || po.created_at || undefined,
+          observaciones: po.observaciones || "Orden de compra emitida y disponible para adjuntar factura.",
           isSample: false,
         };
 
