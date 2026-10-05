@@ -584,16 +584,12 @@ export async function getIndicadoresCertificados72h(
     // Date filters on fechaEjecucion (computed, not a DB column on the view).
     // Use parseDate for consistent timezone handling — fechaEjecucion is
     // always a date-only string, and parseDate handles it as local midnight.
-    //
-    // "no_aplica" rows have fechaEjecucion === null by definition (they have
-    // no session/execution date at all), so they can never fall inside or
-    // outside a date range — they're left untouched by these filters instead
-    // of being dropped, so aggregates.noAplica stays stable regardless of
-    // which date preset is selected.
+    // When date bounds are supplied (e.g. monthly view), exclude rows with
+    // no execution date (no_aplica) so they don't pollute the period view.
     if (filters.fechaFrom) {
       const fromStart = parseDate(filters.fechaFrom);
       rows = rows.filter(
-        (r) => r.fechaEjecucion == null || parseDate(r.fechaEjecucion) >= fromStart,
+        (r) => r.fechaEjecucion != null && parseDate(r.fechaEjecucion) >= fromStart,
       );
     }
     if (filters.fechaTo) {
@@ -601,7 +597,7 @@ export async function getIndicadoresCertificados72h(
       const toEnd = parseDate(filters.fechaTo);
       toEnd.setHours(23, 59, 59, 999);
       rows = rows.filter(
-        (r) => r.fechaEjecucion == null || parseDate(r.fechaEjecucion) <= toEnd,
+        (r) => r.fechaEjecucion != null && parseDate(r.fechaEjecucion) <= toEnd,
       );
     }
 
@@ -620,6 +616,17 @@ export async function getIndicadoresCertificados72h(
     const pendientes = rows.filter((r) => r.estado === "pendiente");
     const programadas = rows.filter((r) => r.estado === "programada").length;
     const noAplica = rows.filter((r) => r.estado === "no_aplica").length;
+
+    // Pending in risk: already past the 72h plazo and still not issued. Each
+    // pendiente row carries its own brechaDias (computed at row-build
+    // time above), so we count the ones already overdue.
+    const enRiesgo = pendientes.filter((r) => (r.brechaDias ?? -Infinity) > 0).length;
+
+    // Evaluated OSIs for 72h compliance = on-time (dentro) + late (fuera) + overdue pending (enRiesgo).
+    // An OSI that executed and already exceeded 72 business hours without certificates
+    // is an active breach and must be factored into the compliance denominator.
+    const totalEvaluadas = dentro + fuera + enRiesgo;
+
     const diasVals = evaluadas
       .map((r) => r.diasHabiles)
       .filter((v): v is number => v != null);
@@ -630,19 +637,13 @@ export async function getIndicadoresCertificados72h(
     const minDias = diasVals.length ? Math.min(...diasVals) : null;
     const maxRow = evaluadas.find((r) => r.diasHabiles === maxDias);
     const pct =
-      evaluadas.length > 0
-        ? Math.round((dentro / evaluadas.length) * 1000) / 10
+      totalEvaluadas > 0
+        ? Math.round((dentro / totalEvaluadas) * 1000) / 10
         : null;
 
-    // Pending in risk: already past the 72h plazo and still not issued. Each
-    // pendiente row now carries its own brechaDias (computed at row-build
-    // time above), so we just count the ones already overdue instead of
-    // recomputing it here.
-    const enRiesgo = pendientes.filter((r) => (r.brechaDias ?? -Infinity) > 0).length;
-
     const aggregates: IndicadoresAggregates = {
-      totalOsis: evaluadas.length + pendientes.length + programadas + noAplica,
-      totalEvaluadas: evaluadas.length,
+      totalOsis: rows.length,
+      totalEvaluadas,
       dentro72: dentro,
       fuera72: fuera,
       pendientes: pendientes.length,

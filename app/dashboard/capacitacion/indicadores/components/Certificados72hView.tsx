@@ -183,7 +183,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
               />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              <strong>{aggregates.dentro72}</strong> de <strong>{aggregates.totalEvaluadas}</strong> OSIs evaluadas emitidas en ≤ 3 días hábiles
+              <strong>{aggregates.dentro72}</strong> de <strong>{aggregates.totalEvaluadas}</strong> OSIs evaluadas cumplieron el plazo de ≤ 3 días hábiles
             </p>
           </div>
         </div>
@@ -402,7 +402,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
                   className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
                 >
                   <span className="inline-flex items-center gap-1">
-                    Fin de Clase
+                    Fecha de Ejecución
                     {sortKey === "fechaEjecucion" ? (
                       sortDir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
                     ) : (
@@ -494,7 +494,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
                         {r.servicio || "—"}
                       </td>
 
-                      {/* Fin de Clase */}
+                      {/* Fecha de Ejecución */}
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
                         {formatDate(r.fechaEjecucion)}
                       </td>
