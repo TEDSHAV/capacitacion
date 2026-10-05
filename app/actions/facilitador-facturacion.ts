@@ -51,8 +51,18 @@ export async function getFacilitadorPurchaseOrders(
       .eq("category", "factura")
       .order("created_at", { ascending: false });
 
+    interface UploadedInvoiceInfo {
+      id: string;
+      osi_id: number | null;
+      file_name: string;
+      storage_path: string;
+      publicUrl?: string;
+      created_at: string | null;
+      [key: string]: unknown;
+    }
+
     // Map uploaded invoices by osi_id for quick lookup
-    const invoicesByOsi = new Map<number, any>();
+    const invoicesByOsi = new Map<number, UploadedInvoiceInfo>();
     for (const inv of uploadedInvoices || []) {
       if (inv.osi_id && !invoicesByOsi.has(inv.osi_id)) {
         const { data: urlData } = supabase.storage
@@ -67,35 +77,105 @@ export async function getFacilitadorPurchaseOrders(
 
     const poList: FacilitadorPurchaseOrder[] = [];
 
-    // 2. Future integration hook:
-    // -----------------------------------------------------------------------------------------
-    // ARCHITECTURE NOTE & INTEGRATION ROADMAP:
-    // Once the companion team releases the `ordenes_compra` table / module in Supabase:
-    //
-    // 1. Query: Read active and processed purchase orders matching `facilitador_id = facilitadorId`:
-    //    const { data: realPOs, error: poErr } = await supabase
-    //      .from("ordenes_compra")
-    //      .select("id, numero_orden, osi_id, nro_osi, empresa_nombre, servicio_nombre, fecha_servicio, created_at, notas, status")
-    //      .eq("facilitador_id", facilitadorId)
-    //      .order("created_at", { ascending: false });
-    //
-    // 2. Correlation with Invoices:
-    //    For each PO, match against `invoicesByOsi.get(po.osi_id)` (or by `po_id` if linked directly).
-    //    Determine status: if invoice exists -> "factura_enviada", else -> "pendiente_factura".
-    //
-    // 3. PRIVACY & FINANCIAL CONSTRAINTS (CRITICAL):
-    //    - Do NOT query or reference `requisiciones` for this view.
-    //    - Do NOT expose honorarios rates, hourly calculations, or internal USD costs to facilitadores.
-    //    - The facilitador view is strictly operational: PO number, client name, service description,
-    //      service date, and invoice upload status.
-    //
-    // 4. Decommissioning Sample POs:
-    //    Once `realPOs` is wired in, delete or disable the fallback block for test facilitator 44 below.
-    // -----------------------------------------------------------------------------------------
+    // 2. Query real Purchase Orders from ejecucion_osi_asistencia
+    // Check OSIs where this facilitator is assigned
+    const { data: assignments } = await supabase
+      .from("facilitador_osi_assignments")
+      .select("osi_id")
+      .eq("facilitador_id", facilitadorId)
+      .eq("is_active", true);
+
+    const assignedOsiIds = (assignments || [])
+      .map((a) => a.osi_id)
+      .filter((id): id is number => typeof id === "number");
+
+    let poQuery = supabase
+      .from("ejecucion_osi_asistencia")
+      .select("id, osi_id, facilitador_id, storage_path, file_name, file_size, file_type, created_at")
+      .eq("category", "orden_compra");
+
+    if (assignedOsiIds.length > 0) {
+      poQuery = poQuery.or(
+        `facilitador_id.eq.${facilitadorId},osi_id.in.(${assignedOsiIds.join(",")})`
+      );
+    } else {
+      poQuery = poQuery.eq("facilitador_id", facilitadorId);
+    }
+
+    const { data: realPOs, error: poErr } = await poQuery.order("created_at", {
+      ascending: false,
+    });
+
+    if (poErr) {
+      console.warn("[getFacilitadorPurchaseOrders] Real PO query warning:", poErr);
+    }
+
+    if (realPOs && realPOs.length > 0) {
+      const osiIds = [...new Set(realPOs.map((r) => r.osi_id).filter(Boolean))] as number[];
+      const osiMap = new Map<
+        number,
+        { nro_osi: string; empresa: string; servicio: string; fecha_servicio?: string }
+      >();
+
+      if (osiIds.length > 0) {
+        const { data: osis } = await supabase
+          .from("v_osi_lista")
+          .select("id_osi, nro_osi, nombre_empresa, servicio, fecha_inicio_real")
+          .in("id_osi", osiIds);
+
+        (osis || []).forEach((o) => {
+          osiMap.set(o.id_osi, {
+            nro_osi: o.nro_osi ? String(o.nro_osi) : String(o.id_osi),
+            empresa: o.nombre_empresa || "Cliente Corporativo",
+            servicio: o.servicio || "Servicio de Capacitación",
+            fecha_servicio: o.fecha_inicio_real || undefined,
+          });
+        });
+      }
+
+      for (const po of realPOs) {
+        const osi = po.osi_id ? osiMap.get(po.osi_id) : undefined;
+        const matchingInvoice = po.osi_id ? invoicesByOsi.get(po.osi_id) : undefined;
+
+        // Extract PO number from storage path or filename
+        const pathParts = po.storage_path.split("/");
+        const extractedPo =
+          pathParts.length > 3 ? decodeURIComponent(pathParts[2]) : undefined;
+        const poNumber =
+          extractedPo && extractedPo !== "OC"
+            ? extractedPo
+            : `OC-${osi?.nro_osi || po.osi_id || "S/N"}`;
+
+        const poItem: FacilitadorPurchaseOrder = {
+          id: po.id,
+          poNumber,
+          osiId: po.osi_id || 0,
+          nroOsi: osi?.nro_osi || String(po.osi_id || 0),
+          empresa: osi?.empresa || "Cliente Corporativo",
+          servicio: osi?.servicio || "Servicio de Capacitación",
+          fechaServicio: osi?.fecha_servicio,
+          status: matchingInvoice ? "factura_enviada" : "pendiente_factura",
+          factura: matchingInvoice
+            ? {
+                id: matchingInvoice.id,
+                fileName: matchingInvoice.file_name,
+                publicUrl: matchingInvoice.publicUrl,
+                storagePath: matchingInvoice.storage_path,
+                uploadedAt: matchingInvoice.created_at || undefined,
+              }
+            : undefined,
+          issuedAt: po.created_at || undefined,
+          observaciones: "Orden de compra emitida y disponible para adjuntar factura.",
+          isSample: false,
+        };
+
+        poList.push(poItem);
+      }
+    }
 
     // 3. Fallback / Test Sample POs (Active & History) STRICTLY for test facilitator (44)
     // Only displayed for testing purposes for facilitator 44 while real `ordenes_compra` are delivered.
-    if (facilitadorId === 44) {
+    if (facilitadorId === 44 && poList.length === 0) {
       // Check if sample active PO has a real uploaded invoice in DB
       const sample1Invoice = invoicesByOsi.get(108);
 
@@ -114,7 +194,7 @@ export async function getFacilitadorPurchaseOrders(
               fileName: sample1Invoice.file_name,
               publicUrl: sample1Invoice.publicUrl,
               storagePath: sample1Invoice.storage_path,
-              uploadedAt: sample1Invoice.created_at,
+              uploadedAt: sample1Invoice.created_at || undefined,
             }
           : undefined,
         issuedAt: "29/09/2026",
@@ -159,13 +239,19 @@ export async function getFacilitadorPurchaseOrders(
   }
 }
 
-/**
- * Server action to upload an invoice attached to a Purchase Order.
- */
+export interface FacilitadorInvoiceAttachment {
+  id: string;
+  file_name: string;
+  storage_path: string;
+  numeroFactura?: string | null;
+  numeroControl?: string | null;
+  fechaEmision?: string | null;
+}
+
 export async function uploadFacilitadorInvoice(formData: FormData): Promise<{
   success: boolean;
   error?: string;
-  attachment?: any;
+  attachment?: FacilitadorInvoiceAttachment;
 }> {
   try {
     const session = await getFacilitatorSession();
@@ -174,7 +260,6 @@ export async function uploadFacilitadorInvoice(formData: FormData): Promise<{
     }
 
     const file = formData.get("file") as File | null;
-    const poId = formData.get("poId") as string | null;
     const osiIdStr = formData.get("osiId") as string | null;
     const nroOsi = (formData.get("nroOsi") as string | null) || "0";
     const numeroFactura = formData.get("numeroFactura") as string | null;

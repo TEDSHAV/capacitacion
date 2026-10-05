@@ -12,6 +12,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   lista_participantes: "listado de participantes",
   servicio_finalizado: "documentación completa y finalización de servicio",
   factura: "factura de honorarios",
+  orden_compra: "orden de compra",
 };
 
 /**
