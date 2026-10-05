@@ -34,6 +34,12 @@ const ROWS: RowDef[] = [
     get: (m) => m.osisRecibidas,
   },
   {
+    key: "recibidasMesesPosteriores",
+    label: "Pautadas para meses posteriores",
+    get: (m) => m.osisRecibidasMesesPosteriores,
+    sub: true,
+  },
+  {
     key: "planificadas",
     label: "OSIs programadas para este mes",
     get: (m) => m.osisPlanificadas,

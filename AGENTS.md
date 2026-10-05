@@ -340,7 +340,8 @@ longer applies.
 Server action: `getIndicadoresGestionMensual` in `app/actions/indicadores-gestion.ts`.
 
 For each month of the selected year, computes:
-- **OSIs recibidas** — count of OSIs whose earliest `osi_sesion.fecha` falls in that month
+- **OSIs recibidas** — count of OSIs whose `fecha_emision` falls in that month
+- **Pautadas para meses posteriores** — subset of received OSIs whose earliest planned session is in a subsequent month (future workload / advance sales)
 - **Ejecutadas en su mes** — OSIs whose every session has `fecha_ejecutada` (planned month = month of earliest session)
 - **Pendientes del mes** — received/planned in that month but not yet fully executed
 - **Pendientes para el próximo mes** — planned in that month that were not executed in that same month (carry over to next month / pending for next month)

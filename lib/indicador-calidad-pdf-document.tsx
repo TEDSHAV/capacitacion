@@ -286,6 +286,7 @@ export default function IndicadorCalidadPdfDocument({
       mes: mesKey,
       label: nombre,
       osisRecibidas: 0,
+      osisRecibidasMesesPosteriores: 0,
       osisPlanificadas: 0,
       osisEjecutadasEnSuMes: 0,
       osisPendientes: 0,

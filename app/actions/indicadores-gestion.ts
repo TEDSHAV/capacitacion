@@ -97,6 +97,7 @@ function emptyBucket(mes: string, label: string): GestionMesIndicadores {
     mes,
     label,
     osisRecibidas: 0,
+    osisRecibidasMesesPosteriores: 0,
     osisEjecutadasEnSuMes: 0,
     osisPendientes: 0,
     osisPendientesVencidas: 0,
@@ -438,6 +439,12 @@ export async function getIndicadoresGestionMensual(
       if (osiId == null) continue;
       const agg = aggByOsi.get(osiId);
 
+      // Planned month — earliest session date, fallback fecha_inicio_real
+      const fechaPlanificadaInicio = agg?.minFecha ?? o.fecha_inicio_real;
+      const mesPlanificado = monthKey(fechaPlanificadaInicio);
+      const anioPlanificado = yearOf(fechaPlanificadaInicio);
+      if (anioPlanificado != null) yearsSet.add(anioPlanificado);
+
       // Recibidas — by the OSI's own issue date
       const mesRecepcion = monthKey(o.fecha_emision);
       const anioRecepcion = yearOf(o.fecha_emision);
@@ -447,14 +454,13 @@ export async function getIndicadoresGestionMensual(
         if (b) {
           b.osisRecibidas += 1;
           addOsiToMetric("recibidas", mesRecepcion, o);
+
+          if (mesPlanificado && mesPlanificado > mesRecepcion) {
+            b.osisRecibidasMesesPosteriores += 1;
+            addOsiToMetric("recibidasMesesPosteriores", mesRecepcion, o);
+          }
         }
       }
-
-      // Planned month — earliest session date, fallback fecha_inicio_real
-      const fechaPlanificadaInicio = agg?.minFecha ?? o.fecha_inicio_real;
-      const mesPlanificado = monthKey(fechaPlanificadaInicio);
-      const anioPlanificado = yearOf(fechaPlanificadaInicio);
-      if (anioPlanificado != null) yearsSet.add(anioPlanificado);
 
       // Skip OSIs whose planned month predates the tracking cutoff. Those
       // legacy OSIs weren't followed through this app, so counting them as
@@ -595,6 +601,7 @@ export async function getIndicadoresGestionMensual(
     const total = emptyBucket("total", "Total");
     for (const m of meses) {
       total.osisRecibidas += m.osisRecibidas;
+      total.osisRecibidasMesesPosteriores += m.osisRecibidasMesesPosteriores;
       total.osisEjecutadasEnSuMes += m.osisEjecutadasEnSuMes;
       total.osisPendientes += m.osisPendientes;
       total.osisPendientesVencidas += m.osisPendientesVencidas;

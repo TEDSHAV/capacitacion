@@ -2062,6 +2062,8 @@ export interface GestionMesIndicadores {
   label: string;
   /** OSIs whose fecha_emision falls in this month. */
   osisRecibidas: number;
+  /** Subset of osisRecibidas whose planned start date is in a subsequent month. */
+  osisRecibidasMesesPosteriores: number;
   /** OSIs planned in this month AND executed within this same month. */
   osisEjecutadasEnSuMes: number;
   /** OSIs planned in this month with no execution date yet. */
