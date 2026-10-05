@@ -1,1 +1,2 @@
-export { default, metadata, dynamic } from "../unauthorized/page";
+export const dynamic = "force-dynamic";
+export { default, metadata } from "../unauthorized/page";
