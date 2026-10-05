@@ -2068,6 +2068,8 @@ export interface GestionMesIndicadores {
   osisPendientes: number;
   /** Subset of osisPendientes whose last planned session is already past. */
   osisPendientesVencidas: number;
+  /** OSIs planned in this month that were not executed in this month (carry over / pending for next month). */
+  osisPendientesProximoMes: number;
   /** OSIs planned in an earlier month but executed during this month. */
   osisRezagadasEjecutadas: number;
   /** OSIs planned in this month (denominator for osisEjecutadasEnSuMes). */

@@ -290,6 +290,7 @@ export default function IndicadorCalidadPdfDocument({
       osisEjecutadasEnSuMes: 0,
       osisPendientes: 0,
       osisPendientesVencidas: 0,
+      osisPendientesProximoMes: 0,
       osisRezagadasEjecutadas: 0,
       participantesPlanificados: 0,
       participantesLista: 0,

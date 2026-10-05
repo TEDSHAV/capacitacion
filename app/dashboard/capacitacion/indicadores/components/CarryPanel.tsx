@@ -40,9 +40,9 @@ const POPULATION_DEFS: Record<
     description: "Planificadas y completadas dentro de este mes",
   },
   pasaran: {
-    label: "Pendientes del mes",
+    label: "Pasarán al próximo mes",
     icon: ArrowRightCircle,
-    description: "Planificadas para este mes, aún pendientes de ejecución",
+    description: "Planificadas para este mes, aún pendientes de ejecución o completadas después",
   },
   arrastradas: {
     label: "Arrastradas de meses anteriores",

@@ -35,7 +35,7 @@ const ROWS: RowDef[] = [
   },
   {
     key: "planificadas",
-    label: "OSIs programadas en calendario",
+    label: "OSIs programadas para este mes",
     get: (m) => m.osisPlanificadas,
   },
   {
@@ -53,6 +53,11 @@ const ROWS: RowDef[] = [
     label: "con fecha ya pasada",
     get: (m) => m.osisPendientesVencidas,
     sub: true,
+  },
+  {
+    key: "pendientesProximoMes",
+    label: "Pasarán al próximo mes",
+    get: (m) => m.osisPendientesProximoMes,
   },
   {
     key: "rezagadas",

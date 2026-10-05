@@ -100,6 +100,7 @@ function emptyBucket(mes: string, label: string): GestionMesIndicadores {
     osisEjecutadasEnSuMes: 0,
     osisPendientes: 0,
     osisPendientesVencidas: 0,
+    osisPendientesProximoMes: 0,
     osisRezagadasEjecutadas: 0,
     osisPlanificadas: 0,
     participantesPlanificados: 0,
@@ -479,14 +480,19 @@ export async function getIndicadoresGestionMensual(
           if (mesEjecucion === mesPlanificado) {
             b.osisEjecutadasEnSuMes += 1;
             addOsiToMetric("ejecutadasEnSuMes", mesPlanificado, o);
-          } else if (!fechaEjecucionFinal) {
-            b.osisPendientes += 1;
-            addOsiToMetric("pendientes", mesPlanificado, o);
-            const ultimaPlanificada =
-              agg?.maxFecha ?? o.fecha_inicio_real ?? o.fecha_fin_real ?? null;
-            if (ultimaPlanificada && ultimaPlanificada < todayStr) {
-              b.osisPendientesVencidas += 1;
-              addOsiToMetric("pendientesVencidas", mesPlanificado, o);
+          } else {
+            b.osisPendientesProximoMes += 1;
+            addOsiToMetric("pendientesProximoMes", mesPlanificado, o);
+
+            if (!fechaEjecucionFinal) {
+              b.osisPendientes += 1;
+              addOsiToMetric("pendientes", mesPlanificado, o);
+              const ultimaPlanificada =
+                agg?.maxFecha ?? o.fecha_inicio_real ?? o.fecha_fin_real ?? null;
+              if (ultimaPlanificada && ultimaPlanificada < todayStr) {
+                b.osisPendientesVencidas += 1;
+                addOsiToMetric("pendientesVencidas", mesPlanificado, o);
+              }
             }
           }
         }
@@ -592,6 +598,7 @@ export async function getIndicadoresGestionMensual(
       total.osisEjecutadasEnSuMes += m.osisEjecutadasEnSuMes;
       total.osisPendientes += m.osisPendientes;
       total.osisPendientesVencidas += m.osisPendientesVencidas;
+      total.osisPendientesProximoMes += m.osisPendientesProximoMes;
       total.osisRezagadasEjecutadas += m.osisRezagadasEjecutadas;
       total.osisPlanificadas += m.osisPlanificadas;
       total.participantesPlanificados += m.participantesPlanificados;

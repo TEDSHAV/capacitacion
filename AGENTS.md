@@ -342,7 +342,8 @@ Server action: `getIndicadoresGestionMensual` in `app/actions/indicadores-gestio
 For each month of the selected year, computes:
 - **OSIs recibidas** — count of OSIs whose earliest `osi_sesion.fecha` falls in that month
 - **Ejecutadas en su mes** — OSIs whose every session has `fecha_ejecutada` (planned month = month of earliest session)
-- **Pendientes del mes** — received but not yet fully executed
+- **Pendientes del mes** — received/planned in that month but not yet fully executed
+- **Pendientes para el próximo mes** — planned in that month that were not executed in that same month (carry over to next month / pending for next month)
 - **Participantes planificados** — SUM(`participantes_ejecucion ?? participantes_max_solped`) over OSIs **executed** in this month (attributed to execution month, not planned month, so it aligns with asistidos)
 - **Participantes asistidos** — raw count of certificates issued for OSIs **executed** in this month (NOT distinct participants — just total certificates). Attributed to the OSI's execution month so it can be compared directly against planificados. Sourced from `certificados` by `nro_osi`. Pending OSIs (no execution date) don't contribute to either participant row.
 - **Certificados emitidos** — raw count of certificates by their `fecha_emision` month (issuance month). Differs from "Participantes asistidos" because the latter follows the OSI's execution month while this follows the certificate's own issuance date.
