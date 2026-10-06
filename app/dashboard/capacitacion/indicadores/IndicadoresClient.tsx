@@ -539,12 +539,13 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
       />
 
       {/* Export Calidad (IC-GS-DC-01) Modal */}
-      {gestion && (
+      {gestion && isExportModalOpen && (
         <ExportIndicadoresModal
           isOpen={isExportModalOpen}
           onClose={() => setIsExportModalOpen(false)}
           data={gestion}
           initialMes={mesActual ? mesActual.mes : selectedMes}
+          initialAggregates72h={aggregates}
         />
       )}
     </div>
