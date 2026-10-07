@@ -25,6 +25,7 @@ import fs from "fs";
 import path from "path";
 import sharp from "sharp";
 import { stripHtml } from "./strip-html";
+import { toTitleCase } from "@/utils/string-utils";
 
 export interface FichaTecnicaFacilitadorData {
   nombre_apellido: string;
@@ -344,7 +345,7 @@ export async function generateFichaTecnicaFacilitadorPdf(
   const headerBottomY = drawHeader; // placeholder, computed per-page below
   void headerBottomY; // (no meta block anymore)
 
-  const nombre = (data.nombre_apellido || "FACILITADOR SIN NOMBRE").toUpperCase();
+  const nombre = toTitleCase(data.nombre_apellido) || "Facilitador Sin Nombre";
   const cedula = data.cedula || "";
   const titulo = data.titulo_profesional ? data.titulo_profesional.toUpperCase() : "";
 

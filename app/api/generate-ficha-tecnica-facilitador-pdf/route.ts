@@ -7,13 +7,20 @@ import {
 } from "@/lib/ficha-tecnica-facilitador-generator";
 
 function sanitizeFilename(name: string): string {
-  return (
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .substring(0, 60) || "ficha_tecnica_facilitador"
-  );
+  const cleaned = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (!cleaned) return "Facilitador";
+
+  return cleaned
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join("_")
+    .substring(0, 60);
 }
 
 /**

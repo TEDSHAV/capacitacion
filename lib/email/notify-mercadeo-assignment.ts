@@ -4,6 +4,7 @@ import {
   generateFichaTecnicaFacilitadorPdf,
   type FichaTecnicaFacilitadorData,
 } from "@/lib/ficha-tecnica-facilitador-generator";
+import { toTitleCase } from "@/utils/string-utils";
 
 /**
  * Recipient for facilitator assignment notifications (Equipo de Negocios).
@@ -17,6 +18,7 @@ export interface NotifyMercadeoAssignmentInput {
   nroSesion?: number | null;
   assignmentId?: number | null;
   assignedBy?: string | null;
+  recipientEmail?: string | null;
 }
 
 function formatDateVE(dateStr: string | null | undefined): string {
@@ -35,15 +37,20 @@ function formatDateVE(dateStr: string | null | undefined): string {
 }
 
 function sanitizeFilename(name: string): string {
-  return (
-    name
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .substring(0, 60) || "facilitador"
-  );
+  const cleaned = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (!cleaned) return "Facilitador";
+
+  return cleaned
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join("_")
+    .substring(0, 60);
 }
 
 /**
@@ -95,33 +102,30 @@ export async function notifyMercadeoFacilitadorAssigned(
     const fac = facRes.data;
     const sessions = sesRes.data || [];
 
-    // 2. Resolve session scope and dates
-    let sesionScopeText: string;
+    // 2. Resolve dates
     let fechasText: string;
 
     if (input.nroSesion !== null && input.nroSesion !== undefined) {
       const targetSes = sessions.find((s) => s.nro_sesion === input.nroSesion);
-      sesionScopeText = `Sesión ${input.nroSesion}`;
       fechasText = targetSes?.fecha ? formatDateVE(targetSes.fecha) : formatDateVE(osi.fecha_inicio_real);
     } else if (sessions.length > 0) {
-      sesionScopeText = `Todas las sesiones (${sessions.length} sesión${sessions.length > 1 ? "es" : ""})`;
       const uniqueDates = Array.from(new Set(sessions.map((s) => s.fecha).filter(Boolean))) as string[];
       fechasText = uniqueDates.length > 0
         ? uniqueDates.map(formatDateVE).join(", ")
         : formatDateVE(osi.fecha_inicio_real);
     } else {
-      sesionScopeText = "Servicio completo";
       fechasText = formatDateVE(osi.fecha_inicio_real);
     }
 
     // 3. Generate the Ficha Técnica PDF in-memory
     let pdfBuffer: Buffer | null = null;
-    const safeName = sanitizeFilename(fac.nombre_apellido);
+    const facName = toTitleCase(fac.nombre_apellido) || "Facilitador";
+    const safeName = sanitizeFilename(facName);
     const pdfFilename = `Ficha_Tecnica_${safeName}.pdf`;
 
     try {
       const fichaData: FichaTecnicaFacilitadorData = {
-        nombre_apellido: fac.nombre_apellido,
+        nombre_apellido: facName,
         cedula: fac.cedula ?? null,
         titulo_profesional: fac.titulo_profesional ?? null,
         formacion_academica: fac.formacion_academica ?? null,
@@ -143,11 +147,14 @@ export async function notifyMercadeoFacilitadorAssigned(
     const nroOsi = osi.nro_osi || `ID-${input.osiId}`;
     const empresa = osi.nombre_empresa || "Cliente";
     const servicio = osi.servicio || "Servicio de Capacitación";
-    const subject = `Asignación de Facilitador: ${fac.nombre_apellido} — OSI ${nroOsi} (${empresa})`;
+    const subject = `Asignación de Facilitador: ${facName} — OSI ${nroOsi} (${empresa})`;
 
     const plainText = `
 Confirmación de Asignación de Facilitador
-Capacitación | SHA de Venezuela, C.A.
+Módulo de Capacitación — SHA de Venezuela
+--------------------------------------------------
+OSI: ${nroOsi}
+Cliente: ${empresa}
 --------------------------------------------------
 
 Estimado equipo de Negocios,
@@ -158,14 +165,11 @@ DATOS DE LA OSI:
 • N° OSI: ${nroOsi}
 • Cliente / Empresa: ${empresa}
 • Servicio / Curso: ${servicio}
-• Alcance: ${sesionScopeText}
 • Fecha(s): ${fechasText}
-${osi.direccion_ejecucion ? `• Lugar: ${osi.direccion_ejecucion}` : ""}
-
+${osi.direccion_ejecucion ? `• Lugar: ${osi.direccion_ejecucion}\n` : ""}
 FACILITADOR ASIGNADO:
-• Nombre: ${fac.nombre_apellido}
+• Nombre: ${facName}
 • Cédula: ${fac.cedula || "No registrada"}
-• Título / Especialidad: ${fac.titulo_profesional || "No registrado"}
 
 ${pdfBuffer ? `📎 Se adjunta la Ficha Técnica oficial del facilitador (${pdfFilename}).` : "⚠️ La Ficha Técnica no pudo ser generada automáticamente."}
 
@@ -181,9 +185,16 @@ Este mensaje fue generado automáticamente por el Sistema PRISMA Capacitación.
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #1e293b; background-color: #f8fafc; margin: 0; padding: 24px; }
     .card { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-    .header { background: #0c3f69; color: #ffffff; padding: 24px 28px; }
-    .header h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
-    .header p { margin: 4px 0 0 0; font-size: 13px; color: #93c5fd; }
+    .header { background: #0c3f69; color: #ffffff; padding: 24px 28px 22px 28px; }
+    .header-pre { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #7dd3fc; margin-bottom: 6px; }
+    .header h1 { margin: 0 0 16px 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: #ffffff; }
+    .header-meta { background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 8px; padding: 12px 16px; }
+    .header-meta-table { width: 100%; border-collapse: collapse; }
+    .meta-col-osi { vertical-align: middle; width: 42%; border-right: 1px solid rgba(255, 255, 255, 0.2); padding-right: 14px; }
+    .meta-col-client { vertical-align: middle; width: 58%; padding-left: 14px; }
+    .meta-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #93c5fd; margin-bottom: 3px; }
+    .osi-badge { display: inline-block; background: #38bdf8; color: #082f49; font-weight: 800; font-size: 15px; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.02em; }
+    .client-title { display: block; font-size: 15px; font-weight: 700; color: #ffffff; line-height: 1.25; }
     .content { padding: 28px; }
     .intro { font-size: 14px; color: #475569; margin-bottom: 20px; }
     .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #0284c7; margin-top: 24px; margin-bottom: 10px; border-bottom: 1px solid #e0f2fe; padding-bottom: 4px; }
@@ -192,15 +203,29 @@ Este mensaje fue generado automáticamente por el Sistema PRISMA Capacitación.
     .info-table td.label { font-weight: 600; color: #64748b; width: 140px; background: #f8fafc; border-radius: 4px; }
     .info-table td.value { color: #0f172a; }
     .badge { display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 600; border-radius: 9999px; background: #e0f2fe; color: #0369a1; }
-    .attachment-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; margin-top: 20px; font-size: 13px; color: #166534; display: flex; align-items: center; }
+    .attachment-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; margin-top: 20px; font-size: 13px; color: #166534; }
     .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 28px; font-size: 11px; color: #94a3b8; text-align: center; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
+      <div class="header-pre">Módulo de Capacitación — SHA de Venezuela</div>
       <h1>Confirmación de Asignación de Facilitador</h1>
-      <p>Módulo de Capacitación — SHA de Venezuela</p>
+      <div class="header-meta">
+        <table class="header-meta-table">
+          <tr>
+            <td class="meta-col-osi">
+              <span class="meta-label">Orden de Servicio</span>
+              <span class="osi-badge">OSI: ${nroOsi}</span>
+            </td>
+            <td class="meta-col-client">
+              <span class="meta-label">Cliente / Empresa</span>
+              <span class="client-title">${empresa}</span>
+            </td>
+          </tr>
+        </table>
+      </div>
     </div>
     <div class="content">
       <p class="intro">
@@ -216,15 +241,11 @@ Este mensaje fue generado automáticamente por el Sistema PRISMA Capacitación.
         </tr>
         <tr>
           <td class="label">Cliente / Empresa:</td>
-          <td class="value">${empresa}</td>
+          <td class="value"><strong>${empresa}</strong></td>
         </tr>
         <tr>
           <td class="label">Servicio / Curso:</td>
           <td class="value">${servicio}</td>
-        </tr>
-        <tr>
-          <td class="label">Alcance:</td>
-          <td class="value"><span class="badge">${sesionScopeText}</span></td>
         </tr>
         <tr>
           <td class="label">Fecha(s):</td>
@@ -241,15 +262,11 @@ Este mensaje fue generado automáticamente por el Sistema PRISMA Capacitación.
       <table class="info-table">
         <tr>
           <td class="label">Nombre:</td>
-          <td class="value"><strong>${fac.nombre_apellido}</strong></td>
+          <td class="value"><strong>${facName}</strong></td>
         </tr>
         <tr>
           <td class="label">Cédula:</td>
           <td class="value">${fac.cedula || "No registrada"}</td>
-        </tr>
-        <tr>
-          <td class="label">Título / Especialidad:</td>
-          <td class="value">${fac.titulo_profesional || "No registrado"}</td>
         </tr>
       </table>
 
@@ -273,6 +290,7 @@ Este mensaje fue generado automáticamente por el Sistema PRISMA Capacitación.
 `.trim();
 
     // 5. Send email via MXroute SMTP
+    const recipient = input.recipientEmail?.trim() || MERCADEO_NOTIFICATION_EMAIL;
     const attachments = pdfBuffer
       ? [
           {
@@ -284,7 +302,7 @@ Este mensaje fue generado automáticamente por el Sistema PRISMA Capacitación.
       : [];
 
     const sendRes = await sendMail({
-      to: MERCADEO_NOTIFICATION_EMAIL,
+      to: recipient,
       subject,
       text: plainText,
       html,
@@ -298,7 +316,7 @@ Este mensaje fue generado automáticamente por el Sistema PRISMA Capacitación.
         facilitador_id: input.facilitadorId,
         assignment_id: input.assignmentId ?? null,
         template_id: null,
-        to_email: MERCADEO_NOTIFICATION_EMAIL,
+        to_email: recipient,
         subject,
         body_sent: plainText,
         status: sendRes.status,
@@ -313,7 +331,7 @@ Este mensaje fue generado automáticamente por el Sistema PRISMA Capacitación.
     }
 
     if (sendRes.status === "sent") {
-      console.log(`[notifyMercadeo] Email successfully sent to ${MERCADEO_NOTIFICATION_EMAIL} for OSI ${nroOsi}`);
+      console.log(`[notifyMercadeo] Email successfully sent to ${recipient} for OSI ${nroOsi}`);
       return { success: true };
     } else {
       console.warn(`[notifyMercadeo] Email send finished with status '${sendRes.status}':`, sendRes.error);
