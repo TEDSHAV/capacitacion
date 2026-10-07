@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { FacilitadorHistoryEntry } from "@/types";
+import { notifyMercadeoFacilitadorAssigned } from "@/lib/email/notify-mercadeo-assignment";
 
 export async function assignOSIToFacilitador(
   osiId: number,
@@ -85,6 +86,17 @@ export async function assignOSIToFacilitador(
     console.error("Error creating assignment:", error);
     return { error: error.message };
   }
+
+  // Asynchronously notify Mercadeo (test recipient: amorales@ted.shadevenezuela.com.ve)
+  notifyMercadeoFacilitadorAssigned({
+    osiId,
+    facilitadorId,
+    nroSesion: sessionValue,
+    assignmentId: data.id,
+    assignedBy,
+  }).catch((err) => {
+    console.error("[assignOSIToFacilitador] Error sending notification to Mercadeo:", err);
+  });
 
   revalidatePath("/dashboard/capacitacion/gestion-de-facilitadores");
   revalidatePath("/dashboard/capacitacion/gestion-osi");

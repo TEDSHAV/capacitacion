@@ -76,7 +76,7 @@ export async function sendMail(input: SendMailInput): Promise<SendResult> {
 
   try {
     const transporter = getTransporter();
-    const html = textToBasicHtml(input.text);
+    const html = input.html || textToBasicHtml(input.text);
     const from = fromAddress();
 
     const info = await transporter.sendMail({
