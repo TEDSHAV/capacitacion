@@ -6,11 +6,10 @@ import {
 } from "@/lib/ficha-tecnica-facilitador-generator";
 
 /**
- * Recipient for facilitator assignment notifications.
- * Testing address requested by user: amorales@ted.shadevenezuela.com.ve
- * (will be switched to mercadeo@shadevenezuela.com.ve after validation).
+ * Recipient for facilitator assignment notifications (Equipo de Negocios).
  */
-export const MERCADEO_NOTIFICATION_EMAIL = "amorales@ted.shadevenezuela.com.ve";
+export const MERCADEO_NOTIFICATION_EMAIL = "mercadeo@shadevenezuela.com.ve";
+export const NEGOCIOS_NOTIFICATION_EMAIL = MERCADEO_NOTIFICATION_EMAIL;
 
 export interface NotifyMercadeoAssignmentInput {
   osiId: number;

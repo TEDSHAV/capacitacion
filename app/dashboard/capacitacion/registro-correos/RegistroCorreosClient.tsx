@@ -103,6 +103,7 @@ export default function RegistroCorreosClient() {
           l.to_email.toLowerCase().includes(q) ||
           l.subject.toLowerCase().includes(q) ||
           (l.facilitadores?.nombre_apellido || "").toLowerCase().includes(q) ||
+          (l.nro_osi || "").toLowerCase().includes(q) ||
           String(l.osi_id || "").includes(q),
       );
     }
@@ -193,8 +194,8 @@ export default function RegistroCorreosClient() {
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap" title={formatDate(log.sent_at)}>
                         {formatRelativeTime(log.sent_at)}
                       </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {log.osi_id ? `#${log.osi_id}` : "—"}
+                      <td className="px-4 py-3 text-gray-700 font-medium">
+                        {log.nro_osi || (log.osi_id ? `#${log.osi_id}` : "—")}
                       </td>
                       <td className="px-4 py-3 text-gray-700">
                         {log.facilitadores?.nombre_apellido ? toTitleCase(log.facilitadores.nombre_apellido) : "—"}

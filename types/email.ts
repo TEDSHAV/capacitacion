@@ -69,6 +69,7 @@ export interface EmailLog {
  */
 export interface EmailLogEntry extends EmailLog {
   facilitadores?: { nombre_apellido?: string } | null;
+  nro_osi?: string | null;
 }
 
 /**

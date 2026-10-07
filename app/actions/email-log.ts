@@ -12,6 +12,46 @@ import type { EmailLogEntry, EmailLogStatus } from "@/types/email";
  */
 
 /**
+ * Helper to enrich log entries with sequential OSI numbers (`nro_osi_secuencial`)
+ * from `ejecucion_osi`, since `capacitacion_email_log.osi_id` stores the internal DB ID.
+ */
+async function enrichLogsWithNroOsi(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: any[],
+): Promise<EmailLogEntry[]> {
+  if (!rows || rows.length === 0) return [];
+
+  const osiIds = Array.from(
+    new Set(
+      rows
+        .map((r) => r.osi_id)
+        .filter((id): id is number => typeof id === "number" && !isNaN(id)),
+    ),
+  );
+
+  const nroOsiMap = new Map<number, string>();
+  if (osiIds.length > 0) {
+    const { data: osiRows } = await supabase
+      .from("ejecucion_osi")
+      .select("id, nro_osi_secuencial")
+      .in("id", osiIds);
+
+    if (osiRows) {
+      for (const row of osiRows) {
+        if (row.nro_osi_secuencial) {
+          nroOsiMap.set(row.id, String(row.nro_osi_secuencial).trim());
+        }
+      }
+    }
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    nro_osi: r.osi_id != null ? (nroOsiMap.get(r.osi_id) ?? null) : null,
+  })) as EmailLogEntry[];
+}
+
+/**
  * Fetch all email log entries for a given OSI, ordered newest-first.
  * Used by the assign modal to show "Correo enviado" badges per facilitador.
  */
@@ -30,7 +70,7 @@ export async function getEmailLogsForOSI(osiId: number): Promise<EmailLogEntry[]
     return [];
   }
 
-  return (data || []) as unknown as EmailLogEntry[];
+  return enrichLogsWithNroOsi(supabase, data || []);
 }
 
 /**
@@ -70,5 +110,5 @@ export async function getEmailLogs(filters?: {
     return [];
   }
 
-  return (data || []) as unknown as EmailLogEntry[];
+  return enrichLogsWithNroOsi(supabase, data || []);
 }
