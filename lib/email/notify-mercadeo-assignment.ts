@@ -151,7 +151,7 @@ Confirmación de Asignación de Facilitador
 Capacitación | SHA de Venezuela, C.A.
 --------------------------------------------------
 
-Estimado equipo de Mercadeo,
+Estimado equipo de Negocios,
 
 Se ha confirmado la asignación de un facilitador para el siguiente servicio:
 
@@ -167,8 +167,6 @@ FACILITADOR ASIGNADO:
 • Nombre: ${fac.nombre_apellido}
 • Cédula: ${fac.cedula || "No registrada"}
 • Título / Especialidad: ${fac.titulo_profesional || "No registrado"}
-• Teléfono: ${fac.telefono || "No registrado"}
-• Correo: ${fac.email || "No registrado"}
 
 ${pdfBuffer ? `📎 Se adjunta la Ficha Técnica oficial del facilitador (${pdfFilename}).` : "⚠️ La Ficha Técnica no pudo ser generada automáticamente."}
 
@@ -207,7 +205,7 @@ Este mensaje fue generado automáticamente por el Sistema PRISMA Capacitación.
     </div>
     <div class="content">
       <p class="intro">
-        Estimado equipo de Mercadeo,<br>
+        Estimado equipo de Negocios,<br>
         Se ha confirmado la asignación de un facilitador para el siguiente servicio:
       </p>
 
@@ -253,14 +251,6 @@ Este mensaje fue generado automáticamente por el Sistema PRISMA Capacitación.
         <tr>
           <td class="label">Título / Especialidad:</td>
           <td class="value">${fac.titulo_profesional || "No registrado"}</td>
-        </tr>
-        <tr>
-          <td class="label">Teléfono:</td>
-          <td class="value">${fac.telefono || "No registrado"}</td>
-        </tr>
-        <tr>
-          <td class="label">Correo electrónico:</td>
-          <td class="value">${fac.email || "No registrado"}</td>
         </tr>
       </table>
 
