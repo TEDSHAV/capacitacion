@@ -87,11 +87,10 @@ export async function assignOSIToFacilitador(
     return { error: error.message };
   }
 
-  // Asynchronously notify Mercadeo (test recipient: amorales@ted.shadevenezuela.com.ve)
+  // Asynchronously notify Mercadeo
   notifyMercadeoFacilitadorAssigned({
     osiId,
     facilitadorId,
-    nroSesion: sessionValue,
     assignmentId: data.id,
     assignedBy,
   }).catch((err) => {

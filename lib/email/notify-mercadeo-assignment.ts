@@ -15,7 +15,6 @@ export const NEGOCIOS_NOTIFICATION_EMAIL = MERCADEO_NOTIFICATION_EMAIL;
 export interface NotifyMercadeoAssignmentInput {
   osiId: number;
   facilitadorId: number;
-  nroSesion?: number | null;
   assignmentId?: number | null;
   assignedBy?: string | null;
   recipientEmail?: string | null;
@@ -103,19 +102,13 @@ export async function notifyMercadeoFacilitadorAssigned(
     const sessions = sesRes.data || [];
 
     // 2. Resolve dates
-    let fechasText: string;
-
-    if (input.nroSesion !== null && input.nroSesion !== undefined) {
-      const targetSes = sessions.find((s) => s.nro_sesion === input.nroSesion);
-      fechasText = targetSes?.fecha ? formatDateVE(targetSes.fecha) : formatDateVE(osi.fecha_inicio_real);
-    } else if (sessions.length > 0) {
-      const uniqueDates = Array.from(new Set(sessions.map((s) => s.fecha).filter(Boolean))) as string[];
-      fechasText = uniqueDates.length > 0
+    const uniqueDates = Array.from(
+      new Set(sessions.map((s) => s.fecha).filter(Boolean)),
+    ) as string[];
+    const fechasText =
+      uniqueDates.length > 0
         ? uniqueDates.map(formatDateVE).join(", ")
         : formatDateVE(osi.fecha_inicio_real);
-    } else {
-      fechasText = formatDateVE(osi.fecha_inicio_real);
-    }
 
     // 3. Generate the Ficha Técnica PDF in-memory
     let pdfBuffer: Buffer | null = null;
