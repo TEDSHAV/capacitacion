@@ -23,7 +23,6 @@ import {
   getAllProcesoStepsBatch,
   toggleUnifiedStep,
   ensureAllProcesoStepsExist,
-  autoAdvanceEjecucionSteps,
   getSeguimientoPageData,
   toggleAttachmentReceived,
   unmarkEnProcesoStep,
@@ -486,8 +485,14 @@ export default function SeguimientoServiciosClient({
   }, [currentPage, totalCount, itemsPerPage, filters, searchQuery, filterMode, rescheduledOsiIds.length, rescheduledOsiIds, loading]);
 
   const handleToggleStep = useCallback(
-    async (osiId: number, nroSesion: number, stepKey: string, notes?: string) => {
-      const result = await toggleUnifiedStep(osiId, stepKey, nroSesion, notes);
+    async (
+      osiId: number,
+      nroSesion: number,
+      stepKey: string,
+      notes?: string,
+      metadata?: Record<string, unknown>,
+    ) => {
+      const result = await toggleUnifiedStep(osiId, stepKey, nroSesion, notes, metadata);
       if (result.success) {
         setStepsByOsi((prev) => {
           const newMap = new Map(prev);
@@ -507,7 +512,11 @@ export default function SeguimientoServiciosClient({
               completed_at: result.completed ? new Date().toISOString() : null,
               completed_by: existing?.completed_by ?? null,
               notes: result.completed ? (notes ?? existing?.notes ?? null) : null,
-              step_metadata: result.completed && notes?.trim() ? { guia: notes.trim() } : existing?.step_metadata ?? null,
+              step_metadata: result.completed
+                ? (metadata
+                    ? { ...((existing?.step_metadata as Record<string, unknown>) || {}), ...metadata }
+                    : (notes?.trim() ? { guia: notes.trim() } : existing?.step_metadata ?? null))
+                : null,
             },
           };
 
@@ -558,7 +567,11 @@ export default function SeguimientoServiciosClient({
             completed_at: result.completed ? new Date().toISOString() : null,
             completed_by: existing?.completed_by ?? null,
             notes: result.completed ? (notes ?? existing?.notes ?? null) : null,
-            step_metadata: result.completed && notes?.trim() ? { guia: notes.trim() } : existing?.step_metadata ?? null,
+            step_metadata: result.completed
+              ? (metadata
+                  ? { ...((existing?.step_metadata as Record<string, unknown>) || {}), ...metadata }
+                  : (notes?.trim() ? { guia: notes.trim() } : existing?.step_metadata ?? null))
+              : null,
           };
           if (result.autoCompletedEnProceso) {
             const existingEnProceso = entry.stepsPlain[osiKey][sesKey]["en_proceso"];
@@ -1356,8 +1369,8 @@ export default function SeguimientoServiciosClient({
                           steps={ALL_STEPS}
                           completedSteps={sessionSteps}
                           canEdit={true}
-                          onToggle={(stepKey, notes) =>
-                            handleToggleStep(osi.id_osi, currentNroSesion, stepKey, notes)
+                          onToggle={(stepKey, notes, metadata) =>
+                            handleToggleStep(osi.id_osi, currentNroSesion, stepKey, notes, metadata)
                           }
                           onBulkToggle={(stepKeys) =>
                             handleBulkToggle(osi.id_osi, currentNroSesion, stepKeys)
@@ -1367,9 +1380,6 @@ export default function SeguimientoServiciosClient({
                           }
                           onPreviewListaAsistencia={(id) =>
                             setPreviewOsi({ osiId: id, nroOsi: osi.nro_osi || "", nroSesion: currentNroSesion })
-                          }
-                          onPreviewCalificacion={(id) =>
-                            setPreviewOsi({ osiId: id, nroOsi: osi.nro_osi || "", nroSesion: currentNroSesion, category: "hoja_calificacion", title: "Hoja de Calificación", showReceivedToggle: false })
                           }
                           onPreviewMaterialFotografico={(id) =>
                             setPreviewOsi({ osiId: id, nroOsi: osi.nro_osi || "", nroSesion: currentNroSesion, category: "material_fotografico", title: "Registro Fotográfico", showReceivedToggle: false })

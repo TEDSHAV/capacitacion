@@ -19,10 +19,9 @@ interface ProcesoStepsTimelineProps {
   steps: StepDef[];
   completedSteps: Record<string, ProcesoStepRecord>;
   canEdit: boolean;
-  onToggle: (stepKey: string, notes?: string) => Promise<void>;
+  onToggle: (stepKey: string, notes?: string, metadata?: Record<string, unknown>) => Promise<void>;
   onBulkToggle?: (stepKeys: string[]) => Promise<void>;
   onPreviewListaAsistencia?: (osiId: number) => void;
-  onPreviewCalificacion?: (osiId: number) => void;
   onPreviewMaterialFotografico?: (osiId: number) => void;
   onPreviewEncuestas?: (osiId: number) => void;
   onRequestUnmarkEnProceso?: (osiId: number) => void;
@@ -37,7 +36,6 @@ export default function ProcesoStepsTimeline({
   onToggle,
   onBulkToggle,
   onPreviewListaAsistencia,
-  onPreviewCalificacion,
   onPreviewMaterialFotografico,
   onPreviewEncuestas,
   onRequestUnmarkEnProceso,
@@ -50,6 +48,11 @@ export default function ProcesoStepsTimeline({
   const [inputValue, setInputValue] = useState("");
   const [inputPos, setInputPos] = useState<{ top: number; left: number } | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const [envioStepKey, setEnvioStepKey] = useState<string | null>(null);
+  const [envioPos, setEnvioPos] = useState<{ top: number; left: number } | null>(null);
+  const [envioMode, setEnvioMode] = useState<"select" | "fisico">("select");
+  const [envioGuia, setEnvioGuia] = useState("");
 
   useEffect(() => {
     if (inputStepKey && inputRef.current) {
@@ -71,6 +74,7 @@ export default function ProcesoStepsTimeline({
     isAuto: boolean,
     isAutoUnmarkable: boolean,
     requiresInput: boolean,
+    hasEnvioOptions: boolean,
     e?: React.MouseEvent,
   ) => {
     if (!canEdit) return;
@@ -83,6 +87,28 @@ export default function ProcesoStepsTimeline({
         onRequestUnmarkEnProceso(osiId);
         return;
       }
+    }
+
+    // If step has envio options (material_enviado_facilitador)
+    if (hasEnvioOptions) {
+      const rec = completedSteps[stepKey];
+      if (rec?.completed) {
+        // Already completed — unmark directly
+        setTogglingKey(stepKey);
+        try {
+          await onToggle(stepKey);
+        } finally {
+          setTogglingKey(null);
+        }
+      } else if (e) {
+        // Not completed — open envio choice popup
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setEnvioPos({ top: rect.bottom + 6, left: rect.left + rect.width / 2 });
+        setEnvioStepKey(stepKey);
+        setEnvioMode("select");
+        setEnvioGuia("");
+      }
+      return;
     }
 
     // If step requires input and is not yet completed, show input prompt
@@ -112,6 +138,32 @@ export default function ProcesoStepsTimeline({
     } finally {
       setTogglingKey(null);
     }
+  };
+
+  const handleEnvioSubmit = async (tipo: "digital" | "fisico", guia?: string) => {
+    if (!envioStepKey) return;
+    const key = envioStepKey;
+    setEnvioStepKey(null);
+    setEnvioPos(null);
+    setEnvioMode("select");
+    setEnvioGuia("");
+    setTogglingKey(key);
+    try {
+      if (tipo === "digital") {
+        await onToggle(key, "Digital", { tipo_envio: "digital" });
+      } else {
+        await onToggle(key, `Físico - Guía: ${guia}`, { tipo_envio: "fisico", guia });
+      }
+    } finally {
+      setTogglingKey(null);
+    }
+  };
+
+  const closeEnvioPopup = () => {
+    setEnvioStepKey(null);
+    setEnvioPos(null);
+    setEnvioMode("select");
+    setEnvioGuia("");
   };
 
   const handleInputSubmit = async () => {
@@ -216,6 +268,7 @@ export default function ProcesoStepsTimeline({
     const isAutoUnmarkable = !!step.autoUnmarkable;
     const isOptional = !!step.optional;
     const requiresInput = !!step.requiresInput;
+    const hasEnvioOptions = !!step.hasEnvioOptions;
     const isToggling = togglingKey === step.key;
     const canClick = canEdit && (!isAuto || isAutoUnmarkable);
     const isListaAsistencia = step.key === "lista_asistencia";
@@ -231,7 +284,7 @@ export default function ProcesoStepsTimeline({
           <button
             type="button"
             disabled={!canClick || isToggling}
-            onClick={(e) => handleToggle(step.key, isAuto, isAutoUnmarkable, requiresInput, e)}
+            onClick={(e) => handleToggle(step.key, isAuto, isAutoUnmarkable, requiresInput, hasEnvioOptions, e)}
             className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0 ${
               isCompleted
                 ? "bg-green-500 text-white scale-105 shadow-md"
@@ -356,6 +409,20 @@ export default function ProcesoStepsTimeline({
                 Guía: {(rec?.step_metadata?.guia as string) || rec.notes}
               </span>
             )}
+            {isCompleted && step.key === "material_enviado_facilitador" && (
+              <span
+                className={`text-[9px] font-semibold mt-0.5 px-1.5 py-0.5 rounded border inline-flex items-center gap-1 ${
+                  (rec?.step_metadata?.tipo_envio === "digital" || rec?.notes === "Digital")
+                    ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                    : "text-blue-700 bg-blue-50 border-blue-200"
+                }`}
+                title={rec?.step_metadata?.guia ? `Guía: ${rec.step_metadata.guia}` : undefined}
+              >
+                {(rec?.step_metadata?.tipo_envio === "digital" || rec?.notes === "Digital")
+                  ? "Digital"
+                  : `Físico${rec?.step_metadata?.guia ? ` · ${rec.step_metadata.guia}` : (rec?.notes ? ` · ${rec.notes.replace(/^Físico\s*-\s*Guía:\s*/i, "")}` : "")}`}
+              </span>
+            )}
             {isListaAsistencia && onPreviewListaAsistencia && (
               <button
                 type="button"
@@ -459,7 +526,6 @@ export default function ProcesoStepsTimeline({
                   {/* Horizontal sub-row of small circles — extra margin to clear main branch text */}
                   <div className="flex items-start gap-0 mt-2">
                     {subSteps.map((subStep, subIdx) => {
-                      const realIdx = startIdx + subIdx;
                       const rec = completedSteps[subStep.key];
                       const isCompleted = !!rec?.completed;
                       const isAuto = !!subStep.auto;
@@ -469,12 +535,10 @@ export default function ProcesoStepsTimeline({
                       const requiresInput = !!subStep.requiresInput;
                       const hasPreview =
                         (subStep.key === "lista_asistencia" && onPreviewListaAsistencia) ||
-                        (subStep.key === "calificacion" && onPreviewCalificacion) ||
                         (subStep.key === "material_fotografico" && onPreviewMaterialFotografico) ||
                         (subStep.key === "encuestas_satisfaccion_tabulacion" && onPreviewEncuestas);
                       const previewHandler =
                         subStep.key === "lista_asistencia" ? onPreviewListaAsistencia
-                        : subStep.key === "calificacion" ? onPreviewCalificacion
                         : subStep.key === "material_fotografico" ? onPreviewMaterialFotografico
                         : subStep.key === "encuestas_satisfaccion_tabulacion" ? onPreviewEncuestas
                         : undefined;
@@ -485,7 +549,7 @@ export default function ProcesoStepsTimeline({
                             <button
                               type="button"
                               disabled={!canClick || isToggling}
-                              onClick={(e) => handleToggle(subStep.key, isAuto, isAutoUnmarkable, requiresInput, e)}
+                              onClick={(e) => handleToggle(subStep.key, isAuto, isAutoUnmarkable, requiresInput, !!subStep.hasEnvioOptions, e)}
                               className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0 ${
                                 isCompleted
                                   ? "bg-green-500 text-white scale-105 shadow-sm"
@@ -589,6 +653,104 @@ export default function ProcesoStepsTimeline({
                 OK
               </button>
             </div>
+          </div>
+        </>
+      )}
+
+      {/* Fixed-position popup for material_enviado_facilitador */}
+      {envioStepKey && envioPos && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={closeEnvioPopup} />
+          <div
+            className="fixed z-50 bg-white border border-gray-200 rounded-xl shadow-2xl p-3 flex flex-col gap-2 min-w-[240px] max-w-[290px] animate-in fade-in zoom-in-95 duration-100"
+            style={{
+              top: `${envioPos.top}px`,
+              left: `${envioPos.left}px`,
+              transform: "translateX(-50%)",
+            }}
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
+              <span className="text-xs font-bold text-gray-900">
+                Envío de Material
+              </span>
+              <button
+                type="button"
+                onClick={closeEnvioPopup}
+                className="text-gray-400 hover:text-gray-600 p-0.5 rounded transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {envioMode === "select" ? (
+              <div className="flex flex-col gap-2 pt-1">
+                <p className="text-[11px] text-gray-500 leading-tight">
+                  ¿Cómo fue remitido el material al facilitador?
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleEnvioSubmit("digital")}
+                  className="flex items-center gap-2.5 p-2 rounded-lg border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-left transition-colors group cursor-pointer"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-sm flex-shrink-0 group-hover:scale-110 transition-transform">
+                    💻
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-emerald-950 leading-tight">Digital</p>
+                    <p className="text-[10px] text-emerald-700 leading-tight">Correo o descarga</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEnvioMode("fisico")}
+                  className="flex items-center gap-2.5 p-2 rounded-lg border border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-left transition-colors group cursor-pointer"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center text-sm flex-shrink-0 group-hover:scale-110 transition-transform">
+                    📦
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-blue-950 leading-tight">Físico</p>
+                    <p className="text-[10px] text-blue-700 leading-tight">Envío físico con guía</p>
+                  </div>
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 pt-1">
+                <label className="text-[11px] font-semibold text-gray-700">
+                  N° de Guía / Tracking:
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Ej: ZOOM 12345678"
+                  value={envioGuia}
+                  onChange={(e) => setEnvioGuia(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && envioGuia.trim()) handleEnvioSubmit("fisico", envioGuia.trim());
+                    if (e.key === "Escape") setEnvioMode("select");
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                />
+                <div className="flex gap-1.5 justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setEnvioMode("select")}
+                    className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 rounded"
+                  >
+                    Volver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEnvioSubmit("fisico", envioGuia.trim())}
+                    disabled={!envioGuia.trim()}
+                    className="px-3 py-1 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-xs"
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

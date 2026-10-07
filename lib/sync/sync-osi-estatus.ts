@@ -187,16 +187,24 @@ export async function recalcOsiEstatusFromSteps(
       newStatusId = OSI_ESTATUS.EJECUTADO;
     } else if (executedSessions > 0) {
       newStatusId = OSI_ESTATUS.EN_PROCESO;
-    } else {
+    }
+
+    const { data: currentOsi } = await admin
+      .from("ejecucion_osi")
+      .select("id_estatus, nro_osi_secuencial")
+      .eq("id", osiId)
+      .maybeSingle();
+
+    // Provisional PEN- OSIs cannot be marked as EJECUTADO (12) in shell tables
+    const nro = String(currentOsi?.nro_osi_secuencial ?? "").trim();
+    if (newStatusId === OSI_ESTATUS.EJECUTADO && /^PEN-/i.test(nro)) {
+      return;
+    }
+
+    if (newStatusId === null) {
       // When NO sessions are completed, do NOT touch ejecucion_osi with REAGENDADO or NO_EJECUTADA.
       // Rescheduling/unmarking states belong strictly in capacitacion_proceso_steps and capacitacion_osi_notas.
       // Only revert to PENDIENTE if it was previously marked as EJECUTADO or EN_PROCESO.
-      const { data: currentOsi } = await admin
-        .from("ejecucion_osi")
-        .select("id_estatus")
-        .eq("id", osiId)
-        .maybeSingle();
-
       if (
         currentOsi?.id_estatus === OSI_ESTATUS.EJECUTADO ||
         currentOsi?.id_estatus === OSI_ESTATUS.EN_PROCESO
@@ -247,6 +255,20 @@ export async function syncOsiEjecutadoToShell(
 
   try {
     const admin = await createAdminClient();
+
+    // Guard: provisional PEN- OSIs must never be marked as executed in shell tables
+    if (completed) {
+      const { data: osiRow } = await admin
+        .from("ejecucion_osi")
+        .select("nro_osi_secuencial")
+        .eq("id", osiId)
+        .maybeSingle();
+
+      const nroOsi = String(osiRow?.nro_osi_secuencial ?? "").trim();
+      if (/^PEN-/i.test(nroOsi)) {
+        return;
+      }
+    }
 
     // 1. Resolve the osi_sesion row (materialize from sesiones_programadas if needed)
     const session = await resolveOsiSesion(admin, osiId, nroSesion);

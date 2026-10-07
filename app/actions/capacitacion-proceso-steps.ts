@@ -303,6 +303,7 @@ export async function toggleProcesoStep(
   stepKey: string,
   nroSesion: number = 1,
   notes?: string,
+  metadata?: Record<string, unknown>,
 ): Promise<{ success: boolean; completed?: boolean; autoCompletedEnProceso?: boolean; error?: string }> {
   if (!Number.isFinite(osiId) || osiId <= 0) {
     return { success: false, error: "OSI inválido" };
@@ -349,7 +350,10 @@ export async function toggleProcesoStep(
 
     if (newCompleted) {
       finalNotes = notes ?? null;
-      if (notes?.trim()) {
+      if (metadata) {
+        Object.assign(finalMetadata, metadata);
+      }
+      if (notes?.trim() && !finalMetadata.guia && stepKey === "sobre_enviado_zoom") {
         finalMetadata.guia = notes.trim();
       }
       if (stepKey === "en_proceso") {
@@ -367,6 +371,7 @@ export async function toggleProcesoStep(
       } else {
         finalNotes = null;
         delete finalMetadata.guia;
+        delete finalMetadata.tipo_envio;
       }
     }
 
@@ -955,7 +960,9 @@ export async function autoAdvanceAllPendingPastSessions(): Promise<void> {
     const { data: osis } = await admin
       .from("v_osi_formato_completo")
       .select("id_osi, fecha_inicio_real, desglose_recursos_sesiones, sesiones_programadas")
-      .in("id_osi", osiIds);
+      .in("id_osi", osiIds)
+      .ilike("tipo_servicio", "%capacitacion%")
+      .not("nro_osi", "ilike", "%PEN-%");
 
     if (osis && osis.length > 0) {
       await autoAdvanceEjecucionSteps(
@@ -1276,6 +1283,7 @@ export async function toggleUnifiedStep(
   stepKey: string,
   nroSesion: number = 1,
   notes?: string,
+  metadata?: Record<string, unknown>,
 ): Promise<{ success: boolean; completed?: boolean; autoCompletedEnProceso?: boolean; error?: string }> {
   const phase = getPhaseForStep(stepKey);
   if (!phase) {
@@ -1284,7 +1292,7 @@ export async function toggleUnifiedStep(
   if (isAutoStepUnified(stepKey)) {
     return { success: false, error: "Este paso es automático y no puede ser modificado manualmente" };
   }
-  return toggleProcesoStep(osiId, phase, stepKey, nroSesion, notes);
+  return toggleProcesoStep(osiId, phase, stepKey, nroSesion, notes, metadata);
 }
 
 /**

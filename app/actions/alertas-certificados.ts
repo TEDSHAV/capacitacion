@@ -237,7 +237,7 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
             .select("osi_id, facilitador_id, attachment_received, facilitadores(nombre_apellido)")
             .in("osi_id", chunk),
       ),
-      // Proceso steps (lista_asistencia, calificacion, elaboracion_certificados)
+      // Proceso steps (lista_asistencia, elaboracion_certificados)
       chunkedIn<{ osi_id: number; step_key: string; completed: boolean }>(
         "capacitacion_proceso_steps",
         osiIds,
@@ -246,7 +246,7 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
             .from("capacitacion_proceso_steps")
             .select("osi_id, step_key, completed")
             .in("osi_id", chunk)
-            .in("step_key", ["lista_asistencia", "calificacion", "elaboracion_certificados"]),
+            .in("step_key", ["lista_asistencia", "elaboracion_certificados"]),
       ),
     ]);
 
@@ -373,18 +373,14 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
         : false;
       const hasAttachmentFlag = assignmentInfo?.attachmentReceived || false;
       const hasStepLista = completedSteps.has("lista_asistencia");
-      const hasStepCalif = completedSteps.has("calificacion");
 
       // Strictly true ONLY when attendance list, grades, or confirmed attachment has been received
       const dataRecibidaFacilitador =
-        hasAttendanceOrGradeUpload || hasAttachmentFlag || hasStepLista || hasStepCalif;
+        hasAttendanceOrGradeUpload || hasAttachmentFlag || hasStepLista;
 
       const tiposArchivos = uploadInfo ? Array.from(uploadInfo.categories) : [];
       if (hasStepLista && !tiposArchivos.includes("lista_asistencia")) {
         tiposArchivos.push("lista_asistencia");
-      }
-      if (hasStepCalif && !tiposArchivos.includes("hoja_calificacion")) {
-        tiposArchivos.push("hoja_calificacion");
       }
 
       // Classify alert category:

@@ -9,6 +9,7 @@ export interface StepDef {
   optional?: boolean;
   requiresInput?: boolean;
   inputPlaceholder?: string;
+  hasEnvioOptions?: boolean;
   group?: string;
   phase: ProcesoPhase;
 }
@@ -23,7 +24,8 @@ export const PLANIFICACION_STEPS: StepDef[] = [
   {
     key: "material_enviado_facilitador",
     label: "Material enviado al facilitador / En espera de Ejecución",
-    description: "El material del servicio ha sido enviado al facilitador asignado.",
+    description: "El material del servicio ha sido enviado al facilitador asignado (Digital o Físico con guía).",
+    hasEnvioOptions: true,
     phase: "planificacion",
   },
 ];
@@ -41,13 +43,6 @@ export const EJECUCION_STEPS: StepDef[] = [
     key: "lista_asistencia",
     label: "Lista asistencia",
     description: "La lista de asistencia ha sido recibida.",
-    group: "post_servicio",
-    phase: "ejecucion",
-  },
-  {
-    key: "calificacion",
-    label: "Calificación",
-    description: "Calificación de los participantes.",
     group: "post_servicio",
     phase: "ejecucion",
   },
@@ -146,7 +141,6 @@ export function getStepByKey(stepKey: string): StepDef | undefined {
 export function isPostServiceOrSubsequentStep(stepKey: string): boolean {
   const postServiceKeys = [
     "lista_asistencia",
-    "calificacion",
     "material_fotografico",
     "encuestas_satisfaccion_tabulacion",
     "elaboracion_certificados",
