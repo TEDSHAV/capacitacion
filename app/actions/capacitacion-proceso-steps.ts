@@ -652,17 +652,6 @@ export async function autoAdvanceEjecucionSteps(
         const nroSesion = session.nro_sesion;
         const sessionSteps = osiStepsMap.get(nroSesion) || new Map();
 
-        // Determine if this session's date is today or past (date-only comparison in Caracas timezone)
-        let isTodayOrPast = false;
-        if (session.fecha) {
-          const sessionDateStr = session.fecha.split("T")[0];
-          if (sessionDateStr <= todayStr) isTodayOrPast = true;
-        } else if (nroSesion === 1 && osi.fecha_inicio_real) {
-          // Fallback to fecha_inicio_real for session 1 if session fecha is null
-          const startDateStr = osi.fecha_inicio_real.split("T")[0];
-          if (startDateStr <= todayStr) isTodayOrPast = true;
-        }
-
         // Guard clause: check if ANY post-service step is already completed
         let anyPostServiceCompleted = false;
         for (const [key, stepRec] of sessionSteps.entries()) {
@@ -674,32 +663,19 @@ export async function autoAdvanceEjecucionSteps(
 
         const enProceso = sessionSteps.get("en_proceso");
         const isAlreadyCompleted = !!enProceso?.completed;
-        const meta = (enProceso?.step_metadata as Record<string, unknown> | null) || {};
-        const isManuallyUnmarked = !!meta.unmarked_by_user;
 
-        // Auto-complete "en_proceso" (En proceso/Ejecutado) if:
-        // 1. Guard clause: a post-service step is completed (proof that service was executed).
-        // 2. Date is today or past, step is not completed, and was NOT manually unmarked by a user.
-        if (!isAlreadyCompleted) {
-          if (anyPostServiceCompleted) {
-            upserts.push({
-              osi_id: osi.id_osi,
-              nro_sesion: nroSesion,
-              phase: "ejecucion",
-              step_key: "en_proceso",
-              completed: true,
-              completed_at: enProceso?.completed_at || todayStr,
-            });
-          } else if (isTodayOrPast && !isManuallyUnmarked) {
-            upserts.push({
-              osi_id: osi.id_osi,
-              nro_sesion: nroSesion,
-              phase: "ejecucion",
-              step_key: "en_proceso",
-              completed: true,
-              completed_at: enProceso?.completed_at || todayStr,
-            });
-          }
+        // Auto-complete "en_proceso" ONLY as safety guard if a post-service step is completed
+        // (proof that service was executed, e.g. attendance list or photo uploaded).
+        // Date-based auto-advance is disabled; staff marks execution manually.
+        if (!isAlreadyCompleted && anyPostServiceCompleted) {
+          upserts.push({
+            osi_id: osi.id_osi,
+            nro_sesion: nroSesion,
+            phase: "ejecucion",
+            step_key: "en_proceso",
+            completed: true,
+            completed_at: enProceso?.completed_at || todayStr,
+          });
         }
       }
     }
@@ -945,38 +921,8 @@ export async function clearSeguimientoServerCache(): Promise<void> {
  * Ensures OSIs on pages 2+ stay up to date without requiring manual pagination.
  */
 export async function autoAdvanceAllPendingPastSessions(): Promise<void> {
-  try {
-    const admin = await createAdminClient();
-    const todayStr = getCaracasTodayStr();
-    const { data: pastSessions } = await admin
-      .from("osi_sesion")
-      .select("id_osi")
-      .lte("fecha", todayStr)
-      .is("fecha_ejecutada", null)
-      .limit(50);
-
-    if (!pastSessions || pastSessions.length === 0) return;
-    const osiIds = Array.from(new Set(pastSessions.map((s) => s.id_osi)));
-    const { data: osis } = await admin
-      .from("v_osi_formato_completo")
-      .select("id_osi, fecha_inicio_real, desglose_recursos_sesiones, sesiones_programadas")
-      .in("id_osi", osiIds)
-      .ilike("tipo_servicio", "%capacitacion%")
-      .not("nro_osi", "ilike", "%PEN-%");
-
-    if (osis && osis.length > 0) {
-      await autoAdvanceEjecucionSteps(
-        osis.map((o) => ({
-          id_osi: o.id_osi,
-          fecha_inicio_real: o.fecha_inicio_real ?? null,
-          desglose_recursos_sesiones: o.desglose_recursos_sesiones ?? null,
-          sesiones_programadas: o.sesiones_programadas ?? null,
-        })),
-      );
-    }
-  } catch (err) {
-    console.error("[autoAdvanceAllPendingPastSessions] error:", err);
-  }
+  // Calendar auto-advance has been disabled in favor of manual execution confirmation by staff.
+  return;
 }
 
 /**

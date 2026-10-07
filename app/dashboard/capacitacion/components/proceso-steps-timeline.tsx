@@ -28,6 +28,20 @@ interface ProcesoStepsTimelineProps {
   compact?: boolean;
 }
 
+function formatStepDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  const trimmed = String(dateStr).trim();
+  const safeStr = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T12:00:00` : trimmed;
+  try {
+    return new Date(safeStr).toLocaleDateString("es-VE", {
+      day: "2-digit",
+      month: "short",
+    });
+  } catch {
+    return "";
+  }
+}
+
 export default function ProcesoStepsTimeline({
   osiId,
   steps,
@@ -329,7 +343,7 @@ export default function ProcesoStepsTimeline({
                 )}
                 {isCompleted && rec?.completed_at && (
                   <span className="text-[9px] text-gray-400">
-                    {new Date(rec.completed_at).toLocaleDateString("es-VE", { day: "2-digit", month: "short" })}
+                    {formatStepDate(rec.completed_at)}
                   </span>
                 )}
                 {isCompleted && requiresInput && ((rec?.step_metadata?.guia as string) || rec?.notes) && (
@@ -398,10 +412,7 @@ export default function ProcesoStepsTimeline({
             )}
             {isCompleted && rec?.completed_at && (
               <span className="text-[9px] text-gray-400 mt-0.5">
-                {new Date(rec.completed_at).toLocaleDateString("es-VE", {
-                  day: "2-digit",
-                  month: "short",
-                })}
+                {formatStepDate(rec.completed_at)}
               </span>
             )}
             {isCompleted && requiresInput && ((rec?.step_metadata?.guia as string) || rec?.notes) && (
@@ -574,7 +585,7 @@ export default function ProcesoStepsTimeline({
                             </span>
                             {isCompleted && rec?.completed_at && (
                               <span className="text-[8px] text-gray-400 mt-0.5">
-                                {new Date(rec.completed_at).toLocaleDateString("es-VE", { day: "2-digit", month: "short" })}
+                                {formatStepDate(rec.completed_at)}
                               </span>
                             )}
                             {isCompleted && requiresInput && ((rec?.step_metadata?.guia as string) || rec?.notes) && (

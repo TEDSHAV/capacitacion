@@ -34,9 +34,7 @@ export const EJECUCION_STEPS: StepDef[] = [
   {
     key: "en_proceso",
     label: "En proceso/Ejecutado",
-    description: "El servicio está en ejecución (auto-avanzado al llegar la fecha de la sesión). Equivalente al estatus EJECUTADO en Consulta OSI.",
-    auto: true,
-    autoUnmarkable: true,
+    description: "El servicio está en ejecución o ejecutado (marcado manualmente al realizarse). Equivalente al estatus EJECUTADO en Consulta OSI.",
     phase: "ejecucion",
   },
   {
