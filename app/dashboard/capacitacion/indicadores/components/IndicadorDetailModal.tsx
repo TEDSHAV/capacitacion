@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import {
   X,
   Search,
-  ExternalLink,
   Copy,
   Check,
   Download,
@@ -340,15 +338,6 @@ export default function IndicadorDetailModal({
                             <FileText className="w-3.5 h-3.5 text-sky-400" />
                             <span>{item.nroOsi}</span>
                           </button>
-                          <Link
-                            href={`/dashboard/capacitacion/gestion-osi?id=${item.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-300 hover:text-sky-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Abrir seguimiento de la OSI (nueva pestaña)"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                          </Link>
                         </div>
                         {isMultiMes(item) && (
                           <div
