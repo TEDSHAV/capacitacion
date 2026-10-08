@@ -24,11 +24,13 @@ interface OSIDetailsModalV2Props {
   onClose: () => void;
   statuses: OSIStatus[];
   initialSection?: "info" | "documents";
+  onPreviewOsi?: (osi: OSIManagement) => void;
 }
 
 export default function OSIDetailsModalV2({
   osi,
   onClose,
+  onPreviewOsi,
 }: OSIDetailsModalV2Props) {
   const [loadingCerts, setLoadingCerts] = useState(false);
   const [certificates, setCertificates] = useState<any[]>([]);
@@ -203,7 +205,21 @@ export default function OSIDetailsModalV2({
                   Visor de Orden de Servicio
                 </h3>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">{osi.nro_osi}</span>
+                  {onPreviewOsi ? (
+                    <button
+                      type="button"
+                      onClick={() => onPreviewOsi(osi)}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 px-2 py-0.5 rounded-md border border-sky-200 transition-colors cursor-pointer"
+                      title="Ver formato oficial de la OSI"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-sky-600" />
+                      <span>{osi.nro_osi}</span>
+                    </button>
+                  ) : (
+                    <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                      {osi.nro_osi}
+                    </span>
+                  )}
                   <span className="text-gray-300">|</span>
                   <span className="text-xs text-gray-500 font-semibold truncate max-w-[300px]">{osi.nombre_empresa}</span>
                   {acknowledgment ? (

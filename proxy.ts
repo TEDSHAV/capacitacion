@@ -111,11 +111,11 @@ export async function proxy(request: NextRequest) {
       return supabaseResponse;
     }
 
-    // Fallback: fetch user data from 'usuarios' table to get user ID and department
+    // Fallback: fetch user data from 'usuarios' table to get user ID, department, and cargo
     // (needed for users whose JWT doesn't yet contain departamento in app_metadata)
     const { data: userData, error: userError } = await supabase
       .from("usuarios")
-      .select("id, departamento")
+      .select("id, departamento, cargo")
       .eq("id_auth", userId)
       .single();
 
@@ -127,6 +127,21 @@ export async function proxy(request: NextRequest) {
     // Check department first to avoid RPC call for most users
     if (userData.departamento === 3 || userData.departamento === 6) {
       return supabaseResponse;
+    }
+
+    // Rule 1b: Clause for Negocios department (id: 2) analistas and coordinadores
+    // Whenever they access the app, what they see is the gestion-de-facilitadores page
+    const isNegocios = userData.departamento === 2;
+    const isAnalistaOCoordinador = Boolean(
+      userData.cargo && (/analista/i.test(userData.cargo) || /coordinador/i.test(userData.cargo)),
+    );
+
+    if (isNegocios && isAnalistaOCoordinador) {
+      const facilitadoresPath = "/dashboard/capacitacion/gestion-de-facilitadores";
+      if (request.nextUrl.pathname.startsWith(facilitadoresPath)) {
+        return supabaseResponse;
+      }
+      return NextResponse.redirect(new URL(facilitadoresPath, request.url));
     }
 
     // Rule 2: Allow access if user is admin or superadmin for this app

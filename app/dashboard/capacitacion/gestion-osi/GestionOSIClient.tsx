@@ -13,6 +13,7 @@ import OSIPagination from "./components/osi-pagination";
 import OSIDetailsModalV2 from "./components/osi-details-modal-v2";
 import OSISurveyModal from "./components/osi-survey-modal";
 import AssignFacilitadorModal from "./components/assign-facilitador-modal";
+import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 import { getSessionCount } from "@/lib/osi-utils";
 
 interface FilterOptions {
@@ -44,7 +45,13 @@ export function clearGestionOsiCache(): void {
   moduleCache.clear();
 }
 
-function cacheKey(filters: OSIFilters, page: number, itemsPerPage: number, tab: string): CacheKey {
+function cacheKey(
+  filters: OSIFilters,
+  page: number,
+  itemsPerPage: number,
+  tab: string,
+  sortDir: "asc" | "desc",
+): CacheKey {
   const cleanFilters: Record<string, unknown> = {};
   (Object.keys(filters) as (keyof OSIFilters)[])
     .sort()
@@ -54,7 +61,7 @@ function cacheKey(filters: OSIFilters, page: number, itemsPerPage: number, tab: 
         cleanFilters[k] = val;
       }
     });
-  return JSON.stringify({ ...cleanFilters, page, itemsPerPage, tab });
+  return JSON.stringify({ ...cleanFilters, page, itemsPerPage, tab, sortDir });
 }
 
 export default function GestionOSIClient({
@@ -72,6 +79,7 @@ export default function GestionOSIClient({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [activeTab, setActiveTab] = useState<"automatic" | "manual">("automatic");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Offline state
   const [fromCache, setFromCache] = useState(false);
@@ -103,13 +111,16 @@ export default function GestionOSIClient({
   const [showAssignFacilitadorModal, setShowAssignFacilitadorModal] = useState(false);
   const [assignFacilitadorOSI, setAssignFacilitadorOSI] = useState<OSIManagement | null>(null);
 
+  // Official OSI format preview modal state
+  const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string } | null>(null);
+
   // Track if filters have been loaded (for initial load detection)
   const filtersLoadedRef = useRef(Boolean(initialFilterOptions));
   const isFirstRender = useRef(true);
 
   // Seed moduleCache with initial SSR data if present
   if (initialOsis && initialOsis.length > 0) {
-    const initialKey = cacheKey({}, 1, 20, "automatic");
+    const initialKey = cacheKey({}, 1, 20, "automatic", "desc");
     if (!moduleCache.has(initialKey)) {
       moduleCache.set(initialKey, {
         osis: initialOsis,
@@ -122,7 +133,7 @@ export default function GestionOSIClient({
   // Cache initial RSC data to Dexie for offline use
   useEffect(() => {
     if (initialOsis && initialOsis.length > 0) {
-      const initialKey = cacheKey({}, 1, 20, "automatic");
+      const initialKey = cacheKey({}, 1, 20, "automatic", "desc");
       cachePortalData(initialKey, "dash_osis", {
         osis: initialOsis,
         totalCount: initialTotalCount ?? initialOsis.length,
@@ -154,7 +165,7 @@ export default function GestionOSIClient({
 
   // Prevent body scroll when modal is open
   useEffect(() => {
-    if (showModal || showSurveyModal || showAssignFacilitadorModal) {
+    if (showModal || showSurveyModal || showAssignFacilitadorModal || Boolean(previewOsi)) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -162,11 +173,11 @@ export default function GestionOSIClient({
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [showModal, showSurveyModal, showAssignFacilitadorModal]);
+  }, [showModal, showSurveyModal, showAssignFacilitadorModal, previewOsi]);
 
   // --- Sync cache swap: runs before paint so cached data appears instantly ---
   useLayoutEffect(() => {
-    const key = cacheKey(filters, currentPage, itemsPerPage, activeTab);
+    const key = cacheKey(filters, currentPage, itemsPerPage, activeTab, sortDir);
     const cached = getCached(key);
     if (cached) {
       setOsis(cached.osis);
@@ -176,7 +187,7 @@ export default function GestionOSIClient({
       if (!filtersLoadedRef.current) setLoadingFilters(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, currentPage, itemsPerPage, activeTab, refreshTrigger]);
+  }, [filters, currentPage, itemsPerPage, activeTab, sortDir, refreshTrigger]);
 
   // --- Async fetch: runs after paint, revalidating with fresh server data ---
   useEffect(() => {
@@ -190,7 +201,7 @@ export default function GestionOSIClient({
 
     let cancelled = false;
 
-    const key = cacheKey(filters, currentPage, itemsPerPage, activeTab);
+    const key = cacheKey(filters, currentPage, itemsPerPage, activeTab, sortDir);
     const cached = getCached(key);
 
     // If cache entry is fresh (< 30s old) and this is not a manual force-refresh, skip network call
@@ -223,8 +234,8 @@ export default function GestionOSIClient({
         // Always load OSI data (getOSIsForGestionOSI already includes certificado_impreso)
         promises.push(
           activeTab === "automatic"
-            ? getOSIsForGestionOSI(filters, currentPage, itemsPerPage)
-            : getManualOSIBatchesAction(filters, currentPage, itemsPerPage)
+            ? getOSIsForGestionOSI(filters, currentPage, itemsPerPage, "nro_osi", sortDir)
+            : getManualOSIBatchesAction(filters, currentPage, itemsPerPage, sortDir)
         );
 
         // Only load filter options on initial mount if not already loaded
@@ -289,7 +300,7 @@ export default function GestionOSIClient({
     loadAll();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, currentPage, itemsPerPage, activeTab, refreshTrigger]);
+  }, [filters, currentPage, itemsPerPage, activeTab, sortDir, refreshTrigger]);
 
   // --- Prefetch next page in the background ---
   useEffect(() => {
@@ -297,7 +308,7 @@ export default function GestionOSIClient({
     const totalPages = Math.ceil(totalCount / itemsPerPage);
     if (currentPage >= totalPages) return;
     const nextPage = currentPage + 1;
-    const nextKey = cacheKey(filters, nextPage, itemsPerPage, activeTab);
+    const nextKey = cacheKey(filters, nextPage, itemsPerPage, activeTab, sortDir);
     if (getCached(nextKey)) return;
 
     let cancelled = false;
@@ -305,8 +316,8 @@ export default function GestionOSIClient({
       if (cancelled) return;
       try {
         const result = activeTab === "automatic"
-          ? await getOSIsForGestionOSI(filters, nextPage, itemsPerPage)
-          : await getManualOSIBatchesAction(filters, nextPage, itemsPerPage);
+          ? await getOSIsForGestionOSI(filters, nextPage, itemsPerPage, "nro_osi", sortDir)
+          : await getManualOSIBatchesAction(filters, nextPage, itemsPerPage, sortDir);
         if (cancelled) return;
         // getOSIsForGestionOSI already includes certificado_impreso
         setCached(nextKey, {
@@ -321,7 +332,7 @@ export default function GestionOSIClient({
 
     return () => { cancelled = true; clearTimeout(timer); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, totalCount, itemsPerPage, filters, activeTab, loading, fetching]);
+  }, [currentPage, totalCount, itemsPerPage, filters, activeTab, sortDir, loading, fetching]);
 
   const handleFiltersChange = useCallback((newFilters: OSIFilters) => {
     setFilters(newFilters);
@@ -369,6 +380,19 @@ export default function GestionOSIClient({
   const handleCloseAssignFacilitadorModal = useCallback(() => {
     setShowAssignFacilitadorModal(false);
     setAssignFacilitadorOSI(null);
+  }, []);
+
+  const handleToggleSort = useCallback(() => {
+    setSortDir((prev) => (prev === "desc" ? "asc" : "desc"));
+    setCurrentPage(1);
+  }, []);
+
+  const handlePreviewOsi = useCallback((osi: OSIManagement) => {
+    setPreviewOsi({ osiId: osi.id_osi, nroOsi: osi.nro_osi });
+  }, []);
+
+  const handleClosePreviewOsi = useCallback(() => {
+    setPreviewOsi(null);
   }, []);
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -453,9 +477,12 @@ export default function GestionOSIClient({
         loading={loading}
         fetching={fetching}
         statuses={statuses}
+        sortDir={sortDir}
+        onToggleSort={handleToggleSort}
         onViewDetails={handleViewDetails}
         onSurvey={handleSurvey}
         onAssignFacilitador={handleAssignFacilitador}
+        onPreviewOsi={handlePreviewOsi}
       />
 
       {/* Pagination */}
@@ -478,6 +505,7 @@ export default function GestionOSIClient({
           onClose={handleCloseModal}
           statuses={statuses}
           initialSection={modalSection}
+          onPreviewOsi={handlePreviewOsi}
         />
       )}
 
@@ -501,6 +529,14 @@ export default function GestionOSIClient({
           onSuccess={refreshData}
         />
       )}
+
+      {/* Official OSI Format Preview Modal */}
+      <OsiPreviewModal
+        isOpen={Boolean(previewOsi)}
+        osiId={previewOsi?.osiId ?? null}
+        osiNumber={previewOsi?.nroOsi}
+        onClose={handleClosePreviewOsi}
+      />
     </div>
   );
 }

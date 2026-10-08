@@ -343,16 +343,7 @@ export const FacilitatorForm = ({
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.style.display = "none";
-        a.href = url;
-        a.download = `ficha_tecnica_facilitador_${formData.nombre_apellido
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "_")}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        window.open(url, "_blank");
       } else {
         const errData = await response.json().catch(() => null);
         alert(

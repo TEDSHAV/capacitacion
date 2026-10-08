@@ -1,0 +1,223 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FacilitadorCrud, FacilitatorForm } from "./components";
+import { clearFacilitatorPoolCache } from "./components/facilitador-crud";
+import { getFacilitatorMetrics } from "@/app/actions/participants";
+import { cachePortalData, getCachedPortalData } from "@/lib/offline/portal-data-cache";
+import { Users, MapPin, BookOpen, Star, UserCheck, ShieldCheck } from "lucide-react";
+
+interface FacilitatorMetrics {
+  total_facilitators?: number;
+  active_facilitators?: number;
+  top_states?: Array<{ name: string; count: number }>;
+  top_themes?: Array<{ name: string; count: number }>;
+}
+
+// Module-level in-memory cache for facilitator metrics (survives client-side navigation)
+interface MetricsCache {
+  data: FacilitatorMetrics;
+  timestamp: number;
+}
+let metricsMemoryCache: MetricsCache | null = null;
+const METRICS_STALE_TIME = 30_000;
+
+export function clearFacilitatorMetricsCache(): void {
+  metricsMemoryCache = null;
+}
+
+interface GestionDeFacilitadoresClientProps {
+  isReadOnly?: boolean;
+}
+
+export default function GestionDeFacilitadoresClient({
+  isReadOnly = false,
+}: GestionDeFacilitadoresClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+  const createMode = searchParams.get("create");
+  const showForm = !isReadOnly && Boolean(createMode || editId);
+
+  const [metrics, setMetrics] = useState<FacilitatorMetrics | null>(() => {
+    if (metricsMemoryCache && Date.now() - metricsMemoryCache.timestamp < METRICS_STALE_TIME) {
+      return metricsMemoryCache.data;
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    async function loadMetrics() {
+      if (metricsMemoryCache && Date.now() - metricsMemoryCache.timestamp < METRICS_STALE_TIME) {
+        setMetrics(metricsMemoryCache.data);
+        return;
+      }
+      try {
+        const data = (await getFacilitatorMetrics()) as FacilitatorMetrics;
+        if (data) {
+          setMetrics(data);
+          metricsMemoryCache = { data, timestamp: Date.now() };
+          cachePortalData("dash_facilitadores", "dash_facilitadores", { metrics: data }).catch(() => {});
+        }
+      } catch (err) {
+        console.warn("Error loading metrics online, checking Dexie cache...", err);
+        try {
+          const cached = await getCachedPortalData<{ metrics: FacilitatorMetrics }>("dash_facilitadores");
+          if (cached?.data?.metrics) {
+            setMetrics(cached.data.metrics);
+          }
+        } catch {
+          // Ignore offline read failure
+        }
+      }
+    }
+    loadMetrics();
+  }, []);
+
+  const handleFacilitadorSaved = () => {
+    clearFacilitatorPoolCache();
+    clearFacilitatorMetricsCache();
+    // Clear URL parameters to reset the state
+    router.push("/dashboard/capacitacion/gestion-de-facilitadores");
+  };
+
+  const handleCancel = () => {
+    // Clear URL parameters to reset the state
+    router.push("/dashboard/capacitacion/gestion-de-facilitadores");
+  };
+
+  if (!isReadOnly && showForm) {
+    return (
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">
+            Gestión de Facilitadores
+          </h1>
+          <p className="mt-2 text-gray-600">
+            Administra la información de los facilitadores de capacitación
+            {editId && (
+              <span className="ml-2 text-sm text-blue-600">
+                (Modo edición activo para ID: {editId})
+              </span>
+            )}
+            {createMode && (
+              <span className="ml-2 text-sm text-green-600">
+                (Modo creación activo)
+              </span>
+            )}
+          </p>
+        </div>
+
+        <FacilitatorForm
+          onFacilitatorSaved={handleFacilitadorSaved}
+          onCancel={handleCancel}
+          editId={editId}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 bg-white">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Gestión de Facilitadores
+          </h1>
+          <p className="mt-2 text-gray-600">
+            {isReadOnly
+              ? "Catálogo de facilitadores y descarga de fichas técnicas"
+              : "Administra la información de los facilitadores de capacitación"}
+          </p>
+        </div>
+        {!isReadOnly && (
+          <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+            <Link
+              href="/dashboard/capacitacion/cumplimiento-facilitadores"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-lg text-sm font-semibold transition-colors shadow-2xs"
+            >
+              <ShieldCheck className="w-4 h-4 text-sky-600" />
+              Cumplimiento y Normativas
+            </Link>
+            <Link
+              href="/dashboard/capacitacion/entrevista-facilitadores"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200 rounded-lg text-sm font-semibold transition-colors shadow-2xs"
+            >
+              <UserCheck className="w-4 h-4" />
+              Entrevistas de Facilitadores
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* Metrics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {metrics ? (
+          <>
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
+              <Users className="h-8 w-8 text-blue-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500">Total Facilitadores</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {metrics.total_facilitators || 0}
+                </p>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
+              <MapPin className="h-8 w-8 text-green-600 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm text-gray-500">Estado Principal</p>
+                <p className="text-sm font-bold text-gray-900 truncate max-w-[150px]">
+                  {metrics.top_states?.[0]?.name || "N/A"}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {metrics.top_states?.[0]?.count || 0} facilitadores
+                </p>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
+              <BookOpen className="h-8 w-8 text-purple-600 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm text-gray-500">Tema Popular</p>
+                <p className="text-sm font-bold text-gray-900 truncate max-w-[150px]">
+                  {metrics.top_themes?.[0]?.name || "N/A"}
+                </p>
+                <p className="text-xs text-gray-400">
+                  En {metrics.top_themes?.[0]?.count || 0} perfiles
+                </p>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
+              <Star className="h-8 w-8 text-orange-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500">Estatus</p>
+                <p className="text-sm font-bold text-gray-900">
+                  {metrics.active_facilitators || 0} Activos
+                </p>
+                <p className="text-xs text-gray-400">
+                  de {metrics.total_facilitators || 0} en total
+                </p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3 animate-pulse">
+                <div className="h-8 w-8 rounded-full bg-gray-200 flex-shrink-0" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-3.5 bg-gray-200 rounded w-1/2" />
+                  <div className="h-5 bg-gray-200 rounded w-1/3" />
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      <FacilitadorCrud isReadOnly={isReadOnly} />
+    </div>
+  );
+}

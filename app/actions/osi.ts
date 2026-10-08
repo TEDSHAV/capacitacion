@@ -478,6 +478,8 @@ export async function getOSIsForGestionOSI(
   filters: OSIFilters = {},
   page = 1,
   limit = 20,
+  sortField: "nro_osi" | "fecha_emision" = "nro_osi",
+  sortDirection: "asc" | "desc" = "desc",
 ): Promise<OSISearchResult> {
   try {
     const supabase = await createClient();
@@ -597,9 +599,21 @@ export async function getOSIsForGestionOSI(
     const offset = (page - 1) * limit;
     query = query.range(offset, offset + limit - 1);
 
-    const { data, error, count } = await query
-      .order("fecha_emision", { ascending: false, nullsFirst: false })
-      .order("id_osi", { ascending: false });
+    const isAsc = (sortDirection ?? filters.sortOrder ?? "desc") === "asc";
+    const orderField = sortField ?? filters.sortBy ?? "nro_osi";
+
+    let orderedQuery = query;
+    if (orderField === "nro_osi") {
+      orderedQuery = orderedQuery
+        .order("nro_osi", { ascending: isAsc, nullsFirst: false })
+        .order("id_osi", { ascending: isAsc });
+    } else {
+      orderedQuery = orderedQuery
+        .order("fecha_emision", { ascending: isAsc, nullsFirst: false })
+        .order("id_osi", { ascending: isAsc });
+    }
+
+    const { data, error, count } = await orderedQuery;
 
     if (error) {
       if ((error as any).code === "PGRST103") {
@@ -830,6 +844,7 @@ export async function getManualOSIBatchesAction(
   filters: OSIFilters = {},
   page = 1,
   limit = 20,
+  sortDirection: "asc" | "desc" = "desc",
 ) {
   try {
     const supabase = await createClient();
@@ -852,8 +867,18 @@ export async function getManualOSIBatchesAction(
       };
     }
 
+    const batches = ((row.batches || []) as OSIManagement[]).slice();
+    const isAsc = (sortDirection ?? filters.sortOrder ?? "desc") === "asc";
+    batches.sort((a, b) => {
+      const an = a.nro_osi || "";
+      const bn = b.nro_osi || "";
+      return isAsc
+        ? an.localeCompare(bn, undefined, { numeric: true })
+        : bn.localeCompare(an, undefined, { numeric: true });
+    });
+
     return {
-      osis: (row.batches || []) as OSIManagement[],
+      osis: batches,
       totalCount: row.total_count ?? 0,
       metrics: {
         total_hours: 0,

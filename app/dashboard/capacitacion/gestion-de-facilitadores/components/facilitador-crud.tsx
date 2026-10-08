@@ -43,6 +43,7 @@ interface FacilitadorCrudProps {
   onFacilitadorSaved?: () => void;
   onFacilitadorDeleted?: () => void;
   onFacilitadorUpdated?: () => void;
+  isReadOnly?: boolean;
 }
 
 type LayoutMode = "pool" | "table";
@@ -51,6 +52,7 @@ export const FacilitadorCrud = ({
   onFacilitadorSaved,
   onFacilitadorDeleted,
   onFacilitadorUpdated,
+  isReadOnly = false,
 }: FacilitadorCrudProps) => {
   const router = useRouter();
   // Pool state (seeded from in-memory cache if fresh)
@@ -433,7 +435,7 @@ export const FacilitadorCrud = ({
       {/* Header with Actions */}
       <div className="flex justify-between items-center flex-wrap gap-3">
         <h2 className="text-2xl font-bold text-gray-900">Gestión de Facilitadores</h2>
-        <Button onClick={handleCreate}>Nuevo Facilitador</Button>
+        {!isReadOnly && <Button onClick={handleCreate}>Nuevo Facilitador</Button>}
       </div>
 
       {/* POOL LAYOUT */}
@@ -502,6 +504,7 @@ export const FacilitadorCrud = ({
             onEdit={handleEditPool}
             onToggleStatus={handleToggleStatusPool}
             onShowHistory={handleShowHistoryPool}
+            readOnly={isReadOnly}
           />
         </>
       )}
@@ -568,50 +571,56 @@ export const FacilitadorCrud = ({
                     <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{getStateName(facilitador.id_estado_geografico)}</td>
                     <td className="px-3 py-4 text-sm font-medium">
                       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => handleEdit(facilitador)}
-                          className="text-white p-2 rounded-md hover:opacity-90 transition-colors shadow-sm"
-                          style={{ backgroundColor: "var(--primary-blue)" }}
-                          title="Editar"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
+                        {!isReadOnly && (
+                          <button
+                            onClick={() => handleEdit(facilitador)}
+                            className="text-white p-2 rounded-md hover:opacity-90 transition-colors shadow-sm"
+                            style={{ backgroundColor: "var(--primary-blue)" }}
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        )}
                         <a
-                          href={`/api/generate-ficha-tecnica-facilitador-pdf?id=${facilitador.id}`}
+                          href={`/api/generate-ficha-tecnica-facilitador-pdf?id=${facilitador.id}&inline=true`}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           className="inline-flex items-center justify-center text-blue-600 bg-blue-50 border border-blue-200 p-2 rounded-md hover:bg-blue-100 transition-colors shadow-sm"
-                          title="Descargar Ficha Técnica"
+                          title="Ver Ficha Técnica PDF (abre en nueva pestaña)"
                         >
                           <FileText className="w-4 h-4" />
                         </a>
-                        <a
-                          href={`/api/generate-resumen-facilitador-pdf?id=${facilitador.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center justify-center text-emerald-600 bg-emerald-50 border border-emerald-200 p-2 rounded-md hover:bg-emerald-100 transition-colors shadow-sm"
-                          title="Resumen PDF para compartir con Negocios"
-                        >
-                          <Share2 className="w-4 h-4" />
-                        </a>
-                        <button
-                          onClick={() => setHistoryFacilitador(facilitador)}
-                          className="text-white p-2 rounded-md hover:opacity-90 transition-colors shadow-sm"
-                          style={{ backgroundColor: "var(--primary-blue)" }}
-                          title="Ver historial de cursos"
-                        >
-                          <History className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleToggleStatusLegacy(facilitador)}
-                          className="text-white p-2 rounded-md hover:opacity-90 transition-colors shadow-sm"
-                          style={{ backgroundColor: facilitador.is_active ? "var(--primary-red)" : "var(--primary-blue)" }}
-                          title={facilitador.is_active ? "Inhabilitar" : "Habilitar"}
-                        >
-                          {facilitador.is_active ? <Minus className="w-4 h-4" /> : <Check className="w-4 h-4" />}
-                        </button>
+                        {!isReadOnly && (
+                          <>
+                            <a
+                              href={`/api/generate-resumen-facilitador-pdf?id=${facilitador.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center justify-center text-emerald-600 bg-emerald-50 border border-emerald-200 p-2 rounded-md hover:bg-emerald-100 transition-colors shadow-sm"
+                              title="Resumen PDF para compartir con Negocios"
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </a>
+                            <button
+                              onClick={() => setHistoryFacilitador(facilitador)}
+                              className="text-white p-2 rounded-md hover:opacity-90 transition-colors shadow-sm"
+                              style={{ backgroundColor: "var(--primary-blue)" }}
+                              title="Ver historial de cursos"
+                            >
+                              <History className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleToggleStatusLegacy(facilitador)}
+                              className="text-white p-2 rounded-md hover:opacity-90 transition-colors shadow-sm"
+                              style={{ backgroundColor: facilitador.is_active ? "var(--primary-red)" : "var(--primary-blue)" }}
+                              title={facilitador.is_active ? "Inhabilitar" : "Habilitar"}
+                            >
+                              {facilitador.is_active ? <Minus className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -642,6 +651,7 @@ export const FacilitadorCrud = ({
         onEdit={(f) => {
           handleEditPool(f);
         }}
+        readOnly={isReadOnly}
       />
 
       {/* Assign OSI Modal */}

@@ -28,6 +28,7 @@ interface FacilitadorCardProps {
   onAssignOsi: (facilitador: FacilitatorPoolItem) => void;
   onViewProfile: (facilitador: FacilitatorPoolItem) => void;
   onEdit: (facilitador: FacilitatorPoolItem) => void;
+  readOnly?: boolean;
 }
 
 export function FacilitadorCard({
@@ -37,6 +38,7 @@ export function FacilitadorCard({
   onAssignOsi,
   onViewProfile,
   onEdit,
+  readOnly = false,
 }: FacilitadorCardProps) {
   const [imgError, setImgError] = useState(false);
 
@@ -314,53 +316,79 @@ export function FacilitadorCard({
         className="px-4 py-2.5 bg-gray-50/90 border-t border-gray-100 flex items-center justify-between gap-1.5"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={() => onAssignOsi(facilitador)}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#0c3f69] hover:bg-blue-900 text-white text-xs font-semibold rounded-md shadow-sm transition-colors"
-          title="Asignar facilitador a una OSI"
-        >
-          <Calendar className="w-3.5 h-3.5" />
-          <span>Asignar</span>
-        </button>
+        {readOnly ? (
+          <>
+            <button
+              onClick={() => onViewProfile(facilitador)}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors shadow-2xs"
+              title="Ver perfil completo de competencias y calificaciones"
+            >
+              <span>Ver Perfil</span>
+              <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+            </button>
 
-        <button
-          onClick={() => onViewProfile(facilitador)}
-          className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors shadow-2xs"
-          title="Ver perfil completo de competencias y calificaciones"
-        >
-          <span>Perfil</span>
-          <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-        </button>
+            <a
+              href={`/api/generate-ficha-tecnica-facilitador-pdf?id=${facilitador.id}&inline=true`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-md transition-colors shadow-2xs"
+              title="Ver Ficha Técnica PDF (abre en nueva pestaña)"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-600" />
+              <span>Ficha Técnica PDF</span>
+            </a>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => onAssignOsi(facilitador)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#0c3f69] hover:bg-blue-900 text-white text-xs font-semibold rounded-md shadow-sm transition-colors"
+              title="Asignar facilitador a una OSI"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Asignar</span>
+            </button>
 
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => onEdit(facilitador)}
-            className="p-1.5 text-gray-500 hover:text-gray-800 bg-white border border-gray-200 hover:bg-gray-100 rounded-md transition-colors shadow-2xs"
-            title="Editar Facilitador"
-          >
-            <Edit className="w-3.5 h-3.5" />
-          </button>
+            <button
+              onClick={() => onViewProfile(facilitador)}
+              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors shadow-2xs"
+              title="Ver perfil completo de competencias y calificaciones"
+            >
+              <span>Perfil</span>
+              <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+            </button>
 
-          <a
-            href={`/api/generate-ficha-tecnica-facilitador-pdf?id=${facilitador.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-md transition-colors shadow-2xs"
-            title="Descargar Ficha Técnica PDF"
-          >
-            <FileText className="w-3.5 h-3.5" />
-          </a>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onEdit(facilitador)}
+                className="p-1.5 text-gray-500 hover:text-gray-800 bg-white border border-gray-200 hover:bg-gray-100 rounded-md transition-colors shadow-2xs"
+                title="Editar Facilitador"
+              >
+                <Edit className="w-3.5 h-3.5" />
+              </button>
 
-          <a
-            href={`/api/generate-resumen-facilitador-pdf?id=${facilitador.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-1.5 text-emerald-600 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-md transition-colors shadow-2xs"
-            title="Resumen PDF para compartir con Negocios"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-          </a>
-        </div>
+              <a
+                href={`/api/generate-ficha-tecnica-facilitador-pdf?id=${facilitador.id}&inline=true`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-md transition-colors shadow-2xs"
+                title="Ver Ficha Técnica PDF (abre en nueva pestaña)"
+              >
+                <FileText className="w-3.5 h-3.5" />
+              </a>
+
+              <a
+                href={`/api/generate-resumen-facilitador-pdf?id=${facilitador.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 text-emerald-600 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-md transition-colors shadow-2xs"
+                title="Resumen PDF para compartir con Negocios"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

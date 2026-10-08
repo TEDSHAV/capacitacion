@@ -19,6 +19,7 @@ interface PWALayoutProps {
   title?: string;
   userName?: string;
   onLogout?: () => void;
+  isNegociosReadOnly?: boolean;
 }
 
 export function PWALayout({
@@ -26,6 +27,7 @@ export function PWALayout({
   title,
   userName,
   onLogout,
+  isNegociosReadOnly = false,
 }: PWALayoutProps) {
   const [isInShell, setIsInShell] = useState(() => {
     if (typeof window !== "undefined") {
@@ -115,7 +117,7 @@ export function PWALayout({
   // Get current page title from navigation if not provided
   let pageTitle = title;
   if (!pageTitle) {
-    const nav = getNavigationForContext(context);
+    const nav = getNavigationForContext(context, isNegociosReadOnly);
     const findTitle = (items: any[]): string | undefined => {
       for (const item of items) {
         if (item.href === pathname) return item.label;
@@ -179,6 +181,7 @@ export function PWALayout({
           onToggle={() => setIsMenuOpen(!isMenuOpen)}
           context={context}
           currentPath={pathname}
+          isNegociosReadOnly={isNegociosReadOnly}
         />
 
         {/* Content */}

@@ -125,11 +125,13 @@ export async function POST(request: NextRequest) {
     };
 
     const pdfBlob = await generateFichaTecnicaFacilitadorPdf(fichaData);
+    const isInline = request.nextUrl.searchParams.get("inline") === "true";
+    const dispositionType = isInline ? "inline" : "attachment";
 
     return new NextResponse(pdfBlob, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="ficha_tecnica_facilitador_${sanitizeFilename(fichaData.nombre_apellido)}.pdf"`,
+        "Content-Disposition": `${dispositionType}; filename="ficha_tecnica_facilitador_${sanitizeFilename(fichaData.nombre_apellido)}.pdf"`,
         "Cache-Control": "no-store, max-age=0",
       },
     });

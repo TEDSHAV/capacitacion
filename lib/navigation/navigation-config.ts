@@ -323,6 +323,20 @@ const DASHBOARD_NAV: NavItem[] = [
 ];
 
 /**
+ * Dashboard: Negocios Restricted Navigation (analistas and coordinadores)
+ * ONLY links to /dashboard/capacitacion/gestion-de-facilitadores
+ */
+export const DASHBOARD_NEGOCIOS_NAV: NavItem[] = [
+  {
+    id: "facilitator-management",
+    label: "Gestión de Facilitadores",
+    href: "/dashboard/capacitacion/gestion-de-facilitadores",
+    icon: Users,
+    offlineAvailable: true,
+  },
+];
+
+/**
  * Complete navigation configuration
  * STRICTLY ISOLATED: portal and dashboard never mix
  */
@@ -338,14 +352,17 @@ export const NAVIGATION_CONFIG: NavigationConfig = {
  * Get navigation for a specific context
  * Ensures strict isolation — no cross-context access
  */
-export function getNavigationForContext(context: NavigationContext): NavItem[] {
+export function getNavigationForContext(
+  context: NavigationContext,
+  isNegociosReadOnly = false,
+): NavItem[] {
   switch (context) {
     case "portal-facilitador":
       return NAVIGATION_CONFIG.portal.facilitador;
     case "portal-cliente":
       return NAVIGATION_CONFIG.portal.cliente;
     case "dashboard":
-      return NAVIGATION_CONFIG.dashboard;
+      return isNegociosReadOnly ? DASHBOARD_NEGOCIOS_NAV : NAVIGATION_CONFIG.dashboard;
     default:
       return [];
   }

@@ -1,23 +1,12 @@
 /**
  * Ficha Técnica de Facilitador PDF generator (jsPDF-based).
  *
- * Generates the FT-F document using jsPDF directly — no puppeteer/Chrome
- * needed. Layout matches the reference PDF:
- *  - Full-width header banner image (public/header-ficha-tecnica-facilitador.jpg)
- *    at the top of every page (bleeds to page edges).
- *  - Profile photo top-LEFT (~30×30mm), with name/cédula/título to the RIGHT.
- *  - Three rich-text sections (Formación Académica, Experiencia Laboral,
- *    Competencias y Habilidades), each with a lucide icon to the left of the
- *    heading text.
- *  - Full-width footer image (public/footer-ficha-tecnica.jpg).
- *  - No document control metadata (FT-F code, Rev, Fecha, Página) — matches
- *    the reference PDF which has none.
- *
- * Rich-text fields are TipTap HTML converted to plain text via stripHtml()
- * with list indentation.
- *
- * Section icons are generated at runtime from lucide SVG path data → sharp
- * SVG→PNG → base64 → jsPDF addImage. Cached in a module-level Map.
+ * Executive, modern redesign:
+ *  - Official SHA logo in the header with dual-color accent divider bar.
+ *  - Executive Facilitator Hero Card with photo/avatar, typography, and badges.
+ *  - High-impact section cards with sharp Lucide icon badges and divider lines.
+ *  - Official SHA green footer (public/pdf/sha-footer.png) with full contact details.
+ *  - Multi-page support with running headers and dynamic page numbering.
  */
 
 import jsPDF from "jspdf";
@@ -48,41 +37,33 @@ export interface FichaTecnicaFacilitadorData {
 // Letter page dimensions (mm)
 const PAGE_W = 215.9;
 const PAGE_H = 279.4;
-const MARGIN_X = 20;
-const CONTENT_W = PAGE_W - MARGIN_X * 2;
-const SECTION_GAP = 5;
-const FONT_SIZE_PT = 10;
-const HEADING_PT = 10;
-const NAME_PT = 15;
-const LINE_HEIGHT = 4.8;
+const MARGIN_X = 16;
+const CONTENT_W = PAGE_W - MARGIN_X * 2; // 183.9mm
+const SECTION_GAP = 6.5;
+const FONT_SIZE_PT = 9.5;
+const LINE_HEIGHT = 4.6;
 
-// Header banner — full page width, computed height from aspect ratio
-const HEADER_FILE = "header-ficha-tecnica-facilitador.jpg";
-const FOOTER_FILE = "footer-ficha-tecnica.jpg";
+// Asset filenames
+const LOGO_FILE = "pdf/sha-logo.png";
+const LOGO_FALLBACK_FILE = "logo.png";
+const FOOTER_FILE = "pdf/sha-footer.png";
+const FOOTER_FALLBACK_FILE = "docs_footer.png";
 
-// Section icon
-const ICON_SIZE = 8; // mm square
-const ICON_GAP = 4; // mm between icon right edge and heading text
-const ICON_COLOR = "#0c3f69"; // brand dark blue
+// Brand Colors
+const COLOR_NAVY = [12, 63, 105] as const; // #0c3f69
+const COLOR_GREEN = [119, 187, 65] as const; // #77bb41 (SHA green)
+const COLOR_EMERALD = [5, 150, 105] as const; // #059669
+const COLOR_TITLE = [15, 23, 42] as const; // #0f172a
+const COLOR_TEXT = [51, 65, 85] as const; // #334155
+const COLOR_MUTED = [100, 116, 139] as const; // #64748b
+const COLOR_LIGHT_SLATE = [148, 163, 184] as const; // #94a3b8
+const COLOR_BORDER = [226, 232, 240] as const; // #e2e8f0
+const COLOR_CARD_BG = [248, 250, 252] as const; // #f8fafc
 
-// X position where section titles and content start (to the right of the icon).
-// The photo and all section content are left-aligned at this X so they line
-// up with the section titles, keeping the icon column on the far left.
-const CONTENT_INDENT_X = MARGIN_X + ICON_SIZE + ICON_GAP;
-
-// Photo block — left-aligned with section titles
-const PHOTO_SIZE = 30; // mm square
-const PHOTO_X = CONTENT_INDENT_X;
-const PHOTO_GAP = 6; // gap between photo right edge and name text
-const NAME_X = PHOTO_X + PHOTO_SIZE + PHOTO_GAP;
-
-// Content wrap width — reduced by the icon column indent
-const CONTENT_WRAP_W = CONTENT_W - (CONTENT_INDENT_X - MARGIN_X);
-
-const _imageCache = new Map<string, { base64: string; format: string }>();
+const _imageCache = new Map<string, { base64: string; format: string; width: number; height: number }>();
 const _iconCache = new Map<string, { base64: string; format: string }>();
 
-function getImageBase64(filename: string): { base64: string; format: string } | null {
+function getImageData(filename: string): { base64: string; format: string; width: number; height: number } | null {
   if (_imageCache.has(filename)) return _imageCache.get(filename)!;
   try {
     const imgPath = path.join(process.cwd(), "public", filename);
@@ -92,7 +73,20 @@ function getImageBase64(filename: string): { base64: string; format: string } | 
     const format = ext === "jpg" || ext === "jpeg" ? "JPEG" : "PNG";
     const mime = ext === "jpg" ? "jpeg" : ext;
     const base64 = `data:image/${mime};base64,${buffer.toString("base64")}`;
-    const result = { base64, format };
+
+    // Get natural dimensions
+    let width = 100;
+    let height = 100;
+    try {
+      const tempPdf = new jsPDF({ unit: "mm", format: "letter" });
+      const props = tempPdf.getImageProperties(base64);
+      width = props.width;
+      height = props.height;
+    } catch {
+      // fallback
+    }
+
+    const result = { base64, format, width, height };
     _imageCache.set(filename, result);
     return result;
   } catch {
@@ -100,81 +94,16 @@ function getImageBase64(filename: string): { base64: string; format: string } | 
   }
 }
 
-/**
- * Compute the header banner height (mm) from its aspect ratio.
- * The banner spans the full page width (bleeds to edges).
- */
-function getHeaderHeight(): number {
-  const headerData = getImageBase64(HEADER_FILE);
-  if (!headerData) return 0;
-  try {
-    const tempPdf = new jsPDF({ unit: "mm", format: "letter" });
-    const props = tempPdf.getImageProperties(headerData.base64);
-    return PAGE_W * (props.height / props.width);
-  } catch {
-    return 20; // fallback
-  }
+function getLogoData() {
+  return getImageData(LOGO_FILE) || getImageData(LOGO_FALLBACK_FILE);
+}
+
+function getFooterData() {
+  return getImageData(FOOTER_FILE) || getImageData(FOOTER_FALLBACK_FILE);
 }
 
 /**
- * Compute the Y where content should stop (above footer).
- */
-function getContentBottomY(): number {
-  const footerData = getImageBase64(FOOTER_FILE);
-  if (!footerData) return PAGE_H - 25;
-
-  try {
-    const tempPdf = new jsPDF({ unit: "mm", format: "letter" });
-    const props = tempPdf.getImageProperties(footerData.base64);
-    const naturalH = CONTENT_W * (props.height / props.width);
-    return PAGE_H - naturalH - 12;
-  } catch {
-    return PAGE_H - 25;
-  }
-}
-
-/**
- * Draw the header banner — full page width, bleeds to the top edges.
- * Returns the Y position where content can begin.
- */
-function drawHeader(pdf: jsPDF): number {
-  const headerData = getImageBase64(HEADER_FILE);
-  if (!headerData) return 30; // fallback: leave space for a missing header
-
-  try {
-    const props = pdf.getImageProperties(headerData.base64);
-    const headerH = PAGE_W * (props.height / props.width);
-    // Bleed to page edges (x=0, full page width)
-    pdf.addImage(headerData.base64, headerData.format, 0, 0, PAGE_W, headerH, undefined, "FAST");
-    return headerH + 6; // 6mm gap below header
-  } catch {
-    // Fallback: draw a simple rectangle
-    pdf.setFillColor(12, 63, 105);
-    pdf.rect(0, 0, PAGE_W, 20, "F");
-    return 26;
-  }
-}
-
-/**
- * Draw the footer image full content width.
- */
-function drawFooter(pdf: jsPDF): void {
-  const footerData = getImageBase64(FOOTER_FILE);
-  if (!footerData) return;
-  try {
-    const props = pdf.getImageProperties(footerData.base64);
-    const naturalH = CONTENT_W * (props.height / props.width);
-    const footerY = PAGE_H - naturalH - 8;
-    pdf.addImage(footerData.base64, footerData.format, MARGIN_X, footerY, CONTENT_W, naturalH, undefined, "FAST");
-  } catch {
-    const footerY = PAGE_H - 20;
-    pdf.addImage(footerData.base64, footerData.format, MARGIN_X, footerY, CONTENT_W, 12, undefined, "FAST");
-  }
-}
-
-/**
- * Lucide SVG path data for the 3 section icons.
- * Source: node_modules/lucide-react/dist/esm/icons/*.js
+ * Lucide SVG path data for section icons.
  */
 const LUCIDE_ICONS: Record<string, string> = {
   // GraduationCap — Formación Académica
@@ -196,20 +125,24 @@ const LUCIDE_ICONS: Record<string, string> = {
 };
 
 /**
- * Generate a lucide icon as a PNG base64 data URL using sharp.
- * Cached in _iconCache after first generation.
+ * Generate a modern badge icon as a PNG base64 data URL using sharp.
+ * High-res rounded square badge with corporate navy background and white icon.
  */
-async function getLucideIcon(
-  iconKey: string,
-): Promise<{ base64: string; format: string } | null> {
+async function getBadgeIcon(iconKey: string): Promise<{ base64: string; format: string } | null> {
   if (_iconCache.has(iconKey)) return _iconCache.get(iconKey)!;
 
   const paths = LUCIDE_ICONS[iconKey];
   if (!paths) return null;
 
   try {
-    // Render at 96px (high enough for ~8mm at print resolution)
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="${ICON_COLOR}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+        <rect width="96" height="96" rx="22" fill="#0c3f69"/>
+        <g transform="translate(20, 20) scale(2.333)" stroke="#ffffff" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          ${paths}
+        </g>
+      </svg>
+    `;
 
     const pngBuffer = await sharp(Buffer.from(svg)).png().toBuffer();
     const base64 = `data:image/png;base64,${pngBuffer.toString("base64")}`;
@@ -217,103 +150,18 @@ async function getLucideIcon(
     _iconCache.set(iconKey, result);
     return result;
   } catch (err) {
-    console.error(`getLucideIcon: failed to render ${iconKey}:`, err);
+    console.error(`getBadgeIcon: failed to render ${iconKey}:`, err);
     return null;
   }
 }
 
 /**
- * Render a section heading with an icon to the left (top-aligned with the
- * heading text). No underline. Returns the Y position after the heading.
- */
-async function drawSectionHeadingWithIcon(
-  pdf: jsPDF,
-  heading: string,
-  iconKey: string,
-  y: number,
-): Promise<number> {
-  // Draw the icon (left of heading text), top-aligned with the heading text.
-  // jsPDF positions text at the baseline; the visual top of 10pt helvetica
-  // caps is ~2.5mm above the baseline. Lucide SVGs have ~3/24 internal top
-  // padding, so the icon's visible top is ~1mm below the image top edge.
-  // Offset: text cap top (y - 2.5) minus icon internal padding (~1mm) = y - 3.5
-  const iconY = y - 3.5;
-
-  const iconData = await getLucideIcon(iconKey);
-  if (iconData) {
-    try {
-      pdf.addImage(
-        iconData.base64,
-        iconData.format,
-        MARGIN_X,
-        iconY,
-        ICON_SIZE,
-        ICON_SIZE,
-        undefined,
-        "FAST",
-      );
-    } catch (err) {
-      console.error(`drawSectionHeadingWithIcon: icon embed failed for ${iconKey}:`, err);
-    }
-  }
-
-  // Draw heading text to the right of the icon (at CONTENT_INDENT_X)
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(HEADING_PT);
-  pdf.setTextColor(0, 0, 0);
-  pdf.text(heading.toUpperCase(), CONTENT_INDENT_X, y);
-
-  return y + 5;
-}
-
-/**
- * Wrap a paragraph for PDF rendering, preserving list indentation.
- * Detects lines starting with "    - " (bullet) or "    N. " (numbered)
- * from stripHtml and converts them to a proper indent (mm) + hanging wrap.
- *
- * Returns the wrapped lines (with marker prefix on first line) and the
- * indent offset in mm to use for the X position.
- */
-function wrapParagraph(
-  doc: jsPDF,
-  para: string,
-  maxWidth: number,
-): { lines: string[]; indent: number } {
-  // Detect list item: 4 spaces + "- " or "N. "
-  // The marker is prepended inline to the text (no extra indent) so the
-  // text left-aligns with the section title at CONTENT_INDENT_X.
-  const listMatch = para.match(/^    (- \s*|\d+\.\s*)(.*)$/);
-  if (listMatch) {
-    const marker = listMatch[1]; // Keep trailing space: "1. " or "- "
-    const text = listMatch[2].trim();
-
-    // Wrap the full "marker + text" as one unit at the full width.
-    // Continuation lines get spaces to align after the marker.
-    const markerW = doc.getTextWidth(marker);
-    const firstLineWrapW = maxWidth - markerW;
-    const wrapped = doc.splitTextToSize(text, firstLineWrapW);
-    const lines = wrapped.map((l: string, i: number) =>
-      i === 0 ? `${marker}${l}` : `${" ".repeat(marker.length)}${l}`,
-    );
-    return { lines, indent: 0 };
-  }
-
-  // Normal paragraph — no indent
-  const trimmed = para.trim();
-  const lines = doc.splitTextToSize(trimmed, maxWidth);
-  return { lines, indent: 0 };
-}
-
-/**
- * Resolve the profile photo to a base64 data URL usable by jsPDF.addImage.
- * Priority: inline foto_base64 (preview) → fetch foto_perfil_url (storage).
- * Returns null if no photo is available or fetch fails.
+ * Resolve profile photo to a base64 data URL usable by jsPDF.
  */
 async function resolvePhotoData(
   data: FichaTecnicaFacilitadorData,
 ): Promise<{ base64: string; format: string } | null> {
   if (data.foto_base64) {
-    // Already a data URL — detect format from the prefix
     const isJpeg = /^data:image\/jpe?g/i.test(data.foto_base64);
     return { base64: data.foto_base64, format: isJpeg ? "JPEG" : "PNG" };
   }
@@ -324,7 +172,8 @@ async function resolvePhotoData(
     const res = await fetch(data.foto_perfil_url, { cache: "no-store" });
     if (!res.ok) return null;
     const buf = Buffer.from(await res.arrayBuffer());
-    const isJpeg = data.foto_perfil_url.toLowerCase().endsWith(".jpg") ||
+    const isJpeg =
+      data.foto_perfil_url.toLowerCase().endsWith(".jpg") ||
       data.foto_perfil_url.toLowerCase().endsWith(".jpeg");
     const mime = isJpeg ? "jpeg" : "png";
     const base64 = `data:image/${mime};base64,${buf.toString("base64")}`;
@@ -336,18 +185,139 @@ async function resolvePhotoData(
 }
 
 /**
+ * Draw executive primary header on page 1:
+ * - SHA logo (left)
+ * - Title, Gerencia & Doc Code (right)
+ * - Dual-color accent divider bar (bottom)
+ * Returns the Y position where content/hero card begins.
+ */
+function drawPage1Header(pdf: jsPDF, data: FichaTecnicaFacilitadorData): number {
+  const headerY = 12;
+  const rightX = MARGIN_X + CONTENT_W;
+
+  // 1. Logo
+  const logo = getLogoData();
+  if (logo) {
+    try {
+      const logoH = 13.5;
+      const logoW = logoH * (logo.width / logo.height);
+      pdf.addImage(logo.base64, logo.format, MARGIN_X, headerY, logoW, logoH, undefined, "FAST");
+    } catch {
+      // fallback text
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(14);
+      pdf.setTextColor(...COLOR_NAVY);
+      pdf.text("SHA DE VENEZUELA", MARGIN_X, headerY + 8);
+    }
+  }
+
+  // 2. Right Title Block
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(13);
+  pdf.setTextColor(...COLOR_NAVY);
+  pdf.text("FICHA TÉCNICA DE FACILITADOR", rightX, headerY + 8, { align: "right" });
+
+  // 3. Dual-color accent divider bar
+  const barY = 28;
+  const navyW = CONTENT_W * 0.72;
+  const greenW = CONTENT_W - navyW;
+
+  pdf.setFillColor(...COLOR_NAVY);
+  pdf.rect(MARGIN_X, barY, navyW, 0.8, "F");
+
+  pdf.setFillColor(...COLOR_GREEN);
+  pdf.rect(MARGIN_X + navyW, barY, greenW, 0.8, "F");
+
+  return barY + 4.5; // content starts below divider
+}
+
+/**
+ * Draw running header for pages 2+.
+ */
+function drawRunningHeader(pdf: jsPDF, nombre: string): number {
+  const headerY = 10;
+  const rightX = MARGIN_X + CONTENT_W;
+
+  const logo = getLogoData();
+  if (logo) {
+    try {
+      const logoH = 8.5;
+      const logoW = logoH * (logo.width / logo.height);
+      pdf.addImage(logo.base64, logo.format, MARGIN_X, headerY, logoW, logoH, undefined, "FAST");
+    } catch {
+      // ignore
+    }
+  }
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(8);
+  pdf.setTextColor(...COLOR_MUTED);
+  pdf.text(`FICHA TÉCNICA DE FACILITADOR • ${nombre.toUpperCase()}`, rightX, headerY + 6, { align: "right" });
+
+  const lineY = headerY + 11;
+  pdf.setDrawColor(...COLOR_BORDER);
+  pdf.setLineWidth(0.3);
+  pdf.line(MARGIN_X, lineY, rightX, lineY);
+
+  return lineY + 5;
+}
+
+/**
+ * Draw the official green footer image (public/pdf/sha-footer.png) on a given page.
+ */
+function drawPageFooter(pdf: jsPDF, currentPage: number, totalPages: number): void {
+  const footer = getFooterData();
+  const footerY = PAGE_H - 13.5;
+  const rightX = MARGIN_X + CONTENT_W;
+
+  // 1. Page number right above footer image
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(7);
+  pdf.setTextColor(...COLOR_MUTED);
+  pdf.text(`Página ${currentPage} de ${totalPages}`, rightX, PAGE_H - 15.5, { align: "right" });
+
+  // 2. Green footer image
+  if (footer) {
+    try {
+      const footerH = CONTENT_W * (footer.height / footer.width);
+      pdf.addImage(footer.base64, footer.format, MARGIN_X, footerY, CONTENT_W, footerH, undefined, "FAST");
+    } catch {
+      // fallback green line
+      pdf.setFillColor(...COLOR_GREEN);
+      pdf.rect(MARGIN_X, footerY, CONTENT_W, 2, "F");
+    }
+  }
+}
+
+/**
+ * Wrap paragraphs preserving list items.
+ */
+function wrapParagraph(
+  doc: jsPDF,
+  para: string,
+  maxWidth: number,
+): { lines: string[]; isListItem: boolean } {
+  const listMatch = para.match(/^(\s*[-•]\s*|\s*\d+\.\s*)(.*)$/);
+  if (listMatch) {
+    const text = listMatch[2].trim();
+    const wrapped = doc.splitTextToSize(text, maxWidth - 5);
+    return { lines: wrapped, isListItem: true };
+  }
+
+  const trimmed = para.trim();
+  const lines = doc.splitTextToSize(trimmed, maxWidth);
+  return { lines, isListItem: false };
+}
+
+/**
  * Generate the Ficha Técnica de Facilitador PDF and return it as a Blob.
  */
 export async function generateFichaTecnicaFacilitadorPdf(
   data: FichaTecnicaFacilitadorData,
 ): Promise<Blob> {
-  const contentBottomY = getContentBottomY();
-  const headerBottomY = drawHeader; // placeholder, computed per-page below
-  void headerBottomY; // (no meta block anymore)
-
   const nombre = toTitleCase(data.nombre_apellido) || "Facilitador Sin Nombre";
-  const cedula = data.cedula || "";
-  const titulo = data.titulo_profesional ? data.titulo_profesional.toUpperCase() : "";
+  const cedula = data.cedula ? data.cedula.trim() : "";
+  const titulo = data.titulo_profesional ? data.titulo_profesional.toUpperCase().trim() : "";
 
   const sections: { heading: string; content: string; icon: string }[] = [
     {
@@ -367,140 +337,249 @@ export async function generateFichaTecnicaFacilitadorPdf(
     },
   ].filter((s) => s.content.trim().length > 0);
 
-  // Resolve the photo once (may be a remote fetch)
+  // Resolve photo data (if available)
   const photoData = await resolvePhotoData(data);
 
   const doc = new jsPDF({ unit: "mm", format: "letter", orientation: "portrait" });
-
   let currentPage = 1;
   doc.setPage(currentPage);
 
-  // Header + footer on first page
-  let y = drawHeader(doc);
-  drawFooter(doc);
+  // Content bottom limit above footer
+  const contentBottomY = PAGE_H - 20;
 
-  // --- Photo (top-LEFT) + Name block (to the RIGHT, top-aligned with photo) ---
-  const nameAreaW = (PAGE_W - MARGIN_X) - NAME_X; // from name start to right margin
+  // 1. Draw Page 1 Header
+  let y = drawPage1Header(doc, data);
 
-  // Top of the photo/name block. jsPDF text is positioned at the baseline;
-  // for 15pt helvetica the cap height is ~3.7mm above the baseline. To
-  // top-align the name text with the photo, place the photo top at blockTopY
-  // and the first name baseline at blockTopY + 3.7.
-  const blockTopY = y + 2;
-  const photoY = blockTopY;
+  // 2. Executive Facilitator Hero Card
+  const cardY = y;
+  const cardH = 41;
 
-  let nameY = blockTopY + 3.7;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(NAME_PT);
-  doc.setTextColor(0, 0, 0);
-  const nameLines = doc.splitTextToSize(nombre, nameAreaW);
-  for (const line of nameLines) {
-    doc.text(line, NAME_X, nameY);
-    nameY += 6;
-  }
+  // Card Background
+  doc.setFillColor(...COLOR_CARD_BG);
+  doc.setDrawColor(...COLOR_BORDER);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(MARGIN_X, cardY, CONTENT_W, cardH, 3, 3, "FD");
 
-  if (cedula) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(FONT_SIZE_PT);
-    doc.setTextColor(0, 0, 0);
-    doc.text(cedula, NAME_X, nameY);
-    nameY += 4.5;
-  }
+  // Left vertical accent stripe
+  doc.setFillColor(...COLOR_NAVY);
+  doc.roundedRect(MARGIN_X, cardY, 2.5, cardH, 1, 1, "F");
 
-  if (titulo) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(FONT_SIZE_PT);
-    doc.setTextColor(0, 0, 0);
-    const tituloLines = doc.splitTextToSize(titulo, nameAreaW);
-    for (const line of tituloLines) {
-      doc.text(line, NAME_X, nameY);
-      nameY += 4.5;
-    }
-  }
+  // Profile Photo or Initials Monogram
+  const photoSize = 31;
+  const photoX = MARGIN_X + 6;
+  const photoY = cardY + 5;
 
-  // Draw the photo (top-LEFT, cover-fit square).
+  // White framing box for photo
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(photoX - 0.7, photoY - 0.7, photoSize + 1.4, photoSize + 1.4, 2, 2, "FD");
+
   if (photoData) {
     try {
       doc.addImage(
         photoData.base64,
         photoData.format,
-        PHOTO_X,
+        photoX,
         photoY,
-        PHOTO_SIZE,
-        PHOTO_SIZE,
+        photoSize,
+        photoSize,
         undefined,
         "FAST",
       );
-      // Thin border around the photo
-      doc.setDrawColor(209, 213, 219);
-      doc.setLineWidth(0.3);
-      doc.rect(PHOTO_X, photoY, PHOTO_SIZE, PHOTO_SIZE);
     } catch (err) {
-      console.error("generateFichaTecnicaFacilitadorPdf: photo embed failed:", err);
+      console.error("Photo embed failed:", err);
+    }
+  } else {
+    // Elegant monogram circle avatar
+    const centerX = photoX + photoSize / 2;
+    const centerY = photoY + photoSize / 2;
+    doc.setFillColor(...COLOR_NAVY);
+    doc.circle(centerX, centerY, 13.5, "F");
+
+    const initials = nombre
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0].toUpperCase())
+      .join("");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.text(initials || "FT", centerX, centerY + 4.5, { align: "center" });
+  }
+
+  // Details block (right of photo)
+  const infoX = photoX + photoSize + 7;
+  const infoW = (MARGIN_X + CONTENT_W) - infoX - 4;
+
+  let textY = cardY + 9;
+
+  // Facilitator Name
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...COLOR_TITLE);
+  const nameLines = doc.splitTextToSize(nombre, infoW);
+  for (const line of nameLines) {
+    doc.text(line, infoX, textY);
+    textY += 5.2;
+  }
+
+  // Professional Title
+  if (titulo) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...COLOR_NAVY);
+    const titleLines = doc.splitTextToSize(titulo, infoW);
+    for (const line of titleLines) {
+      doc.text(line, infoX, textY);
+      textY += 4.2;
     }
   }
 
-  // Ensure y is below both the name block and the photo, with extra margin
-  // before the first section so it's not too close to the profile pic.
-  const belowPhoto = photoY + PHOTO_SIZE + 6;
-  const belowName = nameY + 4;
-  y = Math.max(belowName, belowPhoto);
+  // Badges Row
+  const badgeY = Math.max(textY + 1.5, cardY + cardH - 10);
+  let currentBadgeX = infoX;
 
-  // --- Sections ---
+  if (cedula) {
+    // Cédula Pill
+    const cedulaText = `C.I. ${cedula}`;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    const cedulaW = doc.getTextWidth(cedulaText) + 6;
+
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.25);
+    doc.roundedRect(currentBadgeX, badgeY - 3.8, cedulaW, 5.2, 1.5, 1.5, "FD");
+
+    doc.setTextColor(...COLOR_TEXT);
+    doc.text(cedulaText, currentBadgeX + 3, badgeY);
+
+    currentBadgeX += cedulaW + 3;
+  }
+
+  // Certified Facilitator Pill
+  const certText = "• FACILITADOR CERTIFICADO";
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  const certW = doc.getTextWidth(certText) + 6;
+
+  doc.setFillColor(236, 253, 245); // emerald-50
+  doc.setDrawColor(167, 243, 208); // emerald-200
+  doc.setLineWidth(0.25);
+  doc.roundedRect(currentBadgeX, badgeY - 3.8, certW, 5.2, 1.5, 1.5, "FD");
+
+  doc.setTextColor(...COLOR_EMERALD);
+  doc.text(certText, currentBadgeX + 3, badgeY);
+
+  // Position for sections below the card
+  y = cardY + cardH + 7;
+
+  // 3. Content Sections
+  const iconSize = 7.5;
+  const contentIndentX = MARGIN_X + iconSize + 3.5;
+  const contentW = CONTENT_W - (iconSize + 3.5);
+
   for (let i = 0; i < sections.length; i++) {
     const sec = sections[i];
-
-    // Pre-measure section height for page break decision.
-    // Only require room for the heading + a couple of lines — the per-line
-    // page break in the content loop below handles the rest. This avoids
-    // pushing an entire section to the next page when part of it would fit.
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(FONT_SIZE_PT);
     const paraTexts = sec.content.split("\n").filter((p) => p.trim());
-    const minSpaceForHeading = 5 + 2 * (LINE_HEIGHT + 1.5); // heading + 2 lines
+    if (paraTexts.length === 0) continue;
 
-    // If there's not even room for the heading + 2 lines, break to next page
-    if (y + minSpaceForHeading > contentBottomY && y > getHeaderHeight() + 10) {
+    // Check space for heading + 2 lines
+    const minSpace = 16;
+    if (y + minSpace > contentBottomY) {
       doc.addPage();
       currentPage++;
       doc.setPage(currentPage);
-      y = drawHeader(doc);
-      drawFooter(doc);
-      y = y + 5;
+      y = drawRunningHeader(doc, nombre);
     }
 
-    // Draw heading with icon
-    y = await drawSectionHeadingWithIcon(doc, sec.heading, sec.icon, y);
+    // A. Section Heading with Badge Icon
+    const badgeData = await getBadgeIcon(sec.icon);
+    if (badgeData) {
+      try {
+        doc.addImage(
+          badgeData.base64,
+          badgeData.format,
+          MARGIN_X,
+          y - 1,
+          iconSize,
+          iconSize,
+          undefined,
+          "FAST",
+        );
+      } catch (err) {
+        console.error("Icon embed failed:", err);
+      }
+    }
 
-    // Draw content line by line with page break support
+    // Heading Text
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...COLOR_NAVY);
+    const headingText = sec.heading.toUpperCase();
+    doc.text(headingText, contentIndentX, y + 4.2);
+
+    // Elegant horizontal accent hairline
+    const textWidth = doc.getTextWidth(headingText);
+    const lineStartX = contentIndentX + textWidth + 3.5;
+    const lineEndX = MARGIN_X + CONTENT_W;
+    if (lineEndX > lineStartX) {
+      doc.setDrawColor(...COLOR_BORDER);
+      doc.setLineWidth(0.3);
+      doc.line(lineStartX, y + 3.5, lineEndX, y + 3.5);
+    }
+
+    y += iconSize + 3;
+
+    // B. Section Content Lines
     doc.setFont("helvetica", "normal");
     doc.setFontSize(FONT_SIZE_PT);
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(...COLOR_TEXT);
 
     for (const para of paraTexts) {
-      const { lines: wrapped, indent } = wrapParagraph(doc, para, CONTENT_WRAP_W);
-      const textX = CONTENT_INDENT_X + indent;
+      const { lines: wrapped, isListItem } = wrapParagraph(doc, para, contentW);
 
-      for (const line of wrapped) {
+      for (let li = 0; li < wrapped.length; li++) {
+        const line = wrapped[li];
+
         if (y > contentBottomY) {
           doc.addPage();
           currentPage++;
           doc.setPage(currentPage);
-          y = drawHeader(doc);
-          drawFooter(doc);
-          y = y + 5;
-          // Re-set font after page break
+          y = drawRunningHeader(doc, nombre);
+
           doc.setFont("helvetica", "normal");
           doc.setFontSize(FONT_SIZE_PT);
-          doc.setTextColor(0, 0, 0);
+          doc.setTextColor(...COLOR_TEXT);
         }
-        doc.text(line, textX, y);
+
+        if (isListItem) {
+          if (li === 0) {
+            // Draw clean emerald bullet dot
+            doc.setFillColor(...COLOR_EMERALD);
+            doc.circle(contentIndentX + 1.2, y - 1.2, 0.65, "F");
+          }
+          doc.text(line, contentIndentX + 4.2, y);
+        } else {
+          doc.text(line, contentIndentX, y);
+        }
+
         y += LINE_HEIGHT;
       }
-      y += 1; // paragraph spacing
+      y += 1.2; // paragraph spacing
     }
 
     y += SECTION_GAP;
+  }
+
+  // 4. Final Pass: Draw Footers and Page Numbers on all pages
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    drawPageFooter(doc, p, totalPages);
   }
 
   return doc.output("blob");

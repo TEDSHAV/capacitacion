@@ -13,6 +13,7 @@ interface PWANavDrawerProps {
   onToggle: () => void;
   context: NavigationContext;
   currentPath: string;
+  isNegociosReadOnly?: boolean;
 }
 
 export function PWANavDrawer({
@@ -21,8 +22,9 @@ export function PWANavDrawer({
   onToggle,
   context,
   currentPath,
+  isNegociosReadOnly = false,
 }: PWANavDrawerProps) {
-  const navItems = getNavigationForContext(context);
+  const navItems = getNavigationForContext(context, isNegociosReadOnly);
   const contextInfo = getContextInfo(context);
   const badgeCounts = useBadgeCounts(context);
   const isOnline = useOnlineStatus();

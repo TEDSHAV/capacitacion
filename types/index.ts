@@ -1046,6 +1046,8 @@ export interface OSIFilters {
   ejecutivo?: string;
   includeOsiIds?: number[];
   excludeOsiIds?: number[];
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 }
 
 export type SurveyMode = "unique" | "per_session";

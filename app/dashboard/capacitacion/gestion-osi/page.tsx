@@ -16,7 +16,7 @@ export default async function GestionOSIPage() {
 
   // Pre-fetch initial page 1 data and filter options in parallel on the server
   const [initialData, initialFilterOptions] = await Promise.all([
-    getOSIsForGestionOSI({}, 1, 20),
+    getOSIsForGestionOSI({}, 1, 20, "nro_osi", "desc"),
     getOSIFilterOptions(),
   ]);
 

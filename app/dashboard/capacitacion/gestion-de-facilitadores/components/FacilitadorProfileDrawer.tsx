@@ -33,6 +33,7 @@ interface FacilitadorProfileDrawerProps {
   onClose: () => void;
   onAssignOsi: (facilitador: FacilitatorPoolItem) => void;
   onEdit: (facilitador: FacilitatorPoolItem) => void;
+  readOnly?: boolean;
 }
 
 export function FacilitadorProfileDrawer({
@@ -41,6 +42,7 @@ export function FacilitadorProfileDrawer({
   onClose,
   onAssignOsi,
   onEdit,
+  readOnly = false,
 }: FacilitadorProfileDrawerProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"competencias" | "trayectoria" | "evaluacion">("competencias");
@@ -580,38 +582,57 @@ export function FacilitadorProfileDrawer({
 
         {/* Sticky Action Footer */}
         <div className="p-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                onAssignOsi(facilitador);
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0c3f69] hover:bg-blue-900 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
-            >
-              <Calendar className="w-4 h-4" />
-              <span>Asignar a OSI</span>
-            </button>
+          {readOnly ? (
+            <div className="flex items-center justify-between w-full">
+              <span className="text-xs text-gray-500 italic">Vista de perfil (solo lectura)</span>
+              <a
+                href={`/api/generate-ficha-tecnica-facilitador-pdf?id=${facilitador.id}&inline=true`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+                title="Ver Ficha Técnica PDF (abre en nueva pestaña)"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Ver Ficha Técnica PDF</span>
+              </a>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    onAssignOsi(facilitador);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0c3f69] hover:bg-blue-900 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Asignar a OSI</span>
+                </button>
 
-            <button
-              onClick={() => {
-                onEdit(facilitador);
-                onClose();
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-medium rounded-lg shadow-2xs transition-colors"
-            >
-              <Edit className="w-4 h-4 text-gray-500" />
-              <span>Editar Perfil</span>
-            </button>
-          </div>
+                <button
+                  onClick={() => {
+                    onEdit(facilitador);
+                    onClose();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-medium rounded-lg shadow-2xs transition-colors"
+                >
+                  <Edit className="w-4 h-4 text-gray-500" />
+                  <span>Editar Perfil</span>
+                </button>
+              </div>
 
-          <a
-            href={`/api/generate-ficha-tecnica-facilitador-pdf?id=${facilitador.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors shadow-2xs"
-          >
-            <FileText className="w-4 h-4 text-blue-600" />
-            <span>Ficha Técnica PDF</span>
-          </a>
+              <a
+                href={`/api/generate-ficha-tecnica-facilitador-pdf?id=${facilitador.id}&inline=true`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors shadow-2xs"
+                title="Ver Ficha Técnica PDF (abre en nueva pestaña)"
+              >
+                <FileText className="w-4 h-4 text-blue-600" />
+                <span>Ficha Técnica PDF</span>
+              </a>
+            </>
+          )}
         </div>
       </div>
     </div>

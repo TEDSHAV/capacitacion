@@ -40,6 +40,7 @@ interface FacilitadorPoolGridProps {
   onEdit: (facilitador: FacilitatorPoolItem) => void;
   onToggleStatus: (facilitador: FacilitatorPoolItem) => void;
   onShowHistory: (facilitador: FacilitatorPoolItem) => void;
+  readOnly?: boolean;
 }
 
 export function FacilitadorPoolGrid({
@@ -58,6 +59,7 @@ export function FacilitadorPoolGrid({
   onEdit,
   onToggleStatus,
   onShowHistory,
+  readOnly = false,
 }: FacilitadorPoolGridProps) {
   // Apply filters + sort
   const { filtered, matchedCount } = useMemo(() => {
@@ -248,6 +250,7 @@ export function FacilitadorPoolGrid({
               onAssignOsi={onAssignOsi}
               onViewProfile={onViewProfile}
               onEdit={onEdit}
+              readOnly={readOnly}
             />
           ))}
         </div>
@@ -391,57 +394,65 @@ export function FacilitadorPoolGrid({
 
                 <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-1.5">
-                    <button
-                      onClick={() => onAssignOsi(f)}
-                      className="inline-flex items-center gap-1 px-2 py-1.5 bg-[#0c3f69] hover:bg-blue-900 text-white text-xs font-semibold rounded-md transition-colors"
-                      title="Asignar a OSI"
-                    >
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>Asignar</span>
-                    </button>
-                    <button
-                      onClick={() => onEdit(f)}
-                      className="p-1.5 text-gray-500 hover:text-gray-800 bg-white border border-gray-200 hover:bg-gray-100 rounded-md transition-colors"
-                      title="Editar"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onShowHistory(f)}
-                      className="p-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-md transition-colors"
-                      title="Historial de cursos"
-                    >
-                      <History className="w-3.5 h-3.5" />
-                    </button>
+                    {!readOnly && (
+                      <>
+                        <button
+                          onClick={() => onAssignOsi(f)}
+                          className="inline-flex items-center gap-1 px-2 py-1.5 bg-[#0c3f69] hover:bg-blue-900 text-white text-xs font-semibold rounded-md transition-colors"
+                          title="Asignar a OSI"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Asignar</span>
+                        </button>
+                        <button
+                          onClick={() => onEdit(f)}
+                          className="p-1.5 text-gray-500 hover:text-gray-800 bg-white border border-gray-200 hover:bg-gray-100 rounded-md transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onShowHistory(f)}
+                          className="p-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-md transition-colors"
+                          title="Historial de cursos"
+                        >
+                          <History className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
                     <a
-                      href={`/api/generate-ficha-tecnica-facilitador-pdf?id=${f.id}`}
+                      href={`/api/generate-ficha-tecnica-facilitador-pdf?id=${f.id}&inline=true`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-md transition-colors"
-                      title="Ficha Técnica PDF"
+                      className="p-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-md transition-colors shadow-2xs"
+                      title="Ver Ficha Técnica PDF (abre en nueva pestaña)"
                     >
                       <FileText className="w-3.5 h-3.5" />
                     </a>
-                    <a
-                      href={`/api/generate-resumen-facilitador-pdf?id=${f.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1.5 text-emerald-600 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-md transition-colors"
-                      title="Resumen PDF para compartir con Negocios"
-                    >
-                      <Share2 className="w-3.5 h-3.5" />
-                    </a>
-                    <button
-                      onClick={() => onToggleStatus(f)}
-                      className={`p-1.5 rounded-md transition-colors ${
-                        f.is_active
-                          ? "text-red-600 hover:text-red-800 bg-red-50 border border-red-200 hover:bg-red-100"
-                          : "text-emerald-600 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100"
-                      }`}
-                      title={f.is_active ? "Inhabilitar" : "Habilitar"}
-                    >
-                      {f.is_active ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                    </button>
+                    {!readOnly && (
+                      <>
+                        <a
+                          href={`/api/generate-resumen-facilitador-pdf?id=${f.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 text-emerald-600 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-md transition-colors"
+                          title="Resumen PDF para compartir con Negocios"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </a>
+                        <button
+                          onClick={() => onToggleStatus(f)}
+                          className={`p-1.5 rounded-md transition-colors ${
+                            f.is_active
+                              ? "text-red-600 hover:text-red-800 bg-red-50 border border-red-200 hover:bg-red-100"
+                              : "text-emerald-600 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100"
+                          }`}
+                          title={f.is_active ? "Inhabilitar" : "Habilitar"}
+                        >
+                          {f.is_active ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>

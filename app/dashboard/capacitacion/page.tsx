@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import { checkUserNegociosAccess } from "@/lib/negocios-auth";
 import CapacitacionClient from "./CapacitacionClient";
 
 /** Check if the current user is admin/superadmin for the capacitacion app. */
@@ -44,6 +45,11 @@ export default async function CapacitacionPage() {
 
   if (!claimsData?.claims) {
     redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
+  }
+
+  const access = await checkUserNegociosAccess();
+  if (access.isNegociosReadOnly) {
+    redirect("/dashboard/capacitacion/gestion-de-facilitadores");
   }
 
   const isAdmin = await isCapacitacionAdmin(supabase, claimsData);
