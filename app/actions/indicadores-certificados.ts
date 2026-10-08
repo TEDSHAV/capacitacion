@@ -335,12 +335,14 @@ export async function getIndicadoresCertificados72h(
       }
     }
 
-    // 3. Batch fetch certificados: MIN(fecha_emision) + MIN(created_at) +
+    // 3. Batch fetch certificados: MIN(created_at) + MIN(fecha_emision) +
     //    a facilitador per nro_osi.
-    //    fecha_emision (DATE, user-provided) is the PRIMARY source — it's the
-    //    actual date the certificate was issued. created_at (TIMESTAMPTZ, auto
-    //    DEFAULT now()) is the FALLBACK — it's when the DB row was inserted,
-    //    which can be much later than the actual issuance (e.g. bulk backfills).
+    //    created_at (TIMESTAMPTZ, auto DEFAULT now()) is the PRIMARY source —
+    //    it's when the certificate was actually registered in the system and
+    //    cannot be edited by users. fecha_emision (DATE, user-typed) is the
+    //    FALLBACK only; in practice it's frequently back-dated (a data check
+    //    found it 3+ days earlier than created_at in ~60% of OSIs), so using
+    //    it as the clock would overstate compliance.
     const certByNumericOsi = new Map<
       number,
       {
@@ -491,7 +493,7 @@ export async function getIndicadoresCertificados72h(
           ? agg.allSessionsExecuted
           : o.id_estatus === 12; // OSI_ESTATUS.EJECUTADO
 
-      // Clock end: MIN(fecha_emision) (primary) || MIN(created_at) (fallback)
+      // Clock end: MIN(created_at) (primary) || MIN(fecha_emision) (fallback)
       const numericOsi = numericOsiByOsiId.get(osiId) ?? null;
       const cert = numericOsi != null ? certByNumericOsi.get(numericOsi) : undefined;
       const minFechaEmision = cert?.minFechaEmision ?? null;
@@ -502,12 +504,12 @@ export async function getIndicadoresCertificados72h(
 
       let fechaEmision: string | null = null;
       let fuenteEmision: IndicadorFuente | null = null;
-      if (minFechaEmision) {
-        fechaEmision = minFechaEmision;
-        fuenteEmision = "fecha_emision";
-      } else if (minCreatedAt) {
+      if (minCreatedAt) {
         fechaEmision = minCreatedAt;
         fuenteEmision = "created_at";
+      } else if (minFechaEmision) {
+        fechaEmision = minFechaEmision;
+        fuenteEmision = "fecha_emision";
       }
 
       // Clock start / execution reference date:

@@ -339,17 +339,33 @@ longer applies.
 
 Server action: `getIndicadoresGestionMensual` in `app/actions/indicadores-gestion.ts`.
 
-For each month of the selected year, computes:
+For each month of the selected year, computes (three populations — keep them
+labelled apart in every UI/export):
+
+**By planned month** (planned month = month of earliest `osi_sesion.fecha`):
+- **OSIs programadas** — planned in that month. Always equals
+  `ejecutadasEnSuMes + ejecutadasOtroMes + pendientes`.
+- **Ejecutadas en su mes** — fully executed (every session has `fecha_ejecutada`) with last execution in the same month
+- **Ejecutadas en otro mes** (`osisEjecutadasOtroMes`) — fully executed but last session fell in a different month (typically multi-month courses spilling into the next month)
+- **Pendientes** — not yet fully executed (+ `pendientesVencidas` subset with last planned date already past)
+- **Rezagadas ejecutadas este mes** — planned in an earlier month AND the *first executed session* is after the planned month AND finished this month. Multi-month courses that started on schedule are NOT rezagadas (they show as "ejecutadas en otro mes" in their planned month instead).
+
+**By OSI issue date** (`fecha_emision`, a different population from "programadas"):
 - **OSIs recibidas** — count of OSIs whose `fecha_emision` falls in that month
-- **Pautadas para meses posteriores** — subset of received OSIs whose earliest planned session is in a subsequent month (future workload / advance sales)
-- **Ejecutadas en su mes** — OSIs whose every session has `fecha_ejecutada` (planned month = month of earliest session)
-- **Pendientes del mes** — received/planned in that month but not yet fully executed
-- **Pendientes para el próximo mes** — planned in that month that were not executed in that same month (carry over to next month / pending for next month)
-- **Participantes planificados** — SUM(`participantes_ejecucion ?? participantes_max_solped`) over OSIs **executed** in this month (attributed to execution month, not planned month, so it aligns with asistidos)
-- **Participantes asistidos** — raw count of certificates issued for OSIs **executed** in this month (NOT distinct participants — just total certificates). Attributed to the OSI's execution month so it can be compared directly against planificados. Sourced from `certificados` by `nro_osi`. Pending OSIs (no execution date) don't contribute to either participant row.
-- **Certificados emitidos** — raw count of certificates by their `fecha_emision` month (issuance month). Differs from "Participantes asistidos" because the latter follows the OSI's execution month while this follows the certificate's own issuance date.
-- **PVC (carnets) emitidos** — count of active carnets by `fecha_emision` month
-- **OSIs en riesgo** — received > 30 days ago with at least one pending session
+- **Pautadas para meses posteriores** — subset whose earliest planned session is in a subsequent month
+
+**By execution month** (OSIs whose last executed session is in that month, incl. rezagadas):
+- **Participantes estimados** (`participantesPlanificados`) — SUM(`participantes_ejecucion ?? participantes_max_solped`). In practice ~95% of OSIs only have the SOLPED value, so label it "estimados (SOLPED/OSI)", never "asistentes" or "contratados".
+- **Participantes certificados** (`participantesLista`, also `certificados`) — active certificates for those OSIs, any issue date. Not a true attendance metric (`ejecucion_osi_participantes` is unreliable).
+- **Carnets PVC** (`pvc`) — active carnets linked to those OSIs' certificates, any issue date
+
+**By document issue date** (productivity, independent of course month):
+- **Certificados emitidos** (`certificadosEmitidos`) / **Carnets emitidos** (`pvcEmitidos`) — by the document's own `fecha_emision`
+
+`IndicadorOsiItem` and `OsiCarryRow` carry `sesionesTotal`, first/last session
+dates (and `mesInicioEjecucion` on carry rows) so the UI can badge multi-month
+courses. Clicking an OSI number in `IndicadorDetailModal` opens the in-app
+`OsiPreviewModal` (local port of the shell's consulta-osi preview, no navigation).
 
 Per-OSI "planned month" = month of the earliest `osi_sesion.fecha`. An OSI is
 "ejecutada" when all its sessions have `fecha_ejecutada`. Note: `fecha_ejecutada`
@@ -374,7 +390,7 @@ the selected month without a second server fetch:
 |---|---|
 | **Arrastradas de meses anteriores** | Planned before the selected month AND (not executed OR executed after the selected month) |
 | **Pasarán al próximo mes** | Planned for the selected month AND (not executed OR executed after the selected month) |
-| **Rezagadas ejecutadas este mes** | Planned before the selected month AND executed during the selected month |
+| **Rezagadas ejecutadas este mes** | Planned before the selected month AND executed during the selected month AND first executed session after the planned month (multi-month courses that started on time are excluded, matching the server rule) |
 
 These are provably disjoint: *arrastradas* and *rezagadas* share "planned before"
 but differ on execution; *pasarán* is the only bucket with "planned in selected month".

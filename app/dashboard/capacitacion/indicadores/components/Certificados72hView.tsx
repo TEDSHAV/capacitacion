@@ -10,13 +10,13 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  ExternalLink,
   ShieldCheck,
   Calendar,
   X,
 } from "lucide-react";
 import type { IndicadorEstado, IndicadorOsiRow, IndicadoresAggregates } from "@/types";
 import { parseDate } from "@/lib/business-days";
+import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 
 interface Props {
   aggregates: IndicadoresAggregates;
@@ -58,6 +58,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("diasHabiles");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string } | null>(null);
 
   const pct = aggregates.pctCumplimiento;
   const pctColor =
@@ -484,7 +485,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
                   className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
                 >
                   <span className="inline-flex items-center gap-1">
-                    Fecha Emisión
+                    Registro Certificado
                     {sortKey === "fechaEmision" ? (
                       sortDir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
                     ) : (
@@ -549,15 +550,14 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
                     >
                       {/* OSI */}
                       <td className="px-4 py-3 font-semibold whitespace-nowrap">
-                        <a
-                          href={`/dashboard/capacitacion/gestion-osi?id=${r.osiId}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 text-sky-700 hover:text-sky-900 hover:underline"
+                        <button
+                          type="button"
+                          onClick={() => setPreviewOsi({ osiId: r.osiId, nroOsi: r.nroOsi })}
+                          className="inline-flex items-center gap-1.5 text-sky-700 hover:text-sky-900 hover:underline cursor-pointer"
+                          title="Ver formato oficial de la OSI"
                         >
                           {r.nroOsi}
-                          <ExternalLink className="w-3 h-3 text-sky-400" />
-                        </a>
+                        </button>
                       </td>
 
                       {/* Empresa */}
@@ -647,6 +647,13 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
           </table>
         </div>
       </div>
+
+      <OsiPreviewModal
+        isOpen={Boolean(previewOsi)}
+        osiId={previewOsi?.osiId ?? null}
+        osiNumber={previewOsi?.nroOsi}
+        onClose={() => setPreviewOsi(null)}
+      />
     </div>
   );
 }

@@ -13,8 +13,25 @@ import {
   Users,
   Award,
   Layers,
+  FileText,
+  CalendarRange,
 } from "lucide-react";
 import type { IndicadorOsiItem } from "@/types";
+import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
+
+/** "YYYY-MM-DD" → "DD/MM" */
+function shortDate(d: string | null) {
+  if (!d) return "";
+  return `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+}
+
+function isMultiMes(item: IndicadorOsiItem) {
+  return (
+    !!item.fechaPrimeraSesion &&
+    !!item.fechaUltimaSesion &&
+    item.fechaPrimeraSesion.slice(0, 7) !== item.fechaUltimaSesion.slice(0, 7)
+  );
+}
 
 interface Props {
   isOpen: boolean;
@@ -35,6 +52,7 @@ export default function IndicadorDetailModal({
 }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   const [copied, setCopied] = useState(false);
+  const [previewOsi, setPreviewOsi] = useState<IndicadorOsiItem | null>(null);
 
   const filteredItems = useMemo(() => {
     if (!searchTerm.trim()) return items;
@@ -90,9 +108,12 @@ export default function IndicadorDetailModal({
       "Fecha Emisión",
       "Fecha Planificada",
       "Fecha Ejecutada",
-      "Part. Planificados",
+      "Sesiones",
+      "Primera Sesión",
+      "Última Sesión",
+      "Part. Estimados (SOLPED/OSI)",
       "Part. Certificados",
-      "Certificados Emitidos",
+      "Certificados",
       "Carnets PVC",
       "Estatus",
     ];
@@ -104,6 +125,9 @@ export default function IndicadorDetailModal({
       `"${item.fechaEmision || ""}"`,
       `"${item.fechaPlanificada || ""}"`,
       `"${item.fechaEjecutada || ""}"`,
+      item.sesionesTotal,
+      `"${item.fechaPrimeraSesion || ""}"`,
+      `"${item.fechaUltimaSesion || ""}"`,
       item.participantesPlanificados,
       item.participantesCertificados,
       item.certificadosCount,
@@ -125,10 +149,8 @@ export default function IndicadorDetailModal({
 
   if (!isOpen) return null;
 
-  const isParticipantMetric =
-    metricKey.includes("participantes") ||
-    metricKey.includes("certificados") ||
-    metricKey.includes("pvc");
+  const isEmitidosMetric = metricKey === "certificadosEmitidos" || metricKey === "pvcEmitidos";
+  const showPvc = metricKey === "pvc" || metricKey === "pvcEmitidos";
 
   return (
     <div
@@ -165,28 +187,28 @@ export default function IndicadorDetailModal({
               {stats.totalPlanificados > 0 && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
                   <Users className="w-3.5 h-3.5 text-blue-500" />
-                  {stats.totalPlanificados} según OSI
+                  {stats.totalPlanificados} estimados (SOLPED/OSI)
                 </span>
               )}
 
               {stats.totalCertificados > 0 && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
                   <Award className="w-3.5 h-3.5 text-emerald-500" />
-                  {stats.totalCertificados} certificados (asistidos)
+                  {stats.totalCertificados} participantes certificados
                 </span>
               )}
 
-              {metricKey === "certificados" && stats.totalCerts > 0 && (
+              {metricKey === "certificadosEmitidos" && stats.totalCerts > 0 && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
                   <Award className="w-3.5 h-3.5 text-indigo-500" />
-                  {stats.totalCerts} certificados emitidos
+                  {stats.totalCerts} certificados emitidos en el periodo
                 </span>
               )}
 
-              {metricKey === "pvc" && stats.totalCarnets > 0 && (
+              {showPvc && stats.totalCarnets > 0 && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60">
                   <Award className="w-3.5 h-3.5 text-amber-500" />
-                  {stats.totalCarnets} carnets PVC emitidos
+                  {stats.totalCarnets} carnets PVC{isEmitidosMetric ? " emitidos en el periodo" : ""}
                 </span>
               )}
             </div>
@@ -283,13 +305,13 @@ export default function IndicadorDetailModal({
                   <th className="px-4 py-2.5 font-semibold text-gray-600 uppercase tracking-wider">
                     Ejecutada
                   </th>
-                  <th className="px-4 py-2.5 font-semibold text-gray-600 uppercase tracking-wider text-center">
-                    Según OSI
+                  <th className="px-4 py-2.5 font-semibold text-gray-600 uppercase tracking-wider text-center" title="Participantes estimados según SOLPED/OSI">
+                    Estimados
                   </th>
-                  <th className="px-4 py-2.5 font-semibold text-gray-600 uppercase tracking-wider text-center">
-                    Certificados
+                  <th className="px-4 py-2.5 font-semibold text-gray-600 uppercase tracking-wider text-center" title={isEmitidosMetric ? "Certificados emitidos en el periodo" : "Participantes con certificado activo"}>
+                    {isEmitidosMetric ? "Emitidos" : "Certificados"}
                   </th>
-                  {metricKey === "pvc" && (
+                  {showPvc && (
                     <th className="px-4 py-2.5 font-semibold text-gray-600 uppercase tracking-wider text-center">
                       PVC
                     </th>
@@ -308,15 +330,35 @@ export default function IndicadorDetailModal({
                       className="hover:bg-sky-50/40 transition-colors group"
                     >
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <Link
-                          href={`/dashboard/capacitacion/gestion-osi?id=${item.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 font-bold text-sky-600 hover:text-sky-800 hover:underline"
-                        >
-                          <span>{item.nroOsi}</span>
-                          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </Link>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewOsi(item)}
+                            className="inline-flex items-center gap-1.5 font-bold text-sky-600 hover:text-sky-800 hover:underline cursor-pointer"
+                            title="Ver formato oficial de la OSI"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-sky-400" />
+                            <span>{item.nroOsi}</span>
+                          </button>
+                          <Link
+                            href={`/dashboard/capacitacion/gestion-osi?id=${item.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-gray-300 hover:text-sky-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Abrir seguimiento de la OSI (nueva pestaña)"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        </div>
+                        {isMultiMes(item) && (
+                          <div
+                            className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60"
+                            title={`Curso multi-mes: ${item.sesionesTotal} sesiones (${item.sesionesEjecutadas} ejecutadas) del ${item.fechaPrimeraSesion} al ${item.fechaUltimaSesion}`}
+                          >
+                            <CalendarRange className="w-3 h-3" />
+                            {item.sesionesTotal} ses. · {shortDate(item.fechaPrimeraSesion)} → {shortDate(item.fechaUltimaSesion)}
+                          </div>
+                        )}
                       </td>
 
                       <td className="px-4 py-3">
@@ -352,12 +394,12 @@ export default function IndicadorDetailModal({
                       </td>
 
                       <td className="px-4 py-3 text-center tabular-nums font-semibold text-gray-900">
-                        {metricKey === "certificados"
+                        {metricKey === "certificadosEmitidos"
                           ? item.certificadosCount || 0
                           : item.participantesCertificados || 0}
                       </td>
 
-                      {metricKey === "pvc" && (
+                      {showPvc && (
                         <td className="px-4 py-3 text-center tabular-nums font-semibold text-amber-700">
                           {item.carnetsCount || 0}
                         </td>
@@ -392,7 +434,7 @@ export default function IndicadorDetailModal({
         <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between text-xs text-gray-500">
           <div>
             Haga clic en cualquier <span className="font-semibold text-sky-700">Nro OSI</span> para
-            abrir el expediente y seguimiento de la OSI.
+            ver el formato oficial de la OSI aquí mismo.
           </div>
           <button
             onClick={onClose}
@@ -402,6 +444,13 @@ export default function IndicadorDetailModal({
           </button>
         </div>
       </div>
+
+      <OsiPreviewModal
+        isOpen={Boolean(previewOsi)}
+        osiId={previewOsi?.id ?? null}
+        osiNumber={previewOsi?.nroOsi}
+        onClose={() => setPreviewOsi(null)}
+      />
     </div>
   );
 }

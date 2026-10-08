@@ -1,10 +1,12 @@
 import * as XLSX from "xlsx";
 import type { GestionMensualResponse, IndicadorOsiItem, IndicadoresAggregates } from "@/types";
 import { trackedMonthIndicesForYear } from "@/lib/indicadores-cutoff";
+import { sumMeses } from "@/lib/indicadores-range";
 
 export interface ExportXlsxOptions {
   data: GestionMensualResponse;
   selectedMes: string;
+  mesHasta?: string;
   selectedMesLabel: string;
   metaPorcentaje?: number;
   observaciones?: string;
@@ -20,6 +22,7 @@ const MESES_NOMBRES = [
 export function exportIndicadoresToExcel({
   data,
   selectedMes,
+  mesHasta = selectedMes,
   selectedMesLabel,
   metaPorcentaje = 85,
   observaciones,
@@ -27,29 +30,36 @@ export function exportIndicadoresToExcel({
   aggregates72h,
 }: ExportXlsxOptions) {
   const wb = XLSX.utils.book_new();
+  const rangeFrom = selectedMes <= mesHasta ? selectedMes : mesHasta;
+  const rangeTo = selectedMes <= mesHasta ? mesHasta : selectedMes;
 
   // ── Sheet 1: Matriz de Indicadores (IC-GS-DC-01) ──────────────────────
   const sheet1Data: (string | number)[][] = [
     ["SHA DE VENEZUELA, C.A."],
     ["INDICADOR DE CALIDAD - PLANIFICACIÓN Y EJECUCIÓN DE CAPACITACIÓN"],
-    [`MES EVALUADO: ${selectedMesLabel.toUpperCase()}`, `AÑO: ${data.year}`, `META ESTABLECIDA: ${metaPorcentaje}%`],
+    [`${rangeFrom === rangeTo ? "MES EVALUADO" : "PERIODO EVALUADO"}: ${selectedMesLabel.toUpperCase()}`, `AÑO: ${data.year}`, `META ESTABLECIDA: ${metaPorcentaje}%`],
     [],
     ["FACTORES A CONSIDERAR (PLANIFICACIÓN Y EJECUCIÓN)"],
     [
       "MES",
       "OSIs PROGRAMADAS",
-      "OSIs RECIBIDAS",
-      "OSIs EJECUTADAS EN SU MES",
-      "OSIs PENDIENTES EN CURSO",
-      "OSIs REZAGADAS EJECUTADAS",
-      "PARTICIPANTES SEGÚN OSI",
-      "PARTICIPANTES ASISTIDOS (CERTIFICADOS)",
-      "CERTIFICADOS EMITIDOS",
-      "CARNETS PVC EMITIDOS",
+      "EJECUTADAS EN SU MES",
+      "EJECUTADAS EN OTRO MES",
+      "PENDIENTES DE EJECUCIÓN",
+      "REZAGADAS EJECUTADAS ESTE MES",
+      "OSIs RECIBIDAS (FECHA EMISIÓN)",
+      "PARTICIPANTES ESTIMADOS (SOLPED/OSI)",
+      "PARTICIPANTES CERTIFICADOS",
+      "CARNETS PVC (CURSOS DEL MES)",
+      "CERTIFICADOS EMITIDOS EN EL MES",
+      "CARNETS EMITIDOS EN EL MES",
     ],
   ];
 
-  const trackedIndices = trackedMonthIndicesForYear(data.year);
+  const inRange = (mes: string) => mes >= rangeFrom && mes <= rangeTo;
+  const trackedIndices = trackedMonthIndicesForYear(data.year).filter((idx) =>
+    inRange(`${data.year}-${String(idx + 1).padStart(2, "0")}`)
+  );
 
   trackedIndices.forEach((idx) => {
     const nombre = MESES_NOMBRES[idx];
@@ -58,41 +68,59 @@ export function exportIndicadoresToExcel({
     sheet1Data.push([
       nombre,
       m ? m.osisPlanificadas : 0,
-      m ? m.osisRecibidas : 0,
       m ? m.osisEjecutadasEnSuMes : 0,
+      m ? m.osisEjecutadasOtroMes : 0,
       m ? m.osisPendientes : 0,
       m ? m.osisRezagadasEjecutadas : 0,
+      m ? m.osisRecibidas : 0,
       m ? m.participantesPlanificados : 0,
       m ? m.participantesLista : 0,
-      m ? m.certificados : 0,
       m ? m.pvc : 0,
+      m ? m.certificadosEmitidos : 0,
+      m ? m.pvcEmitidos : 0,
     ]);
   });
 
-  // Total Row
+  if (trackedIndices.length > 1) {
+    const t = sumMeses(
+      data.meses.filter((m) => inRange(m.mes)),
+      "Total"
+    );
+    sheet1Data.push([
+      "TOTAL PERIODO",
+      t.osisPlanificadas,
+      t.osisEjecutadasEnSuMes,
+      t.osisEjecutadasOtroMes,
+      t.osisPendientes,
+      t.osisRezagadasEjecutadas,
+      t.osisRecibidas,
+      t.participantesPlanificados,
+      t.participantesLista,
+      t.pvc,
+      t.certificadosEmitidos,
+      t.pvcEmitidos,
+    ]);
+  }
+
+  sheet1Data.push([]);
   sheet1Data.push([
-    "TOTAL ANUAL",
-    data.total.osisPlanificadas,
-    data.total.osisRecibidas,
-    data.total.osisEjecutadasEnSuMes,
-    data.total.osisPendientes,
-    data.total.osisRezagadasEjecutadas,
-    data.total.participantesPlanificados,
-    data.total.participantesLista,
-    data.total.certificados,
-    data.total.pvc,
+    "NOTAS: Programadas = Ejecutadas en su mes + Ejecutadas en otro mes + Pendientes. " +
+      "Rezagadas: programadas en meses anteriores cuya ejecución inició tarde y culminó en este mes (cursos multi-mes iniciados a tiempo no cuentan). " +
+      "OSIs recibidas se cuentan por fecha de emisión de Negocios (población distinta). " +
+      "Participantes estimados (SOLPED/OSI), certificados y carnets corresponden a los cursos ejecutados en el mes, sin importar la fecha de emisión del documento. " +
+      "Las dos últimas columnas cuentan documentos por su propia fecha de emisión.",
   ]);
 
   sheet1Data.push([]);
   sheet1Data.push(["PLANIFICACIÓN Y EJECUCIÓN DE CURSOS (PORCENTAJES VS META)"]);
-  sheet1Data.push(["MES", "% CURSOS REALIZADOS", "% CURSOS PENDIENTES", "% PARTICIPANTES ASISTIDOS", "META"]);
+  sheet1Data.push(["MES", "% EJECUTADOS EN SU MES", "% EJECUTADOS EN OTRO MES", "% PENDIENTES", "% PARTICIPANTES CERTIFICADOS", "META"]);
 
   trackedIndices.forEach((idx) => {
     const nombre = MESES_NOMBRES[idx];
     const mesKey = `${data.year}-${String(idx + 1).padStart(2, "0")}`;
     const m = data.meses.find((item) => item.mes === mesKey);
     if (!m) {
-      sheet1Data.push([nombre, "0%", "0%", "0%", `${metaPorcentaje}%`]);
+      sheet1Data.push([nombre, "0%", "0%", "0%", "0%", `${metaPorcentaje}%`]);
       return;
     }
 
@@ -113,12 +141,17 @@ export function exportIndicadoresToExcel({
         ? Math.round((m.osisPendientes / baseCursos) * 100)
         : 0;
 
+    const pctO =
+      baseCursos > 0
+        ? Math.round((m.osisEjecutadasOtroMes / baseCursos) * 100)
+        : 0;
+
     const pctA =
       m.participantesPlanificados > 0
         ? Math.round((m.participantesLista / m.participantesPlanificados) * 100)
         : 0;
 
-    sheet1Data.push([nombre, `${pctR}%`, `${pctP}%`, `${pctA}%`, `${metaPorcentaje}%`]);
+    sheet1Data.push([nombre, `${pctR}%`, `${pctO}%`, `${pctP}%`, `${pctA}%`, `${metaPorcentaje}%`]);
   });
 
   sheet1Data.push([]);
@@ -156,18 +189,20 @@ export function exportIndicadoresToExcel({
 
   const ws1 = XLSX.utils.aoa_to_sheet(sheet1Data);
 
-  // Column widths for sheet 1 (10 columns in Table 1)
+  // Column widths for sheet 1 (12 columns in Table 1)
   ws1["!cols"] = [
     { wch: 18 },
     { wch: 18 },
-    { wch: 16 },
-    { wch: 26 },
+    { wch: 22 },
     { wch: 24 },
-    { wch: 26 },
-    { wch: 34 },
-    { wch: 36 },
-    { wch: 22 },
-    { wch: 22 },
+    { wch: 24 },
+    { wch: 30 },
+    { wch: 30 },
+    { wch: 38 },
+    { wch: 28 },
+    { wch: 28 },
+    { wch: 30 },
+    { wch: 28 },
   ];
 
   XLSX.utils.book_append_sheet(wb, ws1, "Indicador Calidad");
@@ -177,17 +212,9 @@ export function exportIndicadoresToExcel({
   let allOsis = detailItems;
   if (allOsis.length === 0 && data.metricOsis) {
     const map = new Map<number, IndicadorOsiItem>();
-    const mesSuffix = `_${selectedMes}`;
     for (const key of Object.keys(data.metricOsis)) {
-      if (key.endsWith(mesSuffix)) {
-        for (const item of data.metricOsis[key]) {
-          if (!map.has(item.id)) map.set(item.id, item);
-        }
-      }
-    }
-    // Fallback to all if selected month had no direct keys
-    if (map.size === 0) {
-      for (const key of Object.keys(data.metricOsis)) {
+      const keyMes = key.slice(key.lastIndexOf("_") + 1);
+      if (/^\d{4}-\d{2}$/.test(keyMes) && inRange(keyMes)) {
         for (const item of data.metricOsis[key]) {
           if (!map.has(item.id)) map.set(item.id, item);
         }
@@ -205,9 +232,11 @@ export function exportIndicadoresToExcel({
         "Fecha Emisión",
         "Fecha Planificada",
         "Fecha Ejecutada",
-        "Part. según OSI",
+        "Sesiones",
+        "Primera Sesión",
+        "Última Sesión",
+        "Part. Estimados (SOLPED/OSI)",
         "Part. Certificados",
-        "Certificados Emitidos",
         "Carnets PVC",
         "Estatus",
       ],
@@ -221,9 +250,11 @@ export function exportIndicadoresToExcel({
         item.fechaEmision || "",
         item.fechaPlanificada || "",
         item.fechaEjecutada || "",
+        item.sesionesTotal || 0,
+        item.fechaPrimeraSesion || "",
+        item.fechaUltimaSesion || "",
         item.participantesPlanificados || 0,
         item.participantesCertificados || 0,
-        item.certificadosCount || 0,
         item.carnetsCount || 0,
         item.estatus || "",
       ]);
@@ -237,8 +268,10 @@ export function exportIndicadoresToExcel({
       { wch: 15 },
       { wch: 16 },
       { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
+      { wch: 10 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 22 },
       { wch: 18 },
       { wch: 14 },
       { wch: 14 },

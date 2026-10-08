@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { IndicadorOsiRow } from "@/types";
 import { parseDate } from "@/lib/business-days";
+import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 
 interface Props {
   rows: IndicadorOsiRow[];
@@ -58,8 +59,8 @@ const FUENTE_EJECUCION_LABEL: Record<string, string> = {
 };
 
 const FUENTE_EMISION_LABEL: Record<string, string> = {
-  created_at: "DB (creación)",
-  fecha_emision: "Fecha emisión",
+  created_at: "Registro en sistema",
+  fecha_emision: "Fecha emisión (manual)",
 };
 
 function formatDate(s: string | null): string {
@@ -86,6 +87,7 @@ function formatDate(s: string | null): string {
 }
 
 export default function IndicadoresTable({ rows, defaultSortByBrecha }: Props) {
+  const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string } | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>(
     defaultSortByBrecha ? "brechaDias" : "diasHabiles",
   );
@@ -219,12 +221,14 @@ export default function IndicadoresTable({ rows, defaultSortByBrecha }: Props) {
                     }`}
                   >
                     <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-nowrap">
-                      <a
-                        href={`/dashboard/capacitacion/gestion-osi/${r.osiId}`}
-                        className="text-sky-700 hover:underline"
+                      <button
+                        type="button"
+                        onClick={() => setPreviewOsi({ osiId: r.osiId, nroOsi: r.nroOsi })}
+                        className="text-sky-700 hover:underline cursor-pointer"
+                        title="Ver formato oficial de la OSI"
                       >
                         {r.nroOsi}
-                      </a>
+                      </button>
                     </td>
                     <td className="px-3 py-2.5 text-gray-700 max-w-[180px] truncate">
                       {r.empresa || "—"}
@@ -280,6 +284,13 @@ export default function IndicadoresTable({ rows, defaultSortByBrecha }: Props) {
           </tbody>
         </table>
       </div>
+
+      <OsiPreviewModal
+        isOpen={Boolean(previewOsi)}
+        osiId={previewOsi?.osiId ?? null}
+        osiNumber={previewOsi?.nroOsi}
+        onClose={() => setPreviewOsi(null)}
+      />
     </div>
   );
 }

@@ -1,10 +1,12 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import type { GestionMensualResponse, GestionMesIndicadores, IndicadoresAggregates } from "@/types";
 import { trackedMonthIndicesForYear } from "@/lib/indicadores-cutoff";
+import { sumMeses } from "@/lib/indicadores-range";
 
 interface Props {
   data: GestionMensualResponse;
   selectedMes: string;
+  mesHasta?: string;
   selectedMesLabel: string;
   metaPorcentaje?: number;
   observaciones?: string;
@@ -187,7 +189,7 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
   },
   td2Pct: {
-    width: "28%",
+    width: "21%",
     borderRightWidth: 1,
     borderColor: "#0f172a",
     padding: 2,
@@ -303,6 +305,7 @@ const MESES_NOMBRES = [
 export default function IndicadorCalidadPdfDocument({
   data,
   selectedMes,
+  mesHasta = selectedMes,
   selectedMesLabel,
   metaPorcentaje = 85,
   observaciones,
@@ -310,7 +313,12 @@ export default function IndicadorCalidadPdfDocument({
   generatedBy,
 }: Props) {
   // Only include tracked months (e.g. Agosto to Diciembre for 2026; Ene-Jul are omitted)
-  const trackedIndices = trackedMonthIndicesForYear(data.year);
+  const rangeFrom = selectedMes <= mesHasta ? selectedMes : mesHasta;
+  const rangeTo = selectedMes <= mesHasta ? mesHasta : selectedMes;
+  const trackedIndices = trackedMonthIndicesForYear(data.year).filter((idx) => {
+    const key = `${data.year}-${String(idx + 1).padStart(2, "0")}`;
+    return key >= rangeFrom && key <= rangeTo;
+  });
   const fullMonths: GestionMesIndicadores[] = trackedIndices.map((idx) => {
     const mesKey = `${data.year}-${String(idx + 1).padStart(2, "0")}`;
     const found = data.meses.find((m) => m.mes === mesKey);
@@ -326,20 +334,18 @@ export default function IndicadorCalidadPdfDocument({
       osisPendientesVencidas: 0,
       osisPendientesProximoMes: 0,
       osisRezagadasEjecutadas: 0,
+      osisEjecutadasOtroMes: 0,
       participantesPlanificados: 0,
       participantesLista: 0,
       certificados: 0,
       pvc: 0,
+      certificadosEmitidos: 0,
+      pvcEmitidos: 0,
     };
   });
 
-  const total = data.total;
-
-  // Selected month calculations
-  const mesData =
-    data.meses.find((m) => m.mes === selectedMes) ||
-    data.meses[data.meses.length - 1] ||
-    total;
+  const total = sumMeses(fullMonths, "Total");
+  const mesData = total;
 
   // Base for course percentages: OSIs Planificadas (courses planned to be executed that month)
   // fallback to OSIs Recibidas if planificadas is 0
@@ -392,7 +398,7 @@ export default function IndicadorCalidadPdfDocument({
 
         {/* Status Bar */}
         <View style={styles.statusBar}>
-          <Text>MES: {selectedMesLabel.toUpperCase()}</Text>
+          <Text>{fullMonths.length > 1 ? "PERIODO" : "MES"}: {selectedMesLabel.toUpperCase()}</Text>
           <Text>AÑO: {data.year}</Text>
           <Text>META: {metaPorcentaje}%</Text>
         </View>
@@ -419,11 +425,13 @@ export default function IndicadorCalidadPdfDocument({
             <Text style={[styles.summaryPillValue, { color: pctPendientes > 0 ? "#b45309" : "#15803d" }]}>
               {pctPendientes}%
             </Text>
-            <Text style={styles.summaryPillSub}>{mesData.osisPendientes} OSI pendientes</Text>
+            <Text style={styles.summaryPillSub}>
+              {mesData.osisPendientes} pendientes · {mesData.osisEjecutadasOtroMes} ejec. otro mes
+            </Text>
           </View>
 
           <View style={styles.summaryPill}>
-            <Text style={styles.summaryPillLabel}>% Part. Asistidos / Según OSI</Text>
+            <Text style={styles.summaryPillLabel}>% Part. Certificados / Estimados</Text>
             <Text
               style={[
                 styles.summaryPillValue,
@@ -438,10 +446,10 @@ export default function IndicadorCalidadPdfDocument({
           </View>
 
           <View style={styles.summaryPill}>
-            <Text style={styles.summaryPillLabel}>Documentos Emitidos</Text>
-            <Text style={styles.summaryPillValue}>{mesData.certificados + mesData.pvc}</Text>
+            <Text style={styles.summaryPillLabel}>Documentos de los cursos ejecutados</Text>
+            <Text style={styles.summaryPillValue}>{mesData.participantesLista + mesData.pvc}</Text>
             <Text style={styles.summaryPillSub}>
-              {mesData.certificados} Cert. / {mesData.pvc} Carnets
+              {mesData.participantesLista} Cert. / {mesData.pvc} Carnets
             </Text>
           </View>
         </View>
@@ -458,10 +466,10 @@ export default function IndicadorCalidadPdfDocument({
               <Text>MES</Text>
             </View>
             <View style={[styles.thSuper, { width: "58%", backgroundColor: "#fef3c7", color: "#92400e" }]}>
-              <Text>PLANIFICACIÓN</Text>
+              <Text>PLANIFICACIÓN Y EJECUCIÓN (POR MES PROGRAMADO)</Text>
             </View>
             <View style={[styles.thSuper, { width: "32%", backgroundColor: "#e0f2fe", color: "#0369a1" }]}>
-              <Text>EJECUCIÓN</Text>
+              <Text>PARTICIPANTES (CURSOS EJECUTADOS EN EL MES)</Text>
             </View>
           </View>
 
@@ -474,34 +482,34 @@ export default function IndicadorCalidadPdfDocument({
               <Text>OSIS PROG.</Text>
             </View>
             <View style={[styles.thSub, { width: "10%" }]}>
+              <Text>EJEC. EN MES</Text>
+            </View>
+            <View style={[styles.thSub, { width: "10%" }]}>
+              <Text>EJEC. OTRO MES</Text>
+            </View>
+            <View style={[styles.thSub, { width: "9%" }]}>
+              <Text>PENDIENTES</Text>
+            </View>
+            <View style={[styles.thSub, { width: "9%" }]}>
+              <Text>REZAGADAS</Text>
+            </View>
+            <View style={[styles.thSub, { width: "10%" }]}>
               <Text>OSIS RECIB.</Text>
             </View>
-            <View style={[styles.thSub, { width: "10%" }]}>
-              <Text>OSIS EJEC.</Text>
-            </View>
-            <View style={[styles.thSub, { width: "9%" }]}>
-              <Text>OSIS PEND.</Text>
-            </View>
-            <View style={[styles.thSub, { width: "9%" }]}>
-              <Text>OSIS REZAG.</Text>
-            </View>
-            <View style={[styles.thSub, { width: "10%" }]}>
-              <Text>PART. OSI</Text>
-            </View>
-            <View style={[styles.thSub, { width: "10%" }]}>
-              <Text>PART. ASIST.</Text>
+            <View style={[styles.thSub, { width: "11%" }]}>
+              <Text>PART. ESTIM.</Text>
             </View>
             <View style={[styles.thSub, { width: "11%" }]}>
-              <Text>CERTIFICADOS</Text>
+              <Text>PART. CERTIF.</Text>
             </View>
-            <View style={[styles.thSub, { width: "11%" }]}>
+            <View style={[styles.thSub, { width: "10%" }]}>
               <Text>CARNETS PVC</Text>
             </View>
           </View>
 
           {/* Month Rows */}
           {fullMonths.map((m) => {
-            const isSelected = m.mes === selectedMes;
+            const isSelected = fullMonths.length === 1;
             const monthIdx = parseInt(m.mes.split("-")[1], 10) - 1;
             const nombreMes = MESES_NOMBRES[monthIdx] || m.label.toUpperCase();
             return (
@@ -511,14 +519,14 @@ export default function IndicadorCalidadPdfDocument({
               >
                 <Text style={[styles.tdMes, { width: "10%" }]}>{nombreMes}</Text>
                 <Text style={[styles.tdNum, { width: "10%" }]}>{m.osisPlanificadas || 0}</Text>
-                <Text style={[styles.tdNum, { width: "10%" }]}>{m.osisRecibidas || 0}</Text>
                 <Text style={[styles.tdNum, { width: "10%" }]}>{m.osisEjecutadasEnSuMes || 0}</Text>
+                <Text style={[styles.tdNum, { width: "10%" }]}>{m.osisEjecutadasOtroMes || 0}</Text>
                 <Text style={[styles.tdNum, { width: "9%" }]}>{m.osisPendientes || 0}</Text>
                 <Text style={[styles.tdNum, { width: "9%" }]}>{m.osisRezagadasEjecutadas || 0}</Text>
-                <Text style={[styles.tdNum, { width: "10%" }]}>{m.participantesPlanificados || 0}</Text>
-                <Text style={[styles.tdNum, { width: "10%" }]}>{m.participantesLista || 0}</Text>
-                <Text style={[styles.tdNum, { width: "11%" }]}>{m.certificados || 0}</Text>
-                <Text style={[styles.tdNum, { width: "11%" }]}>{m.pvc || 0}</Text>
+                <Text style={[styles.tdNum, { width: "10%" }]}>{m.osisRecibidas || 0}</Text>
+                <Text style={[styles.tdNum, { width: "11%" }]}>{m.participantesPlanificados || 0}</Text>
+                <Text style={[styles.tdNum, { width: "11%" }]}>{m.participantesLista || 0}</Text>
+                <Text style={[styles.tdNum, { width: "10%" }]}>{m.pvc || 0}</Text>
               </View>
             );
           })}
@@ -527,16 +535,24 @@ export default function IndicadorCalidadPdfDocument({
           <View style={styles.tableRowTotal}>
             <Text style={[styles.tdTotalMes, { width: "10%" }]}>TOTAL</Text>
             <Text style={[styles.tdTotalNum, { width: "10%" }]}>{total.osisPlanificadas}</Text>
-            <Text style={[styles.tdTotalNum, { width: "10%" }]}>{total.osisRecibidas}</Text>
             <Text style={[styles.tdTotalNum, { width: "10%" }]}>{total.osisEjecutadasEnSuMes}</Text>
+            <Text style={[styles.tdTotalNum, { width: "10%" }]}>{total.osisEjecutadasOtroMes}</Text>
             <Text style={[styles.tdTotalNum, { width: "9%" }]}>{total.osisPendientes}</Text>
             <Text style={[styles.tdTotalNum, { width: "9%" }]}>{total.osisRezagadasEjecutadas}</Text>
-            <Text style={[styles.tdTotalNum, { width: "10%" }]}>{total.participantesPlanificados}</Text>
-            <Text style={[styles.tdTotalNum, { width: "10%" }]}>{total.participantesLista}</Text>
-            <Text style={[styles.tdTotalNum, { width: "11%" }]}>{total.certificados}</Text>
-            <Text style={[styles.tdTotalNum, { width: "11%" }]}>{total.pvc}</Text>
+            <Text style={[styles.tdTotalNum, { width: "10%" }]}>{total.osisRecibidas}</Text>
+            <Text style={[styles.tdTotalNum, { width: "11%" }]}>{total.participantesPlanificados}</Text>
+            <Text style={[styles.tdTotalNum, { width: "11%" }]}>{total.participantesLista}</Text>
+            <Text style={[styles.tdTotalNum, { width: "10%" }]}>{total.pvc}</Text>
           </View>
         </View>
+        <Text style={{ fontSize: 5.5, color: "#475569", marginTop: 2, marginBottom: 6, lineHeight: 1.3 }}>
+          Programadas = Ejec. en mes + Ejec. otro mes + Pendientes. Rezagadas: programadas en meses
+          anteriores cuya ejecución inició tarde y culminó en este mes (los cursos multi-mes que iniciaron a
+          tiempo no se consideran rezagados). OSIs recibidas se cuentan por fecha de emisión de Negocios.
+          Participantes estimados (SOLPED/OSI), certificados y carnets corresponden a los cursos
+          ejecutados en el mes, sin importar la fecha de emisión del documento. Documentos emitidos en el
+          periodo por fecha de emisión: {total.certificadosEmitidos} certificados · {total.pvcEmitidos} carnets PVC.
+        </Text>
 
         {/* Table 2: PLANIFICACIÓN Y EJECUCIÓN (Porcentajes) */}
         <View style={styles.sectionTitleBox}>
@@ -548,19 +564,22 @@ export default function IndicadorCalidadPdfDocument({
             <View style={[styles.thSub, { width: "16%" }]}>
               <Text>MES</Text>
             </View>
-            <View style={[styles.thSub, { width: "28%" }]}>
-              <Text>% CURSOS REALIZADOS</Text>
+            <View style={[styles.thSub, { width: "21%" }]}>
+              <Text>% EJECUTADOS EN SU MES</Text>
             </View>
-            <View style={[styles.thSub, { width: "28%" }]}>
-              <Text>% CURSOS PENDIENTES</Text>
+            <View style={[styles.thSub, { width: "21%" }]}>
+              <Text>% EJECUTADOS EN OTRO MES</Text>
             </View>
-            <View style={[styles.thSub, { width: "28%" }]}>
-              <Text>% PARTICIPANTES ASISTIDOS</Text>
+            <View style={[styles.thSub, { width: "21%" }]}>
+              <Text>% PENDIENTES</Text>
+            </View>
+            <View style={[styles.thSub, { width: "21%" }]}>
+              <Text>% PART. CERTIFICADOS</Text>
             </View>
           </View>
 
           {fullMonths.map((m) => {
-            const isSelected = m.mes === selectedMes;
+            const isSelected = fullMonths.length === 1;
             const monthIdx = parseInt(m.mes.split("-")[1], 10) - 1;
             const nombreMes = MESES_NOMBRES[monthIdx] || m.label.toUpperCase();
             const baseCursos =
@@ -580,6 +599,11 @@ export default function IndicadorCalidadPdfDocument({
                 ? Math.round((m.osisPendientes / baseCursos) * 100)
                 : 0;
 
+            const pctO =
+              baseCursos > 0
+                ? Math.round((m.osisEjecutadasOtroMes / baseCursos) * 100)
+                : 0;
+
             const pctA =
               m.participantesPlanificados > 0
                 ? Math.round(
@@ -594,6 +618,7 @@ export default function IndicadorCalidadPdfDocument({
               >
                 <Text style={styles.td2Mes}>{nombreMes}</Text>
                 <Text style={styles.td2Pct}>{pctR}%</Text>
+                <Text style={styles.td2Pct}>{pctO}%</Text>
                 <Text style={styles.td2Pct}>{pctP}%</Text>
                 <Text style={styles.td2Pct}>{pctA}%</Text>
               </View>

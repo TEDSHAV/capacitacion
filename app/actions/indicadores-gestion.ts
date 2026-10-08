@@ -103,11 +103,14 @@ function emptyBucket(mes: string, label: string): GestionMesIndicadores {
     osisPendientesVencidas: 0,
     osisPendientesProximoMes: 0,
     osisRezagadasEjecutadas: 0,
+    osisEjecutadasOtroMes: 0,
     osisPlanificadas: 0,
     participantesPlanificados: 0,
     participantesLista: 0,
     certificados: 0,
     pvc: 0,
+    certificadosEmitidos: 0,
+    pvcEmitidos: 0,
   };
 }
 
@@ -138,6 +141,7 @@ type SesionAgg = {
   total: number;
   ejecutadas: number;
   maxEjecutada: string | null;
+  minEjecutada: string | null;
 };
 
 /**
@@ -149,8 +153,8 @@ type SesionAgg = {
  * OSIs are fetched for ALL years (not just `filters.year`) because an OSI
  * planned in a previous year can still be executed inside the selected year
  * — that's exactly what `osisRezagadasEjecutadas` measures. Certificates and
- * carnets, on the other hand, are counted by their own issuance month, so
- * they're queried against the selected year only.
+ * carnets follow their OSI's execution month; the separate "emitidos"
+ * counters (by issuance date) are queried against the selected year only.
  */
 export async function getIndicadoresGestionMensual(
   filters: IndicadoresGestionFilters,
@@ -219,7 +223,7 @@ export async function getIndicadoresGestionMensual(
     for (const s of sesiones) {
       const agg =
         aggByOsi.get(s.id_osi) ??
-        { minFecha: null, maxFecha: null, lastUnexecutedFecha: null, total: 0, ejecutadas: 0, maxEjecutada: null };
+        { minFecha: null, maxFecha: null, lastUnexecutedFecha: null, total: 0, ejecutadas: 0, maxEjecutada: null, minEjecutada: null };
       agg.total += 1;
       if (s.fecha) {
         if (!agg.minFecha || s.fecha < agg.minFecha) agg.minFecha = s.fecha;
@@ -229,6 +233,9 @@ export async function getIndicadoresGestionMensual(
         agg.ejecutadas += 1;
         if (!agg.maxEjecutada || s.fecha_ejecutada > agg.maxEjecutada) {
           agg.maxEjecutada = s.fecha_ejecutada;
+        }
+        if (!agg.minEjecutada || s.fecha_ejecutada < agg.minEjecutada) {
+          agg.minEjecutada = s.fecha_ejecutada;
         }
       } else if (s.fecha) {
         if (!agg.lastUnexecutedFecha || s.fecha > agg.lastUnexecutedFecha) {
@@ -281,8 +288,10 @@ export async function getIndicadoresGestionMensual(
     // participants — the user doesn't care about uniqueness, just how many
     // certificates were issued = how many people attended).
     const certCountByOsi = new Map<number, number>();
+    const certOsiIdMap = new Map<number, number>();
     {
       const certRows = await fetchChunkedIn<{
+        id: number;
         nro_osi: number | null;
         id_participante: number | null;
       }>(
@@ -290,7 +299,7 @@ export async function getIndicadoresGestionMensual(
         (chunk, from, to) =>
           supabase
             .from("certificados")
-            .select("nro_osi, id_participante")
+            .select("id, nro_osi, id_participante")
             .eq("is_active", true)
             .in("nro_osi", chunk)
             .order("id", { ascending: true })
@@ -303,6 +312,29 @@ export async function getIndicadoresGestionMensual(
         const osiId = osiIdByNumeric.get(c.nro_osi);
         if (osiId == null) continue;
         certCountByOsi.set(osiId, (certCountByOsi.get(osiId) ?? 0) + 1);
+        certOsiIdMap.set(c.id, osiId);
+      }
+    }
+
+    // osiId → carnets linked to that OSI's certificates (any issue date), so
+    // carnets follow the OSI's execution month just like certificates do.
+    const carnetCountByOsi = new Map<number, number>();
+    {
+      const carnetRows = await fetchChunkedIn<{ id: number; id_certificado: number | null }>(
+        Array.from(certOsiIdMap.keys()),
+        (chunk, from, to) =>
+          supabase
+            .from("carnets")
+            .select("id, id_certificado")
+            .eq("is_active", true)
+            .in("id_certificado", chunk)
+            .order("id", { ascending: true })
+            .range(from, to),
+        "carnets (by id_certificado)",
+      );
+      for (const c of carnetRows) {
+        const osiId = c.id_certificado != null ? certOsiIdMap.get(c.id_certificado) : undefined;
+        if (osiId != null) carnetCountByOsi.set(osiId, (carnetCountByOsi.get(osiId) ?? 0) + 1);
       }
     }
 
@@ -350,22 +382,6 @@ export async function getIndicadoresGestionMensual(
       if (o.id_osi != null) osiById.set(o.id_osi, o);
     }
 
-    const carnetCountByOsi = new Map<number, number>();
-    const certOsiIdMap = new Map<number, number>();
-    for (const c of certs) {
-      if (c.nro_osi != null) {
-        const osiId = osiIdByNumeric.get(c.nro_osi);
-        if (osiId != null) certOsiIdMap.set(c.id, osiId);
-      }
-    }
-    for (const c of carnets) {
-      if (c.id_certificado != null) {
-        const osiId = certOsiIdMap.get(c.id_certificado);
-        if (osiId != null) {
-          carnetCountByOsi.set(osiId, (carnetCountByOsi.get(osiId) ?? 0) + 1);
-        }
-      }
-    }
 
     // ── 7. Buckets & Metric OSI Details ──────────────────────────────────
     // Only build buckets for tracked months. The seguimiento system went
@@ -401,8 +417,8 @@ export async function getIndicadoresGestionMensual(
         fechaEjecucionFinal = o.fecha_fin_real;
       }
 
-      const isCertMetric = metricKey === "certificados";
-      const isPvcMetric = metricKey === "pvc";
+      const isCertMetric = metricKey === "certificadosEmitidos";
+      const isPvcMetric = metricKey === "pvcEmitidos";
 
       const baseItem: IndicadorOsiItem = {
         id: osiId,
@@ -417,6 +433,10 @@ export async function getIndicadoresGestionMensual(
         certificadosCount: isCertMetric ? 1 : (certCountByOsi.get(osiId) ?? 0),
         carnetsCount: isPvcMetric ? 1 : (carnetCountByOsi.get(osiId) ?? 0),
         estatus: o.id_estatus != null ? ESTATUS_LABELS[o.id_estatus] ?? String(o.id_estatus) : "—",
+        sesionesTotal: agg?.total ?? 0,
+        sesionesEjecutadas: agg?.ejecutadas ?? 0,
+        fechaPrimeraSesion: agg?.minFecha ?? null,
+        fechaUltimaSesion: agg?.maxFecha ?? null,
       };
 
       const registerInList = (listKey: string) => {
@@ -477,6 +497,10 @@ export async function getIndicadoresGestionMensual(
         fechaEjecucionFinal = o.fecha_fin_real;
       }
       const mesEjecucion = monthKey(fechaEjecucionFinal);
+      // Month the OSI actually STARTED executing (first executed session).
+      // Multi-month courses start on time but finish later; they shouldn't
+      // be flagged as "rezagadas" just because their last session spills over.
+      const mesInicioEjecucion = monthKey(agg?.minEjecutada ?? fechaEjecucionFinal);
 
       if (mesPlanificado) {
         const b = buckets.get(mesPlanificado);
@@ -490,7 +514,10 @@ export async function getIndicadoresGestionMensual(
             b.osisPendientesProximoMes += 1;
             addOsiToMetric("pendientesProximoMes", mesPlanificado, o);
 
-            if (!fechaEjecucionFinal) {
+            if (fechaEjecucionFinal) {
+              b.osisEjecutadasOtroMes += 1;
+              addOsiToMetric("ejecutadasOtroMes", mesPlanificado, o);
+            } else {
               b.osisPendientes += 1;
               addOsiToMetric("pendientes", mesPlanificado, o);
               const ultimaPlanificada =
@@ -504,10 +531,10 @@ export async function getIndicadoresGestionMensual(
         }
       }
 
-      // Participant metrics (planificados + asistidos) are attributed to the
-      // OSI's EXECUTION month, not the planned month. This lets you compare
-      // "how many were declared for this service" vs "how many actually
-      // attended (got certified)" for OSIs executed in the same month.
+      // Participant metrics (planificados + certificados), certificates and
+      // carnets are attributed to the OSI's EXECUTION month, not the planned
+      // month nor the document issue date. This keeps every per-course column
+      // describing the same population: OSIs executed in that month.
       // Pending OSIs (no execution date) don't contribute to these rows.
       if (mesEjecucion) {
         const b = buckets.get(mesEjecucion);
@@ -518,15 +545,26 @@ export async function getIndicadoresGestionMensual(
           b.participantesPlanificados +=
             o.participantes_ejecucion ?? o.participantes_max_solped ?? 0;
           b.participantesLista += certCountByOsi.get(osiId) ?? 0;
+          b.certificados += certCountByOsi.get(osiId) ?? 0;
+          b.pvc += carnetCountByOsi.get(osiId) ?? 0;
           addOsiToMetric("participantesPlanificados", mesEjecucion, o);
           addOsiToMetric("participantesLista", mesEjecucion, o);
+          if ((certCountByOsi.get(osiId) ?? 0) > 0) addOsiToMetric("certificados", mesEjecucion, o);
+          if ((carnetCountByOsi.get(osiId) ?? 0) > 0) addOsiToMetric("pvc", mesEjecucion, o);
         }
       }
 
-      // Rezagadas: planned in an earlier month, executed in this one.
+      // Rezagadas: planned in an earlier month, and execution STARTED after
+      // that month. Multi-month courses that began on schedule are excluded.
       // Month keys are zero-padded "YYYY-MM", so string comparison is a
       // valid chronological comparison across years.
-      if (mesEjecucion && mesPlanificado && mesPlanificado < mesEjecucion) {
+      if (
+        mesEjecucion &&
+        mesPlanificado &&
+        mesPlanificado < mesEjecucion &&
+        mesInicioEjecucion != null &&
+        mesInicioEjecucion > mesPlanificado
+      ) {
         const b = buckets.get(mesEjecucion);
         if (b) {
           b.osisRezagadasEjecutadas += 1;
@@ -556,7 +594,10 @@ export async function getIndicadoresGestionMensual(
             empresa: o.nombre_empresa?.trim() || null,
             mesPlanificado,
             mesEjecucion: mesEjecucion,
+            mesInicioEjecucion,
             ultimaFechaPlanificada: ultimaPlanificada,
+            fechaPrimeraSesion: agg?.minFecha ?? null,
+            sesionesTotal: agg?.total ?? 0,
             estatus: o.id_estatus != null
               ? ESTATUS_LABELS[o.id_estatus] ?? String(o.id_estatus)
               : "—",
@@ -570,12 +611,12 @@ export async function getIndicadoresGestionMensual(
       if (!mes) continue;
       const b = buckets.get(mes);
       if (!b) continue;
-      b.certificados += 1;
+      b.certificadosEmitidos += 1;
       if (c.nro_osi != null) {
         const osiId = osiIdByNumeric.get(c.nro_osi);
         const osi = osiId != null ? osiById.get(osiId) : null;
         if (osi) {
-          addOsiToMetric("certificados", mes, osi);
+          addOsiToMetric("certificadosEmitidos", mes, osi);
         }
       }
     }
@@ -587,12 +628,12 @@ export async function getIndicadoresGestionMensual(
       const mes = monthKey(c.fecha_emision);
       if (!mes) continue;
       const b = buckets.get(mes);
-      if (b) b.pvc += 1;
+      if (b) b.pvcEmitidos += 1;
       if (c.id_certificado != null) {
         const osiId = certOsiIdMap.get(c.id_certificado);
         const osi = osiId != null ? osiById.get(osiId) : null;
         if (osi) {
-          addOsiToMetric("pvc", mes, osi);
+          addOsiToMetric("pvcEmitidos", mes, osi);
         }
       }
     }
@@ -607,11 +648,14 @@ export async function getIndicadoresGestionMensual(
       total.osisPendientesVencidas += m.osisPendientesVencidas;
       total.osisPendientesProximoMes += m.osisPendientesProximoMes;
       total.osisRezagadasEjecutadas += m.osisRezagadasEjecutadas;
+      total.osisEjecutadasOtroMes += m.osisEjecutadasOtroMes;
       total.osisPlanificadas += m.osisPlanificadas;
       total.participantesPlanificados += m.participantesPlanificados;
       total.participantesLista += m.participantesLista;
       total.certificados += m.certificados;
       total.pvc += m.pvc;
+      total.certificadosEmitidos += m.certificadosEmitidos;
+      total.pvcEmitidos += m.pvcEmitidos;
     }
 
     const yearsDisponibles = Array.from(yearsSet)

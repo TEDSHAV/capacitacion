@@ -2072,18 +2072,28 @@ export interface GestionMesIndicadores {
   osisPendientesVencidas: number;
   /** OSIs planned in this month that were not executed in this month (carry over / pending for next month). */
   osisPendientesProximoMes: number;
-  /** OSIs planned in an earlier month but executed during this month. */
+  /**
+   * OSIs planned in an earlier month whose execution STARTED after that
+   * month and finished in this one. Multi-month courses that began on
+   * schedule are not counted here.
+   */
   osisRezagadasEjecutadas: number;
+  /** OSIs planned in this month but fully executed in a different month (subset of osisPendientesProximoMes). */
+  osisEjecutadasOtroMes: number;
   /** OSIs planned in this month (denominator for osisEjecutadasEnSuMes). */
   osisPlanificadas: number;
-  /** SUM(participantes_ejecucion ?? participantes_max_solped) over OSIs planned in this month. */
+  /** SUM(participantes_ejecucion ?? participantes_max_solped) over OSIs EXECUTED in this month. */
   participantesPlanificados: number;
-  /** Count of certificates issued for OSIs planned in this month (raw, not distinct). */
+  /** Active certificates (any issue date) belonging to OSIs EXECUTED in this month. */
   participantesLista: number;
-  /** Active certificates issued during this month (by fecha_emision). */
+  /** Same population as participantesLista: certificates of OSIs executed in this month. */
   certificados: number;
-  /** Active carnets (PVC) issued during this month. */
+  /** Active carnets (any issue date) belonging to OSIs EXECUTED in this month. */
   pvc: number;
+  /** Active certificates ISSUED during this month (by fecha_emision), regardless of OSI month. */
+  certificadosEmitidos: number;
+  /** Active carnets ISSUED during this month (by fecha_emision), regardless of OSI month. */
+  pvcEmitidos: number;
 }
 
 export interface IndicadorOsiItem {
@@ -2099,6 +2109,12 @@ export interface IndicadorOsiItem {
   certificadosCount: number;
   carnetsCount: number;
   estatus: string;
+  /** Total planned sessions (osi_sesion rows). */
+  sesionesTotal: number;
+  sesionesEjecutadas: number;
+  /** First / last planned session date ("YYYY-MM-DD"); spans >1 month for multi-month courses. */
+  fechaPrimeraSesion: string | null;
+  fechaUltimaSesion: string | null;
 }
 
 export interface GestionMensualResponse {
@@ -2138,8 +2154,13 @@ export interface OsiCarryRow {
   mesPlanificado: string;
   /** "YYYY-MM" of the execution month, or null if not fully executed. */
   mesEjecucion: string | null;
+  /** "YYYY-MM" of the first executed session, or null if nothing executed yet. */
+  mesInicioEjecucion: string | null;
   /** Last planned session date "YYYY-MM-DD", or fallback. */
   ultimaFechaPlanificada: string | null;
+  /** First planned session date "YYYY-MM-DD". */
+  fechaPrimeraSesion: string | null;
+  sesionesTotal: number;
   /** OSI estatus label, e.g. "EJECUTADO", "PENDIENTE". */
   estatus: string;
 }

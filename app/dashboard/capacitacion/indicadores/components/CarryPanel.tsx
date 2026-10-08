@@ -12,10 +12,10 @@ import {
   CheckCircle2,
   Calendar,
 } from "lucide-react";
-import Link from "next/link";
 import type { OsiCarryRow, OsiNota } from "@/types";
 import { getOsiNotas } from "@/app/actions/capacitacion-osi-notas";
 import OsiNotasModal from "./OsiNotasModal";
+import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 
 interface Props {
   /** All OSIs for the year (from the gestion response). */
@@ -52,7 +52,7 @@ const POPULATION_DEFS: Record<
   rezagadas: {
     label: "De meses anteriores ejecutadas este mes",
     icon: History,
-    description: "Planificadas antes y completadas durante este mes",
+    description: "Planificadas antes, iniciadas tarde y completadas durante este mes",
   },
   futuras: {
     label: "Planificadas próximos meses",
@@ -94,6 +94,7 @@ export default function CarryPanel({
   const [activeTab, setActiveTab] = useState<Population>("arrastradas");
   const [notasByOsi, setNotasByOsi] = useState<Record<number, OsiNota[]>>({});
   const [selectedOsiForNotes, setSelectedOsiForNotes] = useState<number | null>(null);
+  const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string } | null>(null);
 
   // Fetch notes for all OSIs on mount
   useEffect(() => {
@@ -115,6 +116,11 @@ export default function CarryPanel({
     const futuras: OsiCarryRow[] = [];
 
     for (const o of osisList) {
+      // Multi-month course that started on schedule: it's "ejecutada" from
+      // the point of view of its planned month, not a rezagada of the month
+      // in which its last session happened to fall.
+      const inicioATiempo =
+        o.mesInicioEjecucion != null && o.mesInicioEjecucion <= o.mesPlanificado;
       if (o.mesPlanificado > selectedMes) {
         futuras.push(o);
       } else if (
@@ -134,7 +140,8 @@ export default function CarryPanel({
         pasaran.push(o);
       } else if (
         o.mesPlanificado < selectedMes &&
-        o.mesEjecucion === selectedMes
+        o.mesEjecucion === selectedMes &&
+        !inicioATiempo
       ) {
         rezagadas.push(o);
       }
@@ -316,8 +323,19 @@ export default function CarryPanel({
                             key={o.id}
                             className="border-t border-gray-50"
                           >
-                            <td className="py-2 pr-3 font-medium text-gray-900">
+                            <td className="py-2 pr-3 font-medium text-gray-900 whitespace-nowrap">
                               {o.nroOsi}
+                              {o.fechaPrimeraSesion &&
+                                o.ultimaFechaPlanificada &&
+                                o.fechaPrimeraSesion.slice(0, 7) !==
+                                  o.ultimaFechaPlanificada.slice(0, 7) && (
+                                  <span
+                                    className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60 align-middle"
+                                    title={`Curso multi-mes: ${o.sesionesTotal} sesiones del ${o.fechaPrimeraSesion} al ${o.ultimaFechaPlanificada}`}
+                                  >
+                                    {o.sesionesTotal} ses. · {o.fechaPrimeraSesion.slice(5, 7)}→{o.ultimaFechaPlanificada.slice(5, 7)}
+                                  </span>
+                                )}
                             </td>
                             <td className="py-2 pr-3 text-gray-600 truncate max-w-[200px]">
                               {o.empresa ?? "—"}
@@ -374,12 +392,14 @@ export default function CarryPanel({
                             </td>
                             <td className="py-2 whitespace-nowrap">
                               <div className="flex items-center gap-2">
-                                <Link
-                                  href={`/dashboard/capacitacion/gestion-osi?search=${encodeURIComponent(o.nroOsi)}`}
-                                  className="text-[11px] text-sky-600 hover:text-sky-800 font-medium"
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewOsi({ osiId: o.id, nroOsi: o.nroOsi })}
+                                  className="text-[11px] text-sky-600 hover:text-sky-800 font-medium cursor-pointer"
+                                  title="Ver formato oficial de la OSI"
                                 >
                                   OSI
-                                </Link>
+                                </button>
                                 <a
                                   href={`${shellUrl}/consulta-osi?nro_osi=${encodeURIComponent(o.nroOsi)}`}
                                   target="_blank"
@@ -420,6 +440,13 @@ export default function CarryPanel({
           }}
         />
       )}
+
+      <OsiPreviewModal
+        isOpen={Boolean(previewOsi)}
+        osiId={previewOsi?.osiId ?? null}
+        osiNumber={previewOsi?.nroOsi}
+        onClose={() => setPreviewOsi(null)}
+      />
     </>
   );
 }

@@ -29,30 +29,28 @@ type RowDef = {
 
 const ROWS: RowDef[] = [
   {
-    key: "recibidas",
-    label: "OSIs recibidas (Negocios)",
-    get: (m) => m.osisRecibidas,
-  },
-  {
-    key: "recibidasMesesPosteriores",
-    label: "Pautadas para meses posteriores",
-    get: (m) => m.osisRecibidasMesesPosteriores,
-    sub: true,
-  },
-  {
     key: "planificadas",
     label: "OSIs programadas para este mes",
     get: (m) => m.osisPlanificadas,
   },
   {
     key: "ejecutadasEnSuMes",
-    label: "OSIs ejecutadas (del mes)",
+    label: "ejecutadas dentro del mes",
     get: (m) => m.osisEjecutadasEnSuMes,
+    sub: true,
+  },
+  {
+    key: "ejecutadasOtroMes",
+    label: "ejecutadas en otro mes",
+    get: (m) => m.osisEjecutadasOtroMes,
+    sub: true,
+    note: "1",
   },
   {
     key: "pendientes",
-    label: "OSIs pendientes del mes",
+    label: "pendientes de ejecución",
     get: (m) => m.osisPendientes,
+    sub: true,
   },
   {
     key: "pendientesVencidas",
@@ -61,36 +59,52 @@ const ROWS: RowDef[] = [
     sub: true,
   },
   {
-    key: "pendientesProximoMes",
-    label: "OSIs pendientes para el próximo mes",
-    get: (m) => m.osisPendientesProximoMes,
+    key: "rezagadas",
+    label: "OSIs rezagadas ejecutadas este mes",
+    get: (m) => m.osisRezagadasEjecutadas,
+    note: "2",
   },
   {
-    key: "rezagadas",
-    label: "OSIs ejecutadas (de meses anteriores)",
-    get: (m) => m.osisRezagadasEjecutadas,
+    key: "recibidas",
+    label: "OSIs recibidas de Negocios (por fecha de emisión)",
+    get: (m) => m.osisRecibidas,
+    groupStart: true,
+    note: "3",
+  },
+  {
+    key: "recibidasMesesPosteriores",
+    label: "pautadas para meses posteriores",
+    get: (m) => m.osisRecibidasMesesPosteriores,
+    sub: true,
   },
   {
     key: "participantesPlanificados",
-    label: "Participantes según OSI",
+    label: "Participantes estimados (SOLPED/OSI)",
     get: (m) => m.participantesPlanificados,
     groupStart: true,
+    note: "4",
   },
   {
     key: "participantesLista",
-    label: "Participantes certificados (cursos del mes)",
+    label: "Participantes certificados",
     get: (m) => m.participantesLista,
   },
   {
-    key: "certificados",
-    label: "Certificados emitidos (en el mes)",
-    get: (m) => m.certificados,
-    groupStart: true,
+    key: "pvc",
+    label: "Carnets PVC de los cursos del mes",
+    get: (m) => m.pvc,
   },
   {
-    key: "pvc",
-    label: "Carnets PVC emitidos",
-    get: (m) => m.pvc,
+    key: "certificadosEmitidos",
+    label: "Certificados emitidos en el mes (fecha de emisión)",
+    get: (m) => m.certificadosEmitidos,
+    groupStart: true,
+    note: "5",
+  },
+  {
+    key: "pvcEmitidos",
+    label: "Carnets PVC emitidos en el mes (fecha de emisión)",
+    get: (m) => m.pvcEmitidos,
   },
 ];
 
@@ -235,11 +249,26 @@ export default function GestionMensualTable({
           </tbody>
         </table>
       </div>
-      <p className="px-5 py-3 text-[11px] text-gray-400 border-t border-gray-100">
-        <sup>1</sup> El total anual cuenta participantes distintos en todo el
-        año, por lo que no es la suma de las columnas: una misma persona puede
-        certificarse en más de un mes.
-      </p>
+      <div className="px-5 py-3 text-[11px] text-gray-400 border-t border-gray-100 space-y-0.5">
+        <p>
+          <sup>1</sup> Programadas para el mes pero completadas en otro mes (normalmente
+          cursos que se extienden al mes siguiente). Programadas = dentro del mes + otro mes + pendientes.
+        </p>
+        <p>
+          <sup>2</sup> Programadas en un mes anterior y cuya ejecución <em>inició</em> después de ese mes.
+          Los cursos multi-mes que arrancaron a tiempo no cuentan como rezagados.
+        </p>
+        <p>
+          <sup>3</sup> Población distinta a las programadas: cuenta la fecha en que Negocios emitió la OSI.
+        </p>
+        <p>
+          <sup>4</sup> Participantes, certificados y carnets se atribuyen al mes en que la OSI fue
+          ejecutada (incluye rezagadas). &quot;Estimados&quot; es la cantidad prevista en la SOLPED/OSI, no de la lista de asistencia.
+        </p>
+        <p>
+          <sup>5</sup> Documentos contados por su propia fecha de emisión, sin importar el mes del curso.
+        </p>
+      </div>
     </div>
   );
 }

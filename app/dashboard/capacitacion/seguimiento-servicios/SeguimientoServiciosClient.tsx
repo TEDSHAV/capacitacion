@@ -16,6 +16,7 @@ import {
   Clock,
   CalendarClock,
   AlertCircle,
+  FileText,
 } from "lucide-react";
 import type { OSIManagement, OSISesion, OSIFilters, OSIStatus } from "@/types";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
@@ -34,6 +35,7 @@ import ProcesoStepsTimeline from "../components/proceso-steps-timeline";
 import OSIPagination from "../gestion-osi/components/osi-pagination";
 import ListaAsistenciaPreview from "./components/lista-asistencia-preview";
 import UnmarkEnProcesoModal from "./components/UnmarkEnProcesoModal";
+import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 import { formatDateOnly } from "@/lib/format-date";
 
 interface FilterOptions {
@@ -162,6 +164,7 @@ export default function SeguimientoServiciosClient({
   const [selectedSession, setSelectedSession] = useState<Map<number, number>>(new Map());
   const [seeding, setSeeding] = useState<number | null>(null);
   const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string; nroSesion: number; category?: string; title?: string; showReceivedToggle?: boolean } | null>(null);
+  const [osiFormatoPreview, setOsiFormatoPreview] = useState<{ osiId: number; nroOsi: string } | null>(null);
   const isFirstRender = useRef(true);
   const hasInitialized = useRef(false);
 
@@ -1224,6 +1227,17 @@ export default function SeguimientoServiciosClient({
                           <p className="text-sm font-semibold text-gray-900 truncate">
                             {osi.nro_osi}
                           </p>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOsiFormatoPreview({ osiId: osi.id_osi, nroOsi: osi.nro_osi || "" });
+                            }}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-gray-400 hover:text-sky-700 hover:bg-sky-50 transition-colors cursor-pointer"
+                            title="Ver formato oficial de la OSI"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
                           {isAnySessionRescheduled && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                               <CalendarClock className="w-3 h-3 text-amber-600" />
@@ -1433,6 +1447,14 @@ export default function SeguimientoServiciosClient({
           }}
         />
       )}
+
+      {/* Official OSI format preview (in-place, no navigation) */}
+      <OsiPreviewModal
+        isOpen={Boolean(osiFormatoPreview)}
+        osiId={osiFormatoPreview?.osiId ?? null}
+        osiNumber={osiFormatoPreview?.nroOsi}
+        onClose={() => setOsiFormatoPreview(null)}
+      />
 
       {/* Unmark En Proceso Modal */}
       {unmarkModal && (

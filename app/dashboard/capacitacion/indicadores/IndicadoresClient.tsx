@@ -494,9 +494,10 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
                       Certificados emitidos en 72 horas {mesActual ? `· ${mesActual.label}` : ""}
                     </h2>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Mide si la emisión del certificado ocurre dentro de 3 días
+                      Mide si el registro del certificado en el sistema ocurre dentro de 3 días
                       hábiles (72 horas laborables, excluyendo fines de semana y
-                      feriados venezolanos) tras la última fecha de ejecución.
+                      feriados venezolanos) tras la última fecha de ejecución. Se usa la
+                      fecha de registro (no editable), no la fecha de emisión escrita a mano.
                     </p>
                   </div>
                   <Link
