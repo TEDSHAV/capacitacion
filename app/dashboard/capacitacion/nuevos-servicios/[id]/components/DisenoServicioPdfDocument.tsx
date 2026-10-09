@@ -476,6 +476,12 @@ export default function DisenoServicioPdfDocument({
   const costItems = planif?.estructura_costos || [];
   const grandTotal = costItems.reduce((sum, item) => sum + (item.total || 0), 0);
 
+  const isCAP =
+    solicitud.tipo_servicio?.toLowerCase().includes("cap") ||
+    solicitud.tipo_servicio?.toLowerCase().includes("capacitaci") ||
+    (solicitud.bloque_recursos_requisitos as any)?.tipo_naturaleza_servicio === "cap" ||
+    solicitud.id_departamento_ejecutante === 3;
+
   return (
     <Document>
       <Page size="LEGAL" style={styles.page} wrap>
@@ -520,12 +526,17 @@ export default function DisenoServicioPdfDocument({
                       ? "Modificación"
                       : solicitud.tipo_solicitud || "—",
               },
-              { label: "Tipo / Naturaleza del Servicio", value: solicitud.tipo_servicio || "—" },
-              { label: "Nombre y Apellido del Solicitante", value: solicitud.solicitante_nombre || "—" },
+              {
+                label: "Tipo / Naturaleza del Servicio",
+                value: solicitud.tipo_servicio || (isCAP ? "Capacitación (CAP)" : "Servicio Técnico (ST)"),
+              },
+              {
+                label: "Nombre, Apellido y Cargo del Solicitante",
+                value: solicitud.solicitante_nombre
+                  ? `${solicitud.solicitante_nombre}${solicitud.cargo_solicitante ? ` / ${solicitud.cargo_solicitante}` : ""}`
+                  : "—",
+              },
             ]}
-          />
-          <StackRow
-            fields={[{ label: "Cargo del Solicitante", value: solicitud.cargo_solicitante || "—" }]}
           />
         </View>
 
@@ -540,6 +551,22 @@ export default function DisenoServicioPdfDocument({
             fields={[
               { label: "Nombre Sugerido del Servicio, Según Aplique", value: solicitud.nombre_sugerido || "" },
               { label: "Objetivo / Propósito", value: solicitud.objetivo_proposito || "" },
+            ]}
+          />
+        </View>
+
+        <View style={styles.spacer} />
+
+        {/* ===== ELEMENTOS DE SALIDA ===== */}
+        <View style={styles.subTitle}>
+          <Text>ELEMENTOS DE SALIDA</Text>
+        </View>
+        <View style={styles.table}>
+          <StackRow
+            fields={[
+              { label: "OBJETIVO", value: recursos?.objetivo || "—" },
+              { label: "PROPÓSITO", value: recursos?.proposito || solicitud.objetivo_proposito || "—" },
+              { label: "OBJETIVO ESPECÍFICO", value: recursos?.objetivo_especifico || "—" },
             ]}
           />
         </View>
@@ -639,14 +666,20 @@ export default function DisenoServicioPdfDocument({
 
         {/* ===== BLOQUE II: FACTIBILIDAD Y PLANIFICACIÓN ===== */}
         <View style={styles.sectionTitle} minPresenceAhead={30}>
-          <Text>Bloque II: Factibilidad y Planificación (Llenado por Departamento Ejecutante)</Text>
+          <Text>Bloque II: Factibilidad y Planificación</Text>
         </View>
         <View style={styles.table}>
           <StackRow
             fields={[
               { label: "Nombre y Apellido del Recurso Asignado / Personal Técnico", value: planif?.recurso_asignado || "" },
-              { label: "Equipos / Instrumentos Asignados (Para Servicios Técnicos)", value: planif?.equipos_asignados || "" },
-              { label: "Software / Material Didáctico Asignados (Para Capacitación)", value: planif?.software_material_asignado || "" },
+              {
+                label: "Equipos / Instrumentos Asignados (Para Servicios Técnicos)",
+                value: isCAP ? "N/A" : (planif?.equipos_asignados || "—"),
+              },
+              {
+                label: "Software / Material Didáctico Asignados (Para Capacitación)",
+                value: !isCAP ? "N/A" : (planif?.software_material_asignado || "—"),
+              },
             ]}
           />
         </View>
@@ -752,7 +785,7 @@ export default function DisenoServicioPdfDocument({
         {/* ===== BLOQUE III: CONTROLES DEL DISEÑO ===== */}
         {/* break: force Bloque III onto a new page to avoid mid-row cutoff */}
         <View style={styles.sectionTitle} minPresenceAhead={30} break>
-          <Text>Bloque III: Controles del Diseño (Llenado por Departamento Ejecutante)</Text>
+          <Text>Bloque III: Controles del Diseño</Text>
         </View>
         <View style={styles.table}>
           <View style={styles.itemsHeaderRow}>
@@ -821,7 +854,7 @@ export default function DisenoServicioPdfDocument({
 
         {/* ===== BLOQUE IV: SALIDAS DEL DISEÑO ===== */}
         <View style={styles.sectionTitle} minPresenceAhead={30}>
-          <Text>Bloque IV: Salidas del Diseño y Desarrollo (Llenado por Departamento Ejecutante)</Text>
+          <Text>Bloque IV: Salidas del Diseño y Desarrollo</Text>
         </View>
         <View style={styles.subTitle}>
           <Text>Marque los documentos generados, en función del servicio aplicable:</Text>
@@ -866,6 +899,8 @@ export default function DisenoServicioPdfDocument({
             const capItem = CAP_CHECKLIST_ITEMS[idx];
             const stEntry = checklistMap.get(stItem);
             const capEntry = checklistCapMap.get(capItem);
+            const stAplica = stEntry?.aplica || (isCAP ? "no_aplica" : "");
+            const capAplica = capEntry?.aplica || (!isCAP ? "no_aplica" : "");
             return (
               <View key={idx} style={styles.dualChecklistRow}>
                 {/* ST side */}
@@ -873,20 +908,20 @@ export default function DisenoServicioPdfDocument({
                   <Text>{stItem}</Text>
                 </View>
                 <View style={[styles.dualChecklistCell, { flex: 1 }]}>
-                  <AplicaSquares value={stEntry?.aplica || ""} />
+                  <AplicaSquares value={stAplica} />
                 </View>
                 <View style={[styles.dualChecklistCell, { flex: 2 }]}>
-                  <Text>{stEntry?.aplica === "aplica" ? stEntry?.especifique || "—" : "—"}</Text>
+                  <Text>{stAplica === "aplica" ? stEntry?.especifique || "—" : "—"}</Text>
                 </View>
                 {/* CAP side */}
                 <View style={[styles.dualChecklistCell, { flex: 3 }]}>
                   <Text>{capItem}</Text>
                 </View>
                 <View style={[styles.dualChecklistCell, { flex: 1 }]}>
-                  <AplicaSquares value={capEntry?.aplica || ""} />
+                  <AplicaSquares value={capAplica} />
                 </View>
                 <View style={[styles.dualChecklistCellLast, { flex: 2 }]}>
-                  <Text>{capEntry?.aplica === "aplica" ? capEntry?.especifique || "—" : "—"}</Text>
+                  <Text>{capAplica === "aplica" ? capEntry?.especifique || "—" : "—"}</Text>
                 </View>
               </View>
             );
@@ -923,12 +958,12 @@ export default function DisenoServicioPdfDocument({
         </View>
         <View style={styles.declaration}>
           <Text style={{ fontWeight: 700 }}>
-            Declaración de Conformidad:
+            DECLARACIÓN DE CONFORMIDAD:
           </Text>
           <Text>
             {" "}
             Se certifica que el diseño ha sido completado satisfactoriamente y los
-            documentos han sido aprobados conforme a los requisitos establecidos.
+            documentos han sido archivados en el servidor según la ruta establecida.
           </Text>
         </View>
 

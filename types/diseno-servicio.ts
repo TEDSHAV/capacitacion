@@ -36,6 +36,9 @@ export interface BloqueRecursosRequisitos {
     especificacion: string;
   };
   tipo_naturaleza_servicio?: string;
+  objetivo?: string;
+  proposito?: string;
+  objetivo_especifico?: string;
 }
 
 // Bloque: Higiene, Seguridad y Ambiente
@@ -170,6 +173,9 @@ export const EMPTY_BLOQUE_RECURSOS: BloqueRecursosRequisitos = {
   criterios_aceptacion: "",
   antecedentes: { existe: false, especificacion: "" },
   tipo_naturaleza_servicio: "cap",
+  objetivo: "",
+  proposito: "",
+  objetivo_especifico: "",
 };
 
 export const EMPTY_BLOQUE_HIGIENE: BloqueHigieneSeguridadAmbiente = {

@@ -71,9 +71,17 @@ export default function DisenoServicioWizard({
   const [showFinalizeSuccess, setShowFinalizeSuccess] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
+  const isCompleted = solicitud.id_estatus === 38;
+  const isCAP = Boolean(
+    solicitud.tipo_servicio?.toLowerCase().includes("cap") ||
+    solicitud.tipo_servicio?.toLowerCase().includes("capacitaci") ||
+    (solicitud.bloque_recursos_requisitos as any)?.tipo_naturaleza_servicio === "cap" ||
+    solicitud.id_departamento_ejecutante === 3
+  );
+
   // Block states — deep-merge with EMPTY defaults to handle partial JSONB from DB
-  const [bloqueRecursos, setBloqueRecursos] = useState<BloqueRecursosRequisitos>(
-    solicitud.bloque_recursos_requisitos
+  const [bloqueRecursos, setBloqueRecursos] = useState<BloqueRecursosRequisitos>(() => {
+    const base = solicitud.bloque_recursos_requisitos
       ? {
           ...EMPTY_BLOQUE_RECURSOS,
           ...solicitud.bloque_recursos_requisitos,
@@ -82,8 +90,17 @@ export default function DisenoServicioWizard({
             ...solicitud.bloque_recursos_requisitos.antecedentes,
           },
         }
-      : EMPTY_BLOQUE_RECURSOS
-  );
+      : { ...EMPTY_BLOQUE_RECURSOS };
+
+    if (!base.tipo_naturaleza_servicio) {
+      base.tipo_naturaleza_servicio = isCAP ? "cap" : "st";
+    }
+    if (!base.proposito && solicitud.objetivo_proposito) {
+      base.proposito = solicitud.objetivo_proposito;
+    }
+    return base;
+  });
+
   const [bloqueHigiene, setBloqueHigiene] = useState<BloqueHigieneSeguridadAmbiente>(
     solicitud.bloque_higiene_seguridad_ambiente
       ? {
@@ -100,8 +117,9 @@ export default function DisenoServicioWizard({
         }
       : EMPTY_BLOQUE_HIGIENE
   );
-  const [bloquePlanificacion, setBloquePlanificacion] = useState<BloquePlanificacionFactibilidad>(
-    solicitud.bloque_planificacion_factibilidad
+
+  const [bloquePlanificacion, setBloquePlanificacion] = useState<BloquePlanificacionFactibilidad>(() => {
+    const base = solicitud.bloque_planificacion_factibilidad
       ? {
           ...EMPTY_BLOQUE_PLANIFICACION,
           ...solicitud.bloque_planificacion_factibilidad,
@@ -110,8 +128,16 @@ export default function DisenoServicioWizard({
             ...solicitud.bloque_planificacion_factibilidad.aprobacion,
           },
         }
-      : EMPTY_BLOQUE_PLANIFICACION
-  );
+      : { ...EMPTY_BLOQUE_PLANIFICACION };
+
+    if (isCAP && (!base.equipos_asignados || base.equipos_asignados === "")) {
+      base.equipos_asignados = "N/A";
+    } else if (!isCAP && (!base.software_material_asignado || base.software_material_asignado === "")) {
+      base.software_material_asignado = "N/A";
+    }
+    return base;
+  });
+
   const [bloqueControles, setBloqueControles] = useState<BloqueControlesDiseno>(
     solicitud.bloque_controles_diseno
       ? {
@@ -132,24 +158,15 @@ export default function DisenoServicioWizard({
         }
       : EMPTY_BLOQUE_CONTROLES
   );
-  const [bloqueSalidas, setBloqueSalidas] = useState<BloqueSalidasDiseno>(
-    solicitud.bloque_salidas_diseno
+
+  const [bloqueSalidas, setBloqueSalidas] = useState<BloqueSalidasDiseno>(() => {
+    const base = solicitud.bloque_salidas_diseno
       ? { ...EMPTY_BLOQUE_SALIDAS, ...solicitud.bloque_salidas_diseno }
-      : EMPTY_BLOQUE_SALIDAS
-  );
+      : { ...EMPTY_BLOQUE_SALIDAS };
 
-  const isCompleted = solicitud.id_estatus === 38;
-  const isCAP = solicitud.tipo_servicio?.toLowerCase().includes("cap") || solicitud.tipo_servicio?.toLowerCase().includes("capacitaci");
+    const existingChecklist = base.checklist || [];
+    const existingCap = base.checklist_cap || [];
 
-  // Initialize both checklists (ST + CAP) if empty, migrating old CAP data if needed
-  if (
-    (bloqueSalidas.checklist?.length ?? 0) === 0 ||
-    (bloqueSalidas.checklist_cap?.length ?? 0) === 0
-  ) {
-    const existingChecklist = bloqueSalidas.checklist || [];
-    const existingCap = bloqueSalidas.checklist_cap || [];
-
-    // Detect old CAP data stored in checklist (pre-dual-checklist migration)
     const isOldCapData =
       existingChecklist.length > 0 &&
       existingChecklist.every((c) =>
@@ -158,28 +175,36 @@ export default function DisenoServicioWizard({
         )
       );
 
-    setBloqueSalidas({
-      ...bloqueSalidas,
-      checklist:
-        existingChecklist.length > 0 && !isOldCapData
+    const initChecklist =
+      existingChecklist.length > 0 && !isOldCapData
+        ? existingChecklist.map((c) =>
+            isCAP && !c.aplica ? { ...c, aplica: "no_aplica" as const, especifique: c.especifique || "No aplica a Capacitación" } : c
+          )
+        : ST_CHECKLIST_ITEMS.map((item) => ({
+            item,
+            aplica: (isCAP ? "no_aplica" : "") as any,
+            especifique: isCAP ? "No aplica a Capacitación" : "",
+          }));
+
+    const initCap =
+      existingCap.length > 0
+        ? existingCap.map((c) =>
+            !isCAP && !c.aplica ? { ...c, aplica: "no_aplica" as const, especifique: c.especifique || "No aplica a Servicios Técnicos" } : c
+          )
+        : isOldCapData
           ? existingChecklist
-          : ST_CHECKLIST_ITEMS.map((item) => ({
+          : CAP_CHECKLIST_ITEMS.map((item) => ({
               item,
-              aplica: "" as const,
-              especifique: "",
-            })),
-      checklist_cap:
-        existingCap.length > 0
-          ? existingCap
-          : isOldCapData
-            ? existingChecklist
-            : CAP_CHECKLIST_ITEMS.map((item) => ({
-                item,
-                aplica: "" as const,
-                especifique: "",
-              })),
-    });
-  }
+              aplica: (!isCAP ? "no_aplica" : "") as any,
+              especifique: !isCAP ? "No aplica a Servicios Técnicos" : "",
+            }));
+
+    return {
+      ...base,
+      checklist: initChecklist,
+      checklist_cap: initCap,
+    };
+  });
 
   const showSaveMessage = (type: "success" | "error", text: string) => {
     setSaveMessage({ type, text });
@@ -465,19 +490,15 @@ export default function DisenoServicioWizard({
                 <div>
                   <Label className="text-gray-600 text-xs">Tipo / Naturaleza del Servicio</Label>
                   <p className="text-sm font-medium text-gray-900 mt-1">
-                    {solicitud.tipo_servicio || "—"}
+                    {solicitud.tipo_servicio || (isCAP ? "Capacitación (CAP)" : "Servicio Técnico (ST)")}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-gray-600 text-xs">Solicitante</Label>
+                  <Label className="text-gray-600 text-xs">Nombre, Apellido y Cargo del Solicitante</Label>
                   <p className="text-sm font-medium text-gray-900 mt-1">
-                    {solicitud.solicitante_nombre || "—"}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-gray-600 text-xs">Cargo del Solicitante</Label>
-                  <p className="text-sm font-medium text-gray-900 mt-1">
-                    {solicitud.cargo_solicitante || "—"}
+                    {solicitud.solicitante_nombre
+                      ? `${solicitud.solicitante_nombre}${solicitud.cargo_solicitante ? ` / ${solicitud.cargo_solicitante}` : ""}`
+                      : "—"}
                   </p>
                 </div>
               </div>
@@ -523,15 +544,96 @@ export default function DisenoServicioWizard({
                   </div>
                 </div>
               </div>
+
+              {(bloqueRecursos.objetivo || bloqueRecursos.proposito || bloqueRecursos.objetivo_especifico) && (
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="mb-2">
+                    <Label className="text-gray-900 font-bold text-xs uppercase tracking-wider">
+                      Elementos de Salida
+                    </Label>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div>
+                      <Label className="text-gray-500 text-xs font-semibold">OBJETIVO</Label>
+                      <p className="text-xs font-medium text-gray-900 mt-1 whitespace-pre-wrap">
+                        {bloqueRecursos.objetivo || "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-500 text-xs font-semibold">PROPÓSITO</Label>
+                      <p className="text-xs font-medium text-gray-900 mt-1 whitespace-pre-wrap">
+                        {bloqueRecursos.proposito || "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-gray-500 text-xs font-semibold">OBJETIVO ESPECÍFICO</Label>
+                      <p className="text-xs font-medium text-gray-900 mt-1 whitespace-pre-wrap">
+                        {bloqueRecursos.objetivo_especifico || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* STEP 1: Recursos y Requisitos */}
           {currentStep === 1 && (
             <div className="space-y-6">
+              {/* ELEMENTOS DE SALIDA */}
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                    ELEMENTOS DE SALIDA
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Definición de objetivos y propósito derivados del diseño
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">OBJETIVO</Label>
+                    <Textarea
+                      value={bloqueRecursos.objetivo || ""}
+                      onChange={(e) =>
+                        setBloqueRecursos({ ...bloqueRecursos, objetivo: e.target.value })
+                      }
+                      placeholder="Objetivo general del servicio"
+                      rows={4}
+                      className="mt-1 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">PROPÓSITO</Label>
+                    <Textarea
+                      value={bloqueRecursos.proposito || ""}
+                      onChange={(e) =>
+                        setBloqueRecursos({ ...bloqueRecursos, proposito: e.target.value })
+                      }
+                      placeholder="Propósito del servicio"
+                      rows={4}
+                      className="mt-1 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">OBJETIVO ESPECÍFICO</Label>
+                    <Textarea
+                      value={bloqueRecursos.objetivo_especifico || ""}
+                      onChange={(e) =>
+                        setBloqueRecursos({ ...bloqueRecursos, objetivo_especifico: e.target.value })
+                      }
+                      placeholder="Objetivos específicos del servicio"
+                      rows={4}
+                      className="mt-1 bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
-                <h2 className="text-lg font-bold text-gray-900 mb-1">Recursos Necesarios para la Ejecución</h2>
-                <p className="text-sm text-gray-500">Llenado por Departamento Ejecutante</p>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">
+                  Recursos Necesarios para la Ejecución del Servicio
+                </h2>
               </div>
               <div className="grid grid-cols-1 gap-4">
                 <div>
@@ -772,7 +874,6 @@ export default function DisenoServicioWizard({
             <div className="space-y-6">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-1">Bloque II: Factibilidad y Planificación</h2>
-                <p className="text-sm text-gray-500">Llenado por Departamento Ejecutante</p>
               </div>
               <div className="grid grid-cols-1 gap-4">
                 <div>
@@ -784,19 +885,37 @@ export default function DisenoServicioWizard({
                   />
                 </div>
                 <div>
-                  <Label>Equipos / Instrumentos Asignados</Label>
+                  <Label>
+                    Equipos / Instrumentos Asignados {isCAP && "(No Aplica para Capacitación)"}
+                  </Label>
                   <Input
-                    value={bloquePlanificacion.equipos_asignados}
-                    onChange={(e) => setBloquePlanificacion({ ...bloquePlanificacion, equipos_asignados: e.target.value })}
-                    placeholder={isCAP ? "Específico si es Servicio Técnico" : "Equipos e instrumentos asignados"}
+                    value={isCAP ? "N/A" : bloquePlanificacion.equipos_asignados}
+                    disabled={isCAP}
+                    onChange={(e) =>
+                      setBloquePlanificacion({
+                        ...bloquePlanificacion,
+                        equipos_asignados: e.target.value,
+                      })
+                    }
+                    placeholder={isCAP ? "N/A (Solo Servicios Técnicos)" : "Equipos e instrumentos asignados"}
+                    className={isCAP ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}
                   />
                 </div>
                 <div>
-                  <Label>Software / Material Didáctico Asignado</Label>
+                  <Label>
+                    Software / Material Didáctico Asignado {!isCAP && "(No Aplica para Servicios Técnicos)"}
+                  </Label>
                   <Input
-                    value={bloquePlanificacion.software_material_asignado}
-                    onChange={(e) => setBloquePlanificacion({ ...bloquePlanificacion, software_material_asignado: e.target.value })}
-                    placeholder={isCAP ? "Material didáctico asignado" : "Software asignado"}
+                    value={!isCAP ? "N/A" : bloquePlanificacion.software_material_asignado}
+                    disabled={!isCAP}
+                    onChange={(e) =>
+                      setBloquePlanificacion({
+                        ...bloquePlanificacion,
+                        software_material_asignado: e.target.value,
+                      })
+                    }
+                    placeholder={!isCAP ? "N/A (Solo Capacitación)" : "Material didáctico asignado"}
+                    className={!isCAP ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}
                   />
                 </div>
               </div>
@@ -928,7 +1047,7 @@ export default function DisenoServicioWizard({
             <div className="space-y-6">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-1">Bloque III: Controles del Diseño</h2>
-                <p className="text-sm text-gray-500">Fase de Revisión — Llenado por Departamento Ejecutante</p>
+                <p className="text-sm text-gray-500">Fase de Revisión, Verificación y Validación</p>
               </div>
               {[
                 { key: "revision", title: "Revisión", desc: "Evaluación de la capacidad de los resultados para cumplir con los requisitos estipulados" },
@@ -1145,6 +1264,11 @@ export default function DisenoServicioWizard({
                       rows={3}
                       placeholder="Texto libre"
                     />
+                  </div>
+
+                  <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-xs text-sky-900 mt-3">
+                    <p className="font-semibold text-sky-950 mb-1">DECLARACIÓN DE CONFORMIDAD:</p>
+                    <p>Se certifica que el diseño ha sido completado satisfactoriamente y los documentos han sido archivados en el servidor según la ruta establecida.</p>
                   </div>
                 </div>
               </div>
