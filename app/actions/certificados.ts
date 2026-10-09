@@ -514,6 +514,7 @@ export async function saveCertificatesToDatabase(
     // Create carnets if the course requires them
     if (
       updatedCertificateData.course_topic_data?.emite_carnet &&
+      !updatedCertificateData.skip_carnets &&
       certificateIds.length > 0
     ) {
       try {
@@ -945,6 +946,8 @@ function generateContentSnapshot(
 
       course_content: updatedCertificateData.course_content,
 
+      skip_carnets: updatedCertificateData.skip_carnets === true,
+
       date: updatedCertificateData.date,
 
       location: updatedCertificateData.location,
@@ -1102,6 +1105,8 @@ function generateContentSnapshotWithControlNumbers(
       subtitle: certificateData.certificate_subtitle,
 
       course_content: certificateData.course_content,
+
+      skip_carnets: certificateData.skip_carnets === true,
 
       date: certificateData.date,
 
@@ -1844,7 +1849,10 @@ export async function updateCertificateAction(
     if (updateError) throw updateError;
 
     // 5b. Update carnet if course emits it
-    if (certificateData.course_topic_data?.emite_carnet) {
+    if (
+      certificateData.course_topic_data?.emite_carnet &&
+      !certificateData.skip_carnets
+    ) {
       try {
         const { updateCarnetAction } = await import("./carnets");
         await updateCarnetAction(certificateId, {

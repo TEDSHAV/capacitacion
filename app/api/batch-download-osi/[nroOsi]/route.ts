@@ -269,7 +269,11 @@ export async function GET(
           ?? cert.catalogo_servicios?.nota_aprobatoria
           ?? 14;
         const participantPassed = participant.score != null && participant.score >= passingGrade;
-        if ((cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet) && participantPassed) {
+        if (
+          !snapshot.certificado_detalles?.skip_carnets &&
+          (cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet) &&
+          participantPassed
+        ) {
           const { CarnetGenerator } = await import("@/lib/carnet-generator");
           const carnetGenerator = new CarnetGenerator();
 

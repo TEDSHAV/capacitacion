@@ -565,7 +565,7 @@ export const CertificatePreview = ({
               >
                 Certificado
               </button>
-              {selectedCourse?.emite_carnet && (
+              {selectedCourse?.emite_carnet && !certificateData.skip_carnets && (
                 <button
                   onClick={() => setActiveTab("carnet")}
                   className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${

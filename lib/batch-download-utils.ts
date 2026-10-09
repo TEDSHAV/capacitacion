@@ -157,6 +157,7 @@ export async function downloadBatchAction(
         const participantPassed = participant.score != null && participant.score >= passingGrade;
         if (
           (choice === "full" || choice === "carnets") &&
+          !snapshot.certificado_detalles?.skip_carnets &&
           (cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet) &&
           participantPassed
         ) {

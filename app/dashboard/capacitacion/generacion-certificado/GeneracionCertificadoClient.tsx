@@ -290,6 +290,7 @@ export default function GeneracionCertificadoClient({
         plantilla_certificado_archivo:
           snapshot?.plantilla?.archivo_plantilla_certificado,
         generate_documents: false, // Default to false for single edit
+        skip_carnets: snapshot?.certificado_detalles?.skip_carnets === true,
         uso_verificacion_facilitador:
           certificate.uso_portal_facilitador ?? undefined,
       });
@@ -842,18 +843,11 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
 
     if (
       selectedCourseTopic?.emite_carnet &&
+      !certificateData.skip_carnets &&
       !certificateData.fecha_vencimiento
     ) {
       alert(
         "Este curso emite carnet, por lo que la fecha de vencimiento es requerida",
-      );
-      return;
-    }
-
-    // Validate content length
-    if ((certificateData.course_content?.length || 0) > 2000) {
-      alert(
-        "El contenido del curso excede el límite de 2000 caracteres. Por favor, reduce el contenido.",
       );
       return;
     }
@@ -1398,7 +1392,7 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
       // Carnets are now created automatically by saveCertificatesToDatabase if emite_carnet is true
       let carnetsGenerated = 0;
       const carnetBlobs: { participant: any; blob: Blob }[] = [];
-      if (selectedCourseTopic?.emite_carnet) {
+      if (selectedCourseTopic?.emite_carnet && !certificateData.skip_carnets) {
         setGenerationProgress({
           currentPhase: "Generando carnets...",
           percentage: 65,
@@ -1755,6 +1749,7 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
         plantilla_certificado_archivo: undefined,
         generate_documents: true, // Reset to true
         include_previous_participants: false,
+        skip_carnets: false,
       });
       setSelectedOSI(null);
       setSelectedCourseTopic(null);

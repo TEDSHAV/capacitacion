@@ -593,16 +593,8 @@ export function BatchEditModal({
                     <span>
                       Este contenido se imprimirá en el reverso de los certificados seleccionados.
                     </span>
-                    <span
-                      className={`font-semibold ${
-                        (updates.course_content?.length || 0) > 2000
-                          ? "text-red-600"
-                          : (updates.course_content?.length || 0) > 1800
-                            ? "text-yellow-600"
-                            : "text-gray-400"
-                      }`}
-                    >
-                      {updates.course_content?.length || 0} / 2000 caracteres
+                    <span className="font-semibold text-gray-400">
+                      {updates.course_content?.length || 0} caracteres
                     </span>
                   </div>
                 </div>

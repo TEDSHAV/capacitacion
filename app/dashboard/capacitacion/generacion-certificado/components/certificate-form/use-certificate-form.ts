@@ -206,7 +206,11 @@ export function useCertificateForm({
   useEffect(() => {
     // Skip when restoring a draft — the draft's fecha_vencimiento should be preserved
     if (isRestoringDraftRef?.current) return;
-    if (selectedCourseTopic?.emite_carnet && certificateData.date) {
+    if (
+      selectedCourseTopic?.emite_carnet &&
+      !certificateData.skip_carnets &&
+      certificateData.date
+    ) {
       const base = new Date(certificateData.date + "T12:00:00Z");
       const exp = new Date(base);
       exp.setFullYear(exp.getFullYear() + 2);
@@ -217,7 +221,11 @@ export function useCertificateForm({
         onDataChange("fecha_vencimiento", formattedExp);
       }
     }
-  }, [certificateData.date, selectedCourseTopic?.emite_carnet]);
+  }, [
+    certificateData.date,
+    selectedCourseTopic?.emite_carnet,
+    certificateData.skip_carnets,
+  ]);
 
   return { shaSignatures, courseTemplates };
 }

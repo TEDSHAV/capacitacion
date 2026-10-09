@@ -136,16 +136,8 @@ export const CourseTemplateSection = ({
                 ? "Puedes editar este contenido según sea necesario para esta capacitación específica"
                 : "Este es el contenido predeterminado del curso. Puedes editarlo según sea necesario."}
             </p>
-            <p
-              className={`text-xs font-medium ${
-                (courseContent?.length || 0) > 2000
-                  ? "text-red-600"
-                  : (courseContent?.length || 0) > 1800
-                    ? "text-yellow-600"
-                    : "text-gray-500"
-              }`}
-            >
-              {courseContent?.length || 0} / 2000 caracteres
+            <p className="text-xs font-medium text-gray-500">
+              {courseContent?.length || 0} caracteres
             </p>
           </div>
         </div>

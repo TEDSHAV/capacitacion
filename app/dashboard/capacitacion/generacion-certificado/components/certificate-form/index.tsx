@@ -60,8 +60,10 @@ export const CertificateForm = ({
     !!certificateData.facilitator_id &&
     (isEditMode || certificateData.uso_verificacion_facilitador !== undefined);
 
-  const isCarnetValid =
-    !selectedCourseTopic?.emite_carnet || !!certificateData.fecha_vencimiento;
+  const emitsCarnets =
+    !!selectedCourseTopic?.emite_carnet && !certificateData.skip_carnets;
+
+  const isCarnetValid = !emitsCarnets || !!certificateData.fecha_vencimiento;
 
   const scrollToFirstMissingField = () => {
     // Check each required field in order and scroll to the first missing one
@@ -125,10 +127,7 @@ export const CertificateForm = ({
         return true;
       }
     }
-    if (
-      selectedCourseTopic?.emite_carnet &&
-      !certificateData.fecha_vencimiento
-    ) {
+    if (emitsCarnets && !certificateData.fecha_vencimiento) {
       const element = document.getElementById("field-fecha_vencimiento");
       if (element) {
         element.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -526,8 +525,49 @@ export const CertificateForm = ({
         </p>
       </div>
 
+      {selectedCourseTopic?.emite_carnet && !isEditMode && (
+        <div className="mb-4">
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <div className="relative flex items-center">
+              <input
+                type="checkbox"
+                checked={certificateData.skip_carnets === true}
+                onChange={(e) => {
+                  onDataChange("skip_carnets", e.target.checked);
+                  if (e.target.checked) {
+                    onDataChange("fecha_vencimiento", undefined);
+                  }
+                }}
+                className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-300 bg-white checked:border-blue-600 checked:bg-blue-600 transition-all focus:ring-2 focus:ring-blue-500/20"
+              />
+              <svg
+                className="absolute h-3.5 w-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={3}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
+              No emitir carnets para este lote
+            </span>
+          </label>
+          <p className="text-xs text-gray-500 mt-1 ml-8">
+            {certificateData.skip_carnets
+              ? "Solo se generarán los certificados; no se crearán carnets para estos participantes."
+              : "Este curso emite carnet. Marca esta opción si este lote no debe incluir carnets."}
+          </p>
+        </div>
+      )}
+
       {/* Expiration Date - Only show if course emits card */}
-      {selectedCourseTopic?.emite_carnet && (
+      {emitsCarnets && (
         <div id="field-fecha_vencimiento" className="mb-4">
           <label
             htmlFor="fecha_vencimiento_years"
