@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCertificateById } from "@/app/actions/certificados";
 import { CertificateGenerator } from "@/lib/certificate-generator";
+import { hasSignatureImage } from "@/lib/sha-signature";
 import {
   getSignatureDataServer,
   getFacilitatorDataServer,
@@ -127,7 +128,7 @@ export async function GET(
     // Fetch sha signature, facilitator and template in parallel — they are independent
     const [shaSignatureData, facilitatorRaw, templateData] = await Promise.all([
       certificateData.sha_signature_id &&
-      !(certificateData as any).sha_signature_data
+      !hasSignatureImage((certificateData as any).sha_signature_data)
         ? getSignatureDataServer(certificateData.sha_signature_id).catch(
             (e) => {
               console.warn(

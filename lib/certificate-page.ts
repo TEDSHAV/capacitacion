@@ -9,6 +9,7 @@ import { CertificateFacilitator } from "@/app/actions/facilitators";
 import { getDynamicConfig } from "./certificate-config";
 import { TextRenderer } from "./text-renderer";
 import { certificateService } from "./certificate-service";
+import { hasSignatureImage } from "./sha-signature";
 import { QRService } from "./qr-service";
 import {
   compressImageToJpeg,
@@ -464,15 +465,19 @@ export class CertificatePage {
       let shaSignature = certificateData.sha_signature_data;
 
       // If sha_signature_data is not available, try to fetch it
-      if (!shaSignature) {
+      if (
+        !hasSignatureImage(shaSignature) &&
+        !this.preloadedAssets?.shaSignature
+      ) {
         // Check if we're in a server environment
         if (typeof window === "undefined") {
         } else {
           // Browser environment - use certificate service
           try {
-            shaSignature = await certificateService.getSignatureData(
-              certificateData.sha_signature_id.toString(),
-            );
+            shaSignature =
+              (await certificateService.getSignatureData(
+                certificateData.sha_signature_id.toString(),
+              )) || shaSignature;
           } catch (error) {
             // Continue without SHA signature
           }

@@ -24,6 +24,7 @@ import {
 } from "@/app/actions/certificados";
 import { getFacilitatorByOSI } from "@/app/actions/facilitador-portal";
 import { normalizeFacilitatorData } from "@/lib/facilitator-utils";
+import { resolveShaSignatureImage } from "@/lib/sha-signature";
 import { getCompaniesAndCities } from "@/app/actions/companies-cities";
 import { updateParticipant } from "@/app/actions/participants";
 import { generateDocumentsServer } from "@/lib/document-server-actions";
@@ -1149,56 +1150,56 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
               }
             }
 
-            // Preload the image if we have the URL
+            // Resolve the image (base64 > URL > full row by id)
             if (shaSignatureDataToUse) {
-              const imageUrl =
-                (shaSignatureDataToUse as any).url_imagen ||
-                (shaSignatureDataToUse as any).firma;
-              if (imageUrl) {
+              try {
+                const resolved = await resolveShaSignatureImage(
+                  shaSignatureDataToUse,
+                  preloadImage,
+                );
+                shaSignatureBase64 = resolved.image;
+                shaSignatureDataToUse = resolved.data;
+              } catch (preloadError) {
+                console.warn(
+                  "Failed to preload primary SHA signature. Attempting to find a fallback.",
+                  preloadError,
+                );
+              }
+
+              // Fallback: Fetch all signatures and try to find another active representante_sha
+              if (!shaSignatureBase64) {
                 try {
-                  shaSignatureBase64 = await preloadImage(imageUrl);
-                } catch (preloadError) {
-                  console.warn(
-                    `Failed to preload primary SHA signature: ${imageUrl}. Attempting to find a fallback.`,
-                  );
+                  const allSigsResponse = await fetch("/api/signatures");
+                  if (allSigsResponse.ok) {
+                    const allSigs = await allSigsResponse.json();
+                    const otherSigs = allSigs.filter(
+                      (sig: any) =>
+                        sig.tipo === "representante_sha" &&
+                        sig.is_active &&
+                        sig.id !== shaSignatureDataToUse?.id,
+                    );
 
-                  // Fallback: Fetch all signatures and try to find another active representante_sha
-                  try {
-                    const allSigsResponse = await fetch("/api/signatures");
-                    if (allSigsResponse.ok) {
-                      const allSigs = await allSigsResponse.json();
-                      const otherSigs = allSigs.filter(
-                        (sig: any) =>
-                          sig.tipo === "representante_sha" &&
-                          sig.is_active &&
-                          sig.id !== shaSignatureDataToUse?.id,
-                      );
-
-                      for (const sig of otherSigs) {
-                        const fallBackUrl = sig.url_imagen || sig.firma;
-                        if (fallBackUrl) {
-                          try {
-                            shaSignatureBase64 =
-                              await preloadImage(fallBackUrl);
-                            if (shaSignatureBase64) {
-                              console.log(
-                                `Successfully fell back to SHA signature: ${fallBackUrl}`,
-                              );
-                              shaSignatureDataToUse = sig; // Update the data to use as well
-                              break;
-                            }
-                          } catch (e) {
-                            // Try next one
-                          }
+                    for (const sig of otherSigs) {
+                      try {
+                        const resolved = await resolveShaSignatureImage(
+                          sig,
+                          preloadImage,
+                        );
+                        if (resolved.image) {
+                          shaSignatureBase64 = resolved.image;
+                          shaSignatureDataToUse = resolved.data; // Update the data to use as well
+                          break;
                         }
+                      } catch (e) {
+                        // Try next one
                       }
                     }
-                  } catch (fallbackError) {
-                    console.error(
-                      "Failed to fetch fallback signatures",
-                      fallbackError,
-                    );
                   }
+                } catch (fallbackError) {
+                  console.error(
+                    "Failed to fetch fallback signatures",
+                    fallbackError,
+                  );
                 }
               }
             }

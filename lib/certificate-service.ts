@@ -59,6 +59,7 @@ export class CertificateService {
           representante_sha: data.nombre, // For SHA signatures
           firma: data.url_imagen,
           url_imagen: data.url_imagen,
+          imagen_base64: data.imagen_base64,
           tipo: data.tipo,
           is_active: data.is_active,
         };

@@ -11,6 +11,7 @@ import {
   getSignatureDataServer,
   getCarnetTemplateServer,
 } from "@/app/actions/certificate-data";
+import { hasSignatureImage } from "@/lib/sha-signature";
 import { isOsiHiddenForCliente } from "@/app/actions/cliente-portal";
 
 export async function GET(
@@ -222,7 +223,10 @@ export async function GET(
         }
 
         // Enrich missing SHA signature data from database
-        if (certData.sha_signature_id && !certData.sha_signature_data) {
+        if (
+          certData.sha_signature_id &&
+          !hasSignatureImage(certData.sha_signature_data)
+        ) {
           try {
             const shaData = await getSignatureDataServer(
               certData.sha_signature_id.toString(),

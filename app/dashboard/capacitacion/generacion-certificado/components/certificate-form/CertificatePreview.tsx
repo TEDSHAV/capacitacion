@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { X, RefreshCw, ChevronRight, FileText } from "lucide-react";
 import { previewDocumentsServer } from "@/lib/document-server-actions";
 import { getPreviousParticipantsByOSIAction } from "@/app/actions/certificados";
+import { resolveShaSignatureImage } from "@/lib/sha-signature";
 
 interface CertificatePreviewProps {
   certificateData: CertificateGeneration;
@@ -249,7 +250,10 @@ export const CertificatePreview = ({
     }
 
     const results = await Promise.all(promises);
-    return results.reduce((acc, result) => ({ ...acc, ...result }), {});
+    return results.reduce(
+      (acc, result) => ({ ...acc, ...result }),
+      { signatures: cachedSignatures },
+    );
   };
 
   const generateCarnetPreview = async () => {
@@ -445,10 +449,18 @@ export const CertificatePreview = ({
           };
 
           // Preload SHA signature image
-          if (selectedSHASignature.url_imagen) {
-            shaSignatureBase64 = await preloadImage(
-              selectedSHASignature.url_imagen,
+          try {
+            const resolved = await resolveShaSignatureImage(
+              selectedSHASignature,
+              preloadImage,
             );
+            shaSignatureBase64 = resolved.image;
+            certificateDataWithSHA = {
+              ...certificateDataWithSHA,
+              sha_signature_data: resolved.data,
+            };
+          } catch {
+            // Continue without SHA signature
           }
         }
       }
