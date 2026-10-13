@@ -489,6 +489,9 @@ export async function getIndicadoresCertificados72h(
       fecha_emision: string | null;
       motivo: string | null;
       updated_at: string | null;
+      emitido_en_otra_osi?: boolean | null;
+      osi_referencia_id?: number | null;
+      nro_osi_referencia?: string | null;
     };
     const ajustesByOsi = new Map<number, AjusteRow>();
     {
@@ -497,7 +500,7 @@ export async function getIndicadoresCertificados72h(
         (chunk, from, to) =>
           supabase
             .from("capacitacion_indicadores_ajustes")
-            .select("osi_id, fecha_ejecucion, fecha_emision, motivo, updated_at")
+            .select("*")
             .in("osi_id", chunk)
             .order("osi_id", { ascending: true })
             .range(from, to),
@@ -707,6 +710,14 @@ export async function getIndicadoresCertificados72h(
         fechaEmisionAjustada,
         motivoAjuste: ajuste?.motivo ?? null,
         ajusteUpdatedAt: ajuste?.updated_at ?? null,
+        emitidoEnOtraOsi:
+          Boolean(ajuste?.emitido_en_otra_osi) ||
+          Boolean(ajuste?.nro_osi_referencia) ||
+          Boolean(ajuste?.motivo && /emitid[oa]s?\s+en\s+osi/i.test(ajuste.motivo)),
+        nroOsiReferencia:
+          ajuste?.nro_osi_referencia ??
+          (ajuste?.motivo?.match(/OSI-[\w-]+/i)?.[0] ?? null),
+        osiReferenciaId: ajuste?.osi_referencia_id ?? null,
       };
     });
 

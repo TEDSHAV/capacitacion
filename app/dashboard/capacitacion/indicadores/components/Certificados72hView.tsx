@@ -14,6 +14,7 @@ import {
   Calendar,
   X,
   Pencil,
+  Link2,
 } from "lucide-react";
 import type { IndicadorEstado, IndicadorOsiRow, IndicadoresAggregates } from "@/types";
 import { parseDate } from "@/lib/business-days";
@@ -57,7 +58,7 @@ function formatDate(s: string | null | undefined): string {
 }
 
 export default function Certificados72hView({ aggregates, rows, mesLabel, onRefresh }: Props) {
-  const [filterEstado, setFilterEstado] = useState<IndicadorEstado | "ajustadas" | "all">("all");
+  const [filterEstado, setFilterEstado] = useState<IndicadorEstado | "ajustadas" | "otra_osi" | "all">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("diasHabiles");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -65,7 +66,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
   const [editModalState, setEditModalState] = useState<{
     isOpen: boolean;
     row: IndicadorOsiRow | null;
-    focusField: "ejecucion" | "emision";
+    focusField: "ejecucion" | "emision" | "otra_osi";
   }>({
     isOpen: false,
     row: null,
@@ -92,7 +93,12 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
           : "bg-red-50 text-red-700 border-red-200";
 
   const adjustedCount = useMemo(
-    () => rows.filter((r) => r.fechaEjecucionAjustada || r.fechaEmisionAjustada).length,
+    () => rows.filter((r) => r.fechaEjecucionAjustada || r.fechaEmisionAjustada || r.emitidoEnOtraOsi).length,
+    [rows]
+  );
+
+  const otraOsiCount = useMemo(
+    () => rows.filter((r) => r.emitidoEnOtraOsi).length,
     [rows]
   );
 
@@ -101,7 +107,9 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
     let result = rows;
 
     if (filterEstado === "ajustadas") {
-      result = result.filter((r) => r.fechaEjecucionAjustada || r.fechaEmisionAjustada);
+      result = result.filter((r) => r.fechaEjecucionAjustada || r.fechaEmisionAjustada || r.emitidoEnOtraOsi);
+    } else if (filterEstado === "otra_osi") {
+      result = result.filter((r) => r.emitidoEnOtraOsi);
     } else if (filterEstado !== "all") {
       result = result.filter((r) => r.estado === filterEstado);
     }
@@ -422,6 +430,21 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
               Ajustadas ({adjustedCount})
             </button>
           )}
+          {otraOsiCount > 0 && (
+            <button
+              onClick={() =>
+                setFilterEstado(filterEstado === "otra_osi" ? "all" : "otra_osi")
+              }
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
+                filterEstado === "otra_osi"
+                  ? "bg-sky-600 text-white font-semibold"
+                  : "bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200/60"
+              }`}
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              En otra OSI ({otraOsiCount})
+            </button>
+          )}
         </div>
 
         {/* Buscador Rápido */}
@@ -660,7 +683,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                               {r.fechaEmision ? (
                                 <span
                                   className={`font-medium ${
-                                    r.fechaEmisionAjustada
+                                    r.fechaEmisionAjustada || r.emitidoEnOtraOsi
                                       ? "text-sky-700 font-semibold"
                                       : "text-gray-900"
                                   }`}
@@ -676,7 +699,25 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                                   Pendiente por generar certificados
                                 </span>
                               )}
-                              {r.fechaEmisionAjustada && (
+                              {r.emitidoEnOtraOsi ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (r.nroOsiReferencia) {
+                                      setPreviewOsi({
+                                        osiId: r.osiReferenciaId ?? r.osiId,
+                                        nroOsi: r.nroOsiReferencia,
+                                      });
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200 hover:bg-sky-200 transition-colors cursor-pointer"
+                                  title={`Certificados emitidos en ${r.nroOsiReferencia || "otra OSI"}. Clic para previsualizar OSI`}
+                                >
+                                  <Link2 className="w-2.5 h-2.5 text-sky-600 shrink-0" />
+                                  <span>{r.nroOsiReferencia || "En otra OSI"}</span>
+                                </button>
+                              ) : r.fechaEmisionAjustada ? (
                                 <span
                                   className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200"
                                   title={`Fecha real ajustada manualmente (Original del sistema: ${formatDate(
@@ -685,23 +726,47 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                                 >
                                   Ajustada
                                 </span>
-                              )}
+                              ) : null}
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setEditModalState({
-                                isOpen: true,
-                                row: r,
-                                focusField: "emision",
-                              })
-                            }
-                            className="p-1 rounded text-gray-400 hover:text-sky-600 hover:bg-sky-50 transition-colors opacity-80 sm:opacity-0 sm:group-hover/cell:opacity-100 cursor-pointer"
-                            title="Editar fecha real de registro/emisión de certificados (SLA indicadores)"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditModalState({
+                                  isOpen: true,
+                                  row: r,
+                                  focusField: "otra_osi",
+                                })
+                              }
+                              className={`p-1 rounded transition-colors cursor-pointer ${
+                                r.emitidoEnOtraOsi
+                                  ? "text-sky-700 bg-sky-50 hover:bg-sky-100"
+                                  : "text-gray-400 hover:text-sky-600 hover:bg-sky-50 opacity-80 sm:opacity-0 sm:group-hover/cell:opacity-100"
+                              }`}
+                              title={
+                                r.emitidoEnOtraOsi
+                                  ? `Certificados vinculados a ${r.nroOsiReferencia || "otra OSI"} (clic para modificar)`
+                                  : "Vincular a certificados emitidos en otra OSI"
+                              }
+                            >
+                              <Link2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditModalState({
+                                  isOpen: true,
+                                  row: r,
+                                  focusField: "emision",
+                                })
+                              }
+                              className="p-1 rounded text-gray-400 hover:text-sky-600 hover:bg-sky-50 transition-colors opacity-80 sm:opacity-0 sm:group-hover/cell:opacity-100 cursor-pointer"
+                              title="Editar fecha real de registro/emisión de certificados (SLA indicadores)"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </td>
 
@@ -770,6 +835,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
         }
         row={editModalState.row}
         initialFocusField={editModalState.focusField}
+        allRows={rows}
         onSuccess={onRefresh}
       />
     </div>

@@ -2004,6 +2004,10 @@ export interface IndicadorOsiRow {
   fechaEmisionAjustada?: boolean;
   motivoAjuste?: string | null;
   ajusteUpdatedAt?: string | null;
+  // Linked OSI for certificates issued under another OSI
+  emitidoEnOtraOsi?: boolean;
+  osiReferenciaId?: number | null;
+  nroOsiReferencia?: string | null;
 }
 
 export interface IndicadoresAggregates {
