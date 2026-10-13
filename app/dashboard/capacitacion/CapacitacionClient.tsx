@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CapacitacionClientProps } from "@/types";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import { CertificadosNotificationsBanner } from "@/components/alerts/CertificadosNotificationsBanner";
+import { OsisHoyBanner } from "@/components/alerts/OsisHoyBanner";
 import {
   BookOpen,
   Award,
@@ -243,6 +244,9 @@ export default function CapacitacionClient({
             Gestión centralizada de los procesos de Capacitación
           </p>
         </div>
+
+        {/* Radar de Cursos y Servicios de Hoy */}
+        <OsisHoyBanner />
 
         {/* Centro de Notificaciones de Certificados Pendientes */}
         <CertificadosNotificationsBanner />

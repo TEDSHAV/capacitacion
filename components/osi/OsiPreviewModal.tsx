@@ -21,7 +21,7 @@ import type { OsiPreviewData } from "@/lib/osi-formato/osi-preview-data";
 import { getOsiPreviewData } from "@/app/actions/osi";
 
 interface OsiPreviewModalProps {
-  osiId: number | null;
+  osiId: number | string | null;
   osiNumber?: string;
   isOpen: boolean;
   onClose: () => void;
@@ -38,7 +38,7 @@ export function OsiPreviewModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen || !osiId) {
+    if (!isOpen || (!osiId && !osiNumber)) {
       setPreviewData(null);
       setError(null);
       return;
@@ -48,7 +48,7 @@ export function OsiPreviewModal({
     setLoading(true);
     setError(null);
 
-    getOsiPreviewData(osiId)
+    getOsiPreviewData(osiId ?? 0, osiNumber)
       .then((res) => {
         if (!isMounted) return;
         if (res.error || !res.data) {

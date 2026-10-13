@@ -132,7 +132,7 @@ export default function OSITableV2({
                     onPreviewOsi(osi);
                   }}
                   className="inline-flex items-center gap-1 text-sm font-semibold text-sky-700 hover:text-sky-900 hover:underline cursor-pointer truncate text-left"
-                  title="Ver formato oficial de la OSI"
+                  title={osi.is_manual_batch ? "Ver detalles y documentos (OSI manual)" : "Ver formato oficial de la OSI"}
                 >
                   <FileText className="w-3.5 h-3.5 text-sky-500 flex-shrink-0" />
                   <span className="truncate">{osi.nro_osi}</span>
@@ -279,7 +279,7 @@ export default function OSITableV2({
                           onPreviewOsi(osi);
                         }}
                         className="inline-flex items-center gap-1 text-sm font-semibold text-sky-700 hover:text-sky-900 hover:underline cursor-pointer transition-colors"
-                        title="Ver formato oficial de la OSI"
+                        title={osi.is_manual_batch ? "Ver detalles y documentos (OSI manual)" : "Ver formato oficial de la OSI"}
                       >
                         <FileText className="w-3.5 h-3.5 text-sky-500 flex-shrink-0" />
                         <span>{osi.nro_osi}</span>
@@ -333,7 +333,7 @@ export default function OSITableV2({
                         onPreviewOsi(osi);
                       }}
                       className="inline-flex items-center p-1.5 border border-sky-600 text-sky-600 hover:bg-sky-600 hover:text-white rounded-md transition-colors shadow-sm cursor-pointer"
-                      title="Ver formato oficial de la OSI"
+                      title={osi.is_manual_batch ? "Ver detalles y documentos (OSI manual)" : "Ver formato oficial de la OSI"}
                     >
                       <FileText className="w-3.5 h-3.5" />
                     </button>

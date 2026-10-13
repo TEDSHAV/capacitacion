@@ -205,7 +205,7 @@ export default function OSIDetailsModalV2({
                   Visor de Orden de Servicio
                 </h3>
                 <div className="flex items-center gap-2 mt-0.5">
-                  {onPreviewOsi ? (
+                  {onPreviewOsi && !(osi as any).is_manual_batch ? (
                     <button
                       type="button"
                       onClick={() => onPreviewOsi(osi)}

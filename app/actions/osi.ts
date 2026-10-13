@@ -940,17 +940,67 @@ function resolve_public_cost_mask(
  * Fetch and construct the canonical OSI preview data matching Shell's consulta-osi/preview
  */
 export async function getOsiPreviewData(
-  osiId: number,
+  osiId: number | string,
+  osiNumber?: string,
 ): Promise<{ data: OsiPreviewData | null; error: string | null }> {
-  if (!Number.isFinite(osiId) || osiId <= 0) {
+  const numericId = typeof osiId === "string" ? parseInt(osiId.replace(/[^\d]/g, ""), 10) : Number(osiId);
+  const hasValidNumericId = Number.isFinite(numericId) && numericId > 0;
+  const cleanOsiNumber = osiNumber?.trim() || (typeof osiId === "string" && isNaN(numericId) ? osiId.trim() : undefined);
+
+  if (!hasValidNumericId && !cleanOsiNumber) {
     return { data: null, error: "ID de OSI inválido" };
   }
 
   try {
     const supabase = await createClient();
 
+    // 1. Resolve canonical view_row in v_osi_formato_completo (by id_osi, or fallback by nro_osi)
+    let view_row: Record<string, unknown> | null = null;
+    let viewRowError: string | null = null;
+
+    if (hasValidNumericId) {
+      const byIdRes = await supabase
+        .from("v_osi_formato_completo")
+        .select("*")
+        .eq("id_osi", numericId)
+        .maybeSingle();
+      if (byIdRes.data) {
+        view_row = byIdRes.data as Record<string, unknown>;
+      } else if (byIdRes.error) {
+        viewRowError = byIdRes.error.message;
+      }
+    }
+
+    // If not found by id_osi, try finding by nro_osi (in case business nro_osi was passed)
+    if (!view_row) {
+      const searchNro = cleanOsiNumber || (hasValidNumericId ? String(numericId) : null);
+      if (searchNro) {
+        const byNroRes = await supabase
+          .from("v_osi_formato_completo")
+          .select("*")
+          .eq("nro_osi", searchNro)
+          .maybeSingle();
+        if (byNroRes.data) {
+          view_row = byNroRes.data as Record<string, unknown>;
+          viewRowError = null;
+        } else if (byNroRes.error && !viewRowError) {
+          viewRowError = byNroRes.error.message;
+        }
+      }
+    }
+
+    if (!view_row) {
+      return {
+        data: null,
+        error:
+          viewRowError ||
+          "No se encontró la información de la OSI en el sistema. Si se trata de una OSI histórica o ingresada manualmente, esta no dispone de formato oficial en cotizaciones.",
+      };
+    }
+
+    const resolvedOsiId = Number(view_row.id_osi);
+
     const [
-      viewRowResult,
       baseRowResult,
       recursosResult,
       sesionesResult,
@@ -958,42 +1008,29 @@ export async function getOsiPreviewData(
       serviciosResult,
     ] = await Promise.all([
       supabase
-        .from("v_osi_formato_completo")
-        .select("*")
-        .eq("id_osi", osiId)
-        .single(),
-      supabase
         .from("ejecucion_osi")
         .select("id, pretenciones_adicionales_osi, observaciones_adicionales_osi")
-        .eq("id", osiId)
+        .eq("id", resolvedOsiId)
         .maybeSingle(),
       supabase
         .from("osi_recursos_estimados")
         .select("id_sesion, public_cost_mask")
-        .eq("id_osi", osiId)
+        .eq("id_osi", resolvedOsiId)
         .limit(50),
       supabase
         .from("osi_sesion")
         .select("nro_sesion, fecha, hora_inicio, fecha_ejecutada, hora_ejecutada")
-        .eq("id_osi", osiId)
+        .eq("id_osi", resolvedOsiId)
         .order("nro_sesion", { ascending: true }),
       supabase
         .from("capacitacion_proceso_steps")
         .select("step_key, completed")
-        .eq("osi_id", osiId),
+        .eq("osi_id", resolvedOsiId),
       supabase
         .from("catalogo_servicios")
         .select("id, nombre")
         .limit(500),
     ]);
-
-    const view_row = viewRowResult.data;
-    if (viewRowResult.error || !view_row) {
-      return {
-        data: null,
-        error: viewRowResult.error?.message || "No se encontró la información de la OSI",
-      };
-    }
 
     const osi_base_row = baseRowResult.data;
     const recursos_rows = (recursosResult.data ?? []) as Array<{

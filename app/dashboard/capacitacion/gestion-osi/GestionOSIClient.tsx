@@ -387,9 +387,23 @@ export default function GestionOSIClient({
     setCurrentPage(1);
   }, []);
 
-  const handlePreviewOsi = useCallback((osi: OSIManagement) => {
-    setPreviewOsi({ osiId: osi.id_osi, nroOsi: osi.nro_osi });
-  }, []);
+  const handlePreviewOsi = useCallback(
+    (osi: OSIManagement) => {
+      // Manual OSIs do not have an official format in v_osi_formato_completo (cotizaciones/negocios).
+      // Route them directly to their details & documents/certificates modal.
+      if ((osi as any).is_manual_batch || activeTab === "manual") {
+        handleViewDetails(osi, "info");
+        return;
+      }
+      const rawId: unknown = osi.id_osi;
+      const numericId = typeof rawId === "string" ? parseInt(rawId.replace(/[^\d]/g, ""), 10) : Number(rawId);
+      setPreviewOsi({
+        osiId: isNaN(numericId) || numericId <= 0 ? 0 : numericId,
+        nroOsi: osi.nro_osi || "",
+      });
+    },
+    [activeTab, handleViewDetails],
+  );
 
   const handleClosePreviewOsi = useCallback(() => {
     setPreviewOsi(null);
