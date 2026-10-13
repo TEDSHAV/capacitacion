@@ -11,6 +11,7 @@ import {
   MapPin,
   ArrowUp,
   ArrowDown,
+  MessageSquare,
 } from "lucide-react";
 import type { OSIStatus } from "@/types";
 import { formatDateOnly } from "@/lib/format-date";
@@ -26,6 +27,7 @@ interface OSITableV2Props {
   onSurvey: (osi: OSIManagement) => void;
   onAssignFacilitador: (osi: OSIManagement) => void;
   onPreviewOsi: (osi: OSIManagement) => void;
+  onCommentsClick: (osi: OSIManagement) => void;
 }
 
 export default function OSITableV2({
@@ -39,6 +41,7 @@ export default function OSITableV2({
   onSurvey,
   onAssignFacilitador,
   onPreviewOsi,
+  onCommentsClick,
 }: OSITableV2Props) {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
@@ -181,6 +184,18 @@ export default function OSITableV2({
               >
                 <FileText className="w-3.5 h-3.5" />
                 <span>Formato OSI</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCommentsClick(osi);
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-1 py-2 border border-emerald-600 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md transition-colors text-xs font-medium cursor-pointer"
+                title="Comentarios de la OSI"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Comentarios</span>
               </button>
               <button
                 type="button"
@@ -336,6 +351,17 @@ export default function OSITableV2({
                       title={osi.is_manual_batch ? "Ver detalles y documentos (OSI manual)" : "Ver formato oficial de la OSI"}
                     >
                       <FileText className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCommentsClick(osi);
+                      }}
+                      className="inline-flex items-center p-1.5 border border-emerald-600 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md transition-colors shadow-sm cursor-pointer"
+                      title="Comentarios de la OSI"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"

@@ -17,6 +17,7 @@ import {
   CalendarClock,
   AlertCircle,
   FileText,
+  MessageSquare,
 } from "lucide-react";
 import type { OSIManagement, OSISesion, OSIFilters, OSIStatus } from "@/types";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
@@ -36,6 +37,7 @@ import OSIPagination from "../gestion-osi/components/osi-pagination";
 import ListaAsistenciaPreview from "./components/lista-asistencia-preview";
 import UnmarkEnProcesoModal from "./components/UnmarkEnProcesoModal";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
+import OsiCommentsSheet from "@/components/osi/OsiCommentsSheet";
 import { formatDateOnly } from "@/lib/format-date";
 
 interface FilterOptions {
@@ -165,6 +167,7 @@ export default function SeguimientoServiciosClient({
   const [seeding, setSeeding] = useState<number | null>(null);
   const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string; nroSesion: number; category?: string; title?: string; showReceivedToggle?: boolean } | null>(null);
   const [osiFormatoPreview, setOsiFormatoPreview] = useState<{ osiId: number; nroOsi: string } | null>(null);
+  const [commentsOsi, setCommentsOsi] = useState<{ osiId: number; nroOsi: string; servicio?: string } | null>(null);
   const isFirstRender = useRef(true);
   const hasInitialized = useRef(false);
 
@@ -1238,6 +1241,17 @@ export default function SeguimientoServiciosClient({
                           >
                             <FileText className="w-3.5 h-3.5" />
                           </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCommentsOsi({ osiId: osi.id_osi, nroOsi: osi.nro_osi || "", servicio: osi.servicio || undefined });
+                            }}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
+                            title="Comentarios de la OSI"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
                           {isAnySessionRescheduled && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                               <CalendarClock className="w-3 h-3 text-amber-600" />
@@ -1467,6 +1481,15 @@ export default function SeguimientoServiciosClient({
           onConfirm={handleConfirmUnmark}
         />
       )}
+
+      {/* OSI Comments Sheet */}
+      <OsiCommentsSheet
+        osiId={commentsOsi?.osiId ?? null}
+        nroOsi={commentsOsi?.nroOsi}
+        servicio={commentsOsi?.servicio}
+        open={Boolean(commentsOsi)}
+        onClose={() => setCommentsOsi(null)}
+      />
     </div>
   );
 }

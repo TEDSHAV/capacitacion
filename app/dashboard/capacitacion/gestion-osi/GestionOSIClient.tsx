@@ -14,6 +14,7 @@ import OSIDetailsModalV2 from "./components/osi-details-modal-v2";
 import OSISurveyModal from "./components/osi-survey-modal";
 import AssignFacilitadorModal from "./components/assign-facilitador-modal";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
+import OsiCommentsSheet from "@/components/osi/OsiCommentsSheet";
 import { getSessionCount } from "@/lib/osi-utils";
 
 interface FilterOptions {
@@ -113,6 +114,9 @@ export default function GestionOSIClient({
 
   // Official OSI format preview modal state
   const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string } | null>(null);
+
+  // OSI Comments sheet state
+  const [commentsOsi, setCommentsOsi] = useState<{ osiId: number; nroOsi: string; servicio?: string } | null>(null);
 
   // Track if filters have been loaded (for initial load detection)
   const filtersLoadedRef = useRef(Boolean(initialFilterOptions));
@@ -409,6 +413,21 @@ export default function GestionOSIClient({
     setPreviewOsi(null);
   }, []);
 
+  const handleOpenComments = useCallback(
+    (osi: OSIManagement) => {
+      setCommentsOsi({
+        osiId: Number(osi.id_osi),
+        nroOsi: osi.nro_osi || "",
+        servicio: osi.servicio || undefined,
+      });
+    },
+    [],
+  );
+
+  const handleCloseComments = useCallback(() => {
+    setCommentsOsi(null);
+  }, []);
+
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
@@ -497,6 +516,7 @@ export default function GestionOSIClient({
         onSurvey={handleSurvey}
         onAssignFacilitador={handleAssignFacilitador}
         onPreviewOsi={handlePreviewOsi}
+        onCommentsClick={handleOpenComments}
       />
 
       {/* Pagination */}
@@ -550,6 +570,15 @@ export default function GestionOSIClient({
         osiId={previewOsi?.osiId ?? null}
         osiNumber={previewOsi?.nroOsi}
         onClose={handleClosePreviewOsi}
+      />
+
+      {/* OSI Comments Sheet */}
+      <OsiCommentsSheet
+        osiId={commentsOsi?.osiId ?? null}
+        nroOsi={commentsOsi?.nroOsi}
+        servicio={commentsOsi?.servicio}
+        open={Boolean(commentsOsi)}
+        onClose={handleCloseComments}
       />
     </div>
   );
