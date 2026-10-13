@@ -2097,6 +2097,17 @@ export async function getCertificatesForManagement(
     if (filters.dateTo) {
       query = query.lte("fecha_emision", filters.dateTo);
     }
+    if (filters.participantId) {
+      const participantId = Number(filters.participantId);
+      if (!isNaN(participantId)) {
+        query = query.eq("participantes_certificados.id", participantId);
+      }
+    } else if (filters.participantCi?.trim()) {
+      const cleanCi = filters.participantCi.trim().replace(/^[VEve]-?/, "");
+      if (cleanCi) {
+        query = query.ilike("participantes_certificados.cedula", `%${cleanCi}%`);
+      }
+    }
 
     // Apply search term if present
     if (filters.searchTerm?.trim()) {
@@ -2865,4 +2876,62 @@ export async function reactivarCertificateAction(
     };
   }
 }
+
+/**
+ * Search participants for the combobox filter in certificate management
+ */
+export async function searchParticipantsForFilters(
+  query: string = "",
+  limit: number = 20,
+): Promise<Array<{
+  id: number;
+  cedula: string;
+  nombre: string;
+  nacionalidad: string;
+}>> {
+  try {
+    const supabase = await createClient();
+    const trimmed = (query || "").trim();
+
+    let q = supabase
+      .from("participantes_certificados")
+      .select("id, cedula, nombre, nacionalidad");
+
+    if (trimmed) {
+      const cleanCi = trimmed.replace(/^[VEve]-?/, "").trim();
+      const numId = parseInt(trimmed, 10);
+      const isExactNumeric = Number.isFinite(numId) && String(numId) === trimmed;
+
+      if (cleanCi && cleanCi !== trimmed) {
+        // Had V- or E- prefix
+        q = q.or(`cedula.ilike.%${cleanCi}%,nombre.ilike.%${trimmed}%`);
+      } else if (isExactNumeric) {
+        // Could be CI or ID
+        q = q.or(`cedula.ilike.%${trimmed}%,nombre.ilike.%${trimmed}%,id.eq.${numId}`);
+      } else {
+        q = q.or(`cedula.ilike.%${trimmed}%,nombre.ilike.%${trimmed}%`);
+      }
+    }
+
+    const { data, error } = await q
+      .order("id", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("Error searching participants for filters:", error);
+      return [];
+    }
+
+    return (data || []) as Array<{
+      id: number;
+      cedula: string;
+      nombre: string;
+      nacionalidad: string;
+    }>;
+  } catch (err) {
+    console.error("Unexpected error searching participants:", err);
+    return [];
+  }
+}
+
 

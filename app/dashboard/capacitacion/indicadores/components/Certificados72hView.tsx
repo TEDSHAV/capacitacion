@@ -13,15 +13,18 @@ import {
   ShieldCheck,
   Calendar,
   X,
+  Pencil,
 } from "lucide-react";
 import type { IndicadorEstado, IndicadorOsiRow, IndicadoresAggregates } from "@/types";
 import { parseDate } from "@/lib/business-days";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
+import EditarFechasModal from "./EditarFechasModal";
 
 interface Props {
   aggregates: IndicadoresAggregates;
   rows: IndicadorOsiRow[];
   mesLabel?: string;
+  onRefresh?: () => void;
 }
 
 type SortKey =
@@ -34,7 +37,7 @@ type SortKey =
   | "facilitador"
   | "estado";
 
-function formatDate(s: string | null): string {
+function formatDate(s: string | null | undefined): string {
   if (!s) return "—";
   const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(s);
   const d = parseDate(s);
@@ -53,12 +56,21 @@ function formatDate(s: string | null): string {
   });
 }
 
-export default function Certificados72hView({ aggregates, rows, mesLabel }: Props) {
-  const [filterEstado, setFilterEstado] = useState<IndicadorEstado | "all">("all");
+export default function Certificados72hView({ aggregates, rows, mesLabel, onRefresh }: Props) {
+  const [filterEstado, setFilterEstado] = useState<IndicadorEstado | "ajustadas" | "all">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("diasHabiles");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string } | null>(null);
+  const [editModalState, setEditModalState] = useState<{
+    isOpen: boolean;
+    row: IndicadorOsiRow | null;
+    focusField: "ejecucion" | "emision";
+  }>({
+    isOpen: false,
+    row: null,
+    focusField: "ejecucion",
+  });
 
   const pct = aggregates.pctCumplimiento;
   const pctColor =
@@ -79,11 +91,18 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
           ? "bg-amber-50 text-amber-700 border-amber-200"
           : "bg-red-50 text-red-700 border-red-200";
 
+  const adjustedCount = useMemo(
+    () => rows.filter((r) => r.fechaEjecucionAjustada || r.fechaEmisionAjustada).length,
+    [rows]
+  );
+
   // Filtered rows
   const filteredRows = useMemo(() => {
     let result = rows;
 
-    if (filterEstado !== "all") {
+    if (filterEstado === "ajustadas") {
+      result = result.filter((r) => r.fechaEjecucionAjustada || r.fechaEmisionAjustada);
+    } else if (filterEstado !== "all") {
       result = result.filter((r) => r.estado === filterEstado);
     }
 
@@ -388,6 +407,21 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
               Programadas ({aggregates.programadas})
             </button>
           )}
+          {adjustedCount > 0 && (
+            <button
+              onClick={() =>
+                setFilterEstado(filterEstado === "ajustadas" ? "all" : "ajustadas")
+              }
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
+                filterEstado === "ajustadas"
+                  ? "bg-sky-600 text-white font-semibold"
+                  : "bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200/60"
+              }`}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Ajustadas ({adjustedCount})
+            </button>
+          )}
         </div>
 
         {/* Buscador Rápido */}
@@ -571,30 +605,104 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
                       </td>
 
                       {/* Fecha de Ejecución */}
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
-                        {r.estado === "pendiente_ejecucion" ? (
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs group/cell">
+                        <div className="flex items-center justify-between gap-1.5">
                           <div className="flex flex-col">
-                            <span className="text-gray-900 font-medium">{formatDate(r.fechaEjecucion)}</span>
-                            <span className="text-[10px] text-violet-600 font-medium italic">(Planificada · Sin ejecutar)</span>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`font-medium ${
+                                  r.fechaEjecucionAjustada
+                                    ? "text-sky-700 font-semibold"
+                                    : "text-gray-900"
+                                }`}
+                              >
+                                {formatDate(r.fechaEjecucion)}
+                              </span>
+                              {r.fechaEjecucionAjustada && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200"
+                                  title={`Fecha real ajustada manualmente (Original del sistema: ${formatDate(
+                                    r.originalFechaEjecucion
+                                  )})${r.motivoAjuste ? ` · Motivo: ${r.motivoAjuste}` : ""}`}
+                                >
+                                  Ajustada
+                                </span>
+                              )}
+                            </div>
+                            {r.estado === "pendiente_ejecucion" && !r.fechaEjecucionAjustada && (
+                              <span className="text-[10px] text-violet-600 font-medium italic">
+                                (Planificada · Sin ejecutar)
+                              </span>
+                            )}
                           </div>
-                        ) : (
-                          formatDate(r.fechaEjecucion)
-                        )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditModalState({
+                                isOpen: true,
+                                row: r,
+                                focusField: "ejecucion",
+                              })
+                            }
+                            className="p-1 rounded text-gray-400 hover:text-sky-600 hover:bg-sky-50 transition-colors opacity-80 sm:opacity-0 sm:group-hover/cell:opacity-100 cursor-pointer"
+                            title="Editar fecha real de ejecución (SLA indicadores)"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
 
                       {/* Fecha Emisión */}
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
-                        {r.fechaEmision ? (
-                          formatDate(r.fechaEmision)
-                        ) : r.estado === "pendiente_ejecucion" ? (
-                          <span className="text-violet-700/90 font-medium italic">
-                            En espera de ejecución del servicio
-                          </span>
-                        ) : (
-                          <span className="text-amber-700/90 font-medium italic">
-                            Pendiente por generar certificados
-                          </span>
-                        )}
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs group/cell">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              {r.fechaEmision ? (
+                                <span
+                                  className={`font-medium ${
+                                    r.fechaEmisionAjustada
+                                      ? "text-sky-700 font-semibold"
+                                      : "text-gray-900"
+                                  }`}
+                                >
+                                  {formatDate(r.fechaEmision)}
+                                </span>
+                              ) : r.estado === "pendiente_ejecucion" ? (
+                                <span className="text-violet-700/90 font-medium italic">
+                                  En espera de ejecución del servicio
+                                </span>
+                              ) : (
+                                <span className="text-amber-700/90 font-medium italic">
+                                  Pendiente por generar certificados
+                                </span>
+                              )}
+                              {r.fechaEmisionAjustada && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200"
+                                  title={`Fecha real ajustada manualmente (Original del sistema: ${formatDate(
+                                    r.originalFechaEmision
+                                  )})${r.motivoAjuste ? ` · Motivo: ${r.motivoAjuste}` : ""}`}
+                                >
+                                  Ajustada
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditModalState({
+                                isOpen: true,
+                                row: r,
+                                focusField: "emision",
+                              })
+                            }
+                            className="p-1 rounded text-gray-400 hover:text-sky-600 hover:bg-sky-50 transition-colors opacity-80 sm:opacity-0 sm:group-hover/cell:opacity-100 cursor-pointer"
+                            title="Editar fecha real de registro/emisión de certificados (SLA indicadores)"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
 
                       {/* Tiempo de Emisión con Badge */}
@@ -653,6 +761,16 @@ export default function Certificados72hView({ aggregates, rows, mesLabel }: Prop
         osiId={previewOsi?.osiId ?? null}
         osiNumber={previewOsi?.nroOsi}
         onClose={() => setPreviewOsi(null)}
+      />
+
+      <EditarFechasModal
+        isOpen={editModalState.isOpen}
+        onClose={() =>
+          setEditModalState((prev) => ({ ...prev, isOpen: false, row: null }))
+        }
+        row={editModalState.row}
+        initialFocusField={editModalState.focusField}
+        onSuccess={onRefresh}
       />
     </div>
   );

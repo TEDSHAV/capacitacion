@@ -2,8 +2,9 @@
 
 import { memo, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { CertificateFilters } from "@/types";
-import { X, Search, ChevronDown, Check, Building2 } from "lucide-react";
+import { X, Search, ChevronDown, Check, Building2, User, Loader2 } from "lucide-react";
 import { toTitleCase } from "@/utils/string-utils";
+import { searchParticipantsForFilters } from "@/app/actions/certificados";
 
 interface SearchableSelectProps {
   label: string;
@@ -162,10 +163,25 @@ function CertificateFiltersComponent({
   const [companySelectedIndex, setCompanySelectedIndex] = useState(0);
   const companyDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Searchable Participante (Cédula / CI) combobox state
+  const [localParticipant, setLocalParticipant] = useState(
+    filters.participantCi || (filters.participantId ? String(filters.participantId) : "")
+  );
+  const [participantDropdownOpen, setParticipantDropdownOpen] = useState(false);
+  const [participantSelectedIndex, setParticipantSelectedIndex] = useState(0);
+  const [participantSuggestions, setParticipantSuggestions] = useState<
+    Array<{ id: number; cedula: string; nombre: string; nacionalidad: string }>
+  >([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const participantDropdownRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setLocalFilters(filters);
     setSearchTerm(filters.searchTerm || "");
     setLocalCompany(filters.companyName || "");
+    if (!filters.participantCi && !filters.participantId) {
+      setLocalParticipant("");
+    }
   }, [filters]);
 
   useEffect(() => {
@@ -212,6 +228,66 @@ function CertificateFiltersComponent({
     return () => clearTimeout(timer);
   }, [localCompany]);
 
+  // Fetch participant suggestions when dropdown opens or user types
+  useEffect(() => {
+    if (!participantDropdownOpen) return;
+
+    let active = true;
+    const timer = setTimeout(async () => {
+      setLoadingParticipants(true);
+      try {
+        const query = localParticipant.includes("·") ? "" : localParticipant;
+        const results = await searchParticipantsForFilters(query, 15);
+        if (active) {
+          setParticipantSuggestions(results);
+        }
+      } catch (err) {
+        console.error("Error loading participant suggestions:", err);
+      } finally {
+        if (active) setLoadingParticipants(false);
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [localParticipant, participantDropdownOpen]);
+
+  // Debounced participant filter — applies if user types a CI directly without selecting from dropdown
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const clean = localParticipant.trim();
+      if (!clean) {
+        if (localFiltersRef.current.participantId || localFiltersRef.current.participantCi) {
+          const newFilters = {
+            ...localFiltersRef.current,
+            participantId: undefined,
+            participantCi: undefined,
+          };
+          setLocalFilters(newFilters);
+          onFiltersChangeRef.current(newFilters);
+        }
+        return;
+      }
+
+      if (clean.includes("·")) return;
+
+      const cleanDigits = clean.replace(/^[VEve]-?/, "");
+      if (cleanDigits !== localFiltersRef.current.participantCi) {
+        const newFilters = {
+          ...localFiltersRef.current,
+          participantId: undefined,
+          participantCi: cleanDigits || undefined,
+        };
+        setLocalFilters(newFilters);
+        onFiltersChangeRef.current(newFilters);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [localParticipant]);
+
   // Close company dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -226,11 +302,45 @@ function CertificateFiltersComponent({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Close participant dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        participantDropdownRef.current &&
+        !participantDropdownRef.current.contains(e.target as Node)
+      ) {
+        setParticipantDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleCompanySelect = useCallback((name: string) => {
     setLocalCompany(name);
     setCompanyDropdownOpen(false);
     setCompanySelectedIndex(0);
     const newFilters = { ...localFiltersRef.current, companyName: name || undefined };
+    setLocalFilters(newFilters);
+    onFiltersChangeRef.current(newFilters);
+  }, []);
+
+  const handleParticipantSelect = useCallback((p: {
+    id: number;
+    cedula: string;
+    nombre: string;
+    nacionalidad: string;
+  }) => {
+    const prefix = p.nacionalidad === "extranjero" ? "E" : "V";
+    const label = `${prefix}-${p.cedula} · ${toTitleCase(p.nombre)}`;
+    setLocalParticipant(label);
+    setParticipantDropdownOpen(false);
+    setParticipantSelectedIndex(0);
+    const newFilters = {
+      ...localFiltersRef.current,
+      participantId: p.id,
+      participantCi: p.cedula,
+    };
     setLocalFilters(newFilters);
     onFiltersChangeRef.current(newFilters);
   }, []);
@@ -274,6 +384,45 @@ function CertificateFiltersComponent({
     }
   };
 
+  const handleParticipantKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        if (participantSuggestions.length > 0) {
+          setParticipantDropdownOpen(true);
+          setParticipantSelectedIndex((prev) => {
+            const safePrev = Math.min(prev, participantSuggestions.length - 1);
+            return safePrev < participantSuggestions.length - 1 ? safePrev + 1 : 0;
+          });
+        }
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        if (participantSuggestions.length > 0) {
+          setParticipantDropdownOpen(true);
+          setParticipantSelectedIndex((prev) => {
+            const safePrev = Math.min(prev, participantSuggestions.length - 1);
+            return safePrev > 0 ? safePrev - 1 : participantSuggestions.length - 1;
+          });
+        }
+        break;
+      case "Enter":
+        if (participantDropdownOpen && participantSuggestions[participantSelectedIndex]) {
+          e.preventDefault();
+          handleParticipantSelect(participantSuggestions[participantSelectedIndex]);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setParticipantDropdownOpen(false);
+        setParticipantSelectedIndex(0);
+        break;
+      case "Tab":
+        setParticipantDropdownOpen(false);
+        break;
+    }
+  };
+
   const handleFilterChange = (key: keyof CertificateFilters, value: any) => {
     const newFilters = { ...localFilters, [key]: value };
     setLocalFilters(newFilters);
@@ -285,6 +434,7 @@ function CertificateFiltersComponent({
     setLocalFilters(emptyFilters);
     setSearchTerm("");
     setLocalCompany("");
+    setLocalParticipant("");
     onFiltersChange(emptyFilters);
   };
 
@@ -343,6 +493,99 @@ function CertificateFiltersComponent({
                 <X className="h-4 w-4" />
               </button>
             )}
+          </div>
+        </div>
+
+        {/* Participant (Cédula / CI / ID) — searchable combobox */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Participante (Cédula / CI)
+          </label>
+          <div className="relative" ref={participantDropdownRef}>
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+            <input
+              type="text"
+              placeholder="Buscar por cédula o nombre..."
+              value={localParticipant}
+              onChange={(e) => {
+                setLocalParticipant(e.target.value);
+                setParticipantDropdownOpen(true);
+                setParticipantSelectedIndex(0);
+              }}
+              onFocus={() => {
+                if (localParticipant.trim().length >= 2 || participantSuggestions.length > 0) {
+                  setParticipantDropdownOpen(true);
+                }
+              }}
+              onKeyDown={handleParticipantKeyDown}
+              className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              autoComplete="off"
+            />
+            {loadingParticipants ? (
+              <div className="absolute inset-y-0 right-0 w-8 flex items-center justify-center">
+                <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+              </div>
+            ) : localParticipant ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setLocalParticipant("");
+                  setParticipantDropdownOpen(false);
+                  const newFilters = {
+                    ...localFiltersRef.current,
+                    participantId: undefined,
+                    participantCi: undefined,
+                  };
+                  setLocalFilters(newFilters);
+                  onFiltersChangeRef.current(newFilters);
+                }}
+                className="absolute inset-y-0 right-0 w-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
+                title="Limpiar participante"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            ) : null}
+
+            {participantDropdownOpen && participantSuggestions.length > 0 && (
+              <div className="absolute mt-1 w-full border border-gray-300 rounded-md shadow-lg bg-white max-h-60 overflow-y-auto z-50">
+                {participantSuggestions.map((p, index) => {
+                  const prefix = p.nacionalidad === "extranjero" ? "E" : "V";
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => handleParticipantSelect(p)}
+                      className={`px-3 py-2 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm flex items-center justify-between ${
+                        index === participantSelectedIndex
+                          ? "bg-blue-50 text-blue-700"
+                          : "hover:bg-gray-50 text-gray-900"
+                      }`}
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-xs text-gray-800">
+                          {prefix}-{p.cedula}
+                        </span>
+                        <span className="text-xs text-gray-600">
+                          {toTitleCase(p.nombre)}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        ID: {p.id}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {participantDropdownOpen &&
+              !loadingParticipants &&
+              localParticipant.trim().length >= 2 &&
+              participantSuggestions.length === 0 && (
+                <div className="absolute mt-1 w-full border border-gray-300 rounded-md shadow-lg bg-white z-50">
+                  <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                    Sin coincidencias por cédula o nombre
+                  </div>
+                </div>
+              )}
           </div>
         </div>
 

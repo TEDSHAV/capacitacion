@@ -1354,6 +1354,8 @@ export interface CertificateFilters {
   dateTo?: string;
   isActive?: boolean;
   hasExpirationDate?: boolean;
+  participantId?: number;
+  participantCi?: string;
 }
 
 export interface CertificateSearchResult {
@@ -1964,12 +1966,13 @@ export type IndicadorEstado =
   | "no_aplica"
   | "programada";
 
-export type IndicadorFuente = "created_at" | "fecha_emision";
+export type IndicadorFuente = "created_at" | "fecha_emision" | "ajuste_manual";
 
 export type IndicadorFuenteEjecucion =
   | "fecha_ejecutada"
   | "sesiones"
-  | "fecha_fin_real";
+  | "fecha_fin_real"
+  | "ajuste_manual";
 
 export interface IndicadorOsiRow {
   osiId: number;
@@ -1992,6 +1995,15 @@ export interface IndicadorOsiRow {
   sesiones: number | null;
   sospechoso: boolean;
   isEjecutada?: boolean;
+  // Manual SLA date adjustments
+  originalFechaEjecucion?: string | null;
+  originalFuenteEjecucion?: IndicadorFuenteEjecucion | null;
+  originalFechaEmision?: string | null;
+  originalFuenteEmision?: IndicadorFuente | null;
+  fechaEjecucionAjustada?: boolean;
+  fechaEmisionAjustada?: boolean;
+  motivoAjuste?: string | null;
+  ajusteUpdatedAt?: string | null;
 }
 
 export interface IndicadoresAggregates {

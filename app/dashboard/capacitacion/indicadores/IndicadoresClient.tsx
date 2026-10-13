@@ -244,7 +244,11 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
     window.history.replaceState({}, "", newUrl);
   }, [filterState, selectedMes, activeTab]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (forceRefresh = false) => {
+    if (forceRefresh) {
+      indicadoresMemCache.clear();
+    }
+
     const gestionFilters = buildGestionFilters(filterState);
     const filters72h = build72hFilters(filterState, selectedMes);
     const filterKey = JSON.stringify({
@@ -254,7 +258,7 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
     });
 
     const memCacheKey = `${filterState.year}_${selectedMes}_${filterState.empresaId || "all"}_${filterState.facilitadorId || "all"}_${filterState.estadoId || "all"}_${filters72h.soloIncumplimientos ? "1" : "0"}`;
-    const cached = indicadoresMemCache.get(memCacheKey);
+    const cached = forceRefresh ? null : indicadoresMemCache.get(memCacheKey);
 
     if (cached) {
       setGestion(cached.gestion);
@@ -521,6 +525,7 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
                     aggregates={aggregates}
                     rows={data.rows}
                     mesLabel={mesActual?.label}
+                    onRefresh={() => fetchData(true)}
                   />
                 )}
               </section>

@@ -480,6 +480,34 @@ export async function getIndicadoresCertificados72h(
       }
     }
 
+    // 3d. Batch fetch manual SLA date adjustments from capacitacion_indicadores_ajustes.
+    //     Allows overriding fechaEjecucion and/or fechaEmision strictly for the
+    //     indicadores 72h compliance calculations, without altering operational tables.
+    type AjusteRow = {
+      osi_id: number;
+      fecha_ejecucion: string | null;
+      fecha_emision: string | null;
+      motivo: string | null;
+      updated_at: string | null;
+    };
+    const ajustesByOsi = new Map<number, AjusteRow>();
+    {
+      const ajRows = await fetchChunkedIn<AjusteRow>(
+        osiIds,
+        (chunk, from, to) =>
+          supabase
+            .from("capacitacion_indicadores_ajustes")
+            .select("osi_id, fecha_ejecucion, fecha_emision, motivo, updated_at")
+            .in("osi_id", chunk)
+            .order("osi_id", { ascending: true })
+            .range(from, to),
+        "capacitacion_indicadores_ajustes",
+      );
+      for (const a of ajRows) {
+        ajustesByOsi.set(a.osi_id, a);
+      }
+    }
+
     // 4. Build per-OSI rows
     const facilitadorIdByOsi = new Map<number, number | null>();
     const nowDate = new Date();
@@ -560,6 +588,30 @@ export async function getIndicadoresCertificados72h(
         }
       }
 
+      // Track original system calculations
+      const originalFechaEjecucion = fechaEjecucion;
+      const originalFuenteEjecucion = fuenteEjecucion;
+      const originalFechaEmision = fechaEmision;
+      const originalFuenteEmision = fuenteEmision;
+
+      // Apply manual adjustments if registered for this OSI
+      const ajuste = ajustesByOsi.get(osiId);
+      const fechaEjecucionAjustada = Boolean(ajuste?.fecha_ejecucion);
+      const fechaEmisionAjustada = Boolean(ajuste?.fecha_emision);
+
+      if (fechaEjecucionAjustada && ajuste?.fecha_ejecucion) {
+        fechaEjecucion = ajuste.fecha_ejecucion;
+        fuenteEjecucion = "ajuste_manual";
+      }
+
+      if (fechaEmisionAjustada && ajuste?.fecha_emision) {
+        fechaEmision = ajuste.fecha_emision;
+        fuenteEmision = "ajuste_manual";
+      }
+
+      // If user specified an actual execution date, consider service executed
+      const effectiveIsEjecutada = fechaEjecucionAjustada ? true : isEjecutada;
+
       let diasHabiles: number | null = null;
       let estado: IndicadorEstado;
       let brechaDias: number | null = null;
@@ -574,7 +626,7 @@ export async function getIndicadoresCertificados72h(
           // hasn't started yet.
           estado = "programada";
         } else if (!fechaEmision) {
-          if (!isEjecutada) {
+          if (!effectiveIsEjecutada) {
             // Service has NOT been provided / execution is still pending.
             // These OSIs are pending certificate issuance purely because the
             // training hasn't occurred yet, not due to administrative issuance delays.
@@ -646,7 +698,15 @@ export async function getIndicadoresCertificados72h(
         facilitadorSesionNombre,
         sesiones: o.sesiones_ejecucion ?? null,
         sospechoso,
-        isEjecutada,
+        isEjecutada: effectiveIsEjecutada,
+        originalFechaEjecucion,
+        originalFuenteEjecucion,
+        originalFechaEmision,
+        originalFuenteEmision,
+        fechaEjecucionAjustada,
+        fechaEmisionAjustada,
+        motivoAjuste: ajuste?.motivo ?? null,
+        ajusteUpdatedAt: ajuste?.updated_at ?? null,
       };
     });
 
