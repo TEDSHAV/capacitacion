@@ -31,13 +31,13 @@ export async function getOSIEmailContext(
     supabase
       .from("v_osi_formato_completo")
       .select(
-        "nro_osi, servicio, nombre_empresa, direccion_ejecucion, persona_contacto, contacto_telefono, contenido_servicio, observaciones_totales, fecha_inicio_real, desglose_recursos_sesiones",
+        "nro_osi, servicio, nombre_empresa, direccion_ejecucion, persona_contacto, contacto_telefono, contenido_servicio, observaciones_totales, fecha_inicio_real, desglose_recursos_sesiones, costo_honorarios_instructor, costo_traslado, costo_impresion_material, horas_academicas_ejecucion, sesiones_ejecucion",
       )
       .eq("id_osi", osiId)
       .maybeSingle(),
     supabase
       .from("facilitadores")
-      .select("nombre_apellido, email")
+      .select("nombre_apellido, email, telefono")
       .eq("id", facilitadorId)
       .maybeSingle(),
     supabase
@@ -78,7 +78,15 @@ export async function getOSIEmailContext(
     hora_inicio?: string | null;
     hora_fin?: string | null;
     horas_honorarios_instructor?: number | null;
+    tarifa_hora_honorarios?: number | null;
+    costo_honorarios_instructor?: number | null;
+    costo_traslado?: number | null;
+    costo_impresion_material?: number | null;
   };
+
+  const rawDesglose = Array.isArray(osiRes.data.desglose_recursos_sesiones)
+    ? (osiRes.data.desglose_recursos_sesiones as DesgloseRow[])
+    : [];
 
   if (sesRes.data && sesRes.data.length > 0) {
     sessions = (sesRes.data as OsiSesionRow[]).map((s) => ({
@@ -88,9 +96,9 @@ export async function getOSIEmailContext(
       hora_fin: s.hora_fin,
       horas: null, // osi_sesion has no hours column
     }));
-  } else if (Array.isArray(osiRes.data.desglose_recursos_sesiones)) {
+  } else if (rawDesglose.length > 0) {
     // Fallback: desglose_recursos_sesiones JSONB on the view.
-    sessions = (osiRes.data.desglose_recursos_sesiones as DesgloseRow[]).map((s) => ({
+    sessions = rawDesglose.map((s) => ({
       nro_sesion: s.nro_sesion ?? s.id_sesion ?? null,
       fecha: s.fecha ?? null,
       hora_inicio: s.hora_inicio ?? null,
@@ -104,6 +112,53 @@ export async function getOSIEmailContext(
     sessions = sessions.filter((s) => s.nro_sesion === nroSesion);
   }
 
+  // Extract economic conditions (per-session when scoped, or OSI-level)
+  let sesionHonorarios: number | null = null;
+  let sesionTraslado: number | null = null;
+  let sesionImpresion: number | null = null;
+
+  if (nroSesion != null && rawDesglose.length > 0) {
+    const match = rawDesglose.find(
+      (d, idx) => (d.nro_sesion ?? d.id_sesion ?? idx + 1) === nroSesion,
+    );
+    if (match) {
+      sesionHonorarios =
+        match.costo_honorarios_instructor ??
+        (match.horas_honorarios_instructor && match.tarifa_hora_honorarios
+          ? match.horas_honorarios_instructor * match.tarifa_hora_honorarios
+          : null);
+      sesionTraslado = match.costo_traslado ?? null;
+      sesionImpresion = match.costo_impresion_material ?? null;
+    }
+  }
+
+  let honorarios = sesionHonorarios ?? osiRes.data.costo_honorarios_instructor ?? null;
+  let traslado = sesionTraslado ?? osiRes.data.costo_traslado ?? null;
+  let impresion = sesionImpresion ?? osiRes.data.costo_impresion_material ?? null;
+
+  // Fallback to requisición if honorarios not present on OSI
+  if (!honorarios) {
+    try {
+      const { data: req } = await supabase
+        .from("requisiciones")
+        .select("costo_traslado, impresion_total, honorarios_total")
+        .eq("id_osi", osiId)
+        .eq("cod_facilitador", facilitadorId)
+        .is("deleted_at", null)
+        .order("id", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (req) {
+        if (!honorarios && req.honorarios_total) honorarios = req.honorarios_total;
+        if (!traslado && req.costo_traslado) traslado = req.costo_traslado;
+        if (!impresion && req.impresion_total) impresion = req.impresion_total;
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
+
   const ctx = buildEmailContext(
     {
       nro_osi: osiRes.data.nro_osi,
@@ -115,12 +170,20 @@ export async function getOSIEmailContext(
       contenido_servicio: osiRes.data.contenido_servicio,
       observaciones_totales: osiRes.data.observaciones_totales,
       fecha_inicio_real: osiRes.data.fecha_inicio_real,
+      horas_academicas_ejecucion: osiRes.data.horas_academicas_ejecucion,
+      sesiones_ejecucion: osiRes.data.sesiones_ejecucion,
     },
     {
       nombre_apellido: facRes.data.nombre_apellido,
       email: facRes.data.email,
+      telefono: facRes.data.telefono,
     },
     sessions,
+    {
+      honorarios,
+      traslado,
+      impresion,
+    },
   );
 
   // Link to Facilitator Portal

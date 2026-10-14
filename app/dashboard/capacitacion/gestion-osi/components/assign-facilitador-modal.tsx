@@ -17,6 +17,9 @@ import {
   Info,
   Paperclip,
   X,
+  Copy,
+  Check,
+  MessageCircle,
 } from "lucide-react";
 import {
   getAssignmentByOSI,
@@ -86,7 +89,7 @@ export default function AssignFacilitadorModal({
 }: AssignFacilitadorModalProps) {
   const [loading, setLoading] = useState(true);
   const [currentAssignments, setCurrentAssignments] = useState<AssignmentRow[]>([]);
-  const [facilitators, setFacilitators] = useState<Array<{ id: number; nombre_apellido: string; cedula?: string; email?: string }>>([]);
+  const [facilitators, setFacilitators] = useState<Array<{ id: number; nombre_apellido: string; cedula?: string; email?: string; telefono?: string }>>([]);
   const [selectedFacilitadorId, setSelectedFacilitadorId] = useState<string>("");
   const [selectedSession, setSelectedSession] = useState<string>("all");
   const [assigning, setAssigning] = useState(false);
@@ -108,6 +111,44 @@ export default function AssignFacilitadorModal({
   const isUploading = uploadingFiles.some((u) => u.status === "uploading");
   const [linkExpiryDays, setLinkExpiryDays] = useState<string>("0");
   const [emailLogs, setEmailLogs] = useState<EmailLogEntry[]>([]);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyBody = async () => {
+    if (!emailBody) return;
+    try {
+      await navigator.clipboard.writeText(emailBody);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Error al copiar texto:", err);
+    }
+  };
+
+  const handleOpenWhatsApp = () => {
+    if (!emailBody) return;
+    const fac = facilitators.find((f) => f.id.toString() === selectedFacilitadorId);
+    const rawPhone = emailContext?.facilitador_telefono || fac?.telefono || "";
+    const cleaned = rawPhone.replace(/\D/g, "");
+    let phoneParam = "";
+    if (cleaned) {
+      if (cleaned.startsWith("58")) {
+        phoneParam = cleaned;
+      } else if (cleaned.startsWith("0")) {
+        phoneParam = "58" + cleaned.slice(1);
+      } else if (cleaned.length === 10) {
+        phoneParam = "58" + cleaned;
+      } else {
+        phoneParam = cleaned;
+      }
+    }
+
+    navigator.clipboard.writeText(emailBody).catch(() => {});
+
+    const url = phoneParam
+      ? `https://wa.me/${phoneParam}?text=${encodeURIComponent(emailBody)}`
+      : `https://web.whatsapp.com/send?text=${encodeURIComponent(emailBody)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   // Real session count fetched from v_osi_formato_completo on open. The list
   // view only has sesiones_ejecucion (0/null for not-yet-executed OSIs), so the
@@ -248,7 +289,7 @@ export default function AssignFacilitadorModal({
     const tplId = parseInt(selectedTemplateId);
     const cached = templateCache[tplId];
     if (cached) {
-      reRenderFromTemplate(cached.subject, cached.body);
+      reRenderFromTemplate(cached.subject, cached.body, true);
       return;
     }
     // Fetch full template once.
@@ -260,19 +301,19 @@ export default function AssignFacilitadorModal({
             ...prev,
             [tplId]: { subject: res.data!.subject, body: res.data!.body },
           }));
-          reRenderFromTemplate(res.data.subject, res.data.body);
+          reRenderFromTemplate(res.data.subject, res.data.body, true);
         }
       })
       .catch((err) => console.error("[assign-modal] template fetch failed:", err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplateId]);
 
-  function reRenderFromTemplate(rawSubject: string, rawBody: string) {
+  function reRenderFromTemplate(rawSubject: string, rawBody: string, force = false) {
     if (!emailContext) return;
     const ctxMap = emailContextToMap(emailContext);
     const rendered = renderTemplateBoth(rawSubject, rawBody, ctxMap);
-    if (!userEditedSubject) setEmailSubject(rendered.subject);
-    if (!userEditedBody) setEmailBody(rendered.body);
+    if (force || !userEditedSubject) setEmailSubject(rendered.subject);
+    if (force || !userEditedBody) setEmailBody(rendered.body);
   }
 
   // Re-render whenever emailContext changes (e.g. after facilitador switch)
@@ -704,9 +745,46 @@ export default function AssignFacilitadorModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Cuerpo
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-gray-600">
+                      Cuerpo
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyBody}
+                        disabled={!emailBody.trim()}
+                        className="h-7 px-2.5 text-xs text-gray-700 hover:text-gray-900 border-gray-300 hover:bg-gray-100 flex items-center gap-1"
+                        title="Copiar texto de la plantilla al portapapeles"
+                      >
+                        {copied ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-green-600" />
+                            <span className="text-green-600 font-medium">¡Copiado!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-gray-500" />
+                            <span>Copiar texto</span>
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpenWhatsApp}
+                        disabled={!emailBody.trim()}
+                        className="h-7 px-2.5 text-xs text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 flex items-center gap-1"
+                        title="Abrir mensaje en WhatsApp (Web / App)"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Abrir WhatsApp</span>
+                      </Button>
+                    </div>
+                  </div>
                   <Textarea
                     value={emailBody}
                     onChange={(e) => {

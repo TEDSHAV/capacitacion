@@ -13,6 +13,7 @@
  */
 
 import type { EmailContext, EmailSessionInfo } from "@/types/email";
+import { toTitleCase } from "@/utils/string-utils";
 
 const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
 
@@ -21,8 +22,17 @@ const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
  * Unknown keys resolve to "" (empty string).
  */
 export function renderTemplate(str: string, context: Record<string, string | undefined | null>): string {
-  return str.replace(PLACEHOLDER_RE, (match, key: string) => {
-    const val = context[key];
+  const normalized: Record<string, string> = {};
+  for (const [k, v] of Object.entries(context)) {
+    normalized[k.toLowerCase()] = v === undefined || v === null ? "" : String(v);
+  }
+  if (normalized["nro_osi"] && !normalized["osi"]) normalized["osi"] = normalized["nro_osi"];
+  if (normalized["osi"] && !normalized["nro_osi"]) normalized["nro_osi"] = normalized["osi"];
+  if (normalized["impresion"] && !normalized["impresiones"]) normalized["impresiones"] = normalized["impresion"];
+  if (normalized["impresiones"] && !normalized["impresion"]) normalized["impresion"] = normalized["impresiones"];
+
+  return str.replace(PLACEHOLDER_RE, (_match, key: string) => {
+    const val = normalized[key.toLowerCase()];
     if (val === undefined || val === null) return "";
     return String(val);
   });
@@ -46,9 +56,11 @@ export function renderTemplateBoth(
  */
 export function emailContextToMap(ctx: EmailContext): Record<string, string> {
   return {
-    facilitador_nombre: ctx.facilitador_nombre,
+    facilitador_nombre: toTitleCase(ctx.facilitador_nombre),
     facilitador_email: ctx.facilitador_email ?? "",
+    facilitador_telefono: ctx.facilitador_telefono ?? "",
     nro_osi: ctx.nro_osi,
+    osi: ctx.nro_osi,
     curso: ctx.curso,
     empresa: ctx.empresa,
     fechas: ctx.fechas,
@@ -58,6 +70,10 @@ export function emailContextToMap(ctx: EmailContext): Record<string, string> {
     contacto: ctx.contacto,
     contacto_telefono: ctx.contacto_telefono,
     observaciones: ctx.observaciones,
+    honorarios: ctx.honorarios ?? "",
+    traslado: ctx.traslado ?? "",
+    impresion: ctx.impresion ?? "",
+    impresiones: ctx.impresion ?? "",
     enlace_portal: ctx.enlace_portal ?? "",
     enlace_presentacion: ctx.enlace_presentacion ?? "",
   };
@@ -86,16 +102,32 @@ function formatTimeRange(horaInicio: string | null, horaFin: string | null): str
   return `${i} a ${f}`;
 }
 
+function formatMoney(val: unknown, fallback: string = "[A confirmar]"): string {
+  if (val === null || val === undefined || val === "") return fallback;
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (!trimmed) return fallback;
+    if (trimmed.includes("$") || trimmed.toLowerCase().includes("no aplica") || trimmed.toLowerCase().includes("confirmar")) {
+      return trimmed;
+    }
+  }
+  const num = Number(val);
+  if (isNaN(num)) return String(val);
+  if (num === 0) return "No aplica";
+  return `$${Number.isInteger(num) ? num : num.toFixed(2)}`;
+}
+
 /**
  * Build an `EmailContext` from raw OSI + facilitador + session rows.
  * SERVER-ONLY in practice (takes raw DB rows), but kept pure for testability.
  *
  * @param osi        Row from `v_osi_formato_completo` (or a subset with the
  *                   fields below).
- * @param facilitador Row from `facilitadores` (nombre_apellido, email).
+ * @param facilitador Row from `facilitadores` (nombre_apellido, email, telefono).
  * @param sesiones   Session detail rows. When the assignment is for a specific
  *                   session, pass only that session; for "all sessions", pass
  *                   all of them. Empty array → falls back to OSI-level fields.
+ * @param extra      Optional economic conditions (honorarios, traslado, impresion).
  */
 export function buildEmailContext(
   osi: {
@@ -108,12 +140,20 @@ export function buildEmailContext(
     contenido_servicio?: string | null;
     observaciones_totales?: string | null;
     fecha_inicio_real?: string | null;
+    horas_academicas_ejecucion?: number | null;
+    sesiones_ejecucion?: number | null;
   },
   facilitador: {
     nombre_apellido: string | null;
     email: string | null;
+    telefono?: string | null;
   },
   sesiones: EmailSessionInfo[],
+  extra?: {
+    honorarios?: number | string | null;
+    traslado?: number | string | null;
+    impresion?: number | string | null;
+  },
 ): EmailContext {
   const sList = sesiones ?? [];
 
@@ -144,15 +184,38 @@ export function buildEmailContext(
       .join(", ");
   }
 
-  // Duración: left as a highlighted marker so the user manually confirms/sets
-  // it in the assign modal before sending. The session-level hours source
-  // (osi_sesion has no hours column; desglose_recursos_sesiones is unreliable)
-  // makes automatic population unreliable, so we surface it explicitly.
-  const duracion = "[DURACIÓN A CONFIRMAR]";
+  // Duración: calculate hours per day from session times, or total hours / sessions
+  let duracion = "";
+  if (sList.length > 0 && sList[0].hora_inicio && sList[0].hora_fin) {
+    const parseHour = (h: string) => {
+      const parts = h.split(":").map(Number);
+      return parts[0] + (parts[1] || 0) / 60;
+    };
+    const start = parseHour(sList[0].hora_inicio);
+    const end = parseHour(sList[0].hora_fin);
+    if (end > start) {
+      const diff = end - start;
+      duracion = Number.isInteger(diff) ? String(diff) : diff.toFixed(1);
+    }
+  }
+
+  if (!duracion && osi.horas_academicas_ejecucion && osi.sesiones_ejecucion && osi.sesiones_ejecucion > 0) {
+    const d = osi.horas_academicas_ejecucion / osi.sesiones_ejecucion;
+    duracion = Number.isInteger(d) ? String(d) : d.toFixed(1);
+  }
+
+  if (!duracion) {
+    duracion = "[DURACIÓN A CONFIRMAR]";
+  }
+
+  const honorarios = formatMoney(extra?.honorarios, "[A convenir]");
+  const traslado = formatMoney(extra?.traslado, "No aplica");
+  const impresion = formatMoney(extra?.impresion, "Digital / No aplica");
 
   return {
-    facilitador_nombre: facilitador.nombre_apellido ?? "",
+    facilitador_nombre: facilitador.nombre_apellido ? toTitleCase(facilitador.nombre_apellido) : "",
     facilitador_email: facilitador.email ?? null,
+    facilitador_telefono: facilitador.telefono ?? null,
     nro_osi: osi.nro_osi ?? "",
     curso: osi.servicio ?? "",
     empresa: osi.nombre_empresa ?? "",
@@ -163,6 +226,9 @@ export function buildEmailContext(
     contacto: osi.persona_contacto ?? osi.nombre_empresa ?? "",
     contacto_telefono: osi.contacto_telefono ?? "",
     observaciones: osi.contenido_servicio ?? osi.observaciones_totales ?? "",
+    honorarios,
+    traslado,
+    impresion,
     sesiones: sList,
   };
 }

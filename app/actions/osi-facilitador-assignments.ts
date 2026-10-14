@@ -481,7 +481,7 @@ export async function getActiveFacilitatorsForDropdown() {
 
   const { data, error } = await supabase
     .from("facilitadores")
-    .select("id, nombre_apellido, cedula, email, is_active")
+    .select("id, nombre_apellido, cedula, email, telefono, is_active")
     .eq("is_active", true)
     .order("nombre_apellido");
 

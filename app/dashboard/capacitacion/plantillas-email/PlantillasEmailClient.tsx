@@ -178,6 +178,7 @@ export default function PlantillasEmailClient() {
   const previewContext = {
     facilitador_nombre: "Juan Pérez",
     nro_osi: "OSI-2026-001",
+    osi: "OSI-2026-001",
     curso: "Curso de Prueba",
     empresa: "Empresa Demo C.A.",
     fechas: "15/09/2026, 16/09/2026",
@@ -187,6 +188,9 @@ export default function PlantillasEmailClient() {
     contacto: "María González",
     contacto_telefono: "+58 212-555-0000",
     observaciones: "Observaciones de ejemplo",
+    honorarios: "$80",
+    traslado: "$20",
+    impresion: "Digital / No aplica",
   };
 
   const preview = showPreview
@@ -443,7 +447,7 @@ export default function PlantillasEmailClient() {
                 <p className="text-xs text-gray-400 mt-1">
                   Placeholders disponibles:{" "}
                   <code className="text-gray-600">
-                    {"{{facilitador_nombre}} {{curso}} {{empresa}} {{nro_osi}} {{fechas}} {{horario}} {{duracion}} {{direccion}} {{contacto}} {{contacto_telefono}} {{observaciones}}"}
+                    {"{{facilitador_nombre}} {{curso}} {{empresa}} {{nro_osi}} {{osi}} {{fechas}} {{horario}} {{duracion}} {{direccion}} {{contacto}} {{contacto_telefono}} {{honorarios}} {{traslado}} {{impresion}} {{observaciones}}"}
                   </code>
                 </p>
               </div>

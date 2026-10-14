@@ -92,6 +92,7 @@ export interface EmailSessionInfo {
 export interface EmailContext {
   facilitador_nombre: string;
   facilitador_email: string | null;
+  facilitador_telefono?: string | null;
   nro_osi: string;
   curso: string;
   empresa: string;
@@ -102,6 +103,9 @@ export interface EmailContext {
   contacto: string;
   contacto_telefono: string;
   observaciones: string;
+  honorarios?: string;
+  traslado?: string;
+  impresion?: string;
   enlace_portal?: string;
   enlace_presentacion?: string;
   sesiones: EmailSessionInfo[];
