@@ -721,6 +721,188 @@ export async function getIndicadoresCertificados72h(
       };
     });
 
+    // 4b. Consolidate Multi-OSI Service Groups
+    // Multiple OSIs may correspond to 1 actual training course/service delivery.
+    // In such cases, secondary OSIs reference a primary OSI (osi_referencia_id / nro_osi_referencia).
+    // The service group is evaluated collectively so that 1 service = 1 unit of measurement in SLA (72h).
+    const rowById = new Map<number, IndicadorOsiRow>();
+    const rowByNro = new Map<string, IndicadorOsiRow>();
+    for (const r of allRows) {
+      rowById.set(r.osiId, r);
+      if (r.nroOsi) {
+        rowByNro.set(r.nroOsi.trim().toLowerCase(), r);
+      }
+    }
+
+    // Map each child OSI to its root parent OSI
+    const getRootParentId = (id: number, visited = new Set<number>()): number => {
+      if (visited.has(id)) return id;
+      visited.add(id);
+      const row = rowById.get(id);
+      if (!row) return id;
+      const refId =
+        row.osiReferenciaId ??
+        (row.nroOsiReferencia ? rowByNro.get(row.nroOsiReferencia.trim().toLowerCase())?.osiId : null);
+      if (refId && refId !== id && rowById.has(refId)) {
+        return getRootParentId(refId, visited);
+      }
+      return id;
+    };
+
+    // Group children by their root parent OSI
+    const childrenByParentId = new Map<number, IndicadorOsiRow[]>();
+    for (const r of allRows) {
+      const rootParentId = getRootParentId(r.osiId);
+      if (rootParentId !== r.osiId) {
+        r.isChildService = true;
+        r.parentOsiId = rootParentId;
+        const list = childrenByParentId.get(rootParentId) || [];
+        list.push(r);
+        childrenByParentId.set(rootParentId, list);
+      }
+    }
+
+    // If multiple OSIs in allRows reference an external parent not in allRows,
+    // designate the first one as the local primary representative for this period.
+    const externalParentMap = new Map<number | string, IndicadorOsiRow[]>();
+    for (const r of allRows) {
+      if (r.osiReferenciaId && !rowById.has(r.osiReferenciaId)) {
+        const list = externalParentMap.get(r.osiReferenciaId) || [];
+        list.push(r);
+        externalParentMap.set(r.osiReferenciaId, list);
+      }
+    }
+    for (const [, extMembers] of externalParentMap.entries()) {
+      if (extMembers.length > 1) {
+        const localParent = extMembers[0];
+        const localChildren = extMembers.slice(1);
+        localParent.isParentService = true;
+        localParent.childOsis = localChildren;
+        localParent.groupOsiCount = extMembers.length;
+        localParent.groupNroOsis = extMembers.map((m) => m.nroOsi).filter(Boolean);
+        for (const child of localChildren) {
+          child.isChildService = true;
+          child.parentOsiId = localParent.osiId;
+          child.parentNroOsi = localParent.nroOsi;
+          child.groupOsiCount = extMembers.length;
+          child.groupNroOsis = localParent.groupNroOsis;
+        }
+      }
+    }
+
+    // Configure parent rows and synchronize collective service dates/status
+    for (const [parentId, children] of childrenByParentId.entries()) {
+      const parentRow = rowById.get(parentId);
+      if (!parentRow) continue;
+
+      parentRow.isParentService = true;
+      parentRow.childOsis = children;
+      const allMembers = [parentRow, ...children];
+      const groupCount = allMembers.length;
+      const allNros = allMembers.map((m) => m.nroOsi).filter(Boolean);
+
+      parentRow.groupOsiCount = groupCount;
+      parentRow.groupNroOsis = allNros;
+
+      // Group collective dates:
+      // 1. Emission date: use parent's emission date, or earliest/any emission date in the group
+      let groupFechaEmision = parentRow.fechaEmision;
+      let groupFuenteEmision = parentRow.fuenteEmision;
+      if (!groupFechaEmision) {
+        for (const child of children) {
+          if (child.fechaEmision) {
+            groupFechaEmision = child.fechaEmision;
+            groupFuenteEmision = child.fuenteEmision;
+            break;
+          }
+        }
+      }
+
+      // 2. Execution date: if parent has adjusted execution date, keep it;
+      // otherwise take the latest execution date across all executed sessions in the group
+      let groupFechaEjecucion = parentRow.fechaEjecucion;
+      let groupFuenteEjecucion = parentRow.fuenteEjecucion;
+      const anyEjecutada = allMembers.some((m) => m.isEjecutada);
+
+      if (!parentRow.fechaEjecucionAjustada) {
+        const execDates = allMembers
+          .map((m) => m.fechaEjecucion)
+          .filter((d): d is string => Boolean(d))
+          .sort();
+        if (execDates.length > 0) {
+          groupFechaEjecucion = execDates[execDates.length - 1]; // latest execution date
+        }
+      }
+
+      // 3. Collective SLA evaluation (dentro, fuera, pendiente, pendiente_ejecucion, programada)
+      let groupDiasHabiles: number | null = null;
+      let groupEstado: IndicadorEstado;
+      let groupBrechaDias: number | null = null;
+      let groupSospechoso = false;
+
+      if (!groupFechaEjecucion) {
+        groupEstado = "no_aplica";
+      } else {
+        const execDate = parseDate(groupFechaEjecucion);
+        if (execDate > nowDate) {
+          groupEstado = "programada";
+        } else if (!groupFechaEmision) {
+          if (!anyEjecutada) {
+            groupEstado = "pendiente_ejecucion";
+            groupBrechaDias = null;
+          } else {
+            groupEstado = "pendiente";
+            groupBrechaDias =
+              businessDaysInclusive(execDate, nowDate, holidays) - PLAZO_BUSINESS_DAYS;
+          }
+        } else {
+          const certDate = parseDate(groupFechaEmision);
+          groupDiasHabiles = businessDaysInclusive(execDate, certDate, holidays);
+
+          if (certDate < execDate) {
+            groupDiasHabiles = 0;
+            groupEstado = "dentro";
+            groupSospechoso = true;
+          } else if (groupDiasHabiles <= PLAZO_BUSINESS_DAYS) {
+            groupEstado = "dentro";
+          } else {
+            groupEstado = "fuera";
+            groupBrechaDias = groupDiasHabiles - PLAZO_BUSINESS_DAYS;
+          }
+
+          if (groupDiasHabiles > SOSPECHOSO_DIAS) {
+            groupSospechoso = true;
+          }
+        }
+      }
+
+      // Assign synchronized values to parent and all children
+      parentRow.fechaEjecucion = groupFechaEjecucion;
+      parentRow.fuenteEjecucion = groupFuenteEjecucion;
+      parentRow.fechaEmision = groupFechaEmision;
+      parentRow.fuenteEmision = groupFuenteEmision;
+      parentRow.isEjecutada = anyEjecutada;
+      parentRow.diasHabiles = groupDiasHabiles;
+      parentRow.estado = groupEstado;
+      parentRow.brechaDias = groupBrechaDias;
+      parentRow.sospechoso = groupSospechoso;
+
+      for (const child of children) {
+        child.parentNroOsi = parentRow.nroOsi;
+        child.groupOsiCount = groupCount;
+        child.groupNroOsis = allNros;
+        child.fechaEjecucion = groupFechaEjecucion;
+        child.fuenteEjecucion = groupFuenteEjecucion;
+        child.fechaEmision = groupFechaEmision;
+        child.fuenteEmision = groupFuenteEmision;
+        child.isEjecutada = anyEjecutada;
+        child.diasHabiles = groupDiasHabiles;
+        child.estado = groupEstado;
+        child.brechaDias = groupBrechaDias;
+        child.sospechoso = groupSospechoso;
+      }
+    }
+
     // Apply post-fetch filters
     let rows = allRows;
 
@@ -753,21 +935,23 @@ export async function getIndicadoresCertificados72h(
     }
 
     // 5. Aggregates
-    const evaluadas = rows.filter((r) => r.estado === "dentro" || r.estado === "fuera");
+    // Key rule for 72h SLA: Multiple OSIs that belong to 1 actual service are evaluated
+    // as ONE single service unit. Secondary/child OSIs are linked under their primary OSI
+    // and must not multiply breaches, delays, or denominator counts in the KPI indicators.
+    const serviceRows = rows.filter((r) => !r.isChildService);
+    const evaluadas = serviceRows.filter((r) => r.estado === "dentro" || r.estado === "fuera");
     const dentro = evaluadas.filter((r) => r.estado === "dentro").length;
     const fuera = evaluadas.filter((r) => r.estado === "fuera").length;
-    const pendientes = rows.filter((r) => r.estado === "pendiente");
-    const pendientesEjecucion = rows.filter((r) => r.estado === "pendiente_ejecucion").length;
-    const programadas = rows.filter((r) => r.estado === "programada").length;
-    const noAplica = rows.filter((r) => r.estado === "no_aplica").length;
+    const pendientes = serviceRows.filter((r) => r.estado === "pendiente");
+    const pendientesEjecucion = serviceRows.filter((r) => r.estado === "pendiente_ejecucion").length;
+    const programadas = serviceRows.filter((r) => r.estado === "programada").length;
+    const noAplica = serviceRows.filter((r) => r.estado === "no_aplica").length;
 
     // Pending in risk: already past the 72h plazo and still not issued, ONLY among
-    // OSIs where the service was actually executed (delay in issuance).
+    // services where the training was actually executed (delay in issuance).
     const enRiesgo = pendientes.filter((r) => (r.brechaDias ?? -Infinity) > 0).length;
 
-    // Evaluated OSIs for 72h compliance = on-time (dentro) + late (fuera) + overdue pending with executed service (enRiesgo).
-    // An OSI that executed and already exceeded 72 business hours without certificates
-    // is an active breach and must be factored into the compliance denominator.
+    // Evaluated services for 72h compliance = on-time (dentro) + late (fuera) + overdue pending with executed service (enRiesgo).
     const totalEvaluadas = dentro + fuera + enRiesgo;
 
     const diasVals = evaluadas
@@ -784,8 +968,16 @@ export async function getIndicadoresCertificados72h(
         ? Math.round((dentro / totalEvaluadas) * 1000) / 10
         : null;
 
+    const totalOsisAgrupadas = rows.filter(
+      (r) => r.isChildService || (r.isParentService && (r.childOsis?.length ?? 0) > 0)
+    ).length;
+    const totalGrupos = rows.filter(
+      (r) => r.isParentService && (r.childOsis?.length ?? 0) > 0
+    ).length;
+
     const aggregates: IndicadoresAggregates = {
       totalOsis: rows.length,
+      totalServicios: serviceRows.length,
       totalEvaluadas,
       dentro72: dentro,
       fuera72: fuera,
@@ -799,6 +991,8 @@ export async function getIndicadoresCertificados72h(
       maxDiasOsi: maxRow?.nroOsi ?? null,
       minDias,
       enRiesgoPendientes: enRiesgo,
+      totalOsisAgrupadas,
+      totalGrupos,
     };
 
     return { data: { rows, aggregates }, error: null };

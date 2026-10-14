@@ -369,3 +369,199 @@ export async function buscarOsisParaReferencia(
     };
   }
 }
+
+/**
+ * Link multiple OSIs together so they represent a single course/service delivery in 72h SLA.
+ * One OSI is chosen as the primary (parent) OSI. All other child OSIs will point to it.
+ */
+export async function agruparOsisComoServicio({
+  parentOsiId,
+  childOsiIds,
+  motivo,
+}: {
+  parentOsiId: number;
+  childOsiIds: number[];
+  motivo?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!Number.isFinite(parentOsiId) || parentOsiId <= 0) {
+    return { success: false, error: "ID de OSI principal inválido" };
+  }
+  const validChildren = (childOsiIds || []).filter(
+    (id) => Number.isFinite(id) && id > 0 && id !== parentOsiId
+  );
+  if (validChildren.length === 0) {
+    return { success: false, error: "Debe seleccionar al menos una OSI secundaria para agrupar" };
+  }
+
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const admin = await createAdminClient();
+
+    // Fetch parent OSI number
+    const { data: parentRow, error: pError } = await supabase
+      .from("v_osi_formato_completo")
+      .select("id_osi, nro_osi")
+      .eq("id_osi", parentOsiId)
+      .single();
+
+    if (pError || !parentRow) {
+      console.error("[indicadores-ajustes] Could not find parent OSI:", pError);
+      return { success: false, error: "No se encontró la OSI principal seleccionada" };
+    }
+
+    const parentNro = parentRow.nro_osi || `OSI-${parentOsiId}`;
+    const defaultMotivo = motivo?.trim() || `Vinculada a ${parentNro} (mismo servicio)`;
+
+    // Check if parent has an existing emission date or manual adjustment
+    const { data: parentAjuste } = await admin
+      .from("capacitacion_indicadores_ajustes")
+      .select("fecha_emision, fecha_ejecucion")
+      .eq("osi_id", parentOsiId)
+      .maybeSingle();
+
+    const parentFechaEmision = parentAjuste?.fecha_emision ?? null;
+
+    // Upsert each child OSI
+    for (const childId of validChildren) {
+      // Check existing child record to preserve manual execution date if any
+      const { data: existingChild } = await admin
+        .from("capacitacion_indicadores_ajustes")
+        .select("fecha_ejecucion, fecha_emision")
+        .eq("osi_id", childId)
+        .maybeSingle();
+
+      const payload: Record<string, unknown> = {
+        osi_id: childId,
+        fecha_ejecucion: existingChild?.fecha_ejecucion ?? null,
+        fecha_emision: parentFechaEmision || existingChild?.fecha_emision || null,
+        motivo: defaultMotivo,
+        emitido_en_otra_osi: true,
+        osi_referencia_id: parentOsiId,
+        nro_osi_referencia: parentNro,
+        updated_at: new Date().toISOString(),
+        updated_by: user?.id ?? null,
+      };
+
+      const { error: upsertErr } = await admin
+        .from("capacitacion_indicadores_ajustes")
+        .upsert(payload, { onConflict: "osi_id" });
+
+      if (upsertErr) {
+        console.error(`[indicadores-ajustes] Error grouping child OSI ${childId}:`, upsertErr);
+        return { success: false, error: `Error al vincular OSI ${childId}: ${upsertErr.message}` };
+      }
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("[indicadores-ajustes] Error in agruparOsisComoServicio:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado al agrupar OSIs",
+    };
+  }
+}
+
+/**
+ * Unlink a single OSI from any group reference.
+ */
+export async function desagruparOsi(
+  osiId: number
+): Promise<{ success: boolean; error?: string }> {
+  if (!Number.isFinite(osiId) || osiId <= 0) {
+    return { success: false, error: "ID de OSI inválido" };
+  }
+
+  try {
+    const admin = await createAdminClient();
+    const { data: existing, error: selErr } = await admin
+      .from("capacitacion_indicadores_ajustes")
+      .select("*")
+      .eq("osi_id", osiId)
+      .maybeSingle();
+
+    if (selErr || !existing) {
+      return { success: true };
+    }
+
+    // If there are no dates adjusted, delete the record completely
+    if (!existing.fecha_ejecucion && !existing.fecha_emision) {
+      const { error: delErr } = await admin
+        .from("capacitacion_indicadores_ajustes")
+        .delete()
+        .eq("osi_id", osiId);
+      if (delErr) {
+        return { success: false, error: delErr.message };
+      }
+      return { success: true };
+    }
+
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // Clear reference fields
+    const { error: updateErr } = await admin
+      .from("capacitacion_indicadores_ajustes")
+      .update({
+        osi_referencia_id: null,
+        nro_osi_referencia: null,
+        emitido_en_otra_osi: false,
+        updated_at: new Date().toISOString(),
+        updated_by: user?.id ?? null,
+      })
+      .eq("osi_id", osiId);
+
+    if (updateErr) {
+      return { success: false, error: updateErr.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("[indicadores-ajustes] Error in desagruparOsi:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado al desvincular OSI",
+    };
+  }
+}
+
+/**
+ * Dissolve an entire service group by unlinking all child OSIs that reference the given parent OSI.
+ */
+export async function desagruparGrupo(
+  parentOsiId: number
+): Promise<{ success: boolean; error?: string }> {
+  if (!Number.isFinite(parentOsiId) || parentOsiId <= 0) {
+    return { success: false, error: "ID de OSI principal inválido" };
+  }
+
+  try {
+    const admin = await createAdminClient();
+    const { data: children, error: selErr } = await admin
+      .from("capacitacion_indicadores_ajustes")
+      .select("osi_id")
+      .eq("osi_referencia_id", parentOsiId);
+
+    if (selErr) {
+      return { success: false, error: selErr.message };
+    }
+
+    for (const child of children || []) {
+      await desagruparOsi(child.osi_id);
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("[indicadores-ajustes] Error in desagruparGrupo:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado al desagrupar servicio",
+    };
+  }
+}
+

@@ -2008,6 +2008,14 @@ export interface IndicadorOsiRow {
   emitidoEnOtraOsi?: boolean;
   osiReferenciaId?: number | null;
   nroOsiReferencia?: string | null;
+  // Service Grouping (multiple OSIs representing 1 actual service)
+  isParentService?: boolean;
+  isChildService?: boolean;
+  parentOsiId?: number | null;
+  parentNroOsi?: string | null;
+  childOsis?: IndicadorOsiRow[];
+  groupOsiCount?: number;
+  groupNroOsis?: string[];
 }
 
 export interface IndicadoresAggregates {
@@ -2015,6 +2023,7 @@ export interface IndicadoresAggregates {
   // programadas + noAplica). Every card/table should derive its displayed
   // "total" from this field so numbers reconcile across the page.
   totalOsis: number;
+  totalServicios?: number;
   totalEvaluadas: number;
   dentro72: number;
   fuera72: number;
@@ -2028,6 +2037,8 @@ export interface IndicadoresAggregates {
   maxDiasOsi: string | null;
   minDias: number | null;
   enRiesgoPendientes: number;
+  totalOsisAgrupadas?: number;
+  totalGrupos?: number;
 }
 
 export interface IndicadoresResponse {
