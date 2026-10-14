@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/utils/supabase/server";
+import { toTitleCase } from "@/utils/string-utils";
 
 export interface CitizenLookupResult {
   success: boolean;
@@ -34,7 +35,42 @@ export class CitizenService {
   }
 
   /**
-   * Verify ID with shared cat_cedulas_cache and cedula.com.ve API fallback
+   * Helper to rescue participant identity from past certified participants in PRISMA
+   */
+  private static async rescueFromParticipantesCertificados(
+    nac: "V" | "E",
+    digits: string,
+  ): Promise<string | null> {
+    try {
+      const supabase = await createAdminClient();
+      const withDots = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      const orFilter = `cedula.eq.${digits},cedula.eq.${nac}-${digits},cedula.eq.${nac}${digits},cedula.eq.${withDots},cedula.eq.${nac}-${withDots}`;
+
+      const { data, error } = await supabase
+        .from("participantes_certificados")
+        .select("nombre")
+        .or(orFilter)
+        .not("nombre", "is", null)
+        .order("id", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.warn("[CitizenService] Error querying participantes_certificados:", error);
+        return null;
+      }
+
+      if (data?.nombre && data.nombre.trim().length > 2) {
+        return toTitleCase(data.nombre.trim());
+      }
+    } catch (err) {
+      console.warn("[CitizenService] Exception in rescueFromParticipantesCertificados:", err);
+    }
+    return null;
+  }
+
+  /**
+   * Verify ID with shared cat_cedulas_cache, external API, and participantes_certificados rescue fallback
    */
   static async verifyWithSession(
     sessionId: string,
@@ -77,7 +113,7 @@ export class CitizenService {
       console.warn("[CitizenService] Cache lookup bypassed:", err);
     }
 
-    // Step 2: Fallback to external cedula.com.ve API
+    // Step 2: Try external cedula.com.ve API
     try {
       const url = new URL(this.API_URL);
       url.searchParams.append("app_id", this.APP_ID);
@@ -99,20 +135,44 @@ export class CitizenService {
       const result = await response.json();
       console.log(`[CitizenService] API Response:`, JSON.stringify(result));
 
-      if (result.error) {
+      if (result.error || !result.data) {
+        // Step 3 (Rescue): Search in participantes_certificados if API returned no record
+        console.log(`[CitizenService] API missed for ${nac}-${digits}, attempting rescue in participantes_certificados...`);
+        const rescuedName = await this.rescueFromParticipantesCertificados(nac, digits);
+        if (rescuedName) {
+          console.log(`[CitizenService] Rescued from participantes_certificados: ${rescuedName}`);
+          // Persist rescued identity to shared cache
+          (async () => {
+            try {
+              const supabase = await createAdminClient();
+              await supabase.from("cat_cedulas_cache").upsert(
+                {
+                  nacionalidad: nac,
+                  cedula: digits,
+                  nombre_completo: rescuedName,
+                  rif: null,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: "nacionalidad,cedula" },
+              );
+            } catch {
+              // Silently ignore cache write errors
+            }
+          })();
+
+          return {
+            success: true,
+            name: rescuedName,
+          };
+        }
+
         return {
           success: false,
-          error: result.error_str || "Error en la consulta",
+          error: result.error_str || "No se encontraron datos para esta cédula",
         };
       }
 
       const data = result.data;
-      if (!data) {
-        return {
-          success: false,
-          error: "No se encontraron datos para esta cédula",
-        };
-      }
 
       // Combine names and surnames
       const firstName = data.primer_nombre || "";
@@ -120,18 +180,30 @@ export class CitizenService {
       const firstSurname = data.primer_apellido || "";
       const secondSurname = data.segundo_apellido || "";
 
-      const fullName = `${firstName} ${secondName} ${firstSurname} ${secondSurname}`
+      const rawFullName = `${firstName} ${secondName} ${firstSurname} ${secondSurname}`
         .trim()
         .replace(/\s+/g, " ");
 
+      const fullName = toTitleCase(rawFullName);
+
       if (!fullName) {
+        // Attempt rescue if name couldn't be extracted
+        const rescuedName = await this.rescueFromParticipantesCertificados(nac, digits);
+        if (rescuedName) {
+          return {
+            success: true,
+            name: rescuedName,
+            rif: data.rif || undefined,
+          };
+        }
+
         return {
           success: false,
           error: "No se pudo extraer el nombre del ciudadano",
         };
       }
 
-      // Step 3: Asynchronously persist to shared cat_cedulas_cache (fire-and-forget)
+      // Asynchronously persist to shared cat_cedulas_cache (fire-and-forget)
       (async () => {
         try {
           const supabase = await createAdminClient();
@@ -158,6 +230,35 @@ export class CitizenService {
 
     } catch (e) {
       console.error("[CitizenService] API Error:", e);
+
+      // Step 3 (Rescue): If API connection failed, also attempt rescue from database
+      const rescuedName = await this.rescueFromParticipantesCertificados(nac, digits);
+      if (rescuedName) {
+        console.log(`[CitizenService] Rescued from participantes_certificados after API error: ${rescuedName}`);
+        (async () => {
+          try {
+            const supabase = await createAdminClient();
+            await supabase.from("cat_cedulas_cache").upsert(
+              {
+                nacionalidad: nac,
+                cedula: digits,
+                nombre_completo: rescuedName,
+                rif: null,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "nacionalidad,cedula" },
+            );
+          } catch {
+            // Silently ignore cache write errors
+          }
+        })();
+
+        return {
+          success: true,
+          name: rescuedName,
+        };
+      }
+
       return {
         success: false,
         error: "Error conectando con el servicio de identificación",
