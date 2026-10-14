@@ -10,6 +10,7 @@ import {
   Lock,
   X,
   ExternalLink,
+  CalendarClock,
 } from "lucide-react";
 import type { StepDef } from "@/lib/proceso-steps";
 import type { ProcesoStepRecord } from "@/app/actions/capacitacion-proceso-steps";
@@ -24,6 +25,7 @@ interface ProcesoStepsTimelineProps {
   onPreviewListaAsistencia?: (osiId: number) => void;
   onPreviewMaterialFotografico?: (osiId: number) => void;
   onPreviewEncuestas?: (osiId: number) => void;
+  onRequestExecutionAction?: (osiId: number, stepKey: string) => void;
   onRequestUnmarkEnProceso?: (osiId: number) => void;
   compact?: boolean;
 }
@@ -52,6 +54,7 @@ export default function ProcesoStepsTimeline({
   onPreviewListaAsistencia,
   onPreviewMaterialFotografico,
   onPreviewEncuestas,
+  onRequestExecutionAction,
   onRequestUnmarkEnProceso,
   compact = false,
 }: ProcesoStepsTimelineProps) {
@@ -89,12 +92,27 @@ export default function ProcesoStepsTimeline({
     isAutoUnmarkable: boolean,
     requiresInput: boolean,
     hasEnvioOptions: boolean,
+    hasExecutionOptions: boolean = false,
     e?: React.MouseEvent,
   ) => {
     if (!canEdit) return;
+
+    // If step has execution options (en_proceso: ejecutado / re-agendar modal)
+    if (hasExecutionOptions && (onRequestExecutionAction || onRequestUnmarkEnProceso)) {
+      if (onRequestExecutionAction) {
+        onRequestExecutionAction(osiId, stepKey);
+        return;
+      }
+      const rec = completedSteps[stepKey];
+      if (rec?.completed && onRequestUnmarkEnProceso) {
+        onRequestUnmarkEnProceso(osiId);
+        return;
+      }
+    }
+
     if (isAuto && !isAutoUnmarkable) return;
 
-    // If unmarking en_proceso, intercept and request reason modal
+    // Legacy fallback: if unmarking en_proceso, intercept and request reason modal
     if (stepKey === "en_proceso") {
       const rec = completedSteps[stepKey];
       if (rec?.completed && onRequestUnmarkEnProceso) {
@@ -222,20 +240,23 @@ export default function ProcesoStepsTimeline({
         {steps.map((step, idx) => {
           const rec = completedSteps[step.key];
           const isCompleted = !!rec?.completed;
-          const isCurrent = idx === currentIndex;
+          const isRescheduled = !isCompleted && Boolean(rec?.step_metadata?.is_rescheduled);
+          const isCurrent = idx === currentIndex && !isRescheduled;
           return (
             <div
               key={step.key}
               className="relative"
-              title={`${step.label}${isCompleted ? " ✓" : isCurrent ? " (Actual)" : ""}`}
+              title={`${step.label}${isCompleted ? " ✓" : isRescheduled ? " ⏱ (Re-agendada)" : isCurrent ? " (Actual)" : ""}`}
             >
               <div
                 className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                   isCompleted
                     ? "bg-green-500 scale-110"
-                    : isCurrent
-                      ? "bg-blue-500 scale-125 ring-2 ring-offset-1 ring-blue-300"
-                      : "bg-gray-300 opacity-50"
+                    : isRescheduled
+                      ? "bg-amber-500 scale-110 ring-2 ring-offset-1 ring-amber-300"
+                      : isCurrent
+                        ? "bg-blue-500 scale-125 ring-2 ring-offset-1 ring-blue-300"
+                        : "bg-gray-300 opacity-50"
                 }`}
               />
             </div>
@@ -277,14 +298,16 @@ export default function ProcesoStepsTimeline({
   const renderStepCircle = (step: StepDef, idx: number, isSubStep: boolean = false) => {
     const rec = completedSteps[step.key];
     const isCompleted = !!rec?.completed;
-    const isCurrent = idx === currentIndex && !isCompleted;
+    const isRescheduled = !isCompleted && Boolean(rec?.step_metadata?.is_rescheduled);
+    const isCurrent = idx === currentIndex && !isCompleted && !isRescheduled;
     const isAuto = !!step.auto;
     const isAutoUnmarkable = !!step.autoUnmarkable;
     const isOptional = !!step.optional;
     const requiresInput = !!step.requiresInput;
     const hasEnvioOptions = !!step.hasEnvioOptions;
+    const hasExecutionOptions = !!step.hasExecutionOptions || step.key === "en_proceso";
     const isToggling = togglingKey === step.key;
-    const canClick = canEdit && (!isAuto || isAutoUnmarkable);
+    const canClick = canEdit && (!isAuto || isAutoUnmarkable || hasExecutionOptions);
     const isListaAsistencia = step.key === "lista_asistencia";
 
     return (
@@ -298,22 +321,30 @@ export default function ProcesoStepsTimeline({
           <button
             type="button"
             disabled={!canClick || isToggling}
-            onClick={(e) => handleToggle(step.key, isAuto, isAutoUnmarkable, requiresInput, hasEnvioOptions, e)}
+            onClick={(e) => handleToggle(step.key, isAuto, isAutoUnmarkable, requiresInput, hasEnvioOptions, hasExecutionOptions, e)}
             className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0 ${
               isCompleted
                 ? "bg-green-500 text-white scale-105 shadow-md"
-                : isCurrent
-                  ? "bg-blue-500 text-white scale-110 shadow-lg ring-4 ring-blue-100"
-                  : isOptional
-                    ? "bg-gray-100 text-gray-300 scale-95 border border-dashed border-gray-300"
-                    : "bg-gray-100 text-gray-400 scale-95"
+                : isRescheduled
+                  ? "bg-amber-500 text-white scale-105 shadow-md ring-2 ring-offset-1 ring-amber-300"
+                  : isCurrent
+                    ? "bg-blue-500 text-white scale-110 shadow-lg ring-4 ring-blue-100"
+                    : isOptional
+                      ? "bg-gray-100 text-gray-300 scale-95 border border-dashed border-gray-300"
+                      : "bg-gray-100 text-gray-400 scale-95"
             } ${canClick ? "cursor-pointer hover:scale-110" : "cursor-default"}`}
-            title={step.description || step.label}
+            title={
+              isRescheduled
+                ? `Re-agendada${rec?.notes ? `: ${rec.notes}` : ""}`
+                : step.description || step.label
+            }
           >
             {isToggling ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : isCompleted ? (
               <CheckCircle2 className="w-4 h-4" />
+            ) : isRescheduled ? (
+              <CalendarClock className="w-4 h-4" />
             ) : isAuto && !isAutoUnmarkable ? (
               <Lock className="w-3 h-3" />
             ) : (
@@ -325,7 +356,13 @@ export default function ProcesoStepsTimeline({
             <div className="flex flex-col min-w-0">
               <span
                 className={`text-[10px] font-medium leading-tight ${
-                  isCompleted ? "text-gray-900" : isCurrent ? "text-blue-700" : "text-gray-400"
+                  isCompleted
+                    ? "text-gray-900"
+                    : isRescheduled
+                      ? "text-amber-800"
+                      : isCurrent
+                        ? "text-blue-700"
+                        : "text-gray-400"
                 }`}
               >
                 {step.label}
@@ -344,6 +381,11 @@ export default function ProcesoStepsTimeline({
                 {isCompleted && rec?.completed_at && (
                   <span className="text-[9px] text-gray-400">
                     {formatStepDate(rec.completed_at)}
+                  </span>
+                )}
+                {isRescheduled && (
+                  <span className="text-[8px] font-bold uppercase bg-amber-100 text-amber-800 border border-amber-200 px-1 py-0.5 rounded">
+                    Re-agendada
                   </span>
                 )}
                 {isCompleted && requiresInput && ((rec?.step_metadata?.guia as string) || rec?.notes) && (
@@ -392,9 +434,11 @@ export default function ProcesoStepsTimeline({
                 className={`text-[10px] font-medium text-center mt-1.5 leading-tight ${
                   isCompleted
                     ? "text-gray-900"
-                    : isCurrent
-                      ? "text-blue-700"
-                      : "text-gray-400"
+                    : isRescheduled
+                      ? "text-amber-800"
+                      : isCurrent
+                        ? "text-blue-700"
+                        : "text-gray-400"
                 }`}
               >
                 {step.label}
@@ -414,6 +458,25 @@ export default function ProcesoStepsTimeline({
               <span className="text-[9px] text-gray-400 mt-0.5">
                 {formatStepDate(rec.completed_at)}
               </span>
+            )}
+            {isRescheduled && (
+              <div className="flex flex-col items-center mt-0.5">
+                <span className="text-[8px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 px-1 py-0.5 rounded">
+                  Re-agendada
+                </span>
+                {rec?.step_metadata?.new_date ? (
+                  <span
+                    className="text-[9px] text-amber-700 font-medium mt-0.5"
+                    title={`Nueva fecha tentativa: ${rec.step_metadata.new_date}`}
+                  >
+                    {formatStepDate(rec.step_metadata.new_date as string)}
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-amber-600 italic mt-0.5">
+                    Por confirmar
+                  </span>
+                )}
+              </div>
             )}
             {isCompleted && requiresInput && ((rec?.step_metadata?.guia as string) || rec?.notes) && (
               <span className="text-[9px] text-blue-600 font-medium mt-0.5">
@@ -560,7 +623,17 @@ export default function ProcesoStepsTimeline({
                             <button
                               type="button"
                               disabled={!canClick || isToggling}
-                              onClick={(e) => handleToggle(subStep.key, isAuto, isAutoUnmarkable, requiresInput, !!subStep.hasEnvioOptions, e)}
+                              onClick={(e) =>
+                                handleToggle(
+                                  subStep.key,
+                                  isAuto,
+                                  isAutoUnmarkable,
+                                  requiresInput,
+                                  !!subStep.hasEnvioOptions,
+                                  !!subStep.hasExecutionOptions || subStep.key === "en_proceso",
+                                  e,
+                                )
+                              }
                               className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0 ${
                                 isCompleted
                                   ? "bg-green-500 text-white scale-105 shadow-sm"

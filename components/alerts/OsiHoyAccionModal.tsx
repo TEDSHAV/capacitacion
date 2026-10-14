@@ -65,13 +65,10 @@ export function OsiHoyAccionModal({
       return;
     }
 
-    if (isReagendar && !newDate.trim()) {
-      setErrorMsg("Debe seleccionar una nueva fecha tentativa para el servicio.");
-      return;
-    }
-
     setSubmitting(true);
     setErrorMsg(null);
+
+    const cleanNewDate = newDate.trim() ? newDate.trim() : null;
 
     try {
       if (isReagendar) {
@@ -79,7 +76,7 @@ export function OsiHoyAccionModal({
           osiId: item.osiId,
           nroSesion: item.nroSesion,
           reason: trimmed,
-          newDate: newDate.trim(),
+          newDate: cleanNewDate,
         });
 
         if (!res.success) {
@@ -89,10 +86,12 @@ export function OsiHoyAccionModal({
         }
 
         addToast(
-          `OSI ${item.nroOsi} reagendada con éxito para el ${newDate}.`,
+          cleanNewDate
+            ? `OSI ${item.nroOsi} reagendada con éxito para el ${cleanNewDate}.`
+            : `OSI ${item.nroOsi} reagendada con éxito (Fecha por confirmar).`,
           "success",
         );
-        onSuccess("reagendado", newDate.trim());
+        onSuccess("reagendado", cleanNewDate);
       } else {
         const res = await cancelarServicioHoy({
           osiId: item.osiId,
@@ -192,11 +191,10 @@ export function OsiHoyAccionModal({
           {isReagendar && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Nueva fecha tentativa <span className="text-rose-500">*</span>
+                Nueva fecha tentativa <span className="text-slate-400 font-normal">(Opcional)</span>
               </label>
               <input
                 type="date"
-                required
                 value={newDate}
                 onChange={(e) => {
                   setNewDate(e.target.value);
@@ -205,7 +203,7 @@ export function OsiHoyAccionModal({
                 className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
               />
               <p className="text-[11px] text-slate-400 mt-1">
-                La fecha planificada original permanecerá en el historial de SLA.
+                {newDate ? "La fecha planificada original permanecerá en el historial de SLA." : "Si aún no se conoce la fecha, déjela en blanco (quedará como 'Fecha por confirmar')."}
               </p>
             </div>
           )}

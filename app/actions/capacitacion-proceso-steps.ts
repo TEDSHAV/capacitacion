@@ -1242,6 +1242,100 @@ export async function toggleUnifiedStep(
 }
 
 /**
+ * Explicitly mark "en_proceso" (En proceso / Ejecutado) step as completed.
+ * Accepts an optional execution date string (YYYY-MM-DD) or null.
+ * Clears any prior reschedule flag and unmark metadata, syncs with shell as EJECUTADO,
+ * logs an audit note in capacitacion_osi_notas, and clears cache.
+ */
+export async function markEnProcesoStep({
+  osiId,
+  nroSesion = 1,
+  executionDate = null,
+}: {
+  osiId: number;
+  nroSesion?: number;
+  executionDate?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!Number.isFinite(osiId) || osiId <= 0) {
+    return { success: false, error: "OSI inválido" };
+  }
+
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const userId = user?.id ?? null;
+    const now = new Date().toISOString();
+
+    await ensureProcesoStepsExist(osiId, "ejecucion", nroSesion);
+
+    const { data: existing } = await supabase
+      .from("capacitacion_proceso_steps")
+      .select("id, step_metadata")
+      .eq("osi_id", osiId)
+      .eq("phase", "ejecucion")
+      .eq("nro_sesion", nroSesion)
+      .eq("step_key", "en_proceso")
+      .maybeSingle();
+
+    const currentMeta = (existing?.step_metadata as Record<string, unknown> | null) || {};
+    const cleanDate = executionDate?.trim() || null;
+    const completedAt = cleanDate ? `${cleanDate}T12:00:00.000Z` : now;
+
+    const updatedMeta = {
+      ...currentMeta,
+      unmarked_by_user: false,
+      is_rescheduled: false,
+      unmark_reason: null,
+      fecha_ejecutada: cleanDate,
+      marked_at: now,
+    };
+
+    const { error: updateError } = await supabase
+      .from("capacitacion_proceso_steps")
+      .upsert(
+        {
+          osi_id: osiId,
+          nro_sesion: nroSesion,
+          phase: "ejecucion",
+          step_key: "en_proceso",
+          completed: true,
+          completed_at: completedAt,
+          completed_by: userId,
+          notes: cleanDate ? `Ejecutado: ${cleanDate}` : null,
+          step_metadata: updatedMeta,
+        },
+        { onConflict: "osi_id,nro_sesion,phase,step_key" },
+      );
+
+    if (updateError) {
+      console.error("[markEnProcesoStep] updateError:", updateError);
+      return { success: false, error: "Error al marcar el paso como ejecutado" };
+    }
+
+    // Sync to shell status as EJECUTADO (12) with explicit execution date if provided
+    await syncOsiEjecutadoToShell(osiId, nroSesion, true, cleanDate).catch((err) =>
+      console.error("[markEnProcesoStep] syncOsiEjecutadoToShell failed:", err),
+    );
+
+    // Audit note in capacitacion_osi_notas
+    const noteText = cleanDate
+      ? `[Marcado como Ejecutado - Sesión ${nroSesion}] Fecha de ejecución: ${cleanDate}`
+      : `[Marcado como Ejecutado - Sesión ${nroSesion}]`;
+    await addOsiNota(osiId, noteText).catch((err) =>
+      console.error("[markEnProcesoStep] addOsiNota failed:", err),
+    );
+
+    clearSeguimientoServerCache();
+    return { success: true };
+  } catch (err) {
+    console.error("[markEnProcesoStep] unexpected error:", err);
+    return { success: false, error: "Error inesperado al marcar el paso" };
+  }
+}
+
+/**
  * Unmark "en_proceso" step with an obligatory reason/justification and optional rescheduled flag.
  * Registers an audit note in capacitacion_osi_notas and syncs to shell as NO_EJECUTADA.
  */
@@ -1388,7 +1482,12 @@ export async function restoreRescheduledToActivos(
       };
       await supabase
         .from("capacitacion_proceso_steps")
-        .update({ step_metadata: updatedMeta })
+        .update({
+          completed: false,
+          completed_at: null,
+          notes: null,
+          step_metadata: updatedMeta,
+        })
         .eq("id", row.id);
     }
 

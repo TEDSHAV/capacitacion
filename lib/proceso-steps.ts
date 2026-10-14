@@ -10,6 +10,7 @@ export interface StepDef {
   requiresInput?: boolean;
   inputPlaceholder?: string;
   hasEnvioOptions?: boolean;
+  hasExecutionOptions?: boolean;
   group?: string;
   phase: ProcesoPhase;
 }
@@ -33,8 +34,9 @@ export const PLANIFICACION_STEPS: StepDef[] = [
 export const EJECUCION_STEPS: StepDef[] = [
   {
     key: "en_proceso",
-    label: "En proceso/Ejecutado",
-    description: "El servicio está en ejecución o ejecutado (marcado manualmente al realizarse). Equivalente al estatus EJECUTADO en Consulta OSI.",
+    label: "Ejecutado / Re-agendado",
+    description: "Marcar el servicio como ejecutado o re-agendarlo si fue pospuesto (con o sin nueva fecha definida).",
+    hasExecutionOptions: true,
     phase: "ejecucion",
   },
   {

@@ -28,6 +28,7 @@ import {
   getSeguimientoPageData,
   toggleAttachmentReceived,
   unmarkEnProcesoStep,
+  markEnProcesoStep,
   restoreRescheduledToActivos,
   type ProcesoStepRecord,
 } from "@/app/actions/capacitacion-proceso-steps";
@@ -35,7 +36,7 @@ import { ALL_STEPS, PLANIFICACION_STEPS, EJECUCION_STEPS } from "@/lib/proceso-s
 import ProcesoStepsTimeline from "../components/proceso-steps-timeline";
 import OSIPagination from "../gestion-osi/components/osi-pagination";
 import ListaAsistenciaPreview from "./components/lista-asistencia-preview";
-import UnmarkEnProcesoModal from "./components/UnmarkEnProcesoModal";
+import EjecucionOsiModal from "./components/EjecucionOsiModal";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 import OsiCommentsSheet from "@/components/osi/OsiCommentsSheet";
 import { formatDateOnly } from "@/lib/format-date";
@@ -139,10 +140,13 @@ export default function SeguimientoServiciosClient({
 }: SeguimientoServiciosClientProps) {
   const [filterMode, setFilterMode] = useState<"todos" | "activos" | "reagendados">("todos");
   const [rescheduledOsiIds, setRescheduledOsiIds] = useState<number[]>(initialRescheduledOsiIds);
-  const [unmarkModal, setUnmarkModal] = useState<{
+  const [executionModal, setExecutionModal] = useState<{
     osiId: number;
     nroOsi: string;
     nroSesion: number;
+    empresa?: string;
+    servicio?: string;
+    stepRecord?: ProcesoStepRecord | null;
   } | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -610,32 +614,99 @@ export default function SeguimientoServiciosClient({
     [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length],
   );
 
-  const handleRequestUnmarkEnProceso = useCallback(
+  const handleOpenExecutionModal = useCallback(
     (osiId: number) => {
       const osi = osis.find((o) => o.id_osi === osiId);
       const currentSesion = selectedSession.get(osiId) ?? 1;
-      setUnmarkModal({
+      const osiStepsMap = stepsByOsi.get(osiId);
+      const sessionStepsMap = osiStepsMap?.get(currentSesion) || {};
+      const stepRecord = sessionStepsMap["en_proceso"] || null;
+
+      setExecutionModal({
         osiId,
         nroOsi: osi?.nro_osi || `OSI-${osiId}`,
         nroSesion: currentSesion,
+        empresa: osi?.nombre_empresa || undefined,
+        servicio: osi?.servicio || undefined,
+        stepRecord,
       });
     },
-    [osis, selectedSession],
+    [osis, selectedSession, stepsByOsi],
   );
 
-  const handleConfirmUnmark = useCallback(
-    async (reason: string, isRescheduled: boolean, newDate?: string | null) => {
-      if (!unmarkModal) return;
-      const { osiId, nroSesion } = unmarkModal;
+  const handleConfirmEjecutado = useCallback(
+    async (executionDate?: string | null) => {
+      if (!executionModal) return;
+      const { osiId, nroSesion } = executionModal;
+
+      const res = await markEnProcesoStep({
+        osiId,
+        nroSesion,
+        executionDate: executionDate || null,
+      });
+      if (!res.success) {
+        throw new Error(res.error || "Error al marcar como ejecutado.");
+      }
+
+      // Update local state for steps
+      setStepsByOsi((prev) => {
+        const newMap = new Map(prev);
+        const osiMap = newMap.get(osiId) || new Map();
+        const sessionMap = osiMap.get(nroSesion) || {};
+        const existing = sessionMap["en_proceso"];
+        const cleanDate = executionDate?.trim() || null;
+        const now = new Date().toISOString();
+        const completedAt = cleanDate ? `${cleanDate}T12:00:00.000Z` : now;
+
+        osiMap.set(nroSesion, {
+          ...sessionMap,
+          en_proceso: {
+            ...existing,
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: "ejecucion",
+            step_key: "en_proceso",
+            id: existing?.id ?? 0,
+            completed: true,
+            completed_at: completedAt,
+            notes: cleanDate ? `Ejecutado: ${cleanDate}` : null,
+            step_metadata: {
+              ...((existing?.step_metadata as Record<string, unknown>) || {}),
+              unmarked_by_user: false,
+              is_rescheduled: false,
+              unmark_reason: null,
+              fecha_ejecutada: cleanDate,
+              marked_at: now,
+            },
+          },
+        });
+        newMap.set(osiId, osiMap);
+        return newMap;
+      });
+
+      // Remove from rescheduled list if present
+      setRescheduledOsiIds((prev) => prev.filter((id) => id !== osiId));
+
+      moduleCache.clear();
+    },
+    [executionModal],
+  );
+
+  const handleConfirmReagendar = useCallback(
+    async (reason: string, newDate?: string | null) => {
+      if (!executionModal) return;
+      const { osiId, nroSesion } = executionModal;
+      const cleanNewDate = newDate?.trim() || null;
+
       const res = await unmarkEnProcesoStep({
         osiId,
         nroSesion,
         reason,
-        isRescheduled,
-        newDate,
+        isRescheduled: true,
+        newDate: cleanNewDate,
       });
       if (!res.success) {
-        throw new Error(res.error || "Error al desmarcar el paso.");
+        throw new Error(res.error || "Error al re-agendar el servicio.");
       }
 
       // Update local state for steps
@@ -659,9 +730,9 @@ export default function SeguimientoServiciosClient({
             step_metadata: {
               ...((existing?.step_metadata as Record<string, unknown>) || {}),
               unmark_reason: reason,
-              is_rescheduled: isRescheduled,
-              new_date: newDate || null,
-              date_confirmed: !!newDate,
+              is_rescheduled: true,
+              new_date: cleanNewDate,
+              date_confirmed: !!cleanNewDate,
               unmarked_by_user: true,
               unmarked_at: new Date().toISOString(),
             },
@@ -671,18 +742,16 @@ export default function SeguimientoServiciosClient({
         return newMap;
       });
 
-      if (isRescheduled) {
-        setRescheduledOsiIds((prev) => (prev.includes(osiId) ? prev : [...prev, osiId]));
-        if (filterMode === "activos") {
-          setOsis((prev) => prev.filter((o) => o.id_osi !== osiId));
-          setTotalCount((prev) => Math.max(0, prev - 1));
-        }
+      setRescheduledOsiIds((prev) => (prev.includes(osiId) ? prev : [...prev, osiId]));
+      if (filterMode === "activos") {
+        setOsis((prev) => prev.filter((o) => o.id_osi !== osiId));
+        setTotalCount((prev) => Math.max(0, prev - 1));
       }
 
       // Clear cache so both tabs and active counts will re-fetch accurate server data
       moduleCache.clear();
     },
-    [unmarkModal, filterMode],
+    [executionModal, filterMode],
   );
 
   const handleRestoreToActivos = useCallback(
@@ -703,9 +772,13 @@ export default function SeguimientoServiciosClient({
           ...sessionMap,
           en_proceso: {
             ...existing,
+            completed: false,
+            completed_at: null,
+            notes: null,
             step_metadata: {
               ...existingMeta,
               is_rescheduled: false,
+              unmarked_by_user: false,
             },
           },
         });
@@ -736,6 +809,13 @@ export default function SeguimientoServiciosClient({
     },
     [filterMode],
   );
+
+  const handleRestoreFromModal = useCallback(async () => {
+    if (!executionModal) return;
+    const { osiId, nroSesion } = executionModal;
+    await handleRestoreToActivos(osiId, nroSesion);
+    setExecutionModal(null);
+  }, [executionModal, handleRestoreToActivos]);
 
   const handleBulkToggle = useCallback(
     async (osiId: number, nroSesion: number, stepKeys: string[]) => {
@@ -1403,8 +1483,11 @@ export default function SeguimientoServiciosClient({
                           onBulkToggle={(stepKeys) =>
                             handleBulkToggle(osi.id_osi, currentNroSesion, stepKeys)
                           }
+                          onRequestExecutionAction={() =>
+                            handleOpenExecutionModal(osi.id_osi)
+                          }
                           onRequestUnmarkEnProceso={() =>
-                            handleRequestUnmarkEnProceso(osi.id_osi)
+                            handleOpenExecutionModal(osi.id_osi)
                           }
                           onPreviewListaAsistencia={(id) =>
                             setPreviewOsi({ osiId: id, nroOsi: osi.nro_osi || "", nroSesion: currentNroSesion })
@@ -1470,15 +1553,20 @@ export default function SeguimientoServiciosClient({
         onClose={() => setOsiFormatoPreview(null)}
       />
 
-      {/* Unmark En Proceso Modal */}
-      {unmarkModal && (
-        <UnmarkEnProcesoModal
-          isOpen={!!unmarkModal}
-          osiId={unmarkModal.osiId}
-          nroOsi={unmarkModal.nroOsi}
-          nroSesion={unmarkModal.nroSesion}
-          onClose={() => setUnmarkModal(null)}
-          onConfirm={handleConfirmUnmark}
+      {/* Ejecucion / Re-agendar Modal */}
+      {executionModal && (
+        <EjecucionOsiModal
+          isOpen={!!executionModal}
+          osiId={executionModal.osiId}
+          nroOsi={executionModal.nroOsi}
+          nroSesion={executionModal.nroSesion}
+          empresa={executionModal.empresa}
+          servicio={executionModal.servicio}
+          stepRecord={executionModal.stepRecord}
+          onClose={() => setExecutionModal(null)}
+          onConfirmEjecutado={handleConfirmEjecutado}
+          onConfirmReagendar={handleConfirmReagendar}
+          onRestoreToActive={handleRestoreFromModal}
         />
       )}
 
