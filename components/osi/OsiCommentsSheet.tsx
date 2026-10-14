@@ -15,7 +15,7 @@ function buildFrameUrl(osiId: number): string {
   if (osiId <= 0) return "about:blank";
   const base =
     process.env.NEXT_PUBLIC_NEGOCIOS_URL ||
-    "https://gestion.shadevenezuela.com.ve";
+    "https://negocios.shadevenezuela.com.ve";
   return `${base.replace(/\/$/, "")}/embed/osi-comentarios/${osiId}?shell=1`;
 }
 
