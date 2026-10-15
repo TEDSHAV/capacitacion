@@ -31,6 +31,11 @@ export interface OsiAlertaCertificado {
   sesionesCount: number;
   prioridad: AlertaPrioridad;
   categoriaAlerta: CategoriaAlerta;
+  isParentService?: boolean;
+  isChildService?: boolean;
+  groupOsiCount?: number;
+  groupNroOsis?: string[];
+  parentNroOsi?: string | null;
 }
 
 export interface AlertasCertificadosResumen {
@@ -175,13 +180,36 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
     const osiIds = osis.map((o) => o.id_osi as number);
 
     // 2. Map osiId -> numeric nro_osi_secuencial (used by certificados.nro_osi)
+    // and load adjustments from capacitacion_indicadores_ajustes (grouping / multi-OSI links)
+    interface AjusteRow {
+      osi_id: number;
+      fecha_ejecucion: string | null;
+      fecha_emision: string | null;
+      motivo: string | null;
+      emitido_en_otra_osi: boolean | null;
+      osi_referencia_id: number | null;
+      nro_osi_referencia: string | null;
+    }
+
+    const [ejecRows, ajusteRows] = await Promise.all([
+      chunkedIn<{ id: number; nro_osi_secuencial: string | number | null }>(
+        "ejecucion_osi",
+        osiIds,
+        (chunk) =>
+          supabase.from("ejecucion_osi").select("id, nro_osi_secuencial").in("id", chunk),
+      ),
+      chunkedIn<AjusteRow>(
+        "capacitacion_indicadores_ajustes",
+        osiIds,
+        (chunk) =>
+          supabase
+            .from("capacitacion_indicadores_ajustes")
+            .select("osi_id, fecha_ejecucion, fecha_emision, motivo, emitido_en_otra_osi, osi_referencia_id, nro_osi_referencia")
+            .in("osi_id", chunk),
+      ),
+    ]);
+
     const numericOsiByOsiId = new Map<number, number>();
-    const ejecRows = await chunkedIn<{ id: number; nro_osi_secuencial: string | number | null }>(
-      "ejecucion_osi",
-      osiIds,
-      (chunk) =>
-        supabase.from("ejecucion_osi").select("id, nro_osi_secuencial").in("id", chunk),
-    );
     for (const e of ejecRows) {
       if (e.nro_osi_secuencial != null) {
         const n = typeof e.nro_osi_secuencial === "number"
@@ -191,7 +219,46 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
       }
     }
 
-    const numericOsis = Array.from(new Set(numericOsiByOsiId.values()));
+    const ajustesByOsi = new Map<number, AjusteRow>();
+    for (const a of ajusteRows) {
+      ajustesByOsi.set(a.osi_id, a);
+    }
+
+    // Resolve any parent OSIs referenced by child OSIs that might not be in the initial osiIds
+    const missingRefOsiIds = ajusteRows
+      .map((a) => a.osi_referencia_id)
+      .filter((id): id is number => id != null && !numericOsiByOsiId.has(id));
+
+    if (missingRefOsiIds.length > 0) {
+      const extEjecRows = await chunkedIn<{ id: number; nro_osi_secuencial: string | number | null }>(
+        "ejecucion_osi_parents",
+        missingRefOsiIds,
+        (chunk) =>
+          supabase.from("ejecucion_osi").select("id, nro_osi_secuencial").in("id", chunk),
+      );
+      for (const e of extEjecRows) {
+        if (e.nro_osi_secuencial != null) {
+          const n = typeof e.nro_osi_secuencial === "number"
+            ? e.nro_osi_secuencial
+            : parseInt(String(e.nro_osi_secuencial), 10);
+          if (Number.isFinite(n)) numericOsiByOsiId.set(e.id, n);
+        }
+      }
+    }
+
+    // Also include numeric OSIs parsed from nro_osi_referencia text (e.g. "3583" or "OSI-3583")
+    const extraParentNumericOsis: number[] = [];
+    for (const a of ajusteRows) {
+      if (a.nro_osi_referencia) {
+        const m = a.nro_osi_referencia.match(/\d+/);
+        if (m) {
+          const parsed = parseInt(m[0], 10);
+          if (Number.isFinite(parsed)) extraParentNumericOsis.push(parsed);
+        }
+      }
+    }
+
+    const numericOsis = Array.from(new Set([...numericOsiByOsiId.values(), ...extraParentNumericOsis]));
 
     // 3. Parallel fetch: sessions, certificates, facilitator uploads, assignments, and process steps
     const [sesionRows, certRows, uploadRows, assignmentRows, stepRows] = await Promise.all([
@@ -321,18 +388,74 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
     // 4. Filter and build alert items
     const alertItems: OsiAlertaCertificado[] = [];
 
+    // Pre-map child OSIs grouped under their parent OSI
+    const childrenByParentId = new Map<number, string[]>();
+    for (const a of ajusteRows) {
+      if (a.osi_referencia_id) {
+        const childOsi = osis.find((o) => o.id_osi === a.osi_id);
+        const childNro = childOsi?.nro_osi || `OSI-${a.osi_id}`;
+        const list = childrenByParentId.get(a.osi_referencia_id) || [];
+        if (!list.includes(childNro)) list.push(childNro);
+        childrenByParentId.set(a.osi_referencia_id, list);
+      }
+    }
+
     for (const osi of osis) {
       const osiId = osi.id_osi!;
       const numericOsi = numericOsiByOsiId.get(osiId);
+      const ajuste = ajustesByOsi.get(osiId);
 
-      // Check if certificates already exist for this OSI
-      const hasCerts = numericOsi ? osisWithCertificates.has(numericOsi) : false;
-      if (hasCerts) continue; // Already has certificates, skip!
+      // Check if certificates already exist for this OSI directly
+      let hasCerts = numericOsi ? osisWithCertificates.has(numericOsi) : false;
+
+      // Grouping / Otra OSI detection:
+      // If this OSI is grouped with a parent OSI, check if the parent OSI has certificates issued.
+      // If parent has certificates, this child OSI must NOT be listed as pending!
+      const isEmitidoEnOtraOsi =
+        Boolean(ajuste?.emitido_en_otra_osi) ||
+        Boolean(ajuste?.osi_referencia_id) ||
+        Boolean(ajuste?.nro_osi_referencia) ||
+        Boolean(ajuste?.motivo && /emitid[oa]s?\s+en\s+osi/i.test(ajuste.motivo));
+
+      let parentNumericOsi: number | null = null;
+      if (ajuste?.osi_referencia_id) {
+        parentNumericOsi = numericOsiByOsiId.get(ajuste.osi_referencia_id) ?? null;
+      }
+      if (!parentNumericOsi && ajuste?.nro_osi_referencia) {
+        const m = ajuste.nro_osi_referencia.match(/\d+/);
+        if (m) parentNumericOsi = parseInt(m[0], 10);
+      }
+
+      if (!hasCerts && isEmitidoEnOtraOsi) {
+        // If parent OSI has certificates issued, then child OSI is covered
+        if (parentNumericOsi && osisWithCertificates.has(parentNumericOsi)) {
+          hasCerts = true;
+        } else if (ajuste?.fecha_emision) {
+          // If child was given an adjusted emission date, certificates were emitted
+          hasCerts = true;
+        } else if (ajuste?.emitido_en_otra_osi && !ajuste?.osi_referencia_id && !ajuste?.nro_osi_referencia) {
+          // Flagged manually as emitted in another OSI without specific reference
+          hasCerts = true;
+        }
+      }
+
+      if (hasCerts) continue; // Already has certificates (directly or via parent OSI), skip!
+
+      // If this is a child OSI in a service group whose certificates are pending,
+      // it should NOT create a duplicate alert because the primary parent OSI
+      // represents the service in the notification center.
+      if (ajuste?.osi_referencia_id || (ajuste?.emitido_en_otra_osi && parentNumericOsi)) {
+        continue;
+      }
 
       // Determine effective execution date:
-      // Prefer max session date (fecha_ejecutada or planned fecha), then fallback to fecha_fin_real or fecha_inicio_real
+      // Prefer manual adjustment date, then max session date (fecha_ejecutada or planned fecha), then fallback to fecha_fin_real or fecha_inicio_real
       const fechaEjecucion =
-        maxSesionFechaByOsi.get(osiId) || osi.fecha_fin_real || osi.fecha_inicio_real || null;
+        ajuste?.fecha_ejecucion ||
+        maxSesionFechaByOsi.get(osiId) ||
+        osi.fecha_fin_real ||
+        osi.fecha_inicio_real ||
+        null;
 
       // If no date at all, we cannot evaluate execution
       if (!fechaEjecucion) continue;
@@ -418,6 +541,11 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
         null;
       const ciudad = cityId ? cityMap.get(cityId) || null : null;
 
+      const linkedChildren = childrenByParentId.get(osiId) || [];
+      const isParentService = linkedChildren.length > 0;
+      const groupOsiCount = isParentService ? linkedChildren.length + 1 : undefined;
+      const groupNroOsis = isParentService ? [osi.nro_osi || `OSI-${osiId}`, ...linkedChildren] : undefined;
+
       alertItems.push({
         osiId,
         nroOsi: osi.nro_osi || `OSI-${osiId}`,
@@ -437,6 +565,9 @@ export async function getAlertasCertificadosPendientes(): Promise<AlertasCertifi
         sesionesCount: sessionCountByOsi.get(osiId) || osi.sesiones_ejecucion || 1,
         prioridad,
         categoriaAlerta,
+        isParentService,
+        groupOsiCount,
+        groupNroOsis,
       });
     }
 

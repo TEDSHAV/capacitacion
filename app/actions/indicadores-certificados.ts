@@ -511,6 +511,34 @@ export async function getIndicadoresCertificados72h(
       }
     }
 
+    // 3c. Facilitator upload records (ejecucion_osi_asistencia)
+    // Used to detect whether documentation was submitted by the facilitator on time,
+    // identifying bottlenecks without penalizing internal Capacitación processing.
+    interface UploadRecord {
+      osi_id: number;
+      category: string | null;
+      created_at: string;
+    }
+    const uploadsByOsi = new Map<number, UploadRecord[]>();
+    {
+      const upRows = await fetchChunkedIn<UploadRecord>(
+        osiIds,
+        (chunk, from, to) =>
+          supabase
+            .from("ejecucion_osi_asistencia")
+            .select("osi_id, category, created_at")
+            .in("osi_id", chunk)
+            .order("created_at", { ascending: true })
+            .range(from, to),
+        "ejecucion_osi_asistencia",
+      );
+      for (const u of upRows) {
+        const list = uploadsByOsi.get(u.osi_id) || [];
+        list.push(u);
+        uploadsByOsi.set(u.osi_id, list);
+      }
+    }
+
     // 4. Build per-OSI rows
     const facilitadorIdByOsi = new Map<number, number | null>();
     const nowDate = new Date();
@@ -665,6 +693,65 @@ export async function getIndicadoresCertificados72h(
         }
       }
 
+      // Facilitator uploads & bottleneck evaluation
+      const osiUploads = uploadsByOsi.get(osiId) || [];
+      const hasAsistencia = osiUploads.some((u) => u.category === "lista_asistencia");
+      const hasCalificacion = osiUploads.some((u) => u.category === "hoja_calificacion");
+      const hasFotos = osiUploads.some((u) => u.category === "material_fotografico");
+      const soportesCompletos = hasAsistencia && hasCalificacion && hasFotos;
+
+      // Determine date when required supports were uploaded (or latest upload date)
+      let fechaCargaSoportes: string | null = null;
+      if (soportesCompletos) {
+        const requiredUploads = osiUploads.filter(
+          (u) =>
+            u.category === "lista_asistencia" ||
+            u.category === "hoja_calificacion" ||
+            u.category === "material_fotografico"
+        );
+        const dates = requiredUploads.map((u) => u.created_at).sort();
+        fechaCargaSoportes = dates[dates.length - 1] ?? null;
+      } else if (osiUploads.length > 0) {
+        const dates = osiUploads.map((u) => u.created_at).sort();
+        fechaCargaSoportes = dates[dates.length - 1] ?? null;
+      }
+
+      // Calculate latency in business days for facilitator uploading documentation
+      let diasCargaFacilitador: number | null = null;
+      if (fechaEjecucion && fechaCargaSoportes) {
+        const execDate = parseDate(fechaEjecucion);
+        const uploadDate = parseDate(fechaCargaSoportes);
+        diasCargaFacilitador = businessDaysInclusive(execDate, uploadDate, holidays);
+      }
+
+      // Determine subtle delay attribution
+      let atribucionDemora: "demora_facilitador" | "en_gestion" | null = null;
+      let atribucionDetalle: string | null = null;
+
+      if (estado === "fuera") {
+        if (!soportesCompletos) {
+          atribucionDemora = "demora_facilitador";
+          atribucionDetalle = "Soportes requeridos pendientes o incompletos por parte del facilitador";
+        } else if (diasCargaFacilitador != null && diasCargaFacilitador > PLAZO_BUSINESS_DAYS) {
+          atribucionDemora = "demora_facilitador";
+          atribucionDetalle = `Facilitador remitió soportes con retraso (${diasCargaFacilitador} días hábiles tras ejecución; plazo: ${PLAZO_BUSINESS_DAYS}d)`;
+        } else {
+          atribucionDemora = "en_gestion";
+          atribucionDetalle = `Soportes recibidos en plazo (${diasCargaFacilitador ?? 0}d). En trámite interno de emisión`;
+        }
+      } else if (estado === "pendiente" && (brechaDias ?? 0) > 0) {
+        if (!soportesCompletos) {
+          atribucionDemora = "demora_facilitador";
+          atribucionDetalle = "En espera de entrega completa de soportes por el facilitador para emitir";
+        } else if (diasCargaFacilitador != null && diasCargaFacilitador > PLAZO_BUSINESS_DAYS) {
+          atribucionDemora = "demora_facilitador";
+          atribucionDetalle = `Facilitador remitió soportes con demora (${diasCargaFacilitador}d tras ejecución). En trámite interno de emisión`;
+        } else {
+          atribucionDemora = "en_gestion";
+          atribucionDetalle = "Soportes recibidos. En trámite interno de emisión";
+        }
+      }
+
       const facilitadorNombre =
         facilitadorId != null ? facilitadorNames.get(facilitadorId) ?? null : null;
       // Historically-resolved facilitador(es) who taught this OSI's
@@ -718,6 +805,11 @@ export async function getIndicadoresCertificados72h(
           ajuste?.nro_osi_referencia ??
           (ajuste?.motivo?.match(/OSI-[\w-]+/i)?.[0] ?? null),
         osiReferenciaId: ajuste?.osi_referencia_id ?? null,
+        fechaCargaSoportes,
+        diasCargaFacilitador,
+        soportesCompletos,
+        atribucionDemora,
+        atribucionDetalle,
       };
     });
 
@@ -876,6 +968,53 @@ export async function getIndicadoresCertificados72h(
         }
       }
 
+      // 4. Synchronize facilitator uploads & bottleneck attribution
+      let groupFechaCargaSoportes = parentRow.fechaCargaSoportes;
+      let groupDiasCargaFacilitador = parentRow.diasCargaFacilitador;
+      let groupSoportesCompletos = parentRow.soportesCompletos;
+      let groupAtribucionDemora = parentRow.atribucionDemora;
+      let groupAtribucionDetalle = parentRow.atribucionDetalle;
+
+      const completeMember = allMembers.find((m) => m.soportesCompletos);
+      if (completeMember) {
+        groupSoportesCompletos = true;
+        groupFechaCargaSoportes = completeMember.fechaCargaSoportes;
+        groupDiasCargaFacilitador = completeMember.diasCargaFacilitador;
+      } else {
+        const uploadMember = allMembers.find((m) => m.fechaCargaSoportes);
+        if (uploadMember) {
+          groupFechaCargaSoportes = uploadMember.fechaCargaSoportes;
+          groupDiasCargaFacilitador = uploadMember.diasCargaFacilitador;
+        }
+      }
+
+      if (groupEstado === "fuera") {
+        if (!groupSoportesCompletos) {
+          groupAtribucionDemora = "demora_facilitador";
+          groupAtribucionDetalle = "Soportes requeridos pendientes o incompletos por parte del facilitador";
+        } else if (groupDiasCargaFacilitador != null && groupDiasCargaFacilitador > PLAZO_BUSINESS_DAYS) {
+          groupAtribucionDemora = "demora_facilitador";
+          groupAtribucionDetalle = `Facilitador remitió soportes con retraso (${groupDiasCargaFacilitador} días hábiles tras ejecución; plazo: ${PLAZO_BUSINESS_DAYS}d)`;
+        } else {
+          groupAtribucionDemora = "en_gestion";
+          groupAtribucionDetalle = `Soportes recibidos en plazo (${groupDiasCargaFacilitador ?? 0}d). En trámite interno de emisión`;
+        }
+      } else if (groupEstado === "pendiente" && (groupBrechaDias ?? 0) > 0) {
+        if (!groupSoportesCompletos) {
+          groupAtribucionDemora = "demora_facilitador";
+          groupAtribucionDetalle = "En espera de entrega completa de soportes por el facilitador para emitir";
+        } else if (groupDiasCargaFacilitador != null && groupDiasCargaFacilitador > PLAZO_BUSINESS_DAYS) {
+          groupAtribucionDemora = "demora_facilitador";
+          groupAtribucionDetalle = `Facilitador remitió soportes con demora (${groupDiasCargaFacilitador}d tras ejecución). En trámite interno de emisión`;
+        } else {
+          groupAtribucionDemora = "en_gestion";
+          groupAtribucionDetalle = "Soportes recibidos. En trámite interno de emisión";
+        }
+      } else {
+        groupAtribucionDemora = null;
+        groupAtribucionDetalle = null;
+      }
+
       // Assign synchronized values to parent and all children
       parentRow.fechaEjecucion = groupFechaEjecucion;
       parentRow.fuenteEjecucion = groupFuenteEjecucion;
@@ -886,6 +1025,11 @@ export async function getIndicadoresCertificados72h(
       parentRow.estado = groupEstado;
       parentRow.brechaDias = groupBrechaDias;
       parentRow.sospechoso = groupSospechoso;
+      parentRow.fechaCargaSoportes = groupFechaCargaSoportes;
+      parentRow.diasCargaFacilitador = groupDiasCargaFacilitador;
+      parentRow.soportesCompletos = groupSoportesCompletos;
+      parentRow.atribucionDemora = groupAtribucionDemora;
+      parentRow.atribucionDetalle = groupAtribucionDetalle;
 
       for (const child of children) {
         child.parentNroOsi = parentRow.nroOsi;
@@ -900,6 +1044,11 @@ export async function getIndicadoresCertificados72h(
         child.estado = groupEstado;
         child.brechaDias = groupBrechaDias;
         child.sospechoso = groupSospechoso;
+        child.fechaCargaSoportes = groupFechaCargaSoportes;
+        child.diasCargaFacilitador = groupDiasCargaFacilitador;
+        child.soportesCompletos = groupSoportesCompletos;
+        child.atribucionDemora = groupAtribucionDemora;
+        child.atribucionDetalle = groupAtribucionDetalle;
       }
     }
 
@@ -975,6 +1124,12 @@ export async function getIndicadoresCertificados72h(
       (r) => r.isParentService && (r.childOsis?.length ?? 0) > 0
     ).length;
 
+    const demoraFacilitadorCount = serviceRows.filter(
+      (r) =>
+        (r.estado === "fuera" || (r.estado === "pendiente" && (r.brechaDias ?? 0) > 0)) &&
+        r.atribucionDemora === "demora_facilitador"
+    ).length;
+
     const aggregates: IndicadoresAggregates = {
       totalOsis: rows.length,
       totalServicios: serviceRows.length,
@@ -993,6 +1148,7 @@ export async function getIndicadoresCertificados72h(
       enRiesgoPendientes: enRiesgo,
       totalOsisAgrupadas,
       totalGrupos,
+      demoraFacilitadorCount,
     };
 
     return { data: { rows, aggregates }, error: null };

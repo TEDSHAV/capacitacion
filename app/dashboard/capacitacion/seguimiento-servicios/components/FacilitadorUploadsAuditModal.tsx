@@ -427,9 +427,33 @@ export default function FacilitadorUploadsAuditModal({
                       <span className="truncate">{item.facilitadorNombre}</span>
                     </div>
                     {item.fechaSesion && (
-                      <div className="flex items-center gap-1.5 text-slate-500">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>Fecha: {item.fechaSesion}</span>
+                      <div className="flex items-center gap-1.5 text-slate-500 flex-wrap">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>Fecha: {item.fechaSesion}</span>
+                        </div>
+                        {item.isPendingUpload && item.diasDesdeEjecucion != null && item.diasDesdeEjecucion > 3 && (
+                          <span
+                            className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded"
+                            title="Días hábiles transcurridos desde la ejecución sin entrega completa de soportes"
+                          >
+                            +{item.diasDesdeEjecucion - 3}d demora facilitador
+                          </span>
+                        )}
+                        {item.isComplete && item.diasCargaFacilitador != null && (
+                          <span
+                            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+                              item.diasCargaFacilitador > 3
+                                ? "text-amber-800 bg-amber-50 border-amber-200"
+                                : "text-emerald-700 bg-emerald-50 border-emerald-200"
+                            }`}
+                            title={`Soportes cargados por el facilitador en ${item.diasCargaFacilitador} días hábiles tras ejecución`}
+                          >
+                            {item.diasCargaFacilitador > 3
+                              ? `+${item.diasCargaFacilitador - 3}d entrega`
+                              : `${item.diasCargaFacilitador}d (en plazo)`}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>

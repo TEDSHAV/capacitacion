@@ -2017,6 +2017,12 @@ export interface IndicadorOsiRow {
   childOsis?: IndicadorOsiRow[];
   groupOsiCount?: number;
   groupNroOsis?: string[];
+  // Facilitator Upload & Bottleneck Tracking
+  fechaCargaSoportes?: string | null;
+  diasCargaFacilitador?: number | null;
+  soportesCompletos?: boolean;
+  atribucionDemora?: "demora_facilitador" | "en_gestion" | null;
+  atribucionDetalle?: string | null;
 }
 
 export interface IndicadoresAggregates {
@@ -2040,6 +2046,7 @@ export interface IndicadoresAggregates {
   enRiesgoPendientes: number;
   totalOsisAgrupadas?: number;
   totalGrupos?: number;
+  demoraFacilitadorCount?: number;
 }
 
 export interface IndicadoresResponse {

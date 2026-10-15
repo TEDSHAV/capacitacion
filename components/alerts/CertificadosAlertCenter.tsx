@@ -511,9 +511,20 @@ function OsiAlertCard({ item, onNavigate }: OsiAlertCardProps) {
         </div>
 
         {/* OSI Number Pill */}
-        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-200">
-          OSI {item.nroOsi}
-        </span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-200">
+            OSI {item.nroOsi}
+          </span>
+          {item.isParentService && item.groupOsiCount && (
+            <span
+              className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 flex items-center gap-1"
+              title={item.groupNroOsis ? `Incluye: ${item.groupNroOsis.join(", ")}` : "Servicio multi-OSI"}
+            >
+              <Layers className="w-2.5 h-2.5" />
+              Grupo · {item.groupOsiCount} OSIs
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Company & Course Details */}

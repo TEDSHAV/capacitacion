@@ -67,7 +67,7 @@ function formatDate(s: string | null | undefined): string {
 export default function Certificados72hView({ aggregates, rows, mesLabel, onRefresh }: Props) {
   const { addToast } = useToast();
   const [filterEstado, setFilterEstado] = useState<
-    IndicadorEstado | "ajustadas" | "otra_osi" | "agrupadas" | "all"
+    IndicadorEstado | "ajustadas" | "otra_osi" | "agrupadas" | "demora_facilitador" | "all"
   >("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("diasHabiles");
@@ -201,6 +201,8 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
       result = result.filter((r) => r.emitidoEnOtraOsi);
     } else if (filterEstado === "agrupadas") {
       result = result.filter((r) => r.isParentService || r.isChildService);
+    } else if (filterEstado === "demora_facilitador") {
+      result = result.filter((r) => r.atribucionDemora === "demora_facilitador");
     } else if (filterEstado !== "all") {
       result = result.filter((r) => r.estado === filterEstado);
     }
@@ -406,6 +408,14 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
             <span className="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
               {aggregates.pendientes} pendientes
             </span>
+            {(aggregates.demoraFacilitadorCount ?? 0) > 0 && (
+              <span
+                className="font-semibold text-amber-800 bg-amber-100/80 border border-amber-300/80 px-2 py-0.5 rounded text-[11px]"
+                title="Retrasos originados por entrega tardía o pendiente de soportes por parte del facilitador"
+              >
+                {aggregates.demoraFacilitadorCount} por demora facilitador
+              </span>
+            )}
             {aggregates.totalOsis > (aggregates.totalServicios ?? aggregates.totalOsis) && (
               <span className="text-[11px] text-gray-400 font-medium">
                 (Por servicios)
@@ -539,6 +549,24 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
             <Hourglass className="w-3.5 h-3.5" />
             Demora en emisión ({aggregates.pendientes})
           </button>
+          {(aggregates.demoraFacilitadorCount ?? 0) > 0 && (
+            <button
+              onClick={() =>
+                setFilterEstado(
+                  filterEstado === "demora_facilitador" ? "all" : "demora_facilitador"
+                )
+              }
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
+                filterEstado === "demora_facilitador"
+                  ? "bg-amber-600 text-white font-semibold"
+                  : "bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300"
+              }`}
+              title="Filtrar servicios cuyo retraso se debió a demora o falta de entrega de soportes del facilitador"
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-600" />
+              Demora facilitador ({aggregates.demoraFacilitadorCount})
+            </button>
+          )}
           <button
             onClick={() => setFilterEstado("pendiente_ejecucion")}
             className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
@@ -1042,16 +1070,56 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                             </span>
                           )}
                           {r.estado === "fuera" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-semibold border border-red-200">
-                              <AlertTriangle className="w-3 h-3 text-red-600" />
-                              {r.diasHabiles} días hábiles (+{r.brechaDias}d retraso)
-                            </span>
+                            <div className="flex flex-col items-start gap-1">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-semibold border border-red-200">
+                                <AlertTriangle className="w-3 h-3 text-red-600" />
+                                {r.diasHabiles} días hábiles (+{r.brechaDias}d retraso)
+                              </span>
+                              {r.atribucionDemora === "demora_facilitador" ? (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/90"
+                                  title={r.atribucionDetalle || "Demora generada por entrega tardía o incompleta de soportes del facilitador"}
+                                >
+                                  <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                  <span>
+                                    Demora facilitador {r.diasCargaFacilitador ? `(+${Math.max(0, r.diasCargaFacilitador - 3)}d)` : "· Soportes pendientes"}
+                                  </span>
+                                </span>
+                              ) : r.atribucionDemora === "en_gestion" ? (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-50 text-slate-600 border border-slate-200"
+                                  title={r.atribucionDetalle || "Soportes recibidos. En trámite interno de emisión"}
+                                >
+                                  En trámite interno
+                                </span>
+                              ) : null}
+                            </div>
                           )}
                           {r.estado === "pendiente" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">
-                              <Hourglass className="w-3 h-3 text-amber-600" />
-                              Demora en emisión ({r.brechaDias != null && r.brechaDias > 0 ? `+${r.brechaDias}d retraso` : "En plazo"})
-                            </span>
+                            <div className="flex flex-col items-start gap-1">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">
+                                <Hourglass className="w-3 h-3 text-amber-600" />
+                                Demora en emisión ({r.brechaDias != null && r.brechaDias > 0 ? `+${r.brechaDias}d retraso` : "En plazo"})
+                              </span>
+                              {r.atribucionDemora === "demora_facilitador" ? (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/90"
+                                  title={r.atribucionDetalle || "Pendiente por entrega de soportes del facilitador"}
+                                >
+                                  <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                  <span>
+                                    {r.diasCargaFacilitador ? `Demora facilitador (+${Math.max(0, r.diasCargaFacilitador - 3)}d)` : "Pendiente soportes facilitador"}
+                                  </span>
+                                </span>
+                              ) : r.atribucionDemora === "en_gestion" ? (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-50 text-slate-600 border border-slate-200"
+                                  title={r.atribucionDetalle || "Soportes recibidos. En trámite interno de emisión"}
+                                >
+                                  En trámite interno
+                                </span>
+                              ) : null}
+                            </div>
                           )}
                           {r.estado === "pendiente_ejecucion" && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 font-semibold border border-violet-200">

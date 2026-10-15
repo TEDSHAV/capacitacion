@@ -24,6 +24,7 @@ import {
   SlidersHorizontal,
   Info,
   MapPin,
+  Layers,
 } from "lucide-react";
 import {
   type AlertasCertificadosResumen,
@@ -643,6 +644,16 @@ export default function NotificacionesClient({ initialResumen }: Props) {
                       <span className="text-xs font-mono font-bold text-slate-900 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">
                         OSI {item.nroOsi}
                       </span>
+
+                      {item.isParentService && item.groupOsiCount && (
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 flex items-center gap-1"
+                          title={item.groupNroOsis ? `Incluye: ${item.groupNroOsis.join(", ")}` : "Servicio multi-OSI"}
+                        >
+                          <Layers className="w-2.5 h-2.5" />
+                          Grupo · {item.groupOsiCount} OSIs
+                        </span>
+                      )}
 
                       {/* Explicit Certificate Status */}
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1">

@@ -2,6 +2,8 @@
 
 import { createAdminClient } from "@/utils/supabase/server";
 import { OSIAttachment } from "@/types";
+import { getFeriadosSet } from "@/app/actions/feriados";
+import { businessDaysInclusive, parseDate } from "@/lib/business-days";
 
 export interface OsiUploadAuditItem {
   osiId: number;
@@ -25,6 +27,9 @@ export interface OsiUploadAuditItem {
   fotosCount: number;
   totalArchivos: number;
   archivos: OSIAttachment[];
+  fechaCargaSoportes?: string | null;
+  diasDesdeEjecucion?: number | null;
+  diasCargaFacilitador?: number | null;
 }
 
 export interface FacilitadorUploadsAuditSummary {
@@ -112,8 +117,8 @@ export async function getFacilitadorUploadsAudit(
   const osis = osisRaw.filter((o) => o.id_osi != null);
   const osiIds = osis.map((o) => o.id_osi as number);
 
-  // 2. Fetch parallel data: sessions, facilitator assignments, uploads
-  const [sesionRows, assignmentRows, uploadRows] = await Promise.all([
+  // 2. Fetch parallel data: sessions, facilitator assignments, uploads, feriados
+  const [sesionRows, assignmentRows, uploadRows, holidays] = await Promise.all([
     chunkedIn<{ id_osi: number; nro_sesion: number; fecha: string | null; fecha_ejecutada: string | null }>(
       osiIds,
       (chunk) =>
@@ -157,6 +162,7 @@ export async function getFacilitadorUploadsAudit(
           .select("*")
           .in("osi_id", chunk)
     ),
+    getFeriadosSet(),
   ]);
 
   // Lookup maps
@@ -274,6 +280,27 @@ export async function getFacilitadorUploadsAudit(
     if (filterMode === "pendientes_confirmar" && !isPendingConfirmation) continue;
     if (filterMode === "completos" && !isComplete) continue;
 
+    // Timing calculation
+    let fechaCargaSoportes: string | null = null;
+    let diasCargaFacilitador: number | null = null;
+    let diasDesdeEjecucion: number | null = null;
+
+    if (archivos.length > 0) {
+      const dates = archivos.map((a) => a.created_at).filter(Boolean).sort();
+      fechaCargaSoportes = dates[dates.length - 1] ?? null;
+    }
+
+    if (fechaSesion) {
+      const execDate = parseDate(fechaSesion);
+      const nowDate = new Date();
+      if (fechaCargaSoportes) {
+        diasCargaFacilitador = businessDaysInclusive(execDate, parseDate(fechaCargaSoportes), holidays);
+      }
+      if (execDate <= nowDate) {
+        diasDesdeEjecucion = businessDaysInclusive(execDate, nowDate, holidays);
+      }
+    }
+
     items.push({
       osiId,
       nroOsi: osi.nro_osi || `OSI-${osiId}`,
@@ -296,6 +323,9 @@ export async function getFacilitadorUploadsAudit(
       fotosCount: fotosFiles.length,
       totalArchivos: archivos.length,
       archivos,
+      fechaCargaSoportes,
+      diasDesdeEjecucion,
+      diasCargaFacilitador,
     });
   }
 
