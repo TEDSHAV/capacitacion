@@ -84,12 +84,12 @@ export async function getFacilitadorUploadsAudit(
 
   // 1. Fetch OSIs of type Capacitacion (ordered by date descending)
   let osisQuery = supabase
-    .from("osi")
+    .from("v_osi_formato_completo")
     .select("id_osi, nro_osi, nombre_empresa, servicio, fecha_inicio_real, fecha_fin_real, tipo_servicio, id_estatus")
     .ilike("tipo_servicio", "%capacitacion%")
     .not("nro_osi", "ilike", "%PEN-%")
     .order("fecha_inicio_real", { ascending: false, nullsFirst: false })
-    .limit(300);
+    .limit(500);
 
   if (searchQuery && searchQuery.trim().length > 0) {
     const q = searchQuery.trim();
@@ -98,6 +98,7 @@ export async function getFacilitadorUploadsAudit(
 
   const { data: osisRaw, error: osisErr } = await osisQuery;
   if (osisErr || !osisRaw || osisRaw.length === 0) {
+    if (osisErr) console.error("[getFacilitadorUploadsAudit] Error fetching OSIs:", osisErr);
     return {
       totalOsis: 0,
       totalWithUploads: 0,
