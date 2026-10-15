@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -244,14 +245,44 @@ export const ParticipantForm = ({
     window.scrollTo({ top: 120, behavior: "smooth" });
   };
 
+  const activeStepRef = useRef(activeStep);
+  activeStepRef.current = activeStep;
+
+  // Helper to ensure target wizard step is mounted before driver.js queries and focuses the element
+  const getStepTarget = useCallback(
+    (targetWizardStep: WizardStepId, selector: string) => () => {
+      if (activeStepRef.current !== targetWizardStep) {
+        flushSync(() => {
+          setActiveStep(targetWizardStep);
+          activeStepRef.current = targetWizardStep;
+        });
+      }
+      return (
+        document.querySelector(selector) ||
+        document.getElementById("tour-stepper") ||
+        document.body
+      );
+    },
+    []
+  );
+
+  const getStepHeaderTarget = useCallback(
+    (stepId: WizardStepId) => () => {
+      // Find desktop or mobile header button that is visible
+      const desktop = document.getElementById(`tour-step-${stepId}`);
+      if (desktop && desktop.offsetParent !== null) return desktop;
+      const mobile = document.getElementById(`tour-step-mobile-${stepId}`);
+      if (mobile && mobile.offsetParent !== null) return mobile;
+      return desktop || mobile || document.getElementById("tour-stepper") || document.body;
+    },
+    []
+  );
+
   // Interactive Guided Tour definition
   const tourSteps = useMemo<DriveStep[]>(() => {
-    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-    const stepEl = (stepId: string) => isMobile ? `#tour-step-mobile-${stepId}` : `#tour-step-${stepId}`;
-
     const list: DriveStep[] = [
       {
-        element: "#tour-stepper",
+        element: () => document.getElementById("tour-stepper") || document.body,
         popover: {
           title: "Flujo Guiado Paso a Paso",
           description:
@@ -263,7 +294,7 @@ export const ParticipantForm = ({
     if (hasMaterial) {
       list.push(
         {
-          element: stepEl("material"),
+          element: getStepHeaderTarget("material"),
           popover: {
             title: "Paso 1: Material Didáctico Oficial",
             description:
@@ -271,7 +302,7 @@ export const ParticipantForm = ({
           },
         },
         {
-          element: "#tour-material-content",
+          element: getStepTarget("material", "#tour-material-content"),
           popover: {
             title: "Descarga de Presentación y Guías",
             description:
@@ -289,7 +320,7 @@ export const ParticipantForm = ({
 
     list.push(
       {
-        element: stepEl("asistencia"),
+        element: getStepHeaderTarget("asistencia"),
         popover: {
           title: `Paso ${asistenciaStepNum}: Lista de Asistencia Física`,
           description:
@@ -297,7 +328,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: "#tour-upload-section",
+        element: getStepTarget("asistencia", "#tour-upload-section"),
         popover: {
           title: "Cargar Archivo de Asistencia",
           description:
@@ -305,7 +336,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: "#tour-scan-button",
+        element: getStepTarget("asistencia", "#tour-scan-button"),
         popover: {
           title: "¡Escanear con OCR Inteligente!",
           description:
@@ -313,7 +344,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: stepEl("calificacion"),
+        element: getStepHeaderTarget("calificacion"),
         popover: {
           title: `Paso ${califStepNum}: Hoja de Calificación Física`,
           description:
@@ -321,7 +352,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: "#tour-calificacion-upload",
+        element: getStepTarget("calificacion", "#tour-calificacion-upload"),
         popover: {
           title: "Cargar Hoja de Calificación",
           description:
@@ -329,7 +360,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: stepEl("participantes"),
+        element: getStepHeaderTarget("participantes"),
         popover: {
           title: `Paso ${partStepNum}: Participantes y Calificaciones`,
           description:
@@ -337,7 +368,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: "#tour-participant-actions",
+        element: getStepTarget("participantes", "#tour-participant-actions"),
         popover: {
           title: "Acciones de Participantes",
           description:
@@ -345,7 +376,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: "#tour-participant-list",
+        element: getStepTarget("participantes", "#tour-participant-list"),
         popover: {
           title: "Validación y Calificaciones (Escala 0 a 20)",
           description:
@@ -353,7 +384,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: stepEl("evidencias"),
+        element: getStepHeaderTarget("evidencias"),
         popover: {
           title: `Paso ${evidStepNum}: Registro Fotográfico`,
           description:
@@ -361,7 +392,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: "#tour-evidencias-section",
+        element: getStepTarget("evidencias", "#tour-evidencias-section"),
         popover: {
           title: "Fotos de la Actividad (Obligatorio)",
           description:
@@ -369,7 +400,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: stepEl("envio"),
+        element: getStepHeaderTarget("envio"),
         popover: {
           title: `Paso ${envioStepNum}: Revisión y Envío Final`,
           description:
@@ -377,7 +408,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: "#tour-summary-card",
+        element: getStepTarget("envio", "#tour-summary-card"),
         popover: {
           title: "Resumen del Servicio",
           description:
@@ -385,7 +416,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: "#tour-disclaimer",
+        element: getStepTarget("envio", "#tour-disclaimer"),
         popover: {
           title: "Declaración Jurada de Veracidad",
           description:
@@ -393,7 +424,7 @@ export const ParticipantForm = ({
         },
       },
       {
-        element: "#tour-submission-actions",
+        element: getStepTarget("envio", "#tour-submission-actions"),
         popover: {
           title: "Guardar Borrador y Envío a Capacitación",
           description:
@@ -403,41 +434,21 @@ export const ParticipantForm = ({
     );
 
     return list;
-  }, [hasMaterial]);
+  }, [hasMaterial, getStepHeaderTarget, getStepTarget]);
 
   const startTour = useCallback(() => {
     const driverInstance = driver({
       steps: tourSteps,
       showProgress: true,
       allowClose: true,
+      smoothScroll: true,
+      stagePadding: 8,
+      stageRadius: 12,
       nextBtnText: "Siguiente",
       prevBtnText: "Anterior",
       doneBtnText: "¡Listo!",
       onDestroyed: () => {
         localStorage.setItem(OSI_TOUR_KEY, "completed");
-      },
-      onHighlightStarted: (element, step) => {
-        const el = typeof step.element === "string" ? step.element : "";
-        if (el.includes("material")) {
-          setActiveStep("material");
-        } else if (el.includes("asistencia") || el.includes("upload") || el.includes("scan")) {
-          setActiveStep("asistencia");
-        } else if (el.includes("calificacion")) {
-          setActiveStep("calificacion");
-        } else if (el.includes("participante")) {
-          setActiveStep("participantes");
-        } else if (el.includes("evidencia") || el.includes("photo")) {
-          setActiveStep("evidencias");
-        } else if (
-          el.includes("envio") ||
-          el.includes("summary") ||
-          el.includes("disclaimer") ||
-          el.includes("submission") ||
-          el.includes("submit") ||
-          el.includes("draft")
-        ) {
-          setActiveStep("envio");
-        }
       },
     });
     driverInstance.drive();

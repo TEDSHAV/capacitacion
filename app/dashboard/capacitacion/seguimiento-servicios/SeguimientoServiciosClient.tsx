@@ -21,6 +21,7 @@ import {
   MapPin,
   Landmark,
   CheckCircle2,
+  Paperclip,
 } from "lucide-react";
 import type { OSIManagement, OSISesion, OSIFilters, OSIStatus } from "@/types";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
@@ -40,6 +41,7 @@ import { isShaLocation } from "@/lib/constants/salones";
 import ProcesoStepsTimeline from "../components/proceso-steps-timeline";
 import OSIPagination from "../gestion-osi/components/osi-pagination";
 import ListaAsistenciaPreview from "./components/lista-asistencia-preview";
+import FacilitadorUploadsAuditModal from "./components/FacilitadorUploadsAuditModal";
 import EjecucionOsiModal from "./components/EjecucionOsiModal";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 import OsiCommentsSheet from "@/components/osi/OsiCommentsSheet";
@@ -178,6 +180,7 @@ export default function SeguimientoServiciosClient({
   const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string; nroSesion: number; category?: string; title?: string; showReceivedToggle?: boolean } | null>(null);
   const [osiFormatoPreview, setOsiFormatoPreview] = useState<{ osiId: number; nroOsi: string } | null>(null);
   const [commentsOsi, setCommentsOsi] = useState<{ osiId: number; nroOsi: string; servicio?: string } | null>(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const isFirstRender = useRef(true);
   const hasInitialized = useRef(false);
 
@@ -943,6 +946,16 @@ export default function SeguimientoServiciosClient({
                 : `(${totalCount} OSIs)`}
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setIsAuditModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+            title="Consultar y auditar adjuntos de facilitadores"
+          >
+            <Paperclip className="w-3.5 h-3.5 text-sky-600" />
+            <span>Auditoría de Soportes</span>
+          </button>
         </div>
 
         {/* Quick-Filter Segmented Tabs */}
@@ -1665,6 +1678,27 @@ export default function SeguimientoServiciosClient({
           }}
         />
       )}
+
+      {/* Facilitador Uploads Audit & Query Modal */}
+      <FacilitadorUploadsAuditModal
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        onOpenOsiPreview={(osiId, nroOsi) => {
+          setPreviewOsi({
+            osiId,
+            nroOsi,
+            nroSesion: 1,
+            title: `Soportes de la OSI ${nroOsi}`,
+            showReceivedToggle: true,
+          });
+        }}
+        onSelectOsiInTable={(osiId) => {
+          setSearchInput(String(osiId));
+          setSearchQuery(String(osiId));
+          setExpandedOsi(osiId);
+          setCurrentPage(1);
+        }}
+      />
 
       {/* Official OSI format preview (in-place, no navigation) */}
       <OsiPreviewModal
