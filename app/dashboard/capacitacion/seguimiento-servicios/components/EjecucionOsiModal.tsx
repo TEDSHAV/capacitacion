@@ -9,9 +9,9 @@ import {
   Loader2,
   Calendar,
   RotateCcw,
-  Sparkles,
 } from "lucide-react";
 import type { ProcesoStepRecord } from "@/app/actions/capacitacion-proceso-steps";
+import { SALONES_SHA, isShaLocation } from "@/lib/constants/salones";
 
 interface EjecucionOsiModalProps {
   isOpen: boolean;
@@ -20,9 +20,10 @@ interface EjecucionOsiModalProps {
   nroSesion: number;
   empresa?: string;
   servicio?: string;
+  direccion?: string;
   stepRecord?: ProcesoStepRecord | null;
   onClose: () => void;
-  onConfirmEjecutado: (executionDate?: string | null) => Promise<void>;
+  onConfirmEjecutado: (executionDate?: string | null, salon?: string | null) => Promise<void>;
   onConfirmReagendar: (reason: string, newDate?: string | null) => Promise<void>;
   onRestoreToActive?: () => Promise<void>;
 }
@@ -51,11 +52,11 @@ function getCaracasTodayStr(): string {
 
 export default function EjecucionOsiModal({
   isOpen,
-  osiId,
   nroOsi,
   nroSesion,
   empresa,
   servicio,
+  direccion,
   stepRecord,
   onClose,
   onConfirmEjecutado,
@@ -64,12 +65,14 @@ export default function EjecucionOsiModal({
 }: EjecucionOsiModalProps) {
   const isCurrentlyRescheduled = Boolean(stepRecord?.step_metadata?.is_rescheduled);
   const isCurrentlyCompleted = Boolean(stepRecord?.completed);
+  const isSha = isShaLocation(direccion);
 
   // Tab mode: "ejecutado" | "reagendar"
   const [mode, setMode] = useState<"ejecutado" | "reagendar">("ejecutado");
 
   // State for Ejecutado
   const [executionDate, setExecutionDate] = useState(getCaracasTodayStr());
+  const [selectedSalon, setSelectedSalon] = useState<string>("");
 
   // State for Reagendar
   const [reason, setReason] = useState("");
@@ -82,6 +85,9 @@ export default function EjecucionOsiModal({
     if (isOpen) {
       setValidationError(null);
       setSubmitting(false);
+
+      const existingSalon = (stepRecord?.step_metadata?.salon as string | undefined) || "";
+      setSelectedSalon(existingSalon);
 
       if (isCurrentlyRescheduled) {
         setMode("reagendar");
@@ -113,7 +119,10 @@ export default function EjecucionOsiModal({
     if (mode === "ejecutado") {
       setSubmitting(true);
       try {
-        await onConfirmEjecutado(executionDate.trim() || null);
+        await onConfirmEjecutado(
+          executionDate.trim() || null,
+          isSha ? (selectedSalon.trim() || null) : null,
+        );
         onClose();
       } catch (err) {
         setValidationError(err instanceof Error ? err.message : "Error al marcar como ejecutado.");
@@ -325,6 +334,53 @@ export default function EjecucionOsiModal({
                   Fecha en la que culminó esta sesión de clase (se utilizará para el conteo de 72h).
                 </p>
               </div>
+
+              {/* Salón SHA Selection Box (shown when address has SHA) */}
+              {isSha && (
+                <div className="pt-3 border-t border-emerald-200/60">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-gray-800">
+                      Salón de capacitación (Sede SHA)
+                    </label>
+                    <span className="text-[10px] text-emerald-800 bg-emerald-100/90 font-bold px-2 py-0.5 rounded-full">
+                      Instalaciones SHA
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-600 mb-2">
+                    ¿En cuál salón se impartió el servicio? Esta información se auditará en la vista gerencial de Cobertura Geográfica.
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {SALONES_SHA.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSelectedSalon(s)}
+                        className={`py-2 px-2.5 text-xs font-semibold rounded-lg border text-center transition-all cursor-pointer ${
+                          selectedSalon === s
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-500/20"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between mt-2 pt-1 text-[11px]">
+                    <span className="text-gray-500">
+                      Salón asignado: <strong className="text-gray-900">{selectedSalon || "Sin seleccionar"}</strong>
+                    </span>
+                    {selectedSalon && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSalon("")}
+                        className="text-gray-400 hover:text-red-600 font-medium transition cursor-pointer"
+                      >
+                        Limpiar selección
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             /* Campos para Re-agendar */

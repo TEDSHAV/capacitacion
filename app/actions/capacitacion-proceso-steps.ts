@@ -1251,10 +1251,12 @@ export async function markEnProcesoStep({
   osiId,
   nroSesion = 1,
   executionDate = null,
+  salon = null,
 }: {
   osiId: number;
   nroSesion?: number;
   executionDate?: string | null;
+  salon?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   if (!Number.isFinite(osiId) || osiId <= 0) {
     return { success: false, error: "OSI inválido" };
@@ -1281,15 +1283,17 @@ export async function markEnProcesoStep({
 
     const currentMeta = (existing?.step_metadata as Record<string, unknown> | null) || {};
     const cleanDate = executionDate?.trim() || null;
+    const cleanSalon = salon?.trim() || (currentMeta.salon as string | undefined) || null;
     const completedAt = cleanDate ? `${cleanDate}T12:00:00.000Z` : now;
 
-    const updatedMeta = {
+    const updatedMeta: Record<string, unknown> = {
       ...currentMeta,
       unmarked_by_user: false,
       is_rescheduled: false,
       unmark_reason: null,
       fecha_ejecutada: cleanDate,
       marked_at: now,
+      salon: cleanSalon,
     };
 
     const { error: updateError } = await supabase
@@ -1320,9 +1324,12 @@ export async function markEnProcesoStep({
     );
 
     // Audit note in capacitacion_osi_notas
-    const noteText = cleanDate
+    let noteText = cleanDate
       ? `[Marcado como Ejecutado - Sesión ${nroSesion}] Fecha de ejecución: ${cleanDate}`
       : `[Marcado como Ejecutado - Sesión ${nroSesion}]`;
+    if (cleanSalon) {
+      noteText += ` | Salón SHA: ${cleanSalon}`;
+    }
     await addOsiNota(osiId, noteText).catch((err) =>
       console.error("[markEnProcesoStep] addOsiNota failed:", err),
     );
@@ -1332,6 +1339,75 @@ export async function markEnProcesoStep({
   } catch (err) {
     console.error("[markEnProcesoStep] unexpected error:", err);
     return { success: false, error: "Error inesperado al marcar el paso" };
+  }
+}
+
+/**
+ * Update or assign the salon used for a training session in SHA facilities.
+ * Allows fixing human errors later.
+ */
+export async function updateOsiSalon({
+  osiId,
+  nroSesion = 1,
+  salon,
+}: {
+  osiId: number;
+  nroSesion?: number;
+  salon: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!Number.isFinite(osiId) || osiId <= 0) {
+    return { success: false, error: "OSI inválido" };
+  }
+
+  try {
+    const supabase = await createClient();
+
+    await ensureProcesoStepsExist(osiId, "ejecucion", nroSesion);
+
+    const { data: existing } = await supabase
+      .from("capacitacion_proceso_steps")
+      .select("id, step_metadata, completed")
+      .eq("osi_id", osiId)
+      .eq("phase", "ejecucion")
+      .eq("nro_sesion", nroSesion)
+      .eq("step_key", "en_proceso")
+      .maybeSingle();
+
+    if (!existing) {
+      return { success: false, error: "No se encontró el registro de paso de ejecución" };
+    }
+
+    const currentMeta = (existing.step_metadata as Record<string, unknown> | null) || {};
+    const cleanSalon = salon?.trim() || null;
+    const updatedMeta: Record<string, unknown> = {
+      ...currentMeta,
+      salon: cleanSalon,
+      salon_updated_at: new Date().toISOString(),
+    };
+
+    const { error: updateError } = await supabase
+      .from("capacitacion_proceso_steps")
+      .update({ step_metadata: updatedMeta })
+      .eq("id", existing.id);
+
+    if (updateError) {
+      console.error("[updateOsiSalon] updateError:", updateError);
+      return { success: false, error: "Error al actualizar el salón" };
+    }
+
+    const noteText = cleanSalon
+      ? `[Salón SHA actualizado - Sesión ${nroSesion}] Salón asignado: ${cleanSalon}`
+      : `[Salón SHA removido - Sesión ${nroSesion}]`;
+    await addOsiNota(osiId, noteText).catch(() => {});
+
+    clearSeguimientoServerCache();
+    return { success: true };
+  } catch (err) {
+    console.error("[updateOsiSalon] unexpected error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado al actualizar el salón",
+    };
   }
 }
 

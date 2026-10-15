@@ -25,6 +25,8 @@ import {
   type CoberturaFilters,
   type CoberturaTemaItem,
 } from "@/app/actions/cobertura-geografica";
+import { updateOsiSalon } from "@/app/actions/capacitacion-proceso-steps";
+import { SALONES_SHA } from "@/lib/constants/salones";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 
 interface Props {
@@ -81,10 +83,14 @@ export default function CoberturaGeograficaClient({
   const [selectedCiudadId, setSelectedCiudadId] = useState<number | null>(null);
   const [selectedEmpresaId, setSelectedEmpresaId] = useState<number | null>(null);
   const [selectedCursoId, setSelectedCursoId] = useState<number | null>(null);
+  const [selectedSalon, setSelectedSalon] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [datePreset, setDatePreset] = useState("all");
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
+
+  // Inline salon update loading state
+  const [updatingSalonOsiId, setUpdatingSalonOsiId] = useState<number | null>(null);
 
   // Sort State for Temas
   const [sortField, setSortField] = useState<"certs" | "cursos" | "nombre">("certs");
@@ -119,6 +125,7 @@ export default function CoberturaGeograficaClient({
         ciudadId: selectedCiudadId,
         empresaId: selectedEmpresaId,
         cursoId: selectedCursoId,
+        salon: selectedSalon || undefined,
         searchQuery: searchQuery.trim() || undefined,
         dateFrom,
         dateTo,
@@ -140,6 +147,7 @@ export default function CoberturaGeograficaClient({
     selectedCiudadId,
     selectedEmpresaId,
     selectedCursoId,
+    selectedSalon,
     searchQuery,
     dateFrom,
     dateTo,
@@ -159,6 +167,7 @@ export default function CoberturaGeograficaClient({
     setSelectedCiudadId(null);
     setSelectedEmpresaId(null);
     setSelectedCursoId(null);
+    setSelectedSalon("");
     setSearchQuery("");
     setDatePreset("all");
     setCustomDateFrom("");
@@ -170,11 +179,49 @@ export default function CoberturaGeograficaClient({
       selectedCiudadId ||
       selectedEmpresaId ||
       selectedCursoId ||
+      selectedSalon ||
       searchQuery ||
       datePreset !== "all" ||
       customDateFrom ||
       customDateTo
   );
+
+  // Update salon handler for human error correction
+  const handleUpdateSalon = async (osiId: number, salon: string | null) => {
+    setUpdatingSalonOsiId(osiId);
+    try {
+      const res = await updateOsiSalon({ osiId, salon });
+      if (!res.success) {
+        alert(res.error || "Error al actualizar el salón");
+        return;
+      }
+
+      // Update in detail modal state
+      setDetailModalTema((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          osis: prev.osis.map((o) => (o.idOsi === osiId ? { ...o, salon } : o)),
+        };
+      });
+
+      // Update in main data state
+      setData((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          temas: prev.temas.map((t) => ({
+            ...t,
+            osis: t.osis.map((o) => (o.idOsi === osiId ? { ...o, salon } : o)),
+          })),
+        };
+      });
+    } catch (e) {
+      alert("Error al actualizar salón: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setUpdatingSalonOsiId(null);
+    }
+  };
 
   // Sorted temas list
   const sortedTemas = useMemo(() => {
@@ -222,6 +269,7 @@ export default function CoberturaGeograficaClient({
         "Estado",
         "Ciudad",
         "Sede / Lugar de Ejecución",
+        "Salón SHA",
         "Certificados Emitidos",
         "Participantes Estimados",
         "Horas Totales",
@@ -239,6 +287,7 @@ export default function CoberturaGeograficaClient({
           `"${osi.estadoNombre.replace(/"/g, '""')}"`,
           `"${(osi.ciudadNombre || "").replace(/"/g, '""')}"`,
           `"${(osi.sede || osi.direccion || "").replace(/"/g, '""')}"`,
+          `"${osi.isShaVenue ? (osi.salon || "Sin asignar") : "N/A"}"`,
           String(osi.certificadosEmitidos),
           String(osi.participantesEstimados),
           `${osi.horasAcademicas}h`,
@@ -333,7 +382,7 @@ export default function CoberturaGeograficaClient({
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Estado Selector */}
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
@@ -414,6 +463,25 @@ export default function CoberturaGeograficaClient({
                     {c.nombre}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Salón SHA / Sede Selector */}
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                Salón / Sede SHA
+              </label>
+              <select
+                value={selectedSalon}
+                onChange={(e) => setSelectedSalon(e.target.value)}
+                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition font-medium"
+              >
+                <option value="">Todas las Sedes / Salones</option>
+                <option value="all_sha">🏛️ Todas las Sedes SHA</option>
+                <option value="Salón 1">🏛️ SHA — Salón 1</option>
+                <option value="Salón Oriente">🏛️ SHA — Salón Oriente</option>
+                <option value="Salón Elite">🏛️ SHA — Salón Elite</option>
+                <option value="sin_salon">⚠️ SHA — Salón por confirmar</option>
               </select>
             </div>
           </div>
@@ -903,8 +971,19 @@ export default function CoberturaGeograficaClient({
                       <tr key={s.sedeKey} className="hover:bg-sky-50/40 transition-colors">
                         <td className="py-3 px-4 font-medium text-slate-900 max-w-sm">
                           <div className="flex items-start gap-1.5">
-                            <Factory className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
-                            <span className="line-clamp-2">{s.nombreSede}</span>
+                            {s.isShaVenue ? (
+                              <Building2 className="w-3.5 h-3.5 text-purple-600 mt-0.5 shrink-0" />
+                            ) : (
+                              <Factory className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
+                            )}
+                            <div>
+                              <span className="line-clamp-2">{s.nombreSede}</span>
+                              {s.isShaVenue && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 mt-0.5">
+                                  🏛️ Sede Propia SHA {s.salon ? `• ${s.salon}` : "• Salón sin asignar"}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="py-3 px-3">
@@ -1007,6 +1086,39 @@ export default function CoberturaGeograficaClient({
                             <span className="block text-[11px] text-slate-400 truncate" title={osi.sede}>
                               {osi.sede}
                             </span>
+                          )}
+
+                          {/* Salón SHA selector / badge with human error correction */}
+                          {osi.isShaVenue && (
+                            <div className="mt-1.5 flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                Salón:
+                              </span>
+                              <select
+                                value={osi.salon || ""}
+                                disabled={updatingSalonOsiId === osi.idOsi}
+                                onChange={(e) => {
+                                  const val = e.target.value.trim() || null;
+                                  handleUpdateSalon(osi.idOsi, val);
+                                }}
+                                className={`text-[11px] font-semibold rounded px-1.5 py-0.5 border transition cursor-pointer ${
+                                  osi.salon
+                                    ? "bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100"
+                                    : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+                                }`}
+                                title="Cambiar salón para corregir asignación"
+                              >
+                                <option value="">⚠️ Sin asignar</option>
+                                {SALONES_SHA.map((s) => (
+                                  <option key={s} value={s}>
+                                    🏛️ {s}
+                                  </option>
+                                ))}
+                              </select>
+                              {updatingSalonOsiId === osi.idOsi && (
+                                <RefreshCw className="w-3 h-3 text-purple-600 animate-spin" />
+                              )}
+                            </div>
                           )}
                         </td>
                         <td className="py-2.5 px-3 text-center text-slate-700 tabular-nums font-medium">

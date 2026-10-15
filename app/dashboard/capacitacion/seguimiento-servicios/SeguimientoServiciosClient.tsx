@@ -146,6 +146,7 @@ export default function SeguimientoServiciosClient({
     nroSesion: number;
     empresa?: string;
     servicio?: string;
+    direccion?: string;
     stepRecord?: ProcesoStepRecord | null;
   } | null>(null);
 
@@ -628,6 +629,7 @@ export default function SeguimientoServiciosClient({
         nroSesion: currentSesion,
         empresa: osi?.nombre_empresa || undefined,
         servicio: osi?.servicio || undefined,
+        direccion: osi?.direccion_ejecucion || undefined,
         stepRecord,
       });
     },
@@ -635,7 +637,7 @@ export default function SeguimientoServiciosClient({
   );
 
   const handleConfirmEjecutado = useCallback(
-    async (executionDate?: string | null) => {
+    async (executionDate?: string | null, salon?: string | null) => {
       if (!executionModal) return;
       const { osiId, nroSesion } = executionModal;
 
@@ -643,6 +645,7 @@ export default function SeguimientoServiciosClient({
         osiId,
         nroSesion,
         executionDate: executionDate || null,
+        salon: salon || null,
       });
       if (!res.success) {
         throw new Error(res.error || "Error al marcar como ejecutado.");
@@ -677,6 +680,7 @@ export default function SeguimientoServiciosClient({
               unmark_reason: null,
               fecha_ejecutada: cleanDate,
               marked_at: now,
+              ...(salon ? { salon } : {}),
             },
           },
         });
@@ -1562,6 +1566,7 @@ export default function SeguimientoServiciosClient({
           nroSesion={executionModal.nroSesion}
           empresa={executionModal.empresa}
           servicio={executionModal.servicio}
+          direccion={executionModal.direccion}
           stepRecord={executionModal.stepRecord}
           onClose={() => setExecutionModal(null)}
           onConfirmEjecutado={handleConfirmEjecutado}

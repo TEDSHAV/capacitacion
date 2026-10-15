@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { SALONES_SHA, isShaLocation } from "@/lib/constants/salones";
 interface SupabaseQueryBuilder<T> {
   range: (
     from: number,
@@ -51,6 +52,7 @@ export interface CoberturaFilters {
   ciudadId?: number | null;
   empresaId?: number | null;
   cursoId?: number | null;
+  salon?: string | null;
   dateFrom?: string | null;
   dateTo?: string | null;
   searchQuery?: string | null;
@@ -65,6 +67,8 @@ export interface CoberturaOsiItem {
   idEmpresa: number | null;
   sede: string | null;
   direccion: string | null;
+  isShaVenue: boolean;
+  salon: string | null;
   estadoNombre: string;
   idEstado: number | null;
   ciudadNombre: string | null;
@@ -106,6 +110,8 @@ export interface CoberturaSedeSummary {
   estadoNombre: string;
   ciudadNombre: string | null;
   empresaNombre: string;
+  isShaVenue?: boolean;
+  salon?: string | null;
   totalCursos: number;
   totalCertificados: number;
   temasCount: number;
@@ -128,6 +134,7 @@ export interface CoberturaDataResponse {
     ciudades: Array<{ id: number; idEstado: number; nombre: string }>;
     empresas: Array<{ id: number; razonSocial: string }>;
     cursos: Array<{ id: number; nombre: string }>;
+    salones: string[];
   };
   timing: {
     fetchMs: number;
@@ -156,6 +163,7 @@ export async function getCoberturaGeograficaData(
       ciudadesRows,
       serviciosRows,
       empresasRows,
+      stepsRows,
     ] = await Promise.all([
       // 1. All capacitación OSIs with location, execution dates and hours
       fetchTableParallel<{
@@ -266,6 +274,18 @@ export async function getCoberturaGeograficaData(
           .select("id, razon_social", { count: "exact" })
           .order("razon_social", { ascending: true });
       }, "empresas"),
+
+      // 8. Execution steps metadata (for Salón SHA tracking)
+      fetchTableParallel<{
+        osi_id: number;
+        step_metadata: Record<string, unknown> | null;
+      }>(() => {
+        return supabase
+          .from("capacitacion_proceso_steps")
+          .select("osi_id, step_metadata", { count: "exact" })
+          .eq("step_key", "en_proceso")
+          .order("osi_id", { ascending: true });
+      }, "capacitacion_proceso_steps_en_proceso"),
     ]);
 
     const tFetch = performance.now();
@@ -275,6 +295,14 @@ export async function getCoberturaGeograficaData(
     const ciudadesMap = new Map(ciudadesRows.map((c) => [c.id, c.nombre_ciudad]));
     const serviciosMap = new Map(serviciosRows.map((s) => [s.id, s]));
     const empresasMap = new Map(empresasRows.map((e) => [e.id, e.razon_social]));
+
+    // Salon mapping (osi_id -> salon name)
+    const salonByOsiId = new Map<number, string>();
+    for (const step of stepsRows) {
+      if (step.osi_id && step.step_metadata?.salon) {
+        salonByOsiId.set(step.osi_id, String(step.step_metadata.salon).trim());
+      }
+    }
 
     // Sequential OSI string -> id_osi
     const numericOsiToIdOsi = new Map<string, number>();
@@ -330,6 +358,8 @@ export async function getCoberturaGeograficaData(
 
       const direccion = (o.direccion_ejecucion_real || o.direccion_ejecucion || "").trim() || null;
       const sede = (o.sede || "").trim() || null;
+      const isSha = isShaLocation(direccion, sede);
+      const salon = salonByOsiId.get(o.id_osi) || null;
 
       const item: CoberturaOsiItem = {
         idOsi: o.id_osi,
@@ -340,6 +370,8 @@ export async function getCoberturaGeograficaData(
         idEmpresa: o.id_empresa,
         sede,
         direccion,
+        isShaVenue: isSha,
+        salon,
         estadoNombre,
         idEstado,
         ciudadNombre,
@@ -364,7 +396,18 @@ export async function getCoberturaGeograficaData(
       // 4. Curso
       if (filters.cursoId && item.idServicio !== filters.cursoId) continue;
 
-      // 5. Date Range (using fechaFin or fechaInicio)
+      // 5. Salón / Instalaciones SHA
+      if (filters.salon) {
+        if (filters.salon === "all_sha") {
+          if (!item.isShaVenue) continue;
+        } else if (filters.salon === "sin_salon") {
+          if (!item.isShaVenue || item.salon) continue;
+        } else {
+          if (item.salon !== filters.salon) continue;
+        }
+      }
+
+      // 6. Date Range (using fechaFin or fechaInicio)
       const osiDate = item.fechaFin || item.fechaInicio;
       if (filters.dateFrom && (!osiDate || osiDate < filters.dateFrom)) continue;
       if (filters.dateTo && (!osiDate || osiDate > filters.dateTo)) continue;
@@ -532,20 +575,33 @@ export async function getCoberturaGeograficaData(
       .sort((a, b) => b.totalCertificados - a.totalCertificados || b.totalCursos - a.totalCursos);
 
     // ── Aggregate Data by Specific Venue / Sede ──────────────────────────────
-    const sedesAgg = new Map<string, {
+    interface SedeAggItem {
       sedeKey: string;
       nombreSede: string;
       estadoNombre: string;
       ciudadNombre: string | null;
       empresaNombre: string;
+      isShaVenue?: boolean;
+      salon?: string | null;
       totalCursos: number;
       totalCertificados: number;
       temasSet: Set<string>;
-    }>();
+    }
+    const sedesAgg = new Map<string, SedeAggItem>();
 
     for (const osi of normalizedOsis) {
-      const sName = osi.sede || osi.direccion || osi.ciudadNombre || "Sede No Especificada";
-      const key = `${osi.idEstado || 0}_${sName.toLowerCase().trim()}`;
+      let sName = osi.sede || osi.direccion || osi.ciudadNombre || "Sede No Especificada";
+      let key = `${osi.idEstado || 0}_${sName.toLowerCase().trim()}`;
+
+      if (osi.isShaVenue) {
+        if (osi.salon) {
+          sName = `Instalaciones SHA — ${osi.salon}`;
+          key = `sha_${osi.salon.toLowerCase().trim()}`;
+        } else {
+          sName = "Instalaciones SHA (Sin Salón Asignado)";
+          key = "sha_sin_salon";
+        }
+      }
 
       let s = sedesAgg.get(key);
       if (!s) {
@@ -554,7 +610,9 @@ export async function getCoberturaGeograficaData(
           nombreSede: sName,
           estadoNombre: osi.estadoNombre,
           ciudadNombre: osi.ciudadNombre,
-          empresaNombre: osi.empresaNombre,
+          empresaNombre: osi.isShaVenue ? "SHA de Venezuela" : osi.empresaNombre,
+          isShaVenue: osi.isShaVenue,
+          salon: osi.salon,
           totalCursos: 0,
           totalCertificados: 0,
           temasSet: new Set(),
@@ -574,6 +632,8 @@ export async function getCoberturaGeograficaData(
         estadoNombre: s.estadoNombre,
         ciudadNombre: s.ciudadNombre,
         empresaNombre: s.empresaNombre,
+        isShaVenue: s.isShaVenue,
+        salon: s.salon,
         totalCursos: s.totalCursos,
         totalCertificados: s.totalCertificados,
         temasCount: s.temasSet.size,
@@ -617,6 +677,7 @@ export async function getCoberturaGeograficaData(
           ciudades: ciudadesRows.map((c) => ({ id: c.id, idEstado: c.id_estado, nombre: c.nombre_ciudad })),
           empresas: empresasRows.map((e) => ({ id: e.id, razonSocial: e.razon_social })),
           cursos: serviciosRows.map((s) => ({ id: s.id, nombre: s.nombre })),
+          salones: [...SALONES_SHA],
         },
         timing: {
           fetchMs: Math.round(tFetch - t0),

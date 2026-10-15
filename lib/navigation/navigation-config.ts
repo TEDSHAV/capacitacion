@@ -164,6 +164,13 @@ const DASHBOARD_NAV: NavItem[] = [
     requiresOnline: true,
   },
   {
+    id: "cobertura-geografica",
+    label: "Cobertura Geográfica",
+    href: "/dashboard/capacitacion/cobertura-geografica",
+    icon: MapPin,
+    offlineAvailable: true,
+  },
+  {
     id: "reports",
     label: "Reportes",
     href: "#",
@@ -182,13 +189,6 @@ const DASHBOARD_NAV: NavItem[] = [
         label: "Indicadores",
         href: "/dashboard/capacitacion/indicadores",
         icon: Gauge,
-        offlineAvailable: true,
-      },
-      {
-        id: "cobertura-geografica",
-        label: "Cobertura Geográfica",
-        href: "/dashboard/capacitacion/cobertura-geografica",
-        icon: MapPin,
         offlineAvailable: true,
       },
     ],
