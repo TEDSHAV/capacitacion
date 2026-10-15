@@ -177,7 +177,7 @@ export default function SeguimientoServiciosClient({
   const [expandedOsi, setExpandedOsi] = useState<number | null>(null);
   const [selectedSession, setSelectedSession] = useState<Map<number, number>>(new Map());
   const [seeding, setSeeding] = useState<number | null>(null);
-  const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string; nroSesion: number; category?: string; title?: string; showReceivedToggle?: boolean } | null>(null);
+  const [previewOsi, setPreviewOsi] = useState<{ osiId: number; nroOsi: string; nroSesion?: number; category?: string; title?: string; showReceivedToggle?: boolean } | null>(null);
   const [osiFormatoPreview, setOsiFormatoPreview] = useState<{ osiId: number; nroOsi: string } | null>(null);
   const [commentsOsi, setCommentsOsi] = useState<{ osiId: number; nroOsi: string; servicio?: string } | null>(null);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
@@ -1671,7 +1671,7 @@ export default function SeguimientoServiciosClient({
           title={previewOsi.title}
           showReceivedToggle={previewOsi.showReceivedToggle !== false}
           onAttachmentToggled={(received) => {
-            if (received) {
+            if (received && previewOsi.nroSesion != null) {
               const stepKey = previewOsi.category === "hoja_calificacion" ? "calificacion" : "lista_asistencia";
               handleToggleStep(previewOsi.osiId, previewOsi.nroSesion, stepKey);
             }
@@ -1687,8 +1687,7 @@ export default function SeguimientoServiciosClient({
           setPreviewOsi({
             osiId,
             nroOsi,
-            nroSesion: 1,
-            title: `Soportes de la OSI ${nroOsi}`,
+            title: `Soportes y Documentos — OSI ${nroOsi}`,
             showReceivedToggle: true,
           });
         }}

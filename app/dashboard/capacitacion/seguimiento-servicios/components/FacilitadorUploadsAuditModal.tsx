@@ -19,6 +19,11 @@ import {
   RefreshCw,
   Clock,
   Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import {
   getFacilitadorUploadsAudit,
@@ -44,6 +49,7 @@ export default function FacilitadorUploadsAuditModal({
   const [search, setSearch] = useState("");
   const [filterMode, setFilterMode] = useState<"todos" | "pendientes_carga" | "pendientes_confirmar" | "completos">("todos");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [expandedOsiId, setExpandedOsiId] = useState<number | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -360,13 +366,34 @@ export default function FacilitadorUploadsAuditModal({
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                    {item.totalArchivos > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedOsiId((prev) => (prev === item.osiId ? null : item.osiId))}
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer border ${
+                          expandedOsiId === item.osiId
+                            ? "bg-slate-200 text-slate-800 border-slate-300"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200"
+                        }`}
+                        title={expandedOsiId === item.osiId ? "Ocultar archivos" : "Desplegar archivos"}
+                      >
+                        <Eye className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{expandedOsiId === item.osiId ? "Ocultar" : "Archivos"} ({item.totalArchivos})</span>
+                        {expandedOsiId === item.osiId ? (
+                          <ChevronUp className="w-3.5 h-3.5 text-slate-500" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                        )}
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => onOpenOsiPreview(item.osiId, item.nroOsi)}
-                      className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-bold border border-sky-200 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                     >
-                      <Paperclip className="w-3.5 h-3.5 text-sky-600" />
+                      <Paperclip className="w-3.5 h-3.5 text-white" />
                       <span>Ver / Gestionar Adjuntos ({item.totalArchivos})</span>
                     </button>
 
@@ -449,6 +476,114 @@ export default function FacilitadorUploadsAuditModal({
                     </span>
                   </div>
                 </div>
+
+                {/* Inline Expanded Attachments Viewer */}
+                {expandedOsiId === item.osiId && (
+                  <div className="mt-3 pt-3 border-t border-slate-200/80 bg-slate-50/80 -mx-4 -mb-4 p-4 rounded-b-2xl space-y-2.5 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Archivos Adjuntos Subidos por Facilitador ({item.archivos.length})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onOpenOsiPreview(item.osiId, item.nroOsi)}
+                        className="text-[11px] font-bold text-sky-700 hover:text-sky-900 inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Abrir en Gestor Completo</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {item.archivos.map((arch) => {
+                        const isImage = arch.file_type?.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(arch.file_name);
+                        const isPdf = arch.file_type === "application/pdf" || /\.pdf$/i.test(arch.file_name);
+                        const catLabel =
+                          arch.category === "lista_asistencia"
+                            ? "Lista de Asistencia"
+                            : arch.category === "hoja_calificacion"
+                            ? "Hoja de Calificación"
+                            : arch.category === "material_fotografico"
+                            ? "Registro Fotográfico"
+                            : "Adjunto";
+
+                        const catColor =
+                          arch.category === "lista_asistencia"
+                            ? "bg-blue-50 text-blue-800 border-blue-200"
+                            : arch.category === "hoja_calificacion"
+                            ? "bg-amber-50 text-amber-800 border-amber-200"
+                            : arch.category === "material_fotografico"
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            : "bg-slate-50 text-slate-800 border-slate-200";
+
+                        const formattedSize = arch.file_size
+                          ? (arch.file_size / (1024 * 1024)).toFixed(2) + " MB"
+                          : null;
+
+                        return (
+                          <div
+                            key={arch.id}
+                            className="p-2.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between gap-2"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${catColor}`}>
+                                {arch.category === "lista_asistencia" ? (
+                                  <FileSpreadsheet className="w-3 h-3" />
+                                ) : arch.category === "hoja_calificacion" ? (
+                                  <Award className="w-3 h-3" />
+                                ) : arch.category === "material_fotografico" ? (
+                                  <ImageIcon className="w-3 h-3" />
+                                ) : (
+                                  <Paperclip className="w-3 h-3" />
+                                )}
+                                <span>{catLabel}</span>
+                              </span>
+                              {formattedSize && (
+                                <span className="text-[10px] text-slate-400 font-mono">{formattedSize}</span>
+                              )}
+                            </div>
+
+                            <p className="text-xs font-semibold text-slate-800 truncate" title={arch.file_name}>
+                              {arch.file_name}
+                            </p>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
+                              <span className="text-slate-400 text-[10px]">
+                                {new Date(arch.created_at).toLocaleDateString("es-VE", { day: "2-digit", month: "short" })}
+                              </span>
+
+                              <div className="flex items-center gap-1">
+                                {arch.publicUrl && (
+                                  <a
+                                    href={arch.publicUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 text-slate-600 hover:text-sky-700 hover:bg-sky-50 rounded-md transition-colors"
+                                    title="Abrir en pestaña nueva"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
+                                {arch.publicUrl && (
+                                  <a
+                                    href={arch.publicUrl}
+                                    download={arch.file_name}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors"
+                                    title="Descargar"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             ))
           )}

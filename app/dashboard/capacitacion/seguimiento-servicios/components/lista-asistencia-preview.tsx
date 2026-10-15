@@ -138,7 +138,7 @@ export default function AttachmentPreviewModal({
     <>
       {/* Modal overlay */}
       <div
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+        className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
         onClick={onClose}
       >
         <div
@@ -352,7 +352,7 @@ export default function AttachmentPreviewModal({
       {/* Lightbox */}
       {lightboxUrl && (
         <div
-          className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-[80] bg-black/90 flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setLightboxUrl(null)}
         >
           <div className="absolute top-4 right-4 flex items-center gap-2">
