@@ -67,6 +67,17 @@ function getDateRange(preset: string): { from?: string; to?: string } {
   return {};
 }
 
+/**
+ * Deterministic number formatter to avoid SSR / Client hydration mismatches
+ * across different server and browser locales.
+ */
+function formatNumber(num: number | undefined | null): string {
+  if (num == null || isNaN(num)) return "0";
+  const parts = num.toString().split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return parts.length > 1 ? parts.join(",") : parts[0];
+}
+
 export default function CoberturaGeograficaClient({
   initialData,
 }: Props) {
@@ -534,8 +545,8 @@ export default function CoberturaGeograficaClient({
               </div>
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-extrabold text-slate-900 tabular-nums">
-                {data?.kpis.totalCursosRealizados.toLocaleString() ?? "0"}
+              <span className="text-2xl font-extrabold text-slate-900 tabular-nums" suppressHydrationWarning>
+                {formatNumber(data?.kpis.totalCursosRealizados)}
               </span>
               <span className="block text-[11px] text-slate-500 mt-0.5">
                 OSIs técnicas ejecutadas
@@ -554,8 +565,8 @@ export default function CoberturaGeograficaClient({
               </div>
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-extrabold text-emerald-600 tabular-nums">
-                {data?.kpis.totalCertificadosEmitidos.toLocaleString() ?? "0"}
+              <span className="text-2xl font-extrabold text-emerald-600 tabular-nums" suppressHydrationWarning>
+                {formatNumber(data?.kpis.totalCertificadosEmitidos)}
               </span>
               <span className="block text-[11px] text-slate-500 mt-0.5">
                 Participantes aprobados
@@ -574,8 +585,8 @@ export default function CoberturaGeograficaClient({
               </div>
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-extrabold text-indigo-700 tabular-nums">
-                {data?.kpis.totalTemasUnicos.toLocaleString() ?? "0"}
+              <span className="text-2xl font-extrabold text-indigo-700 tabular-nums" suppressHydrationWarning>
+                {formatNumber(data?.kpis.totalTemasUnicos)}
               </span>
               <span className="block text-[11px] text-slate-500 mt-0.5">
                 Cursos del catálogo impartidos
@@ -594,8 +605,8 @@ export default function CoberturaGeograficaClient({
               </div>
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-extrabold text-slate-900 tabular-nums">
-                {data?.kpis.totalEmpresasAtendidas.toLocaleString() ?? "0"}
+              <span className="text-2xl font-extrabold text-slate-900 tabular-nums" suppressHydrationWarning>
+                {formatNumber(data?.kpis.totalEmpresasAtendidas)}
               </span>
               <span className="block text-[11px] text-slate-500 mt-0.5">
                 Clientes capacitados en la zona
@@ -614,11 +625,11 @@ export default function CoberturaGeograficaClient({
               </div>
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-extrabold text-purple-700 tabular-nums">
-                {data?.kpis.totalHorasAcademicas.toLocaleString() ?? "0"}h
+              <span className="text-2xl font-extrabold text-purple-700 tabular-nums" suppressHydrationWarning>
+                {formatNumber(data?.kpis.totalHorasAcademicas)}h
               </span>
-              <span className="block text-[11px] text-slate-500 mt-0.5">
-                Promedio: {data?.kpis.promedioCertsPorCurso ?? 0} certs/curso
+              <span className="block text-[11px] text-slate-500 mt-0.5" suppressHydrationWarning>
+                Promedio: {formatNumber(data?.kpis.promedioCertsPorCurso)} certs/curso
               </span>
             </div>
           </div>
@@ -750,8 +761,8 @@ export default function CoberturaGeograficaClient({
 
                         {/* Certificates Issued */}
                         <td className="py-3 px-3 text-right">
-                          <span className="text-sm font-extrabold text-emerald-600 tabular-nums">
-                            {tema.totalCertificados.toLocaleString()}
+                          <span className="text-sm font-extrabold text-emerald-600 tabular-nums" suppressHydrationWarning>
+                            {formatNumber(tema.totalCertificados)}
                           </span>
                         </td>
 
@@ -869,7 +880,7 @@ export default function CoberturaGeograficaClient({
                           </div>
                           <div>
                             <span className="text-[10px] text-slate-400 uppercase font-semibold block">Certificados</span>
-                            <span className="text-sm font-bold text-emerald-600">{est.totalCertificados.toLocaleString()}</span>
+                            <span className="text-sm font-bold text-emerald-600" suppressHydrationWarning>{formatNumber(est.totalCertificados)}</span>
                           </div>
                           <div>
                             <span className="text-[10px] text-slate-400 uppercase font-semibold block">Empresas</span>
@@ -971,8 +982,8 @@ export default function CoberturaGeograficaClient({
                             {s.totalCursos}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-right font-extrabold text-emerald-600 tabular-nums">
-                          {s.totalCertificados.toLocaleString()}
+                        <td className="py-3 px-3 text-right font-extrabold text-emerald-600 tabular-nums" suppressHydrationWarning>
+                          {formatNumber(s.totalCertificados)}
                         </td>
                         <td className="py-3 px-3 text-center text-slate-600 font-medium tabular-nums">
                           {s.temasCount}
