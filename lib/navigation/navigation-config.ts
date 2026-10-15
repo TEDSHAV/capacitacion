@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Receipt,
   Bell,
+  MapPin,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -181,6 +182,13 @@ const DASHBOARD_NAV: NavItem[] = [
         label: "Indicadores",
         href: "/dashboard/capacitacion/indicadores",
         icon: Gauge,
+        offlineAvailable: true,
+      },
+      {
+        id: "cobertura-geografica",
+        label: "Cobertura Geográfica",
+        href: "/dashboard/capacitacion/cobertura-geografica",
+        icon: MapPin,
         offlineAvailable: true,
       },
     ],
