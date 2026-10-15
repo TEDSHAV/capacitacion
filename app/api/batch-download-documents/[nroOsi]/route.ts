@@ -51,7 +51,7 @@ export async function GET(
     if (auth.type === "cliente") {
       const empresaId = (auth.session as { empresa_id?: number }).empresa_id;
       const hasOwnership = certificates.some(
-        (cert: any) => cert.id_empresa === empresaId,
+        (cert: { id_empresa?: number }) => cert.id_empresa === empresaId,
       );
       if (!hasOwnership) {
         return NextResponse.json(
@@ -60,13 +60,15 @@ export async function GET(
         );
       }
       const filtered = certificates.filter(
-        (cert: any) => cert.id_empresa === empresaId,
+        (cert: { id_empresa?: number }) => cert.id_empresa === empresaId,
       );
       certificates.length = 0;
       certificates.push(...filtered);
     }
 
-    const firstCert = certificates[0];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const firstCert = certificates[0] as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let firstSnapshot: any = null;
     if (firstCert.snapshot_contenido) {
       firstSnapshot = typeof firstCert.snapshot_contenido === "string"
@@ -76,17 +78,25 @@ export async function GET(
 
     const courseTitle =
       firstSnapshot?.certificado_detalles?.title ||
-      firstCert?.catalogo_servicios?.nombre ||
+      (firstCert?.catalogo_servicios as { nombre?: string } | undefined)?.nombre ||
       "Curso";
 
+    const searchParams = request.nextUrl.searchParams;
+    const requestedDoc = searchParams.get("doc");
+    const isDownload = searchParams.get("download") === "true";
+
     const docRequest = {
-      certificates: certificates.map((c: any) => {
+      certificates: certificates.map((certItem) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const c = certItem as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let s: any = null;
         if (c.snapshot_contenido) {
           s = typeof c.snapshot_contenido === "string"
             ? JSON.parse(c.snapshot_contenido)
             : c.snapshot_contenido;
         }
+
 
         return {
           participant_name: s?.participante?.name || c.participantes_certificados?.nombre || "Participante",
@@ -112,9 +122,9 @@ export async function GET(
         cargo: "Jefe de Capacitación",
       },
       options: {
-        includeCertificacionCompetencias: true,
-        includeNotaEntrega: true,
-        includeValidacionDatos: false,
+        includeCertificacionCompetencias: !requestedDoc || requestedDoc === "certificacion_competencias",
+        includeNotaEntrega: !requestedDoc || requestedDoc === "nota_entrega",
+        includeValidacionDatos: requestedDoc === "validacion_datos",
       },
     };
 
@@ -125,6 +135,34 @@ export async function GET(
         { error: docResult.error || "Failed to generate documents" },
         { status: 500 },
       );
+    }
+
+    // If a specific document is requested, return it inline as a PDF
+    if (requestedDoc) {
+      const base64 = docResult.documents[requestedDoc];
+      if (!base64) {
+        return NextResponse.json(
+          { error: `No se pudo generar el documento '${requestedDoc}'` },
+          { status: 404 },
+        );
+      }
+      const pdfBuffer = Buffer.from(base64, "base64");
+      const disposition = isDownload ? "attachment" : "inline";
+      const docLabel =
+        requestedDoc === "certificacion_competencias"
+          ? "CERTIFICACION DE COMPETENCIAS"
+          : requestedDoc === "nota_entrega"
+          ? "NOTA DE ENTREGA"
+          : requestedDoc.replace(/_/g, " ").toUpperCase();
+      const fileName = `${docLabel} - OSI ${nroOsi}.pdf`;
+
+      return new NextResponse(pdfBuffer, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `${disposition}; filename="${fileName}"`,
+          "Cache-Control": "private, max-age=1800",
+        },
+      });
     }
 
     const zip = new JSZip();

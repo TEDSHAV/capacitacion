@@ -3,8 +3,9 @@
 import { Calendar, Users, ChevronDown, ChevronRight, FileStack, Download, Loader2, Eye, Award, MapPin, FileText, CloudDownload, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { ClienteBatchSummary, ClienteCertificateRow } from "@/types";
-import { cacheDocument, isDocumentCached } from "@/lib/offline/offline-documents";
+import { cacheDocument } from "@/lib/offline/offline-documents";
 import { toTitleCase } from "@/utils/string-utils";
+import { ClientePdfModal, type ClientePdfModalDoc } from "./cliente-pdf-modal";
 
 interface ClienteBatchesProps {
   batches: ClienteBatchSummary[];
@@ -26,9 +27,93 @@ export function ClienteBatches({
   title = "Últimos Lotes Emitidos",
 }: ClienteBatchesProps) {
   const [downloadingOsi, setDownloadingOsi] = useState<number | null>(null);
-  const [downloadingDocs, setDownloadingDocs] = useState<number | null>(null);
   const [offlineCaching, setOfflineCaching] = useState<number | null>(null);
   const [offlineCached, setOfflineCached] = useState<Set<number>>(new Set());
+
+  const [activePdfModal, setActivePdfModal] = useState<{
+    title: string;
+    subtitle?: string;
+    documents: ClientePdfModalDoc[];
+    initialDocId?: string;
+    zipDownloadUrl?: string;
+    zipDownloadLabel?: string;
+  } | null>(null);
+
+  const handleOpenBatchDocuments = (e: React.MouseEvent, batch: ClienteBatchSummary) => {
+    e.stopPropagation();
+    setActivePdfModal({
+      title: `Documentos OSI #${batch.nro_osi}`,
+      subtitle: batch.course_name,
+      documents: [
+        {
+          id: "certificacion_competencias",
+          label: "Certificación de Competencias",
+          url: `/api/batch-download-documents/${batch.nro_osi}?doc=certificacion_competencias`,
+          downloadUrl: `/api/batch-download-documents/${batch.nro_osi}?doc=certificacion_competencias&download=true`,
+          icon: "certificate",
+        },
+        {
+          id: "nota_entrega",
+          label: "Nota de Entrega",
+          url: `/api/batch-download-documents/${batch.nro_osi}?doc=nota_entrega`,
+          downloadUrl: `/api/batch-download-documents/${batch.nro_osi}?doc=nota_entrega&download=true`,
+          icon: "clipboard",
+        },
+      ],
+      initialDocId: "certificacion_competencias",
+      zipDownloadUrl: `/api/batch-download-documents/${batch.nro_osi}`,
+      zipDownloadLabel: "Descargar Todo (ZIP)",
+    });
+  };
+
+  const handleOpenCertificatePdf = async (cert: ClienteCertificateRow) => {
+    const docs: ClientePdfModalDoc[] = [
+      {
+        id: "certificate",
+        label: "Certificado",
+        url: `/api/generate-certificate-pdf/${cert.id}`,
+        downloadUrl: `/api/generate-certificate-pdf/${cert.id}`,
+        icon: "certificate",
+      },
+    ];
+
+    setActivePdfModal({
+      title: `Certificado — ${toTitleCase(cert.participant_nombre)}`,
+      subtitle: `${cert.course_nombre || "Curso"} • ${cert.participant_nacionalidad === "extranjero" ? "E-" : "V-"}${cert.participant_cedula}`,
+      documents: docs,
+      initialDocId: "certificate",
+    });
+
+    if (cert.course_emite_carnet) {
+      try {
+        const res = await fetch(`/api/carnets/by-certificate/${cert.id}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            const carnet = json.data[0];
+            setActivePdfModal((prev) => {
+              if (!prev || prev.documents.some((d) => d.id === "carnet")) return prev;
+              return {
+                ...prev,
+                documents: [
+                  ...prev.documents,
+                  {
+                    id: "carnet",
+                    label: "Carnet PVC",
+                    url: `/api/generate-carnet-pdf/${carnet.id}`,
+                    downloadUrl: `/api/generate-carnet-pdf/${carnet.id}`,
+                    icon: "clipboard",
+                  },
+                ],
+              };
+            });
+          }
+        }
+      } catch {
+        // Non-fatal
+      }
+    }
+  };
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
@@ -148,20 +233,11 @@ export function ClienteBatches({
                       Descargar Todo
                     </button>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDownloadingDocs(batch.nro_osi);
-                        window.open(`/api/batch-download-documents/${batch.nro_osi}`, "_blank");
-                        setTimeout(() => setDownloadingDocs(null), 3000);
-                      }}
+                      onClick={(e) => handleOpenBatchDocuments(e, batch)}
                       className="h-9 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-medium rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors flex-1 sm:flex-initial"
-                      title="Descargar documentos adicionales (Certificación de Competencias, Nota de Entrega)"
+                      title="Ver documentos adicionales en línea (Certificación de Competencias, Nota de Entrega)"
                     >
-                      {downloadingDocs === batch.nro_osi ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <FileText className="w-3.5 h-3.5" />
-                      )}
+                      <FileText className="w-3.5 h-3.5" />
                       Documentos
                     </button>
                     <button
@@ -244,15 +320,25 @@ export function ClienteBatches({
                                 </a>
                               </td>
                               <td className="px-4 py-3 text-center">
-                                <a
-                                  href={`/api/generate-certificate-pdf/${cert.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center justify-center p-2 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
-                                  title="Descargar PDF"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </a>
+                                <div className="inline-flex items-center justify-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenCertificatePdf(cert)}
+                                    className="inline-flex items-center justify-center p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                                    title="Ver PDF en línea"
+                                  >
+                                    <FileText className="w-4 h-4" />
+                                  </button>
+                                  <a
+                                    href={`/api/generate-certificate-pdf/${cert.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                                    title="Descargar PDF"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </a>
+                                </div>
                               </td>
                               <td className="px-4 py-3 text-center">
                                 <CertificateOfflineButton cert={cert} />
@@ -278,6 +364,19 @@ export function ClienteBatches({
           );
         })}
       </div>
+
+      {activePdfModal && (
+        <ClientePdfModal
+          isOpen={!!activePdfModal}
+          onClose={() => setActivePdfModal(null)}
+          title={activePdfModal.title}
+          subtitle={activePdfModal.subtitle}
+          documents={activePdfModal.documents}
+          initialDocId={activePdfModal.initialDocId}
+          zipDownloadUrl={activePdfModal.zipDownloadUrl}
+          zipDownloadLabel={activePdfModal.zipDownloadLabel}
+        />
+      )}
     </div>
   );
 }

@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Download, Award, FileText, Eye } from "lucide-react";
 import { ClienteCertificateRow } from "@/types";
 import { toTitleCase } from "@/utils/string-utils";
+import { ClientePdfModal, type ClientePdfModalDoc } from "./cliente-pdf-modal";
 
 interface ClienteResultsProps {
   certificates: ClienteCertificateRow[];
@@ -13,12 +15,68 @@ export function ClienteResults({
   certificates,
   nroOsi,
 }: ClienteResultsProps) {
+  const [activePdfModal, setActivePdfModal] = useState<{
+    title: string;
+    subtitle?: string;
+    documents: ClientePdfModalDoc[];
+    initialDocId?: string;
+  } | null>(null);
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
     const date = dateString.includes("T")
       ? new Date(dateString)
       : new Date(dateString + "T12:00:00");
     return date.toLocaleDateString("es-ES");
+  };
+
+  const handleOpenCertificatePdf = async (cert: ClienteCertificateRow) => {
+    const docs: ClientePdfModalDoc[] = [
+      {
+        id: "certificate",
+        label: "Certificado",
+        url: `/api/generate-certificate-pdf/${cert.id}`,
+        downloadUrl: `/api/generate-certificate-pdf/${cert.id}`,
+        icon: "certificate",
+      },
+    ];
+
+    setActivePdfModal({
+      title: `Certificado — ${toTitleCase(cert.participant_nombre)}`,
+      subtitle: `${cert.course_nombre || "Curso"} • ${cert.participant_nacionalidad === "extranjero" ? "E-" : "V-"}${cert.participant_cedula}`,
+      documents: docs,
+      initialDocId: "certificate",
+    });
+
+    if (cert.course_emite_carnet) {
+      try {
+        const res = await fetch(`/api/carnets/by-certificate/${cert.id}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            const carnet = json.data[0];
+            setActivePdfModal((prev) => {
+              if (!prev || prev.documents.some((d) => d.id === "carnet")) return prev;
+              return {
+                ...prev,
+                documents: [
+                  ...prev.documents,
+                  {
+                    id: "carnet",
+                    label: "Carnet PVC",
+                    url: `/api/generate-carnet-pdf/${carnet.id}`,
+                    downloadUrl: `/api/generate-carnet-pdf/${carnet.id}`,
+                    icon: "clipboard",
+                  },
+                ],
+              };
+            });
+          }
+        }
+      } catch {
+        // Non-fatal
+      }
+    }
   };
 
   const hasData = certificates.length > 0;
@@ -96,15 +154,25 @@ export function ClienteResults({
                     </a>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <a
-                      href={`/api/generate-certificate-pdf/${cert.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center p-2 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
-                      title="Descargar PDF"
-                    >
-                      <Download className="w-4 h-4" />
-                    </a>
+                    <div className="inline-flex items-center justify-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCertificatePdf(cert)}
+                        className="inline-flex items-center justify-center p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                        title="Ver PDF en línea"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
+                      <a
+                        href={`/api/generate-certificate-pdf/${cert.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                        title="Descargar PDF"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -112,6 +180,18 @@ export function ClienteResults({
           </table>
         </div>
       </div>
+
+      {activePdfModal && (
+        <ClientePdfModal
+          isOpen={!!activePdfModal}
+          onClose={() => setActivePdfModal(null)}
+          title={activePdfModal.title}
+          subtitle={activePdfModal.subtitle}
+          documents={activePdfModal.documents}
+          initialDocId={activePdfModal.initialDocId}
+        />
+      )}
     </div>
   );
 }
+

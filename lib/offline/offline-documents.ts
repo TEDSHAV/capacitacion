@@ -140,6 +140,21 @@ export async function isDocumentCached(url: string): Promise<boolean> {
 }
 
 /**
+ * Retrieves the cached document Blob if available.
+ */
+export async function getCachedDocumentBlob(url: string): Promise<Blob | null> {
+  try {
+    const cache = await getCache();
+    if (!cache) return null;
+    const cached = await cache.match(url);
+    if (!cached) return null;
+    return await cached.blob();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Removes a document from the offline cache.
  */
 export async function removeCachedDocument(url: string): Promise<{ success: boolean; error?: string }> {
