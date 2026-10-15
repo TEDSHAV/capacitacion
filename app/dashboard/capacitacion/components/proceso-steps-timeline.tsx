@@ -459,6 +459,14 @@ export default function ProcesoStepsTimeline({
                 {formatStepDate(rec.completed_at)}
               </span>
             )}
+            {isCompleted && step.key === "en_proceso" && Boolean(rec?.step_metadata?.salon) && (
+              <span
+                className="text-[8px] font-semibold text-emerald-800 bg-emerald-100 border border-emerald-200 px-1 py-0.2 rounded mt-0.5 whitespace-nowrap"
+                title={`Salón SHA: ${rec?.step_metadata?.salon}`}
+              >
+                🏛️ {String(rec?.step_metadata?.salon)}
+              </span>
+            )}
             {isRescheduled && (
               <div className="flex flex-col items-center mt-0.5">
                 <span className="text-[8px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 px-1 py-0.5 rounded">

@@ -1068,6 +1068,7 @@ export interface OSIManagement {
   horas_academicas_ejecucion: number;
   sesiones_ejecucion: number;
   direccion_ejecucion: string;
+  sede?: string | null;
   id_ciudad_direccion_ejecucion_efectiva?: number | null;
   ciudad_ejecucion?: string | null;
   contenido_servicio: string;

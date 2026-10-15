@@ -25,7 +25,6 @@ import {
   type CoberturaFilters,
   type CoberturaTemaItem,
 } from "@/app/actions/cobertura-geografica";
-import { updateOsiSalon } from "@/app/actions/capacitacion-proceso-steps";
 import { SALONES_SHA } from "@/lib/constants/salones";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 
@@ -88,9 +87,6 @@ export default function CoberturaGeograficaClient({
   const [datePreset, setDatePreset] = useState("all");
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
-
-  // Inline salon update loading state
-  const [updatingSalonOsiId, setUpdatingSalonOsiId] = useState<number | null>(null);
 
   // Sort State for Temas
   const [sortField, setSortField] = useState<"certs" | "cursos" | "nombre">("certs");
@@ -185,43 +181,6 @@ export default function CoberturaGeograficaClient({
       customDateFrom ||
       customDateTo
   );
-
-  // Update salon handler for human error correction
-  const handleUpdateSalon = async (osiId: number, salon: string | null) => {
-    setUpdatingSalonOsiId(osiId);
-    try {
-      const res = await updateOsiSalon({ osiId, salon });
-      if (!res.success) {
-        alert(res.error || "Error al actualizar el salón");
-        return;
-      }
-
-      // Update in detail modal state
-      setDetailModalTema((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          osis: prev.osis.map((o) => (o.idOsi === osiId ? { ...o, salon } : o)),
-        };
-      });
-
-      // Update in main data state
-      setData((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          temas: prev.temas.map((t) => ({
-            ...t,
-            osis: t.osis.map((o) => (o.idOsi === osiId ? { ...o, salon } : o)),
-          })),
-        };
-      });
-    } catch (e) {
-      alert("Error al actualizar salón: " + (e instanceof Error ? e.message : String(e)));
-    } finally {
-      setUpdatingSalonOsiId(null);
-    }
-  };
 
   // Sorted temas list
   const sortedTemas = useMemo(() => {
@@ -1100,35 +1059,23 @@ export default function CoberturaGeograficaClient({
                             </span>
                           )}
 
-                          {/* Salón SHA selector / badge with human error correction */}
+                          {/* Salón SHA badge (read-only audit view) */}
                           {osi.isShaVenue && (
                             <div className="mt-1.5 flex items-center gap-1.5">
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                 Salón:
                               </span>
-                              <select
-                                value={osi.salon || ""}
-                                disabled={updatingSalonOsiId === osi.idOsi}
-                                onChange={(e) => {
-                                  const val = e.target.value.trim() || null;
-                                  handleUpdateSalon(osi.idOsi, val);
-                                }}
-                                className={`text-[11px] font-semibold rounded px-1.5 py-0.5 border transition cursor-pointer ${
-                                  osi.salon
-                                    ? "bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100"
-                                    : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
-                                }`}
-                                title="Cambiar salón para corregir asignación"
-                              >
-                                <option value="">⚠️ Sin asignar</option>
-                                {SALONES_SHA.map((s) => (
-                                  <option key={s} value={s}>
-                                    🏛️ {s}
-                                  </option>
-                                ))}
-                              </select>
-                              {updatingSalonOsiId === osi.idOsi && (
-                                <RefreshCw className="w-3 h-3 text-purple-600 animate-spin" />
+                              {osi.salon ? (
+                                <span className="text-[11px] font-semibold rounded px-2 py-0.5 bg-purple-50 text-purple-800 border border-purple-200 shadow-2xs">
+                                  🏛️ {osi.salon}
+                                </span>
+                              ) : (
+                                <span
+                                  className="text-[10px] font-medium rounded px-1.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200"
+                                  title="Pendiente de asignación desde Seguimiento de Servicios o Centro de Notificaciones"
+                                >
+                                  ⚠️ Sin asignar
+                                </span>
                               )}
                             </div>
                           )}

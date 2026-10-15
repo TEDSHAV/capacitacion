@@ -21,6 +21,7 @@ interface EjecucionOsiModalProps {
   empresa?: string;
   servicio?: string;
   direccion?: string;
+  sede?: string;
   stepRecord?: ProcesoStepRecord | null;
   onClose: () => void;
   onConfirmEjecutado: (executionDate?: string | null, salon?: string | null) => Promise<void>;
@@ -57,6 +58,7 @@ export default function EjecucionOsiModal({
   empresa,
   servicio,
   direccion,
+  sede,
   stepRecord,
   onClose,
   onConfirmEjecutado,
@@ -65,7 +67,7 @@ export default function EjecucionOsiModal({
 }: EjecucionOsiModalProps) {
   const isCurrentlyRescheduled = Boolean(stepRecord?.step_metadata?.is_rescheduled);
   const isCurrentlyCompleted = Boolean(stepRecord?.completed);
-  const isSha = isShaLocation(direccion);
+  const isSha = isShaLocation(direccion, sede);
 
   // Tab mode: "ejecutado" | "reagendar"
   const [mode, setMode] = useState<"ejecutado" | "reagendar">("ejecutado");
@@ -235,6 +237,11 @@ export default function EjecucionOsiModal({
                 ) : (
                   <span>Completada</span>
                 )}
+                {stepRecord?.step_metadata?.salon ? (
+                  <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-200/70 text-emerald-900 font-semibold text-[11px]">
+                    🏛️ Salón: {String(stepRecord.step_metadata.salon)}
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>
@@ -485,7 +492,11 @@ export default function EjecucionOsiModal({
                 ) : mode === "ejecutado" ? (
                   <>
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Confirmar como Ejecutado</span>
+                    <span>
+                      {isCurrentlyCompleted
+                        ? "Guardar Cambios (Salón / Fecha)"
+                        : "Confirmar como Ejecutado"}
+                    </span>
                   </>
                 ) : (
                   <>

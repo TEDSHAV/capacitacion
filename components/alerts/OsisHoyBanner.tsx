@@ -27,6 +27,7 @@ import {
   type OsiHoyItem,
 } from "@/app/actions/alertas-servicios-hoy";
 import { OsiHoyAccionModal } from "./OsiHoyAccionModal";
+import { OsiHoySalonModal } from "./OsiHoySalonModal";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 import { useToast } from "@/lib/ui/toast-context";
 
@@ -78,6 +79,11 @@ export function OsisHoyBanner() {
   const [selectedItemForModal, setSelectedItemForModal] = useState<OsiHoyItem | null>(null);
   const [modalMode, setModalMode] = useState<"reagendar" | "cancelar">("reagendar");
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+
+  // Salon modal states
+  const [salonModalItem, setSalonModalItem] = useState<OsiHoyItem | null>(null);
+  const [isSalonModalAlreadyConfirmed, setIsSalonModalAlreadyConfirmed] = useState(false);
+  const [isSalonModalOpen, setIsSalonModalOpen] = useState(false);
 
   // Osi Preview Modal state
   const [previewOsi, setPreviewOsi] = useState<{ id: number; nro: string } | null>(null);
@@ -151,6 +157,45 @@ export function OsisHoyBanner() {
     } finally {
       setActionLoadingOsiId(null);
     }
+  };
+
+  // Open salon modal if SHA venue, otherwise execute 1-click confirmation
+  const handleConfirmarEjecucionClick = (item: OsiHoyItem) => {
+    if (item.isShaVenue) {
+      setSalonModalItem(item);
+      setIsSalonModalAlreadyConfirmed(false);
+      setIsSalonModalOpen(true);
+    } else {
+      handleConfirmarEjecucion(item);
+    }
+  };
+
+  // Callback when salon is confirmed or updated
+  const handleSalonModalSuccess = (salon: string | null) => {
+    if (!salonModalItem) return;
+    const targetOsiId = salonModalItem.osiId;
+    const targetSesion = salonModalItem.nroSesion;
+
+    setData((prev) => {
+      if (!prev) return prev;
+      const updatedItems = prev.items.map((i) =>
+        i.osiId === targetOsiId && i.nroSesion === targetSesion
+          ? {
+              ...i,
+              status: "en_proceso" as const,
+              salon,
+            }
+          : i,
+      );
+      const pendientes = updatedItems.filter((i) => i.status === "pendiente").length;
+      const enProceso = updatedItems.filter((i) => i.status === "en_proceso").length;
+      return {
+        ...prev,
+        pendientes,
+        enProceso,
+        items: updatedItems,
+      };
+    });
   };
 
   // Handle restoring rescheduled / cancelled item back to active
@@ -485,6 +530,12 @@ export function OsisHoyBanner() {
                           </span>
                         )}
 
+                        {item.isShaVenue && item.salon && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                            <span>🏛️ Salón: {item.salon}</span>
+                          </span>
+                        )}
+
                         {isReagendado && (
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
                             <CalendarClock className="w-3 h-3 text-indigo-600" />
@@ -544,7 +595,7 @@ export function OsisHoyBanner() {
                         <>
                           <button
                             type="button"
-                            onClick={() => handleConfirmarEjecucion(item)}
+                            onClick={() => handleConfirmarEjecucionClick(item)}
                             disabled={isItemLoading}
                             className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-md transition-all flex items-center gap-1.5 flex-shrink-0 disabled:opacity-50 ring-2 ring-emerald-400/50 hover:ring-emerald-500"
                           >
@@ -585,13 +636,34 @@ export function OsisHoyBanner() {
                         </>
                       )}
 
-                      {/* Executed state: Checkmark with modify option */}
+                      {/* Executed state: Checkmark with salon edit and modify option */}
                       {isEnProceso && (
                         <>
                           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                             <span>Confirmado</span>
                           </div>
+
+                          {item.isShaVenue && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSalonModalItem(item);
+                                setIsSalonModalAlreadyConfirmed(true);
+                                setIsSalonModalOpen(true);
+                              }}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-colors shadow-2xs ${
+                                item.salon
+                                  ? "bg-purple-50 hover:bg-purple-100 text-purple-900 border-purple-200"
+                                  : "bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300"
+                              }`}
+                              title="Modificar salón asignado para esta sesión"
+                            >
+                              <span>🏛️</span>
+                              <span>{item.salon ? `Salón: ${item.salon}` : "Asignar Salón SHA"}</span>
+                              <span className="text-[10px] underline ml-0.5 opacity-70">Cambiar</span>
+                            </button>
+                          )}
 
                           <button
                             type="button"
@@ -668,6 +740,15 @@ export function OsisHoyBanner() {
         mode={modalMode}
         onClose={() => setIsActionModalOpen(false)}
         onSuccess={handleModalSuccess}
+      />
+
+      {/* Salón SHA Modal */}
+      <OsiHoySalonModal
+        isOpen={isSalonModalOpen}
+        item={salonModalItem}
+        isAlreadyConfirmed={isSalonModalAlreadyConfirmed}
+        onClose={() => setIsSalonModalOpen(false)}
+        onSuccess={handleSalonModalSuccess}
       />
 
       {/* OSI Technical Preview Modal */}

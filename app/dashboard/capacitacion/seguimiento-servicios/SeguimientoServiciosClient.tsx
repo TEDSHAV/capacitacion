@@ -147,6 +147,7 @@ export default function SeguimientoServiciosClient({
     empresa?: string;
     servicio?: string;
     direccion?: string;
+    sede?: string;
     stepRecord?: ProcesoStepRecord | null;
   } | null>(null);
 
@@ -630,6 +631,7 @@ export default function SeguimientoServiciosClient({
         empresa: osi?.nombre_empresa || undefined,
         servicio: osi?.servicio || undefined,
         direccion: osi?.direccion_ejecucion || undefined,
+        sede: osi?.sede || undefined,
         stepRecord,
       });
     },
@@ -680,7 +682,7 @@ export default function SeguimientoServiciosClient({
               unmark_reason: null,
               fecha_ejecutada: cleanDate,
               marked_at: now,
-              ...(salon ? { salon } : {}),
+              salon: salon?.trim() || null,
             },
           },
         });
@@ -1567,6 +1569,7 @@ export default function SeguimientoServiciosClient({
           empresa={executionModal.empresa}
           servicio={executionModal.servicio}
           direccion={executionModal.direccion}
+          sede={executionModal.sede}
           stepRecord={executionModal.stepRecord}
           onClose={() => setExecutionModal(null)}
           onConfirmEjecutado={handleConfirmEjecutado}

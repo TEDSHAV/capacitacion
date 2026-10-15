@@ -1283,7 +1283,10 @@ export async function markEnProcesoStep({
 
     const currentMeta = (existing?.step_metadata as Record<string, unknown> | null) || {};
     const cleanDate = executionDate?.trim() || null;
-    const cleanSalon = salon?.trim() || (currentMeta.salon as string | undefined) || null;
+    const cleanSalon =
+      salon !== undefined
+        ? salon?.trim() || null
+        : (currentMeta.salon as string | undefined) || null;
     const completedAt = cleanDate ? `${cleanDate}T12:00:00.000Z` : now;
 
     const updatedMeta: Record<string, unknown> = {

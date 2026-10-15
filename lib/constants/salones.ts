@@ -18,5 +18,11 @@ export function isShaLocation(
   sede?: string | null,
 ): boolean {
   const combined = `${direccion || ""} ${sede || ""}`.toLowerCase();
-  return /\bsha\b/i.test(combined);
+  return (
+    /\bsha\b/i.test(combined) ||
+    combined.includes("s.h.a") ||
+    combined.includes("sede propia") ||
+    combined.includes("instalaciones sha") ||
+    combined.includes("oficinas sha")
+  );
 }

@@ -8,7 +8,10 @@ import {
   ensureProcesoStepsExist,
   unmarkEnProcesoStep,
   restoreRescheduledToActivos,
+  updateOsiSalon,
+  clearSeguimientoServerCache,
 } from "@/app/actions/capacitacion-proceso-steps";
+import { isShaLocation } from "@/lib/constants/salones";
 
 export type OsiHoyStatus = "pendiente" | "en_proceso" | "reagendado" | "no_ejecutado";
 
@@ -27,6 +30,9 @@ export interface OsiHoyItem {
   servicio: string;
   ciudad: string | null;
   direccion: string | null;
+  sede: string | null;
+  isShaVenue: boolean;
+  salon: string | null;
   facilitadorNombre: string | null;
   status: OsiHoyStatus;
   stepId: number | null;
@@ -115,8 +121,8 @@ export async function getOsisDeHoy(): Promise<ResumenOsisHoy> {
     const osiIds = Array.from(new Set(sesionRows.map((s) => s.id_osi).filter(Boolean)));
     if (osiIds.length === 0) return emptyResumen;
 
-    // 2. Fetch related OSI details, total sessions, step records, facilitators, and cities
-    const [osisResult, allSessionsResult, stepsResult, assignmentsResult, ciudadesResult] =
+    // 2. Fetch related OSI details, total sessions, step records, facilitators, cities, and sede/formato details
+    const [osisResult, allSessionsResult, stepsResult, assignmentsResult, ciudadesResult, formatoResult] =
       await Promise.all([
         // Basic OSI info from view
         admin
@@ -151,6 +157,12 @@ export async function getOsisDeHoy(): Promise<ResumenOsisHoy> {
 
         // City names catalog
         admin.from("cat_ciudades").select("id, nombre_ciudad"),
+
+        // Formato details for sede and direccion_ejecucion_real
+        admin
+          .from("v_osi_formato_completo")
+          .select("id_osi, sede, direccion_ejecucion, direccion_ejecucion_real")
+          .in("id_osi", osiIds),
       ]);
 
     // Build lookups
@@ -160,6 +172,17 @@ export async function getOsisDeHoy(): Promise<ResumenOsisHoy> {
         c.nombre_ciudad,
       ]),
     );
+
+    const formatoMap = new Map<number, { sede: string | null; direccionReal: string | null; direccion: string | null }>();
+    for (const f of formatoResult.data || []) {
+      if (f.id_osi) {
+        formatoMap.set(f.id_osi, {
+          sede: f.sede || null,
+          direccionReal: f.direccion_ejecucion_real || null,
+          direccion: f.direccion_ejecucion || null,
+        });
+      }
+    }
 
     const osiMap = new Map<number, any>();
     for (const osi of osisResult.data || []) {
@@ -228,6 +251,12 @@ export async function getOsisDeHoy(): Promise<ResumenOsisHoy> {
         ? cityMap.get(osi.id_ciudad_direccion_ejecucion_efectiva) || null
         : null;
 
+      const fInfo = formatoMap.get(session.id_osi);
+      const sede = fInfo?.sede || null;
+      const direccion = (osi.direccion_ejecucion || fInfo?.direccionReal || fInfo?.direccion || "").trim() || null;
+      const isSha = isShaLocation(direccion, sede);
+      const salon = (meta.salon as string | undefined)?.trim() || null;
+
       items.push({
         osiId: session.id_osi,
         nroOsi: osi.nro_osi,
@@ -242,7 +271,10 @@ export async function getOsisDeHoy(): Promise<ResumenOsisHoy> {
         nombreEmpresa: osi.nombre_empresa,
         servicio: osi.servicio,
         ciudad,
-        direccion: osi.direccion_ejecucion || null,
+        direccion,
+        sede,
+        isShaVenue: isSha,
+        salon,
         facilitadorNombre,
         status,
         stepId: step?.id || null,
@@ -299,6 +331,7 @@ export async function getOsisDeHoy(): Promise<ResumenOsisHoy> {
 export async function confirmarEjecucionHoy(
   osiId: number,
   nroSesion: number = 1,
+  salon?: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   if (!Number.isFinite(osiId) || osiId <= 0) {
     return { success: false, error: "OSI inválido" };
@@ -327,12 +360,14 @@ export async function confirmarEjecucionHoy(
       .maybeSingle();
 
     const existingMeta = (existing?.step_metadata as Record<string, unknown> | null) || {};
+    const cleanSalon = salon?.trim() || null;
     const updatedMeta = {
       ...existingMeta,
       is_rescheduled: false,
       unmarked_by_user: false,
       confirmed_from_today_banner: true,
       confirmed_at: now,
+      ...(cleanSalon ? { salon: cleanSalon } : {}),
     };
 
     const { error: updateError } = await admin.from("capacitacion_proceso_steps").upsert(
@@ -360,15 +395,82 @@ export async function confirmarEjecucionHoy(
     );
 
     // Add note to capacitacion_osi_notas
-    await addOsiNota(
-      osiId,
-      `[Confirmación en Vivo - Sesión ${nroSesion}] Servicio del día confirmado como En proceso / Ejecutado desde el panel de control.`,
-    ).catch((err) => console.error("[confirmarEjecucionHoy] addOsiNota failed:", err));
+    const noteText = cleanSalon
+      ? `[Confirmación en Vivo - Sesión ${nroSesion}] Servicio del día confirmado como En proceso / Ejecutado desde el panel de control. Salón SHA: ${cleanSalon}.`
+      : `[Confirmación en Vivo - Sesión ${nroSesion}] Servicio del día confirmado como En proceso / Ejecutado desde el panel de control.`;
+    await addOsiNota(osiId, noteText).catch((err) =>
+      console.error("[confirmarEjecucionHoy] addOsiNota failed:", err),
+    );
 
     return { success: true };
   } catch (err) {
     console.error("[confirmarEjecucionHoy] unexpected error:", err);
     return { success: false, error: "Error inesperado al confirmar ejecución" };
+  }
+}
+
+/**
+ * Update the salon for an OSI session directly from Centro de Notificaciones.
+ */
+export async function actualizarSalonHoy(
+  osiId: number,
+  nroSesion: number = 1,
+  salon: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  if (!Number.isFinite(osiId) || osiId <= 0) {
+    return { success: false, error: "OSI inválido" };
+  }
+
+  try {
+    const admin = await createAdminClient();
+    await ensureProcesoStepsExist(osiId, "ejecucion", nroSesion);
+
+    const { data: existing } = await admin
+      .from("capacitacion_proceso_steps")
+      .select("id, step_metadata")
+      .eq("osi_id", osiId)
+      .eq("phase", "ejecucion")
+      .eq("nro_sesion", nroSesion)
+      .eq("step_key", "en_proceso")
+      .maybeSingle();
+
+    if (!existing) {
+      return { success: false, error: "No se encontró el registro de ejecución" };
+    }
+
+    const currentMeta = (existing.step_metadata as Record<string, unknown> | null) || {};
+    const cleanSalon = salon?.trim() || null;
+    const updatedMeta: Record<string, unknown> = {
+      ...currentMeta,
+      salon: cleanSalon,
+      salon_updated_at: new Date().toISOString(),
+    };
+
+    const { error: updateError } = await admin
+      .from("capacitacion_proceso_steps")
+      .update({ step_metadata: updatedMeta })
+      .eq("id", existing.id);
+
+    if (updateError) {
+      console.error("[actualizarSalonHoy] updateError:", updateError);
+      return { success: false, error: "Error al actualizar el salón" };
+    }
+
+    const noteText = cleanSalon
+      ? `[Salón SHA actualizado - Sesión ${nroSesion}] Salón asignado desde Centro de Notificaciones: ${cleanSalon}`
+      : `[Salón SHA removido - Sesión ${nroSesion}] Salón desasignado desde Centro de Notificaciones`;
+    await addOsiNota(osiId, noteText).catch((err) =>
+      console.error("[actualizarSalonHoy] addOsiNota failed:", err),
+    );
+
+    clearSeguimientoServerCache();
+    return { success: true };
+  } catch (err) {
+    console.error("[actualizarSalonHoy] unexpected error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado al actualizar el salón",
+    };
   }
 }
 
