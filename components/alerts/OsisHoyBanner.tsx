@@ -101,6 +101,14 @@ export function OsisHoyBanner() {
 
   useEffect(() => {
     loadData();
+
+    const handleFocus = () => {
+      loadData();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [loadData]);
 
   // Handle 1-click execution confirmation

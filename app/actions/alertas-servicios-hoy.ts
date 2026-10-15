@@ -209,12 +209,18 @@ export async function getOsisDeHoy(): Promise<ResumenOsisHoy> {
 
       // Determine execution status
       let status: OsiHoyStatus = "pendiente";
-      if (step?.completed || session.fecha_ejecutada) {
-        status = "en_proceso";
-      } else if (meta.is_rescheduled) {
-        status = "reagendado";
-      } else if (meta.unmarked_by_user && !meta.is_rescheduled) {
-        status = "no_ejecutado";
+      if (step) {
+        if (step.completed) {
+          status = "en_proceso";
+        } else if (meta.is_rescheduled) {
+          status = "reagendado";
+        } else if (meta.unmarked_by_user && !meta.is_rescheduled) {
+          status = "no_ejecutado";
+        } else {
+          status = "pendiente";
+        }
+      } else {
+        status = session.fecha_ejecutada ? "en_proceso" : "pendiente";
       }
 
       // City resolution
@@ -412,12 +418,18 @@ export async function cancelarServicioHoy({
 /**
  * Restore an OSI that was rescheduled or cancelled back to active.
  */
-export async function restaurarServicioHoy({
-  osiId,
-  nroSesion,
-}: {
-  osiId: number;
-  nroSesion: number;
-}): Promise<{ success: boolean; error?: string }> {
+export async function restaurarServicioHoy(
+  param1: number | { osiId: number; nroSesion: number },
+  param2?: number,
+): Promise<{ success: boolean; error?: string }> {
+  let osiId: number;
+  let nroSesion: number;
+  if (typeof param1 === "object" && param1 !== null) {
+    osiId = param1.osiId;
+    nroSesion = param1.nroSesion ?? 1;
+  } else {
+    osiId = param1;
+    nroSesion = param2 ?? 1;
+  }
   return restoreRescheduledToActivos(osiId, nroSesion);
 }

@@ -1555,12 +1555,19 @@ export async function restoreRescheduledToActivos(
         is_rescheduled: false,
         unmarked_by_user: false,
         restored_at: new Date().toISOString(),
+        fecha_ejecutada: null,
+        marked_at: null,
+        confirmed_from_today_banner: false,
+        unmark_reason: null,
+        new_date: null,
+        date_confirmed: false,
       };
       await supabase
         .from("capacitacion_proceso_steps")
         .update({
           completed: false,
           completed_at: null,
+          completed_by: null,
           notes: null,
           step_metadata: updatedMeta,
         })
@@ -1572,6 +1579,15 @@ export async function restoreRescheduledToActivos(
     for (const row of rows) {
       const session = await resolveOsiSesion(admin, osiId, row.nro_sesion);
       if (session) {
+        // Clear session execution date so it reverts cleanly to pending
+        await admin
+          .from("osi_sesion")
+          .update({
+            fecha_ejecutada: null,
+            ejecutada_en_fecha_planificada: null,
+          })
+          .eq("id", session.id);
+
         const prevStatusId = await getPreviousSessionStatus(admin, session.id);
         await admin.from("historial_cambios_estado").insert({
           tabla_afectada: "osi_sesion",

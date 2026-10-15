@@ -110,6 +110,11 @@ export interface CoberturaSedeSummary {
   estadoNombre: string;
   ciudadNombre: string | null;
   empresaNombre: string;
+  empresas?: Array<{
+    nombre: string;
+    cursosCount: number;
+    certsCount: number;
+  }>;
   isShaVenue?: boolean;
   salon?: string | null;
   totalCursos: number;
@@ -581,6 +586,7 @@ export async function getCoberturaGeograficaData(
       estadoNombre: string;
       ciudadNombre: string | null;
       empresaNombre: string;
+      empresasMap: Map<string, { cursosCount: number; certsCount: number }>;
       isShaVenue?: boolean;
       salon?: string | null;
       totalCursos: number;
@@ -590,18 +596,8 @@ export async function getCoberturaGeograficaData(
     const sedesAgg = new Map<string, SedeAggItem>();
 
     for (const osi of normalizedOsis) {
-      let sName = osi.sede || osi.direccion || osi.ciudadNombre || "Sede No Especificada";
-      let key = `${osi.idEstado || 0}_${sName.toLowerCase().trim()}`;
-
-      if (osi.isShaVenue) {
-        if (osi.salon) {
-          sName = `Instalaciones SHA — ${osi.salon}`;
-          key = `sha_${osi.salon.toLowerCase().trim()}`;
-        } else {
-          sName = "Instalaciones SHA (Sin Salón Asignado)";
-          key = "sha_sin_salon";
-        }
-      }
+      const sName = osi.sede || osi.direccion || osi.ciudadNombre || "Sede No Especificada";
+      const key = `${osi.idEstado || 0}_${sName.toLowerCase().trim()}${osi.salon ? `_${osi.salon.toLowerCase().trim()}` : ""}`;
 
       let s = sedesAgg.get(key);
       if (!s) {
@@ -610,7 +606,8 @@ export async function getCoberturaGeograficaData(
           nombreSede: sName,
           estadoNombre: osi.estadoNombre,
           ciudadNombre: osi.ciudadNombre,
-          empresaNombre: osi.isShaVenue ? "SHA de Venezuela" : osi.empresaNombre,
+          empresaNombre: osi.empresaNombre,
+          empresasMap: new Map(),
           isShaVenue: osi.isShaVenue,
           salon: osi.salon,
           totalCursos: 0,
@@ -623,21 +620,40 @@ export async function getCoberturaGeograficaData(
       s.totalCursos++;
       s.totalCertificados += osi.certificadosEmitidos;
       s.temasSet.add(osi.servicio);
+
+      const empName = (osi.empresaNombre || "").trim() || "Empresa No Especificada";
+      const empStat = s.empresasMap.get(empName) ?? { cursosCount: 0, certsCount: 0 };
+      empStat.cursosCount++;
+      empStat.certsCount += osi.certificadosEmitidos;
+      s.empresasMap.set(empName, empStat);
     }
 
     const sedesResumenList: CoberturaSedeSummary[] = Array.from(sedesAgg.values())
-      .map((s) => ({
-        sedeKey: s.sedeKey,
-        nombreSede: s.nombreSede,
-        estadoNombre: s.estadoNombre,
-        ciudadNombre: s.ciudadNombre,
-        empresaNombre: s.empresaNombre,
-        isShaVenue: s.isShaVenue,
-        salon: s.salon,
-        totalCursos: s.totalCursos,
-        totalCertificados: s.totalCertificados,
-        temasCount: s.temasSet.size,
-      }))
+      .map((s) => {
+        const sortedEmpresas = Array.from(s.empresasMap.entries())
+          .map(([nombre, stat]) => ({
+            nombre,
+            cursosCount: stat.cursosCount,
+            certsCount: stat.certsCount,
+          }))
+          .sort((a, b) => b.certsCount - a.certsCount || b.cursosCount - a.cursosCount);
+
+        const primaryEmpresa = sortedEmpresas[0]?.nombre || s.empresaNombre;
+
+        return {
+          sedeKey: s.sedeKey,
+          nombreSede: s.nombreSede,
+          estadoNombre: s.estadoNombre,
+          ciudadNombre: s.ciudadNombre,
+          empresaNombre: primaryEmpresa,
+          empresas: sortedEmpresas,
+          isShaVenue: s.isShaVenue,
+          salon: s.salon,
+          totalCursos: s.totalCursos,
+          totalCertificados: s.totalCertificados,
+          temasCount: s.temasSet.size,
+        };
+      })
       .sort((a, b) => b.totalCertificados - a.totalCertificados || b.totalCursos - a.totalCursos);
 
     // ── Calculate High-Level KPIs ────────────────────────────────────────────

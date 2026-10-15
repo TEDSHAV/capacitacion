@@ -980,7 +980,7 @@ export default function CoberturaGeograficaClient({
                               <span className="line-clamp-2">{s.nombreSede}</span>
                               {s.isShaVenue && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 mt-0.5">
-                                  🏛️ Sede Propia SHA {s.salon ? `• ${s.salon}` : "• Salón sin asignar"}
+                                  🏛️ Sede Propia SHA {s.salon ? `• ${s.salon}` : ""}
                                 </span>
                               )}
                             </div>
@@ -992,8 +992,20 @@ export default function CoberturaGeograficaClient({
                             <span className="block text-[11px] text-slate-400">{s.ciudadNombre}</span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-slate-700 font-medium">
-                          {s.empresaNombre}
+                        <td className="py-3 px-4 text-slate-700">
+                          <div className="font-medium text-slate-900 line-clamp-1" title={s.empresaNombre}>
+                            {s.empresaNombre}
+                          </div>
+                          {s.empresas && s.empresas.length > 1 && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 font-medium border border-slate-200"
+                                title={s.empresas.map((e) => `${e.nombre} (${e.cursosCount} cursos, ${e.certsCount} certs)`).join("\n")}
+                              >
+                                +{s.empresas.length - 1} {s.empresas.length - 1 === 1 ? "empresa más" : "empresas más"}
+                              </span>
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-3 text-center">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800 tabular-nums">
