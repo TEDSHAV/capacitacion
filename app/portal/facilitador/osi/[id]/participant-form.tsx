@@ -116,6 +116,7 @@ export const ParticipantForm = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [attendanceCount, setAttendanceCount] = useState(0);
+  const [gradeSheetCount, setGradeSheetCount] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
 
   const [activeVerificationIndex, setActiveVerificationIndex] = useState<number | null>(null);
@@ -159,10 +160,12 @@ export const ParticipantForm = ({
   useEffect(() => {
     Promise.all([
       getOSIAttachments(osiId, facilitadorId, "lista_asistencia", selectedSession),
+      getOSIAttachments(osiId, facilitadorId, "hoja_calificacion", selectedSession),
       getOSIAttachments(osiId, facilitadorId, "material_fotografico", selectedSession),
     ])
-      .then(([asistenciaRes, photoRes]) => {
+      .then(([asistenciaRes, califRes, photoRes]) => {
         if (asistenciaRes.data) setAttendanceCount(asistenciaRes.data.length);
+        if (califRes.data) setGradeSheetCount(califRes.data.length);
         if (photoRes.data) setPhotoCount(photoRes.data.length);
       })
       .catch((err) => {
@@ -212,14 +215,21 @@ export const ParticipantForm = ({
 
   // Prerequisites helpers for finalizing service
   const hasCompletedAttendance = attendanceCount > 0;
+  const hasCompletedGradeSheet = gradeSheetCount > 0;
   const hasCompletedPhotos = photoCount > 0;
   const hasCompletedParticipants = hasValidParticipants && sinNotaCount === 0 && !hasIncompleteRows;
-  const canFinalize = hasAcknowledged && hasCompletedAttendance && hasCompletedPhotos && hasCompletedParticipants;
+  const canFinalize =
+    hasAcknowledged &&
+    hasCompletedAttendance &&
+    hasCompletedGradeSheet &&
+    hasCompletedPhotos &&
+    hasCompletedParticipants;
 
   // Step completion status for indicators
   const completedSteps: Partial<Record<WizardStepId, boolean>> = {
     material: hasMaterial,
     asistencia: hasCompletedAttendance,
+    calificacion: hasCompletedGradeSheet,
     participantes: hasCompletedParticipants,
     evidencias: hasCompletedPhotos,
     envio: isFinal,
@@ -272,9 +282,10 @@ export const ParticipantForm = ({
     }
 
     const asistenciaStepNum = hasMaterial ? "2" : "1";
-    const partStepNum = hasMaterial ? "3" : "2";
-    const evidStepNum = hasMaterial ? "4" : "3";
-    const envioStepNum = hasMaterial ? "5" : "4";
+    const califStepNum = hasMaterial ? "3" : "2";
+    const partStepNum = hasMaterial ? "4" : "3";
+    const evidStepNum = hasMaterial ? "5" : "4";
+    const envioStepNum = hasMaterial ? "6" : "5";
 
     list.push(
       {
@@ -299,6 +310,22 @@ export const ParticipantForm = ({
           title: "¡Escanear con OCR Inteligente!",
           description:
             "¡Ahorra tiempo de digitación! Presiona este botón para que el sistema escanee la foto de la lista de asistencia y extraiga automáticamente los nombres y cédulas directamente a la nómina de participantes.",
+        },
+      },
+      {
+        element: stepEl("calificacion"),
+        popover: {
+          title: `Paso ${califStepNum}: Hoja de Calificación Física`,
+          description:
+            "Adjunta la foto o escaneo de la hoja de calificaciones física con las notas y firmas del facilitador y participantes.",
+        },
+      },
+      {
+        element: "#tour-calificacion-upload",
+        popover: {
+          title: "Cargar Hoja de Calificación",
+          description:
+            "Sube un archivo PDF o imagen nítida de la planilla de notas física.",
         },
       },
       {
@@ -395,6 +422,8 @@ export const ParticipantForm = ({
           setActiveStep("material");
         } else if (el.includes("asistencia") || el.includes("upload") || el.includes("scan")) {
           setActiveStep("asistencia");
+        } else if (el.includes("calificacion")) {
+          setActiveStep("calificacion");
         } else if (el.includes("participante")) {
           setActiveStep("participantes");
         } else if (el.includes("evidencia") || el.includes("photo")) {
@@ -462,6 +491,12 @@ export const ParticipantForm = ({
       if (!hasCompletedAttendance) {
         setError("Debes cargar la foto o archivo de la lista de asistencia física firmada.");
         goToStep("asistencia");
+        return;
+      }
+
+      if (!hasCompletedGradeSheet) {
+        setError("Debes cargar la foto o archivo de la hoja de calificación física firmada.");
+        goToStep("calificacion");
         return;
       }
 
@@ -879,17 +914,161 @@ export const ParticipantForm = ({
 
               <Button
                 type="button"
-                onClick={() => goToStep("participantes")}
+                onClick={() => goToStep("calificacion")}
                 className="w-full sm:w-auto h-11 px-6 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs cursor-pointer"
               >
-                <span>Continuar a Participantes</span>
+                <span>Continuar a Hoja de Calificación</span>
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
           </div>
         )}
 
-        {/* STEP 3: PARTICIPANTES Y CALIFICACIONES */}
+        {/* STEP: HOJA DE CALIFICACION FISICA */}
+        {activeStep === "calificacion" && (
+          <div className="p-4 sm:p-6 space-y-6">
+            {/* Step Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
+                    {hasMaterial ? "3" : "2"}
+                  </span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                    Cargar Hoja de Calificación Física
+                  </h2>
+                  <span className="text-[10px] font-bold uppercase text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">
+                    Requerido
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600">
+                  Sube foto legible o escaneo en PDF de la hoja de notas física y firmas de evaluación.
+                </p>
+              </div>
+            </div>
+
+            {/* Session picker (if multi-session) */}
+            {sessionCount > 1 && (
+              <div className="p-4 bg-sky-50/70 border border-sky-200/80 rounded-xl space-y-2">
+                <label className="block text-xs font-bold text-sky-950 uppercase tracking-wide">
+                  Selección de Sesión
+                </label>
+                <p className="text-xs text-sky-800">
+                  {assignedSession !== null
+                    ? `Estás asignado a la Sesión ${assignedSession}. Los documentos se cargarán para esa sesión.`
+                    : "Selecciona para qué sesión estás subiendo los documentos:"}
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {(() => {
+                    const selectableSessions =
+                      assignedSession !== null
+                        ? [assignedSession]
+                        : hasAllSessionsAssignment && assignedSessions.length === 0
+                          ? Array.from({ length: sessionCount }, (_, i) => i + 1)
+                          : [...assignedSessions].sort((a, b) => a - b);
+                    const isReadOnly = assignedSession !== null;
+
+                    return selectableSessions.map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => !isReadOnly && setSelectedSession(n)}
+                        disabled={isReadOnly}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${selectedSession === n
+                          ? "bg-sky-600 text-white shadow-xs"
+                          : isReadOnly
+                            ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                            : "bg-white text-sky-800 border border-sky-200 hover:bg-sky-100"
+                          }`}
+                      >
+                        Sesión {n}
+                      </button>
+                    ));
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* Upload Area */}
+            <div id="tour-calificacion-upload">
+              <AttachmentUploadSection
+                osiId={osiId}
+                facilitadorId={facilitadorId}
+                category="hoja_calificacion"
+                nroSesion={selectedSession}
+                title="Hoja de Calificación Física"
+                description="Formatos JPG, PNG o PDF con las notas y firmas físicas."
+                badge="Requerido"
+                badgeColor="red"
+                onAttachmentCountChange={setGradeSheetCount}
+                onStatusChange={setUploadStatus}
+                tourId="tour-calificacion-button"
+                disabled={isFinal}
+              />
+            </div>
+
+            {uploadStatus && (
+              <div
+                className={`flex items-center gap-2 text-xs px-3.5 py-2.5 rounded-xl border ${uploadStatus.startsWith("✅")
+                  ? "text-emerald-800 bg-emerald-50 border-emerald-200"
+                  : uploadStatus.startsWith("❌") || uploadStatus.toLowerCase().includes("error")
+                    ? "text-red-800 bg-red-50 border-red-200"
+                    : "text-sky-800 bg-sky-50 border-sky-200"
+                  }`}
+              >
+                {uploadStatus.startsWith("✅") ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                ) : uploadStatus.startsWith("❌") || uploadStatus.toLowerCase().includes("error") ? (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                ) : (
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0 text-sky-600" />
+                )}
+                <span className="flex-1 font-medium">{uploadStatus}</span>
+                <button onClick={() => setUploadStatus(null)} className="shrink-0 text-slate-400 hover:text-slate-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Bottom step navigation callout */}
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="text-xs text-slate-500">
+                {gradeSheetCount > 0 ? (
+                  <span className="text-emerald-700 font-semibold inline-flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4" /> {gradeSheetCount} hoja(s) de calificación física(s) cargada(s).
+                  </span>
+                ) : (
+                  <span className="text-amber-700 font-medium inline-flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+                    Debes adjuntar la hoja de calificación física firmada.
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => goToStep("asistencia")}
+                  className="w-1/2 sm:w-auto h-11 px-5 border-slate-300 text-slate-700 font-bold text-xs sm:text-sm rounded-xl cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  <span>Anterior</span>
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => goToStep("participantes")}
+                  className="w-1/2 sm:w-auto h-11 px-6 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs cursor-pointer"
+                >
+                  <span>Continuar a Participantes</span>
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP: PARTICIPANTES Y CALIFICACIONES */}
         {activeStep === "participantes" && (
           <div className="p-4 sm:p-6 space-y-6">
             {/* Step Header & Live Metrics Strip */}
@@ -898,7 +1077,7 @@ export const ParticipantForm = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
-                      {hasMaterial ? "3" : "2"}
+                      {hasMaterial ? "4" : "3"}
                     </span>
                     <h2 className="text-base sm:text-lg font-bold text-slate-900">
                       Registro de Participantes y Notas
@@ -1196,13 +1375,13 @@ export const ParticipantForm = ({
           </div>
         )}
 
-        {/* STEP 4: FOTOS Y EVIDENCIAS */}
+        {/* STEP: FOTOS Y EVIDENCIAS */}
         {activeStep === "evidencias" && (
           <div className="p-4 sm:p-6 space-y-6">
             <div className="pb-4 border-b border-slate-100 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
-                  {hasMaterial ? "4" : "3"}
+                  {hasMaterial ? "5" : "4"}
                 </span>
                 <h2 className="text-base sm:text-lg font-bold text-slate-900">
                   Registro Fotográfico
@@ -1270,7 +1449,7 @@ export const ParticipantForm = ({
             <div className="pb-4 border-b border-slate-100 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
-                  {hasMaterial ? "5" : "4"}
+                  {hasMaterial ? "6" : "5"}
                 </span>
                 <h2 className="text-base sm:text-lg font-bold text-slate-900">
                   Resumen Ejecutivo y Declaración de Envío
@@ -1299,7 +1478,7 @@ export const ParticipantForm = ({
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-left">
                 <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
                   <span className="text-[10px] font-bold uppercase text-slate-400 block">Participantes</span>
                   <p className="text-lg font-bold text-slate-900 mt-0.5">
@@ -1326,6 +1505,21 @@ export const ParticipantForm = ({
                 </div>
 
                 <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Hoja Calificación</span>
+                  <p className="text-sm font-bold mt-0.5 flex items-center gap-1.5">
+                    {gradeSheetCount > 0 ? (
+                      <span className="text-emerald-700 inline-flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" /> {gradeSheetCount} archivo(s)
+                      </span>
+                    ) : (
+                      <span className="text-amber-700 inline-flex items-center gap-1">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" /> Sin hoja
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
                   <span className="text-[10px] font-bold uppercase text-slate-400 block">Fotos y Soporte</span>
                   <p className="text-sm font-bold text-slate-800 mt-0.5 flex items-center gap-1.5">
                     <Camera className="w-4 h-4 text-slate-500" />
@@ -1336,7 +1530,7 @@ export const ParticipantForm = ({
                 <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
                   <span className="text-[10px] font-bold uppercase text-slate-400 block">Soportes de Servicio</span>
                   <p className="text-sm font-bold mt-0.5 flex items-center gap-1.5">
-                    {hasCompletedAttendance && hasCompletedPhotos && hasCompletedParticipants ? (
+                    {hasCompletedAttendance && hasCompletedGradeSheet && hasCompletedPhotos && hasCompletedParticipants ? (
                       <span className="text-emerald-700 inline-flex items-center gap-1">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Completos
                       </span>
@@ -1442,6 +1636,10 @@ export const ParticipantForm = ({
                 {!hasCompletedAttendance ? (
                   <p className="text-xs text-amber-600 font-medium">
                     ⚠️ Falta cargar la lista de asistencia física en el Paso {hasMaterial ? "2" : "1"}.
+                  </p>
+                ) : !hasCompletedGradeSheet ? (
+                  <p className="text-xs text-amber-600 font-medium">
+                    ⚠️ Falta cargar la hoja de calificación física firmada en el Paso {hasMaterial ? "3" : "2"}.
                   </p>
                 ) : !hasCompletedParticipants ? (
                   <p className="text-xs text-amber-600 font-medium">

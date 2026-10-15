@@ -1609,6 +1609,9 @@ export default function SeguimientoServiciosClient({
                           onPreviewListaAsistencia={(id) =>
                             setPreviewOsi({ osiId: id, nroOsi: osi.nro_osi || "", nroSesion: currentNroSesion })
                           }
+                          onPreviewCalificacion={(id) =>
+                            setPreviewOsi({ osiId: id, nroOsi: osi.nro_osi || "", nroSesion: currentNroSesion, category: "hoja_calificacion", title: "Hoja de Calificación", showReceivedToggle: true })
+                          }
                           onPreviewMaterialFotografico={(id) =>
                             setPreviewOsi({ osiId: id, nroOsi: osi.nro_osi || "", nroSesion: currentNroSesion, category: "material_fotografico", title: "Registro Fotográfico", showReceivedToggle: false })
                           }
@@ -1656,7 +1659,8 @@ export default function SeguimientoServiciosClient({
           showReceivedToggle={previewOsi.showReceivedToggle !== false}
           onAttachmentToggled={(received) => {
             if (received) {
-              handleToggleStep(previewOsi.osiId, previewOsi.nroSesion, "lista_asistencia");
+              const stepKey = previewOsi.category === "hoja_calificacion" ? "calificacion" : "lista_asistencia";
+              handleToggleStep(previewOsi.osiId, previewOsi.nroSesion, stepKey);
             }
           }}
         />

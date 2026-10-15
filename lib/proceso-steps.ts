@@ -47,6 +47,13 @@ export const EJECUCION_STEPS: StepDef[] = [
     phase: "ejecucion",
   },
   {
+    key: "calificacion",
+    label: "Calificación",
+    description: "Hoja de calificación de los participantes recibida.",
+    group: "post_servicio",
+    phase: "ejecucion",
+  },
+  {
     key: "material_fotografico",
     label: "Material fotográfico",
     description: "Material fotográfico del servicio.",
@@ -141,6 +148,7 @@ export function getStepByKey(stepKey: string): StepDef | undefined {
 export function isPostServiceOrSubsequentStep(stepKey: string): boolean {
   const postServiceKeys = [
     "lista_asistencia",
+    "calificacion",
     "material_fotografico",
     "encuestas_satisfaccion_tabulacion",
     "elaboracion_certificados",

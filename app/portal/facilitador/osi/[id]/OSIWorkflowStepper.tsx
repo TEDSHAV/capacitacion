@@ -8,9 +8,10 @@ import {
   HelpCircle,
   CheckCheck,
   CheckCircle2,
+  Award,
 } from "lucide-react";
 
-export type WizardStepId = "material" | "asistencia" | "participantes" | "evidencias" | "envio";
+export type WizardStepId = "material" | "asistencia" | "calificacion" | "participantes" | "evidencias" | "envio";
 
 export interface WizardStep {
   id: WizardStepId;
@@ -49,9 +50,18 @@ export function getWizardSteps(hasMaterial: boolean): WizardStep[] {
     id: "asistencia",
     number: num++,
     title: "Lista de Asistencia",
-    shortTitle: "Lista",
+    shortTitle: "Asistencia",
     desc: "Foto firmada y OCR",
     icon: FileSpreadsheet,
+  });
+
+  steps.push({
+    id: "calificacion",
+    number: num++,
+    title: "Lista de Calificación",
+    shortTitle: "Calificación",
+    desc: "Foto de notas físicas",
+    icon: Award,
   });
 
   steps.push({
