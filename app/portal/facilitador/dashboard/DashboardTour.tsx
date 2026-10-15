@@ -5,7 +5,7 @@ import { driver, type DriveStep } from "driver.js";
 import "driver.js/dist/driver.css";
 import { HelpCircle } from "lucide-react";
 
-const TOUR_KEY = "facilitador-dashboard-tour-v4";
+const TOUR_KEY = "facilitador-dashboard-tour-v5";
 
 const dashboardSteps: DriveStep[] = [
   {
@@ -13,7 +13,7 @@ const dashboardSteps: DriveStep[] = [
     popover: {
       title: "Bienvenido a tu Portal de Facilitador",
       description:
-        "Tu plataforma operativa centralizada para gestionar cursos asignados, registrar asistencia y participantes, subir evidencias fotográficas y cargar tus facturas fiscales.",
+        "Tu plataforma operativa centralizada para gestionar cursos asignados, registrar asistencia y participantes, subir evidencias fotográficas y remitir soportes de servicio.",
     },
   },
   {
@@ -29,7 +29,7 @@ const dashboardSteps: DriveStep[] = [
     popover: {
       title: "Vistas del Portal",
       description:
-        "Navega fácilmente entre:\n• Mis Servicios: Tus capacitaciones asignadas para ejecución.\n• Órdenes y Facturación: Consulta de OCs y carga de facturas fiscales.\n• Mi Perfil: Estadísticas de carrera y datos personales.",
+        "Navega fácilmente entre:\n• Mis Servicios: Tus capacitaciones asignadas para ejecución.\n• Mi Perfil: Estadísticas de carrera y datos personales.",
     },
   },
   {
@@ -62,14 +62,6 @@ const dashboardSteps: DriveStep[] = [
       title: "Ejecución y Cierre del Servicio",
       description:
         "Haz clic en cualquier servicio para abrir el flujo paso a paso. Allí podrás descargar el material didáctico oficial, subir la lista de asistencia física, extraer participantes con OCR, registrar calificaciones (0 a 20) y adjuntar fotos de la sesión.",
-    },
-  },
-  {
-    element: "#tour-tab-facturacion",
-    popover: {
-      title: "Fase 2: Órdenes de Compra y Facturación",
-      description:
-        "¡Recuerda! La factura NO se carga dentro del servicio. Una vez que remites el servicio y Administración valida los soportes, se emite tu Orden de Compra (OC). En esta pestaña podrás consultar tu OC y adjuntar tu factura fiscal en PDF con su número y número de control.",
     },
   },
 ];

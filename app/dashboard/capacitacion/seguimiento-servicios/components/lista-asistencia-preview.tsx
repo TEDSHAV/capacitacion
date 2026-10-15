@@ -38,7 +38,6 @@ const CATEGORY_NAMES: Record<string, { label: string; icon: typeof Paperclip; co
   lista_asistencia: { label: "Lista de Asistencia", icon: FileSpreadsheet, color: "bg-blue-50 text-blue-700 border-blue-200" },
   hoja_calificacion: { label: "Hoja de Calificación", icon: Award, color: "bg-amber-50 text-amber-700 border-amber-200" },
   material_fotografico: { label: "Registro Fotográfico", icon: ImageIcon, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  factura: { label: "Factura", icon: FileText, color: "bg-purple-50 text-purple-700 border-purple-200" },
 };
 
 export default function AttachmentPreviewModal({
@@ -129,7 +128,6 @@ export default function AttachmentPreviewModal({
   const asistenciaCount = allAttachments.filter((a) => a.category === "lista_asistencia").length;
   const calificacionCount = allAttachments.filter((a) => a.category === "hoja_calificacion").length;
   const fotosCount = allAttachments.filter((a) => a.category === "material_fotografico").length;
-  const facturasCount = allAttachments.filter((a) => a.category === "factura").length;
 
   const filteredAttachments = allAttachments.filter((att) => {
     if (activeCategory === "all") return true;
@@ -240,23 +238,6 @@ export default function AttachmentPreviewModal({
                 {fotosCount}
               </span>
             </button>
-
-            {facturasCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setActiveCategory("factura")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeCategory === "factura"
-                    ? "bg-white text-purple-900 shadow-xs border border-purple-200"
-                    : "text-slate-600 hover:bg-white/60"
-                }`}
-              >
-                <span>Facturas</span>
-                <span className="text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.2 rounded-full font-bold">
-                  {facturasCount}
-                </span>
-              </button>
-            )}
           </div>
 
           {/* Content */}

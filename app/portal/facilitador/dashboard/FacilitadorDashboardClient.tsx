@@ -16,7 +16,6 @@ import {
   Star,
   ShieldCheck,
   IdCard,
-  Receipt,
   Calendar,
 } from "lucide-react";
 import { DashboardTour } from "./DashboardTour";
@@ -24,8 +23,6 @@ import { DashboardTourAutoStart as AutoStart } from "./DashboardTourAutoStart";
 import { toTitleCase } from "@/utils/string-utils";
 import type { FacilitadorFullData } from "@/app/actions/facilitador-portal";
 import { ComplianceBanner } from "@/components/compliance/ComplianceBanner";
-import { FacilitadorFacturacionView } from "./FacilitadorFacturacionView";
-import type { FacilitadorPurchaseOrder } from "@/app/actions/facilitador-facturacion";
 
 interface OSIItem {
   id_osi: number;
@@ -56,8 +53,7 @@ interface FacilitadorDashboardClientProps {
   initialData?: FacilitadorFullData | null;
   osis?: OSIItem[];
   facilitadorId?: number;
-  initialOrders?: FacilitadorPurchaseOrder[];
-  initialView?: "servicios" | "facturacion" | "perfil";
+  initialView?: "servicios" | "perfil";
 }
 
 export default function FacilitadorDashboardClient({
@@ -65,10 +61,9 @@ export default function FacilitadorDashboardClient({
   initialData,
   osis = [],
   facilitadorId,
-  initialOrders = [],
   initialView = "servicios",
 }: FacilitadorDashboardClientProps) {
-  const [mainView, setMainView] = useState<"servicios" | "facturacion" | "perfil">(initialView);
+  const [mainView, setMainView] = useState<"servicios" | "perfil">(initialView);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTab, setFilterTab] = useState<"pendientes" | "finalizados">("pendientes");
 
@@ -89,7 +84,6 @@ export default function FacilitadorDashboardClient({
   const totalCount = osis.length;
   const finalizadosCount = osis.filter((o) => o.participant_status === "final").length;
   const pendientesCount = totalCount - finalizadosCount;
-  const pendingOrdersCount = initialOrders.filter((o) => o.status === "pendiente_factura").length;
 
   // Filtered active OSIs list
   const filteredOSIs = useMemo(() => {
@@ -223,7 +217,7 @@ export default function FacilitadorDashboardClient({
           {/* Navigation Tabs + Desktop Tour Button */}
           <div className="flex items-center gap-3 w-full xl:w-auto">
             <div
-              className="grid grid-cols-3 sm:flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs w-full xl:w-auto"
+              className="grid grid-cols-2 sm:flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs w-full xl:w-auto"
               id="tour-nav-tabs"
             >
               <button
@@ -240,26 +234,6 @@ export default function FacilitadorDashboardClient({
                 {pendientesCount > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-200">
                     {pendientesCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                id="tour-tab-facturacion"
-                type="button"
-                onClick={() => setMainView("facturacion")}
-                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                  mainView === "facturacion"
-                    ? "bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40"
-                }`}
-              >
-                <Receipt className="w-4 h-4 text-slate-500 shrink-0" />
-                <span className="hidden sm:inline">Órdenes y Facturación</span>
-                <span className="sm:hidden">Facturación</span>
-                {pendingOrdersCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-200 animate-pulse">
-                    {pendingOrdersCount}
                   </span>
                 )}
               </button>
@@ -582,17 +556,7 @@ export default function FacilitadorDashboardClient({
       )}
 
       {/* ========================================================================= */}
-      {/* VIEW 2: ÓRDENES DE COMPRA Y FACTURACIÓN */}
-      {/* ========================================================================= */}
-      {mainView === "facturacion" && (
-        <FacilitadorFacturacionView
-          initialOrders={initialOrders}
-          facilitadorId={effectiveFacilitadorId || 44}
-        />
-      )}
-
-      {/* ========================================================================= */}
-      {/* VIEW 3: MI PERFIL (CLEAN PROFILE DETAILS WITHOUT HERO REPETITION) */}
+      {/* VIEW 2: MI PERFIL (CLEAN PROFILE DETAILS WITHOUT HERO REPETITION) */}
       {/* ========================================================================= */}
       {mainView === "perfil" && (
         <div className="space-y-5">

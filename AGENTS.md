@@ -266,42 +266,21 @@ Examples:
 
 ---
 
-## Portal Facilitadores — Workflow de Servicios y Facturación
+## Portal Facilitadores — Workflow de Servicios
 
 ### Resumen del Flujo Operativo
 
-El flujo operativo para facilitadores desacopla la ejecución técnica del servicio de la facturación posterior:
+El flujo operativo para facilitadores se concentra en la ejecución técnica y remisión oficial del servicio:
 
-1. **Fase 1: Ejecución y Cierre Técnico del Servicio (`/portal/facilitador/osi/[id]`)**
+1. **Ejecución y Cierre Técnico del Servicio (`/portal/facilitador/osi/[id]`)**
    - El facilitador registra:
      1. Material de apoyo (opcional).
      2. Lista de asistencia firmada (obligatorio).
      3. Calificaciones de participantes 0–20 (obligatorio).
      4. Registro fotográfico de la sesión (mínimo 1 fotografía obligatorio).
      5. Declaración jurada de veracidad (checkbox obligatorio).
-   - **Nota sobre el Stepper**: El paso 4 ("Factura") fue retirado intencionalmente del wizard de la OSI para permitir que el facilitador complete y remita el servicio de inmediato sin bloquearse por la facturación.
+   - **Nota sobre el Stepper**: La facturación fiscal y órdenes de compra fueron retiradas de la plataforma del facilitador ya que dicho módulo se encuentra diferido para una fase posterior por parte de Administración/Compras.
    - **Notificaciones**: Al remitir la documentación finalizada, se genera una notificación para los departamentos de Capacitación y Administración mediante el evento `(scapacitacion, facilitador_upload)` con categoría `servicio_finalizado`.
-
-2. **Fase 2: Órdenes de Compra y Emisión de Facturas (`/portal/facilitador/dashboard?tab=facturacion` y Drawer)**
-   - Administración valida los soportes del servicio emitido y emite la correspondiente Orden de Compra (OC).
-   - El facilitador visualiza sus OCs en la pestaña "Órdenes y Facturación" (divididas en "Pendientes de Factura" e "Historial").
-   - Para cada OC pendiente, el facilitador puede adjuntar su factura (archivo PDF/imagen, número de factura, número de control y fecha de emisión).
-   - Al cargar la factura, se almacena en el bucket `facilitador-uploads` (categoría `factura`) y se notifica nuevamente a Capacitación y Administración.
-
-### Integración Futura: Órdenes de Compra (Módulo Externo)
-
-La generación y gestión de Órdenes de Compra es administrada por otra aplicación/módulo del ecosistema (Administración / Compras).
-
-#### Puntos Clave para Retomar la Integración:
-- **Server Action**: `app/actions/facilitador-facturacion.ts` (`getFacilitadorPurchaseOrders`).
-- **Tabla Destino**: `ordenes_compra` (o el nombre convenido por el módulo de administración en Supabase).
-- **Relación**: Asociar las OCs por `facilitador_id` (o `id_facilitador`) y cruzar con facturas ya cargadas en `facilitador_documentos` (filtro `category = 'factura'` por `osi_id` o `po_id`).
-- **Restricción Crítica de Privacidad Financiera**:
-  - Los facilitadores **NUNCA** deben ver costos por hora, tarifas internas, honorarios calculados ni montos en divisas ($ USD) originados en `requisiciones` o tablas internas.
-  - La vista del facilitador es 100% operacional: Número de OC, cliente (empresa), servicio impartido, fecha y estado de la factura. No usar `requisiciones` como fuente de datos para esta vista.
-- **Muestras de Prueba (QA)**:
-  - El facilitador con `id = 44` dispone de dos órdenes de compra simuladas (`OC-2026-0044` activa y `OC-2026-0019` histórica) exclusivamente para validación de UI y pruebas de subida.
-  - Cuando la tabla `ordenes_compra` esté disponible en base de datos, reemplazar la condición `if (facilitadorId === 44)` por la consulta real y remover los datos mock.
 
 ---
 

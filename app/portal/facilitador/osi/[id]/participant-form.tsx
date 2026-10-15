@@ -428,7 +428,7 @@ export const ParticipantForm = ({
         popover: {
           title: "Guardar Borrador y Envío a Capacitación",
           description:
-            "Usa 'Guardar borrador' si deseas guardar tu progreso para continuar después. Cuando todo esté completo y verificado, haz clic en 'Finalizar y Enviar a Capacitación'.\n\n📌 NOTA IMPORTANTE: La factura fiscal NO se sube aquí. La facturación se realiza en la pestaña 'Órdenes y Facturación' una vez que Administración revise los soportes y emita tu Orden de Compra.",
+            "Usa 'Guardar borrador' si deseas guardar tu progreso para continuar después. Cuando todo esté completo y verificado, haz clic en 'Finalizar y Enviar a Capacitación'.",
         },
       }
     );

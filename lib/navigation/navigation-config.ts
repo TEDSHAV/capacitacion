@@ -18,7 +18,6 @@ import {
   MailCheck,
   UserCheck,
   ShieldCheck,
-  Receipt,
   Bell,
   MapPin,
 } from "lucide-react";
@@ -66,13 +65,6 @@ const FACILITADOR_NAV: NavItem[] = [
     label: "Mis Servicios",
     href: "/portal/facilitador/dashboard",
     icon: Home,
-    offlineAvailable: true,
-  },
-  {
-    id: "facturacion",
-    label: "Órdenes y Facturación",
-    href: "/portal/facilitador/dashboard?view=facturacion",
-    icon: Receipt,
     offlineAvailable: true,
   },
 ];
