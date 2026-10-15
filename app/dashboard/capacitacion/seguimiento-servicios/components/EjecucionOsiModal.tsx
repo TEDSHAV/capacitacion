@@ -9,6 +9,8 @@ import {
   Loader2,
   Calendar,
   RotateCcw,
+  MapPin,
+  Landmark,
 } from "lucide-react";
 import type { ProcesoStepRecord } from "@/app/actions/capacitacion-proceso-steps";
 import { SALONES_SHA, isShaLocation } from "@/lib/constants/salones";
@@ -67,7 +69,7 @@ export default function EjecucionOsiModal({
 }: EjecucionOsiModalProps) {
   const isCurrentlyRescheduled = Boolean(stepRecord?.step_metadata?.is_rescheduled);
   const isCurrentlyCompleted = Boolean(stepRecord?.completed);
-  const isSha = isShaLocation(direccion, sede);
+  const isDetectedSha = isShaLocation(direccion, sede) || Boolean(stepRecord?.step_metadata?.salon);
 
   // Tab mode: "ejecutado" | "reagendar"
   const [mode, setMode] = useState<"ejecutado" | "reagendar">("ejecutado");
@@ -75,6 +77,7 @@ export default function EjecucionOsiModal({
   // State for Ejecutado
   const [executionDate, setExecutionDate] = useState(getCaracasTodayStr());
   const [selectedSalon, setSelectedSalon] = useState<string>("");
+  const [showSalonSection, setShowSalonSection] = useState<boolean>(isDetectedSha);
 
   // State for Reagendar
   const [reason, setReason] = useState("");
@@ -90,6 +93,7 @@ export default function EjecucionOsiModal({
 
       const existingSalon = (stepRecord?.step_metadata?.salon as string | undefined) || "";
       setSelectedSalon(existingSalon);
+      setShowSalonSection(isDetectedSha || Boolean(existingSalon));
 
       if (isCurrentlyRescheduled) {
         setMode("reagendar");
@@ -110,7 +114,7 @@ export default function EjecucionOsiModal({
         setNewDate("");
       }
     }
-  }, [isOpen, isCurrentlyRescheduled, stepRecord]);
+  }, [isOpen, isCurrentlyRescheduled, stepRecord, isDetectedSha]);
 
   if (!isOpen) return null;
 
@@ -123,7 +127,7 @@ export default function EjecucionOsiModal({
       try {
         await onConfirmEjecutado(
           executionDate.trim() || null,
-          isSha ? (selectedSalon.trim() || null) : null,
+          selectedSalon.trim() || null,
         );
         onClose();
       } catch (err) {
@@ -194,6 +198,19 @@ export default function EjecucionOsiModal({
             </p>
             {servicio && (
               <p className="text-[11px] text-gray-500 mt-0.5 truncate max-w-md">{servicio}</p>
+            )}
+            {(sede || direccion) && (
+              <div className="text-[11px] text-gray-600 mt-1 flex items-center gap-1.5 flex-wrap">
+                <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <span className="truncate max-w-xs">
+                  Ubicación: <strong className="text-gray-800">{sede || direccion}</strong>
+                </span>
+                {isDetectedSha && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                    🏛️ Instalaciones SHA
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <button
@@ -342,15 +359,16 @@ export default function EjecucionOsiModal({
                 </p>
               </div>
 
-              {/* Salón SHA Selection Box (shown when address has SHA) */}
-              {isSha && (
+              {/* Salón SHA Selection Box */}
+              {showSalonSection ? (
                 <div className="pt-3 border-t border-emerald-200/60">
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold text-gray-800">
+                    <label className="block text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                      <Landmark className="w-4 h-4 text-purple-600" />
                       Salón de capacitación (Sede SHA)
                     </label>
-                    <span className="text-[10px] text-emerald-800 bg-emerald-100/90 font-bold px-2 py-0.5 rounded-full">
-                      Instalaciones SHA
+                    <span className="text-[10px] text-purple-800 bg-purple-100 font-bold px-2 py-0.5 rounded-full border border-purple-200">
+                      🏛️ Instalaciones SHA
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-600 mb-2">
@@ -364,8 +382,8 @@ export default function EjecucionOsiModal({
                         onClick={() => setSelectedSalon(s)}
                         className={`py-2 px-2.5 text-xs font-semibold rounded-lg border text-center transition-all cursor-pointer ${
                           selectedSalon === s
-                            ? "bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-500/20"
-                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                            ? "bg-purple-700 text-white border-purple-700 shadow-xs ring-2 ring-purple-500/20"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-purple-50 hover:border-purple-300"
                         }`}
                       >
                         {s}
@@ -374,7 +392,10 @@ export default function EjecucionOsiModal({
                   </div>
                   <div className="flex items-center justify-between mt-2 pt-1 text-[11px]">
                     <span className="text-gray-500">
-                      Salón asignado: <strong className="text-gray-900">{selectedSalon || "Sin seleccionar"}</strong>
+                      Salón asignado:{" "}
+                      <strong className={selectedSalon ? "text-purple-700 font-bold" : "text-gray-900"}>
+                        {selectedSalon || "Sin seleccionar"}
+                      </strong>
                     </span>
                     {selectedSalon && (
                       <button
@@ -386,6 +407,17 @@ export default function EjecucionOsiModal({
                       </button>
                     )}
                   </div>
+                </div>
+              ) : (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSalonSection(true)}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/80 px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                  >
+                    <Landmark className="w-3.5 h-3.5 text-purple-600" />
+                    ¿Se impartió en sede SHA? Asignar Salón
+                  </button>
                 </div>
               )}
             </div>

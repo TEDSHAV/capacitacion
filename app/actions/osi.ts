@@ -409,7 +409,7 @@ export async function getOSIsForManagement(
       osiIds.length > 0
         ? supabase
             .from("v_osi_formato_completo")
-            .select("id_osi, desglose_recursos_sesiones, sesiones_programadas")
+            .select("id_osi, desglose_recursos_sesiones, sesiones_programadas, sede, direccion_ejecucion_real")
             .in("id_osi", osiIds)
         : Promise.resolve({ data: null as any, error: null as any }),
       getOSIStatuses(),
@@ -421,12 +421,22 @@ export async function getOSIsForManagement(
         : Promise.resolve({ data: null }),
     ]);
 
-    const heavyMap = new Map<number, { desglose_recursos_sesiones: any; sesiones_programadas: any }>();
+    const heavyMap = new Map<
+      number,
+      {
+        desglose_recursos_sesiones: any;
+        sesiones_programadas: any;
+        sede: string | null;
+        direccion_ejecucion_real: string | null;
+      }
+    >();
     if (heavyResult.data) {
       for (const row of heavyResult.data) {
         heavyMap.set(row.id_osi, {
           desglose_recursos_sesiones: row.desglose_recursos_sesiones,
           sesiones_programadas: row.sesiones_programadas,
+          sede: row.sede || null,
+          direccion_ejecucion_real: row.direccion_ejecucion_real || null,
         });
       }
     }
@@ -440,8 +450,12 @@ export async function getOSIsForManagement(
     const enrichedOSIs = (data || []).map((osi: any) => {
       const status = statusMap.get(osi.id_estatus);
       const heavy = heavyMap.get(osi.id_osi);
+      const sede = heavy?.sede || null;
+      const direccion = (osi.direccion_ejecucion || heavy?.direccion_ejecucion_real || sede || "").trim();
       return {
         ...osi,
+        sede,
+        direccion_ejecucion: direccion,
         desglose_recursos_sesiones: heavy?.desglose_recursos_sesiones ?? null,
         sesiones_programadas: heavy?.sesiones_programadas ?? null,
         status_name: status?.nombre_estado || "Desconocido",

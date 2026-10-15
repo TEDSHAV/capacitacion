@@ -18,6 +18,9 @@ import {
   AlertCircle,
   FileText,
   MessageSquare,
+  MapPin,
+  Landmark,
+  CheckCircle2,
 } from "lucide-react";
 import type { OSIManagement, OSISesion, OSIFilters, OSIStatus } from "@/types";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
@@ -33,6 +36,7 @@ import {
   type ProcesoStepRecord,
 } from "@/app/actions/capacitacion-proceso-steps";
 import { ALL_STEPS, PLANIFICACION_STEPS, EJECUCION_STEPS } from "@/lib/proceso-steps";
+import { isShaLocation } from "@/lib/constants/salones";
 import ProcesoStepsTimeline from "../components/proceso-steps-timeline";
 import OSIPagination from "../gestion-osi/components/osi-pagination";
 import ListaAsistenciaPreview from "./components/lista-asistencia-preview";
@@ -1293,6 +1297,9 @@ export default function SeguimientoServiciosClient({
               const currentSessionMeta = (sessionSteps["en_proceso"]?.step_metadata as Record<string, unknown> | undefined) || {};
               const isCurrentSessionRescheduled = currentSessionMeta.is_rescheduled === true && !sessionSteps["en_proceso"]?.completed;
               const unmarkReason = (currentSessionMeta.unmark_reason as string) || (sessionSteps["en_proceso"]?.notes as string) || "";
+              const currentSalon = (currentSessionMeta.salon as string | undefined) || null;
+              const isShaDetected = isShaLocation(osi.direccion_ejecucion, osi.sede) || Boolean(currentSalon);
+              const displayVenue = (osi.sede || osi.direccion_ejecucion || "").trim();
 
               return (
                 <div key={osi.id_osi}>
@@ -1347,7 +1354,26 @@ export default function SeguimientoServiciosClient({
                         </div>
                       </div>
                       <div className="hidden md:block min-w-0">
-                        <p className="text-xs text-gray-500 truncate">{osi.servicio}</p>
+                        <p className="text-xs font-medium text-gray-800 truncate">{osi.servicio}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {displayVenue && (
+                            <span className="text-[11px] text-gray-500 truncate max-w-[220px] flex items-center gap-1" title={displayVenue}>
+                              <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                              <span className="truncate">{displayVenue}</span>
+                            </span>
+                          )}
+                          {currentSalon ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                              <Landmark className="w-2.5 h-2.5 text-purple-600" />
+                              {currentSalon}
+                            </span>
+                          ) : isShaDetected ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/80">
+                              <Landmark className="w-2.5 h-2.5 text-purple-500" />
+                              Sede SHA
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="hidden md:block min-w-0">
                         <p className="text-xs text-gray-500 truncate flex items-center gap-1">
@@ -1428,6 +1454,91 @@ export default function SeguimientoServiciosClient({
                           </button>
                         </div>
                       )}
+
+                      {/* Venue & Salon Management Bar */}
+                      <div className="mb-3 px-3.5 py-2.5 rounded-xl border flex items-center justify-between gap-3 flex-wrap bg-white border-gray-200/90 shadow-2xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                              isShaDetected
+                                ? "bg-purple-100 text-purple-700"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {isShaDetected ? (
+                              <Landmark className="w-4 h-4" />
+                            ) : (
+                              <MapPin className="w-4 h-4" />
+                            )}
+                          </div>
+                          <div className="text-xs min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[11px] font-medium text-gray-500">
+                                Sede / Lugar:
+                              </span>
+                              <strong className="text-gray-900 truncate max-w-xs md:max-w-md">
+                                {displayVenue || "Dirección no especificada"}
+                              </strong>
+                              {isShaDetected && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                  🏛️ Instalaciones SHA
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <span className="text-[11px] text-gray-500">Salón:</span>
+                              {currentSalon ? (
+                                <span className="inline-flex items-center gap-1 font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 text-[11px]">
+                                  {currentSalon}
+                                </span>
+                              ) : isShaDetected ? (
+                                <span className="text-amber-700 font-medium italic text-[11px]">
+                                  Pendiente de asignar salón
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 italic text-[11px]">
+                                  No asignado / Externo
+                                </span>
+                              )}
+                              {sessionSteps["en_proceso"]?.completed && (
+                                <span className="text-[11px] text-emerald-700 font-medium ml-1 flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  Ejecutado{" "}
+                                  {sessionSteps["en_proceso"]?.completed_at
+                                    ? `(${sessionSteps["en_proceso"].completed_at.split("T")[0]})`
+                                    : ""}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenExecutionModal(osi.id_osi);
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
+                            sessionSteps["en_proceso"]?.completed
+                              ? "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200"
+                              : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs"
+                          }`}
+                          title="Gestionar fecha real de ejecución y asignar salón de capacitación"
+                        >
+                          {sessionSteps["en_proceso"]?.completed ? (
+                            <>
+                              <Landmark className="w-3.5 h-3.5" />
+                              Cambiar Salón / Fecha
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Asignar Salón / Ejecutar
+                            </>
+                          )}
+                        </button>
+                      </div>
 
                       {/* Session tabs (only for multi-session) */}
                       {hasMultipleSessions && (
