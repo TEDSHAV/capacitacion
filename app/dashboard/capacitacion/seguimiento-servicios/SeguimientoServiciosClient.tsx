@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
+import Link from "next/link";
 import {
   Search,
   Loader2,
@@ -22,6 +23,7 @@ import {
   Landmark,
   CheckCircle2,
   Paperclip,
+  Award,
 } from "lucide-react";
 import type { OSIManagement, OSISesion, OSIFilters, OSIStatus } from "@/types";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
@@ -46,6 +48,7 @@ import EjecucionOsiModal from "./components/EjecucionOsiModal";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 import OsiCommentsSheet from "@/components/osi/OsiCommentsSheet";
 import { formatDateOnly } from "@/lib/format-date";
+import { OsiAuditModal } from "../auditoria-soportes/components/OsiAuditModal";
 
 interface FilterOptions {
   companies: { id_empresa: number; nombre_empresa: string }[];
@@ -181,6 +184,7 @@ export default function SeguimientoServiciosClient({
   const [osiFormatoPreview, setOsiFormatoPreview] = useState<{ osiId: number; nroOsi: string } | null>(null);
   const [commentsOsi, setCommentsOsi] = useState<{ osiId: number; nroOsi: string; servicio?: string } | null>(null);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [auditWorkspaceOsiId, setAuditWorkspaceOsiId] = useState<number | null>(null);
   const isFirstRender = useRef(true);
   const hasInitialized = useRef(false);
 
@@ -947,15 +951,16 @@ export default function SeguimientoServiciosClient({
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsAuditModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-bold transition-all cursor-pointer shadow-2xs"
-            title="Consultar y auditar adjuntos de facilitadores"
-          >
-            <Paperclip className="w-3.5 h-3.5 text-sky-600" />
-            <span>Auditoría de Soportes</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/capacitacion/auditoria-soportes"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-sky-50 text-sky-800 hover:text-sky-900 border border-sky-200/80 hover:border-sky-300 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+              title="Abrir revisión de documentos y calificaciones"
+            >
+              <Award className="w-3.5 h-3.5 text-amber-500" />
+              <span>Revisión de documentos</span>
+            </Link>
+          </div>
         </div>
 
         {/* Quick-Filter Segmented Tabs */}
@@ -1358,6 +1363,17 @@ export default function SeguimientoServiciosClient({
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
                           </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAuditWorkspaceOsiId(osi.id_osi);
+                            }}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-gray-400 hover:text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer"
+                            title="Revisión de notas y soportes (Pantalla dividida)"
+                          >
+                            <Award className="w-3.5 h-3.5 text-amber-500" />
+                          </button>
                           {isAnySessionRescheduled && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                               <CalendarClock className="w-3 h-3 text-amber-600" />
@@ -1526,31 +1542,46 @@ export default function SeguimientoServiciosClient({
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenExecutionModal(osi.id_osi);
-                          }}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
-                            sessionSteps["en_proceso"]?.completed
-                              ? "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200"
-                              : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs"
-                          }`}
-                          title="Gestionar fecha real de ejecución y asignar salón de capacitación"
-                        >
-                          {sessionSteps["en_proceso"]?.completed ? (
-                            <>
-                              <Landmark className="w-3.5 h-3.5" />
-                              Cambiar Salón / Fecha
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              Asignar Salón / Ejecutar
-                            </>
-                          )}
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAuditWorkspaceOsiId(osi.id_osi);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition cursor-pointer shrink-0 shadow-2xs"
+                            title="Revisión de notas del facilitador vs. soportes físicos cargados (Pantalla dividida)"
+                          >
+                            <Award className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Revisión de Notas y Soportes</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenExecutionModal(osi.id_osi);
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0 ${
+                              sessionSteps["en_proceso"]?.completed
+                                ? "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200"
+                                : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs"
+                            }`}
+                            title="Gestionar fecha real de ejecución y asignar salón de capacitación"
+                          >
+                            {sessionSteps["en_proceso"]?.completed ? (
+                              <>
+                                <Landmark className="w-3.5 h-3.5" />
+                                Cambiar Salón / Fecha
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Asignar Salón / Ejecutar
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
 
                       {/* Session tabs (only for multi-session) */}
@@ -1670,6 +1701,7 @@ export default function SeguimientoServiciosClient({
           category={previewOsi.category}
           title={previewOsi.title}
           showReceivedToggle={previewOsi.showReceivedToggle !== false}
+          onOpenAuditWorkspace={(id) => setAuditWorkspaceOsiId(id)}
           onAttachmentToggled={(received) => {
             if (received && previewOsi.nroSesion != null) {
               const stepKey = previewOsi.category === "hoja_calificacion" ? "calificacion" : "lista_asistencia";
@@ -1683,6 +1715,7 @@ export default function SeguimientoServiciosClient({
       <FacilitadorUploadsAuditModal
         isOpen={isAuditModalOpen}
         onClose={() => setIsAuditModalOpen(false)}
+        onOpenAuditWorkspace={(osiId) => setAuditWorkspaceOsiId(osiId)}
         onOpenOsiPreview={(osiId, nroOsi) => {
           setPreviewOsi({
             osiId,
@@ -1733,6 +1766,13 @@ export default function SeguimientoServiciosClient({
         servicio={commentsOsi?.servicio}
         open={Boolean(commentsOsi)}
         onClose={() => setCommentsOsi(null)}
+      />
+
+      {/* Audit Workspace Modal (Full split-screen in-place) */}
+      <OsiAuditModal
+        osiId={auditWorkspaceOsiId}
+        isOpen={auditWorkspaceOsiId != null}
+        onClose={() => setAuditWorkspaceOsiId(null)}
       />
     </div>
   );

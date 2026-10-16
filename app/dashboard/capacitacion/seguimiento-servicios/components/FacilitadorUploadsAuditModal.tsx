@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import {
   X,
   Search,
@@ -24,6 +25,8 @@ import {
   Eye,
   Download,
   ExternalLink,
+  Maximize2,
+  Layers,
 } from "lucide-react";
 import {
   getFacilitadorUploadsAudit,
@@ -35,6 +38,7 @@ interface FacilitadorUploadsAuditModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenOsiPreview: (osiId: number, nroOsi: string) => void;
+  onOpenAuditWorkspace?: (osiId: number) => void;
   onSelectOsiInTable?: (osiId: number) => void;
 }
 
@@ -42,6 +46,7 @@ export default function FacilitadorUploadsAuditModal({
   isOpen,
   onClose,
   onOpenOsiPreview,
+  onOpenAuditWorkspace,
   onSelectOsiInTable,
 }: FacilitadorUploadsAuditModalProps) {
   const [loading, setLoading] = useState(true);
@@ -165,6 +170,15 @@ export default function FacilitadorUploadsAuditModal({
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-sky-600" : ""}`} />
               </button>
+              <Link
+                href="/dashboard/capacitacion/auditoria-soportes"
+                onClick={onClose}
+                className="p-2 text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200 inline-flex items-center gap-1.5 text-xs font-bold"
+                title="Abrir Auditoría en Pantalla Completa"
+              >
+                <Maximize2 className="w-4 h-4 text-sky-600" />
+                <span className="hidden sm:inline">Pantalla Completa</span>
+              </Link>
               <button
                 type="button"
                 onClick={onClose}
@@ -346,6 +360,27 @@ export default function FacilitadorUploadsAuditModal({
                       {item.nroOsi}
                     </span>
 
+                    {/* Multi-OSI Group Indicator Badges */}
+                    {item.isGroupChild && item.parentNroOsi && (
+                      <span
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"
+                        title={`Vinculada a OSI #${item.parentNroOsi} (${item.sharedFilesCount || 0} soportes compartidos)`}
+                      >
+                        <Layers className="w-3 h-3 text-indigo-500" />
+                        Vinculada a OSI #{item.parentNroOsi}
+                      </span>
+                    )}
+
+                    {item.isGroupParent && item.childOsis && item.childOsis.length > 0 && (
+                      <span
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200"
+                        title={`Grupo Multi-OSI agrupando ${item.childOsis.length} órdenes hijas`}
+                      >
+                        <Layers className="w-3 h-3 text-violet-500" />
+                        Grupo Multi-OSI · {item.childOsis.length + 1} OSIs
+                      </span>
+                    )}
+
                     {/* Overall status pill */}
                     {item.isComplete ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
@@ -353,7 +388,7 @@ export default function FacilitadorUploadsAuditModal({
                       </span>
                     ) : item.isPendingUpload ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                        <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Recaudos Pendientes
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600" /> Documentos Pendientes
                       </span>
                     ) : item.isPendingConfirmation ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
@@ -386,6 +421,31 @@ export default function FacilitadorUploadsAuditModal({
                           <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
                         )}
                       </button>
+                    )}
+
+                    {onOpenAuditWorkspace ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onOpenAuditWorkspace(item.osiId);
+                          onClose();
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                        title="Revisión de calificaciones y soportes físicos (Pantalla dividida)"
+                      >
+                        <Award className="w-3.5 h-3.5 text-white" />
+                        <span>Revisión de Notas</span>
+                      </button>
+                    ) : (
+                      <Link
+                        href={`/dashboard/capacitacion/auditoria-soportes/${item.osiId}`}
+                        onClick={onClose}
+                        className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors shadow-2xs"
+                        title="Revisión de calificaciones y soportes físicos"
+                      >
+                        <Award className="w-3.5 h-3.5 text-white" />
+                        <span>Revisión de Notas</span>
+                      </Link>
                     )}
 
                     <button

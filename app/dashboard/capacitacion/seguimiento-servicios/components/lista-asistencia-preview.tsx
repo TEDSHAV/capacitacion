@@ -14,6 +14,7 @@ import {
   Eye,
   FileSpreadsheet,
   Award,
+  ExternalLink,
 } from "lucide-react";
 import {
   getListaAsistenciaInfo,
@@ -29,6 +30,7 @@ interface AttachmentPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAttachmentToggled?: (received: boolean) => void;
+  onOpenAuditWorkspace?: (osiId: number) => void;
   category?: string;
   title?: string;
   showReceivedToggle?: boolean;
@@ -47,6 +49,7 @@ export default function AttachmentPreviewModal({
   isOpen,
   onClose,
   onAttachmentToggled,
+  onOpenAuditWorkspace,
   category,
   title = "Soportes y Documentos de la OSI",
   showReceivedToggle = true,
@@ -160,12 +163,41 @@ export default function AttachmentPreviewModal({
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-200/60 rounded-xl transition-colors cursor-pointer text-gray-500"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {onOpenAuditWorkspace ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenAuditWorkspace(osiId);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition-colors shadow-2xs cursor-pointer"
+                  title="Abrir revisión de notas y soportes (Pantalla dividida)"
+                >
+                  <Award className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="hidden sm:inline">Revisión de Notas y Soportes</span>
+                  <span className="sm:hidden">Revisar</span>
+                </button>
+              ) : (
+                <a
+                  href={`/dashboard/capacitacion/auditoria-soportes/${osiId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition-colors shadow-2xs"
+                  title="Abrir revisión de notas y soportes en pestaña nueva"
+                >
+                  <Award className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="hidden sm:inline">Revisión de Notas y Soportes</span>
+                  <ExternalLink className="w-3 h-3 text-amber-500" />
+                </a>
+              )}
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-200/60 rounded-xl transition-colors cursor-pointer text-gray-500"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Category Tabs */}

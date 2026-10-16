@@ -118,6 +118,13 @@ const DASHBOARD_NAV: NavItem[] = [
         badge: { count: 0, color: "blue" },
         offlineAvailable: true,
       },
+      {
+        id: "auditoria-soportes",
+        label: "Revisión de Documentos",
+        href: "/dashboard/capacitacion/auditoria-soportes",
+        icon: FileCheck,
+        offlineAvailable: true,
+      },
     ],
   },
   {
