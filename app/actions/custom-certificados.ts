@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { CertificateGeneration } from "@/types";
+import { CertificateGeneration, Facilitador } from "@/types";
 import { CustomParticipant } from "@/lib/custom-participant-types";
 import { CertCoordinateConfig } from "@/lib/custom-coordinate-types";
 import { getFacilitatorData } from "./facilitators";
@@ -203,7 +203,7 @@ function generateCustomSnapshot(
       facilitator_id: certificateData.facilitator_id,
       facilitator_data: certificateData.facilitator_data,
       sha_signature_id: certificateData.sha_signature_id,
-      sha_signature_data: (certificateData as any).sha_signature_data ?? null,
+      sha_signature_data: certificateData.sha_signature_data ?? null,
     },
     coordenadas: certCoords || undefined,
     metadatos: {
@@ -233,20 +233,20 @@ export async function saveCustomCertificatesToDatabase(
       try {
         const facilitatorData = await getFacilitatorData(certificateData.facilitator_id);
         if (facilitatorData) {
-          updatedCertificateData.facilitator_data = facilitatorData as any;
+          updatedCertificateData.facilitator_data = facilitatorData as unknown as Facilitador;
         }
       } catch (e) {
         console.warn("Failed to fetch facilitator data:", e);
       }
     }
 
-    if (certificateData.sha_signature_id && !(certificateData as any).sha_signature_data) {
+    if (certificateData.sha_signature_id && !certificateData.sha_signature_data) {
       try {
         const shaSignatureData = await certificateService.getSignatureData(
           certificateData.sha_signature_id,
         );
         if (shaSignatureData) {
-          (updatedCertificateData as any).sha_signature_data = shaSignatureData;
+          updatedCertificateData.sha_signature_data = shaSignatureData;
         }
       } catch (e) {
         console.warn("Failed to fetch SHA signature data:", e);
@@ -255,11 +255,74 @@ export async function saveCustomCertificatesToDatabase(
 
     const supabase = await createClient();
 
-    if (!certificateData.osi_data || !certificateData.course_topic_data) {
+    const osiData = updatedCertificateData.osi_data;
+    if (!osiData || !certificateData.course_topic_data) {
       return {
         success: false,
         message: "OSI data and course topic data are required",
       };
+    }
+
+    // Ensure id_sede, id_ciudad, and empresa_id are resolved from v_osi_formato_completo if missing
+    if (
+      (!osiData.id_sede ||
+        !osiData.id_ciudad ||
+        !osiData.empresa_id) &&
+      (osiData.nro_osi || updatedCertificateData.osi_id)
+    ) {
+      try {
+        const rawNro = osiData.nro_osi;
+        const cleanNro = rawNro
+          ? String(rawNro).replace(/[^\d]/g, "")
+          : null;
+        let osiQuery = supabase
+          .from("v_osi_formato_completo")
+          .select(
+            "id_sede, sede, id_ciudad_direccion_ejecucion_efectiva, id_empresa, id_estado_direccion_ejecucion_efectiva",
+          );
+
+        if (cleanNro) {
+          osiQuery = osiQuery.eq("nro_osi", cleanNro);
+        } else if (
+          updatedCertificateData.osi_id &&
+          updatedCertificateData.osi_id !== "manual"
+        ) {
+          osiQuery = osiQuery.eq(
+            "id_osi",
+            parseInt(updatedCertificateData.osi_id, 10),
+          );
+        }
+
+        const { data: osiMatch } = await osiQuery.maybeSingle();
+        if (osiMatch) {
+          if (!osiData.id_sede && osiMatch.id_sede) {
+            osiData.id_sede = osiMatch.id_sede;
+            osiData.sede = osiMatch.sede;
+          }
+          if (
+            !osiData.id_ciudad &&
+            osiMatch.id_ciudad_direccion_ejecucion_efectiva
+          ) {
+            osiData.id_ciudad =
+              osiMatch.id_ciudad_direccion_ejecucion_efectiva;
+          }
+          if (!osiData.empresa_id && osiMatch.id_empresa) {
+            osiData.empresa_id = osiMatch.id_empresa;
+          }
+          if (
+            !updatedCertificateData.id_estado &&
+            osiMatch.id_estado_direccion_ejecucion_efectiva
+          ) {
+            updatedCertificateData.id_estado =
+              osiMatch.id_estado_direccion_ejecucion_efectiva;
+          }
+        }
+      } catch (err) {
+        console.warn(
+          "[saveCustomCertificatesToDatabase] Failed to resolve OSI sede metadata fallback:",
+          err,
+        );
+      }
     }
 
     const emissionDate =

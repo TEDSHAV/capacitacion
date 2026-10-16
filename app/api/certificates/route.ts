@@ -146,6 +146,9 @@ export async function POST(request: NextRequest) {
       fecha_vencimiento,
       control_numbers,
       snapshot_contenido,
+      id_sede,
+      id_ciudad,
+      nro_osi,
     } = body;
 
     // Validate required fields
@@ -157,6 +160,23 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 },
       );
+    }
+
+    let resolvedSedeId = id_sede || null;
+    let resolvedCiudadId = id_ciudad || null;
+    if (!resolvedSedeId && nro_osi) {
+      const cleanNro = String(nro_osi).replace(/[^\d]/g, "");
+      if (cleanNro) {
+        const { data: osiMatch } = await supabase
+          .from("v_osi_formato_completo")
+          .select("id_sede, id_ciudad_direccion_ejecucion_efectiva")
+          .eq("nro_osi", cleanNro)
+          .maybeSingle();
+        if (osiMatch?.id_sede) resolvedSedeId = osiMatch.id_sede;
+        if (!resolvedCiudadId && osiMatch?.id_ciudad_direccion_ejecucion_efectiva) {
+          resolvedCiudadId = osiMatch.id_ciudad_direccion_ejecucion_efectiva;
+        }
+      }
     }
 
     const { data: certificate, error } = await supabase
@@ -171,6 +191,9 @@ export async function POST(request: NextRequest) {
         fecha_vencimiento,
         control_numbers,
         snapshot_contenido,
+        id_sede: resolvedSedeId,
+        id_ciudad: resolvedCiudadId,
+        nro_osi: nro_osi || null,
         is_active: true,
       })
       .select()
