@@ -16,8 +16,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Search,
-  CheckSquare,
-  Square,
   User,
   Building2,
   Calendar,
@@ -167,27 +165,9 @@ export function OsiAuditWorkspaceClient({ data, onClose, isModal }: OsiAuditWork
 
   const handleMouseUp = () => setIsDragging(false);
 
-  // Participant Table State (Search, Filter, Checkmarks)
+  // Participant Table State (Search & Filter)
   const [searchTerm, setSearchTerm] = useState("");
   const [filterMode, setFilterMode] = useState<"todos" | "aprobados" | "reprobados">("todos");
-  const [verifiedIds, setVerifiedIds] = useState<Set<number>>(new Set());
-
-  const toggleVerified = (id: number) => {
-    setVerifiedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const markAllVerified = () => {
-    setVerifiedIds(new Set(participants.map((p) => p.id)));
-  };
-
-  const clearVerified = () => {
-    setVerifiedIds(new Set());
-  };
 
   const filteredParticipants = useMemo(() => {
     let list = participants;
@@ -209,9 +189,6 @@ export function OsiAuditWorkspaceClient({ data, onClose, isModal }: OsiAuditWork
 
     return list;
   }, [participants, filterMode, searchTerm]);
-
-  const verifiedCount = verifiedIds.size;
-  const progressPercent = participants.length > 0 ? Math.round((verifiedCount / participants.length) * 100) : 0;
 
   return (
     <div className="space-y-4 max-w-[1720px] mx-auto pb-10">
@@ -704,7 +681,7 @@ export function OsiAuditWorkspaceClient({ data, onClose, isModal }: OsiAuditWork
                   <span>Calificaciones Registradas en Portal</span>
                 </h2>
                 <p className="text-[11px] text-slate-500">
-                  Cotejo de notas transcritas vs documento físico escaneado
+                  Notas transcritas por el facilitador vs. documento físico escaneado
                 </p>
               </div>
 
@@ -781,32 +758,6 @@ export function OsiAuditWorkspaceClient({ data, onClose, isModal }: OsiAuditWork
                 )}
               </div>
             </div>
-
-            {/* Verification checklist progress bar */}
-            <div className="flex items-center justify-between text-[11px] pt-1">
-              <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-slate-600">
-                  Progreso de cotejo: <strong>{verifiedCount}</strong> de {participants.length} ({progressPercent}%)
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={markAllVerified}
-                  className="text-sky-700 hover:text-sky-900 font-bold hover:underline"
-                >
-                  Marcar todos
-                </button>
-                <span className="text-slate-300">·</span>
-                <button
-                  type="button"
-                  onClick={clearVerified}
-                  className="text-slate-400 hover:text-slate-600"
-                >
-                  Limpiar
-                </button>
-              </div>
-            </div>
           </div>
 
           {/* Table Container */}
@@ -821,8 +772,7 @@ export function OsiAuditWorkspaceClient({ data, onClose, isModal }: OsiAuditWork
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-50/90 text-slate-500 font-bold sticky top-0 z-10 border-b border-slate-200">
                   <tr>
-                    <th className="py-2 px-3 w-8 text-center">✓</th>
-                    <th className="py-2 px-2 w-8 text-center text-slate-400">#</th>
+                    <th className="py-2 px-3 w-10 text-center text-slate-400">#</th>
                     <th className="py-2 px-3">Cédula</th>
                     <th className="py-2 px-3">Nombre y Apellido</th>
                     <th className="py-2 px-3 text-center">Nota Digital</th>
@@ -831,37 +781,16 @@ export function OsiAuditWorkspaceClient({ data, onClose, isModal }: OsiAuditWork
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredParticipants.map((p, idx) => {
-                    const isChecked = verifiedIds.has(p.id);
                     const numScore = p.score !== null && p.score !== "" ? Number(p.score) : null;
                     const isValidNumber = numScore !== null && !isNaN(numScore);
 
                     return (
                       <tr
                         key={p.id}
-                        onClick={() => toggleVerified(p.id)}
-                        className={`transition-colors cursor-pointer ${
-                          isChecked
-                            ? "bg-emerald-50/40 hover:bg-emerald-50/70"
-                            : "hover:bg-slate-50"
-                        }`}
+                        className="hover:bg-slate-50/80 transition-colors"
                       >
-                        {/* Checkbox for manual cotejo */}
-                        <td className="py-2.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={() => toggleVerified(p.id)}
-                            className="text-slate-400 hover:text-sky-600 transition-colors"
-                          >
-                            {isChecked ? (
-                              <CheckSquare className="w-4 h-4 text-emerald-600" />
-                            ) : (
-                              <Square className="w-4 h-4 text-slate-300" />
-                            )}
-                          </button>
-                        </td>
-
                         {/* Row Index */}
-                        <td className="py-2.5 px-2 text-center text-slate-400 font-mono text-[11px]">
+                        <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">
                           {idx + 1}
                         </td>
 
