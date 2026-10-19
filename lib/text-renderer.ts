@@ -97,16 +97,33 @@ export class TextRenderer {
     participant: {
       nationality?: "venezolano" | "extranjero";
       idNumber: string;
+      idType?: string;
     },
     x: number,
     y: number,
   ) {
     const idLabel = "Cédula:";
-    const idPrefix = participant.nationality === "extranjero" ? "e-" : "V-";
+    const rawId = (participant.idNumber || "").trim();
+
+    // Check if ID already has a prefix (e.g., E-, e-, V-, v-)
+    const hasEPrefix = /^[eE][\s\-:]*/.test(rawId);
+    const cleanId = rawId.replace(/^[veVE][\s\-:]*/i, "").trim();
+
+    let idPrefix = "V-";
+    if (
+      hasEPrefix ||
+      participant.nationality === "extranjero" ||
+      participant.idType?.toUpperCase().startsWith("E") ||
+      participant.idType?.toLowerCase() === "extranjero"
+    ) {
+      idPrefix = "E-";
+    }
+
+    const finalId = cleanId ? `${idPrefix}${cleanId}` : `${idPrefix}${rawId}`;
 
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(8);
-    this.doc.text(`${idLabel} ${idPrefix}${participant.idNumber}`, x, y, {
+    this.doc.text(`${idLabel} ${finalId}`, x, y, {
       align: "center",
     });
   }

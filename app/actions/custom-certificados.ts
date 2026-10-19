@@ -163,7 +163,14 @@ function generateCustomSnapshot(
       cedula: participant.idNumber,
       nacionalidad: participant.nationality || "venezolano",
       score: participant.score,
-      cedula_completa: `cedula: ${participant.nationality === "extranjero" ? "e-" : "V-"}${participant.idNumber}`,
+      cedula_completa: (() => {
+        const rawId = (participant.idNumber || "").trim();
+        const hasEPrefix = /^[eE][\s\-:]*/.test(rawId);
+        const cleanId = rawId.replace(/^[veVE][\s\-:]*/i, "").trim();
+        const prefix =
+          hasEPrefix || participant.nationality === "extranjero" ? "E-" : "V-";
+        return `Cédula: ${prefix}${cleanId || rawId}`;
+      })(),
     },
     certificado_detalles: {
       title: certificateData.certificate_title,

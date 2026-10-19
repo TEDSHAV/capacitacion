@@ -169,8 +169,18 @@ export class CustomCarnetGenerator {
 
     pdf.setFontSize(c.participantId.fontSize);
     pdf.setFont("helvetica", "bold");
-    const idPrefix = participant.nationality === "extranjero" ? "E-" : "V-";
-    pdf.text(`Cédula: ${idPrefix}${participant.idNumber}`, c.participantId.x, c.participantId.y);
+    const rawId = (participant.idNumber || "").trim();
+    const hasEPrefix = /^[eE][\s\-:]*/.test(rawId);
+    const cleanId = rawId.replace(/^[veVE][\s\-:]*/i, "").trim();
+    const idPrefix =
+      hasEPrefix ||
+      participant.nationality === "extranjero" ||
+      participant.idType?.toUpperCase().startsWith("E") ||
+      participant.idType?.toLowerCase() === "extranjero"
+        ? "E-"
+        : "V-";
+    const finalId = cleanId ? `${idPrefix}${cleanId}` : `${idPrefix}${rawId}`;
+    pdf.text(`Cédula: ${finalId}`, c.participantId.x, c.participantId.y);
   }
 
   private async addCourseInfo(pdf: jsPDF, carnetData: CarnetGeneration): Promise<void> {

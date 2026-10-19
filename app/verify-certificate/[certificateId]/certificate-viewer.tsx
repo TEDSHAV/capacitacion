@@ -304,7 +304,16 @@ export default function CertificateVerificationPage() {
                             Cédula
                           </label>
                           <p className="text-sm text-gray-900">
-                            {carnet.cedula_participante}
+                            {(() => {
+                              const raw = (carnet.cedula_participante || "").trim();
+                              if (!raw) return "-";
+                              const hasE = /^[eE][\s\-:]*/.test(raw);
+                              const hasV = /^[vV][\s\-:]*/.test(raw);
+                              const clean = raw.replace(/^[veVE][\s\-:]*/i, "").trim();
+                              if (hasE) return `E-${clean || raw}`;
+                              if (hasV) return `V-${clean || raw}`;
+                              return raw;
+                            })()}
                           </p>
                         </div>
                         <div>

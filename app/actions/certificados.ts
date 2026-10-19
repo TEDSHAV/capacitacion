@@ -1000,7 +1000,14 @@ function generateContentSnapshot(
 
       score: participant.score,
 
-      cedula_completa: `Cédula: ${participant.nationality === "extranjero" ? "e-" : "v-"}${participant.idNumber}`, // Full cédula format with proper prefix and lowercase label
+      cedula_completa: (() => {
+        const rawId = (participant.idNumber || "").trim();
+        const hasEPrefix = /^[eE][\s\-:]*/.test(rawId);
+        const cleanId = rawId.replace(/^[veVE][\s\-:]*/i, "").trim();
+        const prefix =
+          hasEPrefix || participant.nationality === "extranjero" ? "E-" : "V-";
+        return `Cédula: ${prefix}${cleanId || rawId}`;
+      })(),
     },
 
     // Certificate details
@@ -1160,7 +1167,14 @@ function generateContentSnapshotWithControlNumbers(
 
       score: participant.score,
 
-      cedula_completa: `cedula: ${participant.nationality === "extranjero" ? "e-" : "V-"}${participant.idNumber}`, // Full cédula format with proper prefix and lowercase label
+      cedula_completa: (() => {
+        const rawId = (participant.idNumber || "").trim();
+        const hasEPrefix = /^[eE][\s\-:]*/.test(rawId);
+        const cleanId = rawId.replace(/^[veVE][\s\-:]*/i, "").trim();
+        const prefix =
+          hasEPrefix || participant.nationality === "extranjero" ? "E-" : "V-";
+        return `Cédula: ${prefix}${cleanId || rawId}`;
+      })(),
     },
 
     // Certificate details

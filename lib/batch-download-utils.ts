@@ -91,14 +91,30 @@ export async function downloadBatchAction(
           }
         }
 
+        const rawNac =
+          snapshot.participante?.nacionalidad ||
+          cert.participantes_certificados?.nacionalidad;
+        const rawCed =
+          snapshot.participante?.cedula ||
+          cert.participantes_certificados?.cedula ||
+          "";
+        const isExtranjero =
+          rawNac === "extranjero" ||
+          rawNac === "E-" ||
+          rawNac === "E" ||
+          /^[eE][\s\-:]*/.test(rawCed);
+
         // Reconstruct necessary data for generation
         const participant = {
-          name: snapshot.participante?.name || cert.participantes_certificados?.nombre || "Participante",
-          idNumber: snapshot.participante?.cedula || cert.participantes_certificados?.cedula || "S/N",
-          idType:
-            snapshot.participante?.idType ||
-            (snapshot.participante?.nacionalidad === "extranjero" ? "E-" : "V-"),
-          nationality: snapshot.participante?.nacionalidad || cert.participantes_certificados?.nacionalidad || "venezolano",
+          name:
+            snapshot.participante?.name ||
+            cert.participantes_certificados?.nombre ||
+            "Participante",
+          idNumber: rawCed || "S/N",
+          idType: isExtranjero ? "E-" : "V-",
+          nationality: (isExtranjero ? "extranjero" : "venezolano") as
+            | "venezolano"
+            | "extranjero",
           score: snapshot.participante?.score ?? cert.calificacion ?? 0,
         };
 

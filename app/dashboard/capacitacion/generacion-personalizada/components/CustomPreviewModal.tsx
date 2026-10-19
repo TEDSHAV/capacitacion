@@ -516,10 +516,22 @@ export function CustomPreviewModal({
                     <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Identificación</p>
                       <p className="text-lg font-black text-gray-800">
-                        <span className="text-blue-500 mr-1">
-                          {participants[selectedParticipantIndex]?.nationality === "extranjero" ? "E-" : "V-"}
-                        </span>
-                        {participants[selectedParticipantIndex]?.idNumber}
+                        {(() => {
+                          const p = participants[selectedParticipantIndex];
+                          const rawId = (p?.idNumber || "").trim();
+                          const hasE = /^[eE][\s\-:]*/.test(rawId);
+                          const clean = rawId.replace(/^[veVE][\s\-:]*/i, "").trim();
+                          const prefix =
+                            hasE || p?.nationality === "extranjero"
+                              ? "E-"
+                              : "V-";
+                          return (
+                            <>
+                              <span className="text-blue-500 mr-1">{prefix}</span>
+                              {clean || rawId}
+                            </>
+                          );
+                        })()}
                       </p>
                     </div>
                   </div>

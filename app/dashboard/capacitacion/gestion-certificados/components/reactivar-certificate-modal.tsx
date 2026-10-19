@@ -65,8 +65,11 @@ export function ReactivarCertificateModal({
 
   const formatCedula = (cedula: string | null | undefined, nac: string | null | undefined) => {
     if (!cedula) return "-";
-    const prefix = nac === "extranjero" ? "E" : "V";
-    return `${prefix}-${cedula}`;
+    const raw = cedula.trim();
+    const hasEPrefix = /^[eE][\s\-:]*/.test(raw);
+    const clean = raw.replace(/^[veVE][\s\-:]*/i, "").trim();
+    const prefix = hasEPrefix || nac === "extranjero" ? "E" : "V";
+    return `${prefix}-${clean || raw}`;
   };
 
   const handleReactivar = async () => {

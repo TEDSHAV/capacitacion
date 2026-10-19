@@ -454,7 +454,7 @@ export class TemplateBasedPdfGenerator {
         return [
           String(p.index ?? i + 1),
           (p.nombre_apellido || "").toUpperCase(),
-          p.cedula || "",
+          p.cedula ? p.cedula.replace(/^[ve]/, (c) => c.toUpperCase()) : "",
           p.puntuacion || "",
           p.condicion || "",
           p.numero_control || "",
@@ -582,7 +582,7 @@ export class TemplateBasedPdfGenerator {
         return [
           String(p.index ?? i + 1),
           (p.nombre_apellido || "").toUpperCase(),
-          p.cedula || "",
+          p.cedula ? p.cedula.replace(/^[ve]/, (c) => c.toUpperCase()) : "",
           p.numero_control || "",
         ];
       });
@@ -720,7 +720,7 @@ export class TemplateBasedPdfGenerator {
         return [
           String(p.index ?? i + 1),
           (p.nombre_apellido || "").toUpperCase(),
-          p.cedula || "",
+          p.cedula ? p.cedula.replace(/^[ve]/, (c) => c.toUpperCase()) : "",
           p.numero_control || "",
         ];
       });

@@ -72,18 +72,29 @@ export async function GET(
       : null;
 
     const [participantNationality, qrDataURL] = await Promise.all([
-      (async () => {
-        if (!carnet.id_participante) return "venezolano";
+      (async (): Promise<"venezolano" | "extranjero"> => {
         try {
-          const supabase = await createClient();
-          const { data } = await supabase
-            .from("participantes_certificados")
-            .select("nacionalidad")
-            .eq("id", carnet.id_participante)
-            .single();
-          return data?.nacionalidad || "venezolano";
+          let rawNac = "venezolano";
+          if (carnet.id_participante) {
+            const supabase = await createClient();
+            const { data } = await supabase
+              .from("participantes_certificados")
+              .select("nacionalidad")
+              .eq("id", carnet.id_participante)
+              .single();
+            if (data?.nacionalidad) rawNac = data.nacionalidad;
+          }
+          const isExtranjero =
+            rawNac === "extranjero" ||
+            rawNac === "E-" ||
+            rawNac === "E" ||
+            /^[eE][\s\-:]*/.test(carnet.cedula_participante || "");
+          return isExtranjero ? "extranjero" : "venezolano";
         } catch {
-          return "venezolano";
+          const isExtranjero = /^[eE][\s\-:]*/.test(
+            carnet.cedula_participante || "",
+          );
+          return isExtranjero ? "extranjero" : "venezolano";
         }
       })(),
       (async (): Promise<string | undefined> => {

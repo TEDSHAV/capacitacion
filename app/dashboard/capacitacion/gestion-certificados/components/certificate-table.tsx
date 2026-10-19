@@ -130,8 +130,11 @@ function CertificateTableComponent({
   };
 
   const formatCedula = (cedula: string, nacionalidad: string) => {
-    const prefix = nacionalidad === "extranjero" ? "E" : "V";
-    return `${prefix}-${cedula}`;
+    const raw = (cedula || "").trim();
+    const hasEPrefix = /^[eE][\s\-:]*/.test(raw);
+    const clean = raw.replace(/^[veVE][\s\-:]*/i, "").trim();
+    const prefix = hasEPrefix || nacionalidad === "extranjero" ? "E" : "V";
+    return `${prefix}-${clean || raw}`;
   };
 
   const getParticipant = (certificate: CertificateManagement) => {

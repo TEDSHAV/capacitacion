@@ -43,7 +43,14 @@ export function ClienteResults({
 
     setActivePdfModal({
       title: `Certificado — ${toTitleCase(cert.participant_nombre)}`,
-      subtitle: `${cert.course_nombre || "Curso"} • ${cert.participant_nacionalidad === "extranjero" ? "E-" : "V-"}${cert.participant_cedula}`,
+      subtitle: `${cert.course_nombre || "Curso"} • ${(() => {
+        const raw = (cert.participant_cedula || "").trim();
+        const hasE = /^[eE][\s\-:]*/.test(raw);
+        const clean = raw.replace(/^[veVE][\s\-:]*/i, "").trim();
+        const prefix =
+          hasE || cert.participant_nacionalidad === "extranjero" ? "E-" : "V-";
+        return `${prefix}${clean || raw}`;
+      })()}`,
       documents: docs,
       initialDocId: "certificate",
     });
@@ -130,8 +137,16 @@ export function ClienteResults({
                     {toTitleCase(cert.participant_nombre)}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
-                    {cert.participant_nacionalidad === "extranjero" ? "E-" : "V-"}
-                    {cert.participant_cedula}
+                    {(() => {
+                      const raw = (cert.participant_cedula || "").trim();
+                      const hasE = /^[eE][\s\-:]*/.test(raw);
+                      const clean = raw.replace(/^[veVE][\s\-:]*/i, "").trim();
+                      const prefix =
+                        hasE || cert.participant_nacionalidad === "extranjero"
+                          ? "E-"
+                          : "V-";
+                      return `${prefix}${clean || raw}`;
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {cert.course_nombre || "N/A"}

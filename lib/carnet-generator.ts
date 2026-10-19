@@ -324,8 +324,18 @@ export class CarnetGenerator {
     pdf.setFont("helvetica", "bold");
 
     // Determine ID label and prefix based on nationality
-    const idPrefix = participant.nationality === "extranjero" ? "E-" : "V-";
-    pdf.text(`Cédula: ${idPrefix}${participant.idNumber}`, 3, nameY - 5);
+    const rawId = (participant.idNumber || "").trim();
+    const hasEPrefix = /^[eE][\s\-:]*/.test(rawId);
+    const cleanId = rawId.replace(/^[veVE][\s\-:]*/i, "").trim();
+    const idPrefix =
+      hasEPrefix ||
+      participant.nationality === "extranjero" ||
+      participant.idType?.toUpperCase().startsWith("E") ||
+      participant.idType?.toLowerCase() === "extranjero"
+        ? "E-"
+        : "V-";
+    const finalId = cleanId ? `${idPrefix}${cleanId}` : `${idPrefix}${rawId}`;
+    pdf.text(`Cédula: ${finalId}`, 3, nameY - 5);
   }
 
   private async addCourseInfo(

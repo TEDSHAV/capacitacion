@@ -97,8 +97,14 @@ export async function GET(
           id: snapshotData.participante?.id?.toString() || "1",
           name: snapshotData.participante?.name || "Unknown Participant",
           idNumber: snapshotData.participante?.cedula || "Unknown ID",
-          nationality: (snapshotData.participante?.nacionalidad ||
-            "venezolano") as "venezolano" | "extranjero",
+          nationality: (
+            snapshotData.participante?.nacionalidad === "extranjero" ||
+            snapshotData.participante?.nacionalidad === "E-" ||
+            snapshotData.participante?.nacionalidad === "E" ||
+            /^[eE][\s\-:]*/.test(snapshotData.participante?.cedula || "")
+              ? "extranjero"
+              : "venezolano"
+          ) as "venezolano" | "extranjero",
           score: snapshotData.participante?.score,
         },
       ],
