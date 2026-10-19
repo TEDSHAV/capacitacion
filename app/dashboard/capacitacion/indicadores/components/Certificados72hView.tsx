@@ -698,7 +698,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
             <thead className="bg-gray-50 sticky top-0 z-10 text-xs font-semibold text-gray-600 border-b border-gray-200">
               <tr>
                 {/* Checkbox Select All */}
-                <th className="w-10 px-3 py-3 text-center">
+                <th className="w-9 px-2 py-2.5 text-center">
                   <input
                     type="checkbox"
                     checked={
@@ -713,7 +713,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
 
                 <th
                   onClick={() => toggleSort("nroOsi")}
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
+                  className="px-2.5 py-2.5 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap text-xs"
                 >
                   <span className="inline-flex items-center gap-1">
                     OSI / Servicio
@@ -726,7 +726,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                 </th>
                 <th
                   onClick={() => toggleSort("empresa")}
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-2.5 py-2.5 text-left cursor-pointer hover:bg-gray-100 select-none text-xs"
                 >
                   <span className="inline-flex items-center gap-1">
                     Empresa
@@ -739,7 +739,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                 </th>
                 <th
                   onClick={() => toggleSort("servicio")}
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-2.5 py-2.5 text-left cursor-pointer hover:bg-gray-100 select-none text-xs"
                 >
                   <span className="inline-flex items-center gap-1">
                     Curso / Servicio
@@ -752,7 +752,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                 </th>
                 <th
                   onClick={() => toggleSort("fechaEjecucion")}
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
+                  className="px-2.5 py-2.5 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap text-xs"
                 >
                   <span className="inline-flex items-center gap-1">
                     Fecha de Ejecución
@@ -765,10 +765,10 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                 </th>
                 <th
                   onClick={() => toggleSort("fechaEmision")}
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
+                  className="px-2.5 py-2.5 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap text-xs"
                 >
                   <span className="inline-flex items-center gap-1">
-                    Registro Certificado
+                    Reg. Certificado
                     {sortKey === "fechaEmision" ? (
                       sortDir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
                     ) : (
@@ -778,7 +778,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                 </th>
                 <th
                   onClick={() => toggleSort("diasHabiles")}
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
+                  className="px-2.5 py-2.5 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap text-xs"
                 >
                   <span className="inline-flex items-center gap-1">
                     Tiempo de Emisión
@@ -791,7 +791,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                 </th>
                 <th
                   onClick={() => toggleSort("facilitador")}
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
+                  className="px-2.5 py-2.5 text-left cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap text-xs"
                 >
                   <span className="inline-flex items-center gap-1">
                     Facilitador
@@ -802,15 +802,12 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                     )}
                   </span>
                 </th>
-                <th className="px-4 py-3 text-center whitespace-nowrap">
-                  Acciones
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-gray-400 text-sm">
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-400 text-sm">
                     No se encontraron OSIs con los filtros seleccionados
                   </td>
                 </tr>
@@ -843,7 +840,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                         }`}
                       >
                         {/* Checkbox */}
-                        <td className="px-3 py-3 text-center">
+                        <td className="px-2 py-2.5 text-center">
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -853,25 +850,25 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                         </td>
 
                         {/* OSI / Servicio */}
-                        <td className="px-4 py-3 font-semibold whitespace-nowrap">
+                        <td className="px-2.5 py-2.5 font-semibold whitespace-nowrap text-xs">
                           {isParent ? (
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1">
                               <button
                                 type="button"
                                 onClick={() => toggleExpandGroup(r.osiId)}
-                                className="p-1 rounded-md hover:bg-sky-100 text-sky-700 transition-colors cursor-pointer"
+                                className="p-0.5 rounded hover:bg-sky-100 text-sky-700 transition-colors cursor-pointer"
                                 title={isExpanded ? "Colapsar grupo" : "Expandir grupo"}
                               >
                                 {isExpanded ? (
-                                  <ChevronDown className="w-4 h-4" />
+                                  <ChevronDown className="w-3.5 h-3.5" />
                                 ) : (
-                                  <ChevronRight className="w-4 h-4" />
+                                  <ChevronRight className="w-3.5 h-3.5" />
                                 )}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setPreviewOsi({ osiId: r.osiId, nroOsi: r.nroOsi })}
-                                className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-900 hover:underline cursor-pointer font-bold"
+                                className="inline-flex items-center text-sky-700 hover:text-sky-900 hover:underline cursor-pointer font-bold"
                                 title="Ver formato oficial de la OSI principal"
                               >
                                 {r.nroOsi}
@@ -879,32 +876,48 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                               <button
                                 type="button"
                                 onClick={() => toggleExpandGroup(r.osiId)}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300 hover:bg-sky-200 transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300 hover:bg-sky-200 transition-colors cursor-pointer"
                                 title="Clic para expandir/colapsar las OSIs vinculadas a este servicio"
                               >
                                 <Layers className="w-2.5 h-2.5" />
-                                <span>Grupo · {r.groupOsiCount} OSIs</span>
+                                <span>Grupo ({r.groupOsiCount})</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDesagruparGrupo(r.osiId, r.nroOsi)}
+                                className="p-0.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                title="Desagrupar todas las OSIs de este servicio"
+                              >
+                                <Unlink className="w-3 h-3" />
                               </button>
                             </div>
                           ) : isChild ? (
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1">
                               <button
                                 type="button"
                                 onClick={() => setPreviewOsi({ osiId: r.osiId, nroOsi: r.nroOsi })}
-                                className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-900 hover:underline cursor-pointer"
+                                className="inline-flex items-center text-sky-700 hover:text-sky-900 hover:underline cursor-pointer"
                                 title="Ver formato oficial de la OSI vinculada"
                               >
                                 {r.nroOsi}
                               </button>
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700">
                                 ↳ {r.parentNroOsi || "Vinculada"}
                               </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDesvincularOsi(r.osiId, r.nroOsi)}
+                                className="p-0.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                title="Desvincular esta OSI del servicio"
+                              >
+                                <Unlink className="w-3 h-3" />
+                              </button>
                             </div>
                           ) : (
                             <button
                               type="button"
                               onClick={() => setPreviewOsi({ osiId: r.osiId, nroOsi: r.nroOsi })}
-                              className="inline-flex items-center gap-1.5 text-sky-700 hover:text-sky-900 hover:underline cursor-pointer"
+                              className="inline-flex items-center text-sky-700 hover:text-sky-900 hover:underline cursor-pointer"
                               title="Ver formato oficial de la OSI"
                             >
                               {r.nroOsi}
@@ -913,20 +926,20 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                         </td>
 
                         {/* Empresa */}
-                        <td className="px-4 py-3 text-gray-900 font-medium max-w-[200px] truncate" title={r.empresa}>
+                        <td className="px-2.5 py-2.5 text-gray-900 font-medium max-w-[140px] truncate text-xs" title={r.empresa}>
                           {r.empresa || "—"}
                         </td>
 
                         {/* Curso / Servicio */}
-                        <td className="px-4 py-3 text-gray-700 max-w-[240px] truncate" title={r.servicio}>
+                        <td className="px-2.5 py-2.5 text-gray-700 max-w-[180px] truncate text-xs" title={r.servicio}>
                           {r.servicio || "—"}
                         </td>
 
                         {/* Fecha de Ejecución */}
-                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs group/cell">
-                          <div className="flex items-center justify-between gap-1.5">
+                        <td className="px-2.5 py-2.5 text-gray-600 whitespace-nowrap text-xs group/cell">
+                          <div className="flex items-center justify-between gap-1">
                             <div className="flex flex-col">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1">
                                 <span
                                   className={`font-medium ${
                                     r.fechaEjecucionAjustada
@@ -938,7 +951,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                                 </span>
                                 {r.fechaEjecucionAjustada && (
                                   <span
-                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200"
+                                    className="inline-flex items-center px-1 py-0.2 rounded text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200"
                                     title={`Fecha real ajustada manualmente (Original: ${formatDate(
                                       r.originalFechaEjecucion
                                     )})${r.motivoAjuste ? ` · Motivo: ${r.motivoAjuste}` : ""}`}
@@ -949,7 +962,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                               </div>
                               {r.estado === "pendiente_ejecucion" && !r.fechaEjecucionAjustada && (
                                 <span className="text-[10px] text-violet-600 font-medium italic">
-                                  (Planificada · Sin impartir)
+                                  (Planificada)
                                 </span>
                               )}
                             </div>
@@ -962,19 +975,19 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                                   focusField: "ejecucion",
                                 })
                               }
-                              className="p-1 rounded text-gray-400 hover:text-sky-600 hover:bg-sky-50 transition-colors opacity-80 sm:opacity-0 sm:group-hover/cell:opacity-100 cursor-pointer"
+                              className="p-0.5 rounded text-gray-400 hover:text-sky-600 hover:bg-sky-50 transition-colors opacity-80 sm:opacity-0 sm:group-hover/cell:opacity-100 cursor-pointer"
                               title="Editar fecha real de ejecución (SLA indicadores)"
                             >
-                              <Pencil className="w-3.5 h-3.5" />
+                              <Pencil className="w-3 h-3" />
                             </button>
                           </div>
                         </td>
 
                         {/* Fecha Emisión */}
-                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs group/cell">
-                          <div className="flex items-center justify-between gap-1.5">
+                        <td className="px-2.5 py-2.5 text-gray-600 whitespace-nowrap text-xs group/cell">
+                          <div className="flex items-center justify-between gap-1">
                             <div className="flex flex-col">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1">
                                 {r.fechaEmision ? (
                                   <span
                                     className={`font-medium ${
@@ -987,11 +1000,11 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                                   </span>
                                 ) : r.estado === "pendiente_ejecucion" ? (
                                   <span className="text-violet-700/90 font-medium italic">
-                                    En espera de ejecución
+                                    Por ejecutar
                                   </span>
                                 ) : (
                                   <span className="text-amber-700/90 font-medium italic">
-                                    Pendiente certificados
+                                    Pendiente
                                   </span>
                                 )}
                                 {r.emitidoEnOtraOsi ? (
@@ -1006,7 +1019,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                                         });
                                       }
                                     }}
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200 hover:bg-sky-200 transition-colors cursor-pointer"
+                                    className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200 hover:bg-sky-200 transition-colors cursor-pointer"
                                     title={`Certificados emitidos en ${r.nroOsiReferencia || "otra OSI"}`}
                                   >
                                     <Link2 className="w-2.5 h-2.5 text-sky-600 shrink-0" />
@@ -1014,7 +1027,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                                   </button>
                                 ) : r.fechaEmisionAjustada ? (
                                   <span
-                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200"
+                                    className="inline-flex items-center px-1 py-0.2 rounded text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200"
                                     title={`Fecha ajustada manualmente (Original: ${formatDate(
                                       r.originalFechaEmision
                                     )})`}
@@ -1034,14 +1047,14 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                                     focusField: "otra_osi",
                                   })
                                 }
-                                className={`p-1 rounded transition-colors cursor-pointer ${
+                                className={`p-0.5 rounded transition-colors cursor-pointer ${
                                   r.emitidoEnOtraOsi
                                     ? "text-sky-700 bg-sky-50 hover:bg-sky-100"
                                     : "text-gray-400 hover:text-sky-600 hover:bg-sky-50 opacity-80 sm:opacity-0 sm:group-hover/cell:opacity-100"
                                 }`}
                                 title="Vincular a certificados de otra OSI"
                               >
-                                <Link2 className="w-3.5 h-3.5" />
+                                <Link2 className="w-3 h-3" />
                               </button>
                               <button
                                 type="button"
@@ -1052,32 +1065,32 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                                     focusField: "emision",
                                   })
                                 }
-                                className="p-1 rounded text-gray-400 hover:text-sky-600 hover:bg-sky-50 transition-colors opacity-80 sm:opacity-0 sm:group-hover/cell:opacity-100 cursor-pointer"
+                                className="p-0.5 rounded text-gray-400 hover:text-sky-600 hover:bg-sky-50 transition-colors opacity-80 sm:opacity-0 sm:group-hover/cell:opacity-100 cursor-pointer"
                                 title="Editar fecha real de emisión"
                               >
-                                <Pencil className="w-3.5 h-3.5" />
+                                <Pencil className="w-3 h-3" />
                               </button>
                             </div>
                           </div>
                         </td>
 
                         {/* Tiempo de Emisión con Badge */}
-                        <td className="px-4 py-3 whitespace-nowrap text-xs">
+                        <td className="px-2.5 py-2.5 whitespace-nowrap text-xs">
                           {r.estado === "dentro" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               {r.diasHabiles} {r.diasHabiles === 1 ? "día hábil" : "días hábiles"} (A tiempo)
                             </span>
                           )}
                           {r.estado === "fuera" && (
-                            <div className="flex flex-col items-start gap-1">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-semibold border border-red-200">
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-semibold border border-red-200">
                                 <AlertTriangle className="w-3 h-3 text-red-600" />
                                 {r.diasHabiles} días hábiles (+{r.brechaDias}d retraso)
                               </span>
                               {r.atribucionDemora === "demora_facilitador" ? (
                                 <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/90"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/90"
                                   title={r.atribucionDetalle || "Demora generada por entrega tardía o incompleta de soportes del facilitador"}
                                 >
                                   <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
@@ -1087,7 +1100,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                                 </span>
                               ) : r.atribucionDemora === "en_gestion" ? (
                                 <span
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-50 text-slate-600 border border-slate-200"
+                                  className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-slate-50 text-slate-600 border border-slate-200"
                                   title={r.atribucionDetalle || "Soportes recibidos. En trámite interno de emisión"}
                                 >
                                   En trámite interno
@@ -1096,14 +1109,14 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                             </div>
                           )}
                           {r.estado === "pendiente" && (
-                            <div className="flex flex-col items-start gap-1">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">
                                 <Hourglass className="w-3 h-3 text-amber-600" />
                                 Demora en emisión ({r.brechaDias != null && r.brechaDias > 0 ? `+${r.brechaDias}d retraso` : "En plazo"})
                               </span>
                               {r.atribucionDemora === "demora_facilitador" ? (
                                 <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/90"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/90"
                                   title={r.atribucionDetalle || "Pendiente por entrega de soportes del facilitador"}
                                 >
                                   <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
@@ -1113,7 +1126,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                                 </span>
                               ) : r.atribucionDemora === "en_gestion" ? (
                                 <span
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-50 text-slate-600 border border-slate-200"
+                                  className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-slate-50 text-slate-600 border border-slate-200"
                                   title={r.atribucionDetalle || "Soportes recibidos. En trámite interno de emisión"}
                                 >
                                   En trámite interno
@@ -1122,9 +1135,12 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                             </div>
                           )}
                           {r.estado === "pendiente_ejecucion" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 font-semibold border border-violet-200">
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold border border-violet-200"
+                              title="Servicio no impartido"
+                            >
                               <Clock className="w-3 h-3 text-violet-600" />
-                              Pendiente por ejecución (Servicio no impartido)
+                              Pendiente por ejecución
                             </span>
                           )}
                           {r.estado === "programada" && (
@@ -1140,34 +1156,8 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                         </td>
 
                         {/* Facilitador */}
-                        <td className="px-4 py-3 text-gray-600 text-xs max-w-[180px] truncate" title={facilitador}>
+                        <td className="px-2.5 py-2.5 text-gray-600 text-xs max-w-[140px] truncate" title={facilitador}>
                           {facilitador}
-                        </td>
-
-                        {/* Acciones */}
-                        <td className="px-4 py-3 whitespace-nowrap text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            {isParent && (
-                              <button
-                                type="button"
-                                onClick={() => handleDesagruparGrupo(r.osiId, r.nroOsi)}
-                                className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                                title="Desagrupar todas las OSIs de este servicio"
-                              >
-                                <Unlink className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {isChild && (
-                              <button
-                                type="button"
-                                onClick={() => handleDesvincularOsi(r.osiId, r.nroOsi)}
-                                className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                                title="Desvincular esta OSI del servicio"
-                              >
-                                <Unlink className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
                         </td>
                       </tr>
 
@@ -1178,7 +1168,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                           className="bg-sky-50/25 hover:bg-sky-50/50 transition-colors border-l-4 border-l-sky-500 text-xs"
                         >
                           {/* Checkbox de OSI hija */}
-                          <td className="px-3 py-2.5 text-center">
+                          <td className="px-2 py-2 text-center">
                             <input
                               type="checkbox"
                               checked={selectedOsiIds.has(child.osiId)}
@@ -1188,9 +1178,9 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                           </td>
 
                           {/* OSI Hija */}
-                          <td className="px-4 py-2.5 whitespace-nowrap pl-6">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-sky-300 font-bold select-none">↳</span>
+                          <td className="px-2.5 py-2 whitespace-nowrap pl-5">
+                            <div className="flex items-center gap-1">
+                              <span className="text-sky-300 font-bold select-none text-xs">↳</span>
                               <button
                                 type="button"
                                 onClick={() => setPreviewOsi({ osiId: child.osiId, nroOsi: child.nroOsi })}
@@ -1202,54 +1192,49 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                               <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-sky-100 text-sky-700 border border-sky-200">
                                 Vinculada
                               </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDesvincularOsi(child.osiId, child.nroOsi)}
+                                className="p-0.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                title={`Desvincular ${child.nroOsi} de este servicio`}
+                              >
+                                <Unlink className="w-3 h-3" />
+                              </button>
                             </div>
                           </td>
 
                           {/* Empresa */}
-                          <td className="px-4 py-2.5 text-gray-700 truncate max-w-[200px]" title={child.empresa}>
+                          <td className="px-2.5 py-2 text-gray-700 truncate max-w-[140px]" title={child.empresa}>
                             {child.empresa || "—"}
                           </td>
 
                           {/* Curso / Servicio */}
-                          <td className="px-4 py-2.5 text-gray-600 truncate max-w-[240px]" title={child.servicio}>
+                          <td className="px-2.5 py-2 text-gray-600 truncate max-w-[180px]" title={child.servicio}>
                             {child.servicio || "—"}
                           </td>
 
                           {/* Fecha de Ejecución */}
-                          <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
+                          <td className="px-2.5 py-2 text-gray-700 whitespace-nowrap">
                             <span className="font-medium text-gray-800">{formatDate(child.fechaEjecucion)}</span>
                           </td>
 
                           {/* Fecha Emisión */}
-                          <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
+                          <td className="px-2.5 py-2 text-gray-700 whitespace-nowrap">
                             <span className="font-semibold text-sky-700">
                               {formatDate(child.fechaEmision)}
                             </span>
                           </td>
 
                           {/* Tiempo de Emisión */}
-                          <td className="px-4 py-2.5 whitespace-nowrap">
+                          <td className="px-2.5 py-2 whitespace-nowrap">
                             <span className="text-[11px] text-gray-500 italic">
                               Hereda SLA de {r.nroOsi}
                             </span>
                           </td>
 
                           {/* Facilitador */}
-                          <td className="px-4 py-2.5 text-gray-600 text-xs max-w-[180px] truncate">
+                          <td className="px-2.5 py-2 text-gray-600 text-xs max-w-[140px] truncate">
                             {child.facilitadorSesionNombre || child.facilitadorNombre || "—"}
-                          </td>
-
-                          {/* Desvincular Action */}
-                          <td className="px-4 py-2.5 whitespace-nowrap text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleDesvincularOsi(child.osiId, child.nroOsi)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-gray-500 hover:text-red-700 hover:bg-red-50 border border-gray-200 hover:border-red-200 transition-colors cursor-pointer"
-                              title={`Desvincular ${child.nroOsi} de este servicio`}
-                            >
-                              <Unlink className="w-3 h-3" />
-                              <span>Desvincular</span>
-                            </button>
                           </td>
                         </tr>
                       ))}
