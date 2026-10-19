@@ -16,7 +16,7 @@ export class QRService {
    * Generate QR code data for a certificate
    */
   static generateQRData(
-    certificateId: number,
+    certificateId: number | string,
     controlNumbers?: ControlNumbers,
   ): QRCodeData {
     const verificationUrl = `${this.baseUrl}/verify-certificate/${certificateId}`;
@@ -184,6 +184,7 @@ export class QRService {
         isValid: true,
         certificate: {
           id: certificate.id,
+          uuid: certificate.uuid,
           participantName,
           courseName,
           courseSubtitle,
@@ -205,7 +206,7 @@ export class QRService {
    * Generate complete QR code for certificate with control numbers
    */
   static async generateCertificateQR(
-    certificateId: number,
+    certificateId: number | string,
     controlNumbers?: ControlNumbers,
     options?: Partial<QRCodeProps>,
   ): Promise<{ dataUrl: string; buffer: Buffer | null; data: QRCodeData }> {
@@ -244,15 +245,16 @@ export class QRService {
    * Validate QR code URL format
    */
   static isValidCertificateUrl(url: string): boolean {
-    const pattern = /^https?:\/\/.+\/verify-certificate\/\d+$/;
+    const pattern = /^https?:\/\/.+\/verify-certificate\/(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+)$/i;
     return pattern.test(url);
   }
 
   /**
-   * Extract certificate ID from verification URL
+   * Extract certificate ID or UUID from verification URL
    */
-  static extractCertificateId(url: string): number | null {
-    const match = url.match(/\/verify-certificate\/(\d+)$/);
-    return match ? parseInt(match[1]) : null;
+  static extractCertificateId(url: string): string | number | null {
+    const match = url.match(/\/verify-certificate\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+)$/i);
+    if (!match) return null;
+    return /^\d+$/.test(match[1]) ? parseInt(match[1], 10) : match[1];
   }
 }

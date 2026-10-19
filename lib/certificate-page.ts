@@ -730,7 +730,7 @@ export class CertificatePage {
   }
 
   async addQRCode(
-    certificateId: number,
+    certificateId: number | string,
     controlNumbers?: ControlNumbers,
   ): Promise<void> {
     try {

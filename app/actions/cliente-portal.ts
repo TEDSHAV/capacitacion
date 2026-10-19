@@ -373,7 +373,7 @@ export async function getClienteCertificates(
     let query = supabase
       .from("certificados")
       .select(
-        `id, fecha_emision, fecha_vencimiento, is_active, calificacion, nro_osi, snapshot_contenido,
+        `id, uuid, fecha_emision, fecha_vencimiento, is_active, calificacion, nro_osi, snapshot_contenido,
          participantes_certificados!inner(nombre, cedula, nacionalidad),
          catalogo_servicios!left(id, nombre, emite_carnet),
          cat_estados_venezuela!left(id, nombre_estado),
@@ -435,6 +435,7 @@ export async function getClienteCertificates(
 
       return {
         id: row.id as number,
+        uuid: (row.uuid as string) || undefined,
         participant_nombre: participant?.nombre || "",
         participant_cedula: participant?.cedula || "",
         participant_nacionalidad: participant?.nacionalidad || "V",
@@ -466,7 +467,7 @@ export async function getClienteCertificates(
     let query = supabase
       .from("certificados")
       .select(
-        `id, fecha_emision, fecha_vencimiento, is_active, calificacion, nro_osi, snapshot_contenido,
+        `id, uuid, fecha_emision, fecha_vencimiento, is_active, calificacion, nro_osi, snapshot_contenido,
          participantes_certificados!inner(nombre, cedula, nacionalidad),
          catalogo_servicios!left(id, nombre, emite_carnet),
          cat_estados_venezuela!left(id, nombre_estado),
@@ -522,6 +523,7 @@ export async function getClienteCertificates(
 
       return {
         id: row.id as number,
+        uuid: (row.uuid as string) || undefined,
         participant_nombre: participant?.nombre || "",
         participant_cedula: participant?.cedula || "",
         participant_nacionalidad: participant?.nacionalidad || "V",
@@ -552,7 +554,7 @@ export async function getClienteCertificates(
   let query = supabase
     .from("certificados")
     .select(
-      `id, fecha_emision, fecha_vencimiento, is_active, calificacion, nro_osi, snapshot_contenido,
+      `id, uuid, fecha_emision, fecha_vencimiento, is_active, calificacion, nro_osi, snapshot_contenido,
        participantes_certificados!inner(nombre, cedula, nacionalidad),
        catalogo_servicios!left(id, nombre, emite_carnet),
        cat_estados_venezuela!left(id, nombre_estado),
@@ -610,6 +612,7 @@ export async function getClienteCertificates(
 
     return {
       id: row.id as number,
+      uuid: (row.uuid as string) || undefined,
       participant_nombre: participant?.nombre || "",
       participant_cedula: participant?.cedula || "",
       participant_nacionalidad: participant?.nacionalidad || "V",

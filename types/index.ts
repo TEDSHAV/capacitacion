@@ -347,7 +347,7 @@ export interface CertificateRequest {
   sealImage?: string;
   controlNumbers?: ControlNumbers;
   isPreview?: boolean;
-  certificateId?: number; // Actual certificate database ID for QR code generation
+  certificateId?: number | string; // Actual certificate database ID or UUID for QR code generation
   singlePage?: boolean; // Whether to generate single-page certificate
   paperSize?: PaperSize; // Preference for paper size
   skipQR?: boolean; // Option to skip QR code generation/rendering
@@ -1266,6 +1266,7 @@ export interface BatchUpdateResult {
 // Certificate Management Interfaces
 export interface CertificateManagement {
   id: number;
+  uuid?: string | null;
   anulado_por: string | null;
   calificacion: number;
   created_at: string | null;
@@ -1912,6 +1913,7 @@ export interface EmpresaSedeOption {
 
 export interface ClienteCertificateRow {
   id: number;
+  uuid?: string;
   participant_nombre: string;
   participant_cedula: string;
   participant_nacionalidad: string;

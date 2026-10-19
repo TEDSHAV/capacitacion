@@ -458,7 +458,7 @@ export async function saveCertificatesToDatabase(
         await supabase
           .from("certificados")
           .insert(certificateRecordWithSnapshot)
-          .select("id, nro_libro, nro_hoja, nro_linea, nro_control")
+          .select("id, uuid, nro_libro, nro_hoja, nro_linea, nro_control")
           .single();
 
       if (certificateError) {
@@ -495,10 +495,11 @@ export async function saveCertificatesToDatabase(
           console.warn("Failed to correct snapshot control numbers:", parseError);
         }
 
-        // 4. Generate QR code with actual certificate ID and update
+        // 4. Generate QR code with certificate UUID (or fallback to ID) and update
         try {
+          const qrIdentifier = certificateInsert.uuid || certificateInsert.id;
           const qrResult = await QRService.generateCertificateQR(
-            certificateInsert.id,
+            qrIdentifier,
             {
               nro_libro: certificateInsert.nro_libro,
               nro_hoja: certificateInsert.nro_hoja,
@@ -1523,69 +1524,64 @@ export async function getCertificateTemplates(): Promise<
  */
 
 export async function getCertificateById(
-  certificateId: number,
+  certificateId: number | string,
 ): Promise<any | null> {
   try {
     const supabase = await createClient();
 
-    let { data, error } = await supabase
+    const isUuid =
+      typeof certificateId === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        certificateId,
+      );
 
+    let query = supabase
       .from("certificados")
-
       .select(
         `
-
         *,
-
         participantes_certificados (
-
           id,
-
           nombre,
-
           cedula,
-
           nacionalidad
-
         ),
-
         catalogo_servicios (
-
           id,
-
           nombre,
-
           contenido_curso,
-
           carga_horaria_std,
-
           nota_aprobatoria,
-
           emite_carnet
-
         ),
-
         empresas (
-
           id,
-
           razon_social,
-
           rif
-
         )
-
       `,
       )
+      .eq("is_active", true);
 
-      .eq("id", certificateId)
+    if (isUuid) {
+      query = query.eq("uuid", certificateId);
+    } else {
+      const numericId =
+        typeof certificateId === "number"
+          ? certificateId
+          : parseInt(certificateId, 10);
+      if (isNaN(numericId)) return null;
+      query = query.eq("id", numericId);
+    }
 
-      .eq("is_active", true)
+    let { data, error } = await query.maybeSingle();
 
-      .maybeSingle();
-
-    // Fallback: If not found by ID, try searching by nro_control
-    if (!data && !error) {
+    // Fallback: If not found by numeric ID, try searching by nro_control
+    if (!data && !error && !isUuid) {
+      const numericId =
+        typeof certificateId === "number"
+          ? certificateId
+          : parseInt(certificateId, 10);
       console.log(
         `Certificate not found by ID ${certificateId}, trying nro_control...`,
       );
@@ -1615,7 +1611,7 @@ export async function getCertificateById(
           )
         `,
         )
-        .eq("nro_control", certificateId)
+        .eq("nro_control", numericId)
         .eq("is_active", true)
         .maybeSingle();
 
@@ -1666,7 +1662,7 @@ export async function getCertificateById(
  */
 
 export async function verifyCertificate(
-  certificateId: number,
+  certificateId: number | string,
 ): Promise<{ isValid: boolean; certificate?: any; error?: string }> {
   try {
     const certificate = await getCertificateById(certificateId);
@@ -2113,6 +2109,7 @@ export async function getCertificatesForManagement(
     let query = supabase.from("certificados").select(
       `
         id,
+        uuid,
         calificacion,
         fecha_emision,
         fecha_vencimiento,

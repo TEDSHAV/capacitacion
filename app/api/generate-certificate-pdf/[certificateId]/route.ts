@@ -16,20 +16,24 @@ export async function GET(
 ) {
   try {
     const resolvedParams = await params;
-    const certificateId = parseInt(resolvedParams.certificateId);
+    const rawId = resolvedParams.certificateId;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
+    const isNumeric = /^\d+$/.test(rawId);
 
-    if (isNaN(certificateId)) {
+    if (!isUuid && !isNumeric) {
       return NextResponse.json(
         { error: "Invalid certificate ID" },
         { status: 400 },
       );
     }
 
+    const certificateIdentifier = isNumeric ? parseInt(rawId, 10) : rawId;
+
     // Get certificate data from database
     // Public endpoint — no auth required (used by QR verification page).
     // getCertificateById already filters by is_active = true, so only
     // valid, active certificates are returned.
-    const certificate = await getCertificateById(certificateId);
+    const certificate = await getCertificateById(certificateIdentifier);
 
     if (!certificate) {
       return NextResponse.json(
@@ -68,7 +72,7 @@ export async function GET(
 
     // Reconstruct certificate data from snapshot
     const certificateData: CertificateGeneration = {
-      id: certificateId.toString(),
+      id: certificate.id.toString(),
       certificate_title:
         snapshotData.certificado_detalles?.title || "Certificate",
       certificate_subtitle:
@@ -249,7 +253,7 @@ export async function GET(
         sealImage,
         controlNumbers: controlNumbersForGenerator,
         isPreview: false,
-        certificateId: certificateId, // Pass actual certificate ID for QR code
+        certificateId: certificate.uuid || certificate.id, // Pass actual certificate UUID or ID for QR code
         singlePage: false, // Use two-page mode (front and back)
         skipQR: !!(certificateData as any).is_custom,
       });
@@ -258,7 +262,7 @@ export async function GET(
       return new NextResponse(pdfBlob, {
         headers: {
           "Content-Type": "application/pdf",
-          "Content-Disposition": `inline; filename="certificate-${certificateId}.pdf"`,
+          "Content-Disposition": `inline; filename="certificate-${certificate.uuid || certificate.id}.pdf"`,
           "Cache-Control": "no-store, max-age=0", // Disable cache to show latest edits
         },
       });

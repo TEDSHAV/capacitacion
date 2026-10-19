@@ -78,20 +78,20 @@ interface ControlNumbers {
 }
 
 interface QRCodeData {
-  certificateId: number;
+  certificateId: number | string;
   verificationUrl: string;
   controlNumbers?: ControlNumbers;
   generatedAt: string;
 }
 
 /** Build the verification URL exactly like QRService.generateQRData. */
-function buildVerificationUrl(certificateId: number): string {
+function buildVerificationUrl(certificateId: number | string): string {
   return `${APP_BASE_URL}/verify-certificate/${certificateId}`;
 }
 
 /** Generate a QR data URL (base64 PNG) for a certificate id. */
 async function generateQrDataUrl(
-  certificateId: number,
+  certificateId: number | string,
   controlNumbers?: ControlNumbers,
 ): Promise<{ dataUrl: string; data: QRCodeData }> {
   const verificationUrl = buildVerificationUrl(certificateId);

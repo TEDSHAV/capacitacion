@@ -126,7 +126,8 @@ export default function GestionCertificadosPage() {
   const handleViewCertificate = useCallback(
     (certificate: CertificateManagement) => {
       // Open certificate details view
-      window.open(`/verify-certificate/${certificate.id}`, "_blank");
+      const certIdentifier = certificate.uuid || certificate.id;
+      window.open(`/verify-certificate/${certIdentifier}`, "_blank");
     },
     [],
   );
@@ -134,8 +135,9 @@ export default function GestionCertificadosPage() {
   const handleDownloadCertificate = useCallback(
     async (certificate: CertificateManagement) => {
       try {
+        const certIdentifier = certificate.uuid || certificate.id;
         const response = await fetch(
-          `/api/generate-certificate-pdf/${certificate.id}`,
+          `/api/generate-certificate-pdf/${certIdentifier}`,
         );
         if (response.ok) {
           const blob = await response.blob();
@@ -161,7 +163,8 @@ export default function GestionCertificadosPage() {
   const handleVerifyCertificate = useCallback(
     (certificate: CertificateManagement) => {
       // Open verification page
-      window.open(`/verify-certificate/${certificate.id}`, "_blank");
+      const certIdentifier = certificate.uuid || certificate.id;
+      window.open(`/verify-certificate/${certIdentifier}`, "_blank");
     },
     [],
   );

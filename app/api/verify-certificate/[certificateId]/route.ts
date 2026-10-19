@@ -10,22 +10,27 @@ const APP_BASE_URL =
   process.env.NEXT_PUBLIC_SHELL_URL ||
   'http://localhost:3000';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ certificateId: string }> }
 ) {
   try {
     const resolvedParams = await params;
-    const certificateId = parseInt(resolvedParams.certificateId);
+    const rawId = resolvedParams.certificateId;
+    const isUuid = UUID_REGEX.test(rawId);
+    const isNumeric = /^\d+$/.test(rawId);
 
-    if (isNaN(certificateId)) {
+    if (!isUuid && !isNumeric) {
       return NextResponse.json(
         { error: 'Invalid certificate ID' },
         { status: 400 }
       );
     }
 
-    const verification = await verifyCertificate(certificateId);
+    const certificateIdentifier = isNumeric ? parseInt(rawId, 10) : rawId;
+    const verification = await verifyCertificate(certificateIdentifier);
 
     if (!verification.isValid) {
       return NextResponse.json(
@@ -37,10 +42,12 @@ export async function GET(
       );
     }
 
+    const publicId = verification.certificate?.uuid || certificateIdentifier;
+
     return NextResponse.json({
       isValid: true,
       certificate: verification.certificate,
-      verificationUrl: `${APP_BASE_URL}/verify-certificate/${certificateId}`
+      verificationUrl: `${APP_BASE_URL}/verify-certificate/${publicId}`
     });
 
   } catch (error) {
@@ -61,15 +68,18 @@ export async function POST(
 ) {
   try {
     const resolvedParams = await params;
-    const certificateId = parseInt(resolvedParams.certificateId);
+    const rawId = resolvedParams.certificateId;
+    const isUuid = UUID_REGEX.test(rawId);
+    const isNumeric = /^\d+$/.test(rawId);
 
-    if (isNaN(certificateId)) {
+    if (!isUuid && !isNumeric) {
       return NextResponse.json(
         { error: 'Invalid certificate ID' },
         { status: 400 }
       );
     }
 
+    const certificateIdentifier = isNumeric ? parseInt(rawId, 10) : rawId;
     const body = await request.json();
     const { qrData } = body;
 
@@ -84,8 +94,20 @@ export async function POST(
         );
       }
 
-      // Verify QR data matches the certificate ID
-      if (parsedQrData.certificateId !== certificateId) {
+      // Verify QR data matches the certificate ID or UUID
+      const qrIdStr = String(parsedQrData.certificateId).toLowerCase();
+      const currentIdStr = String(certificateIdentifier).toLowerCase();
+      let matches = qrIdStr === currentIdStr;
+
+      if (!matches) {
+        const cert = await getCertificateById(certificateIdentifier);
+        matches = !!cert && (
+          String(cert.id) === qrIdStr ||
+          String(cert.uuid || '').toLowerCase() === qrIdStr
+        );
+      }
+
+      if (!matches) {
         return NextResponse.json(
           { error: 'QR code does not match this certificate' },
           { status: 400 }
@@ -102,7 +124,7 @@ export async function POST(
     }
 
     // Perform standard verification
-    const verification = await verifyCertificate(certificateId);
+    const verification = await verifyCertificate(certificateIdentifier);
 
     if (!verification.isValid) {
       return NextResponse.json(
@@ -115,13 +137,14 @@ export async function POST(
     }
 
     // Get full certificate details
-    const certificateDetails = await getCertificateById(certificateId);
+    const certificateDetails = await getCertificateById(certificateIdentifier);
+    const publicId = verification.certificate?.uuid || certificateIdentifier;
 
     return NextResponse.json({
       isValid: true,
       certificate: verification.certificate,
       details: certificateDetails,
-      verificationUrl: `${APP_BASE_URL}/verify-certificate/${certificateId}`,
+      verificationUrl: `${APP_BASE_URL}/verify-certificate/${publicId}`,
       verifiedAt: new Date().toISOString()
     });
 

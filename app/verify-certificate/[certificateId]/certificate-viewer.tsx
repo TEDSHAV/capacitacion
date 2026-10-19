@@ -6,6 +6,7 @@ import { ControlNumbers, Carnet } from "@/types";
 
 interface CertificateDetails {
   id: number;
+  uuid?: string;
   participantName: string;
   courseName: string;
   courseSubtitle?: string;
@@ -124,7 +125,8 @@ export default function CertificateVerificationPage() {
 
   // Use a timestamp to prevent browser caching of the PDF preview
   const cacheBuster = Date.now();
-  const certPdfUrl = `/api/generate-certificate-pdf/${certificateId}?t=${cacheBuster}`;
+  const pdfId = certificate.uuid || certificateId;
+  const certPdfUrl = `/api/generate-certificate-pdf/${pdfId}?t=${cacheBuster}`;
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -5,7 +5,7 @@ import type { Facilitador } from "./index";
 export type { ControlNumbers };
 
 export interface QRCodeData {
-  certificateId: number;
+  certificateId: number | string;
   verificationUrl: string;
   controlNumbers?: ControlNumbers;
   generatedAt: string;
@@ -28,6 +28,7 @@ export interface QRCodeVerificationData {
   isValid: boolean;
   certificate?: {
     id: number;
+    uuid?: string;
     participantName: string;
     courseName: string;
     courseSubtitle?: string | null;

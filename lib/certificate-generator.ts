@@ -87,7 +87,7 @@ export class CertificateGenerator {
           sealImage,
           controlNumbers,
           isPreview || false,
-          certificateId || 0,
+          certificateId ?? 0,
           !!data.skipQR,
         );
       } else {
@@ -102,7 +102,7 @@ export class CertificateGenerator {
           sealImage,
           controlNumbers,
           isPreview || false,
-          certificateId || 0,
+          certificateId ?? 0,
           !!data.skipQR,
         );
       }
@@ -125,7 +125,7 @@ export class CertificateGenerator {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     controlNumbers: any,
     isPreview: boolean,
-    certificateId: number,
+    certificateId: number | string,
     skipQR: boolean = false,
   ): Promise<Blob> {
     // Page 1: Certificate (upper half)
@@ -185,7 +185,7 @@ export class CertificateGenerator {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     controlNumbers: any,
     isPreview: boolean,
-    certificateId: number,
+    certificateId: number | string,
     skipQR: boolean = false,
   ): Promise<Blob> {
     // Page 1: Certificate

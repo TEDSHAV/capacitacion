@@ -67,12 +67,13 @@ export function ClienteBatches({
   };
 
   const handleOpenCertificatePdf = async (cert: ClienteCertificateRow) => {
+    const certIdentifier = cert.uuid || cert.id;
     const docs: ClientePdfModalDoc[] = [
       {
         id: "certificate",
         label: "Certificado",
-        url: `/api/generate-certificate-pdf/${cert.id}`,
-        downloadUrl: `/api/generate-certificate-pdf/${cert.id}`,
+        url: `/api/generate-certificate-pdf/${certIdentifier}`,
+        downloadUrl: `/api/generate-certificate-pdf/${certIdentifier}`,
         icon: "certificate",
       },
     ];
@@ -325,7 +326,7 @@ export function ClienteBatches({
                               </td>
                               <td className="px-4 py-3 text-center">
                                 <a
-                                  href={`/verify-certificate/${cert.id}`}
+                                  href={`/verify-certificate/${cert.uuid || cert.id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
@@ -345,7 +346,7 @@ export function ClienteBatches({
                                     <FileText className="w-4 h-4" />
                                   </button>
                                   <a
-                                    href={`/api/generate-certificate-pdf/${cert.id}`}
+                                    href={`/api/generate-certificate-pdf/${cert.uuid || cert.id}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
@@ -404,7 +405,8 @@ function CertificateOfflineButton({ cert }: { cert: ClienteCertificateRow }) {
     e.stopPropagation();
     e.preventDefault();
     setCaching(true);
-    const url = `/api/generate-certificate-pdf/${cert.id}`;
+    const certIdentifier = cert.uuid || cert.id;
+    const url = `/api/generate-certificate-pdf/${certIdentifier}`;
     const result = await cacheDocument(url, {
       type: "certificate",
       id: cert.id,

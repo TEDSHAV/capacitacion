@@ -2,10 +2,16 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
 
 export async function createClient() {
-  const cookieStore = await cookies();
-  const headersList = await headers();
-  const host = headersList.get("host") || "";
-  const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
+  let cookieStore: any = null;
+  let isLocalhost = false;
+  try {
+    cookieStore = await cookies();
+    const headersList = await headers();
+    const host = headersList.get("host") || "";
+    isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
+  } catch {
+    // Graceful fallback outside Next.js request scope (e.g. standalone scripts, CLI, tests)
+  }
   const isProduction = process.env.NODE_ENV === "production";
 
   return createServerClient(
@@ -23,9 +29,10 @@ export async function createClient() {
       },
       cookies: {
         getAll() {
-          return cookieStore.getAll();
+          return cookieStore ? cookieStore.getAll() : [];
         },
         setAll(cookiesToSet) {
+          if (!cookieStore) return;
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options),
