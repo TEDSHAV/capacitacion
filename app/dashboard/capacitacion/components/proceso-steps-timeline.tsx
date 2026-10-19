@@ -9,6 +9,7 @@ import {
   Eye,
   Lock,
   X,
+  XCircle,
   ExternalLink,
   CalendarClock,
 } from "lucide-react";
@@ -243,12 +244,13 @@ export default function ProcesoStepsTimeline({
           const rec = completedSteps[step.key];
           const isCompleted = !!rec?.completed;
           const isRescheduled = !isCompleted && Boolean(rec?.step_metadata?.is_rescheduled);
-          const isCurrent = idx === currentIndex && !isRescheduled;
+          const isNoEjecutado = !isCompleted && !isRescheduled && Boolean(rec?.step_metadata?.unmarked_by_user);
+          const isCurrent = idx === currentIndex && !isRescheduled && !isNoEjecutado;
           return (
             <div
               key={step.key}
               className="relative"
-              title={`${step.label}${isCompleted ? " ✓" : isRescheduled ? " ⏱ (Re-agendada)" : isCurrent ? " (Actual)" : ""}`}
+              title={`${step.label}${isCompleted ? " ✓" : isRescheduled ? " ⏱ (Re-agendada)" : isNoEjecutado ? " ✕ (No ejecutada)" : isCurrent ? " (Actual)" : ""}`}
             >
               <div
                 className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
@@ -256,9 +258,11 @@ export default function ProcesoStepsTimeline({
                     ? "bg-green-500 scale-110"
                     : isRescheduled
                       ? "bg-amber-500 scale-110 ring-2 ring-offset-1 ring-amber-300"
-                      : isCurrent
-                        ? "bg-blue-500 scale-125 ring-2 ring-offset-1 ring-blue-300"
-                        : "bg-gray-300 opacity-50"
+                      : isNoEjecutado
+                        ? "bg-rose-500 scale-110 ring-2 ring-offset-1 ring-rose-300"
+                        : isCurrent
+                          ? "bg-blue-500 scale-125 ring-2 ring-offset-1 ring-blue-300"
+                          : "bg-gray-300 opacity-50"
                 }`}
               />
             </div>
@@ -301,7 +305,8 @@ export default function ProcesoStepsTimeline({
     const rec = completedSteps[step.key];
     const isCompleted = !!rec?.completed;
     const isRescheduled = !isCompleted && Boolean(rec?.step_metadata?.is_rescheduled);
-    const isCurrent = idx === currentIndex && !isCompleted && !isRescheduled;
+    const isNoEjecutado = !isCompleted && !isRescheduled && Boolean(rec?.step_metadata?.unmarked_by_user);
+    const isCurrent = idx === currentIndex && !isCompleted && !isRescheduled && !isNoEjecutado;
     const isAuto = !!step.auto;
     const isAutoUnmarkable = !!step.autoUnmarkable;
     const isOptional = !!step.optional;
@@ -329,16 +334,20 @@ export default function ProcesoStepsTimeline({
                 ? "bg-green-500 text-white scale-105 shadow-md"
                 : isRescheduled
                   ? "bg-amber-500 text-white scale-105 shadow-md ring-2 ring-offset-1 ring-amber-300"
-                  : isCurrent
-                    ? "bg-blue-500 text-white scale-110 shadow-lg ring-4 ring-blue-100"
-                    : isOptional
-                      ? "bg-gray-100 text-gray-300 scale-95 border border-dashed border-gray-300"
-                      : "bg-gray-100 text-gray-400 scale-95"
+                  : isNoEjecutado
+                    ? "bg-rose-600 text-white scale-105 shadow-md ring-2 ring-offset-1 ring-rose-300"
+                    : isCurrent
+                      ? "bg-blue-500 text-white scale-110 shadow-lg ring-4 ring-blue-100"
+                      : isOptional
+                        ? "bg-gray-100 text-gray-300 scale-95 border border-dashed border-gray-300"
+                        : "bg-gray-100 text-gray-400 scale-95"
             } ${canClick ? "cursor-pointer hover:scale-110" : "cursor-default"}`}
             title={
               isRescheduled
                 ? `Re-agendada${rec?.notes ? `: ${rec.notes}` : ""}`
-                : step.description || step.label
+                : isNoEjecutado
+                  ? `No ejecutada${rec?.notes ? `: ${rec.notes}` : ""}`
+                  : step.description || step.label
             }
           >
             {isToggling ? (
@@ -347,6 +356,8 @@ export default function ProcesoStepsTimeline({
               <CheckCircle2 className="w-4 h-4" />
             ) : isRescheduled ? (
               <CalendarClock className="w-4 h-4" />
+            ) : isNoEjecutado ? (
+              <XCircle className="w-4 h-4" />
             ) : isAuto && !isAutoUnmarkable ? (
               <Lock className="w-3 h-3" />
             ) : (
@@ -362,9 +373,11 @@ export default function ProcesoStepsTimeline({
                     ? "text-gray-900"
                     : isRescheduled
                       ? "text-amber-800"
-                      : isCurrent
-                        ? "text-blue-700"
-                        : "text-gray-400"
+                      : isNoEjecutado
+                        ? "text-rose-800"
+                        : isCurrent
+                          ? "text-blue-700"
+                          : "text-gray-400"
                 }`}
               >
                 {step.label}
@@ -388,6 +401,11 @@ export default function ProcesoStepsTimeline({
                 {isRescheduled && (
                   <span className="text-[8px] font-bold uppercase bg-amber-100 text-amber-800 border border-amber-200 px-1 py-0.5 rounded">
                     Re-agendada
+                  </span>
+                )}
+                {isNoEjecutado && (
+                  <span className="text-[8px] font-bold uppercase bg-rose-100 text-rose-800 border border-rose-200 px-1 py-0.5 rounded">
+                    No ejecutada
                   </span>
                 )}
                 {isCompleted && requiresInput && ((rec?.step_metadata?.guia as string) || rec?.notes) && (
@@ -438,9 +456,11 @@ export default function ProcesoStepsTimeline({
                     ? "text-gray-900"
                     : isRescheduled
                       ? "text-amber-800"
-                      : isCurrent
-                        ? "text-blue-700"
-                        : "text-gray-400"
+                      : isNoEjecutado
+                        ? "text-rose-800"
+                        : isCurrent
+                          ? "text-blue-700"
+                          : "text-gray-400"
                 }`}
               >
                 {step.label}
@@ -486,6 +506,21 @@ export default function ProcesoStepsTimeline({
                     Por confirmar
                   </span>
                 )}
+              </div>
+            )}
+            {isNoEjecutado && (
+              <div className="flex flex-col items-center mt-0.5">
+                <span className="text-[8px] font-bold uppercase tracking-wide bg-rose-100 text-rose-800 border border-rose-200 px-1 py-0.5 rounded">
+                  No ejecutada
+                </span>
+                {rec?.notes ? (
+                  <span
+                    className="text-[9px] text-rose-700 font-medium mt-0.5 truncate max-w-[90px]"
+                    title={rec.notes}
+                  >
+                    {rec.notes}
+                  </span>
+                ) : null}
               </div>
             )}
             {isCompleted && requiresInput && ((rec?.step_metadata?.guia as string) || rec?.notes) && (

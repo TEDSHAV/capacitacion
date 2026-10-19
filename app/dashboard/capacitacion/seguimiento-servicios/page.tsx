@@ -2,6 +2,7 @@ import { Briefcase } from "lucide-react";
 import { getOSIFilterOptions, getOSIStatuses } from "@/app/actions/osi";
 import {
   getRescheduledOsiIds,
+  getNoEjecutadasOsiIds,
   getSeguimientoPageData,
 } from "@/app/actions/capacitacion-proceso-steps";
 import SeguimientoServiciosClient from "./SeguimientoServiciosClient";
@@ -11,8 +12,9 @@ export const dynamic = "force-dynamic";
 
 export default async function SeguimientoServiciosPage() {
   // Parallelize all initial data requirements in a single roundtrip to the DB
-  const [rescheduledOsiIds, pageData, filterOptions, statuses] = await Promise.all([
+  const [rescheduledOsiIds, noEjecutadasOsiIds, pageData, filterOptions, statuses] = await Promise.all([
     getRescheduledOsiIds(),
+    getNoEjecutadasOsiIds(),
     getSeguimientoPageData({}, 1, 10),
     getOSIFilterOptions(),
     getOSIStatuses(),
@@ -42,6 +44,7 @@ export default async function SeguimientoServiciosPage() {
         initialStepsByOsi={pageData.stepsPlain}
         initialSessionsByOsi={pageData.sessionsPlain}
         initialRescheduledOsiIds={rescheduledOsiIds}
+        initialNoEjecutadasOsiIds={noEjecutadasOsiIds}
         filterOptions={filterOptions}
         statuses={statuses as OSIStatus[]}
       />

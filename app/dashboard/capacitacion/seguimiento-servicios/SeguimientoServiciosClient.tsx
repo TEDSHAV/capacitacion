@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Paperclip,
   Award,
+  XCircle,
 } from "lucide-react";
 import type { OSIManagement, OSISesion, OSIFilters, OSIStatus } from "@/types";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
@@ -62,6 +63,7 @@ interface SeguimientoServiciosClientProps {
   initialStepsByOsi?: Record<string, Record<string, Record<string, ProcesoStepRecord>>>;
   initialSessionsByOsi?: Record<string, OSISesion[]>;
   initialRescheduledOsiIds?: number[];
+  initialNoEjecutadasOsiIds?: number[];
   filterOptions?: FilterOptions;
   statuses?: OSIStatus[];
 }
@@ -90,6 +92,7 @@ function cacheKey(
   itemsPerPage: number,
   filterMode: string,
   rescheduledCount: number,
+  noEjecutadasCount: number = 0,
 ): CacheKey {
   return JSON.stringify({
     filters,
@@ -98,6 +101,7 @@ function cacheKey(
     itemsPerPage,
     filterMode,
     rescheduledCount,
+    noEjecutadasCount,
   });
 }
 
@@ -144,11 +148,13 @@ export default function SeguimientoServiciosClient({
   initialStepsByOsi,
   initialSessionsByOsi,
   initialRescheduledOsiIds = [],
+  initialNoEjecutadasOsiIds = [],
   filterOptions,
   statuses = [],
 }: SeguimientoServiciosClientProps) {
-  const [filterMode, setFilterMode] = useState<"todos" | "activos" | "reagendados">("todos");
+  const [filterMode, setFilterMode] = useState<"todos" | "activos" | "reagendados" | "no_ejecutados">("todos");
   const [rescheduledOsiIds, setRescheduledOsiIds] = useState<number[]>(initialRescheduledOsiIds);
+  const [noEjecutadasOsiIds, setNoEjecutadasOsiIds] = useState<number[]>(initialNoEjecutadasOsiIds);
   const [executionModal, setExecutionModal] = useState<{
     osiId: number;
     nroOsi: string;
@@ -202,7 +208,7 @@ export default function SeguimientoServiciosClient({
 
   // Seed moduleCache with initial SSR data if present
   if (initialOsis && initialOsis.length > 0) {
-    const initialKey = cacheKey({}, "", 1, 10, "todos", initialRescheduledOsiIds?.length || 0);
+    const initialKey = cacheKey({}, "", 1, 10, "todos", initialRescheduledOsiIds?.length || 0, initialNoEjecutadasOsiIds?.length || 0);
     if (!moduleCache.has(initialKey)) {
       moduleCache.set(initialKey, {
         osis: initialOsis,
@@ -216,7 +222,7 @@ export default function SeguimientoServiciosClient({
 
   // --- Synchronous cache swap: runs before paint so cached pages appear instantly ---
   useLayoutEffect(() => {
-    const key = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length);
+    const key = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length);
     const cached = moduleCache.get(key);
     if (cached) {
       setOsis(cached.osis);
@@ -226,7 +232,7 @@ export default function SeguimientoServiciosClient({
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, refreshTrigger]);
+  }, [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length, refreshTrigger]);
 
   // Cache initial RSC data for offline use
   useEffect(() => {
@@ -364,7 +370,7 @@ export default function SeguimientoServiciosClient({
   }, []);
 
   const fetchOSIs = useCallback(async () => {
-    const key = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length);
+    const key = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length);
     const cached = moduleCache.get(key);
 
     // If cache entry is fresh (< 30s) and this is not a forced refresh, reuse without network call
@@ -390,9 +396,12 @@ export default function SeguimientoServiciosClient({
 
       if (filterMode === "reagendados") {
         filterPayload.includeOsiIds = rescheduledOsiIds;
+      } else if (filterMode === "no_ejecutados") {
+        filterPayload.includeOsiIds = noEjecutadasOsiIds;
       } else if (filterMode === "activos") {
-        if (rescheduledOsiIds.length > 0) {
-          filterPayload.excludeOsiIds = rescheduledOsiIds;
+        const excluded = Array.from(new Set([...rescheduledOsiIds, ...noEjecutadasOsiIds]));
+        if (excluded.length > 0) {
+          filterPayload.excludeOsiIds = excluded;
         }
       }
 
@@ -442,7 +451,7 @@ export default function SeguimientoServiciosClient({
     } finally {
       setLoading(false);
     }
-  }, [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds, refreshTrigger, filterOptions, statuses, osis.length]);
+  }, [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds, noEjecutadasOsiIds, refreshTrigger, filterOptions, statuses, osis.length]);
 
   // Re-fetch when filters, search, page, or tab changes (skip first render — server already loaded)
   useEffect(() => {
@@ -459,7 +468,7 @@ export default function SeguimientoServiciosClient({
     const totalPages = Math.ceil(totalCount / itemsPerPage);
     if (currentPage >= totalPages) return;
     const nextPage = currentPage + 1;
-    const nextKey = cacheKey(filters, searchQuery, nextPage, itemsPerPage, filterMode, rescheduledOsiIds.length);
+    const nextKey = cacheKey(filters, searchQuery, nextPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length);
     if (moduleCache.has(nextKey)) return;
 
     let cancelled = false;
@@ -472,9 +481,12 @@ export default function SeguimientoServiciosClient({
         };
         if (filterMode === "reagendados") {
           filterPayload.includeOsiIds = rescheduledOsiIds;
+        } else if (filterMode === "no_ejecutados") {
+          filterPayload.includeOsiIds = noEjecutadasOsiIds;
         } else if (filterMode === "activos") {
-          if (rescheduledOsiIds.length > 0) {
-            filterPayload.excludeOsiIds = rescheduledOsiIds;
+          const excluded = Array.from(new Set([...rescheduledOsiIds, ...noEjecutadasOsiIds]));
+          if (excluded.length > 0) {
+            filterPayload.excludeOsiIds = excluded;
           }
         }
 
@@ -571,7 +583,7 @@ export default function SeguimientoServiciosClient({
         });
 
         // Update moduleCache for current key in place so returning to this page retains the toggle
-        const currentKey = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length);
+        const currentKey = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length);
         const entry = moduleCache.get(currentKey);
         if (entry) {
           const osiKey = String(osiId);
@@ -701,8 +713,9 @@ export default function SeguimientoServiciosClient({
         return newMap;
       });
 
-      // Remove from rescheduled list if present
+      // Remove from rescheduled and no_ejecutadas lists if present
       setRescheduledOsiIds((prev) => prev.filter((id) => id !== osiId));
+      setNoEjecutadasOsiIds((prev) => prev.filter((id) => id !== osiId));
 
       moduleCache.clear();
     },
@@ -760,12 +773,74 @@ export default function SeguimientoServiciosClient({
       });
 
       setRescheduledOsiIds((prev) => (prev.includes(osiId) ? prev : [...prev, osiId]));
+      setNoEjecutadasOsiIds((prev) => prev.filter((id) => id !== osiId));
       if (filterMode === "activos") {
         setOsis((prev) => prev.filter((o) => o.id_osi !== osiId));
         setTotalCount((prev) => Math.max(0, prev - 1));
       }
 
       // Clear cache so both tabs and active counts will re-fetch accurate server data
+      moduleCache.clear();
+    },
+    [executionModal, filterMode],
+  );
+
+  const handleConfirmNoEjecutado = useCallback(
+    async (reason: string) => {
+      if (!executionModal) return;
+      const { osiId, nroSesion } = executionModal;
+
+      const res = await unmarkEnProcesoStep({
+        osiId,
+        nroSesion,
+        reason,
+        isRescheduled: false,
+        newDate: null,
+      });
+      if (!res.success) {
+        throw new Error(res.error || "Error al registrar como no ejecutado.");
+      }
+
+      // Update local state for steps
+      setStepsByOsi((prev) => {
+        const newMap = new Map(prev);
+        const osiMap = newMap.get(osiId) || new Map();
+        const sessionMap = osiMap.get(nroSesion) || {};
+        const existing = sessionMap["en_proceso"];
+        osiMap.set(nroSesion, {
+          ...sessionMap,
+          en_proceso: {
+            ...existing,
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: "ejecucion",
+            step_key: "en_proceso",
+            id: existing?.id ?? 0,
+            completed: false,
+            completed_at: null,
+            notes: reason,
+            step_metadata: {
+              ...((existing?.step_metadata as Record<string, unknown>) || {}),
+              unmark_reason: reason,
+              is_rescheduled: false,
+              new_date: null,
+              date_confirmed: false,
+              unmarked_by_user: true,
+              unmarked_at: new Date().toISOString(),
+            },
+          },
+        });
+        newMap.set(osiId, osiMap);
+        return newMap;
+      });
+
+      setNoEjecutadasOsiIds((prev) => (prev.includes(osiId) ? prev : [...prev, osiId]));
+      setRescheduledOsiIds((prev) => prev.filter((id) => id !== osiId));
+      if (filterMode === "activos") {
+        setOsis((prev) => prev.filter((o) => o.id_osi !== osiId));
+        setTotalCount((prev) => Math.max(0, prev - 1));
+      }
+
       moduleCache.clear();
     },
     [executionModal, filterMode],
@@ -801,18 +876,29 @@ export default function SeguimientoServiciosClient({
         });
         newMap.set(osiId, osiMap);
 
-        // Check if all sessions for this OSI are no longer rescheduled
+        // Check if all sessions for this OSI are no longer rescheduled or no ejecutadas
         let hasAnyRescheduled = false;
+        let hasAnyNoEjecutado = false;
         for (const sMap of osiMap.values()) {
-          const m = sMap["en_proceso"]?.step_metadata as Record<string, unknown> | undefined;
-          if (m?.is_rescheduled === true && !sMap["en_proceso"]?.completed) {
+          const rec = sMap["en_proceso"];
+          const m = rec?.step_metadata as Record<string, unknown> | undefined;
+          if (m?.is_rescheduled === true && !rec?.completed) {
             hasAnyRescheduled = true;
-            break;
+          }
+          if (m?.unmarked_by_user === true && !m?.is_rescheduled && !rec?.completed) {
+            hasAnyNoEjecutado = true;
           }
         }
         if (!hasAnyRescheduled) {
           setRescheduledOsiIds((rPrev) => rPrev.filter((id) => id !== osiId));
           if (filterMode === "reagendados") {
+            setOsis((oPrev) => oPrev.filter((o) => o.id_osi !== osiId));
+            setTotalCount((tPrev) => Math.max(0, tPrev - 1));
+          }
+        }
+        if (!hasAnyNoEjecutado) {
+          setNoEjecutadasOsiIds((rPrev) => rPrev.filter((id) => id !== osiId));
+          if (filterMode === "no_ejecutados") {
             setOsis((oPrev) => oPrev.filter((o) => o.id_osi !== osiId));
             setTotalCount((tPrev) => Math.max(0, tPrev - 1));
           }
@@ -1032,6 +1118,38 @@ export default function SeguimientoServiciosClient({
                   }`}
                 >
                   {rescheduledOsiIds.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (filterMode !== "no_ejecutados") {
+                  setFilterMode("no_ejecutados");
+                  setCurrentPage(1);
+                }
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 flex items-center gap-1.5 ${
+                filterMode === "no_ejecutados"
+                  ? "bg-white text-rose-900 shadow-xs border border-rose-200/80"
+                  : "text-gray-500 hover:text-gray-900 hover:bg-white/40"
+              }`}
+            >
+              <XCircle
+                className={`w-3.5 h-3.5 ${
+                  filterMode === "no_ejecutados" ? "text-rose-600" : "text-gray-400"
+                }`}
+              />
+              <span>Solo No Ejecutados</span>
+              {noEjecutadasOsiIds.length > 0 && (
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    filterMode === "no_ejecutados"
+                      ? "bg-rose-100 text-rose-800 border border-rose-300/80"
+                      : "bg-gray-200/90 text-gray-700"
+                  }`}
+                >
+                  {noEjecutadasOsiIds.length}
                 </span>
               )}
             </button>
@@ -1755,6 +1873,7 @@ export default function SeguimientoServiciosClient({
           onClose={() => setExecutionModal(null)}
           onConfirmEjecutado={handleConfirmEjecutado}
           onConfirmReagendar={handleConfirmReagendar}
+          onConfirmNoEjecutado={handleConfirmNoEjecutado}
           onRestoreToActive={handleRestoreFromModal}
         />
       )}

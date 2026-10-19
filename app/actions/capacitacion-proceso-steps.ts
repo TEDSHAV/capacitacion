@@ -910,10 +910,12 @@ function serializeAutoAdvanceResult(autoResult: AutoAdvanceResult): {
 // --- Server-side memory cache for default initial page load ---
 let _seguimientoDefaultCache: { data: SeguimientoPageData; expiresAt: number } | null = null;
 let _rescheduledOsiIdsCache: { data: number[]; expiresAt: number } | null = null;
+let _noEjecutadasOsiIdsCache: { data: number[]; expiresAt: number } | null = null;
 
 export async function clearSeguimientoServerCache(): Promise<void> {
   _seguimientoDefaultCache = null;
   _rescheduledOsiIdsCache = null;
+  _noEjecutadasOsiIdsCache = null;
 }
 
 /**
@@ -1508,7 +1510,7 @@ export async function unmarkEnProcesoStep({
       ? `[Desmarcado En proceso/Ejecutado - Sesión ${nroSesion}] Motivo: ${trimmedReason}. Re-agendado${
           cleanNewDate ? ` para el: ${cleanNewDate}` : " (Fecha por confirmar)"
         }`
-      : `[Desmarcado En proceso/Ejecutado - Sesión ${nroSesion}] Motivo: ${trimmedReason}`;
+      : `[Servicio No ejecutado - Sesión ${nroSesion}] Motivo: ${trimmedReason}`;
     await addOsiNota(osiId, noteText).catch((err) =>
       console.error("[unmarkEnProcesoStep] addOsiNota failed:", err),
     );
@@ -1655,6 +1657,47 @@ export async function getRescheduledOsiIds(): Promise<number[]> {
     return result;
   } catch (err) {
     console.error("Error fetching rescheduled OSI ids:", err);
+    return [];
+  }
+}
+
+/**
+ * Fetch list of distinct osi_ids that have any session marked as 'No ejecutado' (unmarked by user, not rescheduled) and not completed.
+ */
+export async function getNoEjecutadasOsiIds(): Promise<number[]> {
+  if (_noEjecutadasOsiIdsCache && Date.now() < _noEjecutadasOsiIdsCache.expiresAt) {
+    return _noEjecutadasOsiIdsCache.data;
+  }
+
+  try {
+    const admin = await createAdminClient();
+    const { data, error } = await admin
+      .from("capacitacion_proceso_steps")
+      .select("osi_id, step_metadata")
+      .eq("step_key", "en_proceso")
+      .eq("completed", false);
+
+    if (error || !data) return [];
+
+    const ids = new Set<number>();
+    for (const row of data) {
+      const meta = row.step_metadata as Record<string, unknown> | null;
+      if (
+        (meta?.unmarked_by_user === true || meta?.unmarked_by_user === "true") &&
+        meta?.is_rescheduled !== true &&
+        meta?.is_rescheduled !== "true"
+      ) {
+        ids.add(row.osi_id);
+      }
+    }
+    const result = Array.from(ids);
+    _noEjecutadasOsiIdsCache = {
+      data: result,
+      expiresAt: Date.now() + 30_000,
+    };
+    return result;
+  } catch (err) {
+    console.error("Error fetching no ejecutadas OSI ids:", err);
     return [];
   }
 }

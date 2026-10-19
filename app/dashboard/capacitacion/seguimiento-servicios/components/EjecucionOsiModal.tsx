@@ -6,6 +6,7 @@ import {
   CalendarClock,
   AlertTriangle,
   X,
+  XCircle,
   Loader2,
   Calendar,
   RotateCcw,
@@ -28,6 +29,7 @@ interface EjecucionOsiModalProps {
   onClose: () => void;
   onConfirmEjecutado: (executionDate?: string | null, salon?: string | null) => Promise<void>;
   onConfirmReagendar: (reason: string, newDate?: string | null) => Promise<void>;
+  onConfirmNoEjecutado?: (reason: string) => Promise<void>;
   onRestoreToActive?: () => Promise<void>;
 }
 
@@ -38,6 +40,14 @@ const PRESET_MOTIVOS_REAGENDAR = [
   "Falla de transporte o logística de traslado",
   "Causa climática / interrupción de servicios",
   "Postergación de común acuerdo",
+];
+
+const PRESET_MOTIVOS_NO_EJECUTADO = [
+  "Cancelación definitiva por la empresa cliente",
+  "Falta de quórum definitiva / servicio desestimado",
+  "Vencimiento de orden de compra / cotización",
+  "Imposibilidad técnica o logística insuperable",
+  "Servicio sustituido o absorbido por otro requerimiento",
 ];
 
 function getCaracasTodayStr(): string {
@@ -65,21 +75,27 @@ export default function EjecucionOsiModal({
   onClose,
   onConfirmEjecutado,
   onConfirmReagendar,
+  onConfirmNoEjecutado,
   onRestoreToActive,
 }: EjecucionOsiModalProps) {
   const isCurrentlyRescheduled = Boolean(stepRecord?.step_metadata?.is_rescheduled);
+  const isCurrentlyNoEjecutado = Boolean(
+    stepRecord?.step_metadata?.unmarked_by_user &&
+      !stepRecord?.step_metadata?.is_rescheduled &&
+      !stepRecord?.completed
+  );
   const isCurrentlyCompleted = Boolean(stepRecord?.completed);
   const isDetectedSha = isShaLocation(direccion, sede) || Boolean(stepRecord?.step_metadata?.salon);
 
-  // Tab mode: "ejecutado" | "reagendar"
-  const [mode, setMode] = useState<"ejecutado" | "reagendar">("ejecutado");
+  // Tab mode: "ejecutado" | "reagendar" | "no_ejecutado"
+  const [mode, setMode] = useState<"ejecutado" | "reagendar" | "no_ejecutado">("ejecutado");
 
   // State for Ejecutado
   const [executionDate, setExecutionDate] = useState(getCaracasTodayStr());
   const [selectedSalon, setSelectedSalon] = useState<string>("");
   const [showSalonSection, setShowSalonSection] = useState<boolean>(isDetectedSha);
 
-  // State for Reagendar
+  // State for Reagendar / No Ejecutado
   const [reason, setReason] = useState("");
   const [newDate, setNewDate] = useState("");
 
@@ -103,6 +119,10 @@ export default function EjecucionOsiModal({
             ? stepRecord.step_metadata.new_date
             : ""
         );
+      } else if (isCurrentlyNoEjecutado) {
+        setMode("no_ejecutado");
+        setReason(stepRecord?.notes ?? "");
+        setNewDate("");
       } else {
         setMode("ejecutado");
         setExecutionDate(
@@ -114,7 +134,7 @@ export default function EjecucionOsiModal({
         setNewDate("");
       }
     }
-  }, [isOpen, isCurrentlyRescheduled, stepRecord, isDetectedSha]);
+  }, [isOpen, isCurrentlyRescheduled, isCurrentlyNoEjecutado, stepRecord, isDetectedSha]);
 
   if (!isOpen) return null;
 
@@ -135,7 +155,7 @@ export default function EjecucionOsiModal({
       } finally {
         setSubmitting(false);
       }
-    } else {
+    } else if (mode === "reagendar") {
       // Reagendar
       const trimmedReason = reason.trim();
       if (!trimmedReason || trimmedReason.length < 5) {
@@ -150,6 +170,27 @@ export default function EjecucionOsiModal({
         onClose();
       } catch (err) {
         setValidationError(err instanceof Error ? err.message : "Error al reagendar el servicio.");
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      // No ejecutado
+      const trimmedReason = reason.trim();
+      if (!trimmedReason || trimmedReason.length < 5) {
+        setValidationError("Por favor ingrese un motivo explicativo (al menos 5 caracteres).");
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        if (onConfirmNoEjecutado) {
+          await onConfirmNoEjecutado(trimmedReason);
+        } else {
+          await onConfirmReagendar(trimmedReason, null);
+        }
+        onClose();
+      } catch (err) {
+        setValidationError(err instanceof Error ? err.message : "Error al registrar como no ejecutado.");
       } finally {
         setSubmitting(false);
       }
@@ -243,6 +284,20 @@ export default function EjecucionOsiModal({
               </div>
             </div>
           </div>
+        ) : isCurrentlyNoEjecutado ? (
+          <div className="px-5 py-2.5 bg-rose-50 border-b border-rose-200/80 flex items-center justify-between gap-3 text-xs text-rose-900">
+            <div className="flex items-center gap-2">
+              <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <div>
+                <span className="font-bold">Actualmente marcada como No Ejecutada</span>
+                {stepRecord?.notes && (
+                  <span className="block text-[11px] text-rose-700 mt-0.5">
+                    Motivo: {stepRecord.notes}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
         ) : isCurrentlyCompleted ? (
           <div className="px-5 py-2.5 bg-emerald-50 border-b border-emerald-200/80 flex items-center justify-between gap-3 text-xs text-emerald-900">
             <div className="flex items-center gap-2">
@@ -264,12 +319,12 @@ export default function EjecucionOsiModal({
           </div>
         ) : null}
 
-        {/* Selector Tabs: Ejecutado vs Reagendado */}
+        {/* Selector Tabs: Ejecutado vs Reagendado vs No Ejecutado */}
         <div className="p-5 pb-3">
           <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
             Seleccione la acción para esta sesión:
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {/* Opción A: Ejecutado */}
             <button
               type="button"
@@ -277,7 +332,7 @@ export default function EjecucionOsiModal({
                 setMode("ejecutado");
                 setValidationError(null);
               }}
-              className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                 mode === "ejecutado"
                   ? "bg-emerald-50/70 border-emerald-400 ring-2 ring-emerald-500/20 shadow-xs"
                   : "bg-white border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/20"
@@ -285,13 +340,13 @@ export default function EjecucionOsiModal({
             >
               <div className="flex items-center gap-2 mb-1.5">
                 <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
                     mode === "ejecutado" ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-700"
                   }`}
                 >
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
-                <span className="font-bold text-xs text-gray-900">Marcar como Ejecutado</span>
+                <span className="font-bold text-xs text-gray-900">Ejecutado</span>
               </div>
               <p className="text-[11px] text-gray-500 leading-tight">
                 El curso se impartió con éxito a los participantes.
@@ -305,7 +360,7 @@ export default function EjecucionOsiModal({
                 setMode("reagendar");
                 setValidationError(null);
               }}
-              className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                 mode === "reagendar"
                   ? "bg-amber-50/70 border-amber-400 ring-2 ring-amber-500/20 shadow-xs"
                   : "bg-white border-gray-200 hover:border-amber-300 hover:bg-amber-50/20"
@@ -313,16 +368,44 @@ export default function EjecucionOsiModal({
             >
               <div className="flex items-center gap-2 mb-1.5">
                 <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
                     mode === "reagendar" ? "bg-amber-600 text-white" : "bg-amber-100 text-amber-700"
                   }`}
                 >
-                  <CalendarClock className="w-4 h-4" />
+                  <CalendarClock className="w-3.5 h-3.5" />
                 </div>
-                <span className="font-bold text-xs text-gray-900">Re-agendar Servicio</span>
+                <span className="font-bold text-xs text-gray-900">Re-agendar</span>
               </div>
               <p className="text-[11px] text-gray-500 leading-tight">
-                No se impartió en la fecha prevista y debe ser reprogramado.
+                No se impartió en la fecha y debe reprogramarse.
+              </p>
+            </button>
+
+            {/* Opción C: No Ejecutado */}
+            <button
+              type="button"
+              onClick={() => {
+                setMode("no_ejecutado");
+                setValidationError(null);
+              }}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                mode === "no_ejecutado"
+                  ? "bg-rose-50/70 border-rose-400 ring-2 ring-rose-500/20 shadow-xs"
+                  : "bg-white border-gray-200 hover:border-rose-300 hover:bg-rose-50/20"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <div
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                    mode === "no_ejecutado" ? "bg-rose-600 text-white" : "bg-rose-100 text-rose-700"
+                  }`}
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                </div>
+                <span className="font-bold text-xs text-gray-900">No Ejecutado</span>
+              </div>
+              <p className="text-[11px] text-gray-500 leading-tight">
+                El servicio no se impartió ni se reprogramará.
               </p>
             </button>
           </div>
@@ -481,10 +564,51 @@ export default function EjecucionOsiModal({
             </div>
           )}
 
+          {mode === "no_ejecutado" && (
+            /* Campos para No Ejecutado */
+            <div className="space-y-3 bg-rose-50/40 p-4 rounded-xl border border-rose-200/60 animate-in fade-in duration-150">
+              <div className="p-3 bg-rose-50 rounded-xl border border-rose-200/80 text-xs text-rose-900 leading-relaxed">
+                El servicio se registrará formalmente como <strong>NO EJECUTADO</strong> (Estatus 39). Se requiere una justificación obligatoria que quedará asentada en el historial de auditoría y notas de la OSI.
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-800 mb-1.5">
+                  Motivo de no ejecución / justificación <span className="text-red-500">*</span>
+                </label>
+
+                {/* Quick Preset Buttons */}
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {PRESET_MOTIVOS_NO_EJECUTADO.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setReason(preset)}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-rose-200 text-rose-800 hover:bg-rose-100 hover:border-rose-300 transition-colors cursor-pointer"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+
+                <textarea
+                  rows={2}
+                  value={reason}
+                  onChange={(e) => {
+                    setReason(e.target.value);
+                    if (validationError) setValidationError(null);
+                  }}
+                  placeholder="Explique detalladamente por qué el servicio no se impartió..."
+                  disabled={submitting}
+                  className="w-full text-xs p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-400 focus:outline-none bg-white resize-none"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Footer Actions */}
           <div className="flex items-center justify-between pt-2 border-t border-gray-100">
             <div>
-              {(isCurrentlyCompleted || isCurrentlyRescheduled) && onRestoreToActive && (
+              {(isCurrentlyCompleted || isCurrentlyRescheduled || isCurrentlyNoEjecutado) && onRestoreToActive && (
                 <button
                   type="button"
                   onClick={handleReset}
@@ -513,7 +637,9 @@ export default function EjecucionOsiModal({
                 className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50 ${
                   mode === "ejecutado"
                     ? "bg-emerald-600 hover:bg-emerald-700"
-                    : "bg-amber-600 hover:bg-amber-700"
+                    : mode === "reagendar"
+                      ? "bg-amber-600 hover:bg-amber-700"
+                      : "bg-rose-600 hover:bg-rose-700"
                 }`}
               >
                 {submitting ? (
@@ -530,10 +656,15 @@ export default function EjecucionOsiModal({
                         : "Confirmar como Ejecutado"}
                     </span>
                   </>
-                ) : (
+                ) : mode === "reagendar" ? (
                   <>
                     <CalendarClock className="w-3.5 h-3.5" />
                     <span>Confirmar Reagendamiento</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Confirmar No Ejecutado</span>
                   </>
                 )}
               </button>
