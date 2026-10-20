@@ -1549,6 +1549,103 @@ export async function updateOsiSalon({
 }
 
 /**
+ * Update the execution date for a session that has been executed.
+ * Updates capacitacion_proceso_steps, syncs to shell as EJECUTADO with the new date,
+ * and logs an audit note in capacitacion_osi_notas.
+ */
+export async function updateExecutionDateStep({
+  osiId,
+  nroSesion = 1,
+  executionDate,
+}: {
+  osiId: number;
+  nroSesion?: number;
+  executionDate: string;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!Number.isFinite(osiId) || osiId <= 0) {
+    return { success: false, error: "OSI inválido" };
+  }
+  const cleanDate = executionDate?.trim();
+  if (!cleanDate || !/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+    return { success: false, error: "Fecha inválida (debe tener formato AAAA-MM-DD)" };
+  }
+
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const userId = user?.id ?? null;
+    const now = new Date().toISOString();
+    const completedAt = `${cleanDate}T12:00:00.000Z`;
+
+    await ensureProcesoStepsExist(osiId, "ejecucion", nroSesion);
+
+    const { data: existing } = await supabase
+      .from("capacitacion_proceso_steps")
+      .select("id, step_metadata, completed")
+      .eq("osi_id", osiId)
+      .eq("phase", "ejecucion")
+      .eq("nro_sesion", nroSesion)
+      .eq("step_key", "en_proceso")
+      .maybeSingle();
+
+    const currentMeta = (existing?.step_metadata as Record<string, unknown> | null) || {};
+
+    const updatedMeta: Record<string, unknown> = {
+      ...currentMeta,
+      unmarked_by_user: false,
+      is_rescheduled: false,
+      unmark_reason: null,
+      fecha_ejecutada: cleanDate,
+      marked_at: now,
+    };
+
+    const { error: updateError } = await supabase
+      .from("capacitacion_proceso_steps")
+      .upsert(
+        {
+          osi_id: osiId,
+          nro_sesion: nroSesion,
+          phase: "ejecucion",
+          step_key: "en_proceso",
+          completed: true,
+          completed_at: completedAt,
+          completed_by: userId,
+          notes: `Ejecutado: ${cleanDate}`,
+          step_metadata: updatedMeta,
+        },
+        { onConflict: "osi_id,nro_sesion,phase,step_key" },
+      );
+
+    if (updateError) {
+      console.error("[updateExecutionDateStep] updateError:", updateError);
+      return { success: false, error: "Error al actualizar la fecha de ejecución" };
+    }
+
+    // Sync to shell status as EJECUTADO (12) with the new execution date
+    await syncOsiEjecutadoToShell(osiId, nroSesion, true, cleanDate).catch((err) =>
+      console.error("[updateExecutionDateStep] syncOsiEjecutadoToShell failed:", err),
+    );
+
+    // Audit note in capacitacion_osi_notas
+    const noteText = `[Fecha de Ejecución Modificada - Sesión ${nroSesion}] Fecha ajustada a: ${cleanDate}`;
+    await addOsiNota(osiId, noteText).catch((err) =>
+      console.error("[updateExecutionDateStep] addOsiNota failed:", err),
+    );
+
+    clearSeguimientoServerCache();
+    return { success: true };
+  } catch (err) {
+    console.error("[updateExecutionDateStep] unexpected error:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado al actualizar la fecha de ejecución",
+    };
+  }
+}
+
+/**
  * Unmark "en_proceso" step with an obligatory reason/justification and optional rescheduled flag.
  * Registers an audit note in capacitacion_osi_notas and syncs to shell as NO_EJECUTADA.
  */

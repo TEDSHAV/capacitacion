@@ -12,17 +12,21 @@ import {
   XCircle,
   ExternalLink,
   CalendarClock,
+  Calendar,
+  Pencil,
 } from "lucide-react";
 import type { StepDef } from "@/lib/proceso-steps";
 import type { ProcesoStepRecord } from "@/app/actions/capacitacion-proceso-steps";
 
 interface ProcesoStepsTimelineProps {
   osiId: number;
+  nroSesion?: number;
   steps: StepDef[];
   completedSteps: Record<string, ProcesoStepRecord>;
   canEdit: boolean;
   onToggle: (stepKey: string, notes?: string, metadata?: Record<string, unknown>) => Promise<void>;
   onBulkToggle?: (stepKeys: string[]) => Promise<void>;
+  onUpdateExecutionDate?: (osiId: number, newDate: string) => Promise<void>;
   onPreviewListaAsistencia?: (osiId: number) => void;
   onPreviewCalificacion?: (osiId: number) => void;
   onPreviewMaterialFotografico?: (osiId: number) => void;
@@ -47,13 +51,45 @@ function formatStepDate(dateStr: string | null | undefined): string {
   }
 }
 
+function getCaracasTodayStr(): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Caracas",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  } catch {
+    return new Date().toISOString().split("T")[0];
+  }
+}
+
+function getYesterdayStr(): string {
+  try {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Caracas",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  } catch {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split("T")[0];
+  }
+}
+
 export default function ProcesoStepsTimeline({
   osiId,
+  nroSesion,
   steps,
   completedSteps,
   canEdit,
   onToggle,
   onBulkToggle,
+  onUpdateExecutionDate,
   onPreviewListaAsistencia,
   onPreviewCalificacion,
   onPreviewMaterialFotografico,
@@ -75,6 +111,12 @@ export default function ProcesoStepsTimeline({
   const [envioPos, setEnvioPos] = useState<{ top: number; left: number } | null>(null);
   const [envioMode, setEnvioMode] = useState<"select" | "fisico">("select");
   const [envioGuia, setEnvioGuia] = useState("");
+
+  const [dateEditStepKey, setDateEditStepKey] = useState<string | null>(null);
+  const [dateEditPos, setDateEditPos] = useState<{ top: number; left: number } | null>(null);
+  const [dateEditValue, setDateEditValue] = useState("");
+  const [savingDate, setSavingDate] = useState(false);
+  const [dateError, setDateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (inputStepKey && inputRef.current) {
@@ -205,6 +247,27 @@ export default function ProcesoStepsTimeline({
     setEnvioPos(null);
     setEnvioMode("select");
     setEnvioGuia("");
+  };
+
+  const closeDateEditPopup = () => {
+    setDateEditStepKey(null);
+    setDateEditPos(null);
+    setDateEditValue("");
+    setDateError(null);
+  };
+
+  const handleDateEditSubmit = async () => {
+    if (!dateEditValue.trim() || !onUpdateExecutionDate) return;
+    setSavingDate(true);
+    setDateError(null);
+    try {
+      await onUpdateExecutionDate(osiId, dateEditValue.trim());
+      closeDateEditPopup();
+    } catch (err) {
+      setDateError(err instanceof Error ? err.message : "Error al actualizar fecha");
+    } finally {
+      setSavingDate(false);
+    }
   };
 
   const handleInputSubmit = async () => {
@@ -482,11 +545,50 @@ export default function ProcesoStepsTimeline({
                 Opcional
               </span>
             )}
-            {isCompleted && rec?.completed_at && (
+            {isCompleted && step.key === "en_proceso" ? (
+              <div className="flex flex-col items-center mt-0.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!canEdit || !onUpdateExecutionDate) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setDateEditPos({ top: rect.bottom + 6, left: rect.left + rect.width / 2 });
+                    const curVal =
+                      (rec?.step_metadata?.fecha_ejecutada as string) ||
+                      (rec?.completed_at ? rec.completed_at.split("T")[0] : getCaracasTodayStr());
+                    setDateEditValue(curVal);
+                    setDateEditStepKey(step.key);
+                    setDateError(null);
+                  }}
+                  disabled={!canEdit || !onUpdateExecutionDate}
+                  className={`inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded transition-all ${
+                    canEdit && onUpdateExecutionDate
+                      ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 cursor-pointer shadow-2xs hover:scale-105"
+                      : "text-gray-500 bg-gray-50 border border-gray-200 cursor-default"
+                  }`}
+                  title={
+                    canEdit && onUpdateExecutionDate
+                      ? "Click para editar fecha de ejecución (Hoy, Ayer u otra fecha)"
+                      : undefined
+                  }
+                >
+                  <Calendar className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                  <span>
+                    {formatStepDate(
+                      (rec?.step_metadata?.fecha_ejecutada as string) || rec?.completed_at
+                    ) || "Editar fecha"}
+                  </span>
+                  {canEdit && onUpdateExecutionDate && (
+                    <Pencil className="w-2 h-2 text-emerald-600 opacity-70 shrink-0" />
+                  )}
+                </button>
+              </div>
+            ) : isCompleted && rec?.completed_at ? (
               <span className="text-[9px] text-gray-400 mt-0.5">
                 {formatStepDate(rec.completed_at)}
               </span>
-            )}
+            ) : null}
             {isCompleted && step.key === "en_proceso" && Boolean(rec?.step_metadata?.salon) && (
               <span
                 className="text-[8px] font-semibold text-emerald-800 bg-emerald-100 border border-emerald-200 px-1 py-0.2 rounded mt-0.5 whitespace-nowrap"
@@ -718,11 +820,50 @@ export default function ProcesoStepsTimeline({
                             >
                               {subStep.label}
                             </span>
-                            {isCompleted && rec?.completed_at && (
+                            {isCompleted && subStep.key === "en_proceso" ? (
+                              <div className="flex flex-col items-center mt-0.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!canEdit || !onUpdateExecutionDate) return;
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setDateEditPos({ top: rect.bottom + 6, left: rect.left + rect.width / 2 });
+                                    const curVal =
+                                      (rec?.step_metadata?.fecha_ejecutada as string) ||
+                                      (rec?.completed_at ? rec.completed_at.split("T")[0] : getCaracasTodayStr());
+                                    setDateEditValue(curVal);
+                                    setDateEditStepKey(subStep.key);
+                                    setDateError(null);
+                                  }}
+                                  disabled={!canEdit || !onUpdateExecutionDate}
+                                  className={`inline-flex items-center gap-1 text-[8px] font-medium px-1.5 py-0.5 rounded transition-all ${
+                                    canEdit && onUpdateExecutionDate
+                                      ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 cursor-pointer shadow-2xs hover:scale-105"
+                                      : "text-gray-500 bg-gray-50 border border-gray-200 cursor-default"
+                                  }`}
+                                  title={
+                                    canEdit && onUpdateExecutionDate
+                                      ? "Click para editar fecha de ejecución (Hoy, Ayer u otra fecha)"
+                                      : undefined
+                                  }
+                                >
+                                  <Calendar className="w-2 h-2 text-emerald-600 shrink-0" />
+                                  <span>
+                                    {formatStepDate(
+                                      (rec?.step_metadata?.fecha_ejecutada as string) || rec?.completed_at
+                                    ) || "Editar fecha"}
+                                  </span>
+                                  {canEdit && onUpdateExecutionDate && (
+                                    <Pencil className="w-1.5 h-1.5 text-emerald-600 opacity-70 shrink-0" />
+                                  )}
+                                </button>
+                              </div>
+                            ) : isCompleted && rec?.completed_at ? (
                               <span className="text-[8px] text-gray-400 mt-0.5">
                                 {formatStepDate(rec.completed_at)}
                               </span>
-                            )}
+                            ) : null}
                             {isCompleted && requiresInput && ((rec?.step_metadata?.guia as string) || rec?.notes) && (
                               <span className="text-[8px] text-blue-600 font-medium mt-0.5">
                                 Guía: {(rec?.step_metadata?.guia as string) || rec.notes}
@@ -897,6 +1038,112 @@ export default function ProcesoStepsTimeline({
                 </div>
               </div>
             )}
+          </div>
+        </>
+      )}
+
+      {/* Fixed-position popup for editable execution date */}
+      {dateEditStepKey && dateEditPos && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={closeDateEditPopup} />
+          <div
+            className="fixed z-50 bg-white border border-gray-200 rounded-xl shadow-2xl p-3 flex flex-col gap-2.5 min-w-[260px] max-w-[300px] animate-in fade-in zoom-in-95 duration-100"
+            style={{
+              top: `${Math.min(dateEditPos.top, typeof window !== "undefined" ? window.innerHeight - 240 : dateEditPos.top)}px`,
+              left: `${Math.max(140, Math.min(dateEditPos.left, typeof window !== "undefined" ? window.innerWidth - 150 : dateEditPos.left))}px`,
+              transform: "translateX(-50%)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-xs font-bold text-gray-900">
+                  Fecha de ejecución{nroSesion ? ` (Sesión ${nroSesion})` : ""}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={closeDateEditPopup}
+                className="text-gray-400 hover:text-gray-600 p-0.5 rounded transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {dateError && (
+              <p className="text-[11px] text-red-600 bg-red-50 p-1.5 rounded border border-red-200">
+                {dateError}
+              </p>
+            )}
+
+            {/* Quick shortcuts */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setDateEditValue(getCaracasTodayStr())}
+                className={`flex-1 text-[11px] font-semibold py-1 px-2 rounded-md border transition-colors cursor-pointer text-center ${
+                  dateEditValue === getCaracasTodayStr()
+                    ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold"
+                    : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
+                }`}
+              >
+                📅 Hoy
+              </button>
+              <button
+                type="button"
+                onClick={() => setDateEditValue(getYesterdayStr())}
+                className={`flex-1 text-[11px] font-semibold py-1 px-2 rounded-md border transition-colors cursor-pointer text-center ${
+                  dateEditValue === getYesterdayStr()
+                    ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold"
+                    : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
+                }`}
+              >
+                Ayer
+              </button>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-medium text-gray-500 mb-1 block">
+                O seleccione otra fecha:
+              </label>
+              <input
+                type="date"
+                value={dateEditValue}
+                onChange={(e) => setDateEditValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && dateEditValue.trim()) handleDateEditSubmit();
+                  if (e.key === "Escape") closeDateEditPopup();
+                }}
+                className="w-full px-2.5 py-1.5 text-xs font-medium border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-400 focus:outline-none bg-white"
+              />
+            </div>
+
+            <div className="flex gap-1.5 justify-end pt-1 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={closeDateEditPopup}
+                disabled={savingDate}
+                className="px-2.5 py-1 text-xs text-gray-600 hover:text-gray-800 rounded cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDateEditSubmit}
+                disabled={savingDate || !dateEditValue.trim()}
+                className="px-3 py-1 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-xs inline-flex items-center gap-1 cursor-pointer"
+              >
+                {savingDate ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  "Guardar"
+                )}
+              </button>
+            </div>
           </div>
         </>
       )}

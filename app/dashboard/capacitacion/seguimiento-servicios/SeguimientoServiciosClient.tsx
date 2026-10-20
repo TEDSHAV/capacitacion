@@ -25,6 +25,7 @@ import {
   Paperclip,
   Award,
   XCircle,
+  Pencil,
 } from "lucide-react";
 import type { OSIManagement, OSISesion, OSIFilters, OSIStatus } from "@/types";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
@@ -36,6 +37,7 @@ import {
   toggleAttachmentReceived,
   unmarkEnProcesoStep,
   markEnProcesoStep,
+  updateExecutionDateStep,
   restoreRescheduledToActivos,
   setMaterialEnvioStep,
   type ProcesoStepRecord,
@@ -837,6 +839,56 @@ export default function SeguimientoServiciosClient({
       moduleCache.clear();
     },
     [executionModal],
+  );
+
+  const handleUpdateExecutionDate = useCallback(
+    async (osiId: number, nroSesion: number, newDate: string) => {
+      const res = await updateExecutionDateStep({
+        osiId,
+        nroSesion,
+        executionDate: newDate,
+      });
+      if (!res.success) {
+        throw new Error(res.error || "Error al actualizar la fecha de ejecución");
+      }
+
+      setStepsByOsi((prev) => {
+        const newMap = new Map(prev);
+        const osiMap = newMap.get(osiId) || new Map();
+        const sessionMap = osiMap.get(nroSesion) || {};
+        const existing = sessionMap["en_proceso"];
+        const cleanDate = newDate.trim();
+        const completedAt = `${cleanDate}T12:00:00.000Z`;
+
+        osiMap.set(nroSesion, {
+          ...sessionMap,
+          en_proceso: {
+            ...existing,
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: "ejecucion",
+            step_key: "en_proceso",
+            id: existing?.id ?? 0,
+            completed: true,
+            completed_at: completedAt,
+            notes: `Ejecutado: ${cleanDate}`,
+            step_metadata: {
+              ...((existing?.step_metadata as Record<string, unknown>) || {}),
+              unmarked_by_user: false,
+              is_rescheduled: false,
+              unmark_reason: null,
+              fecha_ejecutada: cleanDate,
+              marked_at: new Date().toISOString(),
+            },
+          },
+        });
+        newMap.set(osiId, osiMap);
+        return newMap;
+      });
+
+      moduleCache.clear();
+    },
+    [],
   );
 
   const handleConfirmReagendar = useCallback(
@@ -1765,13 +1817,27 @@ export default function SeguimientoServiciosClient({
                                 </span>
                               )}
                               {sessionSteps["en_proceso"]?.completed && (
-                                <span className="text-[11px] text-emerald-700 font-medium ml-1 flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  Ejecutado{" "}
-                                  {sessionSteps["en_proceso"]?.completed_at
-                                    ? `(${sessionSteps["en_proceso"].completed_at.split("T")[0]})`
-                                    : ""}
-                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenExecutionModal(osi.id_osi);
+                                  }}
+                                  className="text-[11px] text-emerald-700 hover:text-emerald-800 font-medium ml-1 flex items-center gap-1 group cursor-pointer hover:underline"
+                                  title="Gestionar fecha real de ejecución / salón"
+                                >
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                  <span>
+                                    Ejecutado{" "}
+                                    {String(
+                                      (sessionSteps["en_proceso"]?.step_metadata as Record<string, unknown> | undefined)?.fecha_ejecutada ||
+                                        (sessionSteps["en_proceso"]?.completed_at
+                                          ? sessionSteps["en_proceso"].completed_at.split("T")[0]
+                                          : "")
+                                    )}
+                                  </span>
+                                  <Pencil className="w-2.5 h-2.5 text-emerald-600 opacity-60 group-hover:opacity-100 shrink-0" />
+                                </button>
                               )}
                             </div>
                           </div>
@@ -1870,6 +1936,7 @@ export default function SeguimientoServiciosClient({
                       ) : (
                         <ProcesoStepsTimeline
                           osiId={osi.id_osi}
+                          nroSesion={currentNroSesion}
                           steps={ALL_STEPS}
                           completedSteps={sessionSteps}
                           canEdit={true}
@@ -1878,6 +1945,9 @@ export default function SeguimientoServiciosClient({
                           }
                           onBulkToggle={(stepKeys) =>
                             handleBulkToggle(osi.id_osi, currentNroSesion, stepKeys)
+                          }
+                          onUpdateExecutionDate={(id, newDate) =>
+                            handleUpdateExecutionDate(id, currentNroSesion, newDate)
                           }
                           onRequestExecutionAction={() =>
                             handleOpenExecutionModal(osi.id_osi)

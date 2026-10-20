@@ -126,7 +126,9 @@ export default function EjecucionOsiModal({
       } else {
         setMode("ejecutado");
         setExecutionDate(
-          typeof stepRecord?.completed_at === "string"
+          typeof stepRecord?.step_metadata?.fecha_ejecutada === "string" && stepRecord.step_metadata.fecha_ejecutada
+            ? stepRecord.step_metadata.fecha_ejecutada
+            : typeof stepRecord?.completed_at === "string"
             ? stepRecord.completed_at.split("T")[0]
             : getCaracasTodayStr()
         );
@@ -424,9 +426,41 @@ export default function EjecucionOsiModal({
             /* Campos para Marcar como Ejecutado */
             <div className="space-y-3 bg-emerald-50/40 p-4 rounded-xl border border-emerald-200/60 animate-in fade-in duration-150">
               <div>
-                <label className="block text-xs font-semibold text-gray-800 mb-1">
-                  Fecha real de ejecución
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-800">
+                    Fecha real de ejecución
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setExecutionDate(getCaracasTodayStr())}
+                      className={`text-[10px] font-semibold py-0.5 px-2 rounded border transition-colors cursor-pointer ${
+                        executionDate === getCaracasTodayStr()
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold"
+                          : "bg-white text-gray-700 hover:bg-gray-50 border-gray-200"
+                      }`}
+                    >
+                      📅 Hoy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = new Date();
+                        d.setDate(d.getDate() - 1);
+                        const yStr = new Intl.DateTimeFormat("en-CA", {
+                          timeZone: "America/Caracas",
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit",
+                        }).format(d);
+                        setExecutionDate(yStr);
+                      }}
+                      className="text-[10px] font-semibold py-0.5 px-2 rounded border bg-white text-gray-700 hover:bg-gray-50 border-gray-200 transition-colors cursor-pointer"
+                    >
+                      Ayer
+                    </button>
+                  </div>
+                </div>
                 <div className="relative">
                   <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
