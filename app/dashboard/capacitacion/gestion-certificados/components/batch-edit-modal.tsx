@@ -11,6 +11,7 @@ import {
   getOSIsWithCertificatesAction,
   getBatchCertificateDetailsAction,
   getFacilitatorsForFilters,
+  generateCarnetsForBatchAction,
 } from "@/app/actions/certificados";
 import { toTitleCase } from "@/utils/string-utils";
 import {
@@ -23,6 +24,7 @@ import {
   Check,
   RefreshCw,
   BookOpen,
+  CreditCard,
 } from "lucide-react";
 
 const RichTextEditor = dynamic(
@@ -69,6 +71,15 @@ export function BatchEditModal({
   const [selectedFacilitator, setSelectedFacilitator] = useState<FacilitatorLookup | null>(null);
 
   const [catalogCourseContent, setCatalogCourseContent] = useState("");
+
+  interface BatchCarnetStats {
+    total_certificates: number;
+    total_carnets: number;
+    carnets_missing: number;
+  }
+  const [batchStats, setBatchStats] = useState<BatchCarnetStats | null>(null);
+  const [generateCarnets, setGenerateCarnets] = useState(false);
+  const [generatingCarnetsDirectly, setGeneratingCarnetsDirectly] = useState(false);
 
   const [updates, setUpdates] = useState<BatchUpdateData>({
     certificate_title: "",
@@ -146,6 +157,13 @@ export function BatchEditModal({
           id_facilitador: facilitatorId,
           course_content: result.data.course_content || "",
         });
+        const stats = {
+          total_certificates: (result.data as any).total_certificates ?? 0,
+          total_carnets: (result.data as any).total_carnets ?? 0,
+          carnets_missing: (result.data as any).carnets_missing ?? 0,
+        };
+        setBatchStats(stats);
+        setGenerateCarnets(stats.carnets_missing > 0);
       }
     } catch (error) {
       console.error("Error loading batch details:", error);
@@ -204,6 +222,47 @@ export function BatchEditModal({
     setUpdates((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleGenerateCarnetsDirectly = async () => {
+    if (!selectedOsiData) return;
+    if (!updates.fecha_vencimiento) {
+      alert("Por favor indique la Fecha de Vencimiento para poder generar los carnets.");
+      return;
+    }
+
+    try {
+      setGeneratingCarnetsDirectly(true);
+      const res = await generateCarnetsForBatchAction(
+        selectedOsiData.nro_osi,
+        selectedOsiData.id_curso,
+        updates.fecha_vencimiento,
+      );
+
+      if (res.success) {
+        alert(res.message);
+        const refreshed = await getBatchCertificateDetailsAction(
+          selectedOsiData.nro_osi,
+          selectedOsiData.id_curso,
+        );
+        if (refreshed.success && refreshed.data) {
+          setBatchStats({
+            total_certificates: (refreshed.data as any).total_certificates ?? 0,
+            total_carnets: (refreshed.data as any).total_carnets ?? 0,
+            carnets_missing: (refreshed.data as any).carnets_missing ?? 0,
+          });
+          setGenerateCarnets(false);
+        }
+        onSuccess();
+      } else {
+        alert(`Error al generar carnets: ${res.message}`);
+      }
+    } catch (err) {
+      console.error("Error generating carnets directly:", err);
+      alert("Ocurrió un error inesperado al generar los carnets.");
+    } finally {
+      setGeneratingCarnetsDirectly(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -213,11 +272,19 @@ export function BatchEditModal({
       return;
     }
 
-    // Since fields are pre-populated, we send everything in state.
-    // The user can edit whatever they want.
+    if (generateCarnets && (batchStats?.carnets_missing ?? 0) > 0 && !updates.fecha_vencimiento) {
+      alert("Para generar los carnets faltantes debe indicar la Fecha de Vencimiento.");
+      return;
+    }
+
     try {
       setLoading(true);
-      const result = await batchUpdateCertificatesAction(numericOsi, updates, selectedOsiData.id_curso);
+      const updatesToSend: BatchUpdateData = {
+        ...updates,
+        generate_missing_carnets: generateCarnets && (batchStats?.carnets_missing ?? 0) > 0,
+      };
+
+      const result = await batchUpdateCertificatesAction(numericOsi, updatesToSend, selectedOsiData.id_curso);
       
       if (result.success) {
         alert(result.message);
@@ -234,6 +301,8 @@ export function BatchEditModal({
           id_facilitador: "",
           course_content: "",
         });
+        setBatchStats(null);
+        setGenerateCarnets(false);
         setCatalogCourseContent("");
         setSelectedOsiData(null);
         setSelectedFacilitator(null);
@@ -435,6 +504,91 @@ export function BatchEditModal({
                   </div>
                 </div>
 
+                {/* Carnets Section */}
+                {selectedOsiData && batchStats && (
+                  <div className="rounded-xl border border-purple-100 bg-purple-50/40 p-4 space-y-3 transition-all">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-purple-100 text-purple-700 rounded-lg">
+                          <CreditCard className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-bold text-gray-900 block leading-tight">
+                            Carnets PVC del Lote
+                          </span>
+                          <span className="text-[11px] text-gray-500">
+                            Emisión vinculada a los certificados de este curso
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-xs px-2.5 py-1 rounded-full font-bold inline-flex items-center gap-1 ${
+                          batchStats.carnets_missing === 0
+                            ? "bg-green-100 text-green-800 border border-green-200"
+                            : "bg-amber-100 text-amber-900 border border-amber-200"
+                        }`}
+                      >
+                        {batchStats.carnets_missing === 0 && <Check className="h-3 w-3" />}
+                        {batchStats.total_carnets} de {batchStats.total_certificates} generados
+                      </span>
+                    </div>
+
+                    {batchStats.carnets_missing > 0 ? (
+                      <div className="space-y-2.5 pt-1 border-t border-purple-100/70">
+                        <p className="text-xs text-gray-600">
+                          Hay <strong>{batchStats.carnets_missing}</strong> certificado{batchStats.carnets_missing > 1 ? "s" : ""} sin carnet en este lote.
+                        </p>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-lg border border-purple-100 shadow-sm">
+                          <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={generateCarnets}
+                              onChange={(e) => setGenerateCarnets(e.target.checked)}
+                              className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                              disabled={loading || generatingCarnetsDirectly}
+                            />
+                            <span>Generar carnets faltantes al actualizar el lote</span>
+                          </label>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleGenerateCarnetsDirectly}
+                            disabled={loading || generatingCarnetsDirectly || !updates.fecha_vencimiento}
+                            className="h-8 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-sm shrink-0"
+                            title={!updates.fecha_vencimiento ? "Indique primero la Fecha de Vencimiento arriba" : "Generar carnets ahora"}
+                          >
+                            {generatingCarnetsDirectly ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                                Generando...
+                              </>
+                            ) : (
+                              <>
+                                <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+                                Generar {batchStats.carnets_missing} carnet{batchStats.carnets_missing > 1 ? "s" : ""} ahora
+                              </>
+                            )}
+                          </Button>
+                        </div>
+
+                        {!updates.fecha_vencimiento && (
+                          <p className="text-[11px] text-amber-600 flex items-center gap-1 font-medium">
+                            <AlertCircle className="h-3 w-3 shrink-0" />
+                            Debe indicar la Fecha de Vencimiento arriba para poder emitir los carnets.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-green-700 font-medium flex items-center gap-1.5 pt-1 border-t border-purple-100/70">
+                        <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                        Todos los certificados cuentan con su respectivo carnet PVC activo.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="location" className="text-sm font-semibold text-gray-700">
                     Ciudad / Ubicación
@@ -619,6 +773,8 @@ export function BatchEditModal({
                 id_facilitador: "",
                 course_content: "",
               });
+              setBatchStats(null);
+              setGenerateCarnets(false);
               setCatalogCourseContent("");
               setSelectedOsiData(null);
               setSelectedFacilitator(null);

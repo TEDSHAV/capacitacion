@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import {
   Carnet,
@@ -39,7 +40,8 @@ export async function saveCarnetsToDatabase(
       const certificateId = certificateIds[i];
       try {
         // Generate QR code for carnet verification
-        const qrData = QRService.generateQRData(certificateId);
+        const qrIdentifier = (carnet as any).uuid || certificateId;
+        const qrData = QRService.generateQRData(qrIdentifier);
         const qrDataURL = await QRService.generateQRDataURL({
           data: qrData,
           size: 150,
@@ -702,3 +704,310 @@ export async function updateCarnetAction(
     };
   }
 }
+
+/**
+ * Generates PVC carnets for all active certificates in a batch (by OSI and optional course)
+ * that do not already have an active carnet.
+ */
+export async function generateCarnetsForBatchAction(
+  osiNumber: number,
+  courseId?: number,
+  customFechaVencimiento?: string,
+): Promise<{
+  success: boolean;
+  message: string;
+  generatedCount: number;
+  carnetIds?: number[];
+}> {
+  try {
+    const supabase = await createClient();
+
+    if (!osiNumber || isNaN(osiNumber)) {
+      return {
+        success: false,
+        message: "Número de OSI inválido",
+        generatedCount: 0,
+      };
+    }
+
+    // 1. Fetch active certificates for this OSI (and course if specified)
+    let query = supabase
+      .from("certificados")
+      .select(`
+        id,
+        uuid,
+        id_participante,
+        id_empresa,
+        id_curso,
+        id_osi,
+        nro_osi,
+        nro_control,
+        fecha_emision,
+        fecha_vencimiento,
+        calificacion,
+        snapshot_contenido,
+        participantes_certificados (
+          id,
+          nombre,
+          cedula
+        ),
+        catalogo_servicios (
+          id,
+          nombre,
+          emite_carnet,
+          id_plantilla_carnet
+        ),
+        empresas (
+          id,
+          razon_social
+        )
+      `)
+      .eq("nro_osi", osiNumber)
+      .eq("is_active", true);
+
+    if (courseId) {
+      query = query.eq("id_curso", courseId);
+    }
+
+    const { data: certificates, error: certError } = await query;
+    if (certError) {
+      console.error("Error fetching certificates for batch carnets:", certError);
+      return {
+        success: false,
+        message: `Error al consultar certificados: ${certError.message}`,
+        generatedCount: 0,
+      };
+    }
+
+    if (!certificates || certificates.length === 0) {
+      return {
+        success: false,
+        message: `No se encontraron certificados activos para la OSI ${osiNumber}`,
+        generatedCount: 0,
+      };
+    }
+
+    const certIds = certificates.map((c) => c.id);
+
+    // 2. Find which certificates already have an active carnet
+    const { data: existingCarnets, error: carnetCheckError } = await supabase
+      .from("carnets")
+      .select("id_certificado")
+      .in("id_certificado", certIds)
+      .eq("is_active", true);
+
+    if (carnetCheckError) {
+      console.error("Error checking existing carnets:", carnetCheckError);
+      return {
+        success: false,
+        message: `Error al verificar carnets existentes: ${carnetCheckError.message}`,
+        generatedCount: 0,
+      };
+    }
+
+    const existingCertIdSet = new Set(
+      (existingCarnets || []).map((c) => c.id_certificado),
+    );
+
+    const missingCerts = certificates.filter((c) => !existingCertIdSet.has(c.id));
+
+    if (missingCerts.length === 0) {
+      return {
+        success: true,
+        message: "Todos los certificados de este lote ya poseen su carnet.",
+        generatedCount: 0,
+      };
+    }
+
+    // 3. Resolve default active carnet template in case course doesn't specify one
+    const { data: defaultTemplate } = await supabase
+      .from("plantillas_carnets")
+      .select("id")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const formatDateStr = (dateInput: any) => {
+      if (!dateInput) return "";
+      if (typeof dateInput === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+        return dateInput;
+      }
+      const d = new Date(dateInput);
+      if (isNaN(d.getTime())) return "";
+      const year = d.getUTCFullYear();
+      const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    // 4. Build carnet generation records
+    const carnetDataList: (CarnetGeneration & { uuid?: string })[] = [];
+    const carnetCertificateIds: number[] = [];
+    const certsToUpdateExpiry: number[] = [];
+
+    for (const cert of missingCerts) {
+      let snap: any = {};
+      if (cert.snapshot_contenido) {
+        try {
+          snap = JSON.parse(cert.snapshot_contenido);
+        } catch {
+          // ignore parsing error
+        }
+      }
+
+      const participantName =
+        (Array.isArray(cert.participantes_certificados)
+          ? cert.participantes_certificados[0]?.nombre
+          : (cert.participantes_certificados as any)?.nombre) ||
+        snap.participante?.nombre ||
+        snap.nombre_participante ||
+        "";
+
+      const participantCedula =
+        (Array.isArray(cert.participantes_certificados)
+          ? cert.participantes_certificados[0]?.cedula
+          : (cert.participantes_certificados as any)?.cedula) ||
+        snap.participante?.cedula ||
+        snap.cedula_participante ||
+        "";
+
+      const courseTitle =
+        snap.certificado_detalles?.title ||
+        snap.certificate_title ||
+        snap.titulo_curso ||
+        (Array.isArray(cert.catalogo_servicios)
+          ? cert.catalogo_servicios[0]?.nombre
+          : (cert.catalogo_servicios as any)?.nombre) ||
+        "";
+
+      const courseSubtitle =
+        snap.certificado_detalles?.subtitle ||
+        snap.certificate_subtitle ||
+        snap.subtitulo_curso ||
+        null;
+
+      const companyName =
+        (Array.isArray(cert.empresas)
+          ? cert.empresas[0]?.razon_social
+          : (cert.empresas as any)?.razon_social) ||
+        snap.empresa?.razon_social ||
+        snap.empresa_participante ||
+        null;
+
+      const emissionDate =
+        formatDateStr(snap.certificado_detalles?.date || snap.certificado?.fecha_emision || cert.fecha_emision) ||
+        new Date().toISOString().split("T")[0];
+
+      const expiryDate =
+        formatDateStr(customFechaVencimiento) ||
+        formatDateStr(snap.fecha_vencimiento || snap.certificado?.fecha_vencimiento || cert.fecha_vencimiento);
+
+      if (!expiryDate) {
+        return {
+          success: false,
+          message: "Se requiere indicar una Fecha de Vencimiento para generar los carnets.",
+          generatedCount: 0,
+        };
+      }
+
+      // If customFechaVencimiento was provided and cert didn't have it, mark to sync
+      if (customFechaVencimiento && cert.fecha_vencimiento !== expiryDate) {
+        certsToUpdateExpiry.push(cert.id);
+      }
+
+      const plantillaId =
+        (Array.isArray(cert.catalogo_servicios)
+          ? cert.catalogo_servicios[0]?.id_plantilla_carnet
+          : (cert.catalogo_servicios as any)?.id_plantilla_carnet) ||
+        snap.id_plantilla_carnet ||
+        defaultTemplate?.id ||
+        null;
+
+      const participantId =
+        cert.id_participante ||
+        (Array.isArray(cert.participantes_certificados)
+          ? cert.participantes_certificados[0]?.id
+          : (cert.participantes_certificados as any)?.id) ||
+        snap.participante?.id ||
+        null;
+
+      const companyId =
+        cert.id_empresa ||
+        snap.empresa?.id ||
+        snap.id_empresa ||
+        null;
+
+      const effectiveCourseId =
+        cert.id_curso ||
+        courseId ||
+        snap.id_curso ||
+        snap.curso?.id ||
+        null;
+
+      const effectiveOsiId =
+        cert.id_osi ||
+        snap.id_osi ||
+        snap.osi?.id ||
+        null;
+
+      carnetDataList.push({
+        id_certificado: cert.id,
+        id_participante: participantId || 0,
+        id_empresa: companyId,
+        id_curso: effectiveCourseId,
+        id_osi: effectiveOsiId,
+        titulo_curso: courseTitle,
+        subtitulo_curso: courseSubtitle,
+        fecha_emision: emissionDate,
+        fecha_vencimiento: expiryDate,
+        nombre_participante: participantName,
+        cedula_participante: participantCedula,
+        empresa_participante: companyName,
+        id_plantilla_carnet: plantillaId,
+        nro_control: cert.nro_control || 0,
+        uuid: cert.uuid,
+      });
+
+      carnetCertificateIds.push(cert.id);
+    }
+
+    // 5. Save carnets
+    const result = await saveCarnetsToDatabase(carnetDataList, carnetCertificateIds);
+
+    if (!result.success) {
+      return {
+        success: false,
+        message: result.message,
+        generatedCount: 0,
+      };
+    }
+
+    // 6. If expiry date was customized, update certificates in batch for consistency
+    if (customFechaVencimiento && certsToUpdateExpiry.length > 0) {
+      const formattedExpiry = formatDateStr(customFechaVencimiento);
+      await supabase
+        .from("certificados")
+        .update({ fecha_vencimiento: formattedExpiry })
+        .in("id", certsToUpdateExpiry);
+    }
+
+    revalidatePath("/dashboard/capacitacion/gestion-certificados");
+    revalidatePath("/dashboard/capacitacion/gestion-osi");
+
+    return {
+      success: true,
+      message: `Se generaron exitosamente ${carnetDataList.length} carnets para el lote.`,
+      generatedCount: carnetDataList.length,
+      carnetIds: result.carnetIds,
+    };
+  } catch (error) {
+    console.error("Error in generateCarnetsForBatchAction:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Error inesperado al generar carnets",
+      generatedCount: 0,
+    };
+  }
+}
+

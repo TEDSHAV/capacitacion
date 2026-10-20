@@ -18,6 +18,8 @@ import {
 import { QRService } from "@/lib/qr-service";
 import { getFacilitatorData } from "./facilitators";
 import { certificateService } from "@/lib/certificate-service";
+import { generateCarnetsForBatchAction } from "./carnets";
+export { generateCarnetsForBatchAction } from "./carnets";
 
 export interface CertificateRecord {
   id_participante?: number | null;
@@ -2556,6 +2558,33 @@ export async function getBatchCertificateDetailsAction(osiNumber: number, course
       return `${year}-${month}-${day}`;
     };
 
+    // Query batch certificate IDs to count certificates and existing carnets
+    let countQuery = supabase
+      .from("certificados")
+      .select("id")
+      .eq("nro_osi", osiNumber)
+      .eq("is_active", true);
+
+    if (courseId) {
+      countQuery = countQuery.eq("id_curso", courseId);
+    }
+
+    const { data: batchCertRows } = await countQuery;
+    const batchCertIds = (batchCertRows || []).map((r) => r.id);
+    const totalCertificates = batchCertIds.length;
+
+    let totalCarnets = 0;
+    if (batchCertIds.length > 0) {
+      const { count } = await supabase
+        .from("carnets")
+        .select("id", { count: "exact", head: true })
+        .in("id_certificado", batchCertIds)
+        .eq("is_active", true);
+      totalCarnets = count ?? 0;
+    }
+
+    const carnetsMissing = Math.max(0, totalCertificates - totalCarnets);
+
     return {
       success: true,
       data: {
@@ -2568,6 +2597,9 @@ export async function getBatchCertificateDetailsAction(osiNumber: number, course
         id_facilitador,
         course_content,
         catalog_course_content,
+        total_certificates: totalCertificates,
+        total_carnets: totalCarnets,
+        carnets_missing: carnetsMissing,
       }
     };
   } catch (error) {
@@ -2740,10 +2772,32 @@ export async function batchUpdateCertificatesAction(
       }
     }
 
+    let generatedCarnetsCount = 0;
+    if (updates.generate_missing_carnets) {
+      try {
+        const carnetGenResult = await generateCarnetsForBatchAction(
+          osiNumber,
+          courseId,
+          updates.fecha_vencimiento,
+        );
+        if (carnetGenResult.success) {
+          generatedCarnetsCount = carnetGenResult.generatedCount || 0;
+        }
+      } catch (carnetErr) {
+        console.error("Error generating missing carnets during batch update:", carnetErr);
+      }
+    }
+
+    const carnetsSuffix =
+      generatedCarnetsCount > 0
+        ? ` Además se generaron ${generatedCarnetsCount} nuevos carnets.`
+        : "";
+
     return {
       success: true,
-      message: `Se actualizaron ${updatedCount} certificados y sus respectivos carnets para la OSI ${osiNumber}${courseId ? " y el curso seleccionado" : ""}`,
+      message: `Se actualizaron ${updatedCount} certificados y sus respectivos carnets para la OSI ${osiNumber}${courseId ? " y el curso seleccionado" : ""}.${carnetsSuffix}`,
       updatedCount,
+      generatedCarnetsCount,
     };
   } catch (error) {
     console.error("Error in batchUpdateCertificatesAction:", error);

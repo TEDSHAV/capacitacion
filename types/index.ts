@@ -1255,12 +1255,14 @@ export interface BatchUpdateData {
   horas_estimadas?: string;
   id_facilitador?: string;
   course_content?: string;
+  generate_missing_carnets?: boolean;
 }
 
 export interface BatchUpdateResult {
   success: boolean;
   message: string;
   updatedCount: number;
+  generatedCarnetsCount?: number;
 }
 
 // Certificate Management Interfaces
@@ -1442,6 +1444,7 @@ export interface CarnetGeneration {
   qr_code?: string;
   snapshot_contenido?: string;
   id_plantilla_carnet?: number; // Carne template ID used
+  uuid?: string;
 }
 
 export interface CarnetRelationships {

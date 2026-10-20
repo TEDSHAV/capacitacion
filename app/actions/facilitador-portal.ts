@@ -1147,26 +1147,48 @@ export async function uploadOSIAttachment(
     console.log("[uploadOSIAttachment] Auto-mark check:", { category, stepKey, sessionForStep, nroSesion });
     if (stepKey) {
       try {
+        // Check if the facilitator is assigned to all sessions (nro_sesion is null)
+        const { data: assignmentData } = await supabase
+          .from("facilitador_osi_assignments")
+          .select("nro_sesion")
+          .eq("osi_id", osiId)
+          .eq("facilitador_id", facilitadorId)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        let targetSessions = [sessionForStep];
+        if (assignmentData && assignmentData.nro_sesion == null) {
+          const { data: allSessions } = await supabase
+            .from("osi_sesion")
+            .select("nro_sesion")
+            .eq("id_osi", osiId);
+          if (allSessions && allSessions.length > 0) {
+            targetSessions = allSessions.map((s) => s.nro_sesion);
+          }
+        }
+
+        const now = new Date().toISOString();
+        const stepRows = targetSessions.map((ses) => ({
+          osi_id: osiId,
+          nro_sesion: ses,
+          phase: "ejecucion",
+          step_key: stepKey,
+          completed: true,
+          completed_at: now,
+          completed_by: null, // system auto-mark (null distinguishes from user toggles)
+        }));
+
         const { error: stepError } = await supabase
           .from("capacitacion_proceso_steps")
-          .upsert(
-            {
-              osi_id: osiId,
-              nro_sesion: sessionForStep,
-              phase: "ejecucion",
-              step_key: stepKey,
-              completed: true,
-              completed_at: new Date().toISOString(),
-              completed_by: null, // system auto-mark (null distinguishes from user toggles)
-            },
-            { onConflict: "osi_id,nro_sesion,phase,step_key" },
-          );
+          .upsert(stepRows, { onConflict: "osi_id,nro_sesion,phase,step_key" });
+
         if (stepError) {
           console.error("[uploadOSIAttachment] Step upsert error:", stepError);
         } else {
-          console.log("[uploadOSIAttachment] ✅ Auto-marked step:", { stepKey, sessionForStep, osiId });
+          console.log("[uploadOSIAttachment] ✅ Auto-marked step across sessions:", { stepKey, targetSessions, osiId });
 
-          // Guard clause: uploaded attachment proves execution took place. Ensure en_proceso is completed.
+          // Guard clause: uploaded attachment proves execution took place FOR THIS SESSION ONLY.
+          // Never auto-mark other/future sessions as ejecutado.
           await supabase
             .from("capacitacion_proceso_steps")
             .upsert(
@@ -1176,11 +1198,12 @@ export async function uploadOSIAttachment(
                 phase: "ejecucion",
                 step_key: "en_proceso",
                 completed: true,
-                completed_at: new Date().toISOString(),
+                completed_at: now,
                 completed_by: null,
               },
               { onConflict: "osi_id,nro_sesion,phase,step_key" },
             );
+
           await syncOsiEjecutadoToShell(osiId, sessionForStep, true).catch((err) =>
             console.error("[uploadOSIAttachment] syncOsiEjecutadoToShell error:", err),
           );

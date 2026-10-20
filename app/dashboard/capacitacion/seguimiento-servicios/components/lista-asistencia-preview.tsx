@@ -477,11 +477,18 @@ function AttachmentCard({
 
       {/* Info & action footer */}
       <div className="p-3 space-y-2">
-        <div className="flex items-center justify-between gap-1.5">
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${categoryMeta.color}`}>
-            <CatIcon className="w-3 h-3" />
-            {categoryMeta.label}
-          </span>
+        <div className="flex items-center justify-between gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${categoryMeta.color}`}>
+              <CatIcon className="w-3 h-3" />
+              {categoryMeta.label}
+            </span>
+            {attachment.nro_sesion != null && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                Sesión {attachment.nro_sesion}
+              </span>
+            )}
+          </div>
           {fileSize && (
             <span className="text-[10px] text-slate-400 font-mono">{fileSize}</span>
           )}

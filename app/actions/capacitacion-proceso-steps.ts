@@ -413,6 +413,47 @@ export async function toggleProcesoStep(
       }
     }
 
+    // If the step is an attachment step and the facilitator is assigned to all sessions, propagate across all sessions
+    const ATTACHMENT_STEP_KEYS = ["lista_asistencia", "calificacion", "material_fotografico"];
+    if (ATTACHMENT_STEP_KEYS.includes(stepKey)) {
+      const { data: allSesAssignment } = await supabase
+        .from("facilitador_osi_assignments")
+        .select("id")
+        .eq("osi_id", osiId)
+        .eq("is_active", true)
+        .is("nro_sesion", null)
+        .limit(1);
+
+      if (allSesAssignment && allSesAssignment.length > 0) {
+        const { data: allSessions } = await supabase
+          .from("osi_sesion")
+          .select("nro_sesion")
+          .eq("id_osi", osiId);
+
+        for (const s of allSessions || []) {
+          if (s.nro_sesion !== nroSesion) {
+            await ensureProcesoStepsExist(osiId, phase, s.nro_sesion);
+            await supabase
+              .from("capacitacion_proceso_steps")
+              .upsert(
+                {
+                  osi_id: osiId,
+                  nro_sesion: s.nro_sesion,
+                  phase,
+                  step_key: stepKey,
+                  completed: newCompleted,
+                  completed_at: newCompleted ? now : null,
+                  completed_by: newCompleted ? userId : null,
+                  notes: finalNotes,
+                  step_metadata: finalMetadata,
+                },
+                { onConflict: "osi_id,nro_sesion,phase,step_key" },
+              );
+          }
+        }
+      }
+    }
+
     // Sync `en_proceso` step (En proceso/Ejecutado) to the shell's OSI status tables
     // (best-effort). Marking = EJECUTADO, unmarking = NO_EJECUTADA. The sync resolves
     // the session date internally from osi_sesion / sesiones_programadas.
@@ -534,8 +575,9 @@ export async function autoAdvanceEjecucionSteps(
       }[]
     >();
     let existingSteps: ProcesoStepRecord[] | null = null;
+    const osiSingleFacilitador = new Set<number>();
     try {
-      const [sesionResult, stepsResult] = await Promise.all([
+      const [sesionResult, stepsResult, assignmentsResult] = await Promise.all([
         admin
           .from("osi_sesion")
           .select("id, id_osi, nro_sesion, fecha, hora_inicio, hora_fin, fecha_ejecutada")
@@ -545,7 +587,28 @@ export async function autoAdvanceEjecucionSteps(
           .from("capacitacion_proceso_steps")
           .select("*")
           .in("osi_id", osiIds),
+        admin
+          .from("facilitador_osi_assignments")
+          .select("osi_id, facilitador_id, nro_sesion")
+          .in("osi_id", osiIds)
+          .eq("is_active", true),
       ]);
+
+      if (assignmentsResult.data) {
+        const assignmentsByOsi = new Map<number, Array<{ facilitador_id: number; nro_sesion: number | null }>>();
+        for (const a of assignmentsResult.data as { osi_id: number; facilitador_id: number; nro_sesion: number | null }[]) {
+          const list = assignmentsByOsi.get(a.osi_id) || [];
+          list.push(a);
+          assignmentsByOsi.set(a.osi_id, list);
+        }
+        for (const [osiId, list] of assignmentsByOsi.entries()) {
+          const hasAllSessionsAssignment = list.some((a) => a.nro_sesion === null);
+          const uniqueFacilitators = new Set(list.map((a) => a.facilitador_id));
+          if (hasAllSessionsAssignment || uniqueFacilitators.size === 1) {
+            osiSingleFacilitador.add(osiId);
+          }
+        }
+      }
 
       if (sesionResult.data) {
         for (const row of sesionResult.data as {
@@ -649,6 +712,39 @@ export async function autoAdvanceEjecucionSteps(
         }
       }
 
+      // If the OSI has a single facilitator for all sessions, propagate completed attachment steps across all sessions
+      if (osiSingleFacilitador.has(osi.id_osi)) {
+        const ATTACHMENT_KEYS = ["lista_asistencia", "calificacion", "material_fotografico"];
+        for (const stepKey of ATTACHMENT_KEYS) {
+          let anyCompleted = false;
+          let completedAt: string | null = null;
+          for (const session of sessions) {
+            const sRec = osiStepsMap.get(session.nro_sesion)?.get(stepKey);
+            if (sRec?.completed) {
+              anyCompleted = true;
+              completedAt = sRec.completed_at || completedAt;
+              break;
+            }
+          }
+
+          if (anyCompleted) {
+            for (const session of sessions) {
+              const sRec = osiStepsMap.get(session.nro_sesion)?.get(stepKey);
+              if (!sRec?.completed) {
+                upserts.push({
+                  osi_id: osi.id_osi,
+                  nro_sesion: session.nro_sesion,
+                  phase: "ejecucion",
+                  step_key: stepKey,
+                  completed: true,
+                  completed_at: completedAt || todayStr,
+                });
+              }
+            }
+          }
+        }
+      }
+
       for (const session of sessions) {
         const nroSesion = session.nro_sesion;
         const sessionSteps = osiStepsMap.get(nroSesion) || new Map();
@@ -668,7 +764,14 @@ export async function autoAdvanceEjecucionSteps(
         // Auto-complete "en_proceso" ONLY as safety guard if a post-service step is completed
         // (proof that service was executed, e.g. attendance list or photo uploaded).
         // Date-based auto-advance is disabled; staff marks execution manually.
-        if (!isAlreadyCompleted && anyPostServiceCompleted) {
+        // If this OSI has a single facilitator, do NOT auto-mark en_proceso for subsequent sessions (nroSesion > 1)
+        // from propagated attachment steps — only when that specific session is executed.
+        const shouldAutoAdvanceEnProceso =
+          !isAlreadyCompleted &&
+          anyPostServiceCompleted &&
+          !(osiSingleFacilitador.has(osi.id_osi) && nroSesion > 1);
+
+        if (shouldAutoAdvanceEnProceso) {
           upserts.push({
             osi_id: osi.id_osi,
             nro_sesion: nroSesion,
@@ -1051,11 +1154,39 @@ export async function getListaAsistenciaInfo(
     }
 
     if (nroSesion != null) {
-      // Include uploads for the specific session AND legacy uploads where nro_sesion is null
-      filesQuery = filesQuery.or(`nro_sesion.eq.${nroSesion},nro_sesion.is.null`);
+      // Check if this OSI has a single facilitator assigned to all sessions (nro_sesion is null)
+      let isAllSessionsAssignment = false;
+      const { data: allSesAssignment } = await admin
+        .from("facilitador_osi_assignments")
+        .select("id")
+        .eq("osi_id", osiId)
+        .eq("is_active", true)
+        .is("nro_sesion", null)
+        .limit(1);
+      isAllSessionsAssignment = !!allSesAssignment && allSesAssignment.length > 0;
+
+      // Only filter by nro_sesion if not assigned to all sessions
+      if (!isAllSessionsAssignment) {
+        filesQuery = filesQuery.or(`nro_sesion.eq.${nroSesion},nro_sesion.is.null`);
+      }
     }
 
-    const { data: files, error: filesError } = await filesQuery.order("created_at", { ascending: false });
+    let { data: files, error: filesError } = await filesQuery.order("created_at", { ascending: false });
+
+    // Fallback: if session-specific query returned 0 files, check if files exist for the OSI in general
+    if ((!files || files.length === 0) && nroSesion != null) {
+      let fallbackQuery = admin
+        .from("ejecucion_osi_asistencia")
+        .select("*")
+        .eq("osi_id", osiId);
+      if (category) {
+        fallbackQuery = fallbackQuery.eq("category", category);
+      }
+      const { data: fallbackFiles } = await fallbackQuery.order("created_at", { ascending: false });
+      if (fallbackFiles && fallbackFiles.length > 0) {
+        files = fallbackFiles;
+      }
+    }
 
     if (filesError) {
       console.error("Error fetching asistencia files:", filesError);
