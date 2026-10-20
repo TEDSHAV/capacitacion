@@ -20,6 +20,7 @@ import {
   Copy,
   Check,
   MessageCircle,
+  Laptop,
 } from "lucide-react";
 import {
   getAssignmentByOSI,
@@ -124,7 +125,7 @@ export default function AssignFacilitadorModal({
     }
   };
 
-  const handleOpenWhatsApp = () => {
+  const handleOpenWhatsApp = (mode: "web" | "app" = "web") => {
     if (!emailBody) return;
     const fac = facilitators.find((f) => f.id.toString() === selectedFacilitadorId);
     const rawPhone = emailContext?.facilitador_telefono || fac?.telefono || "";
@@ -143,11 +144,28 @@ export default function AssignFacilitadorModal({
     }
 
     navigator.clipboard.writeText(emailBody).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
 
-    const url = phoneParam
-      ? `https://wa.me/${phoneParam}?text=${encodeURIComponent(emailBody)}`
+    if (mode === "app") {
+      const appUrl = phoneParam
+        ? `whatsapp://send?phone=${phoneParam}&text=${encodeURIComponent(emailBody)}`
+        : `whatsapp://send?text=${encodeURIComponent(emailBody)}`;
+      window.location.href = appUrl;
+      return;
+    }
+
+    // Direct WhatsApp Web URL (bypasses wa.me intermediary landing page)
+    const webUrl = phoneParam
+      ? `https://web.whatsapp.com/send?phone=${phoneParam}&text=${encodeURIComponent(emailBody)}`
       : `https://web.whatsapp.com/send?text=${encodeURIComponent(emailBody)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+
+    // Use named target "whatsapp_web" without noopener so the browser can reuse
+    // and focus the existing WhatsApp Web tab rather than creating multiple conflicting tabs.
+    const win = window.open(webUrl, "whatsapp_web");
+    if (win) {
+      win.focus();
+    }
   };
 
   // Real session count fetched from v_osi_formato_completo on open. The list
@@ -775,13 +793,25 @@ export default function AssignFacilitadorModal({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={handleOpenWhatsApp}
+                        onClick={() => handleOpenWhatsApp("web")}
                         disabled={!emailBody.trim()}
                         className="h-7 px-2.5 text-xs text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 flex items-center gap-1"
-                        title="Abrir mensaje en WhatsApp (Web / App)"
+                        title="Abrir en WhatsApp Web (reutiliza la pestaña existente)"
                       >
                         <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Abrir WhatsApp</span>
+                        <span>WhatsApp Web</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenWhatsApp("app")}
+                        disabled={!emailBody.trim()}
+                        className="h-7 px-2.5 text-xs text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 flex items-center gap-1"
+                        title="Abrir en la app de escritorio de WhatsApp (Windows)"
+                      >
+                        <Laptop className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>App Escritorio</span>
                       </Button>
                     </div>
                   </div>
