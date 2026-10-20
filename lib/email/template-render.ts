@@ -157,13 +157,15 @@ export function buildEmailContext(
 ): EmailContext {
   const sList = sesiones ?? [];
 
-  // Fechas: list each session date (deduped, sorted), or fall back to fecha_inicio_real.
+  // Fechas: list each session date (deduped, sorted), or fall back to fecha_inicio_real, or [Fecha por confirmar].
+  const formattedDates = sList.length > 0
+    ? Array.from(new Set(sList.map((s) => formatDate(s.fecha)).filter(Boolean))).sort()
+    : [];
   const fechas =
-    sList.length > 0
-      ? Array.from(new Set(sList.map((s) => formatDate(s.fecha)).filter(Boolean)))
-          .sort()
-          .join(", ")
-      : formatDate(osi.fecha_inicio_real ?? null);
+    formattedDates.length > 0
+      ? formattedDates.join(", ")
+      : formatDate(osi.fecha_inicio_real ?? null) || "[Fecha por confirmar]";
+
 
   // Horario: if all sessions share the same horario, show it once; else list per session.
   const horarios = sList

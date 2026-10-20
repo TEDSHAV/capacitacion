@@ -5,6 +5,7 @@ import { CourseSatisfactionSurvey, SurveyOSIData, SurveyTabulacionData, SurveyMo
 import { generateSurveyTabulacionPdf } from "@/lib/survey-tabulacion-renderer";
 import { revalidatePath } from "next/cache";
 import { getSessionCount } from "@/lib/osi-utils";
+import { getOsiSessionInfo } from "./osi-facilitador-assignments";
 
 /**
  * Fetch OSI details for the survey form
@@ -132,38 +133,13 @@ export async function getSurveyMode(osiId: number): Promise<SurveyMode> {
  * planned session count (e.g. the survey/QR and assign-facilitador modals) must
  * fetch it here.
  *
- * Priority chain (mirrors resolveSessions / getOSISessions):
- *   1. osi_sesion table row count (authoritative relational source — fast,
- *      indexed by id_osi; populated by the seguimiento system)
- *   2. v_osi_formato_completo: desglose_recursos_sesiones → sesiones_programadas
- *      → sesiones_ejecucion (via getSessionCount)
- *   3. 1 (single-session default)
+ * Priority chain uses getOsiSessionInfo across all DB sources to ensure
+ * sessions with unconfirmed dates are included.
  */
 export async function getOsiSessionCount(osiId: number): Promise<number> {
   try {
-    // 1. osi_sesion table — the most reliable source for planned sessions.
-    const admin = await createAdminClient();
-    const { count, error: sesionError } = await admin
-      .from("osi_sesion")
-      .select("id", { count: "exact", head: true })
-      .eq("id_osi", osiId);
-
-    if (!sesionError && count && count > 0) {
-      return count;
-    }
-
-    // 2. Fall back to v_osi_formato_completo JSONB fields.
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("v_osi_formato_completo")
-      .select("desglose_recursos_sesiones, sesiones_programadas, sesiones_ejecucion")
-      .eq("id_osi", osiId)
-      .maybeSingle();
-
-    if (error || !data) {
-      return 1;
-    }
-    return getSessionCount(data);
+    const info = await getOsiSessionInfo(osiId);
+    return info.totalCount;
   } catch (error) {
     console.error("Exception fetching OSI session count:", error);
     return 1;

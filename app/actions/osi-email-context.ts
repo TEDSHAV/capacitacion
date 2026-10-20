@@ -4,6 +4,8 @@ import { createClient } from "@/utils/supabase/server";
 import type { EmailContext, EmailSessionInfo } from "@/types/email";
 import { buildEmailContext } from "@/lib/email/template-render";
 import { isMaterialesEnabled } from "@/lib/materiales-flags";
+import { getOsiSessionInfo } from "@/app/actions/osi-facilitador-assignments";
+
 
 /**
  * Fetch the OSI + facilitador + session data needed to render an "Asignación
@@ -26,8 +28,8 @@ export async function getOSIEmailContext(
 ): Promise<{ data: EmailContext | null; error: string | null }> {
   const supabase = await createClient();
 
-  // OSI + facilitador in parallel.
-  const [osiRes, facRes, sesRes] = await Promise.all([
+  // OSI + facilitador + session details in parallel.
+  const [osiRes, facRes, sessionInfo] = await Promise.all([
     supabase
       .from("v_osi_formato_completo")
       .select(
@@ -40,11 +42,7 @@ export async function getOSIEmailContext(
       .select("nombre_apellido, email, telefono")
       .eq("id", facilitadorId)
       .maybeSingle(),
-    supabase
-      .from("osi_sesion")
-      .select("nro_sesion, fecha, hora_inicio, hora_fin")
-      .eq("id_osi", osiId)
-      .order("nro_sesion", { ascending: true }),
+    getOsiSessionInfo(osiId),
   ]);
 
   if (osiRes.error) {
@@ -62,15 +60,8 @@ export async function getOSIEmailContext(
     return { data: null, error: "Facilitador no encontrado" };
   }
 
-  // Build session list.
-  let sessions: EmailSessionInfo[] = [];
+  // Build session list using getOsiSessionInfo so all sessions (including unconfirmed dates) are captured.
 
-  type OsiSesionRow = {
-    nro_sesion: number | null;
-    fecha: string | null;
-    hora_inicio: string | null;
-    hora_fin: string | null;
-  };
   type DesgloseRow = {
     nro_sesion?: number | null;
     id_sesion?: number | null;
@@ -88,29 +79,25 @@ export async function getOSIEmailContext(
     ? (osiRes.data.desglose_recursos_sesiones as DesgloseRow[])
     : [];
 
-  if (sesRes.data && sesRes.data.length > 0) {
-    sessions = (sesRes.data as OsiSesionRow[]).map((s) => ({
+  let sessions: EmailSessionInfo[] = sessionInfo.sessions.map((s) => {
+    const desgloseMatch = rawDesglose.find((d, idx) => (d.nro_sesion ?? d.id_sesion ?? idx + 1) === s.nro_sesion);
+    return {
       nro_sesion: s.nro_sesion,
       fecha: s.fecha,
       hora_inicio: s.hora_inicio,
       hora_fin: s.hora_fin,
-      horas: null, // osi_sesion has no hours column
-    }));
-  } else if (rawDesglose.length > 0) {
-    // Fallback: desglose_recursos_sesiones JSONB on the view.
-    sessions = rawDesglose.map((s) => ({
-      nro_sesion: s.nro_sesion ?? s.id_sesion ?? null,
-      fecha: s.fecha ?? null,
-      hora_inicio: s.hora_inicio ?? null,
-      hora_fin: s.hora_fin ?? null,
-      horas: s.horas_honorarios_instructor ?? null,
-    }));
-  }
+      horas: desgloseMatch?.horas_honorarios_instructor ?? null,
+    };
+  });
 
   // Scope to the assigned session when a specific one was selected.
   if (nroSesion != null) {
-    sessions = sessions.filter((s) => s.nro_sesion === nroSesion);
+    const scoped = sessions.filter((s) => s.nro_sesion === nroSesion);
+    sessions = scoped.length > 0
+      ? scoped
+      : [{ nro_sesion: nroSesion, fecha: null, hora_inicio: null, hora_fin: null, horas: null }];
   }
+
 
   // Extract economic conditions (per-session when scoped, or OSI-level)
   let sesionHonorarios: number | null = null;

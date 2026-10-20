@@ -27,8 +27,10 @@ import {
   getActiveFacilitatorsForDropdown,
   assignOSIToFacilitador,
   unassignOSIToFacilitador,
+  getOsiSessionInfo,
+  type OsiSessionDetail,
 } from "@/app/actions/osi-facilitador-assignments";
-import { getOsiSessionCount } from "@/app/actions/surveys";
+
 import { getOSIEmailContext } from "@/app/actions/osi-email-context";
 import {
   getEmailTemplates,
@@ -188,6 +190,7 @@ export default function AssignFacilitadorModal({
   // view only has sesiones_ejecucion (0/null for not-yet-executed OSIs), so the
   // prop is used only as the initial/fallback value to avoid flicker.
   const [realSessionCount, setRealSessionCount] = useState<number>(sessionCount);
+  const [sessionDetails, setSessionDetails] = useState<OsiSessionDetail[]>([]);
   const [sessionCountLoaded, setSessionCountLoaded] = useState(false);
 
   // Use the fetched real count once loaded; fall back to the prop until then.
@@ -216,12 +219,12 @@ export default function AssignFacilitadorModal({
     setLoading(true);
     setError(null);
     try {
-      const [assignRes, facilitatorsData, templatesData, configured, count, logs] = await Promise.all([
+      const [assignRes, facilitatorsData, templatesData, configured, sessionInfo, logs] = await Promise.all([
         getAssignmentByOSI(osiId),
         getActiveFacilitatorsForDropdown(),
         getEmailTemplates(),
         isEmailServerConfigured(),
-        getOsiSessionCount(osiId),
+        getOsiSessionInfo(osiId),
         getEmailLogsForOSI(osiId),
       ]);
 
@@ -236,9 +239,11 @@ export default function AssignFacilitadorModal({
       setFacilitators(facilitatorsData || []);
       setTemplates(templatesData || []);
       setEmailConfigured(configured);
-      setRealSessionCount(count);
+      setRealSessionCount(sessionInfo.totalCount);
+      setSessionDetails(sessionInfo.sessions);
       setSessionCountLoaded(true);
       setEmailLogs(logs || []);
+
 
       // Pick the default template automatically.
       if (templatesData && templatesData.length > 0) {
@@ -539,8 +544,26 @@ export default function AssignFacilitadorModal({
     }
   };
 
-  const sessionLabel = (nroSesion: number | null) =>
-    nroSesion === null ? "Todas las sesiones" : `Sesión ${nroSesion}`;
+  function formatSessionDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return "Fecha por confirmar";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split("-");
+      return `${d}/${m}/${y}`;
+    }
+    try {
+      return new Date(dateStr).toLocaleDateString("es-VE");
+    } catch {
+      return dateStr;
+    }
+  }
+
+  const sessionLabel = (nroSesion: number | null) => {
+    if (nroSesion === null) return "Todas las sesiones";
+    const detail = sessionDetails.find((s) => s.nro_sesion === nroSesion);
+    const dateTxt = detail?.fecha ? formatSessionDate(detail.fecha) : "Fecha por confirmar";
+    return `Sesión ${nroSesion} (${dateTxt})`;
+  };
+
 
   const canSendEmail = useMemo(
     () => Boolean(selectedFacilitadorId && emailTo.trim() && emailSubject.trim() && emailBody.trim()),
@@ -733,6 +756,9 @@ export default function AssignFacilitadorModal({
                                 : "Todas las sesiones"}
                             </SelectItem>
                             {Array.from({ length: effectiveSessionCount }, (_, i) => i + 1).map((n) => {
+                              const detail = sessionDetails.find((s) => s.nro_sesion === n);
+                              const dateTxt = detail?.fecha ? formatSessionDate(detail.fecha) : "Fecha por confirmar";
+
                               const takenByOther = otherAssignments.find(
                                 (a) => a.nro_sesion === n || a.nro_sesion === null,
                               );
@@ -740,17 +766,17 @@ export default function AssignFacilitadorModal({
                                 (a) => a.facilitador_id === selFacId && a.nro_sesion === n,
                               );
 
-                              let label = `Sesión ${n}`;
+                              let statusTxt = "Disponible";
                               let isDisabled = false;
 
                               if (takenByOther) {
                                 isDisabled = true;
-                                label = `Sesión ${n} (Asignada a ${toTitleCase(takenByOther.facilitadores?.nombre_apellido || "otro")})`;
+                                statusTxt = `Asignada a ${toTitleCase(takenByOther.facilitadores?.nombre_apellido || "otro")}`;
                               } else if (assignedToSelf) {
-                                label = `Sesión ${n} (Ya asignada a este facilitador)`;
-                              } else {
-                                label = `Sesión ${n} (Disponible)`;
+                                statusTxt = "Ya asignada a este facilitador";
                               }
+
+                              const label = `Sesión ${n} (${dateTxt}) — ${statusTxt}`;
 
                               return (
                                 <SelectItem key={n} value={n.toString()} disabled={isDisabled}>

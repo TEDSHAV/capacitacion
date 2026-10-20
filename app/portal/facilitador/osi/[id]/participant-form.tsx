@@ -266,9 +266,13 @@ export const ParticipantForm = ({
                 <span className="text-xs font-extrabold bg-sky-600 text-white px-2.5 py-0.5 rounded-md shadow-2xs">
                   Sesión {selectedSession}
                 </span>
-                {currentSessionDate && (
+                {currentSessionDate ? (
                   <span className="text-xs font-semibold text-slate-700 bg-white/80 border border-sky-200 px-2 py-0.5 rounded-md">
                     📅 {formatSessionDate(currentSessionDate)}
+                  </span>
+                ) : (
+                  <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                    📅 Fecha por confirmar
                   </span>
                 )}
               </div>
@@ -314,11 +318,16 @@ export const ParticipantForm = ({
                     {n}
                   </span>
                   <span>Sesión {n}</span>
-                  {sesDate && (
+                  {sesDate ? (
                     <span className={`text-[11px] font-normal ${isSelected ? "text-sky-100" : "text-slate-400"}`}>
                       ({formatSessionDate(sesDate)})
                     </span>
+                  ) : (
+                    <span className={`text-[11px] font-normal italic ${isSelected ? "text-sky-200" : "text-amber-600"}`}>
+                      (Por confirmar)
+                    </span>
                   )}
+
                   {stats.total > 0 && (
                     <span
                       className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${

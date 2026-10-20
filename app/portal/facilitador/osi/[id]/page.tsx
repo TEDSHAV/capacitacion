@@ -10,6 +10,8 @@ import { ArrowLeft, Building2, Calendar, MapPin } from "lucide-react";
 import Link from "next/link";
 import { ParticipantForm } from "./participant-form";
 import { getSessionCount } from "@/lib/osi-utils";
+import { getOsiSessionInfo } from "@/app/actions/osi-facilitador-assignments";
+
 
 interface OSIPageProps {
   params: Promise<{ id: string }>;
@@ -74,32 +76,24 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
 
   const assignedSession: number | null =
     specificSessions.length === 1 && !hasAllSessionsAssignment ? specificSessions[0] : null;
-  const sessionCount: number = getSessionCount(osi);
+  const sessionInfo = await getOsiSessionInfo(osiId);
+  const sessionCount: number = Math.max(sessionInfo.totalCount, getSessionCount(osi), ...specificSessions);
 
-  // Fetch session details from osi_sesion table for precise dates and schedule
-  const { data: dbSessions } = await supabase
-    .from("osi_sesion")
-    .select("nro_sesion, fecha, hora_inicio, hora_fin")
-    .eq("id_osi", osiId)
-    .order("nro_sesion", { ascending: true });
+  const sessionsInfo = Array.from({ length: sessionCount }, (_, i) => {
+    const n = i + 1;
+    const fromInfo = sessionInfo.sessions.find((s) => s.nro_sesion === n);
+    return {
+      nro_sesion: n,
+      fecha:
+        fromInfo?.fecha ??
+        (Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[i]?.fecha
+          ? osi.sesiones_programadas[i].fecha
+          : null),
+      hora_inicio: fromInfo?.hora_inicio ?? null,
+      hora_fin: fromInfo?.hora_fin ?? null,
+    };
+  });
 
-  const sessionsInfo =
-    dbSessions && dbSessions.length > 0
-      ? dbSessions.map((s) => ({
-          nro_sesion: s.nro_sesion,
-          fecha: s.fecha,
-          hora_inicio: s.hora_inicio,
-          hora_fin: s.hora_fin,
-        }))
-      : Array.from({ length: sessionCount }, (_, i) => ({
-          nro_sesion: i + 1,
-          fecha:
-            Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[i]?.fecha
-              ? osi.sesiones_programadas[i].fecha
-              : null,
-          hora_inicio: null,
-          hora_fin: null,
-        }));
 
   const needsSessionPicker = assignedSession === null;
 

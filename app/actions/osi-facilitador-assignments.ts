@@ -1,11 +1,13 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { FacilitadorHistoryEntry } from "@/types";
 import { notifyMercadeoFacilitadorAssigned } from "@/lib/email/notify-mercadeo-assignment";
+import { getSessionCount } from "@/lib/osi-utils";
 
 import { toTitleCase } from "@/utils/string-utils";
+
 
 export async function assignOSIToFacilitador(
   osiId: number,
@@ -912,3 +914,134 @@ export async function getAsignacionesPageData(staleDays = 30) {
     },
   };
 }
+
+export interface OsiSessionDetail {
+  nro_sesion: number;
+  fecha: string | null;
+  hora_inicio: string | null;
+  hora_fin: string | null;
+}
+
+export interface OsiSessionInfoResult {
+  totalCount: number;
+  sessions: OsiSessionDetail[];
+}
+
+/**
+ * Returns full session details and real total count for an OSI, taking the maximum
+ * across all sources (osi_sesion, desglose, sesiones_programadas, sesiones_solped,
+ * sesiones_ejecucion, existing assignments). Ensures that sessions without a confirmed
+ * date are still visible and assignable to facilitadores.
+ */
+export async function getOsiSessionInfo(osiId: number): Promise<OsiSessionInfoResult> {
+  try {
+    const admin = await createAdminClient();
+
+    const [osiSesionRes, viewRes, assignRes] = await Promise.all([
+      admin
+        .from("osi_sesion")
+        .select("nro_sesion, fecha, hora_inicio, hora_fin")
+        .eq("id_osi", osiId)
+        .order("nro_sesion", { ascending: true }),
+      admin
+        .from("v_osi_formato_completo")
+        .select("desglose_recursos_sesiones, sesiones_programadas, sesiones_solped, sesiones_ejecucion")
+        .eq("id_osi", osiId)
+        .maybeSingle(),
+      admin
+        .from("facilitador_osi_assignments")
+        .select("nro_sesion")
+        .eq("osi_id", osiId)
+        .eq("is_active", true),
+    ]);
+
+    const osiSesionRows = osiSesionRes.data || [];
+    const viewData: Record<string, any> = (viewRes.data as any) || {};
+    const assignRows = assignRes.data || [];
+
+    const osiSesionCount = osiSesionRows.length;
+    const maxOsiSesionNro = osiSesionRows.reduce((max, s) => Math.max(max, s.nro_sesion || 0), 0);
+    const viewCount = getSessionCount(viewData);
+    const maxAssignNro = assignRows.reduce((max, a) => Math.max(max, a.nro_sesion || 0), 0);
+
+    const totalCount = Math.max(
+      osiSesionCount,
+      maxOsiSesionNro,
+      viewCount,
+      maxAssignNro,
+      1,
+    );
+
+    const sessionsMap = new Map<number, OsiSessionDetail>();
+
+    // Seed 1..totalCount so every session number exists
+    for (let n = 1; n <= totalCount; n++) {
+      sessionsMap.set(n, {
+        nro_sesion: n,
+        fecha: null,
+        hora_inicio: null,
+        hora_fin: null,
+      });
+    }
+
+    // Populate from desglose_recursos_sesiones if available
+    if (Array.isArray(viewData.desglose_recursos_sesiones)) {
+      viewData.desglose_recursos_sesiones.forEach((item: any, idx: number) => {
+        const nro = Number(item.nro_sesion ?? item.id_sesion ?? idx + 1);
+        if (nro >= 1) {
+          const cur = sessionsMap.get(nro) || { nro_sesion: nro, fecha: null, hora_inicio: null, hora_fin: null };
+          if (item.fecha && typeof item.fecha === "string" && item.fecha.trim()) {
+            cur.fecha = item.fecha.trim();
+          }
+          if (item.hora_inicio) cur.hora_inicio = String(item.hora_inicio).trim() || null;
+          if (item.hora_fin) cur.hora_fin = String(item.hora_fin).trim() || null;
+          sessionsMap.set(nro, cur);
+        }
+      });
+    }
+
+    // Populate from sesiones_programadas if available
+    if (Array.isArray(viewData.sesiones_programadas)) {
+      viewData.sesiones_programadas.forEach((item: any, idx: number) => {
+        const nro = Number(item.nro_sesion ?? idx + 1);
+        if (nro >= 1) {
+          const cur = sessionsMap.get(nro) || { nro_sesion: nro, fecha: null, hora_inicio: null, hora_fin: null };
+          if (item.fecha && typeof item.fecha === "string" && item.fecha.trim()) {
+            cur.fecha = item.fecha.trim();
+          }
+          if (item.hora_inicio) cur.hora_inicio = String(item.hora_inicio).trim() || null;
+          if (item.hora_fin) cur.hora_fin = String(item.hora_fin).trim() || null;
+          sessionsMap.set(nro, cur);
+        }
+      });
+    }
+
+    // Populate/override from osi_sesion rows (highest fidelity for confirmed dates)
+    for (const row of osiSesionRows) {
+      const nro = row.nro_sesion;
+      if (nro >= 1) {
+        const cur = sessionsMap.get(nro) || { nro_sesion: nro, fecha: null, hora_inicio: null, hora_fin: null };
+        if (row.fecha && typeof row.fecha === "string" && row.fecha.trim()) {
+          cur.fecha = row.fecha.trim();
+        }
+        if (row.hora_inicio) cur.hora_inicio = String(row.hora_inicio).trim() || null;
+        if (row.hora_fin) cur.hora_fin = String(row.hora_fin).trim() || null;
+        sessionsMap.set(nro, cur);
+      }
+    }
+
+    const sessions = Array.from(sessionsMap.values()).sort((a, b) => a.nro_sesion - b.nro_sesion);
+
+    return {
+      totalCount: Math.max(totalCount, sessions.length),
+      sessions,
+    };
+  } catch (err) {
+    console.error("[getOsiSessionInfo] Error:", err);
+    return {
+      totalCount: 1,
+      sessions: [{ nro_sesion: 1, fecha: null, hora_inicio: null, hora_fin: null }],
+    };
+  }
+}
+

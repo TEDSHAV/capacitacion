@@ -31,7 +31,10 @@ import {
   assignOSIToFacilitador,
   unassignOSIToFacilitador,
   getAssignmentByOSI,
+  getOsiSessionInfo,
+  type OsiSessionDetail,
 } from "@/app/actions/osi-facilitador-assignments";
+
 import { getOSIEmailContext } from "@/app/actions/osi-email-context";
 import {
   getEmailTemplates,
@@ -90,11 +93,29 @@ export default function AssignOSIModal({
   const [selectedOsiId, setSelectedOsiId] = useState<number | null>(null);
   const [selectedSession, setSelectedSession] = useState<string>("all");
   const [selectedOsiAssignments, setSelectedOsiAssignments] = useState<any[]>([]);
+  const [selectedOsiSessionInfo, setSelectedOsiSessionInfo] = useState<{
+    totalCount: number;
+    sessions: OsiSessionDetail[];
+  }>({ totalCount: 1, sessions: [] });
   const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  function formatSessionDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return "Fecha por confirmar";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split("-");
+      return `${d}/${m}/${y}`;
+    }
+    try {
+      return new Date(dateStr).toLocaleDateString("es-VE");
+    } catch {
+      return dateStr;
+    }
+  }
+
   // Email state
+
   const [templates, setTemplates] = useState<EmailTemplateListItem[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [emailContext, setEmailContext] = useState<EmailContext | null>(null);
@@ -253,21 +274,27 @@ export default function AssignOSIModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facilitadorId]);
 
-  // When the selected OSI changes, fetch its existing assignments to detect session collisions.
+  // When the selected OSI changes, fetch its existing assignments and session info.
   useEffect(() => {
     if (!selectedOsiId) {
       setSelectedOsiAssignments([]);
+      setSelectedOsiSessionInfo({ totalCount: 1, sessions: [] });
       return;
     }
     let cancelled = false;
-    getAssignmentByOSI(selectedOsiId).then((res) => {
+    Promise.all([
+      getAssignmentByOSI(selectedOsiId),
+      getOsiSessionInfo(selectedOsiId),
+    ]).then(([assignRes, info]) => {
       if (cancelled) return;
-      setSelectedOsiAssignments(res.data || []);
+      setSelectedOsiAssignments(assignRes.data || []);
+      setSelectedOsiSessionInfo(info);
     });
     return () => {
       cancelled = true;
     };
   }, [selectedOsiId]);
+
 
   // When the selected OSI changes, fetch the email context + auto-fill "Para".
   useEffect(() => {
@@ -749,9 +776,10 @@ export default function AssignOSIModal({
                     const selectedOsi = allOsis.find(
                       (o) => o.id_osi === selectedOsiId,
                     );
-                    const sessionCount = selectedOsi
-                      ? getSessionCount(selectedOsi)
-                      : 1;
+                    const sessionCount = Math.max(
+                      selectedOsiSessionInfo.totalCount,
+                      selectedOsi ? getSessionCount(selectedOsi) : 1,
+                    );
 
                     return (
                       <div className="space-y-2 mb-3">
@@ -791,18 +819,20 @@ export default function AssignOSIModal({
                                   { length: sessionCount },
                                   (_, i) => i + 1,
                                 ).map((n) => {
+                                  const detail = selectedOsiSessionInfo.sessions.find((s) => s.nro_sesion === n);
+                                  const dateTxt = detail?.fecha ? formatSessionDate(detail.fecha) : "Fecha por confirmar";
                                   const takenByOther = otherAssignments.find(
                                     (a) => a.nro_sesion === n || a.nro_sesion === null,
                                   );
-                                  let label = `Sesión ${n}`;
+                                  let statusTxt = "Disponible";
                                   let isDisabled = false;
 
                                   if (takenByOther) {
                                     isDisabled = true;
-                                    label = `Sesión ${n} (Asignada a ${toTitleCase(takenByOther.facilitadores?.nombre_apellido || "otro")})`;
-                                  } else {
-                                    label = `Sesión ${n} (Disponible)`;
+                                    statusTxt = `Asignada a ${toTitleCase(takenByOther.facilitadores?.nombre_apellido || "otro")}`;
                                   }
+
+                                  const label = `Sesión ${n} (${dateTxt}) — ${statusTxt}`;
 
                                   return (
                                     <SelectItem key={n} value={n.toString()} disabled={isDisabled}>
@@ -814,6 +844,7 @@ export default function AssignOSIModal({
                             </Select>
                           </div>
                         )}
+
 
                         {/* Specific conflict message */}
                         {!globalOther && selectedSession === "all" && hasOthers && (
