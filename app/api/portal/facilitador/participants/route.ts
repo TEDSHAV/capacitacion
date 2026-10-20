@@ -41,14 +41,103 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  if (status === "final" && !acknowledged) {
-    return NextResponse.json(
-      { error: "Debes confirmar la declaración para finalizar el envío." },
-      { status: 400 },
-    );
-  }
-
   const supabase = await createAdminClient();
+
+  if (status === "final") {
+    if (!acknowledged) {
+      return NextResponse.json(
+        { error: "Debes confirmar la declaración de veracidad para finalizar el envío." },
+        { status: 400 },
+      );
+    }
+
+    if (!Array.isArray(participants) || participants.length === 0) {
+      return NextResponse.json(
+        { error: "Debes registrar al menos un participante con su calificación antes de finalizar." },
+        { status: 400 },
+      );
+    }
+
+    const validParticipants = participants.filter(
+      (p) => (p.nombre_apellido || "").trim() && (p.cedula || "").trim(),
+    );
+
+    if (validParticipants.length === 0) {
+      return NextResponse.json(
+        { error: "Debes registrar al menos un participante con nombre y cédula antes de finalizar." },
+        { status: 400 },
+      );
+    }
+
+    for (let i = 0; i < participants.length; i++) {
+      const p = participants[i];
+      const name = (p.nombre_apellido || "").trim();
+      const cedula = (p.cedula || "").trim();
+
+      if (name || cedula || (p.score !== null && p.score !== undefined)) {
+        if (!name || name.length < 2) {
+          return NextResponse.json(
+            { error: `El participante en la fila ${i + 1} debe tener nombre y apellido completos.` },
+            { status: 400 },
+          );
+        }
+        if (!cedula || cedula.length < 4) {
+          return NextResponse.json(
+            { error: `El participante ${name || `#${i + 1}`} debe tener una cédula válida.` },
+            { status: 400 },
+          );
+        }
+        const scoreVal = p.score;
+        if (scoreVal === null || scoreVal === undefined) {
+          return NextResponse.json(
+            { error: `El participante ${name} no tiene calificación asignada. Todos deben tener nota de 0 a 20.` },
+            { status: 400 },
+          );
+        }
+        const numScore = Number(scoreVal);
+        if (isNaN(numScore) || numScore < 0 || numScore > 20) {
+          return NextResponse.json(
+            { error: `La calificación de ${name} (${scoreVal}) no es válida. Debe ser un número entre 0 y 20.` },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
+    const { data: attachments, error: attError } = await supabase
+      .from("ejecucion_osi_asistencia")
+      .select("category")
+      .eq("osi_id", osiId)
+      .eq("facilitador_id", facilitadorId);
+
+    if (attError) {
+      console.error("[POST /api/portal/facilitador/participants] Attachment query error:", attError);
+      return NextResponse.json({ error: "Error al verificar los soportes adjuntos del servicio." }, { status: 500 });
+    }
+
+    const categories = new Set((attachments || []).map((a) => a.category));
+
+    if (!categories.has("lista_asistencia")) {
+      return NextResponse.json(
+        { error: "Es obligatorio adjuntar la lista de asistencia física firmada antes de finalizar." },
+        { status: 400 },
+      );
+    }
+
+    if (!categories.has("hoja_calificacion")) {
+      return NextResponse.json(
+        { error: "Es obligatorio adjuntar la hoja de calificación física firmada antes de finalizar." },
+        { status: 400 },
+      );
+    }
+
+    if (!categories.has("material_fotografico")) {
+      return NextResponse.json(
+        { error: "Es obligatorio adjuntar al menos una foto de la actividad como soporte de ejecución." },
+        { status: 400 },
+      );
+    }
+  }
 
   // Delete existing participants for this OSI/Facilitator to overwrite
   const { error: deleteError } = await supabase

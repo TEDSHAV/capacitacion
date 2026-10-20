@@ -72,9 +72,36 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
   const specificSessions = sessionAssignments.filter((s) => s !== null) as number[];
   const hasAllSessionsAssignment = sessionAssignments.some((s) => s === null);
 
-  const assignedSession: number | null = specificSessions.length === 1 ? specificSessions[0] : null;
-  const needsSessionPicker = assignedSession === null;
+  const assignedSession: number | null =
+    specificSessions.length === 1 && !hasAllSessionsAssignment ? specificSessions[0] : null;
   const sessionCount: number = getSessionCount(osi);
+
+  // Fetch session details from osi_sesion table for precise dates and schedule
+  const { data: dbSessions } = await supabase
+    .from("osi_sesion")
+    .select("nro_sesion, fecha, hora_inicio, hora_fin")
+    .eq("id_osi", osiId)
+    .order("nro_sesion", { ascending: true });
+
+  const sessionsInfo =
+    dbSessions && dbSessions.length > 0
+      ? dbSessions.map((s) => ({
+          nro_sesion: s.nro_sesion,
+          fecha: s.fecha,
+          hora_inicio: s.hora_inicio,
+          hora_fin: s.hora_fin,
+        }))
+      : Array.from({ length: sessionCount }, (_, i) => ({
+          nro_sesion: i + 1,
+          fecha:
+            Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[i]?.fecha
+              ? osi.sesiones_programadas[i].fecha
+              : null,
+          hora_inicio: null,
+          hora_fin: null,
+        }));
+
+  const needsSessionPicker = assignedSession === null;
 
   // Determine if list has been finalized/sent
   const isFinal = (participants.data || []).some((p: any) => p.status === "final");
@@ -181,6 +208,7 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
         hasAllSessionsAssignment={hasAllSessionsAssignment}
         isFinal={isFinal}
         notaAprobatoria={notaAprobatoria}
+        sessionsInfo={sessionsInfo}
       />
     </div>
   );

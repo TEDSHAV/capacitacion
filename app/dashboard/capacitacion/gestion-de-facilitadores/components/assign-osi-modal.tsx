@@ -24,11 +24,13 @@ import {
   Laptop,
 } from "lucide-react";
 import { getSessionCount } from "@/lib/osi-utils";
+import { toTitleCase } from "@/utils/string-utils";
 import {
   getAssignmentsByFacilitador,
   getAllOSIsForAssignment,
   assignOSIToFacilitador,
   unassignOSIToFacilitador,
+  getAssignmentByOSI,
 } from "@/app/actions/osi-facilitador-assignments";
 import { getOSIEmailContext } from "@/app/actions/osi-email-context";
 import {
@@ -87,6 +89,7 @@ export default function AssignOSIModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOsiId, setSelectedOsiId] = useState<number | null>(null);
   const [selectedSession, setSelectedSession] = useState<string>("all");
+  const [selectedOsiAssignments, setSelectedOsiAssignments] = useState<any[]>([]);
   const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -249,6 +252,22 @@ export default function AssignOSIModal({
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facilitadorId]);
+
+  // When the selected OSI changes, fetch its existing assignments to detect session collisions.
+  useEffect(() => {
+    if (!selectedOsiId) {
+      setSelectedOsiAssignments([]);
+      return;
+    }
+    let cancelled = false;
+    getAssignmentByOSI(selectedOsiId).then((res) => {
+      if (cancelled) return;
+      setSelectedOsiAssignments(res.data || []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedOsiId]);
 
   // When the selected OSI changes, fetch the email context + auto-fill "Para".
   useEffect(() => {
@@ -427,6 +446,19 @@ export default function AssignOSIModal({
       ),
     [selectedOsiId, emailTo, emailSubject, emailBody],
   );
+
+  const otherAssignments = selectedOsiAssignments.filter((a) => a.facilitador_id !== facilitadorId);
+  const globalOther = otherAssignments.find((a) => a.nro_sesion === null);
+  const hasOthers = otherAssignments.length > 0;
+
+  const isAssigningAllWithCollisions = selectedSession === "all" && hasOthers;
+  const selectedSessionNum = selectedSession === "all" ? null : parseInt(selectedSession);
+  const isSelectedSessionTakenByOther = Boolean(
+    selectedSessionNum !== null &&
+    otherAssignments.some((a) => a.nro_sesion === selectedSessionNum || a.nro_sesion === null)
+  );
+
+  const isAssignmentBlocked = Boolean(globalOther || isAssigningAllWithCollisions || isSelectedSessionTakenByOther);
 
   const handleAssign = async (sendEmail: boolean) => {
     if (!selectedOsiId) {
@@ -712,7 +744,7 @@ export default function AssignOSIModal({
                     </span>
                   </div>
 
-                  {/* Session selector — show when selected OSI has >1 session */}
+                  {/* Session selector & collision warnings */}
                   {(() => {
                     const selectedOsi = allOsis.find(
                       (o) => o.id_osi === selectedOsiId,
@@ -720,33 +752,88 @@ export default function AssignOSIModal({
                     const sessionCount = selectedOsi
                       ? getSessionCount(selectedOsi)
                       : 1;
-                    if (sessionCount <= 1) return null;
+
                     return (
-                      <div className="mb-3">
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Sesión
-                        </label>
-                        <Select
-                          value={selectedSession}
-                          onValueChange={setSelectedSession}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Seleccionar sesión..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">
-                              Todas las sesiones
-                            </SelectItem>
-                            {Array.from(
-                              { length: sessionCount },
-                              (_, i) => i + 1,
-                            ).map((n) => (
-                              <SelectItem key={n} value={n.toString()}>
-                                Sesión {n}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="space-y-2 mb-3">
+                        {globalOther && (
+                          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2 text-amber-800 text-xs">
+                            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
+                            <span>
+                              <strong>Todas las sesiones están asignadas</strong> a{" "}
+                              {toTitleCase(globalOther.facilitadores?.nombre_apellido || "otro facilitador")}.
+                              Para asignar a este facilitador, desasigne primero al facilitador actual en Gestión OSI.
+                            </span>
+                          </div>
+                        )}
+
+                        {sessionCount > 1 && (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Sesión
+                            </label>
+                            <Select
+                              value={selectedSession}
+                              onValueChange={setSelectedSession}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Seleccionar sesión..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem
+                                  value="all"
+                                  disabled={hasOthers}
+                                >
+                                  {hasOthers
+                                    ? "Todas las sesiones (Bloqueado: sesiones asignadas a otro)"
+                                    : "Todas las sesiones"}
+                                </SelectItem>
+                                {Array.from(
+                                  { length: sessionCount },
+                                  (_, i) => i + 1,
+                                ).map((n) => {
+                                  const takenByOther = otherAssignments.find(
+                                    (a) => a.nro_sesion === n || a.nro_sesion === null,
+                                  );
+                                  let label = `Sesión ${n}`;
+                                  let isDisabled = false;
+
+                                  if (takenByOther) {
+                                    isDisabled = true;
+                                    label = `Sesión ${n} (Asignada a ${toTitleCase(takenByOther.facilitadores?.nombre_apellido || "otro")})`;
+                                  } else {
+                                    label = `Sesión ${n} (Disponible)`;
+                                  }
+
+                                  return (
+                                    <SelectItem key={n} value={n.toString()} disabled={isDisabled}>
+                                      {label}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {/* Specific conflict message */}
+                        {!globalOther && selectedSession === "all" && hasOthers && (
+                          <div className="p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>
+                              No puede asignar &quot;Todas las sesiones&quot; porque existen sesiones asignadas a otros facilitadores.
+                              Seleccione una sesión individual disponible.
+                            </span>
+                          </div>
+                        )}
+
+                        {!globalOther && selectedSession !== "all" && isSelectedSessionTakenByOther && (
+                          <div className="p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            <span>
+                              La Sesión {selectedSession} ya está asignada a otro facilitador. Seleccione una sesión disponible.
+                            </span>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -1091,12 +1178,13 @@ export default function AssignOSIModal({
                 onClick={() => handleAssign(true)}
                 disabled={
                   !selectedOsiId ||
+                  isAssignmentBlocked ||
                   assigning ||
                   sending ||
                   isUploading ||
                   !canSendEmail
                 }
-                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {assigning || sending ? (
                   <>
@@ -1112,9 +1200,9 @@ export default function AssignOSIModal({
               </Button>
               <Button
                 onClick={() => handleAssign(false)}
-                disabled={!selectedOsiId || assigning || isUploading}
+                disabled={!selectedOsiId || isAssignmentBlocked || assigning || isUploading}
                 variant="outline"
-                className="flex-1"
+                className="flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {assigning ? (
                   <>

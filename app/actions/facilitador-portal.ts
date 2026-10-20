@@ -4,7 +4,7 @@ import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import crypto from "node:crypto";
-import { optimizeDocumentImage, optimizePdfToImage } from "@/lib/image-optimization.server";
+import { optimizeDocumentImage, optimizePdfToImage, isHeicBuffer } from "@/lib/image-optimization.server";
 import { OSIAttachment } from "@/types";
 import { signSession, verifySession } from "@/lib/session-signing";
 import { getSessionCount } from "@/lib/osi-utils";
@@ -797,11 +797,76 @@ export async function saveParticipants(
     return { error: "No autorizado" };
   }
 
-  if (status === "final" && !acknowledged) {
-    return { error: "Debes confirmar la declaración para finalizar el envío." };
-  }
-
   const supabase = await createAdminClient();
+
+  if (status === "final") {
+    // 1. Mandatory declaration / acknowledgment
+    if (!acknowledged) {
+      return { error: "Debes confirmar la declaración de veracidad para finalizar el envío." };
+    }
+
+    // 2. Mandatory participants list & scores (either manual or OCR)
+    if (!Array.isArray(participants) || participants.length === 0) {
+      return { error: "Debes registrar al menos un participante con su calificación antes de finalizar." };
+    }
+
+    const validParticipants = participants.filter(
+      (p) => (p.nombre_apellido || "").trim() && (p.cedula || "").trim(),
+    );
+
+    if (validParticipants.length === 0) {
+      return { error: "Debes registrar al menos un participante con nombre y cédula antes de finalizar." };
+    }
+
+    for (let i = 0; i < participants.length; i++) {
+      const p = participants[i];
+      const name = (p.nombre_apellido || "").trim();
+      const cedula = (p.cedula || "").trim();
+
+      if (name || cedula || (p.score !== null && p.score !== undefined && p.score !== "")) {
+        if (!name || name.length < 2) {
+          return { error: `El participante en la fila ${i + 1} debe tener nombre y apellido completos.` };
+        }
+        if (!cedula || cedula.length < 4) {
+          return { error: `El participante ${name || `#${i + 1}`} debe tener una cédula válida.` };
+        }
+        const scoreVal = p.score;
+        if (scoreVal === null || scoreVal === undefined || scoreVal === "") {
+          return { error: `El participante ${name} no tiene calificación asignada. Todos deben tener nota de 0 a 20.` };
+        }
+        const numScore = Number(scoreVal);
+        if (isNaN(numScore) || numScore < 0 || numScore > 20) {
+          return { error: `La calificación de ${name} (${scoreVal}) no es válida. Debe ser un número entre 0 y 20.` };
+        }
+      }
+    }
+
+    // 3. Mandatory attachments: asistencia, calificacion, photos
+    const { data: attachments, error: attError } = await supabase
+      .from("ejecucion_osi_asistencia")
+      .select("category")
+      .eq("osi_id", osiId)
+      .eq("facilitador_id", facilitadorId);
+
+    if (attError) {
+      console.error("[saveParticipants] Error validating attachments:", attError);
+      return { error: "Error al verificar los soportes adjuntos del servicio." };
+    }
+
+    const categories = new Set((attachments || []).map((a) => a.category));
+
+    if (!categories.has("lista_asistencia")) {
+      return { error: "Es obligatorio adjuntar la lista de asistencia física firmada antes de finalizar." };
+    }
+
+    if (!categories.has("hoja_calificacion")) {
+      return { error: "Es obligatorio adjuntar la hoja de calificación física firmada antes de finalizar." };
+    }
+
+    if (!categories.has("material_fotografico")) {
+      return { error: "Es obligatorio adjuntar al menos una foto de la actividad como soporte de ejecución." };
+    }
+  }
 
   // Guard: if already finalized, prevent any further edits
   const { data: existingFinal } = await supabase
@@ -967,18 +1032,6 @@ export async function uploadOSIAttachment(
 
   const supabase = await createAdminClient();
 
-  // Guard: if already finalized, prevent new uploads
-  const { data: finalParts } = await supabase
-    .from("ejecucion_osi_participantes")
-    .select("id")
-    .eq("osi_id", osiId)
-    .eq("status", "final")
-    .limit(1);
-
-  if (finalParts && finalParts.length > 0) {
-    return { error: "No se pueden subir archivos a un servicio que ya ha sido finalizado." };
-  }
-
   const file = formData.get("file") as File;
   console.log("[uploadOSIAttachment] File from formData:", file ? { name: file.name, type: file.type, size: file.size } : "NULL");
 
@@ -1003,8 +1056,13 @@ export async function uploadOSIAttachment(
       ? { maxWidth: 1200, maxHeight: 1200, quality: 70 }
       : { maxWidth: 2000, maxHeight: 2000, quality: 80 };
 
-    // Optimize images (not PDFs)
-    if (file.type.startsWith("image/")) {
+    // Optimize images (including HEIC / HEIF, JPG, PNG, WebP)
+    const isImage =
+      file.type.startsWith("image/") ||
+      file.name.match(/\.(jpe?g|png|webp|heic|heif)$/i) ||
+      isHeicBuffer(buffer);
+
+    if (isImage) {
       const originalSize = buffer.length;
       buffer = await optimizeDocumentImage(buffer, imageOpts) as Buffer;
       finalFileType = "image/jpeg"; // Always output optimized as JPEG
@@ -1047,11 +1105,16 @@ export async function uploadOSIAttachment(
     if (storageError) throw storageError;
 
     // 2. Insert into metadata table
+    const storedFileName =
+      finalFileType === "image/jpeg" && file.name.match(/\.hei[cf]$/i)
+        ? file.name.replace(/\.hei[cf]$/i, ".jpg")
+        : file.name;
+
     const insertPayload: Record<string, unknown> = {
       osi_id: osiId,
       facilitador_id: facilitadorId,
       storage_path: storagePath,
-      file_name: file.name,
+      file_name: storedFileName,
       file_type: finalFileType,
       file_size: buffer.length,
       category,

@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import type { FacilitadorHistoryEntry } from "@/types";
 import { notifyMercadeoFacilitadorAssigned } from "@/lib/email/notify-mercadeo-assignment";
 
+import { toTitleCase } from "@/utils/string-utils";
+
 export async function assignOSIToFacilitador(
   osiId: number,
   facilitadorId: number,
@@ -18,37 +20,81 @@ export async function assignOSIToFacilitador(
   // nroSesion: null/undefined = all sessions; a specific number = that session only
   const sessionValue = nroSesion ?? null;
 
-  // Find the currently active assignment for THIS session slot (not all assignments)
-  let prevQuery = supabase
+  // 1. Fetch ALL active assignments for this OSI to validate session collision
+  const { data: activeAssignments, error: activeErr } = await supabase
     .from("facilitador_osi_assignments")
-    .select("id, facilitador_id, nro_sesion")
+    .select(`
+      id,
+      facilitador_id,
+      nro_sesion,
+      facilitadores (
+        id,
+        nombre_apellido
+      )
+    `)
     .eq("osi_id", osiId)
     .eq("is_active", true);
 
+  if (activeErr) {
+    console.error("Error fetching active assignments:", activeErr);
+    return { error: activeErr.message };
+  }
+
+  const otherAssignments = (activeAssignments || []).filter(
+    (a) => a.facilitador_id !== facilitadorId
+  );
+
+  const getFacilitadorName = (record: any) => {
+    if (!record) return "otro facilitador";
+    const fac = record.facilitadores;
+    if (Array.isArray(fac) && fac.length > 0) {
+      return toTitleCase(fac[0]?.nombre_apellido || "otro facilitador");
+    }
+    if (fac && typeof fac === "object" && "nombre_apellido" in fac) {
+      return toTitleCase((fac as any).nombre_apellido || "otro facilitador");
+    }
+    return "otro facilitador";
+  };
+
+  // Validation 1: Assigning "Todas las sesiones" (sessionValue === null)
   if (sessionValue === null) {
-    prevQuery = prevQuery.is("nro_sesion", null);
+    if (otherAssignments.length > 0) {
+      const allAssigned = otherAssignments.find((a) => a.nro_sesion === null);
+      if (allAssigned) {
+        const otherName = getFacilitadorName(allAssigned);
+        return {
+          error: `No se puede asignar 'Todas las sesiones' porque ya están asignadas al facilitador ${otherName}. Desasigne primero al facilitador actual en Gestión OSI.`,
+        };
+      }
+      const sessionsList = otherAssignments
+        .map((a) => `Sesión ${a.nro_sesion} (${getFacilitadorName(a)})`)
+        .join(", ");
+      return {
+        error: `No se puede asignar 'Todas las sesiones' porque ya existen sesiones asignadas a otros facilitadores: ${sessionsList}. Debe desasignar dichas sesiones primero.`,
+      };
+    }
   } else {
-    prevQuery = prevQuery.eq("nro_sesion", sessionValue);
+    // Validation 2: Assigning a specific session (sessionValue !== null, e.g. 1, 2, ...)
+    // 2a. Does another facilitador have "Todas las sesiones"?
+    const globalOther = otherAssignments.find((a) => a.nro_sesion === null);
+    if (globalOther) {
+      const otherName = getFacilitadorName(globalOther);
+      return {
+        error: `No se puede asignar la Sesión ${sessionValue} porque el facilitador ${otherName} tiene asignadas todas las sesiones de esta OSI. Desasígnelo primero en Gestión OSI.`,
+      };
+    }
+
+    // 2b. Does another facilitador have this exact session?
+    const slotOther = otherAssignments.find((a) => a.nro_sesion === sessionValue);
+    if (slotOther) {
+      const otherName = getFacilitadorName(slotOther);
+      return {
+        error: `La Sesión ${sessionValue} ya está asignada al facilitador ${otherName}. Desasigne esa sesión primero para poder reasignarla a otro facilitador.`,
+      };
+    }
   }
 
-  const { data: prevAssignment } = await prevQuery.maybeSingle();
-
-  // If reassigning to a different facilitador for this slot, clean up the old one's data
-  if (prevAssignment?.facilitador_id && prevAssignment.facilitador_id !== facilitadorId) {
-    const oldFacilitadorId = prevAssignment.facilitador_id;
-    await supabase
-      .from("ejecucion_osi_participantes")
-      .delete()
-      .eq("osi_id", osiId)
-      .eq("facilitador_id", oldFacilitadorId);
-    await supabase
-      .from("facilitador_acknowledgments")
-      .delete()
-      .eq("osi_id", osiId)
-      .eq("facilitador_id", oldFacilitadorId);
-  }
-
-  // Deactivate only the existing active assignment for this session slot
+  // Deactivate previous assignment for this slot
   let deactivateQuery = supabase
     .from("facilitador_osi_assignments")
     .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -62,10 +108,21 @@ export async function assignOSIToFacilitador(
   }
 
   const { error: deactivateError } = await deactivateQuery;
-
   if (deactivateError) {
     console.error("Error deactivating previous assignment:", deactivateError);
     return { error: deactivateError.message };
+  }
+
+  // Also if this same facilitador previously had a global assignment and is now assigned to a specific session,
+  // deactivate their global row so they are now scoped to specific sessions
+  if (sessionValue !== null) {
+    await supabase
+      .from("facilitador_osi_assignments")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("osi_id", osiId)
+      .eq("facilitador_id", facilitadorId)
+      .is("nro_sesion", null)
+      .eq("is_active", true);
   }
 
   // Insert new active assignment
@@ -114,20 +171,6 @@ export async function unassignOSIToFacilitador(assignmentId: number) {
     .eq("id", assignmentId)
     .single();
 
-  // Clean up the facilitador's participants and acknowledgments for this OSI
-  if (assignment?.osi_id && assignment?.facilitador_id) {
-    await supabase
-      .from("ejecucion_osi_participantes")
-      .delete()
-      .eq("osi_id", assignment.osi_id)
-      .eq("facilitador_id", assignment.facilitador_id);
-    await supabase
-      .from("facilitador_acknowledgments")
-      .delete()
-      .eq("osi_id", assignment.osi_id)
-      .eq("facilitador_id", assignment.facilitador_id);
-  }
-
   const { error } = await supabase
     .from("facilitador_osi_assignments")
     .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -136,6 +179,29 @@ export async function unassignOSIToFacilitador(assignmentId: number) {
   if (error) {
     console.error("Error unassigning:", error);
     return { error: error.message };
+  }
+
+  // Clean up the facilitador's participants ONLY if they have no other active assignments on this OSI
+  if (assignment?.osi_id && assignment?.facilitador_id) {
+    const { count } = await supabase
+      .from("facilitador_osi_assignments")
+      .select("id", { count: "exact", head: true })
+      .eq("osi_id", assignment.osi_id)
+      .eq("facilitador_id", assignment.facilitador_id)
+      .eq("is_active", true);
+
+    if (!count || count === 0) {
+      await supabase
+        .from("ejecucion_osi_participantes")
+        .delete()
+        .eq("osi_id", assignment.osi_id)
+        .eq("facilitador_id", assignment.facilitador_id);
+      await supabase
+        .from("facilitador_acknowledgments")
+        .delete()
+        .eq("osi_id", assignment.osi_id)
+        .eq("facilitador_id", assignment.facilitador_id);
+    }
   }
 
   revalidatePath("/dashboard/capacitacion/gestion-de-facilitadores");

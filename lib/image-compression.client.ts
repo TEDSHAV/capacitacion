@@ -24,7 +24,17 @@ export async function compressImage(
   const { maxWidth = 2000, maxHeight = 2000, quality = 0.8 } = options;
 
   // Only compress image files
-  if (!file.type.startsWith("image/")) {
+  if (!file.type.startsWith("image/") && !file.name.match(/\.(jpe?g|png|webp|heic|heif)$/i)) {
+    return file;
+  }
+
+  // HEIC/HEIF files: skip client-side canvas compression because browsers (e.g. Chrome on Windows)
+  // cannot decode HEIC in Canvas. Send intact original bytes to the server converter.
+  if (
+    file.name.match(/\.hei[cf]$/i) ||
+    file.type.includes("heic") ||
+    file.type.includes("heif")
+  ) {
     return file;
   }
 

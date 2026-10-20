@@ -21,6 +21,7 @@ import {
   OSI_ESTATUS,
 } from "@/lib/sync/sync-osi-estatus";
 import { addOsiNota } from "@/app/actions/capacitacion-osi-notas";
+import { createOsiComment } from "@/lib/comments/create-osi-comment";
 
 /**
  * Returns current date in Venezuela timezone (America/Caracas, UTC-4) as YYYY-MM-DD.
@@ -1515,6 +1516,20 @@ export async function unmarkEnProcesoStep({
       console.error("[unmarkEnProcesoStep] addOsiNota failed:", err),
     );
 
+    // Forward comment to centralized Comments feature (comentarios_contexto + vinculos)
+    const commentBody = isRescheduled
+      ? `📅 [Servicio Re-agendado - Sesión ${nroSesion}] Motivo: ${trimmedReason}.${
+          cleanNewDate ? ` Nueva fecha: ${cleanNewDate}` : " (Fecha por confirmar)"
+        }`
+      : `🚫 [Servicio No Ejecutado - Sesión ${nroSesion}] Motivo: ${trimmedReason}`;
+    await createOsiComment({
+      osiId,
+      contenido: commentBody,
+      userId,
+    }).catch((err) =>
+      console.error("[unmarkEnProcesoStep] createOsiComment failed:", err),
+    );
+
     clearSeguimientoServerCache();
     return { success: true };
   } catch (err) {
@@ -1536,6 +1551,9 @@ export async function restoreRescheduledToActivos(
 
   try {
     const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     let query = supabase
       .from("capacitacion_proceso_steps")
@@ -1614,6 +1632,15 @@ export async function restoreRescheduledToActivos(
       : `[Servicio reactivado] La OSI ha sido retornada a la pestaña de Activos.`;
     await addOsiNota(osiId, noteText).catch((err) =>
       console.error("[restoreRescheduledToActivos] addOsiNota failed:", err),
+    );
+
+    // Forward comment to centralized Comments feature
+    await createOsiComment({
+      osiId,
+      contenido: `🔄 ${noteText}`,
+      userId: user?.id ?? null,
+    }).catch((err) =>
+      console.error("[restoreRescheduledToActivos] createOsiComment failed:", err),
     );
 
     clearSeguimientoServerCache();
@@ -2014,3 +2041,124 @@ export async function bulkCompleteStepsForFinishedOsis(): Promise<{
     return { success: false, error: "Error inesperado" };
   }
 }
+
+/**
+ * Update or set material delivery method for material_enviado_facilitador step.
+ * Allows digital or physical (with tracking number).
+ */
+export async function setMaterialEnvioStep({
+  osiId,
+  nroSesion = 1,
+  tipoEnvio,
+  guia = null,
+  unmark = false,
+}: {
+  osiId: number;
+  nroSesion?: number;
+  tipoEnvio?: "digital" | "fisico";
+  guia?: string | null;
+  unmark?: boolean;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!Number.isFinite(osiId) || osiId <= 0) {
+    return { success: false, error: "OSI inválido" };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id ?? null;
+    const now = new Date().toISOString();
+
+    await ensureProcesoStepsExist(osiId, "planificacion", nroSesion);
+
+    const { data: existing } = await supabase
+      .from("capacitacion_proceso_steps")
+      .select("id, step_metadata")
+      .eq("osi_id", osiId)
+      .eq("phase", "planificacion")
+      .eq("nro_sesion", nroSesion)
+      .eq("step_key", "material_enviado_facilitador")
+      .maybeSingle();
+
+    const currentMeta = (existing?.step_metadata as Record<string, unknown> | null) || {};
+
+    if (unmark) {
+      const updatedMeta = { ...currentMeta };
+      delete updatedMeta.tipo_envio;
+      delete updatedMeta.guia;
+      delete updatedMeta.envio_updated_at;
+
+      const { error: updateError } = await supabase
+        .from("capacitacion_proceso_steps")
+        .upsert(
+          {
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: "planificacion",
+            step_key: "material_enviado_facilitador",
+            completed: false,
+            completed_at: null,
+            completed_by: null,
+            notes: null,
+            step_metadata: updatedMeta,
+          },
+          { onConflict: "osi_id,nro_sesion,phase,step_key" },
+        );
+
+      if (updateError) {
+        return { success: false, error: "Error al desmarcar el envío de material" };
+      }
+      clearSeguimientoServerCache();
+      return { success: true };
+    }
+
+    if (!tipoEnvio) {
+      return { success: false, error: "Debe indicar si el envío fue digital o físico" };
+    }
+
+    const cleanGuia = tipoEnvio === "fisico" ? (guia?.trim() || null) : null;
+    if (tipoEnvio === "fisico" && !cleanGuia) {
+      return { success: false, error: "Debe ingresar el número de guía para envío físico" };
+    }
+
+    const updatedMeta: Record<string, unknown> = {
+      ...currentMeta,
+      tipo_envio: tipoEnvio,
+      guia: cleanGuia,
+      envio_updated_at: now,
+    };
+
+    const noteText = tipoEnvio === "digital"
+      ? "Digital"
+      : `Físico - Guía: ${cleanGuia}`;
+
+    const { error: updateError } = await supabase
+      .from("capacitacion_proceso_steps")
+      .upsert(
+        {
+          osi_id: osiId,
+          nro_sesion: nroSesion,
+          phase: "planificacion",
+          step_key: "material_enviado_facilitador",
+          completed: true,
+          completed_at: now,
+          completed_by: userId,
+          notes: noteText,
+          step_metadata: updatedMeta,
+        },
+        { onConflict: "osi_id,nro_sesion,phase,step_key" },
+      );
+
+    if (updateError) {
+      console.error("[setMaterialEnvioStep] updateError:", updateError);
+      return { success: false, error: "Error al registrar el envío de material" };
+    }
+
+    clearSeguimientoServerCache();
+    return { success: true };
+  } catch (err) {
+    console.error("[setMaterialEnvioStep] unexpected error:", err);
+    return { success: false, error: "Error inesperado al guardar el envío" };
+  }
+}
+

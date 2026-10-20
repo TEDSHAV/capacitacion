@@ -29,6 +29,7 @@ interface ProcesoStepsTimelineProps {
   onPreviewEncuestas?: (osiId: number) => void;
   onRequestExecutionAction?: (osiId: number, stepKey: string) => void;
   onRequestUnmarkEnProceso?: (osiId: number) => void;
+  onRequestMaterialEnvio?: (osiId: number, stepKey: string) => void;
   compact?: boolean;
 }
 
@@ -59,6 +60,7 @@ export default function ProcesoStepsTimeline({
   onPreviewEncuestas,
   onRequestExecutionAction,
   onRequestUnmarkEnProceso,
+  onRequestMaterialEnvio,
   compact = false,
 }: ProcesoStepsTimelineProps) {
   const router = useRouter();
@@ -126,6 +128,10 @@ export default function ProcesoStepsTimeline({
 
     // If step has envio options (material_enviado_facilitador)
     if (hasEnvioOptions) {
+      if (onRequestMaterialEnvio) {
+        onRequestMaterialEnvio(osiId, stepKey);
+        return;
+      }
       const rec = completedSteps[stepKey];
       if (rec?.completed) {
         // Already completed — unmark directly
@@ -529,18 +535,27 @@ export default function ProcesoStepsTimeline({
               </span>
             )}
             {isCompleted && step.key === "material_enviado_facilitador" && (
-              <span
-                className={`text-[9px] font-semibold mt-0.5 px-1.5 py-0.5 rounded border inline-flex items-center gap-1 ${
+              <button
+                type="button"
+                onClick={(e) => {
+                  if (onRequestMaterialEnvio) {
+                    e.stopPropagation();
+                    onRequestMaterialEnvio(osiId, step.key);
+                  }
+                }}
+                className={`text-[9px] font-semibold mt-0.5 px-1.5 py-0.5 rounded border inline-flex items-center gap-1 transition-opacity ${
+                  onRequestMaterialEnvio ? "cursor-pointer hover:opacity-80" : ""
+                } ${
                   (rec?.step_metadata?.tipo_envio === "digital" || rec?.notes === "Digital")
                     ? "text-emerald-700 bg-emerald-50 border-emerald-200"
                     : "text-blue-700 bg-blue-50 border-blue-200"
                 }`}
-                title={rec?.step_metadata?.guia ? `Guía: ${rec.step_metadata.guia}` : undefined}
+                title={rec?.step_metadata?.guia ? `Guía: ${rec.step_metadata.guia} (clic para ver o editar)` : "Clic para ver o editar"}
               >
                 {(rec?.step_metadata?.tipo_envio === "digital" || rec?.notes === "Digital")
-                  ? "Digital"
-                  : `Físico${rec?.step_metadata?.guia ? ` · ${rec.step_metadata.guia}` : (rec?.notes ? ` · ${rec.notes.replace(/^Físico\s*-\s*Guía:\s*/i, "")}` : "")}`}
-              </span>
+                  ? "💻 Digital"
+                  : `📦 Físico${rec?.step_metadata?.guia ? ` · ${rec.step_metadata.guia}` : (rec?.notes ? ` · ${rec.notes.replace(/^Físico\s*-\s*Guía:\s*/i, "")}` : "")}`}
+              </button>
             )}
             {isListaAsistencia && onPreviewListaAsistencia && (
               <button

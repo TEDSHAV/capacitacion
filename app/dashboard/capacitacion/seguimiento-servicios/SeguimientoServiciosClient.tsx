@@ -37,6 +37,7 @@ import {
   unmarkEnProcesoStep,
   markEnProcesoStep,
   restoreRescheduledToActivos,
+  setMaterialEnvioStep,
   type ProcesoStepRecord,
 } from "@/app/actions/capacitacion-proceso-steps";
 import { ALL_STEPS, PLANIFICACION_STEPS, EJECUCION_STEPS } from "@/lib/proceso-steps";
@@ -46,6 +47,7 @@ import OSIPagination from "../gestion-osi/components/osi-pagination";
 import ListaAsistenciaPreview from "./components/lista-asistencia-preview";
 import FacilitadorUploadsAuditModal from "./components/FacilitadorUploadsAuditModal";
 import EjecucionOsiModal from "./components/EjecucionOsiModal";
+import MaterialEnvioModal from "./components/MaterialEnvioModal";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 import OsiCommentsSheet from "@/components/osi/OsiCommentsSheet";
 import { formatDateOnly } from "@/lib/format-date";
@@ -163,6 +165,15 @@ export default function SeguimientoServiciosClient({
     servicio?: string;
     direccion?: string;
     sede?: string;
+    stepRecord?: ProcesoStepRecord | null;
+  } | null>(null);
+
+  const [materialEnvioModal, setMaterialEnvioModal] = useState<{
+    osiId: number;
+    nroOsi: string;
+    nroSesion: number;
+    empresa?: string;
+    servicio?: string;
     stepRecord?: ProcesoStepRecord | null;
   } | null>(null);
 
@@ -660,6 +671,112 @@ export default function SeguimientoServiciosClient({
     },
     [osis, selectedSession, stepsByOsi],
   );
+
+  const handleOpenMaterialEnvioModal = useCallback(
+    (osiId: number) => {
+      const osi = osis.find((o) => o.id_osi === osiId);
+      const currentSesion = selectedSession.get(osiId) ?? 1;
+      const osiStepsMap = stepsByOsi.get(osiId);
+      const sessionStepsMap = osiStepsMap?.get(currentSesion) || {};
+      const stepRecord = sessionStepsMap["material_enviado_facilitador"] || null;
+
+      setMaterialEnvioModal({
+        osiId,
+        nroOsi: osi?.nro_osi || `OSI-${osiId}`,
+        nroSesion: currentSesion,
+        empresa: osi?.nombre_empresa || undefined,
+        servicio: osi?.servicio || undefined,
+        stepRecord,
+      });
+    },
+    [osis, selectedSession, stepsByOsi],
+  );
+
+  const handleConfirmMaterialEnvio = useCallback(
+    async (tipoEnvio: "digital" | "fisico", guia?: string | null) => {
+      if (!materialEnvioModal) return;
+      const { osiId, nroSesion } = materialEnvioModal;
+      const res = await setMaterialEnvioStep({
+        osiId,
+        nroSesion,
+        tipoEnvio,
+        guia,
+        unmark: false,
+      });
+      if (!res.success) {
+        throw new Error(res.error || "Error al guardar el envío.");
+      }
+
+      setStepsByOsi((prev) => {
+        const newMap = new Map(prev);
+        const osiMap = newMap.get(osiId) || new Map();
+        const sessionMap = osiMap.get(nroSesion) || {};
+        const existing = sessionMap["material_enviado_facilitador"];
+        const now = new Date().toISOString();
+        const noteText = tipoEnvio === "digital" ? "Digital" : `Físico - Guía: ${guia}`;
+
+        osiMap.set(nroSesion, {
+          ...sessionMap,
+          material_enviado_facilitador: {
+            ...existing,
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: "planificacion",
+            step_key: "material_enviado_facilitador",
+            id: existing?.id ?? 0,
+            completed: true,
+            completed_at: now,
+            notes: noteText,
+            step_metadata: {
+              ...((existing?.step_metadata as Record<string, unknown>) || {}),
+              tipo_envio: tipoEnvio,
+              guia: guia || null,
+            },
+          },
+        });
+        newMap.set(osiId, osiMap);
+        return newMap;
+      });
+
+      moduleCache.clear();
+    },
+    [materialEnvioModal],
+  );
+
+  const handleUnmarkMaterialEnvio = useCallback(async () => {
+    if (!materialEnvioModal) return;
+    const { osiId, nroSesion } = materialEnvioModal;
+    const res = await setMaterialEnvioStep({
+      osiId,
+      nroSesion,
+      unmark: true,
+    });
+    if (!res.success) {
+      throw new Error(res.error || "Error al desmarcar el paso.");
+    }
+
+    setStepsByOsi((prev) => {
+      const newMap = new Map(prev);
+      const osiMap = newMap.get(osiId) || new Map();
+      const sessionMap = osiMap.get(nroSesion) || {};
+      const existing = sessionMap["material_enviado_facilitador"];
+
+      osiMap.set(nroSesion, {
+        ...sessionMap,
+        material_enviado_facilitador: {
+          ...existing,
+          completed: false,
+          completed_at: null,
+          notes: null,
+          step_metadata: {},
+        },
+      });
+      newMap.set(osiId, osiMap);
+      return newMap;
+    });
+
+    moduleCache.clear();
+  }, [materialEnvioModal]);
 
   const handleConfirmEjecutado = useCallback(
     async (executionDate?: string | null, salon?: string | null) => {
@@ -1768,6 +1885,9 @@ export default function SeguimientoServiciosClient({
                           onRequestUnmarkEnProceso={() =>
                             handleOpenExecutionModal(osi.id_osi)
                           }
+                          onRequestMaterialEnvio={() =>
+                            handleOpenMaterialEnvioModal(osi.id_osi)
+                          }
                           onPreviewListaAsistencia={(id) =>
                             setPreviewOsi({ osiId: id, nroOsi: osi.nro_osi || "", nroSesion: currentNroSesion })
                           }
@@ -1875,6 +1995,22 @@ export default function SeguimientoServiciosClient({
           onConfirmReagendar={handleConfirmReagendar}
           onConfirmNoEjecutado={handleConfirmNoEjecutado}
           onRestoreToActive={handleRestoreFromModal}
+        />
+      )}
+
+      {/* Material Envio (Digital / Fisico con Guia) Modal */}
+      {materialEnvioModal && (
+        <MaterialEnvioModal
+          isOpen={!!materialEnvioModal}
+          osiId={materialEnvioModal.osiId}
+          nroOsi={materialEnvioModal.nroOsi}
+          nroSesion={materialEnvioModal.nroSesion}
+          empresa={materialEnvioModal.empresa}
+          servicio={materialEnvioModal.servicio}
+          stepRecord={materialEnvioModal.stepRecord}
+          onClose={() => setMaterialEnvioModal(null)}
+          onConfirm={handleConfirmMaterialEnvio}
+          onUnmark={handleUnmarkMaterialEnvio}
         />
       )}
 

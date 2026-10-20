@@ -547,6 +547,27 @@ export default function AssignFacilitadorModal({
     [selectedFacilitadorId, emailTo, emailSubject, emailBody],
   );
 
+  const selectedFacIdNum = selectedFacilitadorId ? parseInt(selectedFacilitadorId) : null;
+  const isGlobalOther = Boolean(
+    selectedFacIdNum &&
+    currentAssignments.some((a) => a.nro_sesion === null && a.facilitador_id !== selectedFacIdNum)
+  );
+  const isAllColliding = Boolean(
+    selectedSession === "all" &&
+    selectedFacIdNum &&
+    currentAssignments.some((a) => a.facilitador_id !== selectedFacIdNum)
+  );
+  const isSlotTaken = Boolean(
+    selectedSession !== "all" &&
+    selectedFacIdNum &&
+    currentAssignments.some(
+      (a) =>
+        a.facilitador_id !== selectedFacIdNum &&
+        (a.nro_sesion === parseInt(selectedSession) || a.nro_sesion === null)
+    )
+  );
+  const isAssignmentBlocked = isGlobalOther || isAllColliding || isSlotTaken;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] animate-in fade-in duration-200 p-4">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
@@ -654,6 +675,24 @@ export default function AssignFacilitadorModal({
                 Asignar Nuevo Facilitador
               </h4>
 
+              {/* Informative alert if all sessions are globally assigned to someone else */}
+              {(() => {
+                const globalAssignment = currentAssignments.find((a) => a.nro_sesion === null);
+                if (globalAssignment) {
+                  return (
+                    <div className="mb-3 p-2.5 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2 text-amber-800 text-xs">
+                      <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
+                      <span>
+                        <strong>Todas las sesiones están asignadas</strong> a{" "}
+                        {toTitleCase(globalAssignment.facilitadores?.nombre_apellido || "otro facilitador")}.
+                        Para asignar a otro facilitador o dividir por sesiones individuales, primero desasigne la asignación actual en la lista superior.
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Select
                   value={selectedFacilitadorId}
@@ -678,16 +717,108 @@ export default function AssignFacilitadorModal({
                       <SelectValue placeholder="Seleccionar sesión..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todas las sesiones</SelectItem>
-                      {Array.from({ length: effectiveSessionCount }, (_, i) => i + 1).map((n) => (
-                        <SelectItem key={n} value={n.toString()}>
-                          Sesión {n}
-                        </SelectItem>
-                      ))}
+                      {(() => {
+                        const selFacId = selectedFacilitadorId ? parseInt(selectedFacilitadorId) : null;
+                        const otherAssignments = currentAssignments.filter((a) => a.facilitador_id !== selFacId);
+                        const hasOthers = otherAssignments.length > 0;
+
+                        return (
+                          <>
+                            <SelectItem
+                              value="all"
+                              disabled={hasOthers}
+                            >
+                              {hasOthers
+                                ? "Todas las sesiones (Bloqueado: existen sesiones asignadas)"
+                                : "Todas las sesiones"}
+                            </SelectItem>
+                            {Array.from({ length: effectiveSessionCount }, (_, i) => i + 1).map((n) => {
+                              const takenByOther = otherAssignments.find(
+                                (a) => a.nro_sesion === n || a.nro_sesion === null,
+                              );
+                              const assignedToSelf = currentAssignments.find(
+                                (a) => a.facilitador_id === selFacId && a.nro_sesion === n,
+                              );
+
+                              let label = `Sesión ${n}`;
+                              let isDisabled = false;
+
+                              if (takenByOther) {
+                                isDisabled = true;
+                                label = `Sesión ${n} (Asignada a ${toTitleCase(takenByOther.facilitadores?.nombre_apellido || "otro")})`;
+                              } else if (assignedToSelf) {
+                                label = `Sesión ${n} (Ya asignada a este facilitador)`;
+                              } else {
+                                label = `Sesión ${n} (Disponible)`;
+                              }
+
+                              return (
+                                <SelectItem key={n} value={n.toString()} disabled={isDisabled}>
+                                  {label}
+                                </SelectItem>
+                              );
+                            })}
+                          </>
+                        );
+                      })()}
                     </SelectContent>
                   </Select>
                 )}
               </div>
+
+              {/* Conflict banner if current selection cannot be assigned */}
+              {(() => {
+                const selFacId = selectedFacilitadorId ? parseInt(selectedFacilitadorId) : null;
+                if (!selFacId) return null;
+
+                const globalOther = currentAssignments.find(
+                  (a) => a.nro_sesion === null && a.facilitador_id !== selFacId,
+                );
+                if (globalOther) {
+                  return (
+                    <div className="mt-2.5 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        No puede asignar a este facilitador porque{" "}
+                        <strong>{toTitleCase(globalOther.facilitadores?.nombre_apellido || "otro facilitador")}</strong>{" "}
+                        tiene asignadas todas las sesiones de esta OSI.
+                      </span>
+                    </div>
+                  );
+                }
+
+                if (selectedSession === "all") {
+                  const otherAssignments = currentAssignments.filter((a) => a.facilitador_id !== selFacId);
+                  if (otherAssignments.length > 0) {
+                    return (
+                      <div className="mt-2.5 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          No puede asignar &quot;Todas las sesiones&quot; mientras otros facilitadores tengan sesiones asignadas.
+                          Seleccione una sesión individual disponible o desasigne las sesiones previas.
+                        </span>
+                      </div>
+                    );
+                  }
+                } else {
+                  const sessionNum = parseInt(selectedSession);
+                  const takenByOther = currentAssignments.find(
+                    (a) => a.nro_sesion === sessionNum && a.facilitador_id !== selFacId,
+                  );
+                  if (takenByOther) {
+                    return (
+                      <div className="mt-2.5 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          La Sesión {sessionNum} ya está asignada a{" "}
+                          <strong>{toTitleCase(takenByOther.facilitadores?.nombre_apellido || "otro facilitador")}</strong>.
+                        </span>
+                      </div>
+                    );
+                  }
+                }
+                return null;
+              })()}
             </div>
 
             {/* Email Preview / Editor */}
@@ -1019,8 +1150,8 @@ export default function AssignFacilitadorModal({
             <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-200">
               <Button
                 onClick={() => handleAssign(true)}
-                disabled={!selectedFacilitadorId || assigning || sending || isUploading || !canSendEmail}
-                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                disabled={!selectedFacilitadorId || isAssignmentBlocked || assigning || sending || isUploading || !canSendEmail}
+                className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {assigning || sending ? (
                   <>
@@ -1036,9 +1167,9 @@ export default function AssignFacilitadorModal({
               </Button>
               <Button
                 onClick={() => handleAssign(false)}
-                disabled={!selectedFacilitadorId || assigning || isUploading}
+                disabled={!selectedFacilitadorId || isAssignmentBlocked || assigning || isUploading}
                 variant="outline"
-                className="flex-1"
+                className="flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {assigning ? (
                   <>

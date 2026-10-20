@@ -21,6 +21,8 @@ import {
   Camera,
   CheckCheck,
   Sparkles,
+  Layers,
+  Calendar,
 } from "lucide-react";
 import { saveParticipants, getOSIAttachments } from "@/app/actions/facilitador-portal";
 import { enqueueOp } from "@/lib/offline/sync-queue";
@@ -68,6 +70,25 @@ export interface ParticipantFormProps {
   hasAllSessionsAssignment?: boolean;
   isFinal?: boolean;
   notaAprobatoria?: number | null;
+  sessionsInfo?: Array<{
+    nro_sesion: number;
+    fecha: string | null;
+    hora_inicio?: string | null;
+    hora_fin?: string | null;
+  }>;
+}
+
+function formatSessionDate(dateStr?: string | null): string {
+  if (!dateStr) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [y, m, d] = dateStr.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  try {
+    return new Date(dateStr).toLocaleDateString("es-VE");
+  } catch {
+    return dateStr;
+  }
 }
 
 const DISCLAIMER_TEXT =
@@ -89,6 +110,7 @@ export const ParticipantForm = ({
   hasAllSessionsAssignment = false,
   isFinal: initialIsFinal = false,
   notaAprobatoria = 14,
+  sessionsInfo = [],
 }: ParticipantFormProps) => {
   const passingGrade = typeof notaAprobatoria === "number" ? notaAprobatoria : 14;
   const isParticipationOnly = passingGrade === 0;
@@ -119,10 +141,12 @@ export const ParticipantForm = ({
   const [attendanceCount, setAttendanceCount] = useState(0);
   const [gradeSheetCount, setGradeSheetCount] = useState(0);
   const [photoCount, setPhotoCount] = useState(0);
+  const [allAttachments, setAllAttachments] = useState<OSIAttachment[]>([]);
 
-  const [activeVerificationIndex, setActiveVerificationIndex] = useState<number | null>(null);
-  const [selectedSession, setSelectedSession] = useState<number>(assignedSession ?? 1);
-  const [showAttachmentWarning, setShowAttachmentWarning] = useState(false);
+  const defaultInitialSession =
+    assignedSession ??
+    (assignedSessions.length > 0 && !hasAllSessionsAssignment ? assignedSessions[0] : 1);
+  const [selectedSession, setSelectedSession] = useState<number>(defaultInitialSession);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [selectedPortalFile, setSelectedPortalFile] = useState<File | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -130,6 +154,7 @@ export const ParticipantForm = ({
   const [hasAcknowledged, setHasAcknowledged] = useState(initialIsFinal);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [activeVerificationIndex, setActiveVerificationIndex] = useState<number | null>(null);
   const disclaimerRef = useRef<HTMLDivElement>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [pendingSync, setPendingSync] = useState(false);
@@ -157,22 +182,162 @@ export const ParticipantForm = ({
     }
   }, [success]);
 
-  // Initial fetch of attachment counts so completedSteps & summary cards are accurate immediately
+  // Helper to refresh attachment counts for the OSI so completedSteps & summary cards are accurate
+  const refreshAttachmentCounts = useCallback(async () => {
+    try {
+      const [asistenciaRes, califRes, photoRes, allRes] = await Promise.all([
+        getOSIAttachments(osiId, facilitadorId, "lista_asistencia"),
+        getOSIAttachments(osiId, facilitadorId, "hoja_calificacion"),
+        getOSIAttachments(osiId, facilitadorId, "material_fotografico"),
+        getOSIAttachments(osiId, facilitadorId),
+      ]);
+      if (asistenciaRes.data) setAttendanceCount(asistenciaRes.data.length);
+      if (califRes.data) setGradeSheetCount(califRes.data.length);
+      if (photoRes.data) setPhotoCount(photoRes.data.length);
+      if (allRes.data) setAllAttachments(allRes.data as OSIAttachment[]);
+    } catch (err) {
+      console.error("[ParticipantForm] Error fetching attachment counts:", err);
+    }
+  }, [osiId, facilitadorId]);
+
   useEffect(() => {
-    Promise.all([
-      getOSIAttachments(osiId, facilitadorId, "lista_asistencia", selectedSession),
-      getOSIAttachments(osiId, facilitadorId, "hoja_calificacion", selectedSession),
-      getOSIAttachments(osiId, facilitadorId, "material_fotografico", selectedSession),
-    ])
-      .then(([asistenciaRes, califRes, photoRes]) => {
-        if (asistenciaRes.data) setAttendanceCount(asistenciaRes.data.length);
-        if (califRes.data) setGradeSheetCount(califRes.data.length);
-        if (photoRes.data) setPhotoCount(photoRes.data.length);
-      })
-      .catch((err) => {
-        console.error("[ParticipantForm] Error fetching initial attachment counts:", err);
-      });
-  }, [osiId, facilitadorId, selectedSession]);
+    refreshAttachmentCounts();
+  }, [refreshAttachmentCounts]);
+
+  // When facilitator navigates to "envio", re-fetch all counts to ensure fresh validation
+  useEffect(() => {
+    if (activeStep === "envio") {
+      refreshAttachmentCounts();
+    }
+  }, [activeStep, refreshAttachmentCounts]);
+
+  const selectableSessionsList = useMemo(() => {
+    if (assignedSession !== null) {
+      return [assignedSession];
+    }
+    if (hasAllSessionsAssignment && assignedSessions.length === 0) {
+      return Array.from({ length: sessionCount }, (_, i) => i + 1);
+    }
+    if (assignedSessions.length > 0) {
+      return [...assignedSessions].sort((a, b) => a - b);
+    }
+    return Array.from({ length: sessionCount }, (_, i) => i + 1);
+  }, [assignedSession, hasAllSessionsAssignment, assignedSessions, sessionCount]);
+
+  const availableSessionsWithDates = useMemo(() => {
+    return selectableSessionsList.map((n) => {
+      const match = sessionsInfo?.find((s) => s.nro_sesion === n);
+      return {
+        nro_sesion: n,
+        fecha: match?.fecha || null,
+      };
+    });
+  }, [selectableSessionsList, sessionsInfo]);
+
+  const getSessionStats = useCallback(
+    (n: number) => {
+      const forSes = allAttachments.filter((a) => a.nro_sesion === n || a.nro_sesion == null);
+      const asist = forSes.filter((a) => a.category === "lista_asistencia").length;
+      const calif = forSes.filter((a) => a.category === "hoja_calificacion").length;
+      const fotos = forSes.filter((a) => a.category === "material_fotografico").length;
+      return { asist, calif, fotos, total: forSes.length };
+    },
+    [allAttachments],
+  );
+
+  const renderSessionHeader = (categoryLabel: string) => {
+    if (sessionCount <= 1) return null;
+
+    const currentSessionDate = sessionsInfo?.find((s) => s.nro_sesion === selectedSession)?.fecha;
+    const isSingleAssignment = assignedSession !== null;
+
+    return (
+      <div className="p-4 bg-gradient-to-r from-sky-50 via-sky-50/70 to-blue-50/40 border border-sky-200/90 rounded-2xl space-y-3 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+              <Layers className="w-5 h-5" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold uppercase tracking-wider text-sky-950">
+                  Sesión Activa de Carga:
+                </span>
+                <span className="text-xs font-extrabold bg-sky-600 text-white px-2.5 py-0.5 rounded-md shadow-2xs">
+                  Sesión {selectedSession}
+                </span>
+                {currentSessionDate && (
+                  <span className="text-xs font-semibold text-slate-700 bg-white/80 border border-sky-200 px-2 py-0.5 rounded-md">
+                    📅 {formatSessionDate(currentSessionDate)}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-sky-800 mt-1">
+                {isSingleAssignment
+                  ? `Estás asignado a la Sesión ${assignedSession}. Todos los documentos se guardarán para esa fecha.`
+                  : `Cargando ${categoryLabel} para la Sesión ${selectedSession}. Si tienes archivos de otra fecha, pulsa abajo la sesión correspondiente:`}
+              </p>
+            </div>
+          </div>
+
+          {!isSingleAssignment && selectableSessionsList.length > 1 && (
+            <span className="text-[11px] text-sky-700 bg-sky-100/70 border border-sky-200 px-2.5 py-1 rounded-lg font-semibold self-start sm:self-auto">
+              💡 Cambia la sesión antes de subir
+            </span>
+          )}
+        </div>
+
+        {/* Interactive session selector pills */}
+        {!isSingleAssignment && selectableSessionsList.length > 1 && (
+          <div className="pt-2 border-t border-sky-100 flex flex-wrap gap-2">
+            {selectableSessionsList.map((n) => {
+              const sesDate = sessionsInfo?.find((s) => s.nro_sesion === n)?.fecha;
+              const stats = getSessionStats(n);
+              const isSelected = selectedSession === n;
+
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setSelectedSession(n)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                    isSelected
+                      ? "bg-sky-600 text-white shadow-sm ring-2 ring-sky-300"
+                      : "bg-white text-slate-700 border border-slate-200 hover:bg-sky-50 hover:border-sky-200"
+                  }`}
+                >
+                  <span
+                    className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
+                      isSelected ? "bg-white text-sky-600" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {n}
+                  </span>
+                  <span>Sesión {n}</span>
+                  {sesDate && (
+                    <span className={`text-[11px] font-normal ${isSelected ? "text-sky-100" : "text-slate-400"}`}>
+                      ({formatSessionDate(sesDate)})
+                    </span>
+                  )}
+                  {stats.total > 0 && (
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        isSelected
+                          ? "bg-white/20 text-white"
+                          : "bg-emerald-100 text-emerald-800"
+                      }`}
+                    >
+                      ✓ {stats.total}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Derived statistics
   const hasOnlyEmptyRow =
@@ -214,11 +379,23 @@ export const ParticipantForm = ({
     (p) => !p.nombre_apellido.trim() || !p.cedula.trim()
   );
 
+  // Check for scores out of 0-20 scale
+  const hasInvalidScoreRange = validParticipants.some((p) => {
+    if (p.score === "" || p.score === null || p.score === undefined) return false;
+    const num = Number(p.score);
+    return isNaN(num) || num < 0 || num > 20;
+  });
+
   // Prerequisites helpers for finalizing service
   const hasCompletedAttendance = attendanceCount > 0;
   const hasCompletedGradeSheet = gradeSheetCount > 0;
   const hasCompletedPhotos = photoCount > 0;
-  const hasCompletedParticipants = hasValidParticipants && sinNotaCount === 0 && !hasIncompleteRows;
+  const hasCompletedParticipants =
+    hasValidParticipants &&
+    sinNotaCount === 0 &&
+    !hasIncompleteRows &&
+    !hasInvalidScoreRange;
+
   const canFinalize =
     hasAcknowledged &&
     hasCompletedAttendance &&
@@ -516,6 +693,8 @@ export const ParticipantForm = ({
           setError("Debes registrar al menos un participante con nombre y cédula.");
         } else if (hasIncompleteRows) {
           setError("Por favor completa el nombre y cédula de todos los participantes ingresados.");
+        } else if (hasInvalidScoreRange) {
+          setError("Todas las calificaciones deben ser números válidos entre 0 y 20.");
         } else {
           setError("Todos los participantes deben tener su calificación asignada (escala de 0 a 20).");
         }
@@ -537,7 +716,6 @@ export const ParticipantForm = ({
       }
     }
 
-    setShowAttachmentWarning(false);
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -565,14 +743,14 @@ export const ParticipantForm = ({
             status,
             acknowledged: status === "final" ? hasAcknowledged : false,
             disclaimerText: status === "final" ? DISCLAIMER_TEXT : undefined,
-          }
+          },
         );
         setPendingSync(true);
         if (status === "final") setIsFinal(true);
         setSuccess(
           status === "final"
             ? "Listado finalizado — pendiente de sincronización"
-            : "Guardado — pendiente de sincronización"
+            : "Guardado — pendiente de sincronización",
         );
       } catch (err) {
         setError("Error al guardar offline: " + (err as Error).message);
@@ -587,7 +765,7 @@ export const ParticipantForm = ({
       mappedParticipants,
       status,
       status === "final" ? hasAcknowledged : false,
-      status === "final" ? DISCLAIMER_TEXT : undefined
+      status === "final" ? DISCLAIMER_TEXT : undefined,
     );
 
     if (result.success) {
@@ -595,38 +773,8 @@ export const ParticipantForm = ({
       setSuccess(
         status === "final"
           ? "¡Listado finalizado y enviado exitosamente a Capacitación!"
-          : "Guardado correctamente"
+          : "Guardado correctamente",
       );
-    } else {
-      setError(result.error || "Error al guardar el listado");
-    }
-    setSaving(false);
-  };
-
-  const handleConfirmFinalizeAnyway = async () => {
-    setShowAttachmentWarning(false);
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-
-    const mappedParticipants = participants.map((p) => ({
-      nombre_apellido: toTitleCase(p.nombre_apellido.trim()),
-      cedula: p.cedula,
-      score: p.score === "" ? null : Number(p.score),
-    }));
-
-    const result = await saveParticipants(
-      osiId,
-      facilitadorId,
-      mappedParticipants,
-      "final",
-      hasAcknowledged,
-      DISCLAIMER_TEXT
-    );
-
-    if (result.success) {
-      setIsFinal(true);
-      setSuccess("Listado finalizado y enviado exitosamente");
     } else {
       setError(result.error || "Error al guardar el listado");
     }
@@ -823,47 +971,8 @@ export const ParticipantForm = ({
               </Button>
             </div>
 
-            {/* Session picker (if multi-session) */}
-            {sessionCount > 1 && (
-              <div className="p-4 bg-sky-50/70 border border-sky-200/80 rounded-xl space-y-2">
-                <label className="block text-xs font-bold text-sky-950 uppercase tracking-wide">
-                  Selección de Sesión
-                </label>
-                <p className="text-xs text-sky-800">
-                  {assignedSession !== null
-                    ? `Estás asignado a la Sesión ${assignedSession}. Los documentos se cargarán para esa sesión.`
-                    : "Selecciona para qué sesión estás subiendo los documentos:"}
-                </p>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {(() => {
-                    const selectableSessions =
-                      assignedSession !== null
-                        ? [assignedSession]
-                        : hasAllSessionsAssignment && assignedSessions.length === 0
-                          ? Array.from({ length: sessionCount }, (_, i) => i + 1)
-                          : [...assignedSessions].sort((a, b) => a - b);
-                    const isReadOnly = assignedSession !== null;
-
-                    return selectableSessions.map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => !isReadOnly && setSelectedSession(n)}
-                        disabled={isReadOnly}
-                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${selectedSession === n
-                          ? "bg-sky-600 text-white shadow-xs"
-                          : isReadOnly
-                            ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-                            : "bg-white text-sky-800 border border-sky-200 hover:bg-sky-100"
-                          }`}
-                      >
-                        Sesión {n}
-                      </button>
-                    ));
-                  })()}
-                </div>
-              </div>
-            )}
+            {/* Session Indicator & Selector */}
+            {renderSessionHeader("la lista de asistencia")}
 
             {/* Upload Area */}
             <div id="tour-upload-section">
@@ -872,17 +981,21 @@ export const ParticipantForm = ({
                 facilitadorId={facilitadorId}
                 category="lista_asistencia"
                 nroSesion={selectedSession}
+                sessionDate={sessionsInfo?.find((s) => s.nro_sesion === selectedSession)?.fecha}
+                availableSessions={availableSessionsWithDates}
+                onSessionChange={setSelectedSession}
                 title="Lista de Asistencia Física"
                 description="Formatos JPG, PNG o PDF."
                 badge="Requerido"
                 badgeColor="red"
-                onAttachmentCountChange={setAttendanceCount}
+                onAttachmentCountChange={refreshAttachmentCounts}
                 onScanAttachment={handleSelectAttachment}
                 onFileReadyToScan={handleFileReadyToScan}
                 onStatusChange={setUploadStatus}
-                showScanButton={!isFinal}
+                showScanButton={true}
                 tourId="tour-upload-button"
-                disabled={isFinal}
+                disabled={false}
+                isFinal={isFinal}
               />
             </div>
 
@@ -958,47 +1071,8 @@ export const ParticipantForm = ({
               </div>
             </div>
 
-            {/* Session picker (if multi-session) */}
-            {sessionCount > 1 && (
-              <div className="p-4 bg-sky-50/70 border border-sky-200/80 rounded-xl space-y-2">
-                <label className="block text-xs font-bold text-sky-950 uppercase tracking-wide">
-                  Selección de Sesión
-                </label>
-                <p className="text-xs text-sky-800">
-                  {assignedSession !== null
-                    ? `Estás asignado a la Sesión ${assignedSession}. Los documentos se cargarán para esa sesión.`
-                    : "Selecciona para qué sesión estás subiendo los documentos:"}
-                </p>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {(() => {
-                    const selectableSessions =
-                      assignedSession !== null
-                        ? [assignedSession]
-                        : hasAllSessionsAssignment && assignedSessions.length === 0
-                          ? Array.from({ length: sessionCount }, (_, i) => i + 1)
-                          : [...assignedSessions].sort((a, b) => a - b);
-                    const isReadOnly = assignedSession !== null;
-
-                    return selectableSessions.map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => !isReadOnly && setSelectedSession(n)}
-                        disabled={isReadOnly}
-                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${selectedSession === n
-                          ? "bg-sky-600 text-white shadow-xs"
-                          : isReadOnly
-                            ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-                            : "bg-white text-sky-800 border border-sky-200 hover:bg-sky-100"
-                          }`}
-                      >
-                        Sesión {n}
-                      </button>
-                    ));
-                  })()}
-                </div>
-              </div>
-            )}
+            {/* Session Indicator & Selector */}
+            {renderSessionHeader("la hoja de calificación")}
 
             {/* Upload Area */}
             <div id="tour-calificacion-upload">
@@ -1007,14 +1081,18 @@ export const ParticipantForm = ({
                 facilitadorId={facilitadorId}
                 category="hoja_calificacion"
                 nroSesion={selectedSession}
+                sessionDate={sessionsInfo?.find((s) => s.nro_sesion === selectedSession)?.fecha}
+                availableSessions={availableSessionsWithDates}
+                onSessionChange={setSelectedSession}
                 title="Hoja de Calificación Física"
                 description="Formatos JPG, PNG o PDF con las notas y firmas físicas."
                 badge="Requerido"
                 badgeColor="red"
-                onAttachmentCountChange={setGradeSheetCount}
+                onAttachmentCountChange={refreshAttachmentCounts}
                 onStatusChange={setUploadStatus}
                 tourId="tour-calificacion-button"
-                disabled={isFinal}
+                disabled={false}
+                isFinal={isFinal}
               />
             </div>
 
@@ -1406,20 +1484,27 @@ export const ParticipantForm = ({
               </p>
             </div>
 
+            {/* Session Indicator & Selector */}
+            {renderSessionHeader("las fotos y evidencias")}
+
             <div className="grid grid-cols-1 gap-6" id="tour-evidencias-section">
               <AttachmentUploadSection
                 osiId={osiId}
                 facilitadorId={facilitadorId}
                 category="material_fotografico"
                 nroSesion={selectedSession}
+                sessionDate={sessionsInfo?.find((s) => s.nro_sesion === selectedSession)?.fecha}
+                availableSessions={availableSessionsWithDates}
+                onSessionChange={setSelectedSession}
                 title="Registro Fotográfico de la Actividad"
                 description="Fotos de la sesión, facilitador y participantes"
                 badge={photoCount > 0 ? `${photoCount} Cargada(s)` : undefined}
                 badgeColor="green"
                 accept="image/*"
                 imageOnly
-                onAttachmentCountChange={setPhotoCount}
-                disabled={isFinal}
+                onAttachmentCountChange={refreshAttachmentCounts}
+                disabled={false}
+                isFinal={isFinal}
               />
             </div>
 
@@ -1555,6 +1640,101 @@ export const ParticipantForm = ({
               </div>
             </div>
 
+            {/* Multi-Session Soportes Breakdown */}
+            {sessionCount > 1 && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-sky-600" />
+                    <h4 className="text-sm font-bold text-slate-900">
+                      Estado de Soportes por Sesión ({selectableSessionsList.length} sesión{selectableSessionsList.length > 1 ? "es" : ""})
+                    </h4>
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Verifica que cada fecha tenga sus recaudos cargados
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {selectableSessionsList.map((n) => {
+                    const sesDate = sessionsInfo?.find((s) => s.nro_sesion === n)?.fecha;
+                    const stats = getSessionStats(n);
+                    const isAssigned = assignedSessions.includes(n) || assignedSession === n;
+
+                    return (
+                      <div
+                        key={n}
+                        className={`p-3.5 rounded-xl border transition-all ${
+                          stats.asist > 0 && stats.calif > 0 && stats.fotos > 0
+                            ? "bg-emerald-50/40 border-emerald-200"
+                            : "bg-slate-50/70 border-slate-200"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-extrabold px-2 py-0.5 rounded-md bg-sky-600 text-white shadow-2xs">
+                              Sesión {n}
+                            </span>
+                            {sesDate && (
+                              <span className="text-[11px] font-semibold text-slate-600">
+                                📅 {formatSessionDate(sesDate)}
+                              </span>
+                            )}
+                          </div>
+                          {isAssigned && (
+                            <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded">
+                              Asignado a ti
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">Asistencia:</span>
+                            {stats.asist > 0 ? (
+                              <span className="text-emerald-700 font-bold inline-flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> {stats.asist} doc(s)
+                              </span>
+                            ) : (
+                              <span className="text-amber-700 font-semibold inline-flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-500" /> Pendiente
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">Calificación:</span>
+                            {stats.calif > 0 ? (
+                              <span className="text-emerald-700 font-bold inline-flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> {stats.calif} doc(s)
+                              </span>
+                            ) : (
+                              <span className="text-amber-700 font-semibold inline-flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-500" /> Pendiente
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">Fotos:</span>
+                            {stats.fotos > 0 ? (
+                              <span className="text-emerald-700 font-bold inline-flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> {stats.fotos} foto(s)
+                              </span>
+                            ) : (
+                              <span className="text-amber-700 font-semibold inline-flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-500" /> Pendiente
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Disclaimer / Responsibility Card */}
             <div
               ref={disclaimerRef}
@@ -1611,35 +1791,7 @@ export const ParticipantForm = ({
             {/* ISO 14001 Banner */}
             <ISOComplianceBanner />
 
-            {/* Attachment Warning Modal/Alert */}
-            {showAttachmentWarning && (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-amber-900 text-xs sm:text-sm">
-                <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
-                <div className="flex-1 space-y-2">
-                  <p className="font-bold">No has adjuntado foto de la lista de asistencia</p>
-                  <p className="text-amber-800 text-xs leading-relaxed">
-                    Se recomienda adjuntar la foto o escaneo de la lista firmada por los participantes antes de enviar el servicio. ¿Deseas enviar la información de todos modos?
-                  </p>
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      onClick={handleConfirmFinalizeAnyway}
-                      className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
-                    >
-                      Sí, finalizar sin foto
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowAttachmentWarning(false)}
-                      className="text-xs"
-                    >
-                      Volver a cargar foto
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             {/* Submission Actions */}
             <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

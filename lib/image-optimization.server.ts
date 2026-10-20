@@ -1,9 +1,27 @@
 import sharp from "sharp";
+import heicConvert from "heic-convert";
 
 interface OptimizeOptions {
   maxWidth?: number;
   maxHeight?: number;
   quality?: number;
+}
+
+/**
+ * Detects if a buffer contains a HEIC/HEIF image by inspecting ISO base media file format brand box
+ */
+export function isHeicBuffer(buffer: Buffer): boolean {
+  if (!buffer || buffer.length < 12) return false;
+  const brand = buffer.toString("ascii", 4, 12);
+  return (
+    brand.startsWith("ftyp") &&
+    (brand.includes("heic") ||
+      brand.includes("heix") ||
+      brand.includes("hevc") ||
+      brand.includes("hevx") ||
+      brand.includes("mif1") ||
+      brand.includes("msf1"))
+  );
 }
 
 /**
@@ -57,7 +75,25 @@ export async function optimizeDocumentImage(
   console.log("[optimizeDocumentImage] ENTRY", { inputSize: buffer.length, maxWidth, maxHeight, quality });
 
   try {
-    const sharpInstance = sharp(buffer);
+    let workingBuffer = buffer;
+
+    // Detect HEIC/HEIF and decode to JPEG intermediate using heic-convert
+    if (isHeicBuffer(workingBuffer)) {
+      console.log("[optimizeDocumentImage] HEIC/HEIF detected via magic bytes, converting via heic-convert...");
+      try {
+        const converted = await heicConvert({
+          buffer: workingBuffer,
+          format: "JPEG",
+          quality: 0.9,
+        });
+        workingBuffer = Buffer.from(converted);
+        console.log("[optimizeDocumentImage] HEIC converted successfully, intermediate JPEG size:", workingBuffer.length);
+      } catch (heicErr) {
+        console.error("[optimizeDocumentImage] heic-convert error:", heicErr);
+      }
+    }
+
+    const sharpInstance = sharp(workingBuffer);
 
     const metadata = await sharpInstance.metadata();
     console.log("[optimizeDocumentImage] Image metadata:", { format: metadata.format, width: metadata.width, height: metadata.height, orientation: metadata.orientation });
