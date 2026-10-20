@@ -746,6 +746,7 @@ export async function generateCarnetsForBatchAction(
         fecha_vencimiento,
         calificacion,
         snapshot_contenido,
+        id_plantilla_carnet,
         participantes_certificados (
           id,
           nombre,
@@ -754,8 +755,7 @@ export async function generateCarnetsForBatchAction(
         catalogo_servicios (
           id,
           nombre,
-          emite_carnet,
-          id_plantilla_carnet
+          emite_carnet
         ),
         empresas (
           id,
@@ -917,10 +917,9 @@ export async function generateCarnetsForBatchAction(
       }
 
       const plantillaId =
-        (Array.isArray(cert.catalogo_servicios)
-          ? cert.catalogo_servicios[0]?.id_plantilla_carnet
-          : (cert.catalogo_servicios as any)?.id_plantilla_carnet) ||
+        cert.id_plantilla_carnet ||
         snap.id_plantilla_carnet ||
+        snap.plantilla?.id_plantilla_carnet ||
         defaultTemplate?.id ||
         null;
 
