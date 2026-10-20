@@ -127,12 +127,23 @@ export default function AssignFacilitadorModal({
 
   const handleOpenWhatsApp = (mode: "web" | "app" = "web") => {
     if (!emailBody) return;
-    const fac = facilitators.find((f) => f.id.toString() === selectedFacilitadorId);
-    const rawPhone = emailContext?.facilitador_telefono || fac?.telefono || "";
+    const activeFacId =
+      selectedFacilitadorId ||
+      (currentAssignments.length > 0
+        ? currentAssignments[0].facilitador_id?.toString()
+        : "");
+    const fac = facilitators.find((f) => f.id.toString() === activeFacId);
+    const rawPhone =
+      emailContext?.facilitador_telefono ||
+      fac?.telefono ||
+      (currentAssignments[0]?.facilitadores as any)?.telefono ||
+      "";
     const cleaned = rawPhone.replace(/\D/g, "");
     let phoneParam = "";
     if (cleaned) {
-      if (cleaned.startsWith("58")) {
+      if (cleaned.startsWith("580")) {
+        phoneParam = "58" + cleaned.slice(3);
+      } else if (cleaned.startsWith("58")) {
         phoneParam = cleaned;
       } else if (cleaned.startsWith("0")) {
         phoneParam = "58" + cleaned.slice(1);
@@ -153,6 +164,7 @@ export default function AssignFacilitadorModal({
         : `whatsapp://send?text=${encodeURIComponent(emailBody)}`;
       const a = document.createElement("a");
       a.href = appUrl;
+      a.target = "_top";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

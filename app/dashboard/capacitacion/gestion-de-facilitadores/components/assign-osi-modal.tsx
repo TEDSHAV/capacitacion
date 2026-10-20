@@ -130,7 +130,9 @@ export default function AssignOSIModal({
     const cleaned = rawPhone.replace(/\D/g, "");
     let phoneParam = "";
     if (cleaned) {
-      if (cleaned.startsWith("58")) {
+      if (cleaned.startsWith("580")) {
+        phoneParam = "58" + cleaned.slice(3);
+      } else if (cleaned.startsWith("58")) {
         phoneParam = cleaned;
       } else if (cleaned.startsWith("0")) {
         phoneParam = "58" + cleaned.slice(1);
@@ -151,6 +153,7 @@ export default function AssignOSIModal({
         : `whatsapp://send?text=${encodeURIComponent(emailBody)}`;
       const a = document.createElement("a");
       a.href = appUrl;
+      a.target = "_top";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
