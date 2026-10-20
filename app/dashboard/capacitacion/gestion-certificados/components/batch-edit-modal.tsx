@@ -11,8 +11,8 @@ import {
   getOSIsWithCertificatesAction,
   getBatchCertificateDetailsAction,
   getFacilitatorsForFilters,
-  generateCarnetsForBatchAction,
 } from "@/app/actions/certificados";
+import { generateCarnetsForBatchAction } from "@/app/actions/carnets";
 import { toTitleCase } from "@/utils/string-utils";
 import {
   Loader2,

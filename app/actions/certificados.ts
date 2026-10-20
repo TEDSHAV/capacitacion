@@ -19,7 +19,6 @@ import { QRService } from "@/lib/qr-service";
 import { getFacilitatorData } from "./facilitators";
 import { certificateService } from "@/lib/certificate-service";
 import { generateCarnetsForBatchAction } from "./carnets";
-export { generateCarnetsForBatchAction } from "./carnets";
 
 export interface CertificateRecord {
   id_participante?: number | null;
