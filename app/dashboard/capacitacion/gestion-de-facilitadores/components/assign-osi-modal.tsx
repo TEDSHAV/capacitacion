@@ -29,6 +29,7 @@ import {
   getAllOSIsForAssignment,
   assignOSIToFacilitador,
   unassignOSIToFacilitador,
+  getActiveFacilitatorsForDropdown,
 } from "@/app/actions/osi-facilitador-assignments";
 import { getOSIEmailContext } from "@/app/actions/osi-email-context";
 import {
@@ -112,6 +113,18 @@ export default function AssignOSIModal({
   const [userEditedBody, setUserEditedBody] = useState(false);
   const [userEditedTo, setUserEditedTo] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [facilitatorPhone, setFacilitatorPhone] = useState<string>("");
+  const [waDebug, setWaDebug] = useState<{
+    mode: "web" | "app";
+    rawPhone: string;
+    phoneParam: string;
+    appUrl: string;
+    webUrl: string;
+    apiUrl: string;
+    isIframe: boolean;
+    time: string;
+    attempted: string[];
+  } | null>(null);
 
   const handleCopyBody = async () => {
     if (!emailBody) return;
@@ -126,11 +139,13 @@ export default function AssignOSIModal({
 
   const handleOpenWhatsApp = (mode: "web" | "app" = "web") => {
     if (!emailBody) return;
-    const rawPhone = emailContext?.facilitador_telefono || "";
+    const rawPhone = emailContext?.facilitador_telefono || facilitatorPhone || "";
     const cleaned = rawPhone.replace(/\D/g, "");
     let phoneParam = "";
     if (cleaned) {
-      if (cleaned.startsWith("58")) {
+      if (cleaned.startsWith("580")) {
+        phoneParam = "58" + cleaned.slice(3);
+      } else if (cleaned.startsWith("58")) {
         phoneParam = cleaned;
       } else if (cleaned.startsWith("0")) {
         phoneParam = "58" + cleaned.slice(1);
@@ -145,29 +160,86 @@ export default function AssignOSIModal({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
 
-    if (mode === "app") {
-      const appUrl = phoneParam
-        ? `whatsapp://send?phone=${phoneParam}&text=${encodeURIComponent(emailBody)}`
-        : `whatsapp://send?text=${encodeURIComponent(emailBody)}`;
-      const a = document.createElement("a");
-      a.href = appUrl;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      return;
-    }
-
-    // Direct WhatsApp Web URL (bypasses wa.me intermediary landing page)
+    const appUrl = phoneParam
+      ? `whatsapp://send?phone=${phoneParam}&text=${encodeURIComponent(emailBody)}`
+      : `whatsapp://send?text=${encodeURIComponent(emailBody)}`;
     const webUrl = phoneParam
       ? `https://web.whatsapp.com/send?phone=${phoneParam}&text=${encodeURIComponent(emailBody)}`
       : `https://web.whatsapp.com/send?text=${encodeURIComponent(emailBody)}`;
+    const apiUrl = phoneParam
+      ? `https://api.whatsapp.com/send?phone=${phoneParam}&text=${encodeURIComponent(emailBody)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(emailBody)}`;
 
-    // Use named target "whatsapp_web" without noopener so the browser can reuse
-    // and focus the existing WhatsApp Web tab rather than creating multiple conflicting tabs.
-    const win = window.open(webUrl, "whatsapp_web");
-    if (win) {
-      win.focus();
+    const isIframe = typeof window !== "undefined" && window.self !== window.top;
+    const attempted: string[] = [];
+
+    if (mode === "app") {
+      // Method 1: Anchor with target="_top"
+      try {
+        const a = document.createElement("a");
+        a.href = appUrl;
+        a.target = "_top";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        attempted.push("Anchor click (target=_top)");
+      } catch (err: any) {
+        attempted.push(`Anchor click error: ${err?.message || err}`);
+      }
+
+      // Method 2: window.open as fallback
+      try {
+        const w = window.open(appUrl, "_blank");
+        if (w) {
+          setTimeout(() => {
+            try {
+              w.close();
+            } catch {}
+          }, 2500);
+          attempted.push("window.open(_blank) ejecutado");
+        } else {
+          attempted.push("window.open(_blank) popup bloqueado / null");
+        }
+      } catch (err: any) {
+        attempted.push(`window.open error: ${err?.message || err}`);
+      }
+    } else {
+      // mode === "web"
+      try {
+        const win = window.open(webUrl, "whatsapp_web");
+        if (win) {
+          win.focus();
+          attempted.push("window.open(webUrl, 'whatsapp_web') éxito");
+        } else {
+          attempted.push("window.open retornó null (popup bloqueado)");
+        }
+      } catch (err: any) {
+        attempted.push(`window.open web error: ${err?.message || err}`);
+      }
     }
+
+    console.group(`[WhatsApp ${mode.toUpperCase()} Debug]`);
+    console.log("Facilitador ID:", facilitadorId);
+    console.log("Raw Phone:", rawPhone);
+    console.log("Phone Param:", phoneParam);
+    console.log("Is Iframe:", isIframe);
+    console.log("App URL:", appUrl);
+    console.log("Web URL:", webUrl);
+    console.log("API URL:", apiUrl);
+    console.log("Attempted Methods:", attempted);
+    console.groupEnd();
+
+    setWaDebug({
+      mode,
+      rawPhone,
+      phoneParam,
+      appUrl,
+      webUrl,
+      apiUrl,
+      isIframe,
+      time: new Date().toLocaleTimeString("es-VE"),
+      attempted,
+    });
   };
 
   // Cache of raw template subject/body keyed by template id
@@ -191,14 +263,20 @@ export default function AssignOSIModal({
     setLoading(true);
     setError(null);
     try {
-      const [assignRes, osis, templatesData, configured, logs] =
+      const [assignRes, osis, templatesData, configured, logs, allFacs] =
         await Promise.all([
           getAssignmentsByFacilitador(facilitadorId),
           getAllOSIsForAssignment(),
           getEmailTemplates(),
           isEmailServerConfigured(),
           getEmailLogs({ facilitadorId }),
+          getActiveFacilitatorsForDropdown(),
         ]);
+
+      const currentFac = allFacs?.find((f) => f.id === facilitadorId);
+      if (currentFac?.telefono) {
+        setFacilitatorPhone(currentFac.telefono);
+      }
 
       if (assignRes.error) {
         setError(assignRes.error);
@@ -901,6 +979,65 @@ export default function AssignOSIModal({
                     className="font-mono text-xs min-h-[320px] whitespace-pre-wrap"
                     placeholder="Cuerpo del correo..."
                   />
+
+                  {waDebug && (
+                    <div className="mt-2 p-3 bg-slate-900 text-slate-100 rounded-md text-xs font-mono space-y-1.5 border border-slate-700 shadow-md">
+                      <div className="flex justify-between items-center font-bold text-slate-200">
+                        <span className="flex items-center gap-1.5">
+                          <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          WhatsApp Debugger ({waDebug.mode === "app" ? "App Escritorio" : "WhatsApp Web"}) — {waDebug.time}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setWaDebug(null)}
+                          className="text-slate-400 hover:text-white px-1.5 py-0.5 rounded hover:bg-slate-800"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="text-slate-300">
+                        Teléfono facilitador: <span className="text-emerald-400 font-bold">{waDebug.phoneParam || "(no detectado / vacío)"}</span>
+                        {waDebug.rawPhone && waDebug.rawPhone !== waDebug.phoneParam && (
+                          <span className="text-slate-500 ml-2">(original: {waDebug.rawPhone})</span>
+                        )}
+                      </div>
+                      <div className="text-slate-300">
+                        Entorno iframe: <span className={waDebug.isIframe ? "text-amber-400 font-semibold" : "text-emerald-400 font-semibold"}>{waDebug.isIframe ? "Sí (embebido en Shell)" : "No (ventana directa)"}</span>
+                      </div>
+                      <div className="text-slate-300">
+                        Métodos ejecutados: <span className="text-cyan-400">{waDebug.attempted.join(" → ")}</span>
+                      </div>
+                      <div className="pt-2 border-t border-slate-800 space-y-1">
+                        <div className="text-slate-400 font-medium text-[11px]">Enlaces de prueba directa (haz clic para probar manualmente):</div>
+                        <div className="flex flex-wrap gap-2 text-[11px]">
+                          <a
+                            href={waDebug.appUrl}
+                            target="_top"
+                            className="px-2 py-1 bg-emerald-800 hover:bg-emerald-700 text-white rounded inline-flex items-center gap-1"
+                            title="Prueba hacer clic directo en este enlace para ver si Windows reacciona"
+                          >
+                            <span>Probar whatsapp://</span>
+                          </a>
+                          <a
+                            href={waDebug.apiUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 bg-blue-800 hover:bg-blue-700 text-white rounded inline-flex items-center gap-1"
+                            title="Abre la API oficial de WhatsApp (puente universal web-a-app)"
+                          >
+                            <span>Probar api.whatsapp.com</span>
+                          </a>
+                          <a
+                            href={waDebug.webUrl}
+                            target="whatsapp_web"
+                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded inline-flex items-center gap-1"
+                          >
+                            <span>Probar Web directo</span>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Attachments */}
