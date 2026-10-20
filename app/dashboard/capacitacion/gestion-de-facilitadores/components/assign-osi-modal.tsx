@@ -149,7 +149,11 @@ export default function AssignOSIModal({
       const appUrl = phoneParam
         ? `whatsapp://send?phone=${phoneParam}&text=${encodeURIComponent(emailBody)}`
         : `whatsapp://send?text=${encodeURIComponent(emailBody)}`;
-      window.location.href = appUrl;
+      const a = document.createElement("a");
+      a.href = appUrl;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       return;
     }
 
@@ -881,7 +885,7 @@ export default function AssignOSIModal({
                         onClick={() => handleOpenWhatsApp("app")}
                         disabled={!emailBody.trim()}
                         className="h-7 px-2.5 text-xs text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 flex items-center gap-1"
-                        title="Abrir en la app de escritorio de WhatsApp (Windows)"
+                        title="Abrir en la app de escritorio de WhatsApp (Windows). Requiere tener instalada la app de WhatsApp para Windows."
                       >
                         <Laptop className="w-3.5 h-3.5 text-emerald-600" />
                         <span>App Escritorio</span>
