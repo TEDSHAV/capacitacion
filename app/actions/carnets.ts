@@ -739,7 +739,6 @@ export async function generateCarnetsForBatchAction(
         id_participante,
         id_empresa,
         id_curso,
-        id_osi,
         nro_osi,
         nro_control,
         fecha_emision,
@@ -827,6 +826,22 @@ export async function generateCarnetsForBatchAction(
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    // 3.1 Resolve OSI id from v_osi_formato_completo if possible
+    let osiIdFromDb: number | null = null;
+    try {
+      const { data: osiRow } = await supabase
+        .from("v_osi_formato_completo")
+        .select("id_osi")
+        .eq("nro_osi", String(osiNumber))
+        .limit(1)
+        .maybeSingle();
+      if (osiRow?.id_osi) {
+        osiIdFromDb = osiRow.id_osi;
+      }
+    } catch {
+      // ignore lookup error
+    }
 
     const formatDateStr = (dateInput: any) => {
       if (!dateInput) return "";
@@ -945,9 +960,11 @@ export async function generateCarnetsForBatchAction(
         null;
 
       const effectiveOsiId =
-        cert.id_osi ||
-        snap.id_osi ||
+        snap.osi?.id_osi ||
         snap.osi?.id ||
+        snap.id_osi ||
+        snap.osi_data?.id ||
+        osiIdFromDb ||
         null;
 
       carnetDataList.push({
