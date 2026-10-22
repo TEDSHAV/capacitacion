@@ -7,9 +7,6 @@ import {
   getDisenoServicioById,
   getCurrentUserForDiseno,
 } from "@/app/actions/diseno-servicio";
-import {
-  isCapacitacionDept,
-} from "@/lib/requisiciones-gerencia";
 import DisenoServicioWizard from "./components/DisenoServicioWizard";
 
 export const dynamic = "force-dynamic";
@@ -49,17 +46,7 @@ export default async function DisenoServicioWizardPage({
     notFound();
   }
 
-  // Guard: only Capacitación users may manage these services, and only
-  // solicitudes whose service nature is Capacitación
-  // (bloque_recursos_requisitos.tipo_naturaleza_servicio = "cap"). Anyone else or
-  // requests outside this scope are blocked.
-  const userDeptName = (userData?.departamentos as any)?.nombre ?? null;
-  const isCapUser = isCapacitacionDept(userDeptName);
-
-  if (!userData || !isCapUser) {
-    notFound();
-  }
-
+  // Guard: Scope to Capacitación (cap)
   const tipoNaturaleza =
     (solicitud.bloque_recursos_requisitos as any)?.tipo_naturaleza_servicio ?? null;
   if (tipoNaturaleza !== "cap") {
