@@ -339,21 +339,30 @@ export function EntrevistaPrintModal({
                 </div>
 
                 <div className="grid grid-cols-12 border-b border-gray-800 divide-x divide-gray-800">
-                  <div className="col-span-6 p-2 flex items-end">
+                  <div className="col-span-4 p-2 flex items-end min-w-0 overflow-hidden">
                     <span className="font-bold shrink-0">DIRECCIÓN:&nbsp;</span>
-                    <span className="flex-1 border-b border-gray-400 pb-0.5 min-h-[16px] text-gray-800 font-medium">
+                    <span
+                      className="flex-1 border-b border-gray-400 pb-0.5 min-h-[16px] text-gray-800 font-medium truncate min-w-0"
+                      title={entrevista.direccion || ""}
+                    >
                       {entrevista.direccion || ""}
                     </span>
                   </div>
-                  <div className="col-span-3 p-2 flex items-end">
+                  <div className="col-span-3 p-2 flex items-end min-w-0 overflow-hidden">
                     <span className="font-bold shrink-0">TELÉFONO:&nbsp;</span>
-                    <span className="flex-1 border-b border-gray-400 pb-0.5 min-h-[16px] text-gray-800 font-medium">
+                    <span
+                      className="flex-1 border-b border-gray-400 pb-0.5 min-h-[16px] text-gray-800 font-medium truncate min-w-0"
+                      title={entrevista.telefono || ""}
+                    >
                       {entrevista.telefono || ""}
                     </span>
                   </div>
-                  <div className="col-span-3 p-2 flex items-end">
+                  <div className="col-span-5 p-2 flex items-end min-w-0 overflow-hidden">
                     <span className="font-bold shrink-0">EMAIL:&nbsp;</span>
-                    <span className="flex-1 border-b border-gray-400 pb-0.5 min-h-[16px] text-gray-800 font-medium">
+                    <span
+                      className="flex-1 border-b border-gray-400 pb-0.5 min-h-[16px] text-gray-800 font-medium text-[10.5px] leading-tight break-all min-w-0"
+                      title={entrevista.email || ""}
+                    >
                       {entrevista.email || ""}
                     </span>
                   </div>

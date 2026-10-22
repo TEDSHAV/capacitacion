@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Users,
   Plus,
@@ -11,10 +12,11 @@ import {
   Printer,
   Trash2,
   Edit,
-  Eye,
+  FileText,
   UserCheck,
   CheckCircle2,
   XCircle,
+  Clock,
   AlertTriangle,
   Loader2,
   LayoutGrid,
@@ -38,9 +40,8 @@ import {
   getEntrevistasList,
   deleteEntrevista,
   promoverAFacilitador,
+  updateEntrevistaEstatus,
 } from "@/app/actions/entrevistas-facilitadores";
-import { EntrevistaDrawer } from "./EntrevistaDrawer";
-import { EntrevistaPrintModal } from "./EntrevistaPrintModal";
 import { EntrevistaLinkModal } from "./EntrevistaLinkModal";
 import { CachedDataBanner } from "@/components/CachedDataBanner";
 import {
@@ -54,6 +55,7 @@ import { toTitleCase } from "@/utils/string-utils";
 type FilterTab = "todas" | EntrevistaEstatus;
 
 export function EntrevistaListClient() {
+  const router = useRouter();
   const isOnline = useOnlineStatus();
   const { addToast } = useToast();
 
@@ -75,11 +77,7 @@ export function EntrevistaListClient() {
   const [sortBy, setSortBy] = useState<"recientes" | "antiguos" | "nombre">("recientes");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
-  // Drawer & Print States
-  const [selectedEntrevista, setSelectedEntrevista] = useState<FacilitadorEntrevista | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [printEntrevista, setPrintEntrevista] = useState<FacilitadorEntrevista | null>(null);
-  const [isPrintOpen, setIsPrintOpen] = useState(false);
+  // Link Modal State
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
 
   // Deletion States
@@ -197,9 +195,6 @@ export function EntrevistaListClient() {
 
       addToast("Entrevista eliminada", "success");
       setEntrevistas((prev) => prev.filter((it) => it.id !== id));
-      if (selectedEntrevista?.id === id) {
-        setIsDrawerOpen(false);
-      }
     } catch {
       addToast("Error al eliminar entrevista", "error");
     } finally {
@@ -207,17 +202,36 @@ export function EntrevistaListClient() {
     }
   };
 
-  // Drawer updated callback
-  const handleItemUpdated = (updated: FacilitadorEntrevista) => {
-    setEntrevistas((prev) =>
-      prev.map((it) => (it.id === updated.id ? updated : it))
-    );
-    setSelectedEntrevista(updated);
-  };
+  // Quick Status Update (Approve / Disregard)
+  const handleQuickStatusUpdate = async (
+    e: React.MouseEvent,
+    id: number,
+    newEstatus: EntrevistaEstatus
+  ) => {
+    e.stopPropagation();
+    try {
+      const res = await updateEntrevistaEstatus(id, newEstatus);
+      if (res.error) {
+        addToast(res.error, "error");
+        return;
+      }
 
-  const handleOpenPrint = (item: FacilitadorEntrevista) => {
-    setPrintEntrevista(item);
-    setIsPrintOpen(true);
+      addToast(
+        newEstatus === "aprobado"
+          ? "Aspirante marcado como Aprobado"
+          : newEstatus === "rechazado"
+          ? "Aspirante marcado como Descartado / Rechazado"
+          : "Estatus actualizado a Pendiente",
+        "success"
+      );
+
+      setEntrevistas((prev) =>
+        prev.map((it) => (it.id === id ? { ...it, estatus: newEstatus } : it))
+      );
+      loadData();
+    } catch {
+      addToast("Error al actualizar estatus", "error");
+    }
   };
 
   return (
@@ -482,11 +496,13 @@ export function EntrevistaListClient() {
                   return (
                     <tr
                       key={item.id}
-                      onClick={() => {
-                        setSelectedEntrevista(item);
-                        setIsDrawerOpen(true);
-                      }}
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/capacitacion/entrevista-facilitadores/${item.id}`
+                        )
+                      }
                       className="hover:bg-violet-50/40 cursor-pointer transition-colors"
+                      title="Haz clic para abrir el formulario completo"
                     >
                       {/* Fecha */}
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
@@ -567,13 +583,58 @@ export function EntrevistaListClient() {
                         </span>
                       </td>
 
-                      {/* Estatus */}
+                      {/* Estatus & Quick Actions */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider text-[11px] border ${estatusConf.badgeCls}`}
-                        >
-                          {estatusConf.label}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider text-[11px] border ${estatusConf.badgeCls}`}
+                          >
+                            {estatusConf.label}
+                          </span>
+
+                          {/* Botones de acción rápida: Aprobar / Descartar */}
+                          <div
+                            className="flex items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {item.estatus !== "aprobado" && (
+                              <button
+                                type="button"
+                                onClick={(e) =>
+                                  handleQuickStatusUpdate(e, item.id, "aprobado")
+                                }
+                                className="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded border border-emerald-200 transition-colors"
+                                title="Aprobar aspirante rápidamente"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {item.estatus !== "rechazado" && (
+                              <button
+                                type="button"
+                                onClick={(e) =>
+                                  handleQuickStatusUpdate(e, item.id, "rechazado")
+                                }
+                                className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded border border-rose-200 transition-colors"
+                                title="Descartar / Rechazar aspirante"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {item.estatus !== "pendiente" && (
+                              <button
+                                type="button"
+                                onClick={(e) =>
+                                  handleQuickStatusUpdate(e, item.id, "pendiente")
+                                }
+                                className="p-1 text-gray-400 hover:text-amber-700 hover:bg-amber-50 rounded border border-gray-200 transition-colors"
+                                title="Revertir a Pendiente"
+                              >
+                                <Clock className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </td>
 
                       {/* Promovido */}
@@ -614,32 +675,22 @@ export function EntrevistaListClient() {
                           className="flex items-center justify-end gap-1.5"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedEntrevista(item);
-                              setIsDrawerOpen(true);
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
-                            title="Ver detalles"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
                           <Link
                             href={`/dashboard/capacitacion/entrevista-facilitadores/${item.id}`}
-                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Editar formulario"
+                            className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                            title="Abrir formulario completo"
                           >
-                            <Edit className="w-4 h-4" />
+                            <FileText className="w-4 h-4" />
                           </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPrint(item)}
-                            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Imprimir formato"
+                          <a
+                            href={`/dashboard/capacitacion/entrevista-facilitadores/${item.id}/imprimir`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Imprimir formato oficial (nueva pestaña)"
                           >
                             <Printer className="w-4 h-4" />
-                          </button>
+                          </a>
                           <button
                             type="button"
                             disabled={deletingId === item.id}
@@ -684,11 +735,13 @@ export function EntrevistaListClient() {
             return (
               <div
                 key={item.id}
-                onClick={() => {
-                  setSelectedEntrevista(item);
-                  setIsDrawerOpen(true);
-                }}
+                onClick={() =>
+                  router.push(
+                    `/dashboard/capacitacion/entrevista-facilitadores/${item.id}`
+                  )
+                }
                 className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md hover:border-violet-300 cursor-pointer transition-all flex flex-col justify-between space-y-4"
+                title="Haz clic para abrir el formulario completo"
               >
                 <div>
                   {/* Card Header */}
@@ -718,11 +771,58 @@ export function EntrevistaListClient() {
                       </div>
                     </div>
 
-                    <span
-                      className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border ${estatusConf.badgeCls}`}
-                    >
-                      {estatusConf.label}
-                    </span>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border ${estatusConf.badgeCls}`}
+                      >
+                        {estatusConf.label}
+                      </span>
+
+                      {/* Botones de acción rápida: Aprobar / Descartar */}
+                      <div
+                        className="flex items-center gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {item.estatus !== "aprobado" && (
+                          <button
+                            type="button"
+                            onClick={(e) =>
+                              handleQuickStatusUpdate(e, item.id, "aprobado")
+                            }
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                            title="Aprobar aspirante"
+                          >
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Aprobar
+                          </button>
+                        )}
+                        {item.estatus !== "rechazado" && (
+                          <button
+                            type="button"
+                            onClick={(e) =>
+                              handleQuickStatusUpdate(e, item.id, "rechazado")
+                            }
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors"
+                            title="Descartar aspirante"
+                          >
+                            <XCircle className="w-3 h-3 text-rose-600" />
+                            Descartar
+                          </button>
+                        )}
+                        {item.estatus !== "pendiente" && (
+                          <button
+                            type="button"
+                            onClick={(e) =>
+                              handleQuickStatusUpdate(e, item.id, "pendiente")
+                            }
+                            className="p-1 text-gray-400 hover:text-amber-700 hover:bg-amber-50 rounded border border-gray-200 transition-colors"
+                            title="Revertir a Pendiente"
+                          >
+                            <Clock className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Mobility tags */}
@@ -821,18 +921,33 @@ export function EntrevistaListClient() {
                     <Link
                       href={`/dashboard/capacitacion/entrevista-facilitadores/${item.id}`}
                       className="p-1.5 text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-md transition-colors"
-                      title="Editar"
+                      title="Abrir formulario completo"
                     >
-                      <Edit className="w-4 h-4" />
+                      <FileText className="w-4 h-4" />
                     </Link>
+
+                    <a
+                      href={`/dashboard/capacitacion/entrevista-facilitadores/${item.id}/imprimir`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      title="Imprimir formato oficial (nueva pestaña)"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </a>
 
                     <button
                       type="button"
-                      onClick={() => handleOpenPrint(item)}
-                      className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
-                      title="Imprimir"
+                      disabled={deletingId === item.id}
+                      onClick={(e) => handleDelete(e, item.id)}
+                      className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors disabled:opacity-50"
+                      title="Eliminar"
                     >
-                      <Printer className="w-4 h-4" />
+                      {deletingId === item.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -841,22 +956,6 @@ export function EntrevistaListClient() {
           })}
         </div>
       )}
-
-      {/* Slide-out Drawer */}
-      <EntrevistaDrawer
-        entrevista={selectedEntrevista}
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        onUpdated={handleItemUpdated}
-        onPrint={handleOpenPrint}
-      />
-
-      {/* Print Modal */}
-      <EntrevistaPrintModal
-        entrevista={printEntrevista}
-        isOpen={isPrintOpen}
-        onClose={() => setIsPrintOpen(false)}
-      />
 
       {/* Link Generator Modal */}
       <EntrevistaLinkModal

@@ -8,6 +8,8 @@ import {
   Save,
   Printer,
   UserCheck,
+  CheckCircle2,
+  XCircle,
   Loader2,
   Car,
   Laptop,
@@ -30,9 +32,9 @@ import { DEFAULT_EVALUACION_ITEMS } from "@/types/entrevistas-facilitadores";
 import {
   saveEntrevista,
   promoverAFacilitador,
+  updateEntrevistaEstatus,
 } from "@/app/actions/entrevistas-facilitadores";
 import { useToast } from "@/lib/ui/toast-context";
-import { EntrevistaPrintModal } from "./EntrevistaPrintModal";
 import { toTitleCase } from "@/utils/string-utils";
 
 interface EntrevistaFormClientProps {
@@ -56,7 +58,6 @@ export function EntrevistaFormClient({
 
   const [saving, setSaving] = useState(false);
   const [promoting, setPromoting] = useState(false);
-  const [showPrintModal, setShowPrintModal] = useState(false);
   const [courseTopics, setCourseTopics] = useState<CourseTopic[]>([]);
   const [customTopicInput, setCustomTopicInput] = useState("");
   const [catalogSearch, setCatalogSearch] = useState("");
@@ -363,54 +364,29 @@ export function EntrevistaFormClient({
     }
   };
 
-  // Build temporary object for print modal
-  const currentInterviewObject: FacilitadorEntrevista = {
-    id: id || 0,
-    nombre_apellido: nombreApellido,
-    cedula,
-    telefono,
-    email,
-    direccion,
-    posee_vehiculo: poseeVehiculo,
-    posee_laptop: poseeLaptop,
-    disponibilidad_viajar: disponibilidadViajar,
-    nivel_tecnico: nivelTecnico,
-    universitario,
-    posee_especializacion: poseeEspecializacion,
-    ultimo_curso_tiempo: (ultimoCursoTiempo as UltimoCursoTiempo) || null,
-    ultimo_curso_descripcion: ultimoCursoDescripcion,
-    manejo_herramientas_audiovisuales:
-      (manejoHerramientasAudiovisuales as ManejoHerramientasAudiovisuales) ||
-      null,
-    doc_resumen_curricular: docResumenCurricular,
-    doc_cedula_identidad: docCedulaIdentidad,
-    doc_soportes_resumen_curricular: docSoportesResumenCurricular,
-    doc_rif_actualizado: docRifActualizado,
-    doc_registro_inpsasel: docRegistroInpsasel,
-    doc_factura_fiscal: docFacturaFiscal,
-    doc_titulo_universitario: docTituloUniversitario,
-    doc_declaracion_islr: docDeclaracionIslr,
-    doc_formacion_docente: docFormacionDocente,
-    doc_posee_laptop: docPoseeLaptop,
-    retos_facilitador: retosFacilitador,
-    logros_formacion: logrosFormacion,
-    caracteristica_esencial: caracteristicaEsencial || null,
-    ejemplo_liderazgo: ejemploLiderazgo,
-    fortalezas,
-    debilidades,
-    motivo_trabajar_aqui: motivoTrabajarAqui,
-    por_que_contratarte: porQueContratarte,
-    temas_capacidades: temasCapacidades,
-    fecha_entrevista: fechaEntrevista,
-    entrevistado_por: entrevistadoPor,
-    evaluacion_items: evaluacionItems,
-    observaciones,
-    estatus,
-    facilitador_id: facilitadorId,
-    promovido_at: initialData?.promovido_at || null,
-    creado_por: initialData?.creado_por || null,
-    created_at: initialData?.created_at || new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+  const handleQuickStatus = async (newEstatus: EntrevistaEstatus) => {
+    setEstatus(newEstatus);
+    if (id) {
+      try {
+        const res = await updateEntrevistaEstatus(id, newEstatus, observaciones);
+        if (res.error) {
+          addToast(res.error, "error");
+        } else {
+          addToast(
+            newEstatus === "aprobado"
+              ? "Aspirante marcado como Aprobado"
+              : newEstatus === "rechazado"
+              ? "Aspirante marcado como Descartado / Rechazado"
+              : "Estatus actualizado a Pendiente",
+            "success"
+          );
+        }
+      } catch {
+        addToast("Error al actualizar estatus", "error");
+      }
+    } else {
+      addToast(`Estatus configurado como ${newEstatus}`, "info");
+    }
   };
 
   return (
@@ -460,22 +436,49 @@ export function EntrevistaFormClient({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowPrintModal(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            <Printer className="w-4 h-4 text-blue-600" />
-            Imprimir Formato
-          </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* Quick Action: Aprobar */}
+          {estatus !== "aprobado" ? (
+            <button
+              type="button"
+              onClick={() => handleQuickStatus("aprobado")}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100 text-xs font-bold rounded-lg transition-colors shadow-2xs"
+              title="Aprobar aspirante"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              Aprobar
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleQuickStatus("pendiente")}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200 text-xs font-semibold rounded-lg transition-colors"
+              title="Revertir a pendiente para continuar evaluación"
+            >
+              A Pendiente
+            </button>
+          )}
 
+          {/* Quick Action: Descartar / Rechazar */}
+          {estatus !== "rechazado" && (
+            <button
+              type="button"
+              onClick={() => handleQuickStatus("rechazado")}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-50 border border-rose-300 text-rose-800 hover:bg-rose-100 text-xs font-bold rounded-lg transition-colors shadow-2xs"
+              title="Descartar / Rechazar aspirante"
+            >
+              <XCircle className="w-4 h-4 text-rose-600" />
+              Descartar
+            </button>
+          )}
+
+          {/* Promover a Facilitador */}
           {id && !facilitadorId && estatus === "aprobado" && (
             <button
               type="button"
               onClick={handlePromote}
               disabled={promoting}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm disabled:opacity-50"
             >
               {promoting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -489,24 +492,54 @@ export function EntrevistaFormClient({
           {facilitadorId && (
             <Link
               href={`/dashboard/capacitacion/gestion-de-facilitadores?edit=${facilitadorId}`}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 border border-blue-200 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium rounded-lg hover:bg-blue-100 transition-colors"
             >
-              <UserCheck className="w-4 h-4" />
+              <UserCheck className="w-3.5 h-3.5" />
               Ver Facilitador #{facilitadorId}
-              <ExternalLink className="w-3.5 h-3.5 ml-0.5" />
+              <ExternalLink className="w-3 h-3 ml-0.5" />
             </Link>
+          )}
+
+          {/* Imprimir Formato en Nueva Pestaña */}
+          {id ? (
+            <a
+              href={`/dashboard/capacitacion/entrevista-facilitadores/${id}/imprimir`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-2xs"
+              title="Abrir formato oficial de impresión en una nueva pestaña"
+            >
+              <Printer className="w-3.5 h-3.5 text-blue-600" />
+              Imprimir Formato
+              <ExternalLink className="w-3 h-3 text-gray-400" />
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                addToast(
+                  "Guarda la entrevista primero para poder abrir la vista de impresión",
+                  "warning"
+                )
+              }
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-300 text-gray-400 text-xs font-medium rounded-lg shadow-2xs cursor-not-allowed"
+              title="Guarda la entrevista para imprimir"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Imprimir Formato
+            </button>
           )}
 
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-2 px-5 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm disabled:opacity-50"
           >
             {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
-              <Save className="w-4 h-4" />
+              <Save className="w-3.5 h-3.5" />
             )}
             Guardar
           </button>
@@ -1384,13 +1417,6 @@ export function EntrevistaFormClient({
           </div>
         </div>
       </form>
-
-      {/* Print Modal */}
-      <EntrevistaPrintModal
-        entrevista={currentInterviewObject}
-        isOpen={showPrintModal}
-        onClose={() => setShowPrintModal(false)}
-      />
     </div>
   );
 }
