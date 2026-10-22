@@ -76,6 +76,8 @@ export interface FacilitadorEntrevista {
   // Promoción
   facilitador_id: number | null;
   promovido_at: string | null;
+  origen?: "interno" | "web";
+  postulacion_token_id?: number | null;
   facilitadores?: {
     id: number;
     nombre_apellido: string;
@@ -146,3 +148,84 @@ export const ESTATUS_CONFIG: Record<
     badgeCls: "bg-rose-100 text-rose-800 border-rose-300",
   },
 };
+
+// ─── Invitation Tokens for Public Applications ───────────────────────────────
+export interface FacilitadorPostulacionToken {
+  id: number;
+  token: string;
+  nombre_candidato: string | null;
+  email_candidato: string | null;
+  notas: string | null;
+  dias_validez: number;
+  expires_at: string;
+  used_at: string | null;
+  entrevista_id: number | null;
+  is_active: boolean;
+  creado_por: number | null;
+  created_at: string;
+  updated_at: string;
+  usuarios?: {
+    id: number;
+    nombre_completo: string | null;
+  } | null;
+}
+
+export interface CreatePostulacionTokenInput {
+  nombre_candidato?: string;
+  email_candidato?: string;
+  notas?: string;
+  dias_validez?: number;
+}
+
+export interface PublicTokenValidation {
+  valid: boolean;
+  token?: string;
+  nombre_candidato?: string | null;
+  email_candidato?: string | null;
+  expires_at?: string;
+  error?: "invalid" | "expired" | "used" | "server_error";
+  errorMessage?: string;
+}
+
+export interface CandidatoPostulacionPayload {
+  token: string;
+  nombre_apellido: string;
+  cedula?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  direccion?: string | null;
+  posee_vehiculo?: boolean;
+  posee_laptop?: boolean;
+  disponibilidad_viajar?: boolean;
+
+  nivel_tecnico?: string | null;
+  universitario?: string | null;
+  posee_especializacion?: string | null;
+  ultimo_curso_tiempo?: UltimoCursoTiempo | null;
+  ultimo_curso_descripcion?: string | null;
+  manejo_herramientas_audiovisuales?: ManejoHerramientasAudiovisuales | null;
+
+  doc_resumen_curricular?: boolean;
+  doc_cedula_identidad?: boolean;
+  doc_soportes_resumen_curricular?: boolean;
+  doc_rif_actualizado?: boolean;
+  doc_registro_inpsasel?: boolean;
+  doc_factura_fiscal?: boolean;
+  doc_titulo_universitario?: boolean;
+  doc_declaracion_islr?: boolean;
+  doc_formacion_docente?: boolean;
+  doc_posee_laptop?: boolean;
+
+  retos_facilitador?: string | null;
+  logros_formacion?: string | null;
+  caracteristica_esencial?: CaracteristicaEsencial | null;
+  ejemplo_liderazgo?: string | null;
+  fortalezas?: string | null;
+  debilidades?: string | null;
+  motivo_trabajar_aqui?: string | null;
+  por_que_contratarte?: string | null;
+  temas_capacidades?: string[];
+
+  // Honeypot field (should remain empty)
+  _hp_website?: string;
+}

@@ -1,15 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Users,
   Plus,
   Search,
   Filter,
   Calendar,
-  ChevronRight,
   Printer,
   Trash2,
   Edit,
@@ -24,11 +22,10 @@ import {
   Car,
   Laptop,
   Plane,
-  FileCheck2,
-  ExternalLink,
   Phone,
-  Mail,
   GraduationCap,
+  Share2,
+  Globe,
 } from "lucide-react";
 import type {
   FacilitadorEntrevista,
@@ -44,6 +41,7 @@ import {
 } from "@/app/actions/entrevistas-facilitadores";
 import { EntrevistaDrawer } from "./EntrevistaDrawer";
 import { EntrevistaPrintModal } from "./EntrevistaPrintModal";
+import { EntrevistaLinkModal } from "./EntrevistaLinkModal";
 import { CachedDataBanner } from "@/components/CachedDataBanner";
 import {
   cachePortalData,
@@ -56,7 +54,6 @@ import { toTitleCase } from "@/utils/string-utils";
 type FilterTab = "todas" | EntrevistaEstatus;
 
 export function EntrevistaListClient() {
-  const router = useRouter();
   const isOnline = useOnlineStatus();
   const { addToast } = useToast();
 
@@ -83,6 +80,7 @@ export function EntrevistaListClient() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [printEntrevista, setPrintEntrevista] = useState<FacilitadorEntrevista | null>(null);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
 
   // Deletion States
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -237,13 +235,24 @@ export function EntrevistaListClient() {
           </p>
         </div>
 
-        <Link
-          href="/dashboard/capacitacion/entrevista-facilitadores/nueva"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          Nueva Entrevista
-        </Link>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setIsLinkModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition-colors shadow-sm"
+          >
+            <Share2 className="w-4 h-4 text-violet-600" />
+            Enlace de Postulación
+          </button>
+
+          <Link
+            href="/dashboard/capacitacion/entrevista-facilitadores/nueva"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Nueva Entrevista
+          </Link>
+        </div>
       </div>
 
       {fromCache && (
@@ -498,9 +507,20 @@ export function EntrevistaListClient() {
                             {(item.nombre_apellido || "A")[0].toUpperCase()}
                           </div>
                           <div>
-                            <span className="font-semibold text-gray-900 block">
-                              {toTitleCase(item.nombre_apellido)}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-gray-900 block">
+                                {toTitleCase(item.nombre_apellido)}
+                              </span>
+                              {item.origen === "web" && (
+                                <span
+                                  title="Postulación recibida en línea"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200"
+                                >
+                                  <Globe className="w-2.5 h-2.5" />
+                                  Web
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[11px] text-gray-500">
                               C.I. {item.cedula || "—"}
                             </span>
@@ -678,9 +698,20 @@ export function EntrevistaListClient() {
                         {(item.nombre_apellido || "A")[0].toUpperCase()}
                       </div>
                       <div>
-                        <h3 className="font-bold text-gray-900 text-sm leading-tight">
-                          {toTitleCase(item.nombre_apellido)}
-                        </h3>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-bold text-gray-900 text-sm leading-tight">
+                            {toTitleCase(item.nombre_apellido)}
+                          </h3>
+                          {item.origen === "web" && (
+                            <span
+                              title="Postulación recibida en línea"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200"
+                            >
+                              <Globe className="w-2.5 h-2.5" />
+                              Web
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500 mt-0.5">
                           C.I. {item.cedula || "No registrada"}
                         </p>
@@ -825,6 +856,12 @@ export function EntrevistaListClient() {
         entrevista={printEntrevista}
         isOpen={isPrintOpen}
         onClose={() => setIsPrintOpen(false)}
+      />
+
+      {/* Link Generator Modal */}
+      <EntrevistaLinkModal
+        isOpen={isLinkModalOpen}
+        onClose={() => setIsLinkModalOpen(false)}
       />
     </div>
   );

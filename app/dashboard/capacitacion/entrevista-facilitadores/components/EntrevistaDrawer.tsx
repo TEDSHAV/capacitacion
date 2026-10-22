@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   X,
   User,
-  Calendar,
   MapPin,
   Phone,
   Mail,
@@ -17,8 +16,6 @@ import {
   FileCheck2,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
-  Award,
   Edit,
   Printer,
   UserCheck,
@@ -27,12 +24,12 @@ import {
   Save,
   MessageSquare,
   Sparkles,
+  Globe,
 } from "lucide-react";
 import type {
   FacilitadorEntrevista,
   EntrevistaEstatus,
 } from "@/types/entrevistas-facilitadores";
-import { ESTATUS_CONFIG } from "@/types/entrevistas-facilitadores";
 import {
   promoverAFacilitador,
   updateEntrevistaEstatus,
@@ -89,8 +86,6 @@ export function EntrevistaDrawer({
     .slice(0, 2)
     .map((w) => w[0].toUpperCase())
     .join("");
-
-  const estatusConf = ESTATUS_CONFIG[entrevista.estatus] || ESTATUS_CONFIG.pendiente;
 
   const docsCount = [
     entrevista.doc_resumen_curricular,
@@ -189,6 +184,16 @@ export function EntrevistaDrawer({
                   >
                     {entrevista.estatus}
                   </span>
+
+                  {entrevista.origen === "web" && (
+                    <span
+                      title="Postulación recibida en línea"
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-500/80 text-white"
+                    >
+                      <Globe className="w-3 h-3" />
+                      Postulación Web
+                    </span>
+                  )}
 
                   {entrevista.facilitador_id ? (
                     <Link

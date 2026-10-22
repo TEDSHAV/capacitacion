@@ -1,6 +1,9 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import crypto from "crypto";
+import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
+import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { getCurrentUserUsuarioId } from "./requisiciones";
 import { toLowerCase } from "@/utils/string-utils";
 import type {
@@ -9,6 +12,10 @@ import type {
   EntrevistaMetrics,
   EntrevistaMonthOption,
   EntrevistaEstatus,
+  FacilitadorPostulacionToken,
+  CreatePostulacionTokenInput,
+  PublicTokenValidation,
+  CandidatoPostulacionPayload,
 } from "@/types/entrevistas-facilitadores";
 
 const MONTH_NAMES = [
@@ -227,6 +234,10 @@ export async function saveEntrevista(payload: FacilitadorEntrevistaPayload) {
       estatus: payload.estatus || "pendiente",
     };
 
+    if (payload.origen) {
+      row.origen = payload.origen;
+    }
+
     if (payload.id) {
       // Update
       const { data, error } = await supabase
@@ -241,6 +252,9 @@ export async function saveEntrevista(payload: FacilitadorEntrevistaPayload) {
     } else {
       // Insert
       row.creado_por = usuarioId;
+      if (!row.origen) {
+        row.origen = "interno";
+      }
       const { data, error } = await supabase
         .from("facilitador_entrevistas")
         .insert(row)
@@ -422,6 +436,333 @@ export async function deleteEntrevista(id: number) {
     return {
       success: false,
       error: err instanceof Error ? err.message : "Error al eliminar la entrevista",
+    };
+  }
+}
+
+/**
+ * Create a new dynamic invitation token for public candidate application
+ */
+export async function crearPostulacionToken(input: CreatePostulacionTokenInput = {}) {
+  try {
+    const usuarioId = await getCurrentUserUsuarioId();
+    if (!usuarioId) {
+      throw new Error("No autorizado: Debes iniciar sesión");
+    }
+
+    const admin = await createAdminClient();
+    const token = crypto.randomBytes(24).toString("hex");
+    const diasValidez = input.dias_validez && input.dias_validez > 0 ? input.dias_validez : 7;
+    const expiresAt = new Date(Date.now() + diasValidez * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data, error } = await admin
+      .from("facilitador_postulacion_tokens")
+      .insert({
+        token,
+        nombre_candidato: input.nombre_candidato?.trim() || null,
+        email_candidato: input.email_candidato?.trim() || null,
+        notas: input.notas?.trim() || null,
+        dias_validez: diasValidez,
+        expires_at: expiresAt,
+        creado_por: usuarioId,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Build URL
+    let baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+    if (!baseUrl) {
+      try {
+        const headersList = await headers();
+        const host = headersList.get("x-forwarded-host") || headersList.get("host") || "localhost:3000";
+        const proto = headersList.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+        baseUrl = `${proto}://${host}`;
+      } catch {
+        baseUrl = "http://localhost:3000";
+      }
+    }
+
+    const publicUrl = `${baseUrl.replace(/\/$/, "")}/postulacion/${token}`;
+
+    revalidatePath("/dashboard/capacitacion/entrevista-facilitadores");
+
+    return {
+      success: true,
+      token: data as FacilitadorPostulacionToken,
+      url: publicUrl,
+      error: null,
+    };
+  } catch (err) {
+    console.error("Error en crearPostulacionToken:", err);
+    return {
+      success: false,
+      token: null,
+      url: null,
+      error: err instanceof Error ? err.message : "Error al generar el enlace de postulación",
+    };
+  }
+}
+
+/**
+ * List active and recent invitation tokens
+ */
+export async function getPostulacionTokens() {
+  try {
+    const usuarioId = await getCurrentUserUsuarioId();
+    if (!usuarioId) {
+      return { tokens: [], error: "No autorizado" };
+    }
+
+    const admin = await createAdminClient();
+    const { data, error } = await admin
+      .from("facilitador_postulacion_tokens")
+      .select(`
+        *,
+        usuarios:creado_por (
+          id,
+          nombre_completo
+        )
+      `)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+    return { tokens: (data || []) as FacilitadorPostulacionToken[], error: null };
+  } catch (err) {
+    console.error("Error en getPostulacionTokens:", err);
+    return {
+      tokens: [],
+      error: err instanceof Error ? err.message : "Error al cargar los enlaces de postulación",
+    };
+  }
+}
+
+/**
+ * Revoke/deactivate an invitation token
+ */
+export async function revocarPostulacionToken(id: number) {
+  try {
+    const usuarioId = await getCurrentUserUsuarioId();
+    if (!usuarioId) {
+      return { success: false, error: "No autorizado" };
+    }
+
+    const admin = await createAdminClient();
+    const { error } = await admin
+      .from("facilitador_postulacion_tokens")
+      .update({ is_active: false })
+      .eq("id", id);
+
+    if (error) throw error;
+    revalidatePath("/dashboard/capacitacion/entrevista-facilitadores");
+    return { success: true, error: null };
+  } catch (err) {
+    console.error("Error en revocarPostulacionToken:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error al revocar el enlace",
+    };
+  }
+}
+
+/**
+ * Public validation for a postulación token
+ */
+export async function validarTokenPostulacion(token: string): Promise<PublicTokenValidation> {
+  try {
+    if (!token || typeof token !== "string" || token.trim().length < 16) {
+      return {
+        valid: false,
+        error: "invalid",
+        errorMessage: "El enlace de postulación no es válido o está incompleto.",
+      };
+    }
+
+    const admin = await createAdminClient();
+    const { data, error } = await admin
+      .from("facilitador_postulacion_tokens")
+      .select("id, token, nombre_candidato, email_candidato, expires_at, used_at, is_active")
+      .eq("token", token.trim())
+      .single();
+
+    if (error || !data) {
+      return {
+        valid: false,
+        error: "invalid",
+        errorMessage: "El enlace de postulación no existe o fue retirado.",
+      };
+    }
+
+    if (!data.is_active) {
+      return {
+        valid: false,
+        error: "invalid",
+        errorMessage: "Este enlace de postulación ha sido desactivado o revocado.",
+      };
+    }
+
+    if (data.used_at) {
+      return {
+        valid: false,
+        error: "used",
+        errorMessage: "Este enlace de postulación ya fue completado y utilizado anteriormente.",
+      };
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(data.expires_at);
+    if (expiresAt < now) {
+      return {
+        valid: false,
+        error: "expired",
+        errorMessage: "Este enlace de postulación ha expirado. Por favor solicita uno nuevo al equipo de Capacitación.",
+      };
+    }
+
+    return {
+      valid: true,
+      token: data.token,
+      nombre_candidato: data.nombre_candidato,
+      email_candidato: data.email_candidato,
+      expires_at: data.expires_at,
+    };
+  } catch (err) {
+    console.error("Error en validarTokenPostulacion:", err);
+    return {
+      valid: false,
+      error: "server_error",
+      errorMessage: "Ocurrió un error al verificar la validez del enlace.",
+    };
+  }
+}
+
+/**
+ * Submit candidate application via public form
+ */
+export async function submitCandidatoPostulacion(
+  payload: CandidatoPostulacionPayload
+): Promise<{ success: boolean; entrevistaId?: number; error?: string }> {
+  try {
+    // 1. Anti-bot honeypot check
+    if (payload._hp_website && payload._hp_website.trim().length > 0) {
+      console.warn("Honeypot field triggered in submitCandidatoPostulacion");
+      return { success: false, error: "Solicitud no procesada." };
+    }
+
+    // 2. Validate token
+    const validation = await validarTokenPostulacion(payload.token);
+    if (!validation.valid) {
+      return { success: false, error: validation.errorMessage || "Enlace no válido" };
+    }
+
+    // 3. Validate required fields
+    if (!payload.nombre_apellido || payload.nombre_apellido.trim().length < 3) {
+      return {
+        success: false,
+        error: "El nombre y apellido del aspirante es obligatorio.",
+      };
+    }
+
+    const admin = await createAdminClient();
+
+    // Re-fetch token row to get ID for foreign key
+    const { data: tokenRow, error: tokenErr } = await admin
+      .from("facilitador_postulacion_tokens")
+      .select("id")
+      .eq("token", payload.token.trim())
+      .single();
+
+    if (tokenErr || !tokenRow) {
+      return { success: false, error: "Error validando el token de postulación." };
+    }
+
+    // 4. Construct interview row with strict isolation
+    const entrevistaRow: Record<string, unknown> = {
+      nombre_apellido: payload.nombre_apellido.trim(),
+      cedula: payload.cedula?.trim() || null,
+      telefono: payload.telefono?.trim() || null,
+      email: payload.email?.trim() || null,
+      direccion: payload.direccion?.trim() || null,
+      posee_vehiculo: Boolean(payload.posee_vehiculo),
+      posee_laptop: Boolean(payload.posee_laptop),
+      disponibilidad_viajar: Boolean(payload.disponibilidad_viajar),
+
+      nivel_tecnico: payload.nivel_tecnico?.trim() || null,
+      universitario: payload.universitario?.trim() || null,
+      posee_especializacion: payload.posee_especializacion?.trim() || null,
+      ultimo_curso_tiempo: payload.ultimo_curso_tiempo || null,
+      ultimo_curso_descripcion: payload.ultimo_curso_descripcion?.trim() || null,
+      manejo_herramientas_audiovisuales: payload.manejo_herramientas_audiovisuales || null,
+
+      doc_resumen_curricular: Boolean(payload.doc_resumen_curricular),
+      doc_cedula_identidad: Boolean(payload.doc_cedula_identidad),
+      doc_soportes_resumen_curricular: Boolean(payload.doc_soportes_resumen_curricular),
+      doc_rif_actualizado: Boolean(payload.doc_rif_actualizado),
+      doc_registro_inpsasel: Boolean(payload.doc_registro_inpsasel),
+      doc_factura_fiscal: Boolean(payload.doc_factura_fiscal),
+      doc_titulo_universitario: Boolean(payload.doc_titulo_universitario),
+      doc_declaracion_islr: Boolean(payload.doc_declaracion_islr),
+      doc_formacion_docente: Boolean(payload.doc_formacion_docente),
+      doc_posee_laptop: Boolean(payload.doc_posee_laptop),
+
+      retos_facilitador: payload.retos_facilitador?.trim() || null,
+      logros_formacion: payload.logros_formacion?.trim() || null,
+      caracteristica_esencial: payload.caracteristica_esencial || null,
+      ejemplo_liderazgo: payload.ejemplo_liderazgo?.trim() || null,
+      fortalezas: payload.fortalezas?.trim() || null,
+      debilidades: payload.debilidades?.trim() || null,
+      motivo_trabajar_aqui: payload.motivo_trabajar_aqui?.trim() || null,
+      por_que_contratarte: payload.por_que_contratarte?.trim() || null,
+      temas_capacidades: Array.isArray(payload.temas_capacidades)
+        ? payload.temas_capacidades
+        : [],
+
+      // Fixed system values for public submissions
+      fecha_entrevista: new Date().toISOString().split("T")[0],
+      entrevistado_por: null,
+      evaluacion_items: [],
+      observaciones: "Postulación recibida en línea mediante enlace dinámico de invitación.",
+      estatus: "pendiente",
+      origen: "web",
+      postulacion_token_id: tokenRow.id,
+      creado_por: null,
+    };
+
+    const { data: newEntrevista, error: insertErr } = await admin
+      .from("facilitador_entrevistas")
+      .insert(entrevistaRow)
+      .select("id")
+      .single();
+
+    if (insertErr || !newEntrevista) {
+      console.error("Error inserting interview from web postulación:", insertErr);
+      return { success: false, error: "Error al registrar la postulación." };
+    }
+
+    // 5. Mark token as used
+    await admin
+      .from("facilitador_postulacion_tokens")
+      .update({
+        used_at: new Date().toISOString(),
+        is_active: false,
+        entrevista_id: newEntrevista.id,
+      })
+      .eq("id", tokenRow.id);
+
+    revalidatePath("/dashboard/capacitacion/entrevista-facilitadores");
+
+    return {
+      success: true,
+      entrevistaId: newEntrevista.id,
+    };
+  } catch (err) {
+    console.error("Error en submitCandidatoPostulacion:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error inesperado al enviar la postulación",
     };
   }
 }

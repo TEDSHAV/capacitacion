@@ -8,17 +8,14 @@ import {
   Save,
   Printer,
   UserCheck,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
   Loader2,
   Car,
   Laptop,
   Plane,
   Plus,
   X,
-  FileCheck2,
   ExternalLink,
+  Globe,
 } from "lucide-react";
 import type {
   FacilitadorEntrevista,
@@ -29,10 +26,7 @@ import type {
   ManejoHerramientasAudiovisuales,
   CaracteristicaEsencial,
 } from "@/types/entrevistas-facilitadores";
-import {
-  DEFAULT_EVALUACION_ITEMS,
-  ESTATUS_CONFIG,
-} from "@/types/entrevistas-facilitadores";
+import { DEFAULT_EVALUACION_ITEMS } from "@/types/entrevistas-facilitadores";
 import {
   saveEntrevista,
   promoverAFacilitador,
@@ -448,6 +442,15 @@ export function EntrevistaFormClient({
                 }`}
               >
                 {estatus}
+              </span>
+            )}
+            {initialData?.origen === "web" && (
+              <span
+                title="Postulación recibida en línea"
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-300"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                Postulación Web
               </span>
             )}
           </div>

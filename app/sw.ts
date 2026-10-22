@@ -129,7 +129,8 @@ const serwist = new Serwist({
       matcher: ({ url, request }) =>
         request.mode === "navigate" &&
         (url.pathname.startsWith("/survey/") ||
-          url.pathname.startsWith("/verify-certificate/")),
+          url.pathname.startsWith("/verify-certificate/") ||
+          url.pathname.startsWith("/postulacion/")),
       handler: new NetworkFirst({
         cacheName: "public-pages",
         networkTimeoutSeconds: 10,
