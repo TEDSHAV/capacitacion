@@ -5,6 +5,7 @@ import {
   ST_CHECKLIST_ITEMS,
   type DisenoServicioFullData,
 } from "@/types/diseno-servicio";
+import { SHA_LOGO_BASE64, SHA_FOOTER_BASE64 } from "./pdf-assets-base64";
 
 const styles = StyleSheet.create({
   page: {
@@ -487,7 +488,7 @@ export default function DisenoServicioPdfDocument({
       <Page size="LEGAL" style={styles.page} wrap>
         {/* ===== HEADER (fixed — repeats on every page) ===== */}
         <View style={styles.headerRow} fixed>
-          <Image style={styles.logo} src="/pdf/sha-logo.png" />
+          <Image style={styles.logo} src={SHA_LOGO_BASE64} />
           <Text style={styles.title}>
             SOLICITUD PARA EL DISEÑO Y DESARROLLO DE NUEVOS SERVICIOS
           </Text>
@@ -605,7 +606,7 @@ export default function DisenoServicioPdfDocument({
 
         {/* Aspectos Ambientales */}
         <View style={styles.subTitle}>
-          <Text>¿El Servicio Genera o Puede Generar Aspectos Ambientales?</Text>
+          <Text>¿EL SERVICIO GENERA O PUEDE GENERAR ASPECTOS AMBIENTALES QUE NO SE ENCUENTREN EN LA MATRIZ?</Text>
         </View>
         <View style={styles.table}>
           <StackRow
@@ -626,7 +627,7 @@ export default function DisenoServicioPdfDocument({
 
         {/* Peligros SHA */}
         <View style={styles.subTitle}>
-          <Text>¿El Servicio Introduce o Modifica Peligros para el Personal de SHA o del Cliente?</Text>
+          <Text>¿EL SERVICIO INTRODUCE O MODIFICA PELIGROS QUE NO SE ENCUENTREN EN LA NPP?</Text>
         </View>
         <View style={styles.table}>
           <StackRow
@@ -671,7 +672,6 @@ export default function DisenoServicioPdfDocument({
         <View style={styles.table}>
           <StackRow
             fields={[
-              { label: "Nombre y Apellido del Recurso Asignado / Personal Técnico", value: planif?.recurso_asignado || "" },
               {
                 label: "Equipos / Instrumentos Asignados (Para Servicios Técnicos)",
                 value: isCAP ? "N/A" : (planif?.equipos_asignados || "—"),
@@ -679,6 +679,10 @@ export default function DisenoServicioPdfDocument({
               {
                 label: "Software / Material Didáctico Asignados (Para Capacitación)",
                 value: !isCAP ? "N/A" : (planif?.software_material_asignado || "—"),
+              },
+              {
+                label: "Tiempo Estimado",
+                value: planif?.tiempo_estimado || "—",
               },
             ]}
           />
@@ -756,12 +760,6 @@ export default function DisenoServicioPdfDocument({
             fields={[
               { label: "Viabilidad Técnica", node: <FavorableSquares value={planif?.viabilidad_tecnica || ""} /> },
               { label: "Viabilidad Económica", node: <FavorableSquares value={planif?.viabilidad_economica || ""} /> },
-            ]}
-          />
-          <StackRow
-            fields={[
-              { label: "Tiempo Estimado para Llevar a Cabo la Solicitud", value: planif?.tiempo_estimado || "" },
-              { label: "Fecha Estimada de Finalización", value: formatDate(planif?.fecha_estimada_finalizacion) },
             ]}
           />
         </View>
@@ -1005,7 +1003,7 @@ export default function DisenoServicioPdfDocument({
         </View>
 
         {/* Footer (fixed — repeats on every page) */}
-        <Image style={styles.footerImage} src="/pdf/sha-footer.png" fixed />
+        <Image style={styles.footerImage} src={SHA_FOOTER_BASE64} fixed />
       </Page>
     </Document>
   );

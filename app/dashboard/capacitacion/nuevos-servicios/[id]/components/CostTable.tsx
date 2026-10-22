@@ -8,13 +8,16 @@ import type { CostoItem } from "@/types/diseno-servicio";
 export default function CostTable({
   items,
   onChange,
+  disabled = false,
 }: {
   items: CostoItem[];
   onChange: (items: CostoItem[]) => void;
+  disabled?: boolean;
 }) {
   const addRow = () => {
+    if (disabled) return;
     const newItem: CostoItem = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).substring(2, 9),
       descripcion: "",
       cantidad: 1,
       unidad: "UND",
@@ -25,10 +28,12 @@ export default function CostTable({
   };
 
   const removeRow = (id: string) => {
+    if (disabled) return;
     onChange(items.filter((item) => item.id !== id));
   };
 
   const updateRow = (id: string, updates: Partial<CostoItem>) => {
+    if (disabled) return;
     onChange(
       items.map((item) => {
         if (item.id === id) {
@@ -61,7 +66,7 @@ export default function CostTable({
             {items.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-3 py-6 text-center text-gray-400">
-                  No hay items. Click &quot;Agregar&quot; para añadir uno.
+                  No hay items. Click &quot;Agregar Item&quot; para añadir uno.
                 </td>
               </tr>
             ) : (
@@ -73,6 +78,7 @@ export default function CostTable({
                       onChange={(e) => updateRow(item.id, { descripcion: e.target.value })}
                       className="h-8"
                       placeholder="Recurso / Material"
+                      disabled={disabled}
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -82,6 +88,7 @@ export default function CostTable({
                       onChange={(e) => updateRow(item.id, { cantidad: parseFloat(e.target.value) || 0 })}
                       className="h-8 text-center"
                       min={0}
+                      disabled={disabled}
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -90,6 +97,7 @@ export default function CostTable({
                       onChange={(e) => updateRow(item.id, { unidad: e.target.value })}
                       className="h-8 text-center"
                       placeholder="UND"
+                      disabled={disabled}
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -100,19 +108,22 @@ export default function CostTable({
                       className="h-8 text-center"
                       min={0}
                       step="0.01"
+                      disabled={disabled}
                     />
                   </td>
                   <td className="px-3 py-2 text-center font-medium text-gray-900">
                     ${item.total.toFixed(2)}
                   </td>
                   <td className="px-3 py-2 text-center">
-                    <button
-                      type="button"
-                      onClick={() => removeRow(item.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {!disabled && (
+                      <button
+                        type="button"
+                        onClick={() => removeRow(item.id)}
+                        className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 cursor-pointer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -134,10 +145,12 @@ export default function CostTable({
         </table>
       </div>
 
-      <Button type="button" onClick={addRow} variant="outline" size="sm" className="flex gap-2">
-        <Plus className="h-4 w-4" />
-        Agregar Item
-      </Button>
+      {!disabled && (
+        <Button type="button" onClick={addRow} variant="outline" size="sm" className="flex gap-2">
+          <Plus className="h-4 w-4" />
+          Agregar Item
+        </Button>
+      )}
     </div>
   );
 }

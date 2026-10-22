@@ -7,6 +7,7 @@ import {
   getDisenoServicioById,
   getCurrentUserForDiseno,
 } from "@/app/actions/diseno-servicio";
+import { Suspense } from "react";
 import DisenoServicioWizard from "./components/DisenoServicioWizard";
 
 export const dynamic = "force-dynamic";
@@ -71,7 +72,9 @@ export default async function DisenoServicioWizardPage({
         </div>
       </div>
 
-      <DisenoServicioWizard solicitud={solicitud} userData={userData} />
+      <Suspense fallback={<div className="text-center py-12 text-sm text-gray-500">Cargando formulario...</div>}>
+        <DisenoServicioWizard solicitud={solicitud} userData={userData} />
+      </Suspense>
     </div>
   );
 }

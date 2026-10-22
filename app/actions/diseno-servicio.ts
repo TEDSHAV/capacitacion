@@ -352,3 +352,29 @@ export async function finalizarSolicitud(id: number) {
 
   return { success: true };
 }
+
+// Update the suggested title (nombre_sugerido) of a design service request.
+// Can be executed at any point in the workflow, including when completed.
+export async function updateNombreSugerido(id: number, nombreSugerido: string) {
+  const supabase = await createClient();
+  await assertCapOwned(supabase, id);
+
+  const trimmed = nombreSugerido.trim();
+  if (!trimmed) {
+    throw new Error("El título sugerido no puede estar vacío.");
+  }
+
+  const { error } = await supabase
+    .from("solicitudes_diseno_servicio")
+    .update({ nombre_sugerido: trimmed })
+    .eq("id", id);
+
+  if (error) {
+    console.error(`Error updating nombre_sugerido for solicitud #${id}:`, error);
+    throw error;
+  }
+
+  revalidatePath(`/dashboard/capacitacion/nuevos-servicios/${id}`);
+  revalidatePath("/dashboard/capacitacion/nuevos-servicios");
+  return { success: true, nombre_sugerido: trimmed };
+}
