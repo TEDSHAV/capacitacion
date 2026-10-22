@@ -30,6 +30,7 @@ import {
   GraduationCap,
   Share2,
   Globe,
+  X,
 } from "lucide-react";
 import type {
   FacilitadorEntrevista,
@@ -76,8 +77,17 @@ export function EntrevistaListClient() {
   const [activeTab, setActiveTab] = useState<FilterTab>("todas");
   const [selectedMonth, setSelectedMonth] = useState<string>("todos");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortBy, setSortBy] = useState<"recientes" | "antiguos" | "nombre">("recientes");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   // Link Modal State
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
@@ -96,7 +106,7 @@ export function EntrevistaListClient() {
       const res = await getEntrevistasList({
         mes: selectedMonth,
         estatus: activeTab,
-        busqueda: searchTerm,
+        busqueda: debouncedSearch,
         sortBy,
       });
 
@@ -125,7 +135,7 @@ export function EntrevistaListClient() {
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, activeTab, searchTerm, sortBy, isOnline, addToast]);
+  }, [selectedMonth, activeTab, debouncedSearch, sortBy, isOnline, addToast]);
 
   useEffect(() => {
     loadData();
@@ -389,14 +399,24 @@ export function EntrevistaListClient() {
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
           {/* Search bar */}
           <div className="sm:col-span-6 relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Buscar por aspirante, cédula, entrevistador u observaciones..."
+              placeholder="Buscar por ID (#7), aspirante, cédula, correo o temas..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                title="Limpiar búsqueda"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Month selector */}
@@ -449,16 +469,43 @@ export function EntrevistaListClient() {
           </h3>
           <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
             {searchTerm || selectedMonth !== "todos" || activeTab !== "todas"
-              ? "No hay resultados para los filtros seleccionados. Intenta cambiar los criterios de búsqueda."
+              ? "No hay resultados para los criterios seleccionados."
               : "Aún no se han registrado entrevistas de facilitadores. Haz clic en 'Nueva Entrevista' para crear la primera."}
           </p>
-          <Link
-            href="/dashboard/capacitacion/entrevista-facilitadores/nueva"
-            className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Nueva Entrevista
-          </Link>
+          {(searchTerm || selectedMonth !== "todos" || activeTab !== "todas") && (
+            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold transition-colors"
+                >
+                  Limpiar búsqueda (&quot;{searchTerm}&quot;)
+                </button>
+              )}
+              {(selectedMonth !== "todos" || activeTab !== "todas") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedMonth("todos");
+                    setActiveTab("todas");
+                  }}
+                  className="px-3 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 rounded-lg text-xs font-semibold transition-colors"
+                >
+                  Ver en todos los meses y estatus
+                </button>
+              )}
+            </div>
+          )}
+          {!searchTerm && selectedMonth === "todos" && activeTab === "todas" && (
+            <Link
+              href="/dashboard/capacitacion/entrevista-facilitadores/nueva"
+              className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Nueva Entrevista
+            </Link>
+          )}
         </div>
       ) : viewMode === "table" ? (
         /* TABLE VIEW */
@@ -506,13 +553,18 @@ export function EntrevistaListClient() {
                       className="hover:bg-violet-50/40 cursor-pointer transition-colors"
                       title="Haz clic para abrir el formulario completo"
                     >
-                      {/* Fecha */}
+                      {/* Fecha & ID */}
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                        <span className="font-medium text-gray-900">
-                          {item.fecha_entrevista}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-[11px] font-bold text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded border border-violet-200">
+                            #{item.id}
+                          </span>
+                          <span className="font-medium text-gray-900">
+                            {item.fecha_entrevista}
+                          </span>
+                        </div>
                         {item.entrevistado_por && (
-                          <span className="block text-[11px] text-gray-400 truncate max-w-[120px]">
+                          <span className="block text-[11px] text-gray-400 truncate max-w-[130px] mt-0.5">
                             Por: {item.entrevistado_por}
                           </span>
                         )}
@@ -767,9 +819,14 @@ export function EntrevistaListClient() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          C.I. {item.cedula || "No registrada"}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="font-mono text-[10px] font-bold text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200">
+                            #{item.id}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            • C.I. {item.cedula || "No registrada"}
+                          </span>
+                        </div>
                       </div>
                     </div>
 

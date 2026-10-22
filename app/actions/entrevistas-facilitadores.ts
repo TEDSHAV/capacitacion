@@ -110,25 +110,89 @@ export async function getEntrevistasList(options: GetEntrevistasOptions = {}) {
     // Apply filters in memory for instant responsiveness
     let filtered = all;
 
+    const hasBusqueda = Boolean(options.busqueda && options.busqueda.trim());
+    const rawQ = hasBusqueda ? options.busqueda!.trim() : "";
+    const q = rawQ.toLowerCase();
+    const cleanIdQ = q.replace(/^#/, "").trim();
+    const digitsOnlyQ = q.replace(/\D/g, "");
+    const isHashOrExplicitId = /^#\d+$/.test(rawQ) || /^id\s*:\s*\d+$/i.test(rawQ);
+    const targetNumericId = isHashOrExplicitId
+      ? parseInt(cleanIdQ.replace(/\D/g, ""), 10)
+      : /^\d+$/.test(cleanIdQ)
+      ? parseInt(cleanIdQ, 10)
+      : null;
+
+    if (hasBusqueda) {
+      filtered = filtered.filter((e) => {
+        // 1. Direct ID matching: If user explicitly typed #7 or id: 7
+        if (isHashOrExplicitId && e.id === targetNumericId) {
+          return true;
+        }
+        if (isHashOrExplicitId) {
+          return false;
+        }
+
+        // Direct numeric match (e.g. user typed "7")
+        if (targetNumericId !== null && e.id === targetNumericId) {
+          return true;
+        }
+
+        // 2. Cédula match (raw or digits-only to handle dots, dashes, V-)
+        if (e.cedula) {
+          const cedLower = e.cedula.toLowerCase();
+          if (cedLower === q || cedLower.includes(q)) return true;
+          const cedDigits = cedLower.replace(/\D/g, "");
+          if (digitsOnlyQ.length >= 4 && cedDigits.includes(digitsOnlyQ)) {
+            return true;
+          }
+          if (digitsOnlyQ.length < 4 && cedDigits === digitsOnlyQ) {
+            return true;
+          }
+        }
+
+        // 3. Candidate name
+        if ((e.nombre_apellido || "").toLowerCase().includes(q)) return true;
+
+        // 4. Contact
+        if ((e.email || "").toLowerCase().includes(q)) return true;
+        if ((e.telefono || "").toLowerCase().includes(q)) return true;
+
+        // 5. Education & Background
+        if ((e.universitario || "").toLowerCase().includes(q)) return true;
+        if ((e.nivel_tecnico || "").toLowerCase().includes(q)) return true;
+        if ((e.posee_especializacion || "").toLowerCase().includes(q)) return true;
+
+        // 6. Interviewer & Notes
+        if ((e.entrevistado_por || "").toLowerCase().includes(q)) return true;
+        if ((e.observaciones || "").toLowerCase().includes(q)) return true;
+
+        // 7. Course capacities/topics
+        if (Array.isArray(e.temas_capacidades)) {
+          if (e.temas_capacidades.some((t) => (t || "").toLowerCase().includes(q))) {
+            return true;
+          }
+        }
+
+        return false;
+      });
+    }
+
+    const isIdQuery = isHashOrExplicitId || targetNumericId !== null;
+
+    // Apply month filter (skip month constraint if searching by explicit ID number)
     if (options.mes && options.mes !== "todos") {
-      filtered = filtered.filter(
-        (e) => e.fecha_entrevista && e.fecha_entrevista.startsWith(options.mes!)
-      );
+      if (!isIdQuery) {
+        filtered = filtered.filter(
+          (e) => e.fecha_entrevista && e.fecha_entrevista.startsWith(options.mes!)
+        );
+      }
     }
 
+    // Apply status filter (skip status constraint if searching by explicit ID number)
     if (options.estatus && options.estatus !== "todas" && options.estatus !== "todos") {
-      filtered = filtered.filter((e) => e.estatus === options.estatus);
-    }
-
-    if (options.busqueda && options.busqueda.trim()) {
-      const q = options.busqueda.toLowerCase().trim();
-      filtered = filtered.filter(
-        (e) =>
-          (e.nombre_apellido || "").toLowerCase().includes(q) ||
-          (e.cedula || "").toLowerCase().includes(q) ||
-          (e.entrevistado_por || "").toLowerCase().includes(q) ||
-          (e.observaciones || "").toLowerCase().includes(q)
-      );
+      if (!isIdQuery) {
+        filtered = filtered.filter((e) => e.estatus === options.estatus);
+      }
     }
 
     return {
@@ -441,7 +505,7 @@ export async function deleteEntrevista(id: number) {
 }
 
 /**
- * Create a new dynamic invitation token for public candidate application
+ * Create a new dynamic invitation token for public candidate application (Individual or Campaign)
  */
 export async function crearPostulacionToken(input: CreatePostulacionTokenInput = {}) {
   try {
@@ -452,16 +516,36 @@ export async function crearPostulacionToken(input: CreatePostulacionTokenInput =
 
     const admin = await createAdminClient();
     const token = crypto.randomBytes(24).toString("hex");
-    const diasValidez = input.dias_validez && input.dias_validez > 0 ? input.dias_validez : 7;
+    const isCampana = input.tipo === "campana";
+    const diasValidez =
+      input.dias_validez && input.dias_validez > 0
+        ? input.dias_validez
+        : isCampana
+        ? 30
+        : 7;
     const expiresAt = new Date(Date.now() + diasValidez * 24 * 60 * 60 * 1000).toISOString();
+    const tituloCampana = isCampana
+      ? input.titulo_campana?.trim() || "Convocatoria Abierta de Facilitadores"
+      : null;
 
-    const { data, error } = await admin
+    let encodedNotas = input.notas?.trim() || "";
+    if (isCampana) {
+      encodedNotas = `[CAMPAÑA: ${tituloCampana}] ${encodedNotas}`.trim();
+    }
+
+    // Try inserting with all fields first (works when migration is applied)
+    let insertData: any = null;
+    const { data: tryData, error: tryErr } = await admin
       .from("facilitador_postulacion_tokens")
       .insert({
         token,
-        nombre_candidato: input.nombre_candidato?.trim() || null,
-        email_candidato: input.email_candidato?.trim() || null,
-        notas: input.notas?.trim() || null,
+        tipo: input.tipo || "individual",
+        titulo_campana: tituloCampana,
+        max_usos: input.max_usos && input.max_usos > 0 ? input.max_usos : null,
+        usos_count: 0,
+        nombre_candidato: isCampana ? null : input.nombre_candidato?.trim() || null,
+        email_candidato: isCampana ? null : input.email_candidato?.trim() || null,
+        notas: encodedNotas || null,
         dias_validez: diasValidez,
         expires_at: expiresAt,
         creado_por: usuarioId,
@@ -470,7 +554,35 @@ export async function crearPostulacionToken(input: CreatePostulacionTokenInput =
       .select()
       .single();
 
-    if (error) throw error;
+    if (!tryErr && tryData) {
+      insertData = tryData;
+    } else {
+      // Fallback if extra columns don't exist yet in Supabase
+      const { data: fbData, error: fbErr } = await admin
+        .from("facilitador_postulacion_tokens")
+        .insert({
+          token,
+          nombre_candidato: isCampana ? null : input.nombre_candidato?.trim() || null,
+          email_candidato: isCampana ? null : input.email_candidato?.trim() || null,
+          notas: encodedNotas || null,
+          dias_validez: diasValidez,
+          expires_at: expiresAt,
+          creado_por: usuarioId,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (fbErr) throw fbErr;
+      insertData = fbData;
+    }
+
+    const tokenObj: FacilitadorPostulacionToken = {
+      ...(insertData as FacilitadorPostulacionToken),
+      tipo: isCampana ? "campana" : "individual",
+      titulo_campana: tituloCampana,
+      total_postulaciones: 0,
+    };
 
     // Build URL
     let baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
@@ -491,7 +603,7 @@ export async function crearPostulacionToken(input: CreatePostulacionTokenInput =
 
     return {
       success: true,
-      token: data as FacilitadorPostulacionToken,
+      token: tokenObj,
       url: publicUrl,
       error: null,
     };
@@ -507,7 +619,7 @@ export async function crearPostulacionToken(input: CreatePostulacionTokenInput =
 }
 
 /**
- * List active and recent invitation tokens
+ * List active and recent invitation tokens with received candidate metrics
  */
 export async function getPostulacionTokens() {
   try {
@@ -527,10 +639,46 @@ export async function getPostulacionTokens() {
         )
       `)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(60);
 
     if (error) throw error;
-    return { tokens: (data || []) as FacilitadorPostulacionToken[], error: null };
+
+    // Fetch received applications counts for each token
+    const { data: countData } = await admin
+      .from("facilitador_entrevistas")
+      .select("postulacion_token_id")
+      .not("postulacion_token_id", "is", null);
+
+    const countsMap = new Map<number, number>();
+    if (countData) {
+      for (const row of countData) {
+        if (row.postulacion_token_id) {
+          countsMap.set(
+            row.postulacion_token_id,
+            (countsMap.get(row.postulacion_token_id) || 0) + 1
+          );
+        }
+      }
+    }
+
+    const tokens: FacilitadorPostulacionToken[] = (data || []).map((t: any) => {
+      const isCampana =
+        t.tipo === "campana" || (t.notas && t.notas.startsWith("[CAMPAÑA:"));
+      let titulo = t.titulo_campana || null;
+      if (!titulo && t.notas && t.notas.startsWith("[CAMPAÑA:")) {
+        const match = t.notas.match(/^\[CAMPAÑA:\s*(.+?)\]/);
+        if (match) titulo = match[1];
+      }
+
+      return {
+        ...t,
+        tipo: isCampana ? "campana" : "individual",
+        titulo_campana: titulo,
+        total_postulaciones: countsMap.get(t.id) || 0,
+      };
+    });
+
+    return { tokens, error: null };
   } catch (err) {
     console.error("Error en getPostulacionTokens:", err);
     return {
@@ -584,7 +732,7 @@ export async function validarTokenPostulacion(token: string): Promise<PublicToke
     const admin = await createAdminClient();
     const { data, error } = await admin
       .from("facilitador_postulacion_tokens")
-      .select("id, token, nombre_candidato, email_candidato, expires_at, used_at, is_active")
+      .select("*")
       .eq("token", token.trim())
       .single();
 
@@ -596,19 +744,21 @@ export async function validarTokenPostulacion(token: string): Promise<PublicToke
       };
     }
 
-    if (data.used_at) {
-      return {
-        valid: false,
-        error: "used",
-        errorMessage: "Este enlace de postulación ya fue completado y utilizado anteriormente.",
-      };
+    const isCampana =
+      data.tipo === "campana" || (data.notas && data.notas.includes("[CAMPAÑA"));
+    let tituloCampana = data.titulo_campana || null;
+    if (!tituloCampana && data.notas && data.notas.startsWith("[CAMPAÑA:")) {
+      const match = data.notas.match(/^\[CAMPAÑA:\s*(.+?)\]/);
+      if (match) tituloCampana = match[1];
     }
 
     if (!data.is_active) {
       return {
         valid: false,
         error: "invalid",
-        errorMessage: "Este enlace de postulación ha sido desactivado o revocado.",
+        errorMessage: isCampana
+          ? "Esta convocatoria de postulación ha sido cerrada o pausada."
+          : "Este enlace de postulación ha sido desactivado o revocado.",
       };
     }
 
@@ -618,13 +768,42 @@ export async function validarTokenPostulacion(token: string): Promise<PublicToke
       return {
         valid: false,
         error: "expired",
-        errorMessage: "Este enlace de postulación ha expirado. Por favor solicita uno nuevo al equipo de Capacitación.",
+        errorMessage: isCampana
+          ? "El plazo para postularse en esta convocatoria ha expirado."
+          : "Este enlace de postulación ha expirado. Por favor solicita uno nuevo al equipo de Capacitación.",
       };
+    }
+
+    // Only block single-use individual tokens by used_at
+    if (!isCampana && data.used_at) {
+      return {
+        valid: false,
+        error: "used",
+        errorMessage: "Este enlace de postulación ya fue completado y utilizado anteriormente.",
+      };
+    }
+
+    // Check max_usos for campaign if configured
+    if (isCampana && data.max_usos && data.max_usos > 0) {
+      const { count } = await admin
+        .from("facilitador_entrevistas")
+        .select("id", { count: "exact", head: true })
+        .eq("postulacion_token_id", data.id);
+
+      if ((count || 0) >= data.max_usos) {
+        return {
+          valid: false,
+          error: "expired",
+          errorMessage: "Esta convocatoria ha alcanzado el límite máximo de postulaciones permitidas.",
+        };
+      }
     }
 
     return {
       valid: true,
       token: data.token,
+      tipo: isCampana ? "campana" : "individual",
+      titulo_campana: tituloCampana,
       nombre_candidato: data.nombre_candidato,
       email_candidato: data.email_candidato,
       expires_at: data.expires_at,
@@ -668,16 +847,28 @@ export async function submitCandidatoPostulacion(
 
     const admin = await createAdminClient();
 
-    // Re-fetch token row to get ID for foreign key
+    // Re-fetch token row to get ID for foreign key & check type
     const { data: tokenRow, error: tokenErr } = await admin
       .from("facilitador_postulacion_tokens")
-      .select("id")
+      .select("*")
       .eq("token", payload.token.trim())
       .single();
 
     if (tokenErr || !tokenRow) {
       return { success: false, error: "Error validando el token de postulación." };
     }
+
+    const isCampana =
+      tokenRow.tipo === "campana" || (tokenRow.notas && tokenRow.notas.includes("[CAMPAÑA"));
+    let tituloCampana = tokenRow.titulo_campana || null;
+    if (!tituloCampana && tokenRow.notas && tokenRow.notas.startsWith("[CAMPAÑA:")) {
+      const match = tokenRow.notas.match(/^\[CAMPAÑA:\s*(.+?)\]/);
+      if (match) tituloCampana = match[1];
+    }
+
+    const observacionesText = isCampana
+      ? `Postulación recibida en línea vía Convocatoria / Campaña: ${tituloCampana || "Campaña abierta"}.`
+      : "Postulación recibida en línea mediante enlace dinámico de invitación.";
 
     // 4. Construct interview row with strict isolation
     const entrevistaRow: Record<string, unknown> = {
@@ -724,7 +915,7 @@ export async function submitCandidatoPostulacion(
       fecha_entrevista: new Date().toISOString().split("T")[0],
       entrevistado_por: null,
       evaluacion_items: [],
-      observaciones: "Postulación recibida en línea mediante enlace dinámico de invitación.",
+      observaciones: observacionesText,
       estatus: "pendiente",
       origen: "web",
       postulacion_token_id: tokenRow.id,
@@ -742,15 +933,31 @@ export async function submitCandidatoPostulacion(
       return { success: false, error: "Error al registrar la postulación." };
     }
 
-    // 5. Mark token as used
-    await admin
-      .from("facilitador_postulacion_tokens")
-      .update({
-        used_at: new Date().toISOString(),
-        is_active: false,
-        entrevista_id: newEntrevista.id,
-      })
-      .eq("id", tokenRow.id);
+    // 5. Update token status
+    if (isCampana) {
+      // For campaigns, it remains active for further applicants
+      try {
+        await admin
+          .from("facilitador_postulacion_tokens")
+          .update({
+            usos_count: (tokenRow.usos_count || 0) + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", tokenRow.id);
+      } catch {
+        // Ignored if column not present yet
+      }
+    } else {
+      // Single-use individual token: mark as used and deactivated
+      await admin
+        .from("facilitador_postulacion_tokens")
+        .update({
+          used_at: new Date().toISOString(),
+          is_active: false,
+          entrevista_id: newEntrevista.id,
+        })
+        .eq("id", tokenRow.id);
+    }
 
     revalidatePath("/dashboard/capacitacion/entrevista-facilitadores");
 

@@ -110,6 +110,7 @@ export default async function PostulacionPublicPage({ params }: PageProps) {
         token={token}
         nombreInicial={validation.nombre_candidato || ""}
         emailInicial={validation.email_candidato || ""}
+        tituloCampana={validation.titulo_campana || null}
       />
     </div>
   );

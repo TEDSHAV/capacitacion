@@ -150,9 +150,16 @@ export const ESTATUS_CONFIG: Record<
 };
 
 // ─── Invitation Tokens for Public Applications ───────────────────────────────
+export type PostulacionTokenTipo = "individual" | "campana";
+
 export interface FacilitadorPostulacionToken {
   id: number;
   token: string;
+  tipo?: PostulacionTokenTipo;
+  titulo_campana?: string | null;
+  max_usos?: number | null;
+  usos_count?: number;
+  total_postulaciones?: number;
   nombre_candidato: string | null;
   email_candidato: string | null;
   notas: string | null;
@@ -171,6 +178,9 @@ export interface FacilitadorPostulacionToken {
 }
 
 export interface CreatePostulacionTokenInput {
+  tipo?: PostulacionTokenTipo;
+  titulo_campana?: string;
+  max_usos?: number | null;
   nombre_candidato?: string;
   email_candidato?: string;
   notas?: string;
@@ -180,6 +190,8 @@ export interface CreatePostulacionTokenInput {
 export interface PublicTokenValidation {
   valid: boolean;
   token?: string;
+  tipo?: PostulacionTokenTipo;
+  titulo_campana?: string | null;
   nombre_candidato?: string | null;
   email_candidato?: string | null;
   expires_at?: string;

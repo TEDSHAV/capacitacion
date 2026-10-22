@@ -30,6 +30,7 @@ interface PostulacionFormClientProps {
   token: string;
   nombreInicial?: string;
   emailInicial?: string;
+  tituloCampana?: string | null;
 }
 
 interface CourseTopic {
@@ -41,6 +42,7 @@ export function PostulacionFormClient({
   token,
   nombreInicial = "",
   emailInicial = "",
+  tituloCampana = null,
 }: PostulacionFormClientProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -263,7 +265,7 @@ export function PostulacionFormClient({
           <div className="text-center sm:text-right">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 mb-1">
               <ShieldCheck className="w-3.5 h-3.5" />
-              Convocatoria Oficial
+              {tituloCampana ? "Convocatoria Abierta" : "Convocatoria Oficial"}
             </span>
             <p className="text-xs text-slate-500">Formato de Selección de Facilitadores</p>
           </div>
@@ -271,10 +273,14 @@ export function PostulacionFormClient({
 
         <div className="pt-6 space-y-2">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            Formulario de Postulación de Facilitador
+            {tituloCampana
+              ? `Postulación: ${tituloCampana}`
+              : "Formulario de Postulación de Facilitador"}
           </h1>
           <p className="text-sm text-slate-600 leading-relaxed">
-            Por favor completa las siguientes secciones con información veraz y actualizada sobre tu formación académica, experiencia técnica y competencias como facilitador.
+            {tituloCampana
+              ? `Bienvenido a la convocatoria oficial de facilitadores de SHA de Venezuela. Completa tus datos para postularte a esta oportunidad.`
+              : "Por favor completa las siguientes secciones con información veraz y actualizada sobre tu formación académica, experiencia técnica y competencias como facilitador."}
           </p>
         </div>
       </div>
