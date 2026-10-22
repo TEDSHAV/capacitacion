@@ -191,11 +191,10 @@ export function EntrevistaLinkModal({ isOpen, onClose }: EntrevistaLinkModalProp
             <button
               type="button"
               onClick={() => setActiveTab("generar")}
-              className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 ${
-                activeTab === "generar"
+              className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 ${activeTab === "generar"
                   ? "border-violet-600 text-violet-700"
                   : "border-transparent text-slate-500 hover:text-slate-900"
-              }`}
+                }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
               Generar Nuevo Enlace
@@ -206,11 +205,10 @@ export function EntrevistaLinkModal({ isOpen, onClose }: EntrevistaLinkModalProp
                 setActiveTab("historial");
                 loadTokensList();
               }}
-              className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 ${
-                activeTab === "historial"
+              className={`pb-3 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-1.5 ${activeTab === "historial"
                   ? "border-violet-600 text-violet-700"
                   : "border-transparent text-slate-500 hover:text-slate-900"
-              }`}
+                }`}
             >
               <Clock className="w-3.5 h-3.5" />
               Historial de Enlaces ({tokens.length})
@@ -293,7 +291,7 @@ export function EntrevistaLinkModal({ isOpen, onClose }: EntrevistaLinkModalProp
                       ) : (
                         <>
                           <Sparkles className="w-4 h-4" />
-                          Generar Enlace Seguro
+                          Generar Enlace
                         </>
                       )}
                     </button>
