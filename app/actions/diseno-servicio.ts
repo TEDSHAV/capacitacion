@@ -3,9 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { notifySolicitanteOfFinalizacion } from "@/lib/diseno-servicio-notifications";
-import {
-  isCapacitacionDept,
-} from "@/lib/requisiciones-gerencia";
 import type {
   BloqueRecursosRequisitos,
   BloqueHigieneSeguridadAmbiente,
@@ -51,32 +48,10 @@ export async function getCurrentUserForDiseno() {
 
 // Get all solicitudes for list view
 //
-// Scope: Strictly Capacitación (id_departamento_ejecutante = 3).
-// Only Capacitación users may view/manage these services.
-// Non-Capacitación users receive an empty list.
+// Scope: Scoped strictly to Capacitación using JSONB
+// bloque_recursos_requisitos->>tipo_naturaleza_servicio = 'cap'.
+// Any dashboard-authenticated user (cap, TED, admin/superadmin) sees the list.
 export async function getDisenoServicioList(): Promise<DisenoServicioListItem[]> {
-  // Resolve the current user's department via the user-scoped (RLS-aware) client.
-  const userSupabase = await createClient();
-  const {
-    data: { user },
-  } = await userSupabase.auth.getUser();
-
-  let userDeptName: string | null = null;
-  if (user) {
-    const { data: usuario } = await userSupabase
-      .from("usuarios")
-      .select("departamentos!usuarios_departamento_fkey(nombre)")
-      .eq("id_auth", user.id)
-      .single();
-    userDeptName = (usuario?.departamentos as any)?.nombre ?? null;
-  }
-
-  // Capacitación module strictly scopes to Capacitación services (dept 3).
-  // Non-Capacitación users get an empty list.
-  if (!isCapacitacionDept(userDeptName)) {
-    return [];
-  }
-
   const supabase = await createAdminClient();
 
   const { data, error } = await supabase
