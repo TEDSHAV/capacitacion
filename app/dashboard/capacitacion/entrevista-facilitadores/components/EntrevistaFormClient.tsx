@@ -7,6 +7,8 @@ import {
   ArrowLeft,
   Save,
   Printer,
+  Eye,
+  Download,
   UserCheck,
   CheckCircle2,
   XCircle,
@@ -431,8 +433,7 @@ export function EntrevistaFormClient({
             )}
           </div>
           <p className="text-sm text-gray-600 mt-1">
-            Formato oficial de entrevista para aspirantes y facilitadores
-            (Z:\Alex\Formato de entrevista facilitador.xlsx)
+            Formato oficial de entrevista y evaluación para aspirantes a facilitadores
           </p>
         </div>
 
@@ -500,17 +501,17 @@ export function EntrevistaFormClient({
             </Link>
           )}
 
-          {/* Imprimir Formato en Nueva Pestaña */}
+          {/* Ver Formato en Nueva Pestaña */}
           {id ? (
             <a
               href={`/dashboard/capacitacion/entrevista-facilitadores/${id}/imprimir`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-2xs"
-              title="Abrir formato oficial de impresión en una nueva pestaña"
+              title="Ver formato oficial en una nueva pestaña (visor de documento)"
             >
-              <Printer className="w-3.5 h-3.5 text-blue-600" />
-              Imprimir Formato
+              <Eye className="w-3.5 h-3.5 text-blue-600" />
+              Ver Formato
               <ExternalLink className="w-3 h-3 text-gray-400" />
             </a>
           ) : (
@@ -518,30 +519,46 @@ export function EntrevistaFormClient({
               type="button"
               onClick={() =>
                 addToast(
-                  "Guarda la entrevista primero para poder abrir la vista de impresión",
+                  "Guarda la entrevista primero para poder abrir la vista del formato",
                   "warning"
                 )
               }
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-300 text-gray-400 text-xs font-medium rounded-lg shadow-2xs cursor-not-allowed"
-              title="Guarda la entrevista para imprimir"
+              title="Guarda la entrevista para ver el formato"
             >
-              <Printer className="w-3.5 h-3.5" />
-              Imprimir Formato
+              <Eye className="w-3.5 h-3.5" />
+              Ver Formato
             </button>
           )}
 
+          {/* Descargar PDF */}
+          {id && (
+            <a
+              href={`/dashboard/capacitacion/entrevista-facilitadores/${id}/imprimir?download=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 border border-slate-300 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-200 transition-colors shadow-2xs"
+              title="Descargar el formato oficial en PDF"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-700" />
+              Descargar PDF
+            </a>
+          )}
+
+          {/* Guardar Cambios en Formulario */}
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm disabled:opacity-50"
+            title="Guardar las modificaciones realizadas en este formulario"
           >
             {saving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Save className="w-3.5 h-3.5" />
             )}
-            Guardar
+            Guardar Cambios
           </button>
         </div>
       </div>

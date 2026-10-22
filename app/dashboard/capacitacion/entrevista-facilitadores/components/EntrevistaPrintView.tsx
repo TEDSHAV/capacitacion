@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, Printer, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Printer, Download, X, Loader2 } from "lucide-react";
 import type { FacilitadorEntrevista } from "@/types/entrevistas-facilitadores";
 import { toTitleCase } from "@/utils/string-utils";
 
@@ -12,14 +12,87 @@ interface EntrevistaPrintViewProps {
 
 export function EntrevistaPrintView({ entrevista }: EntrevistaPrintViewProps) {
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     setIsPrinting(true);
     setTimeout(() => {
       window.print();
       setIsPrinting(false);
     }, 100);
-  };
+  }, []);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const html2canvas = (await import("html2canvas-pro")).default;
+      const { default: jsPDF } = await import("jspdf");
+
+      const page1 = document.querySelector(".print-page-1") as HTMLElement | null;
+      const page2 = document.querySelector(".print-page-2") as HTMLElement | null;
+
+      if (!page1) {
+        alert("No se pudo encontrar el contenido para generar el archivo PDF.");
+        return;
+      }
+
+      const canvas1 = await html2canvas(page1, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+      });
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "letter",
+        compress: true,
+      });
+
+      const imgData1 = canvas1.toDataURL("image/jpeg", 0.95);
+      // Letter dimensions in mm: 215.9 x 279.4
+      pdf.addImage(imgData1, "JPEG", 0, 0, 215.9, 279.4);
+
+      if (page2) {
+        const canvas2 = await html2canvas(page2, {
+          scale: 2,
+          backgroundColor: "#ffffff",
+          useCORS: true,
+        });
+        const imgData2 = canvas2.toDataURL("image/jpeg", 0.95);
+        pdf.addPage("letter", "portrait");
+        pdf.addImage(imgData2, "JPEG", 0, 0, 215.9, 279.4);
+      }
+
+      const cleanName = (entrevista.nombre_apellido || "aspirante")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      const fileName = `Formato-Entrevista-${cleanName || "facilitador"}-${entrevista.cedula || entrevista.id}.pdf`;
+      pdf.save(fileName);
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+      alert(
+        "Error al generar el PDF. Puedes usar el botón 'Imprimir' y seleccionar 'Guardar como PDF' en tu navegador."
+      );
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [entrevista, isDownloading]);
+
+  // Check URL query parameter ?download=1 to auto-trigger download
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("download") === "1") {
+        const timer = setTimeout(() => {
+          handleDownloadPdf();
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [handleDownloadPdf]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -30,7 +103,7 @@ export function EntrevistaPrintView({ entrevista }: EntrevistaPrintViewProps) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [handlePrint]);
 
   return (
     <div className="min-h-screen bg-slate-200 text-gray-900">
@@ -50,7 +123,7 @@ export function EntrevistaPrintView({ entrevista }: EntrevistaPrintViewProps) {
               Formato de Entrevista — {toTitleCase(entrevista.nombre_apellido || "Aspirante")}
             </h1>
             <p className="text-[11px] text-gray-500">
-              Vista oficial de impresión (2 páginas • Formato SHA de Venezuela)
+              Visor oficial de documento (2 páginas • Formato SHA de Venezuela)
             </p>
           </div>
         </div>
@@ -58,16 +131,31 @@ export function EntrevistaPrintView({ entrevista }: EntrevistaPrintViewProps) {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
+            onClick={handleDownloadPdf}
+            disabled={isDownloading}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            title="Descargar documento en PDF"
+          >
+            {isDownloading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            Descargar PDF
+          </button>
+          <button
+            type="button"
             onClick={handlePrint}
             disabled={isPrinting}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            title="Imprimir documento desde el navegador"
           >
             {isPrinting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Printer className="w-4 h-4" />
             )}
-            Imprimir / Guardar como PDF
+            Imprimir
           </button>
           <button
             type="button"

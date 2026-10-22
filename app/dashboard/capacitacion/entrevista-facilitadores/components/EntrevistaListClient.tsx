@@ -13,6 +13,8 @@ import {
   Trash2,
   Edit,
   FileText,
+  Eye,
+  Download,
   UserCheck,
   CheckCircle2,
   XCircle,
@@ -687,9 +689,18 @@ export function EntrevistaListClient() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Imprimir formato oficial (nueva pestaña)"
+                            title="Ver formato oficial (PDF)"
                           >
-                            <Printer className="w-4 h-4" />
+                            <Eye className="w-4 h-4" />
+                          </a>
+                          <a
+                            href={`/dashboard/capacitacion/entrevista-facilitadores/${item.id}/imprimir?download=1`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-gray-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                            title="Descargar formato en PDF"
+                          >
+                            <Download className="w-4 h-4" />
                           </a>
                           <button
                             type="button"
@@ -931,9 +942,19 @@ export function EntrevistaListClient() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                      title="Imprimir formato oficial (nueva pestaña)"
+                      title="Ver formato oficial (PDF)"
                     >
-                      <Printer className="w-4 h-4" />
+                      <Eye className="w-4 h-4" />
+                    </a>
+
+                    <a
+                      href={`/dashboard/capacitacion/entrevista-facilitadores/${item.id}/imprimir?download=1`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-gray-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                      title="Descargar formato en PDF"
+                    >
+                      <Download className="w-4 h-4" />
                     </a>
 
                     <button
