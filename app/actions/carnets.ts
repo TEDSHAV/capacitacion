@@ -999,13 +999,46 @@ export async function generateCarnetsForBatchAction(
       };
     }
 
-    // 6. If expiry date was customized, update certificates in batch for consistency
+    // 6. If expiry date was customized or template missing, update certificates for consistency
     if (customFechaVencimiento && certsToUpdateExpiry.length > 0) {
       const formattedExpiry = formatDateStr(customFechaVencimiento);
       await supabase
         .from("certificados")
         .update({ fecha_vencimiento: formattedExpiry })
         .in("id", certsToUpdateExpiry);
+    }
+
+    if (defaultTemplate?.id) {
+      const certsNeedingTemplate = missingCerts
+        .filter((c) => !c.id_plantilla_carnet)
+        .map((c) => c.id);
+      if (certsNeedingTemplate.length > 0) {
+        await supabase
+          .from("certificados")
+          .update({ id_plantilla_carnet: defaultTemplate.id })
+          .in("id", certsNeedingTemplate);
+      }
+    }
+
+    // Also update snapshots if skip_carnets was previously true
+    for (const cert of missingCerts) {
+      if (cert.snapshot_contenido) {
+        try {
+          const s = JSON.parse(cert.snapshot_contenido);
+          if (s.certificado_detalles?.skip_carnets === true) {
+            s.certificado_detalles.skip_carnets = false;
+            if (customFechaVencimiento && s.certificado) {
+              s.certificado.fecha_vencimiento = formatDateStr(customFechaVencimiento);
+            }
+            await supabase
+              .from("certificados")
+              .update({ snapshot_contenido: JSON.stringify(s) })
+              .eq("id", cert.id);
+          }
+        } catch {
+          // ignore snapshot parse error
+        }
+      }
     }
 
     revalidatePath("/dashboard/capacitacion/gestion-certificados");

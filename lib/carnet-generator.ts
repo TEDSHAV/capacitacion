@@ -179,22 +179,6 @@ export class CarnetGenerator {
         return;
       }
 
-      // Browser environment - use Image constructor with JPEG compression
-      if (_browserCarnetCache.has(templatePath)) {
-        const jpegDataUrl = _browserCarnetCache.get(templatePath)!;
-        pdf.addImage(
-          jpegDataUrl,
-          "JPEG",
-          0,
-          0,
-          this.pageWidth,
-          this.pageHeight,
-          undefined,
-          "FAST",
-        );
-        return;
-      }
-
       // Fast path: already a data URL (preloaded) — add directly without canvas
       if (templatePath.startsWith("data:")) {
         const format = templatePath.startsWith("data:image/jpeg")
@@ -346,7 +330,7 @@ export class CarnetGenerator {
     pdf.setFontSize(8);
     pdf.setFont("helvetica", "bold");
 
-    const title = carnetData.titulo_curso.toUpperCase();
+    const title = (carnetData.titulo_curso || "").toUpperCase();
     const maxWidth = 60;
     const centerX = 33;
     const lineHeight = 3.2; // Tighter line height for size 8 font
@@ -393,18 +377,30 @@ export class CarnetGenerator {
     pdf.setFontSize(8);
     pdf.setFont("helvetica", "bold");
 
+    // Format helper to avoid NaN or invalid dates
+    const safeFormatDate = (rawDate?: string | null) => {
+      if (!rawDate) return "";
+      try {
+        const cleanDate = rawDate.split("T")[0];
+        const [year, month, day] = cleanDate.split("-");
+        if (year && month && day) {
+          return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+        }
+        const d = new Date(rawDate);
+        return isNaN(d.getTime()) ? rawDate : d.toLocaleDateString("es-VE");
+      } catch {
+        return rawDate;
+      }
+    };
+
     // Add emission date (left side, below QR code)
-    const emissionDate = new Date(
-      carnetData.fecha_emision + "T12:00:00",
-    ).toLocaleDateString("es-VE");
+    const emissionDate = safeFormatDate(carnetData.fecha_emision);
     pdf.text("Emisión: ", 3, 42);
     pdf.text(emissionDate, 15, 42);
 
     // Add expiration date if available (left side, below emission date)
     if (carnetData.fecha_vencimiento) {
-      const expirationDate = new Date(
-        carnetData.fecha_vencimiento + "T12:00:00",
-      ).toLocaleDateString("es-VE");
+      const expirationDate = safeFormatDate(carnetData.fecha_vencimiento);
       pdf.setTextColor(255, 0, 0); // Set text color to red
       pdf.text("Vencimiento: ", 50, 42);
       pdf.setTextColor(0, 0, 0); // Reset text color to black

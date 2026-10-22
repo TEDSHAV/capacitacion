@@ -1302,7 +1302,8 @@ export async function getCertificatesByOSIAction(osiId: string | number) {
         *,
         participantes_certificados(*),
         catalogo_servicios(nombre, emite_carnet),
-        empresas(razon_social)
+        empresas(razon_social),
+        carnets(id, is_active)
       `,
       )
       .eq("is_active", true);

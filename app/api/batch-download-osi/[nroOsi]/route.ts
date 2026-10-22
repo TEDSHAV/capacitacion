@@ -278,18 +278,24 @@ export async function GET(
         getCertsFolder().file(certFileName, certArrayBuffer);
         filesAdded++;
 
-        // Generate carnet if applicable (only for participants who passed)
+        // Generate carnet if applicable (only for participants who passed and carnet exists or is enabled)
         const shouldEmiteCarnet = cert.catalogo_servicios?.emite_carnet || snapshot.curso?.emite_carnet;
         const passingGrade = snapshot.certificado_detalles?.passing_grade
           ?? snapshot.curso?.nota_aprobatoria
           ?? cert.catalogo_servicios?.nota_aprobatoria
           ?? 14;
         const participantPassed = participant.score != null && participant.score >= passingGrade;
-        if (
-          !snapshot.certificado_detalles?.skip_carnets &&
-          (cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet) &&
-          participantPassed
-        ) {
+
+        const hasActiveCarnet = Array.isArray(cert.carnets)
+          ? cert.carnets.some((c: any) => c.is_active)
+          : !!cert.carnets?.is_active;
+
+        const carnetEligible =
+          hasActiveCarnet ||
+          (!snapshot.certificado_detalles?.skip_carnets &&
+            (cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet));
+
+        if (carnetEligible && participantPassed) {
           const { CarnetGenerator } = await import("@/lib/carnet-generator");
           const carnetGenerator = new CarnetGenerator();
 

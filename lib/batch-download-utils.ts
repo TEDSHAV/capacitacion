@@ -164,17 +164,27 @@ export async function downloadBatchAction(
           filesAddedCount++;
         }
 
-        // Carnets (only for participants who passed and course emits carnet)
+        // Carnets (only for participants who passed and course emits carnet or carnet exists/requested)
         const shouldEmiteCarnet = cert.catalogo_servicios?.emite_carnet || snapshot.curso?.emite_carnet;
         const passingGrade = snapshot.certificado_detalles?.passing_grade
           ?? snapshot.curso?.nota_aprobatoria
           ?? cert.catalogo_servicios?.nota_aprobatoria
           ?? 14;
         const participantPassed = participant.score != null && participant.score >= passingGrade;
+
+        const hasActiveCarnet = Array.isArray(cert.carnets)
+          ? cert.carnets.some((c: any) => c.is_active)
+          : !!cert.carnets?.is_active;
+
+        const carnetEligible =
+          choice === "carnets" ||
+          hasActiveCarnet ||
+          (!snapshot.certificado_detalles?.skip_carnets &&
+            (cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet));
+
         if (
           (choice === "full" || choice === "carnets") &&
-          !snapshot.certificado_detalles?.skip_carnets &&
-          (cert.id_plantilla_carnet || snapshot.plantilla?.id_plantilla_carnet || shouldEmiteCarnet) &&
+          carnetEligible &&
           participantPassed
         ) {
           console.log(`[BatchDownload] Generating Carnet for ${participant.name}`);
@@ -187,6 +197,13 @@ export async function downloadBatchAction(
             cert.id,
             controlNumbers,
           );
+
+          let carnetTemplateImage = "/templates/carnet.png";
+          if (snapshot.plantilla?.archivo_plantilla_carnet) {
+            carnetTemplateImage = snapshot.plantilla.archivo_plantilla_carnet.startsWith("/")
+              ? snapshot.plantilla.archivo_plantilla_carnet
+              : `/templates/${snapshot.plantilla.archivo_plantilla_carnet}`;
+          }
 
           const carnetBlob = await carnetGenerator.generateCarnet({
             participant,
@@ -205,7 +222,7 @@ export async function downloadBatchAction(
               empresa_participante: snapshot.osi?.cliente_nombre_empresa || osiData.nombre_empresa,
               nro_control: snapshot.certificado?.nro_control || cert.nro_control,
             },
-            templateImage: "/templates/carnet.png", // Use default carnet template
+            templateImage: carnetTemplateImage,
             qrDataURL: qrResult.dataUrl,
           });
 
