@@ -596,19 +596,19 @@ export async function validarTokenPostulacion(token: string): Promise<PublicToke
       };
     }
 
-    if (!data.is_active) {
-      return {
-        valid: false,
-        error: "invalid",
-        errorMessage: "Este enlace de postulación ha sido desactivado o revocado.",
-      };
-    }
-
     if (data.used_at) {
       return {
         valid: false,
         error: "used",
         errorMessage: "Este enlace de postulación ya fue completado y utilizado anteriormente.",
+      };
+    }
+
+    if (!data.is_active) {
+      return {
+        valid: false,
+        error: "invalid",
+        errorMessage: "Este enlace de postulación ha sido desactivado o revocado.",
       };
     }
 
