@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getFacilitadorSessionFromRequest } from "@/utils/api-auth";
 import { createAdminClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { notifyCapacitacionUsersOfUpload } from "@/app/actions/facilitador-notifications";
 
 interface SaveParticipantsBody {
   osiId: number;
@@ -195,6 +196,37 @@ export async function POST(request: NextRequest) {
 
     if (ackError) {
       console.error("Failed to save acknowledgment:", ackError);
+    }
+  }
+
+  // Notify capacitacion users when the facilitador submits the final participant list
+  // Fire-and-forget — don't block the submission on notification errors
+  if (status === "final") {
+    try {
+      const { data: osiInfo } = await supabase
+        .from("v_osi_lista")
+        .select("nro_osi")
+        .eq("id_osi", osiId)
+        .maybeSingle();
+
+      let facilitadorName = (session as any)?.nombre;
+      if (!facilitadorName) {
+        const { data: fac } = await supabase
+          .from("facilitadores")
+          .select("nombre_apellido")
+          .eq("id", facilitadorId)
+          .maybeSingle();
+        facilitadorName = fac?.nombre_apellido || "Facilitador";
+      }
+
+      await notifyCapacitacionUsersOfUpload({
+        osiId,
+        nroOsi: osiInfo?.nro_osi ?? `ID ${osiId}`,
+        facilitadorName,
+        category: "servicio_finalizado",
+      });
+    } catch (notifErr) {
+      console.error("[POST /api/portal/facilitador/participants] Notification error (non-fatal):", notifErr);
     }
   }
 

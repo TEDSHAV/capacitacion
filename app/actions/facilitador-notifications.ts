@@ -37,28 +37,60 @@ export async function notifyCapacitacionUsersOfUpload(params: {
   try {
     const supabase = await createAdminClient();
 
-    // --- Resolve recipients: users in capacitacion or admin departments ---
+    // --- Resolve recipients: users in capacitacion, admin, or ted departments ---
     const { data: deptos } = await supabase
       .from("departamentos")
       .select("id, nombre")
-      .or("nombre.ilike.%admin%,nombre.ilike.%capacitacion%");
+      .or("nombre.ilike.%admin%,nombre.ilike.%capacitacion%,nombre.ilike.%ted%");
 
     const deptIds = (deptos || []).map((d: { id: number }) => d.id);
-    if (deptIds.length === 0) {
-      console.warn("[notifyCapacitacionUsersOfUpload] No matching departments found");
-      return;
+    let deptUsersAuthIds: string[] = [];
+
+    if (deptIds.length > 0) {
+      const { data: deptUsers } = await supabase
+        .from("usuarios")
+        .select("id_auth")
+        .in("departamento", deptIds)
+        .not("id_auth", "is", null)
+        .eq("esta_activo", true);
+
+      deptUsersAuthIds = (deptUsers || [])
+        .map((u: { id_auth: string | null }) => u.id_auth)
+        .filter((id: string | null): id is string => Boolean(id));
     }
 
-    const { data: deptUsers } = await supabase
-      .from("usuarios")
-      .select("id_auth")
-      .in("departamento", deptIds)
-      .not("id_auth", "is", null)
-      .eq("esta_activo", true);
+    // --- Also resolve cross-department users with explicit scapacitacion app role (e.g. Director) ---
+    let roleUsersAuthIds: string[] = [];
+    const { data: scapacitacionApp } = await supabase
+      .schema("authprisma")
+      .from("apps")
+      .select("id")
+      .eq("slug", "scapacitacion")
+      .maybeSingle();
 
-    const recipientIds = (deptUsers || [])
-      .map((u: { id_auth: string | null }) => u.id_auth)
-      .filter((id: string | null): id is string => id !== null);
+    if (scapacitacionApp?.id) {
+      const { data: appRoles } = await supabase
+        .schema("authprisma")
+        .from("user_app_roles")
+        .select("usuario_id")
+        .eq("app_id", scapacitacionApp.id);
+
+      const userIds = [...new Set((appRoles || []).map((r: { usuario_id: number }) => r.usuario_id))];
+      if (userIds.length > 0) {
+        const { data: roleUsers } = await supabase
+          .from("usuarios")
+          .select("id_auth")
+          .in("id", userIds)
+          .not("id_auth", "is", null)
+          .eq("esta_activo", true);
+
+        roleUsersAuthIds = (roleUsers || [])
+          .map((u: { id_auth: string | null }) => u.id_auth)
+          .filter((id: string | null): id is string => Boolean(id));
+      }
+    }
+
+    const recipientIds = [...new Set([...deptUsersAuthIds, ...roleUsersAuthIds])];
 
     if (recipientIds.length === 0) {
       console.warn("[notifyCapacitacionUsersOfUpload] No recipients with id_auth found");
