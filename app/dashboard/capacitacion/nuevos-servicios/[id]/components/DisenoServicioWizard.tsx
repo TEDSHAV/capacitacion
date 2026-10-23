@@ -674,10 +674,7 @@ export default function DisenoServicioWizard({
                       <Label className="text-gray-500 text-xs font-semibold">TIPO DE SOLICITUD</Label>
                       <p className="text-base font-medium text-gray-900 mt-1 capitalize">{solicitud.tipo_solicitud}</p>
                     </div>
-                    <div>
-                      <Label className="text-gray-500 text-xs font-semibold">TIPO DE SERVICIO</Label>
-                      <p className="text-base font-medium text-gray-900 mt-1">{solicitud.tipo_servicio}</p>
-                    </div>
+
                     <div>
                       <Label className="text-gray-500 text-xs font-semibold">FECHA DE SOLICITUD</Label>
                       <p className="text-base font-medium text-gray-900 mt-1">
@@ -706,27 +703,6 @@ export default function DisenoServicioWizard({
                     </div>
                   </div>
 
-                  {(bloqueRecursos.objetivo || bloqueRecursos.proposito || bloqueRecursos.objetivo_especifico) && (
-                    <div className="border-t border-gray-200 pt-4">
-                      <div className="mb-2">
-                        <Label className="text-gray-600 text-xs font-bold uppercase">Elementos de Salida</Label>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <Label className="text-gray-600 text-xs">OBJETIVO</Label>
-                          <p className="text-sm font-medium text-gray-900 mt-1 whitespace-pre-wrap">{bloqueRecursos.objetivo || "—"}</p>
-                        </div>
-                        <div>
-                          <Label className="text-gray-600 text-xs">PROPÓSITO</Label>
-                          <p className="text-sm font-medium text-gray-900 mt-1 whitespace-pre-wrap">{bloqueRecursos.proposito || "—"}</p>
-                        </div>
-                        <div>
-                          <Label className="text-gray-600 text-xs">OBJETIVO ESPECÍFICO</Label>
-                          <p className="text-sm font-medium text-gray-900 mt-1 whitespace-pre-wrap">{bloqueRecursos.objetivo_especifico || "—"}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {bloquePlanificacion.tiempo_estimado && (
                     <div className="border-t border-gray-200 pt-3 flex items-center gap-2 text-xs">
