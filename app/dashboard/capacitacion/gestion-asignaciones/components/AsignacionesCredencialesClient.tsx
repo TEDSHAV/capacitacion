@@ -52,6 +52,9 @@ interface AssignmentRow {
   } | null;
   days_since_end: number | null;
   is_stale: boolean;
+  participant_status?: "final" | "draft" | null;
+  participants_count?: number;
+  attachments_count?: number;
 }
 
 interface CredentialRow {
@@ -76,6 +79,7 @@ interface Stats {
   stale_count: number;
   total_credentials: number;
   active_credentials: number;
+  can_manage_uploads?: boolean;
 }
 
 type Tab = "activas" | "historico";
@@ -261,6 +265,7 @@ export default function AsignacionesCredencialesClient() {
           staleDays={staleDays}
           onStaleDaysChange={setStaleDays}
           onRefresh={handleRefresh}
+          canManageUploads={stats?.can_manage_uploads ?? false}
         />
       )}
 

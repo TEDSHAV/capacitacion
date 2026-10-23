@@ -850,7 +850,7 @@ export async function getAsignacionesPageData(staleDays = 30) {
     return { error: credError.message };
   }
 
-  // 3. Fetch OSI data for all referenced OSIs (single query)
+  // 3. Fetch OSI data, participant uploads, and attachment counts (in parallel)
   const osiIds = Array.from(new Set((assignments || []).map((a) => a.osi_id)));
   let osiMap = new Map<number, {
     id_osi: number;
@@ -862,20 +862,53 @@ export async function getAsignacionesPageData(staleDays = 30) {
     id_estatus: number | null;
   }>();
 
-  if (osiIds.length > 0) {
-    const { data: osiData, error: osiError } = await supabase
-      .from("v_osi_formato_completo")
-      .select("id_osi, nro_osi, nombre_empresa, servicio, fecha_fin_real, fecha_emision, id_estatus")
-      .in("id_osi", osiIds);
+  const participantInfoMap = new Map<string, { status: "final" | "draft"; count: number }>();
+  const attachmentCountMap = new Map<string, number>();
 
-    if (osiError) {
-      console.error("Error fetching OSI details for page data:", osiError);
-    } else {
-      osiMap = new Map((osiData || []).map((o) => [o.id_osi, o]));
-    }
+  const [osiDataRes, participantsRes, attachmentsRes, canManageUploads] = await Promise.all([
+    osiIds.length > 0
+      ? supabase
+          .from("v_osi_formato_completo")
+          .select("id_osi, nro_osi, nombre_empresa, servicio, fecha_fin_real, fecha_emision, id_estatus")
+          .in("id_osi", osiIds)
+      : Promise.resolve({ data: [], error: null }),
+    osiIds.length > 0
+      ? supabase
+          .from("ejecucion_osi_participantes")
+          .select("osi_id, facilitador_id, status")
+          .in("osi_id", osiIds)
+      : Promise.resolve({ data: [], error: null }),
+    osiIds.length > 0
+      ? supabase
+          .from("ejecucion_osi_asistencia")
+          .select("osi_id, facilitador_id")
+          .in("osi_id", osiIds)
+      : Promise.resolve({ data: [], error: null }),
+    checkCanResetOsiUploads(),
+  ]);
+
+  if (osiDataRes.error) {
+    console.error("Error fetching OSI details for page data:", osiDataRes.error);
+  } else {
+    osiMap = new Map((osiDataRes.data || []).map((o) => [o.id_osi, o]));
   }
 
-  // Enrich assignments with OSI data + stale computation
+  for (const p of participantsRes.data || []) {
+    const key = `${p.osi_id}_${p.facilitador_id}`;
+    const existing = participantInfoMap.get(key) || { status: "draft", count: 0 };
+    existing.count += 1;
+    if (p.status === "final") {
+      existing.status = "final";
+    }
+    participantInfoMap.set(key, existing);
+  }
+
+  for (const a of attachmentsRes.data || []) {
+    const key = `${a.osi_id}_${a.facilitador_id}`;
+    attachmentCountMap.set(key, (attachmentCountMap.get(key) || 0) + 1);
+  }
+
+  // Enrich assignments with OSI data + stale computation + upload status
   const now = Date.now();
   const enrichedAssignments = (assignments || []).map((a) => {
     const osi = osiMap.get(a.osi_id) || null;
@@ -885,11 +918,17 @@ export async function getAsignacionesPageData(staleDays = 30) {
       const diff = now - new Date(fechaFinReal).getTime();
       daysSinceEnd = Math.floor(diff / 86400000);
     }
+    const partInfo = participantInfoMap.get(`${a.osi_id}_${a.facilitador_id}`);
+    const attCount = attachmentCountMap.get(`${a.osi_id}_${a.facilitador_id}`) || 0;
+
     return {
       ...a,
       osi,
       days_since_end: daysSinceEnd,
       is_stale: daysSinceEnd != null && daysSinceEnd > staleDays,
+      participant_status: partInfo ? partInfo.status : null,
+      participants_count: partInfo ? partInfo.count : 0,
+      attachments_count: attCount,
     };
   });
 
@@ -910,6 +949,7 @@ export async function getAsignacionesPageData(staleDays = 30) {
         stale_count: staleCount,
         total_credentials: allCreds.length,
         active_credentials: activeCreds.length,
+        can_manage_uploads: canManageUploads.authorized,
       },
     },
   };
@@ -1043,5 +1083,259 @@ export async function getOsiSessionInfo(osiId: number): Promise<OsiSessionInfoRe
       sessions: [{ nro_sesion: 1, fecha: null, hora_inicio: null, hora_fin: null }],
     };
   }
+}
+
+/**
+ * Verifies if the current user has permission to reset or unlock facilitador uploads.
+ * Restricted to:
+ * 1. Admin or Superadmin (from JWT claims / user role)
+ * 2. TED members (departamento id 6, or departamento nombre containing TED / Tecnologia)
+ * 3. Coordinador de Capacitacion (departamentos.coordinador for Capacitacion, or
+ *    Capacitacion department member with cargo containing 'coordinador', or coordinador role in authprisma)
+ */
+export async function checkCanResetOsiUploads(): Promise<{ authorized: boolean; reason?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { authorized: false, reason: "No autenticado" };
+
+    // 1. Fast-path: Check JWT claims for admin/superadmin or department 6 (TED)
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const userRole =
+      ((claimsData?.claims as Record<string, unknown> | undefined)?.user_role as string) ??
+      ((claimsData?.claims?.app_metadata as Record<string, unknown> | undefined)?.role as string) ??
+      null;
+
+    if (userRole === "admin" || userRole === "superadmin") {
+      return { authorized: true };
+    }
+
+    const deptoClaim = (claimsData?.claims?.app_metadata as Record<string, unknown> | undefined)?.departamento;
+    if (typeof deptoClaim === "number" && deptoClaim === 6) {
+      return { authorized: true };
+    }
+
+    // 2. Query usuarios table with department join
+    const admin = await createAdminClient();
+    const { data: usuario } = await admin
+      .from("usuarios")
+      .select("id, cargo, departamento, departamentos!usuarios_departamento_fkey(id, nombre, coordinador)")
+      .eq("id_auth", user.id)
+      .maybeSingle();
+
+    if (!usuario) {
+      return { authorized: false, reason: "Usuario no registrado en la base de datos" };
+    }
+
+    const deptId = usuario.departamento || (usuario.departamentos as any)?.id;
+    const deptName = (usuario.departamentos as any)?.nombre || "";
+
+    // TED check: department id 6 or name matching TED / Tecnología
+    if (deptId === 6 || /ted|tecnolog/i.test(deptName)) {
+      return { authorized: true };
+    }
+
+    // Capacitación Coordinador check:
+    // a) Is user the designated coordinador in departamentos table for Capacitación?
+    const { data: capDept } = await admin
+      .from("departamentos")
+      .select("id, nombre, coordinador")
+      .ilike("nombre", "%capacitaci%")
+      .maybeSingle();
+
+    if (capDept && capDept.coordinador === usuario.id) {
+      return { authorized: true };
+    }
+
+    // b) Does user belong to Capacitación and have cargo containing "coordinador"?
+    const isCapacitacion = deptId === 3 || /capacitaci/i.test(deptName);
+    const isCoordinadorCargo = /coordinador/i.test(usuario.cargo || "");
+    if (isCapacitacion && isCoordinadorCargo) {
+      return { authorized: true };
+    }
+
+    // c) Check user roles in authprisma for scapacitacion
+    const { data: appRoles } = await supabase
+      .schema("authprisma")
+      .from("user_app_roles")
+      .select("apps!inner(slug), roles!inner(slug)")
+      .eq("id_usuario", usuario.id);
+
+    if (Array.isArray(appRoles)) {
+      const hasCapRole = appRoles.some((r: any) =>
+        r.apps?.slug === "scapacitacion" &&
+        (r.roles?.slug === "admin" || r.roles?.slug === "superadmin" || r.roles?.slug === "coordinador")
+      );
+      if (hasCapRole) return { authorized: true };
+    }
+
+    return { authorized: false, reason: "Solo usuarios de TED o el Coordinador de Capacitación tienen permisos para esta acción" };
+  } catch (err) {
+    console.error("[checkCanResetOsiUploads] Error checking permissions:", err);
+    return { authorized: false, reason: "Error al verificar permisos" };
+  }
+}
+
+/**
+ * Returns count of certificates already generated for an OSI.
+ */
+export async function getOsiCertificatesCount(osiId: number, nroOsi?: string | number): Promise<number> {
+  const supabase = await createAdminClient();
+  let query = supabase.from("certificados").select("id", { count: "exact", head: true });
+
+  if (nroOsi) {
+    const num = typeof nroOsi === "number" ? nroOsi : parseInt(String(nroOsi).replace(/\D/g, ""), 10);
+    if (!isNaN(num)) {
+      query = query.or(`id_osi.eq.${osiId},nro_osi.eq.${num}`);
+    } else {
+      query = query.eq("id_osi", osiId);
+    }
+  } else {
+    query = query.eq("id_osi", osiId);
+  }
+
+  const { count, error } = await query;
+  if (error) {
+    console.error("Error checking certificates count:", error);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+/**
+ * Option A: Reopen an OSI for editing (remove final block).
+ * Keeps uploaded participants and support files, but reverts participant status to 'draft'
+ * and removes acknowledgment, so the facilitator can edit and resend.
+ */
+export async function reopenFacilitadorOSI(osiId: number, facilitadorId: number) {
+  const authCheck = await checkCanResetOsiUploads();
+  if (!authCheck.authorized) {
+    return { error: authCheck.reason || "No autorizado" };
+  }
+
+  const supabase = await createAdminClient();
+
+  // 1. Update participants to draft
+  const { error: partErr } = await supabase
+    .from("ejecucion_osi_participantes")
+    .update({ status: "draft" })
+    .eq("osi_id", osiId)
+    .eq("facilitador_id", facilitadorId);
+
+  if (partErr) {
+    console.error("[reopenFacilitadorOSI] Error updating participants:", partErr);
+    return { error: partErr.message };
+  }
+
+  // 2. Delete acknowledgment so facilitator must re-confirm upon submission
+  await supabase
+    .from("facilitador_acknowledgments")
+    .delete()
+    .eq("osi_id", osiId)
+    .eq("facilitador_id", facilitadorId);
+
+  revalidatePath("/dashboard/capacitacion/gestion-asignaciones");
+  revalidatePath(`/portal/facilitador/osi/${osiId}`);
+  revalidatePath("/portal/facilitador/dashboard");
+  revalidatePath("/dashboard/capacitacion/auditoria-soportes");
+  revalidatePath("/dashboard/capacitacion/seguimiento-servicios");
+
+  return { success: true, message: "El servicio fue reabierto exitosamente. El facilitador ya puede editar los participantes y documentos en su portal." };
+}
+
+/**
+ * Option B: Full reset of facilitator uploads for an OSI.
+ * Deletes participants, attachments, storage files, acknowledgment, and resets process steps.
+ */
+export async function resetFacilitadorOSI(
+  osiId: number,
+  facilitadorId: number,
+  force = false,
+  nroOsi?: string | number,
+) {
+  const authCheck = await checkCanResetOsiUploads();
+  if (!authCheck.authorized) {
+    return { error: authCheck.reason || "No autorizado" };
+  }
+
+  const supabase = await createAdminClient();
+
+  // Check certificates if not forced
+  if (!force) {
+    const certCount = await getOsiCertificatesCount(osiId, nroOsi);
+    if (certCount > 0) {
+      return {
+        error: "EXISTING_CERTIFICATES",
+        certCount,
+        message: `Existen ${certCount} certificado(s) emitidos para esta OSI. Confirma que deseas reiniciar la carga a pesar de ello.`,
+      };
+    }
+  }
+
+  // 1. Delete participants
+  const { error: partErr } = await supabase
+    .from("ejecucion_osi_participantes")
+    .delete()
+    .eq("osi_id", osiId)
+    .eq("facilitador_id", facilitadorId);
+
+  if (partErr) {
+    console.error("[resetFacilitadorOSI] Error deleting participants:", partErr);
+    return { error: partErr.message };
+  }
+
+  // 2. Delete acknowledgment
+  await supabase
+    .from("facilitador_acknowledgments")
+    .delete()
+    .eq("osi_id", osiId)
+    .eq("facilitador_id", facilitadorId);
+
+  // 3. Delete attachments in Storage bucket
+  const { data: attachments } = await supabase
+    .from("ejecucion_osi_asistencia")
+    .select("storage_path")
+    .eq("osi_id", osiId)
+    .eq("facilitador_id", facilitadorId);
+
+  const storagePaths = (attachments || []).map((a) => a.storage_path).filter(Boolean);
+  if (storagePaths.length > 0) {
+    const { error: storageErr } = await supabase.storage
+      .from("facilitador-uploads")
+      .remove(storagePaths);
+    if (storageErr) {
+      console.warn("[resetFacilitadorOSI] Warning removing files from storage:", storageErr);
+    }
+  }
+
+  // 4. Delete attachment records in DB
+  await supabase
+    .from("ejecucion_osi_asistencia")
+    .delete()
+    .eq("osi_id", osiId)
+    .eq("facilitador_id", facilitadorId);
+
+  // 5. Reset execution process steps for this OSI
+  await supabase
+    .from("capacitacion_proceso_steps")
+    .update({ completed: false, completed_at: null, completed_by: null })
+    .eq("osi_id", osiId)
+    .eq("phase", "ejecucion")
+    .in("step_key", ["lista_asistencia", "calificacion", "material_fotografico", "en_proceso"]);
+
+  // 6. Reset attachment_received flag on the assignment
+  await supabase
+    .from("facilitador_osi_assignments")
+    .update({ attachment_received: false, updated_at: new Date().toISOString() })
+    .eq("osi_id", osiId)
+    .eq("facilitador_id", facilitadorId);
+
+  revalidatePath("/dashboard/capacitacion/gestion-asignaciones");
+  revalidatePath(`/portal/facilitador/osi/${osiId}`);
+  revalidatePath("/portal/facilitador/dashboard");
+  revalidatePath("/dashboard/capacitacion/auditoria-soportes");
+  revalidatePath("/dashboard/capacitacion/seguimiento-servicios");
+
+  return { success: true, message: "La carga del servicio fue reiniciada por completo. El facilitador podrá cargar todo desde cero." };
 }
 

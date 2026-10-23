@@ -11,12 +11,14 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  RotateCcw,
 } from "lucide-react";
 import {
   unassignOSIToFacilitador,
   bulkUnassignAssignments,
 } from "@/app/actions/osi-facilitador-assignments";
 import { toTitleCase } from "@/utils/string-utils";
+import ManageUploadModal from "./ManageUploadModal";
 
 interface AssignmentRow {
   id: number;
@@ -46,6 +48,9 @@ interface AssignmentRow {
   } | null;
   days_since_end: number | null;
   is_stale: boolean;
+  participant_status?: "final" | "draft" | null;
+  participants_count?: number;
+  attachments_count?: number;
 }
 
 interface AssignmentsTableProps {
@@ -54,6 +59,7 @@ interface AssignmentsTableProps {
   staleDays: number;
   onStaleDaysChange: (n: number) => void;
   onRefresh: () => void;
+  canManageUploads?: boolean;
 }
 
 const ITEMS_PER_PAGE = 25;
@@ -64,6 +70,7 @@ export default function AssignmentsTable({
   staleDays,
   onStaleDaysChange,
   onRefresh,
+  canManageUploads = false,
 }: AssignmentsTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [showOnlyStale, setShowOnlyStale] = useState(false);
@@ -72,6 +79,7 @@ export default function AssignmentsTable({
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [manageAssignment, setManageAssignment] = useState<AssignmentRow | null>(null);
 
   const filtered = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
@@ -312,6 +320,7 @@ export default function AssignmentsTable({
               <Th>Facilitador</Th>
               <Th>OSI</Th>
               <Th>Sesión</Th>
+              <Th>Estado Carga</Th>
               <Th>Asignado el</Th>
               {isActiveView ? (
                 <Th>Días desde fin</Th>
@@ -375,6 +384,33 @@ export default function AssignmentsTable({
                       </span>
                     )}
                   </td>
+                  {/* Estado Carga */}
+                  <td className="px-4 py-3">
+                    {a.participant_status === "final" ? (
+                      <span
+                        className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full"
+                        title={`${a.participants_count || 0} participantes finalizados`}
+                      >
+                        ✓ Finalizado
+                      </span>
+                    ) : a.participant_status === "draft" ? (
+                      <span
+                        className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full"
+                        title={`${a.participants_count || 0} participantes en borrador`}
+                      >
+                        ✎ Borrador
+                      </span>
+                    ) : a.attachments_count && a.attachments_count > 0 ? (
+                      <span
+                        className="inline-flex items-center gap-1 text-[11px] font-medium bg-sky-50 text-sky-700 border border-sky-200 px-2 py-0.5 rounded-full"
+                        title={`${a.attachments_count} archivo(s) adjunto(s)`}
+                      >
+                        📎 Soportes ({a.attachments_count})
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </td>
                   {/* Asignado el */}
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {formatDate(a.created_at)}
@@ -405,11 +441,20 @@ export default function AssignmentsTable({
                   {/* Acciones */}
                   {isActiveView && (
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        {canManageUploads && (
+                          <button
+                            onClick={() => setManageAssignment(a)}
+                            className="text-sky-600 hover:text-sky-800 p-1.5 rounded-md hover:bg-sky-50 transition-colors cursor-pointer"
+                            title="Gestionar o reiniciar carga del facilitador (TED / Coordinación)"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleSingleUnassign(a.id)}
                           disabled={actionLoading}
-                          className="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50"
+                          className="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
                           title="Desasignar OSI"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -430,6 +475,18 @@ export default function AssignmentsTable({
           </tbody>
         </table>
       </div>
+
+      {/* Manage Facilitador Upload Modal */}
+      <ManageUploadModal
+        isOpen={manageAssignment !== null}
+        onClose={() => setManageAssignment(null)}
+        assignment={manageAssignment}
+        onSuccess={() => {
+          onRefresh();
+          setActionSuccess("Carga del facilitador actualizada exitosamente");
+          setTimeout(() => setActionSuccess(null), 3500);
+        }}
+      />
 
       {/* Pagination */}
       {filtered.length > ITEMS_PER_PAGE && (
