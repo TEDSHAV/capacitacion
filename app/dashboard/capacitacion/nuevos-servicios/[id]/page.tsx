@@ -1,80 +1,19 @@
-import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import { createClient } from "@/utils/supabase/server";
-import {
-  getDisenoServicioById,
-  getCurrentUserForDiseno,
-} from "@/app/actions/diseno-servicio";
-import { Suspense } from "react";
-import DisenoServicioWizard from "./components/DisenoServicioWizard";
-
-export const dynamic = "force-dynamic";
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const solicitud = await getDisenoServicioById(parseInt(id));
-  return {
-    title: solicitud
-      ? `${solicitud.nombre_sugerido} | Nuevos Servicios | Capacitación`
-      : "Nuevos Servicios | Capacitación",
-  };
-}
+import ShellRedirectBridge from "../ShellRedirectBridge";
 
 export default async function DisenoServicioWizardPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    redirect(`${process.env.NEXT_PUBLIC_SHELL_URL || ""}/auth/login`);
-  }
-
   const { id } = await params;
-  const [solicitud, userData] = await Promise.all([
-    getDisenoServicioById(parseInt(id)),
-    getCurrentUserForDiseno(),
-  ]);
-
-  if (!solicitud) {
-    notFound();
-  }
-
-  // Guard: Scope to Capacitación (cap)
-  const tipoNaturaleza =
-    (solicitud.bloque_recursos_requisitos as any)?.tipo_naturaleza_servicio ?? null;
-  if (tipoNaturaleza !== "cap") {
-    notFound();
-  }
+  const shellUrl = process.env.NEXT_PUBLIC_SHELL_URL || "";
+  const target = `${shellUrl}/nuevo-servicio/${id}`;
 
   return (
-    <div className="p-4 sm:p-8">
-      <div className="mb-6 flex items-center gap-4 max-w-5xl mx-auto">
-        <Link href="/dashboard/capacitacion/nuevos-servicios">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {solicitud.nombre_sugerido}
-          </h1>
-          <p className="text-sm text-gray-600">
-            Nuevos Servicios · {solicitud.estatus_nombre || "Pendiente"}
-          </p>
-        </div>
-      </div>
-
-      <Suspense fallback={<div className="text-center py-12 text-sm text-gray-500">Cargando formulario...</div>}>
-        <DisenoServicioWizard solicitud={solicitud} userData={userData} />
-      </Suspense>
-    </div>
+    <ShellRedirectBridge
+      targetPath={target}
+      title={`Diseño de Servicio #${id}`}
+      subtitle="El formulario interactivo y la generación de Ficha Técnica oficial (FT-CO-XXX) se encuentran disponibles en la plataforma central de PRISMA."
+    />
   );
 }
