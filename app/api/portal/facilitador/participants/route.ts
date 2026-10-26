@@ -3,6 +3,8 @@ import { getFacilitadorSessionFromRequest } from "@/utils/api-auth";
 import { createAdminClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { notifyCapacitacionUsersOfUpload } from "@/app/actions/facilitador-notifications";
+import { getOsiSessionInfo } from "@/app/actions/osi-facilitador-assignments";
+import { getSessionCount } from "@/lib/osi-utils";
 
 interface SaveParticipantsBody {
   osiId: number;
@@ -105,9 +107,62 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Fetch active assignments for this facilitador
+    const { data: assignments } = await supabase
+      .from("facilitador_osi_assignments")
+      .select("nro_sesion")
+      .eq("osi_id", osiId)
+      .eq("facilitador_id", facilitadorId)
+      .eq("is_active", true);
+
+    const sessionInfo = await getOsiSessionInfo(osiId);
+
+    const { data: osiRow } = await supabase
+      .from("v_osi_formato_completo")
+      .select("id_servicio, servicio, desglose_recursos_sesiones, sesiones_programadas, sesiones_solped, sesiones_ejecucion")
+      .eq("id_osi", osiId)
+      .maybeSingle();
+
+    const specificSessions = (assignments || [])
+      .map((a) => a.nro_sesion)
+      .filter((n): n is number => n !== null);
+
+    const totalSessions = Math.max(
+      sessionInfo.totalCount,
+      getSessionCount(osiRow || {}),
+      ...specificSessions
+    );
+
+    const hasAllSessions =
+      !assignments ||
+      assignments.length === 0 ||
+      assignments.some((a) => a.nro_sesion === null);
+
+    let targetSessions: number[] = [];
+    if (hasAllSessions) {
+      targetSessions = Array.from({ length: Math.max(1, totalSessions) }, (_, i) => i + 1);
+    } else if (specificSessions.length > 0) {
+      targetSessions = [...new Set(specificSessions)].sort((a, b) => a - b);
+    } else {
+      targetSessions = Array.from({ length: Math.max(1, totalSessions) }, (_, i) => i + 1);
+    }
+
+    // Check if course requires passing grade
+    let isParticipationOnly = false;
+    if (osiRow?.id_servicio) {
+      const { data: curso } = await supabase
+        .from("catalogo_servicios")
+        .select("nota_aprobatoria")
+        .eq("id", osiRow.id_servicio)
+        .maybeSingle();
+      if (curso && curso.nota_aprobatoria === 0) {
+        isParticipationOnly = true;
+      }
+    }
+
     const { data: attachments, error: attError } = await supabase
       .from("ejecucion_osi_asistencia")
-      .select("category")
+      .select("category, nro_sesion")
       .eq("osi_id", osiId)
       .eq("facilitador_id", facilitadorId);
 
@@ -116,27 +171,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Error al verificar los soportes adjuntos del servicio." }, { status: 500 });
     }
 
-    const categories = new Set((attachments || []).map((a) => a.category));
+    const attList = attachments || [];
 
-    if (!categories.has("lista_asistencia")) {
-      return NextResponse.json(
-        { error: "Es obligatorio adjuntar la lista de asistencia física firmada antes de finalizar." },
-        { status: 400 },
-      );
-    }
+    for (const ses of targetSessions) {
+      const forSes =
+        targetSessions.length > 1
+          ? attList.filter((a) => a.nro_sesion === ses)
+          : attList.filter((a) => a.nro_sesion === ses || a.nro_sesion == null);
+      const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
+      const hasCalif = isParticipationOnly || forSes.some((a) => a.category === "hoja_calificacion");
+      const hasFotos = forSes.some((a) => a.category === "material_fotografico");
 
-    if (!categories.has("hoja_calificacion")) {
-      return NextResponse.json(
-        { error: "Es obligatorio adjuntar la hoja de calificación física firmada antes de finalizar." },
-        { status: 400 },
-      );
-    }
-
-    if (!categories.has("material_fotografico")) {
-      return NextResponse.json(
-        { error: "Es obligatorio adjuntar al menos una foto de la actividad como soporte de ejecución." },
-        { status: 400 },
-      );
+      if (!hasAsist) {
+        return NextResponse.json(
+          { error: `Falta adjuntar la lista de asistencia física firmada para la Sesión ${ses}. No puedes finalizar hasta que todas las sesiones tengan soportes.` },
+          { status: 400 },
+        );
+      }
+      if (!hasCalif) {
+        return NextResponse.json(
+          { error: `Falta adjuntar la hoja de calificación física firmada para la Sesión ${ses}. No puedes finalizar hasta que todas las sesiones tengan soportes.` },
+          { status: 400 },
+        );
+      }
+      if (!hasFotos) {
+        return NextResponse.json(
+          { error: `Falta adjuntar al menos una foto de soporte para la Sesión ${ses}. No puedes finalizar hasta que todas las sesiones tengan soportes.` },
+          { status: 400 },
+        );
+      }
     }
   }
 
@@ -178,6 +241,14 @@ export async function POST(request: NextRequest) {
 
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
+  }
+
+  if (status === "draft") {
+    await supabase
+      .from("facilitador_acknowledgments")
+      .delete()
+      .eq("osi_id", osiId)
+      .eq("facilitador_id", facilitadorId);
   }
 
   // Save acknowledgment audit record on final submission

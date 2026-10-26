@@ -215,7 +215,7 @@ export const ParticipantForm = ({
     if (assignedSession !== null) {
       return [assignedSession];
     }
-    if (hasAllSessionsAssignment && assignedSessions.length === 0) {
+    if (hasAllSessionsAssignment) {
       return Array.from({ length: sessionCount }, (_, i) => i + 1);
     }
     if (assignedSessions.length > 0) {
@@ -236,13 +236,16 @@ export const ParticipantForm = ({
 
   const getSessionStats = useCallback(
     (n: number) => {
-      const forSes = allAttachments.filter((a) => a.nro_sesion === n || a.nro_sesion == null);
+      const forSes =
+        selectableSessionsList.length > 1
+          ? allAttachments.filter((a) => a.nro_sesion === n)
+          : allAttachments.filter((a) => a.nro_sesion === n || a.nro_sesion == null);
       const asist = forSes.filter((a) => a.category === "lista_asistencia").length;
       const calif = forSes.filter((a) => a.category === "hoja_calificacion").length;
       const fotos = forSes.filter((a) => a.category === "material_fotografico").length;
       return { asist, calif, fotos, total: forSes.length };
     },
-    [allAttachments],
+    [allAttachments, selectableSessionsList],
   );
 
   const renderSessionHeader = (categoryLabel: string) => {
@@ -395,10 +398,30 @@ export const ParticipantForm = ({
     return isNaN(num) || num < 0 || num > 20;
   });
 
-  // Prerequisites helpers for finalizing service
-  const hasCompletedAttendance = attendanceCount > 0;
-  const hasCompletedGradeSheet = gradeSheetCount > 0;
-  const hasCompletedPhotos = photoCount > 0;
+  // Check which sessions are missing required attachments
+  const sessionsMissingAttachments = useMemo(() => {
+    return selectableSessionsList.filter((n) => {
+      const stats = getSessionStats(n);
+      const hasAsist = stats.asist > 0;
+      const hasCalif = isParticipationOnly ? true : stats.calif > 0;
+      const hasFotos = stats.fotos > 0;
+      return !hasAsist || !hasCalif || !hasFotos;
+    });
+  }, [selectableSessionsList, getSessionStats, isParticipationOnly]);
+
+  const hasCompletedAllSessions = sessionsMissingAttachments.length === 0;
+
+  // Prerequisites helpers for finalizing service (must cover ALL assigned sessions)
+  const hasCompletedAttendance =
+    selectableSessionsList.length > 0 &&
+    selectableSessionsList.every((n) => getSessionStats(n).asist > 0);
+  const hasCompletedGradeSheet =
+    isParticipationOnly ||
+    (selectableSessionsList.length > 0 &&
+      selectableSessionsList.every((n) => getSessionStats(n).calif > 0));
+  const hasCompletedPhotos =
+    selectableSessionsList.length > 0 &&
+    selectableSessionsList.every((n) => getSessionStats(n).fotos > 0);
   const hasCompletedParticipants =
     hasValidParticipants &&
     sinNotaCount === 0 &&
@@ -407,9 +430,7 @@ export const ParticipantForm = ({
 
   const canFinalize =
     hasAcknowledged &&
-    hasCompletedAttendance &&
-    hasCompletedGradeSheet &&
-    hasCompletedPhotos &&
+    hasCompletedAllSessions &&
     hasCompletedParticipants;
 
   // Step completion status for indicators
@@ -685,6 +706,31 @@ export const ParticipantForm = ({
 
   const handleSave = async (status: "draft" | "final" = "draft") => {
     if (status === "final") {
+      if (!hasCompletedAllSessions) {
+        const missingDetails = sessionsMissingAttachments
+          .map((s) => {
+            const stats = getSessionStats(s);
+            const missing: string[] = [];
+            if (stats.asist === 0) missing.push("Lista de Asistencia");
+            if (!isParticipationOnly && stats.calif === 0) missing.push("Hoja de Calificación");
+            if (stats.fotos === 0) missing.push("Registro Fotográfico");
+            return `Sesión ${s}: ${missing.join(", ")}`;
+          })
+          .join("; ");
+
+        setError(
+          `No es posible finalizar el servicio. Faltan soportes obligatorios en: ${missingDetails}. Hasta completar todas las sesiones solo puedes usar 'Guardar borrador'.`
+        );
+        goToStep(
+          !hasCompletedAttendance
+            ? "asistencia"
+            : !hasCompletedGradeSheet
+            ? "calificacion"
+            : "evidencias"
+        );
+        return;
+      }
+
       if (!hasCompletedAttendance) {
         setError("Debes cargar la foto o archivo de la lista de asistencia física firmada.");
         goToStep("asistencia");
@@ -1802,16 +1848,51 @@ export const ParticipantForm = ({
 
 
 
+            {/* Pending Sessions Warning Card */}
+            {!hasCompletedAllSessions && selectableSessionsList.length > 1 && (
+              <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-950 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-amber-900">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                  <span>Soportes pendientes en {sessionsMissingAttachments.length} de {selectableSessionsList.length} sesiones asignadas</span>
+                </div>
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  Para finalizar oficialmente el servicio debes cargar todos los soportes (asistencia, calificaciones y fotos) de cada una de las sesiones. Mientras tanto, puedes resguardar tu avance utilizando <strong>&quot;Guardar borrador&quot;</strong>.
+                </p>
+                <div className="pt-1 flex flex-wrap gap-2 text-xs">
+                  {sessionsMissingAttachments.map((s) => {
+                    const stats = getSessionStats(s);
+                    const missing: string[] = [];
+                    if (stats.asist === 0) missing.push("Asistencia");
+                    if (!isParticipationOnly && stats.calif === 0) missing.push("Calificación");
+                    if (stats.fotos === 0) missing.push("Fotos");
+                    return (
+                      <span
+                        key={s}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-amber-300 font-semibold text-amber-900"
+                      >
+                        ⚠️ <strong>Sesión {s}:</strong> Falta {missing.join(", ")}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Submission Actions */}
             <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                {!hasCompletedAttendance ? (
+                {!hasCompletedAllSessions ? (
+                  <p className="text-xs text-amber-700 font-medium flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                    <span>Faltan soportes en {sessionsMissingAttachments.map((s) => `Sesión ${s}`).join(", ")}. Solo puedes guardar borrador.</span>
+                  </p>
+                ) : !hasCompletedAttendance ? (
                   <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Falta cargar la lista de asistencia física en el Paso {hasMaterial ? "2" : "1"}.
+                    ⚠️ Falta cargar la lista de asistencia física{selectableSessionsList.length > 1 ? " en todas las sesiones asignadas" : ""}.
                   </p>
                 ) : !hasCompletedGradeSheet ? (
                   <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Falta cargar la hoja de calificación física firmada en el Paso {hasMaterial ? "3" : "2"}.
+                    ⚠️ Falta cargar la hoja de calificación física firmada{selectableSessionsList.length > 1 ? " en todas las sesiones asignadas" : ""}.
                   </p>
                 ) : !hasCompletedParticipants ? (
                   <p className="text-xs text-amber-600 font-medium">
@@ -1819,7 +1900,7 @@ export const ParticipantForm = ({
                   </p>
                 ) : !hasCompletedPhotos ? (
                   <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Falta cargar fotos de la actividad como soporte de ejecución.
+                    ⚠️ Falta cargar fotos de la actividad{selectableSessionsList.length > 1 ? " en todas las sesiones asignadas" : ""}.
                   </p>
                 ) : !hasAcknowledged ? (
                   <p className="text-xs text-amber-600 font-medium">

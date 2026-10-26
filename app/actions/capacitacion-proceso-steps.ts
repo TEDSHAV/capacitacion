@@ -413,46 +413,8 @@ export async function toggleProcesoStep(
       }
     }
 
-    // If the step is an attachment step and the facilitator is assigned to all sessions, propagate across all sessions
-    const ATTACHMENT_STEP_KEYS = ["lista_asistencia", "calificacion", "material_fotografico"];
-    if (ATTACHMENT_STEP_KEYS.includes(stepKey)) {
-      const { data: allSesAssignment } = await supabase
-        .from("facilitador_osi_assignments")
-        .select("id")
-        .eq("osi_id", osiId)
-        .eq("is_active", true)
-        .is("nro_sesion", null)
-        .limit(1);
-
-      if (allSesAssignment && allSesAssignment.length > 0) {
-        const { data: allSessions } = await supabase
-          .from("osi_sesion")
-          .select("nro_sesion")
-          .eq("id_osi", osiId);
-
-        for (const s of allSessions || []) {
-          if (s.nro_sesion !== nroSesion) {
-            await ensureProcesoStepsExist(osiId, phase, s.nro_sesion);
-            await supabase
-              .from("capacitacion_proceso_steps")
-              .upsert(
-                {
-                  osi_id: osiId,
-                  nro_sesion: s.nro_sesion,
-                  phase,
-                  step_key: stepKey,
-                  completed: newCompleted,
-                  completed_at: newCompleted ? now : null,
-                  completed_by: newCompleted ? userId : null,
-                  notes: finalNotes,
-                  step_metadata: finalMetadata,
-                },
-                { onConflict: "osi_id,nro_sesion,phase,step_key" },
-              );
-          }
-        }
-      }
-    }
+    // Attachment steps (lista_asistencia, calificacion, material_fotografico) are session-specific.
+    // Each session must have its own physical evidence uploaded, so we do NOT propagate them across sessions.
 
     // Sync `en_proceso` step (En proceso/Ejecutado) to the shell's OSI status tables
     // (best-effort). Marking = EJECUTADO, unmarking = NO_EJECUTADA. The sync resolves

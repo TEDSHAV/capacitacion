@@ -97,8 +97,35 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
 
   const needsSessionPicker = assignedSession === null;
 
-  // Determine if list has been finalized/sent
-  const isFinal = (participants.data || []).some((p: any) => p.status === "final");
+  // Verify whether all assigned sessions actually have attachments
+  const { data: attachments } = await supabase
+    .from("ejecucion_osi_asistencia")
+    .select("category, nro_sesion")
+    .eq("osi_id", osiId)
+    .eq("facilitador_id", session.facilitador_id);
+
+  const relevantSessionNums =
+    specificSessions.length > 0 && !hasAllSessionsAssignment
+      ? specificSessions
+      : Array.from({ length: sessionCount }, (_, i) => i + 1);
+
+  const allAssignedSessionsHaveAttachments =
+    relevantSessionNums.length === 0 ||
+    relevantSessionNums.every((ses) => {
+      const forSes =
+        relevantSessionNums.length > 1
+          ? (attachments || []).filter((a) => a.nro_sesion === ses)
+          : (attachments || []).filter((a) => a.nro_sesion === ses || a.nro_sesion == null);
+      const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
+      const hasCalif = (notaAprobatoria === 0) || forSes.some((a) => a.category === "hoja_calificacion");
+      const hasFotos = forSes.some((a) => a.category === "material_fotografico");
+      return hasAsist && hasCalif && hasFotos;
+    });
+
+  // Determine if list has been finalized/sent AND all assigned sessions have attachments
+  const isFinal =
+    (participants.data || []).some((p: any) => p.status === "final") &&
+    allAssignedSessionsHaveAttachments;
 
   return (
     <div className="max-w-7xl mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8 space-y-6">

@@ -46,6 +46,9 @@ interface OSIItem {
   display_date?: string | null;
   display_date_label?: string | null;
   display_date_type?: "single" | "next_pending" | "last_executed" | "fallback";
+  all_sessions_completed?: boolean;
+  completed_sessions_count?: number;
+  total_sessions_count?: number;
 }
 
 interface FacilitadorDashboardClientProps {
@@ -71,10 +74,18 @@ export default function FacilitadorDashboardClient({
   const rating = facilitador?.rating ?? facilitador?.calificacion ?? null;
   const reviewCount = facilitador?.review_count ?? 0;
   const effectiveFacilitadorId = facilitadorId ?? facilitador?.id;
+
+  const isOsiDone = (osi: OSIItem) => {
+    const allSessionsDone =
+      osi.all_sessions_completed !== false &&
+      (osi.total_sessions_count === undefined || (osi.completed_sessions_count ?? 0) >= osi.total_sessions_count);
+    return osi.participant_status === "final" && allSessionsDone;
+  };
+
   const stats = initialData?.stats || {
     totalServicios: osis.length,
-    totalFinalizados: osis.filter((o) => o.participant_status === "final").length,
-    totalPendientes: osis.filter((o) => o.participant_status !== "final").length,
+    totalFinalizados: osis.filter(isOsiDone).length,
+    totalPendientes: osis.filter((o) => !isOsiDone(o)).length,
     totalEmpresas: new Set(osis.map((o) => o.nombre_empresa)).size,
     totalHoras: osis.length * 8,
     cursosUnicos: new Set(osis.map((o) => o.servicio)).size,
@@ -82,15 +93,16 @@ export default function FacilitadorDashboardClient({
 
   // Metrics calculation
   const totalCount = osis.length;
-  const finalizadosCount = osis.filter((o) => o.participant_status === "final").length;
+  const finalizadosCount = osis.filter(isOsiDone).length;
   const pendientesCount = totalCount - finalizadosCount;
 
   // Filtered active OSIs list
   const filteredOSIs = useMemo(() => {
     return osis.filter((osi) => {
+      const isDone = isOsiDone(osi);
       // Tab filter
-      if (filterTab === "pendientes" && osi.participant_status === "final") return false;
-      if (filterTab === "finalizados" && osi.participant_status !== "final") return false;
+      if (filterTab === "pendientes" && isDone) return false;
+      if (filterTab === "finalizados" && !isDone) return false;
 
       // Search query
       if (searchTerm.trim()) {
@@ -379,7 +391,8 @@ export default function FacilitadorDashboardClient({
                   (Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[0]?.fecha) ||
                   osi.fecha_emision;
                 const dateInfo = formatDateDayMonth(effectiveDate);
-                const isFinal = osi.participant_status === "final";
+                const isFinal = osi.participant_status === "final" && osi.all_sessions_completed !== false;
+                const hasPendingSessions = osi.participant_status === "final" && osi.all_sessions_completed === false;
 
                 return (
                   <Link
@@ -497,7 +510,12 @@ export default function FacilitadorDashboardClient({
                             {isFinal ? (
                               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                Listado Enviado
+                                Servicio Finalizado
+                              </span>
+                            ) : hasPendingSessions ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                Sesión pendiente ({osi.completed_sessions_count ?? 1}/{osi.total_sessions_count ?? 2})
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
@@ -521,7 +539,12 @@ export default function FacilitadorDashboardClient({
                           {isFinal ? (
                             <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                              <span>Listado Enviado</span>
+                              <span>Servicio Finalizado</span>
+                            </div>
+                          ) : hasPendingSessions ? (
+                            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                              <Clock className="w-4 h-4 text-amber-600" />
+                              <span>Sesión pendiente ({osi.completed_sessions_count ?? 1}/{osi.total_sessions_count ?? 2})</span>
                             </div>
                           ) : (
                             <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
