@@ -752,6 +752,16 @@ export async function validarTokenPostulacion(token: string): Promise<PublicToke
       if (match) tituloCampana = match[1];
     }
 
+    // 1. Check if an individual single-use token was already completed/submitted
+    if (!isCampana && data.used_at) {
+      return {
+        valid: false,
+        error: "used",
+        errorMessage: "Este enlace de postulación ya fue completado y utilizado anteriormente.",
+      };
+    }
+
+    // 2. Check if manually deactivated or revoked by an administrator
     if (!data.is_active) {
       return {
         valid: false,
@@ -762,6 +772,7 @@ export async function validarTokenPostulacion(token: string): Promise<PublicToke
       };
     }
 
+    // 3. Check if expiration timestamp has passed
     const now = new Date();
     const expiresAt = new Date(data.expires_at);
     if (expiresAt < now) {
@@ -771,15 +782,6 @@ export async function validarTokenPostulacion(token: string): Promise<PublicToke
         errorMessage: isCampana
           ? "El plazo para postularse en esta convocatoria ha expirado."
           : "Este enlace de postulación ha expirado. Por favor solicita uno nuevo al equipo de Capacitación.",
-      };
-    }
-
-    // Only block single-use individual tokens by used_at
-    if (!isCampana && data.used_at) {
-      return {
-        valid: false,
-        error: "used",
-        errorMessage: "Este enlace de postulación ya fue completado y utilizado anteriormente.",
       };
     }
 

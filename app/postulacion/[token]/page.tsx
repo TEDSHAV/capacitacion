@@ -38,6 +38,12 @@ export default async function PostulacionPublicPage({ params }: PageProps) {
             </div>
 
             <div className="space-y-3">
+              <div className="flex justify-center">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Formulario ya completado y recibido
+                </span>
+              </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
                 ¡Postulación Enviada con Éxito!
               </h1>
