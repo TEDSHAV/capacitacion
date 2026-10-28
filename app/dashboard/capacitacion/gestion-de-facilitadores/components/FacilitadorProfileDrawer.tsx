@@ -7,6 +7,7 @@ import { getFacilitadorHistory } from "@/app/actions/osi-facilitador-assignments
 import type { FacilitadorHistoryEntry } from "@/types";
 import { toTitleCase, formatAcademicTitle } from "@/utils/string-utils";
 import { useRouter } from "next/navigation";
+import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 import {
   X,
   Star,
@@ -75,6 +76,7 @@ export function FacilitadorProfileDrawer({
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [prevFacilitadorId, setPrevFacilitadorId] = useState<number | null>(null);
+  const [previewOsi, setPreviewOsi] = useState<{ id: number; nroOsi?: string } | null>(null);
 
   // Sync state cleanly when facilitador changes without useEffect setState cascading renders
   if (facilitador && facilitador.id !== prevFacilitadorId) {
@@ -432,16 +434,14 @@ export function FacilitadorProfileDrawer({
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <a
-                                  href={`/dashboard/capacitacion/gestion-osi?id=${row.osi_id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 font-bold text-xs text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200 transition-colors"
-                                  title="Abrir OSI en nueva pestaña"
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewOsi({ id: row.osi_id, nroOsi: row.nro_osi ?? undefined })}
+                                  className="inline-flex items-center gap-1 font-bold text-xs text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200 transition-colors cursor-pointer"
+                                  title="Ver formato oficial de la OSI"
                                 >
                                   {row.nro_osi || `OSI #${row.osi_id}`}
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
+                                </button>
 
                                 {row.source === "requisicion" && (
                                   <span
@@ -803,6 +803,13 @@ export function FacilitadorProfileDrawer({
           )}
         </div>
       </div>
+
+      <OsiPreviewModal
+        isOpen={Boolean(previewOsi)}
+        osiId={previewOsi?.id ?? null}
+        osiNumber={previewOsi?.nroOsi}
+        onClose={() => setPreviewOsi(null)}
+      />
     </div>
   );
 }

@@ -12,7 +12,6 @@ import {
   StarHalf,
   FileText,
   History,
-  Share2,
 } from "lucide-react";
 import { toTitleCase } from "@/utils/string-utils";
 import { createClient } from "@/utils/supabase/client";
@@ -593,16 +592,6 @@ export const FacilitadorCrud = ({
                         </a>
                         {!isReadOnly && (
                           <>
-                            <a
-                              href={`/api/generate-resumen-facilitador-pdf?id=${facilitador.id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center justify-center text-emerald-600 bg-emerald-50 border border-emerald-200 p-2 rounded-md hover:bg-emerald-100 transition-colors shadow-sm"
-                              title="Resumen PDF para compartir con Negocios"
-                            >
-                              <Share2 className="w-4 h-4" />
-                            </a>
                             <button
                               onClick={() => setHistoryFacilitador(facilitador)}
                               className="text-white p-2 rounded-md hover:opacity-90 transition-colors shadow-sm"

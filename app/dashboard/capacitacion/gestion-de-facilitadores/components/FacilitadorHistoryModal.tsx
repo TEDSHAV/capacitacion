@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { History, X, Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { History, X, Loader2, AlertCircle } from "lucide-react";
 import { getFacilitadorHistory } from "@/app/actions/osi-facilitador-assignments";
 import type { FacilitadorHistoryEntry } from "@/types";
+import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 
 interface FacilitadorHistoryModalProps {
   facilitadorId: number;
@@ -38,6 +38,7 @@ export const FacilitadorHistoryModal = ({
   const [rows, setRows] = useState<FacilitadorHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [previewOsi, setPreviewOsi] = useState<{ id: number; nroOsi?: string } | null>(null);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -169,16 +170,14 @@ export const FacilitadorHistoryModal = ({
                         >
                           <td className="px-3 py-2.5 whitespace-nowrap text-sm">
                             <div className="flex items-center gap-1.5">
-                              <a
-                                href={`/dashboard/capacitacion/gestion-osi?id=${row.osi_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-medium hover:underline"
-                                title="Abrir OSI en nueva pestaña"
+                              <button
+                                type="button"
+                                onClick={() => setPreviewOsi({ id: row.osi_id, nroOsi: row.nro_osi ?? undefined })}
+                                className="inline-flex items-center gap-1 font-bold text-xs text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200 transition-colors cursor-pointer"
+                                title="Ver formato oficial de la OSI"
                               >
                                 {row.nro_osi || `OSI #${row.osi_id}`}
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
+                              </button>
                               {row.source === "requisicion" && (
                                 <span
                                   className="inline-flex items-center text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full"
@@ -235,6 +234,13 @@ export const FacilitadorHistoryModal = ({
           </button>
         </div>
       </div>
+
+      <OsiPreviewModal
+        isOpen={Boolean(previewOsi)}
+        osiId={previewOsi?.id ?? null}
+        osiNumber={previewOsi?.nroOsi}
+        onClose={() => setPreviewOsi(null)}
+      />
     </div>
   );
 };

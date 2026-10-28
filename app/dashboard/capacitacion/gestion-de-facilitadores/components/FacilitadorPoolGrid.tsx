@@ -21,7 +21,6 @@ import {
   XCircle,
   CheckCircle2,
   ShieldAlert,
-  Share2,
 } from "lucide-react";
 
 interface FacilitadorPoolGridProps {
@@ -431,18 +430,8 @@ export function FacilitadorPoolGrid({
                       <FileText className="w-3.5 h-3.5" />
                     </a>
                     {!readOnly && (
-                      <>
-                        <a
-                          href={`/api/generate-resumen-facilitador-pdf?id=${f.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 text-emerald-600 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-md transition-colors"
-                          title="Resumen PDF para compartir con Negocios"
-                        >
-                          <Share2 className="w-3.5 h-3.5" />
-                        </a>
-                        <button
-                          onClick={() => onToggleStatus(f)}
+                      <button
+                        onClick={() => onToggleStatus(f)}
                           className={`p-1.5 rounded-md transition-colors ${
                             f.is_active
                               ? "text-red-600 hover:text-red-800 bg-red-50 border border-red-200 hover:bg-red-100"
@@ -452,7 +441,6 @@ export function FacilitadorPoolGrid({
                         >
                           {f.is_active ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                         </button>
-                      </>
                     )}
                   </div>
                 </td>
