@@ -36,7 +36,7 @@ import {
   updateEntrevistaEstatus,
 } from "@/app/actions/entrevistas-facilitadores";
 import { useToast } from "@/lib/ui/toast-context";
-import { toTitleCase } from "@/utils/string-utils";
+import { toTitleCase, normalizeCedula, normalizePhoneNumber } from "@/utils/string-utils";
 
 interface EntrevistaFormClientProps {
   initialData?: FacilitadorEntrevista | null;
@@ -590,13 +590,32 @@ export function EntrevistaFormClient({
               <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
                 C.I. Nro
               </label>
-              <input
-                type="text"
-                value={cedula}
-                onChange={(e) => setCedula(e.target.value)}
-                placeholder="Ej. V-12345678"
-                className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-              />
+              <div className="flex gap-2">
+                <select
+                  value={cedula.toUpperCase().startsWith("E") ? "E" : "V"}
+                  onChange={(e) => {
+                    const type = e.target.value;
+                    const digits = cedula.replace(/\D/g, "");
+                    setCedula(digits ? `${type}-${digits}` : `${type}-`);
+                  }}
+                  className="w-20 text-sm px-2.5 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <option value="V">V-</option>
+                  <option value="E">E-</option>
+                </select>
+                <input
+                  type="text"
+                  value={cedula.replace(/^[vVeE]-?/, "")}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    const type = cedula.toUpperCase().startsWith("E") ? "E" : "V";
+                    setCedula(digits ? `${type}-${digits}` : "");
+                  }}
+                  onBlur={() => setCedula(normalizeCedula(cedula))}
+                  placeholder="12345678"
+                  className="flex-1 text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+              </div>
             </div>
 
             <div>
@@ -604,10 +623,11 @@ export function EntrevistaFormClient({
                 Teléfono de Contacto
               </label>
               <input
-                type="text"
+                type="tel"
                 value={telefono}
-                onChange={(e) => setTelefono(e.target.value)}
-                placeholder="Ej. 0414-1234567"
+                onChange={(e) => setTelefono(e.target.value.replace(/\D/g, ""))}
+                onBlur={(e) => setTelefono(normalizePhoneNumber(e.target.value))}
+                placeholder="Ej. 04141234567"
                 className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
             </div>

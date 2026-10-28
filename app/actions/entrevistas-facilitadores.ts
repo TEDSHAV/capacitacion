@@ -5,7 +5,14 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { getCurrentUserUsuarioId } from "./requisiciones";
-import { toLowerCase } from "@/utils/string-utils";
+import {
+  toLowerCase,
+  toTitleCase,
+  normalizePhoneNumber,
+  normalizeCedula,
+  formatAcademicTitle,
+  formatSentenceCase,
+} from "@/utils/string-utils";
 import type {
   FacilitadorEntrevista,
   FacilitadorEntrevistaPayload,
@@ -191,7 +198,15 @@ export async function getEntrevistasList(options: GetEntrevistasOptions = {}) {
     // Apply status filter (skip status constraint if searching by explicit ID number)
     if (options.estatus && options.estatus !== "todas" && options.estatus !== "todos") {
       if (!isIdQuery) {
-        filtered = filtered.filter((e) => e.estatus === options.estatus);
+        if (options.estatus === "promovido") {
+          filtered = filtered.filter((e) => e.facilitador_id !== null);
+        } else if (options.estatus === "aprobado_sin_promover") {
+          filtered = filtered.filter(
+            (e) => e.estatus === "aprobado" && e.facilitador_id === null
+          );
+        } else {
+          filtered = filtered.filter((e) => e.estatus === options.estatus);
+        }
       }
     }
 
@@ -254,20 +269,20 @@ export async function saveEntrevista(payload: FacilitadorEntrevistaPayload) {
     const usuarioId = await getCurrentUserUsuarioId();
 
     const row: Record<string, unknown> = {
-      nombre_apellido: payload.nombre_apellido.trim(),
-      cedula: payload.cedula?.trim() || null,
-      telefono: payload.telefono?.trim() || null,
+      nombre_apellido: toTitleCase(payload.nombre_apellido.trim()),
+      cedula: normalizeCedula(payload.cedula) || null,
+      telefono: normalizePhoneNumber(payload.telefono) || null,
       email: payload.email?.trim() || null,
       direccion: payload.direccion?.trim() || null,
       posee_vehiculo: Boolean(payload.posee_vehiculo),
       posee_laptop: Boolean(payload.posee_laptop),
       disponibilidad_viajar: Boolean(payload.disponibilidad_viajar),
 
-      nivel_tecnico: payload.nivel_tecnico?.trim() || null,
-      universitario: payload.universitario?.trim() || null,
-      posee_especializacion: payload.posee_especializacion?.trim() || null,
+      nivel_tecnico: formatAcademicTitle(payload.nivel_tecnico) || null,
+      universitario: formatAcademicTitle(payload.universitario) || null,
+      posee_especializacion: formatAcademicTitle(payload.posee_especializacion) || null,
       ultimo_curso_tiempo: payload.ultimo_curso_tiempo || null,
-      ultimo_curso_descripcion: payload.ultimo_curso_descripcion?.trim() || null,
+      ultimo_curso_descripcion: formatSentenceCase(payload.ultimo_curso_descripcion) || null,
       manejo_herramientas_audiovisuales: payload.manejo_herramientas_audiovisuales || null,
 
       doc_resumen_curricular: Boolean(payload.doc_resumen_curricular),
@@ -292,9 +307,9 @@ export async function saveEntrevista(payload: FacilitadorEntrevistaPayload) {
       temas_capacidades: payload.temas_capacidades || [],
 
       fecha_entrevista: payload.fecha_entrevista || new Date().toISOString().split("T")[0],
-      entrevistado_por: payload.entrevistado_por?.trim() || null,
+      entrevistado_por: toTitleCase(payload.entrevistado_por?.trim() || "") || null,
       evaluacion_items: payload.evaluacion_items || [],
-      observaciones: payload.observaciones?.trim() || null,
+      observaciones: formatSentenceCase(payload.observaciones) || null,
       estatus: payload.estatus || "pendiente",
     };
 
@@ -312,7 +327,12 @@ export async function saveEntrevista(payload: FacilitadorEntrevistaPayload) {
         .single();
 
       if (error) throw error;
-      return { entrevista: data as FacilitadorEntrevista, error: null };
+      let saved = data as FacilitadorEntrevista;
+      if (saved.estatus === "aprobado" && !saved.facilitador_id) {
+        const prom = await promoverAFacilitador(saved.id);
+        if (prom.entrevista) saved = prom.entrevista;
+      }
+      return { entrevista: saved, error: null };
     } else {
       // Insert
       row.creado_por = usuarioId;
@@ -326,7 +346,12 @@ export async function saveEntrevista(payload: FacilitadorEntrevistaPayload) {
         .single();
 
       if (error) throw error;
-      return { entrevista: data as FacilitadorEntrevista, error: null };
+      let saved = data as FacilitadorEntrevista;
+      if (saved.estatus === "aprobado" && !saved.facilitador_id) {
+        const prom = await promoverAFacilitador(saved.id);
+        if (prom.entrevista) saved = prom.entrevista;
+      }
+      return { entrevista: saved, error: null };
     }
   } catch (err) {
     console.error("Error en saveEntrevista:", err);
@@ -360,7 +385,17 @@ export async function updateEntrevistaEstatus(
       .single();
 
     if (error) throw error;
-    return { entrevista: data as FacilitadorEntrevista, error: null };
+    let updated = data as FacilitadorEntrevista;
+
+    // Automatically promote/link into facilitadores when marked as aprobado
+    if (estatus === "aprobado" && !updated.facilitador_id) {
+      const prom = await promoverAFacilitador(id);
+      if (prom.entrevista) {
+        updated = prom.entrevista;
+      }
+    }
+
+    return { entrevista: updated, error: null };
   } catch (err) {
     console.error("Error en updateEntrevistaEstatus:", err);
     return {
@@ -400,48 +435,76 @@ export async function promoverAFacilitador(entrevistaId: number) {
 
     const today = new Date().toISOString().split("T")[0];
     const currentYear = new Date().getFullYear();
+    const normCedula = normalizeCedula(entrevista.cedula) || null;
+    const normNombre = toLowerCase(entrevista.nombre_apellido.trim());
 
-    // 2. Insert into facilitadores table
-    const { data: newFacilitador, error: facErr } = await supabase
-      .from("facilitadores")
-      .insert([
-        {
-          nombre_apellido: toLowerCase(entrevista.nombre_apellido),
-          cedula: entrevista.cedula || null,
-          telefono: entrevista.telefono || null,
-          email: entrevista.email || null,
-          direccion: entrevista.direccion || null,
-          nivel_educacion:
-            entrevista.universitario || entrevista.nivel_tecnico || null,
-          formacion_docente_certificada: Boolean(
-            entrevista.doc_formacion_docente
-          ),
-          temas_cursos: Array.isArray(entrevista.temas_capacidades)
-            ? entrevista.temas_capacidades
-            : [],
-          tiene_curriculum: Boolean(entrevista.doc_resumen_curricular),
-          tiene_certificaciones: Boolean(
-            entrevista.doc_soportes_resumen_curricular
-          ),
-          is_active: true,
-          fuente: "Entrevista",
-          ano_ingreso: currentYear,
-          fecha_ingreso: today,
-          notas_observaciones: `Promovido desde Entrevista de Facilitadores (#${entrevista.id}) realizada el ${entrevista.fecha_entrevista}`,
-        },
-      ])
-      .select()
-      .single();
+    // Check if facilitator already exists by cedula or exact name to avoid duplicate errors
+    let existingFacId: number | null = null;
+    if (normCedula) {
+      const { data: byCed } = await supabase
+        .from("facilitadores")
+        .select("id")
+        .eq("cedula", normCedula)
+        .maybeSingle();
+      if (byCed?.id) existingFacId = byCed.id;
+    }
+    if (!existingFacId && normNombre) {
+      const { data: byName } = await supabase
+        .from("facilitadores")
+        .select("id")
+        .ilike("nombre_apellido", normNombre)
+        .maybeSingle();
+      if (byName?.id) existingFacId = byName.id;
+    }
 
-    if (facErr || !newFacilitador) {
-      throw new Error(`Error al crear el facilitador: ${facErr?.message}`);
+    let targetFacilitadorId = existingFacId;
+
+    if (!targetFacilitadorId) {
+      // 2. Insert into facilitadores table
+      const { data: newFacilitador, error: facErr } = await supabase
+        .from("facilitadores")
+        .insert([
+          {
+            nombre_apellido: normNombre,
+            cedula: normCedula,
+            telefono: normalizePhoneNumber(entrevista.telefono) || null,
+            email: entrevista.email || null,
+            direccion: entrevista.direccion || null,
+            nivel_educacion:
+              formatAcademicTitle(
+                entrevista.universitario || entrevista.nivel_tecnico
+              ) || null,
+            formacion_docente_certificada: Boolean(
+              entrevista.doc_formacion_docente
+            ),
+            temas_cursos: Array.isArray(entrevista.temas_capacidades)
+              ? entrevista.temas_capacidades
+              : [],
+            tiene_curriculum: Boolean(entrevista.doc_resumen_curricular),
+            tiene_certificaciones: Boolean(
+              entrevista.doc_soportes_resumen_curricular
+            ),
+            is_active: true,
+            fuente: "Entrevista",
+            ano_ingreso: currentYear,
+            fecha_ingreso: today,
+            notas_observaciones: `Promovido desde Entrevista de Facilitadores (#${entrevista.id}) realizada el ${entrevista.fecha_entrevista}`,
+          },
+        ])
+        .select()
+        .single();
+
+      if (facErr || !newFacilitador) {
+        throw new Error(`Error al crear el facilitador: ${facErr?.message}`);
+      }
+      targetFacilitadorId = newFacilitador.id;
     }
 
     // 3. Update interview record with link and timestamp
     const { data: updatedInterview, error: updateErr } = await supabase
       .from("facilitador_entrevistas")
       .update({
-        facilitador_id: newFacilitador.id,
+        facilitador_id: targetFacilitadorId,
         promovido_at: new Date().toISOString(),
         estatus: "aprobado",
       })
@@ -463,10 +526,14 @@ export async function promoverAFacilitador(entrevistaId: number) {
       console.warn("Could not update interview link after creating facilitador:", updateErr);
     }
 
+    revalidatePath("/dashboard/capacitacion/entrevista-facilitadores");
+    revalidatePath("/dashboard/capacitacion/gestion-de-facilitadores");
+    revalidatePath("/dashboard/capacitacion/indicadores");
+
     return {
       success: true,
-      alreadyPromoted: false,
-      facilitadorId: newFacilitador.id,
+      alreadyPromoted: Boolean(existingFacId),
+      facilitadorId: targetFacilitadorId,
       entrevista: updatedInterview as FacilitadorEntrevista,
       error: null,
     };
@@ -874,20 +941,20 @@ export async function submitCandidatoPostulacion(
 
     // 4. Construct interview row with strict isolation
     const entrevistaRow: Record<string, unknown> = {
-      nombre_apellido: payload.nombre_apellido.trim(),
-      cedula: payload.cedula?.trim() || null,
-      telefono: payload.telefono?.trim() || null,
+      nombre_apellido: toTitleCase(payload.nombre_apellido.trim()),
+      cedula: normalizeCedula(payload.cedula) || null,
+      telefono: normalizePhoneNumber(payload.telefono) || null,
       email: payload.email?.trim() || null,
       direccion: payload.direccion?.trim() || null,
       posee_vehiculo: Boolean(payload.posee_vehiculo),
       posee_laptop: Boolean(payload.posee_laptop),
       disponibilidad_viajar: Boolean(payload.disponibilidad_viajar),
 
-      nivel_tecnico: payload.nivel_tecnico?.trim() || null,
-      universitario: payload.universitario?.trim() || null,
-      posee_especializacion: payload.posee_especializacion?.trim() || null,
+      nivel_tecnico: formatAcademicTitle(payload.nivel_tecnico) || null,
+      universitario: formatAcademicTitle(payload.universitario) || null,
+      posee_especializacion: formatAcademicTitle(payload.posee_especializacion) || null,
       ultimo_curso_tiempo: payload.ultimo_curso_tiempo || null,
-      ultimo_curso_descripcion: payload.ultimo_curso_descripcion?.trim() || null,
+      ultimo_curso_descripcion: formatSentenceCase(payload.ultimo_curso_descripcion) || null,
       manejo_herramientas_audiovisuales: payload.manejo_herramientas_audiovisuales || null,
 
       doc_resumen_curricular: Boolean(payload.doc_resumen_curricular),

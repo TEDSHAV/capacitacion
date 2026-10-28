@@ -25,6 +25,7 @@ import type {
   CandidatoPostulacionPayload,
 } from "@/types/entrevistas-facilitadores";
 import { submitCandidatoPostulacion } from "@/app/actions/entrevistas-facilitadores";
+import { normalizeCedula, normalizePhoneNumber } from "@/utils/string-utils";
 
 interface PostulacionFormClientProps {
   token: string;
@@ -343,14 +344,33 @@ export function PostulacionFormClient({
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5">
                 Cédula de Identidad *
               </label>
-              <input
-                type="text"
-                required
-                value={cedula}
-                onChange={(e) => setCedula(e.target.value)}
-                placeholder="Ej. V-12345678"
-                className="w-full text-sm px-3.5 py-2.5 bg-slate-50/50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-colors"
-              />
+              <div className="flex gap-2">
+                <select
+                  value={cedula.toUpperCase().startsWith("E") ? "E" : "V"}
+                  onChange={(e) => {
+                    const type = e.target.value;
+                    const digits = cedula.replace(/\D/g, "");
+                    setCedula(digits ? `${type}-${digits}` : `${type}-`);
+                  }}
+                  className="w-20 text-sm px-2.5 py-2.5 bg-slate-50/50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-colors"
+                >
+                  <option value="V">V-</option>
+                  <option value="E">E-</option>
+                </select>
+                <input
+                  type="text"
+                  required
+                  value={cedula.replace(/^[vVeE]-?/, "")}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    const type = cedula.toUpperCase().startsWith("E") ? "E" : "V";
+                    setCedula(digits ? `${type}-${digits}` : "");
+                  }}
+                  onBlur={() => setCedula(normalizeCedula(cedula))}
+                  placeholder="12345678"
+                  className="flex-1 text-sm px-3.5 py-2.5 bg-slate-50/50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-colors"
+                />
+              </div>
             </div>
 
             <div>
@@ -360,8 +380,9 @@ export function PostulacionFormClient({
               <input
                 type="tel"
                 value={telefono}
-                onChange={(e) => setTelefono(e.target.value)}
-                placeholder="Ej. 0414-1234567"
+                onChange={(e) => setTelefono(e.target.value.replace(/\D/g, ""))}
+                onBlur={(e) => setTelefono(normalizePhoneNumber(e.target.value))}
+                placeholder="Ej. 04141234567"
                 className="w-full text-sm px-3.5 py-2.5 bg-slate-50/50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-colors"
               />
             </div>

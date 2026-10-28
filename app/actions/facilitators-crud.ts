@@ -3,7 +3,7 @@
 import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { cache } from "react";
 import { revalidatePath } from "next/cache";
-import { toLowerCase, toTitleCase } from "@/utils/string-utils";
+import { toLowerCase, toTitleCase, normalizePhoneNumber } from "@/utils/string-utils";
 import {
   saveOptimizedSignature,
   optimizeProfilePhoto,
@@ -274,7 +274,7 @@ const createFacilitator = cache(async (formData: FormData) => {
     const fecha_ingreso_to_save = fecha_ingreso || null;
     const cedula_to_save = cedula || null;
     const email_to_save = email || null;
-    const telefono_to_save = telefono || null;
+    const telefono_to_save = normalizePhoneNumber(telefono) || null;
     const direccion_to_save = direccion || null;
     const nivel_educacion_to_save = nivel_educacion || null;
     const alcance_to_save = alcance || null;
@@ -429,7 +429,7 @@ const updateFacilitator = cache(async (id: string, formData: FormData) => {
     const fecha_ingreso_to_save = fecha_ingreso || null;
     const cedula_to_save = cedula || null;
     const email_to_save = email || null;
-    const telefono_to_save = telefono || null;
+    const telefono_to_save = normalizePhoneNumber(telefono) || null;
     const direccion_to_save = direccion || null;
     const nivel_educacion_to_save = nivel_educacion || null;
     const alcance_to_save = alcance || null;

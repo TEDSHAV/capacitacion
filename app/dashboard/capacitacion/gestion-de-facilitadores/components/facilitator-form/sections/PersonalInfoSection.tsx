@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { PersonalInfoSectionProps } from "@/types";
-import { toTitleCase } from "@/utils/string-utils";
+import { toTitleCase, normalizePhoneNumber } from "@/utils/string-utils";
 import { SectionCard } from "./SectionCard";
 import { User } from "lucide-react";
 
@@ -151,6 +151,9 @@ export const PersonalInfoSection = ({
             value={formData.telefono}
             onChange={(e) =>
               handleInputChange("telefono", e.target.value.replace(/\D/g, ""))
+            }
+            onBlur={(e) =>
+              handleInputChange("telefono", normalizePhoneNumber(e.target.value))
             }
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Ej: 04121234567"

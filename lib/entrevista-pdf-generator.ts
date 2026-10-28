@@ -14,6 +14,7 @@ const PAGE_W = 215.9;
 const PAGE_H = 279.4;
 const MARGIN_X = 12;
 const CONTENT_W = PAGE_W - MARGIN_X * 2; // 191.9 mm
+const MAX_CONTENT_Y = PAGE_H - 14;
 
 const _imageCache = new Map<string, string>();
 
@@ -33,6 +34,11 @@ function getImageBase64(filename: string): string {
 function cleanText(val: string | null | undefined): string {
   if (!val) return "";
   return String(val).trim();
+}
+
+function cleanSingleLine(val: string | null | undefined): string {
+  if (!val) return "";
+  return String(val).replace(/\s+/g, " ").trim();
 }
 
 function formatTiempoCurso(val: UltimoCursoTiempo | null | undefined): string {
@@ -71,7 +77,7 @@ const DOCS_LIST = [
   { key: "doc_posee_laptop", label: "Posee Laptop" },
 ];
 
-function drawPageHeader(doc: jsPDF, pageNum: number) {
+function drawPageHeader(doc: jsPDF, pageNum: number, totalPages = 2) {
   const y = 8;
   const logoB64 = getImageBase64("logo.png");
   if (logoB64) {
@@ -99,12 +105,28 @@ function drawPageHeader(doc: jsPDF, pageNum: number) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(75, 85, 99);
-  doc.text(`PÁGINA: ${pageNum} de 2`, MARGIN_X + CONTENT_W, y + 7, { align: "right" });
+  doc.text(`PÁGINA: ${pageNum} de ${totalPages}`, MARGIN_X + CONTENT_W, y + 7, { align: "right" });
 
   // Border bottom under header
   doc.setDrawColor(31, 41, 55);
   doc.setLineWidth(0.3);
   doc.line(MARGIN_X, y + 13, MARGIN_X + CONTENT_W, y + 13);
+}
+
+/**
+ * Helper to split multi-line text (preserving explicit user line breaks and wrapping long lines)
+ */
+function wrapMultilineText(doc: jsPDF, text: string, maxWidth: number): string[] {
+  if (!text) return [];
+  const paragraphs = text.split(/\r?\n/);
+  const result: string[] = [];
+  for (const p of paragraphs) {
+    const trimmed = p.trim();
+    if (!trimmed) continue;
+    const wrapped = doc.splitTextToSize(trimmed, maxWidth) as string[];
+    result.push(...wrapped);
+  }
+  return result;
 }
 
 export async function generateEntrevistaPdf(
@@ -120,8 +142,6 @@ export async function generateEntrevistaPdf(
   // =========================================================================
   // PÁGINA 1
   // =========================================================================
-  drawPageHeader(doc, 1);
-
   let curY = 24;
 
   const drawSectionTitle = (title: string, yPos: number, height = 5.5) => {
@@ -150,35 +170,55 @@ export async function generateEntrevistaPdf(
   doc.setTextColor(17, 24, 39);
   doc.text("NOMBRE Y APELLIDO:", MARGIN_X + 2, curY + 4.5);
   doc.setFont("helvetica", "normal");
-  doc.text(cleanText(entrevista.nombre_apellido).toUpperCase(), MARGIN_X + 34, curY + 4.5);
+  const nombreStr = doc.splitTextToSize(
+    cleanSingleLine(entrevista.nombre_apellido).toUpperCase(),
+    88
+  )[0] || "";
+  doc.text(nombreStr, MARGIN_X + 34, curY + 4.5);
 
   doc.setFont("helvetica", "bold");
   doc.text("C.I. NRO:", MARGIN_X + 127, curY + 4.5);
   doc.setFont("helvetica", "normal");
-  doc.text(cleanText(entrevista.cedula), MARGIN_X + 142, curY + 4.5);
+  doc.text(cleanSingleLine(entrevista.cedula), MARGIN_X + 142, curY + 4.5);
   curY += r1H;
 
   // Row 2: Dirección (65mm) | Teléfono (50mm) | Email (76.9mm)
-  const r2H = 6.5;
+  // Dynamic height if address or email wraps to 2 lines
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.8);
+  const dirLines = wrapMultilineText(doc, cleanSingleLine(entrevista.direccion), 43).slice(0, 2);
+  const emailLines = wrapMultilineText(doc, cleanSingleLine(entrevista.email), 61).slice(0, 2);
+  const maxR2Lines = Math.max(dirLines.length, emailLines.length, 1);
+  const r2H = maxR2Lines > 1 ? 9.5 : 6.5;
+
   doc.rect(MARGIN_X, curY, 65, r2H, "D");
   doc.rect(MARGIN_X + 65, curY, 50, r2H, "D");
   doc.rect(MARGIN_X + 115, curY, 76.9, r2H, "D");
 
   doc.setFont("helvetica", "bold");
-  doc.text("DIRECCIÓN:", MARGIN_X + 2, curY + 4.5);
+  doc.setFontSize(7.2);
+  doc.text("DIRECCIÓN:", MARGIN_X + 2, curY + 4.3);
   doc.setFont("helvetica", "normal");
-  doc.text(cleanText(entrevista.direccion).slice(0, 34), MARGIN_X + 20, curY + 4.5);
+  doc.setFontSize(6.5);
+  dirLines.forEach((line, idx) => {
+    doc.text(line, MARGIN_X + 20, curY + 4.3 + idx * 3.2);
+  });
 
   doc.setFont("helvetica", "bold");
-  doc.text("TELÉFONO:", MARGIN_X + 67, curY + 4.5);
+  doc.setFontSize(7.2);
+  doc.text("TELÉFONO:", MARGIN_X + 67, curY + 4.3);
   doc.setFont("helvetica", "normal");
-  doc.text(cleanText(entrevista.telefono), MARGIN_X + 85, curY + 4.5);
+  doc.setFontSize(7);
+  doc.text(cleanSingleLine(entrevista.telefono), MARGIN_X + 85, curY + 4.3);
 
   doc.setFont("helvetica", "bold");
-  doc.text("EMAIL:", MARGIN_X + 117, curY + 4.5);
+  doc.setFontSize(7.2);
+  doc.text("EMAIL:", MARGIN_X + 117, curY + 4.3);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.8);
-  doc.text(cleanText(entrevista.email).slice(0, 40), MARGIN_X + 128, curY + 4.5);
+  doc.setFontSize(6.5);
+  emailLines.forEach((line, idx) => {
+    doc.text(line, MARGIN_X + 128, curY + 4.3 + idx * 3.2);
+  });
   doc.setFontSize(7.5);
   curY += r2H;
 
@@ -209,29 +249,35 @@ export async function generateEntrevistaPdf(
   curY = drawSectionTitle("1. NIVEL EDUCATIVO (DESCRIBA EL ÁREA AL CUAL APLIQUE)", curY);
 
   const tiempoUltimoCursoStr = formatTiempoCurso(entrevista.ultimo_curso_tiempo);
-  const descUltimoCurso = cleanText(entrevista.ultimo_curso_descripcion);
+  const descUltimoCurso = cleanSingleLine(entrevista.ultimo_curso_descripcion);
   const ultimoCursoCombinado = tiempoUltimoCursoStr
     ? `${tiempoUltimoCursoStr}${descUltimoCurso ? ` - ${descUltimoCurso}` : ""}`
     : descUltimoCurso;
 
   const eduRows = [
-    { label: "NIVEL TÉCNICO:", val: cleanText(entrevista.nivel_tecnico) },
-    { label: "UNIVERSITARIO:", val: cleanText(entrevista.universitario) },
-    { label: "ESPECIALIZACIÓN:", val: cleanText(entrevista.posee_especializacion) },
+    { label: "NIVEL TÉCNICO:", val: cleanSingleLine(entrevista.nivel_tecnico) },
+    { label: "UNIVERSITARIO:", val: cleanSingleLine(entrevista.universitario) },
+    { label: "ESPECIALIZACIÓN:", val: cleanSingleLine(entrevista.posee_especializacion) },
     { label: "ÚLTIMO CURSO REALIZADO:", val: ultimoCursoCombinado },
     { label: "HERRAMIENTAS AUDIOVISUALES:", val: formatManejoHerramientas(entrevista.manejo_herramientas_audiovisuales) },
   ];
 
   for (const er of eduRows) {
-    const eH = 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    const valLines = wrapMultilineText(doc, er.val, CONTENT_W - 50).slice(0, 2);
+    const eH = valLines.length > 1 ? 8.8 : 6;
     doc.setFillColor(255, 255, 255);
     doc.rect(MARGIN_X, curY, CONTENT_W, eH, "D");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.2);
     doc.setTextColor(17, 24, 39);
-    doc.text(er.label, MARGIN_X + 2, curY + 4.2);
+    doc.text(er.label, MARGIN_X + 2, curY + 4.1);
     doc.setFont("helvetica", "normal");
-    doc.text(er.val.slice(0, 75), MARGIN_X + 48, curY + 4.2);
+    doc.setFontSize(7);
+    valLines.forEach((line, idx) => {
+      doc.text(line, MARGIN_X + 48, curY + 4.1 + idx * 3.3);
+    });
     curY += eH;
   }
   curY += 2.5;
@@ -280,9 +326,14 @@ export async function generateEntrevistaPdf(
   // PÁGINA 2
   // =========================================================================
   doc.addPage("letter", "portrait");
-  drawPageHeader(doc, 2);
-
   curY = 24;
+
+  const ensureSpace = (neededH: number) => {
+    if (curY + neededH > MAX_CONTENT_Y) {
+      doc.addPage("letter", "portrait");
+      curY = 24;
+    }
+  };
 
   // 4. CONOCIMIENTO Y DESTREZAS DEL FACILITADOR (6 checklist items)
   curY = drawSectionTitle("3. CONOCIMIENTO Y DESTREZAS DEL FACILITADOR", curY);
@@ -316,8 +367,12 @@ export async function generateEntrevistaPdf(
     const isCumple = item?.cumplimiento === "cumple";
     const isParcial = item?.cumplimiento === "cumple_parcial";
     const isNoCumple = item?.cumplimiento === "no_cumple";
-    const obs = cleanText(item?.observacion);
-    const rowH = 5.2;
+    const obs = cleanSingleLine(item?.observacion);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    const obsLines = wrapMultilineText(doc, obs, 31).slice(0, 2);
+    const rowH = obsLines.length > 1 ? 8 : 5.2;
 
     doc.setFillColor(idx % 2 === 0 ? 255 : 249, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 251);
     doc.rect(MARGIN_X, curY, 8, rowH, "FD");
@@ -335,12 +390,17 @@ export async function generateEntrevistaPdf(
     doc.text(isCumple ? "( X )" : "(   )", MARGIN_X + 112, curY + 3.6, { align: "center" });
     doc.text(isParcial ? "( X )" : "(   )", MARGIN_X + 130, curY + 3.6, { align: "center" });
     doc.text(isNoCumple ? "( X )" : "(   )", MARGIN_X + 148, curY + 3.6, { align: "center" });
-    doc.text(obs.slice(0, 24), MARGIN_X + 159, curY + 3.6);
+
+    doc.setFontSize(6.3);
+    obsLines.forEach((line, lIdx) => {
+      doc.text(line, MARGIN_X + 158.5, curY + 3.5 + lIdx * 3);
+    });
     curY += rowH;
   });
   curY += 2.5;
 
   // 5. PREGUNTAS AL FACILITADOR
+  ensureSpace(18);
   curY = drawSectionTitle("4. PREGUNTAS AL FACILITADOR", curY);
 
   const questions = [
@@ -362,40 +422,78 @@ export async function generateEntrevistaPdf(
     },
   ];
 
+  const lineSpacing = 3.4;
+
   for (const qItem of questions) {
-    const qH = 9.5;
+    const valText = qItem.a || "No especificado";
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    const wrappedAns = wrapMultilineText(doc, valText, CONTENT_W - 8);
+    const ansLines = wrappedAns.length > 0 ? wrappedAns : ["No especificado"];
+
+    // Dynamic box height: 5.2mm for question header + 3.4mm per answer line + 2.2mm bottom padding
+    const qH = Math.max(9.5, 5.4 + ansLines.length * lineSpacing + 1.8);
+    ensureSpace(qH + 2);
+
     doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(31, 41, 55);
+    doc.setLineWidth(0.3);
     doc.rect(MARGIN_X, curY, CONTENT_W, qH, "D");
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
-    doc.text(qItem.q, MARGIN_X + 2, curY + 3.6);
+    doc.setTextColor(17, 24, 39);
+    doc.text(qItem.q, MARGIN_X + 2, curY + 3.8);
 
     doc.setFont("helvetica", "normal");
-    const valText = qItem.a || "No especificado";
-    doc.text(valText.slice(0, 105), MARGIN_X + 4, curY + 7.3);
+    doc.setFontSize(6.9);
+    doc.setTextColor(31, 41, 55);
+    ansLines.forEach((line, idx) => {
+      doc.text(line, MARGIN_X + 4, curY + 7.4 + idx * lineSpacing);
+    });
+
     curY += qH;
   }
   curY += 2.5;
 
-  // Temas a impartir (si existen)
+  // Temas a impartir (si existen) — dynamic multi-line height so all topics fit inside box
   if (Array.isArray(entrevista.temas_capacidades) && entrevista.temas_capacidades.length > 0) {
-    const tH = 8.5;
+    const temasStr = entrevista.temas_capacidades.join(", ");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.8);
+    const temasLines = wrapMultilineText(doc, temasStr, CONTENT_W - 8);
+    const tH = Math.max(8.5, 5.2 + temasLines.length * 3.3 + 1.8);
+    ensureSpace(tH + 3);
+
     doc.setFillColor(249, 250, 251);
+    doc.setDrawColor(31, 41, 55);
     doc.rect(MARGIN_X, curY, CONTENT_W, tH, "FD");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(6.8);
-    doc.text("TEMAS / CAPACIDADES A IMPARTIR:", MARGIN_X + 2, curY + 3.5);
+    doc.setTextColor(17, 24, 39);
+    doc.text("TEMAS / CAPACIDADES A IMPARTIR:", MARGIN_X + 2, curY + 3.6);
+
     doc.setFont("helvetica", "normal");
-    const temasStr = entrevista.temas_capacidades.join(", ");
-    doc.text(temasStr.slice(0, 115), MARGIN_X + 4, curY + 6.8);
+    doc.setFontSize(6.7);
+    temasLines.forEach((line, idx) => {
+      doc.text(line, MARGIN_X + 4, curY + 7.0 + idx * 3.3);
+    });
     curY += tH + 2.5;
   }
 
   // 6. EVALUACIÓN Y DECISIÓN DE LA ENTREVISTA
+  const obsText = cleanText(entrevista.observaciones) || "Sin observaciones adicionales registradas.";
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.9);
+  const obsLines = wrapMultilineText(doc, obsText, CONTENT_W - 8);
+  const obsH = Math.max(13, 5.5 + obsLines.length * 3.4 + 2);
+  const decH = 6.5;
+  const sigH = 22;
+
+  ensureSpace(5.5 + obsH + decH + sigH + 2);
   curY = drawSectionTitle("5. EVALUACIÓN Y DECISIÓN DE LA ENTREVISTA", curY);
 
   // Observaciones
-  const obsH = 13;
   doc.setFillColor(255, 255, 255);
   doc.rect(MARGIN_X, curY, CONTENT_W, obsH, "D");
   doc.setFont("helvetica", "bold");
@@ -403,15 +501,13 @@ export async function generateEntrevistaPdf(
   doc.text("OBSERVACIONES:", MARGIN_X + 2, curY + 3.8);
 
   doc.setFont("helvetica", "normal");
-  const splitObs = doc.splitTextToSize(
-    cleanText(entrevista.observaciones) || "Sin observaciones adicionales registradas.",
-    CONTENT_W - 6
-  );
-  doc.text(splitObs, MARGIN_X + 4, curY + 7.5);
+  doc.setFontSize(6.9);
+  obsLines.forEach((line, idx) => {
+    doc.text(line, MARGIN_X + 4, curY + 7.4 + idx * 3.4);
+  });
   curY += obsH;
 
   // Decisión
-  const decH = 6.5;
   doc.setFillColor(243, 244, 246);
   doc.rect(MARGIN_X, curY, CONTENT_W, decH, "FD");
   doc.setFont("helvetica", "bold");
@@ -429,7 +525,6 @@ export async function generateEntrevistaPdf(
   curY += decH;
 
   // Firmas
-  const sigH = 22;
   const colSigW = CONTENT_W / 2;
   doc.setFillColor(255, 255, 255);
   doc.rect(MARGIN_X, curY, colSigW, sigH, "D");
@@ -439,13 +534,20 @@ export async function generateEntrevistaPdf(
   doc.setFontSize(6.8);
   doc.text("FIRMA DEL ENTREVISTADO", MARGIN_X + colSigW / 2, curY + sigH - 3, { align: "center" });
 
-  const entrevistador = cleanText(entrevista.entrevistado_por);
+  const entrevistador = cleanSingleLine(entrevista.entrevistado_por);
   doc.text(
     entrevistador ? `FIRMA DEL ENTREVISTADOR (${entrevistador})` : "FIRMA DEL ENTREVISTADOR",
     MARGIN_X + colSigW + colSigW / 2,
     curY + sigH - 3,
     { align: "center" }
   );
+
+  // Stamp headers with final total page count on every page
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    drawPageHeader(doc, p, totalPages);
+  }
 
   return Buffer.from(doc.output("arraybuffer"));
 }
