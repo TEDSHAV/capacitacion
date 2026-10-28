@@ -359,6 +359,28 @@ export async function getOSIsForManagement(
       }
     }
 
+    if (filters.stepKey && filters.stepKey.trim()) {
+      const { data: stepRows, error: stepError } = await supabase
+        .from("capacitacion_proceso_steps")
+        .select("osi_id")
+        .eq("step_key", filters.stepKey.trim())
+        .eq("completed", true)
+        .limit(10000);
+
+      if (stepError) {
+        console.error("Error fetching step OSIs:", stepError);
+      }
+
+      const stepOsiIds = Array.from(new Set((stepRows || []).map((r: any) => r.osi_id)));
+
+      if (filters.includeOsiIds !== undefined) {
+        const stepSet = new Set(stepOsiIds);
+        filters.includeOsiIds = filters.includeOsiIds.filter((id) => stepSet.has(id));
+      } else {
+        filters.includeOsiIds = stepOsiIds;
+      }
+    }
+
     if (filters.includeOsiIds !== undefined) {
       if (filters.includeOsiIds.length === 0) {
         return {

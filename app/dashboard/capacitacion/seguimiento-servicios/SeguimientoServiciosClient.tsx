@@ -97,6 +97,7 @@ function cacheKey(
   filterMode: string,
   rescheduledCount: number,
   noEjecutadasCount: number = 0,
+  stepFilter: string = "",
 ): CacheKey {
   return JSON.stringify({
     filters,
@@ -106,6 +107,7 @@ function cacheKey(
     filterMode,
     rescheduledCount,
     noEjecutadasCount,
+    stepFilter: stepFilter.trim(),
   });
 }
 
@@ -221,7 +223,7 @@ export default function SeguimientoServiciosClient({
 
   // Seed moduleCache with initial SSR data if present
   if (initialOsis && initialOsis.length > 0) {
-    const initialKey = cacheKey({}, "", 1, 10, "todos", initialRescheduledOsiIds?.length || 0, initialNoEjecutadasOsiIds?.length || 0);
+    const initialKey = cacheKey({}, "", 1, 10, "todos", initialRescheduledOsiIds?.length || 0, initialNoEjecutadasOsiIds?.length || 0, "");
     if (!moduleCache.has(initialKey)) {
       moduleCache.set(initialKey, {
         osis: initialOsis,
@@ -235,7 +237,7 @@ export default function SeguimientoServiciosClient({
 
   // --- Synchronous cache swap: runs before paint so cached pages appear instantly ---
   useLayoutEffect(() => {
-    const key = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length);
+    const key = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length, stepFilter);
     const cached = moduleCache.get(key);
     if (cached) {
       setOsis(cached.osis);
@@ -245,7 +247,7 @@ export default function SeguimientoServiciosClient({
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length, refreshTrigger]);
+  }, [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length, stepFilter, refreshTrigger]);
 
   // Cache initial RSC data for offline use
   useEffect(() => {
@@ -279,19 +281,8 @@ export default function SeguimientoServiciosClient({
     }
   };
 
-  // Client-side filtered OSIs: search is now server-side, so only the step filter
-  // (which depends on the loaded steps data) is applied here on top of the server page.
-  const filteredOsis = useMemo(() => {
-    if (!stepFilter) return osis;
-    return osis.filter((o) => {
-      const osiMap = stepsByOsi.get(o.id_osi);
-      if (!osiMap) return false;
-      for (const sessionSteps of osiMap.values()) {
-        if (sessionSteps[stepFilter]?.completed) return true;
-      }
-      return false;
-    });
-  }, [osis, stepFilter, stepsByOsi]);
+  // Step filter is now handled server-side across the entire dataset, supporting true counts & pagination
+  const filteredOsis = osis;
 
   // Derive unique course/servicio options from cached OSIs
   const courseOptions = useMemo(() => {
@@ -383,7 +374,7 @@ export default function SeguimientoServiciosClient({
   }, []);
 
   const fetchOSIs = useCallback(async () => {
-    const key = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length);
+    const key = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length, stepFilter);
     const cached = moduleCache.get(key);
 
     // If cache entry is fresh (< 30s) and this is not a forced refresh, reuse without network call
@@ -405,6 +396,7 @@ export default function SeguimientoServiciosClient({
       const filterPayload: OSIFilters = {
         ...filters,
         search: searchQuery.trim() || undefined,
+        stepKey: stepFilter.trim() || undefined,
       };
 
       if (filterMode === "reagendados") {
@@ -464,7 +456,7 @@ export default function SeguimientoServiciosClient({
     } finally {
       setLoading(false);
     }
-  }, [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds, noEjecutadasOsiIds, refreshTrigger, filterOptions, statuses, osis.length]);
+  }, [filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds, noEjecutadasOsiIds, stepFilter, refreshTrigger, filterOptions, statuses, osis.length]);
 
   // Re-fetch when filters, search, page, or tab changes (skip first render — server already loaded)
   useEffect(() => {
@@ -481,7 +473,7 @@ export default function SeguimientoServiciosClient({
     const totalPages = Math.ceil(totalCount / itemsPerPage);
     if (currentPage >= totalPages) return;
     const nextPage = currentPage + 1;
-    const nextKey = cacheKey(filters, searchQuery, nextPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length);
+    const nextKey = cacheKey(filters, searchQuery, nextPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length, stepFilter);
     if (moduleCache.has(nextKey)) return;
 
     let cancelled = false;
@@ -491,6 +483,7 @@ export default function SeguimientoServiciosClient({
         const filterPayload: OSIFilters = {
           ...filters,
           search: searchQuery.trim() || undefined,
+          stepKey: stepFilter.trim() || undefined,
         };
         if (filterMode === "reagendados") {
           filterPayload.includeOsiIds = rescheduledOsiIds;
@@ -530,7 +523,7 @@ export default function SeguimientoServiciosClient({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [currentPage, totalCount, itemsPerPage, filters, searchQuery, filterMode, rescheduledOsiIds.length, rescheduledOsiIds, loading]);
+  }, [currentPage, totalCount, itemsPerPage, filters, searchQuery, filterMode, rescheduledOsiIds.length, rescheduledOsiIds, stepFilter, loading]);
 
   const handleToggleStep = useCallback(
     async (
@@ -596,7 +589,7 @@ export default function SeguimientoServiciosClient({
         });
 
         // Update moduleCache for current key in place so returning to this page retains the toggle
-        const currentKey = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length);
+        const currentKey = cacheKey(filters, searchQuery, currentPage, itemsPerPage, filterMode, rescheduledOsiIds.length, noEjecutadasOsiIds.length, stepFilter);
         const entry = moduleCache.get(currentKey);
         if (entry) {
           const osiKey = String(osiId);
@@ -1200,7 +1193,7 @@ export default function SeguimientoServiciosClient({
               Seguimiento de OSIs
             </h3>
             <span className="text-xs text-gray-500">
-              {searchQuery.trim()
+              {searchQuery.trim() || Object.values(filters).some((v) => v !== undefined && v !== "") || !!stepFilter
                 ? `(${totalCount} resultados)`
                 : `(${totalCount} OSIs)`}
             </span>
@@ -1479,7 +1472,10 @@ export default function SeguimientoServiciosClient({
                   </label>
                   <select
                     value={stepFilter}
-                    onChange={(e) => setStepFilter(e.target.value)}
+                    onChange={(e) => {
+                      setStepFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
                     className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                   >
                     <option value="">Todas</option>
@@ -1984,18 +1980,16 @@ export default function SeguimientoServiciosClient({
           </div>
         )}
 
-        {/* Pagination — hidden when step-filtering (client-side filter within page); visible when searching (server-side) */}
-        {!stepFilter && (
-          <OSIPagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalCount={totalCount}
-            itemsPerPage={itemsPerPage}
-            onPageChange={handlePageChange}
-            onItemsPerPageChange={handleItemsPerPageChange}
-            loading={loading}
-          />
-        )}
+        {/* Pagination — server-side filtering allows full pagination across all pages */}
+        <OSIPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+          loading={loading}
+        />
       </div>
 
       {/* Attachment Preview Modal */}

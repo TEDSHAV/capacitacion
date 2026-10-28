@@ -1032,6 +1032,7 @@ export interface OSIFilters {
   tipoServicio?: string;
   servicio?: string;
   status?: string;
+  stepKey?: string;
   dateServiceFrom?: string;
   dateServiceTo?: string;
   dateIssuedFrom?: string;
