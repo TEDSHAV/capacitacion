@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { FacilitatorPoolItem } from "@/app/actions/facilitators-pool";
 import { FacilitadorCard } from "./FacilitadorCard";
 import { ViewMode, SortMode, SkillLevel } from "./FacilitadorMatcherBar";
-import { toTitleCase } from "@/utils/string-utils";
+import { toTitleCase, formatAcademicTitle } from "@/utils/string-utils";
 import {
   Star,
   MapPin,
@@ -250,6 +250,7 @@ export function FacilitadorPoolGrid({
               onAssignOsi={onAssignOsi}
               onViewProfile={onViewProfile}
               onEdit={onEdit}
+              onShowHistory={onShowHistory}
               readOnly={readOnly}
             />
           ))}
@@ -314,7 +315,7 @@ export function FacilitadorPoolGrid({
 
                 <td className="px-3 py-3">
                   <div className="text-sm font-semibold text-gray-900">{toTitleCase(f.nombre_apellido || "")}</div>
-                  <div className="text-xs text-gray-500 truncate max-w-xs">{f.titulo_profesional || "Facilitador"}</div>
+                  <div className="text-xs text-gray-500 truncate max-w-xs">{formatAcademicTitle(f.titulo_profesional || "Facilitador")}</div>
                   {selectedTopic && matchedRating && (
                     <div className="mt-0.5 text-[11px] inline-flex items-center gap-1 px-1.5 py-0.5 bg-violet-100 text-violet-800 rounded font-medium">
                       <Sparkles className="w-3 h-3" />
@@ -341,7 +342,7 @@ export function FacilitadorPoolGrid({
                     <span className="truncate">{f.ciudad_nombre || f.estado_nombre || "Venezuela"}</span>
                   </div>
                   {f.alcance && (
-                    <span className="text-[10px] text-gray-400">{f.alcance}</span>
+                    <span className="text-[10px] text-gray-500 capitalize">{toTitleCase(f.alcance)}</span>
                   )}
                 </td>
 

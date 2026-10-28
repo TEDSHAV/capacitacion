@@ -651,6 +651,7 @@ export const FacilitadorCrud = ({
         onEdit={(f) => {
           handleEditPool(f);
         }}
+        onShowHistory={handleShowHistoryPool}
         readOnly={isReadOnly}
       />
 

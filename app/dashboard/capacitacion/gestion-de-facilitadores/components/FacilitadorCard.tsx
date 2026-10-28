@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { FacilitatorPoolItem } from "@/app/actions/facilitators-pool";
-import { toTitleCase } from "@/utils/string-utils";
+import { toTitleCase, formatAcademicTitle } from "@/utils/string-utils";
 import {
   Star,
   StarHalf,
@@ -19,6 +19,7 @@ import {
   ChevronRight,
   ShieldCheck,
   Share2,
+  History,
 } from "lucide-react";
 
 interface FacilitadorCardProps {
@@ -28,6 +29,7 @@ interface FacilitadorCardProps {
   onAssignOsi: (facilitador: FacilitatorPoolItem) => void;
   onViewProfile: (facilitador: FacilitatorPoolItem) => void;
   onEdit: (facilitador: FacilitatorPoolItem) => void;
+  onShowHistory?: (facilitador: FacilitatorPoolItem) => void;
   readOnly?: boolean;
 }
 
@@ -38,6 +40,7 @@ export function FacilitadorCard({
   onAssignOsi,
   onViewProfile,
   onEdit,
+  onShowHistory,
   readOnly = false,
 }: FacilitadorCardProps) {
   const [imgError, setImgError] = useState(false);
@@ -149,15 +152,15 @@ export function FacilitadorCard({
                   ? "Intermedio"
                   : matchedLevel === "basico"
                     ? "Básico"
-                    : "Habilitado"}{" "}
+                    : ""}{" "}
               en: <strong className="font-semibold">{matchedTopic}</strong>
             </span>
           </span>
-          <span className="ml-2 font-bold shrink-0">
-            {matchedRating && matchedRating.avgRating > 0
-              ? `★ ${matchedRating.avgRating.toFixed(1)} (${matchedRating.reviewCount} evals)`
-              : "Habilitado"}
-          </span>
+          {matchedRating && matchedRating.avgRating > 0 && (
+            <span className="ml-2 font-bold shrink-0">
+              ★ {matchedRating.avgRating.toFixed(1)} ({matchedRating.reviewCount} evals)
+            </span>
+          )}
         </div>
       )}
 
@@ -201,7 +204,7 @@ export function FacilitadorCard({
             </div>
 
             <p className="text-xs text-gray-500 truncate mt-0.5">
-              {facilitador.titulo_profesional || "Facilitador de Capacitación"}
+              {formatAcademicTitle(facilitador.titulo_profesional || "Facilitador de Capacitación")}
             </p>
 
             {/* Badges strip: Accreditation + Reach */}
@@ -225,8 +228,8 @@ export function FacilitadorCard({
                 </span>
               )}
               {facilitador.alcance && (
-                <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-600 border border-gray-200">
-                  {facilitador.alcance}
+                <span className="inline-flex capitalize px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-600 border border-gray-200">
+                  {toTitleCase(facilitador.alcance)}
                 </span>
               )}
             </div>
@@ -299,28 +302,55 @@ export function FacilitadorCard({
         </div>
 
         {/* Stats Summary */}
-        <div className="mt-3.5 grid grid-cols-2 gap-2 p-2 bg-gray-50/70 rounded-lg border border-gray-100 text-[11px]">
-          <div>
-            <span className="text-gray-400 block text-[10px]">Servicios (OSIs)</span>
-            <span className="font-bold text-gray-800">{facilitador.totalOsisCount} ejecutadas</span>
+        <div className="mt-3.5 grid grid-cols-2 gap-2 p-1.5 bg-gray-50/70 rounded-lg border border-gray-100 text-[11px]">
+          <div
+            onClick={(e) => {
+              if (onShowHistory) {
+                e.stopPropagation();
+                onShowHistory(facilitador);
+              }
+            }}
+            className={`p-1.5 rounded-md transition-all ${
+              onShowHistory
+                ? "cursor-pointer hover:bg-blue-50/80 hover:border-blue-200 border border-transparent group/stat"
+                : ""
+            }`}
+            title={onShowHistory ? "Click para ver el historial detallado de cursos y OSIs dictadas" : undefined}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 group-hover/stat:text-blue-600 block text-[10px] font-medium flex items-center gap-1">
+                {onShowHistory && <History className="w-3 h-3 text-blue-500" />}
+                Servicios (OSIs)
+              </span>
+              {onShowHistory && (
+                <span className="text-[9px] text-blue-600 font-semibold opacity-0 group-hover/stat:opacity-100 transition-opacity">
+                  Ver →
+                </span>
+              )}
+            </div>
+            <span className="font-bold text-gray-800 group-hover/stat:text-blue-700 block mt-0.5">
+              {facilitador.totalOsisCount} ejecutadas
+            </span>
           </div>
-          <div>
-            <span className="text-gray-400 block text-[10px]">Participantes</span>
-            <span className="font-bold text-gray-800">{facilitador.totalCertificadosCount} capacitados</span>
+          <div className="p-1.5">
+            <span className="text-gray-400 block text-[10px] font-medium">Participantes</span>
+            <span className="font-bold text-gray-800 block mt-0.5">
+              {facilitador.totalCertificadosCount} capacitados
+            </span>
           </div>
         </div>
       </div>
 
       {/* Card Action Buttons Bar */}
       <div
-        className="px-4 py-2.5 bg-gray-50/90 border-t border-gray-100 flex items-center justify-between gap-1.5"
+        className="px-3 py-2 bg-gray-50/90 border-t border-gray-100 flex items-center justify-between gap-1"
         onClick={(e) => e.stopPropagation()}
       >
         {readOnly ? (
           <>
             <button
               onClick={() => onViewProfile(facilitador)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors shadow-2xs"
               title="Ver perfil completo de competencias y calificaciones"
             >
               <span>Ver Perfil</span>
@@ -340,23 +370,25 @@ export function FacilitadorCard({
           </>
         ) : (
           <>
-            <button
-              onClick={() => onAssignOsi(facilitador)}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#0c3f69] hover:bg-blue-900 text-white text-xs font-semibold rounded-md shadow-sm transition-colors"
-              title="Asignar facilitador a una OSI"
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>Asignar</span>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onAssignOsi(facilitador)}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#0c3f69] hover:bg-blue-900 text-white text-xs font-semibold rounded-md shadow-sm transition-colors"
+                title="Asignar facilitador a una OSI"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Asignar</span>
+              </button>
 
-            <button
-              onClick={() => onViewProfile(facilitador)}
-              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors shadow-2xs"
-              title="Ver perfil completo de competencias y calificaciones"
-            >
-              <span>Perfil</span>
-              <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-            </button>
+              <button
+                onClick={() => onViewProfile(facilitador)}
+                className="inline-flex items-center gap-0.5 px-2 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors shadow-2xs"
+                title="Ver perfil completo de competencias y calificaciones"
+              >
+                <span>Perfil</span>
+                <ChevronRight className="w-3 h-3 text-gray-400" />
+              </button>
+            </div>
 
             <div className="flex items-center gap-1">
               <button

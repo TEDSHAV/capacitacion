@@ -82,6 +82,9 @@ const UPPERCASE_ACRONYMS = new Set([
   "iso",
   "sha",
   "osi",
+  "sso",
+  "siaho",
+  "ci",
 ]);
 
 /**
@@ -103,7 +106,7 @@ export function formatAcademicTitle(str: string | null | undefined): string {
       if (index > 0 && minorWords.has(lower)) {
         return lower;
       }
-      return lower.charAt(0).toUpperCase() + lower.slice(1);
+      return lower.replace(/^[([{\"'«]*[a-záéíóúñ]/, (m) => m.toUpperCase());
     })
     .join(" ");
 }

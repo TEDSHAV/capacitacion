@@ -169,15 +169,16 @@ export const FacilitadorHistoryModal = ({
                         >
                           <td className="px-3 py-2.5 whitespace-nowrap text-sm">
                             <div className="flex items-center gap-1.5">
-                              <Link
+                              <a
                                 href={`/dashboard/capacitacion/gestion-osi?id=${row.osi_id}`}
-                                onClick={onClose}
-                                className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-medium"
-                                title="Abrir OSI"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-medium hover:underline"
+                                title="Abrir OSI en nueva pestaña"
                               >
                                 {row.nro_osi || `OSI #${row.osi_id}`}
                                 <ExternalLink className="w-3 h-3" />
-                              </Link>
+                              </a>
                               {row.source === "requisicion" && (
                                 <span
                                   className="inline-flex items-center text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full"
