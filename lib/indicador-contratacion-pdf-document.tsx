@@ -174,6 +174,25 @@ const styles = StyleSheet.create({
     fontSize: 6.8,
     justifyContent: "center",
   },
+  compactThCell: {
+    borderRightWidth: 1,
+    borderColor: "#0f172a",
+    paddingVertical: 2.2,
+    paddingHorizontal: 3.5,
+    fontFamily: "Helvetica-Bold",
+    fontSize: 5.8,
+    textAlign: "center",
+    backgroundColor: "#e2e8f0",
+    justifyContent: "center",
+  },
+  compactTdCell: {
+    borderRightWidth: 1,
+    borderColor: "#0f172a",
+    paddingVertical: 2,
+    paddingHorizontal: 3.5,
+    fontSize: 6.2,
+    justifyContent: "center",
+  },
   gridTwoCols: {
     flexDirection: "row",
     gap: 8,
@@ -321,9 +340,12 @@ export default function IndicadorContratacionPdfDocument({
       });
     }
   }
-  const sortedCities = Array.from(cityCounts.values())
-    .sort((a, b) => b.nuevosMes - a.nuevosMes || b.totalPlantilla - a.totalPlantilla)
-    .slice(0, 8);
+  const sortedCities = Array.from(cityCounts.values()).sort(
+    (a, b) =>
+      b.nuevosMes - a.nuevosMes ||
+      b.totalPlantilla - a.totalPlantilla ||
+      a.nombre.localeCompare(b.nombre)
+  );
 
   const fuenteCounts = new Map<
     string,
@@ -350,7 +372,42 @@ export default function IndicadorContratacionPdfDocument({
     }
   }
   const sortedFuentes = Array.from(fuenteCounts.values()).sort(
-    (a, b) => b.nuevosMes - a.nuevosMes || b.totalPlantilla - a.totalPlantilla
+    (a, b) =>
+      b.nuevosMes - a.nuevosMes ||
+      b.totalPlantilla - a.totalPlantilla ||
+      a.label.localeCompare(b.label)
+  );
+
+  // Breakdown by State (guarantees national total is fully reconciled)
+  const estadoCounts = new Map<
+    string,
+    { nombre: string; nuevosMes: number; totalPlantilla: number }
+  >();
+  for (const e of data.porEstado) {
+    estadoCounts.set(e.nombre, {
+      nombre: e.nombre,
+      nuevosMes: 0,
+      totalPlantilla: e.total,
+    });
+  }
+  for (const item of monthItems) {
+    const sName = item.estadoNombre || "Sin estado";
+    const existing = estadoCounts.get(sName);
+    if (existing) {
+      existing.nuevosMes += 1;
+    } else {
+      estadoCounts.set(sName, {
+        nombre: sName,
+        nuevosMes: 1,
+        totalPlantilla: 1,
+      });
+    }
+  }
+  const sortedEstados = Array.from(estadoCounts.values()).sort(
+    (a, b) =>
+      b.nuevosMes - a.nuevosMes ||
+      b.totalPlantilla - a.totalPlantilla ||
+      a.nombre.localeCompare(b.nombre)
   );
 
   return (
@@ -591,23 +648,24 @@ export default function IndicadorContratacionPdfDocument({
           )}
         </View>
 
-        {/* Two-column breakdown: Cobertura por Ciudad/Estado + Fuente de Captación */}
+        {/* Two-column breakdown: Cobertura por Ciudad Base + Estado / Fuentes */}
         <View style={styles.gridTwoCols}>
+          {/* Left Column: Todas las ciudades */}
           <View style={styles.halfCol}>
             <View style={styles.sectionTitleBox}>
               <Text style={styles.sectionTitle}>
-                3. Distribución por Ciudad y Estado
+                3. Distribución por Ciudad Base ({sortedCities.length})
               </Text>
             </View>
             <View style={[styles.table, { marginBottom: 0 }]}>
               <View style={styles.tableRow}>
-                <View style={[styles.thCell, { width: "56%", textAlign: "left", paddingLeft: 4 }]}>
+                <View style={[styles.compactThCell, { width: "58%", textAlign: "left", paddingLeft: 4 }]}>
                   <Text>CIUDAD / ESTADO</Text>
                 </View>
-                <View style={[styles.thCell, { width: "22%" }]}>
+                <View style={[styles.compactThCell, { width: "21%" }]}>
                   <Text>MES</Text>
                 </View>
-                <View style={[styles.thCell, { width: "22%" }]}>
+                <View style={[styles.compactThCell, { width: "21%" }]}>
                   <Text>PLANTILLA</Text>
                 </View>
               </View>
@@ -616,7 +674,7 @@ export default function IndicadorContratacionPdfDocument({
                   key={`${c.nombre}_${idx}`}
                   style={idx % 2 === 0 ? styles.tableRow : styles.tableRowAlt}
                 >
-                  <View style={[styles.tdCell, { width: "56%" }]}>
+                  <View style={[styles.compactTdCell, { width: "58%" }]}>
                     <Text>
                       {c.nombre}
                       {c.estado ? ` (${c.estado})` : ""}
@@ -624,9 +682,9 @@ export default function IndicadorContratacionPdfDocument({
                   </View>
                   <View
                     style={[
-                      styles.tdCell,
+                      styles.compactTdCell,
                       {
-                        width: "22%",
+                        width: "21%",
                         textAlign: "center",
                         fontFamily: c.nuevosMes > 0 ? "Helvetica-Bold" : "Helvetica",
                         color: c.nuevosMes > 0 ? "#15803d" : "#64748b",
@@ -635,29 +693,130 @@ export default function IndicadorContratacionPdfDocument({
                   >
                     <Text>{c.nuevosMes > 0 ? `+${c.nuevosMes}` : "0"}</Text>
                   </View>
-                  <View style={[styles.tdCell, { width: "22%", textAlign: "center" }]}>
+                  <View style={[styles.compactTdCell, { width: "21%", textAlign: "center" }]}>
                     <Text>{c.totalPlantilla}</Text>
                   </View>
                 </View>
               ))}
+              {/* Total Row */}
+              <View style={styles.tableRowHighlighted}>
+                <View style={[styles.compactTdCell, { width: "58%", fontFamily: "Helvetica-Bold" }]}>
+                  <Text>TOTAL PLANTILLA</Text>
+                </View>
+                <View
+                  style={[
+                    styles.compactTdCell,
+                    {
+                      width: "21%",
+                      textAlign: "center",
+                      fontFamily: "Helvetica-Bold",
+                      color: monthBucket.contratados > 0 ? "#15803d" : "#64748b",
+                    },
+                  ]}
+                >
+                  <Text>{monthBucket.contratados > 0 ? `+${monthBucket.contratados}` : "0"}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.compactTdCell,
+                    { width: "21%", textAlign: "center", fontFamily: "Helvetica-Bold" },
+                  ]}
+                >
+                  <Text>{data.kpis.totalPlantilla}</Text>
+                </View>
+              </View>
             </View>
           </View>
 
+          {/* Right Column: Estados + Fuentes de Captación */}
           <View style={styles.halfCol}>
+            {/* 4. Distribución por Estado */}
             <View style={styles.sectionTitleBox}>
               <Text style={styles.sectionTitle}>
-                4. Fuente de Captación
+                4. Distribución por Estado ({sortedEstados.length})
+              </Text>
+            </View>
+            <View style={[styles.table, { marginBottom: 6 }]}>
+              <View style={styles.tableRow}>
+                <View style={[styles.compactThCell, { width: "58%", textAlign: "left", paddingLeft: 4 }]}>
+                  <Text>ESTADO</Text>
+                </View>
+                <View style={[styles.compactThCell, { width: "21%" }]}>
+                  <Text>MES</Text>
+                </View>
+                <View style={[styles.compactThCell, { width: "21%" }]}>
+                  <Text>PLANTILLA</Text>
+                </View>
+              </View>
+              {sortedEstados.map((e, idx) => (
+                <View
+                  key={e.nombre}
+                  style={idx % 2 === 0 ? styles.tableRow : styles.tableRowAlt}
+                >
+                  <View style={[styles.compactTdCell, { width: "58%" }]}>
+                    <Text>{e.nombre}</Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.compactTdCell,
+                      {
+                        width: "21%",
+                        textAlign: "center",
+                        fontFamily: e.nuevosMes > 0 ? "Helvetica-Bold" : "Helvetica",
+                        color: e.nuevosMes > 0 ? "#15803d" : "#64748b",
+                      },
+                    ]}
+                  >
+                    <Text>{e.nuevosMes > 0 ? `+${e.nuevosMes}` : "0"}</Text>
+                  </View>
+                  <View style={[styles.compactTdCell, { width: "21%", textAlign: "center" }]}>
+                    <Text>{e.totalPlantilla}</Text>
+                  </View>
+                </View>
+              ))}
+              <View style={styles.tableRowHighlighted}>
+                <View style={[styles.compactTdCell, { width: "58%", fontFamily: "Helvetica-Bold" }]}>
+                  <Text>TOTAL PLANTILLA</Text>
+                </View>
+                <View
+                  style={[
+                    styles.compactTdCell,
+                    {
+                      width: "21%",
+                      textAlign: "center",
+                      fontFamily: "Helvetica-Bold",
+                      color: monthBucket.contratados > 0 ? "#15803d" : "#64748b",
+                    },
+                  ]}
+                >
+                  <Text>{monthBucket.contratados > 0 ? `+${monthBucket.contratados}` : "0"}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.compactTdCell,
+                    { width: "21%", textAlign: "center", fontFamily: "Helvetica-Bold" },
+                  ]}
+                >
+                  <Text>{data.kpis.totalPlantilla}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 5. Fuente de Captación */}
+            <View style={styles.sectionTitleBox}>
+              <Text style={styles.sectionTitle}>
+                5. Fuente de Captación
               </Text>
             </View>
             <View style={[styles.table, { marginBottom: 0 }]}>
               <View style={styles.tableRow}>
-                <View style={[styles.thCell, { width: "56%", textAlign: "left", paddingLeft: 4 }]}>
+                <View style={[styles.compactThCell, { width: "58%", textAlign: "left", paddingLeft: 4 }]}>
                   <Text>FUENTE</Text>
                 </View>
-                <View style={[styles.thCell, { width: "22%" }]}>
+                <View style={[styles.compactThCell, { width: "21%" }]}>
                   <Text>MES</Text>
                 </View>
-                <View style={[styles.thCell, { width: "22%" }]}>
+                <View style={[styles.compactThCell, { width: "21%" }]}>
                   <Text>PLANTILLA</Text>
                 </View>
               </View>
@@ -666,14 +825,14 @@ export default function IndicadorContratacionPdfDocument({
                   key={f.label}
                   style={idx % 2 === 0 ? styles.tableRow : styles.tableRowAlt}
                 >
-                  <View style={[styles.tdCell, { width: "56%" }]}>
+                  <View style={[styles.compactTdCell, { width: "58%" }]}>
                     <Text>{f.label}</Text>
                   </View>
                   <View
                     style={[
-                      styles.tdCell,
+                      styles.compactTdCell,
                       {
-                        width: "22%",
+                        width: "21%",
                         textAlign: "center",
                         fontFamily: f.nuevosMes > 0 ? "Helvetica-Bold" : "Helvetica",
                         color: f.nuevosMes > 0 ? "#0369a1" : "#64748b",
@@ -682,11 +841,37 @@ export default function IndicadorContratacionPdfDocument({
                   >
                     <Text>{f.nuevosMes > 0 ? `+${f.nuevosMes}` : "0"}</Text>
                   </View>
-                  <View style={[styles.tdCell, { width: "22%", textAlign: "center" }]}>
+                  <View style={[styles.compactTdCell, { width: "21%", textAlign: "center" }]}>
                     <Text>{f.totalPlantilla}</Text>
                   </View>
                 </View>
               ))}
+              <View style={styles.tableRowHighlighted}>
+                <View style={[styles.compactTdCell, { width: "58%", fontFamily: "Helvetica-Bold" }]}>
+                  <Text>TOTAL PLANTILLA</Text>
+                </View>
+                <View
+                  style={[
+                    styles.compactTdCell,
+                    {
+                      width: "21%",
+                      textAlign: "center",
+                      fontFamily: "Helvetica-Bold",
+                      color: monthBucket.contratados > 0 ? "#0369a1" : "#64748b",
+                    },
+                  ]}
+                >
+                  <Text>{monthBucket.contratados > 0 ? `+${monthBucket.contratados}` : "0"}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.compactTdCell,
+                    { width: "21%", textAlign: "center", fontFamily: "Helvetica-Bold" },
+                  ]}
+                >
+                  <Text>{data.kpis.totalPlantilla}</Text>
+                </View>
+              </View>
             </View>
           </View>
         </View>
