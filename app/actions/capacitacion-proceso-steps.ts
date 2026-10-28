@@ -508,6 +508,7 @@ export interface AutoAdvanceResult {
 export async function autoAdvanceEjecucionSteps(
   osis: {
     id_osi: number;
+    nro_osi?: string | null;
     fecha_inicio_real?: string | null;
     desglose_recursos_sesiones?: OSISesion[] | unknown[] | null;
     sesiones_programadas?: unknown[] | null;
@@ -538,8 +539,29 @@ export async function autoAdvanceEjecucionSteps(
     >();
     let existingSteps: ProcesoStepRecord[] | null = null;
     const osiSingleFacilitador = new Set<number>();
+
+    // Build mapping for sequential nro_osi numbers to query certificates
+    const nroOsiIntToIds = new Map<number, number[]>();
+    const addNroMapping = (num: number, id: number) => {
+      const existing = nroOsiIntToIds.get(num);
+      if (existing) {
+        if (!existing.includes(id)) existing.push(id);
+      } else {
+        nroOsiIntToIds.set(num, [id]);
+      }
+    };
+
+    for (const o of osis) {
+      const digits = o.nro_osi ? String(o.nro_osi).replace(/[^\d]/g, "") : "";
+      if (digits) {
+        addNroMapping(parseInt(digits, 10), o.id_osi);
+      }
+    }
+
+    const certsByOsiId = new Map<number, { minCreatedAt: string }>();
+
     try {
-      const [sesionResult, stepsResult, assignmentsResult] = await Promise.all([
+      const [sesionResult, stepsResult, assignmentsResult, ejecResult] = await Promise.all([
         admin
           .from("osi_sesion")
           .select("id, id_osi, nro_sesion, fecha, hora_inicio, hora_fin, fecha_ejecutada")
@@ -554,7 +576,44 @@ export async function autoAdvanceEjecucionSteps(
           .select("osi_id, facilitador_id, nro_sesion")
           .in("osi_id", osiIds)
           .eq("is_active", true),
+        admin
+          .from("ejecucion_osi")
+          .select("id, nro_osi_secuencial")
+          .in("id", osiIds),
       ]);
+
+      if (ejecResult.data) {
+        for (const row of ejecResult.data as { id: number; nro_osi_secuencial: string | number | null }[]) {
+          if (row.nro_osi_secuencial) {
+            const num = parseInt(String(row.nro_osi_secuencial).replace(/[^\d]/g, ""), 10);
+            if (num) {
+              addNroMapping(num, row.id);
+            }
+          }
+        }
+      }
+
+      const nroOsiInts = Array.from(nroOsiIntToIds.keys());
+      if (nroOsiInts.length > 0) {
+        const { data: certRows } = await admin
+          .from("certificados")
+          .select("nro_osi, created_at")
+          .in("nro_osi", nroOsiInts)
+          .is("motivo_anulacion", null);
+
+        for (const c of (certRows || []) as { nro_osi: number; created_at: string }[]) {
+          if (c.nro_osi == null) continue;
+          const targetIds = nroOsiIntToIds.get(c.nro_osi) || [];
+          for (const osiId of targetIds) {
+            const existing = certsByOsiId.get(osiId);
+            if (!existing) {
+              certsByOsiId.set(osiId, { minCreatedAt: c.created_at });
+            } else if (c.created_at && (!existing.minCreatedAt || c.created_at < existing.minCreatedAt)) {
+              existing.minCreatedAt = c.created_at;
+            }
+          }
+        }
+      }
 
       if (assignmentsResult.data) {
         const assignmentsByOsi = new Map<number, Array<{ facilitador_id: number; nro_sesion: number | null }>>();
@@ -717,6 +776,45 @@ export async function autoAdvanceEjecucionSteps(
           if (key !== "en_proceso" && stepRec.completed && isPostServiceOrSubsequentStep(key)) {
             anyPostServiceCompleted = true;
             break;
+          }
+        }
+
+        // Auto-mark "elaboracion_certificados" when certificates exist for this OSI,
+        // using the certificate's created_at timestamp.
+        const certInfo = certsByOsiId.get(osi.id_osi);
+        if (certInfo) {
+          const elabRec = sessionSteps.get("elaboracion_certificados");
+          const isElabCompleted = !!elabRec?.completed;
+          const currentCompletedAt = elabRec?.completed_at;
+          const certCreatedAt = certInfo.minCreatedAt;
+
+          if (!isElabCompleted || (certCreatedAt && currentCompletedAt !== certCreatedAt)) {
+            upserts.push({
+              osi_id: osi.id_osi,
+              nro_sesion: nroSesion,
+              phase: "ejecucion",
+              step_key: "elaboracion_certificados",
+              completed: true,
+              completed_at: certCreatedAt || todayStr,
+            });
+
+            const updatedRec: ProcesoStepRecord = {
+              ...(elabRec || {
+                id: 0,
+                osi_id: osi.id_osi,
+                nro_sesion: nroSesion,
+                phase: "ejecucion",
+                step_key: "elaboracion_certificados",
+                completed: true,
+                completed_by: null,
+                notes: null,
+                step_metadata: null,
+              }),
+              completed: true,
+              completed_at: certCreatedAt || todayStr,
+            };
+            sessionSteps.set("elaboracion_certificados", updatedRec);
+            anyPostServiceCompleted = true;
           }
         }
 
@@ -1034,6 +1132,7 @@ export async function getSeguimientoPageData(
   const autoResult = await autoAdvanceEjecucionSteps(
     osis.map((o) => ({
       id_osi: o.id_osi,
+      nro_osi: o.nro_osi,
       fecha_inicio_real: o.fecha_inicio_real ?? null,
       desglose_recursos_sesiones: o.desglose_recursos_sesiones ?? null,
       sesiones_programadas: o.sesiones_programadas ?? null,

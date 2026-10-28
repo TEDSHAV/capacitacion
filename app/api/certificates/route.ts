@@ -207,6 +207,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (certificate && nro_osi) {
+      try {
+        const cleanNro = String(nro_osi).replace(/[^\d]/g, "");
+        if (cleanNro) {
+          const { data: ejecMatch } = await supabase
+            .from("ejecucion_osi")
+            .select("id")
+            .eq("nro_osi_secuencial", cleanNro)
+            .maybeSingle();
+
+          let resolvedOsiId = ejecMatch?.id;
+          if (!resolvedOsiId) {
+            const { data: osiMatch } = await supabase
+              .from("v_osi_formato_completo")
+              .select("id_osi")
+              .eq("nro_osi", cleanNro)
+              .maybeSingle();
+            if (osiMatch?.id_osi) resolvedOsiId = osiMatch.id_osi;
+          }
+
+          if (resolvedOsiId) {
+            const certCreatedAt = certificate.created_at || new Date().toISOString();
+            const { data: sesionRows } = await supabase
+              .from("osi_sesion")
+              .select("nro_sesion")
+              .eq("id_osi", resolvedOsiId);
+
+            const sessionNumbers =
+              sesionRows && sesionRows.length > 0
+                ? sesionRows.map((s) => s.nro_sesion)
+                : [1];
+
+            const stepRows = sessionNumbers.map((nro) => ({
+              osi_id: resolvedOsiId,
+              nro_sesion: nro,
+              phase: "ejecucion" as const,
+              step_key: "elaboracion_certificados",
+              completed: true,
+              completed_at: certCreatedAt,
+            }));
+
+            await supabase
+              .from("capacitacion_proceso_steps")
+              .upsert(stepRows, { onConflict: "osi_id,nro_sesion,phase,step_key" });
+
+            const { clearSeguimientoServerCache } = await import(
+              "@/app/actions/capacitacion-proceso-steps"
+            );
+            await clearSeguimientoServerCache();
+          }
+        }
+      } catch (stepErr) {
+        console.warn("⚠️ Failed to auto-mark elaboracion_certificados in API:", stepErr);
+      }
+    }
+
     return NextResponse.json({ certificate }, { status: 201 });
   } catch (error) {
     console.error("Error in certificate creation API:", error);

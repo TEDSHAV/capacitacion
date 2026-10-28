@@ -37,6 +37,12 @@ interface ProcesoStepsTimelineProps {
   compact?: boolean;
 }
 
+const HIDE_DATE_STEP_KEYS = new Set([
+  "certificados_impresos",
+  "sobre_espera_autorizacion",
+  "sobre_enviado_zoom",
+]);
+
 function formatStepDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "";
   const trimmed = String(dateStr).trim();
@@ -462,7 +468,7 @@ export default function ProcesoStepsTimeline({
                     Opcional
                   </span>
                 )}
-                {isCompleted && rec?.completed_at && (
+                {isCompleted && rec?.completed_at && !HIDE_DATE_STEP_KEYS.has(step.key) && (
                   <span className="text-[9px] text-gray-400">
                     {formatStepDate(rec.completed_at)}
                   </span>
@@ -584,7 +590,7 @@ export default function ProcesoStepsTimeline({
                   )}
                 </button>
               </div>
-            ) : isCompleted && rec?.completed_at ? (
+            ) : isCompleted && rec?.completed_at && !HIDE_DATE_STEP_KEYS.has(step.key) ? (
               <span className="text-[9px] text-gray-400 mt-0.5">
                 {formatStepDate(rec.completed_at)}
               </span>
@@ -859,7 +865,7 @@ export default function ProcesoStepsTimeline({
                                   )}
                                 </button>
                               </div>
-                            ) : isCompleted && rec?.completed_at ? (
+                            ) : isCompleted && rec?.completed_at && !HIDE_DATE_STEP_KEYS.has(subStep.key) ? (
                               <span className="text-[8px] text-gray-400 mt-0.5">
                                 {formatStepDate(rec.completed_at)}
                               </span>
