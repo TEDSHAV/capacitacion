@@ -3,14 +3,16 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Loader2, AlertCircle, Info, Settings, BarChart3, Clock } from "lucide-react";
+import { Loader2, AlertCircle, Info, Settings, BarChart3, Clock, UserPlus } from "lucide-react";
 import type {
+  ContratacionFacilitadoresResponse,
   GestionMensualResponse,
   IndicadoresFilterOptions,
   IndicadoresResponse,
 } from "@/types";
 import { getIndicadoresCertificados72h } from "@/app/actions/indicadores-certificados";
 import { getIndicadoresGestionMensual } from "@/app/actions/indicadores-gestion";
+import { getIndicadoresContratacionFacilitadores } from "@/app/actions/indicadores-contratacion";
 import { cachePortalData } from "@/lib/offline/portal-data-cache";
 import { fetchWithOfflineFallback } from "@/lib/offline/use-offline-data";
 import { useOnlineStatus } from "@/lib/offline/use-online-status";
@@ -25,6 +27,7 @@ import FilterBar, { type IndicadoresFilterState } from "./components/FilterBar";
 import GestionMensualTable from "./components/GestionMensualTable";
 import CarryPanel from "./components/CarryPanel";
 import Certificados72hView from "./components/Certificados72hView";
+import ContratacionFacilitadoresView from "./components/ContratacionFacilitadoresView";
 import IndicadorDetailModal from "./components/IndicadorDetailModal";
 import ExportIndicadoresModal from "./components/ExportIndicadoresModal";
 import type { IndicadorOsiItem } from "@/types";
@@ -36,7 +39,7 @@ interface Props {
   shellUrl: string;
 }
 
-type IndicadorTab = "gestion" | "72h";
+type IndicadorTab = "gestion" | "72h" | "contratacion";
 
 const TAB_DEFS: {
   id: IndicadorTab;
@@ -57,6 +60,13 @@ const TAB_DEFS: {
     icon: Clock,
     subtitle:
       "Control de emisión de certificados dentro de 3 días hábiles tras la última sesión.",
+  },
+  {
+    id: "contratacion",
+    label: "Contratación de Facilitadores",
+    icon: UserPlus,
+    subtitle:
+      "Crecimiento mensual de la plantilla de facilitadores, ubicaciones y conversión de entrevistas.",
   },
 ];
 
@@ -127,6 +137,7 @@ function buildGestionFilters(state: IndicadoresFilterState) {
 interface IndicadoresCachedSnapshot {
   gestion: GestionMensualResponse | null;
   res72h: IndicadoresResponse | null;
+  contratacion: ContratacionFacilitadoresResponse | null;
   error: string | null;
   timestamp: number;
 }
@@ -155,10 +166,14 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
   const [data, setData] = useState<IndicadoresResponse | null>(
     initialCache?.res72h ?? null
   );
+  const [contratacion, setContratacion] = useState<ContratacionFacilitadoresResponse | null>(
+    initialCache?.contratacion ?? null
+  );
   const [loading, setLoading] = useState(!initialCache);
   const [error, setError] = useState<string | null>(initialCache?.error ?? null);
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isExportingContratacionPdf, setIsExportingContratacionPdf] = useState(false);
   const [detailModalState, setDetailModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -221,7 +236,7 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
     }
     setSelectedMes(initMes);
 
-    if (tab === "72h" || tab === "gestion") {
+    if (tab === "72h" || tab === "gestion" || tab === "contratacion") {
       setActiveTab(tab);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,6 +278,7 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
     if (cached) {
       setGestion(cached.gestion);
       setData(cached.res72h);
+      setContratacion(cached.contratacion);
       setError(cached.error);
       setLoading(false);
     } else {
@@ -270,8 +286,8 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
       setError(null);
     }
 
-    // Parallel fetch: Gestión Mensual + Certificados 72h
-    const [gestionRes, res72h] = await Promise.all([
+    // Parallel fetch: Gestión Mensual + Certificados 72h + Contratación Facilitadores
+    const [gestionRes, res72h, contratacionRes] = await Promise.all([
       fetchWithOfflineFallback(
         `dash_indicadores_gestion_${filterState.year}_${filterKey}`,
         "dash_indicadores",
@@ -294,11 +310,28 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
         console.error("Error loading indicadores 72h:", err);
         return null;
       }),
+      fetchWithOfflineFallback(
+        `dash_indicadores_contratacion_${filterState.year}_${filterState.estadoId || "all"}`,
+        "dash_indicadores",
+        () =>
+          getIndicadoresContratacionFacilitadores({
+            year: filterState.year,
+            estadoId: filterState.estadoId || undefined,
+          })
+      ).catch((err) => {
+        console.error("Error loading contratacion facilitadores:", err);
+        return null;
+      }),
     ]);
 
     const newGestion = gestionRes?.data.data ?? null;
     const newRes72h = res72h?.data.data ?? null;
-    const err = gestionRes?.data.error ?? res72h?.data.error ?? null;
+    const newContratacion = contratacionRes?.data.data ?? null;
+    const err =
+      gestionRes?.data.error ??
+      res72h?.data.error ??
+      contratacionRes?.data.error ??
+      null;
 
     if (newGestion) {
       setGestion(newGestion);
@@ -314,6 +347,12 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
       setData(null);
     }
 
+    if (newContratacion) {
+      setContratacion(newContratacion);
+    } else if (!cached) {
+      setContratacion(null);
+    }
+
     if (!cached || err) {
       setError(err);
     }
@@ -322,6 +361,7 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
     indicadoresMemCache.set(memCacheKey, {
       gestion: newGestion || (cached?.gestion ?? null),
       res72h: newRes72h || (cached?.res72h ?? null),
+      contratacion: newContratacion || (cached?.contratacion ?? null),
       error: err,
       timestamp: Date.now(),
     });
@@ -358,6 +398,44 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
     });
   }, []);
 
+  const handleExportContratacionPdf = useCallback(async () => {
+    if (!contratacion) return;
+    const pdfWindow = window.open("", "_blank");
+    try {
+      setIsExportingContratacionPdf(true);
+      const { pdf } = await import("@react-pdf/renderer");
+      const { default: IndicadorContratacionPdfDocument } = await import(
+        "@/lib/indicador-contratacion-pdf-document"
+      );
+
+      const estadoObj = filterState.estadoId
+        ? filterOptions.estados.find(
+            (s) => String(s.id) === String(filterState.estadoId)
+          )
+        : null;
+
+      const blob = await pdf(
+        <IndicadorContratacionPdfDocument
+          data={contratacion}
+          selectedMes={selectedMes}
+          estadoFiltroLabel={estadoObj?.nombre_estado}
+        />
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      if (pdfWindow) {
+        pdfWindow.location.href = url;
+      } else {
+        window.open(url, "_blank");
+      }
+    } catch (err) {
+      if (pdfWindow) pdfWindow.close();
+      console.error("Error opening contratacion PDF:", err);
+    } finally {
+      setIsExportingContratacionPdf(false);
+    }
+  }, [contratacion, filterOptions.estados, filterState.estadoId, selectedMes]);
+
   return (
     <div className="min-h-screen bg-gray-50/50">
       <FilterBar
@@ -369,6 +447,10 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
         onSelectMes={setSelectedMes}
         activeTab={activeTab}
         onOpenExport={() => setIsExportModalOpen(true)}
+        onExportContratacionPdf={
+          contratacion ? handleExportContratacionPdf : undefined
+        }
+        isExportingContratacionPdf={isExportingContratacionPdf}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -525,6 +607,29 @@ export default function IndicadoresClient({ user: _user, filterOptions, shellUrl
                     aggregates={aggregates}
                     rows={data.rows}
                     mesLabel={mesActual?.label}
+                    onRefresh={() => fetchData(true)}
+                  />
+                )}
+              </section>
+            )}
+
+            {/* ── Vista 3: Contratación de Facilitadores ──────────────── */}
+            {activeTab === "contratacion" && (
+              <section className="space-y-4">
+                {!contratacion ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+                    <Info className="w-8 h-8 mb-2" />
+                    <p className="text-sm">
+                      No hay datos de contratación de facilitadores disponibles.
+                    </p>
+                  </div>
+                ) : (
+                  <ContratacionFacilitadoresView
+                    data={contratacion}
+                    states={filterOptions.estados}
+                    selectedMes={selectedMes}
+                    estadoIdFilter={filterState.estadoId}
+                    onSelectMes={setSelectedMes}
                     onRefresh={() => fetchData(true)}
                   />
                 )}

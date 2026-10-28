@@ -625,7 +625,13 @@ export default function ReportesV2View({
                   Para auditar el plazo de emisión de certificados (dentro de los 3 días hábiles post-ejecución) y el seguimiento de OSIs (ejecutadas, pendientes, arrastradas y planificadas para los próximos meses), consulta la sección de Indicadores.
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <Link
+                  href="/dashboard/capacitacion/indicadores?tab=contratacion"
+                  className="px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-semibold rounded-lg shadow-sm transition-colors"
+                >
+                  Crecimiento de Facilitadores →
+                </Link>
                 <Link
                   href="/dashboard/capacitacion/indicadores?tab=72h"
                   className="px-3 py-1.5 bg-sky-600 text-white hover:bg-sky-700 text-xs font-semibold rounded-lg shadow-sm transition-colors"
@@ -709,6 +715,25 @@ export default function ReportesV2View({
         {/* ─── TAB 3: FACILITADORES ──────────────────────────────────────── */}
         {internalTab === "facilitadores" && (
           <div className="space-y-4">
+            {/* Banner to Contratación & Crecimiento de Facilitadores Indicator */}
+            <div className="bg-gradient-to-r from-emerald-50 to-sky-50 border border-emerald-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  Indicador de Crecimiento y Contratación de Facilitadores
+                </h4>
+                <p className="text-xs text-emerald-800 mt-0.5">
+                  Consulta cuántos facilitadores han ingresado mes a mes, su distribución por ciudad/estado, conversión de entrevistas y descarga el reporte oficial en PDF.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/capacitacion/indicadores?tab=contratacion"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-colors shrink-0 self-start sm:self-auto"
+              >
+                Abrir Indicador y Exportar PDF →
+              </Link>
+            </div>
+
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4">

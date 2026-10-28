@@ -2265,4 +2265,84 @@ export interface FacilitadoresHorasResponse {
   yearsDisponibles: number[];
 }
 
+// ============================================================================
+// Indicadores de Contratación de Facilitadores — crecimiento de plantilla
+// ============================================================================
+
+export interface FacilitadorContratadoItem {
+  id: number;
+  nombreApellido: string;
+  cedula: string | null;
+  email: string | null;
+  telefono: string | null;
+  fechaIngreso: string | null;
+  anoIngreso: number | null;
+  fechaCreacion: string | null;
+  fuente: string | null;
+  idEstado: number | null;
+  estadoNombre: string | null;
+  idCiudad: number | null;
+  ciudadNombre: string | null;
+  isActive: boolean;
+  temasCursos: string[];
+  tituloProfesional: string | null;
+  nivelEducacion: string | null;
+  entrevistaId: number | null;
+  fechaEntrevista: string | null;
+  osisAsignadasCount: number;
+}
+
+export interface ContratacionMesBucket {
+  /** "YYYY-MM" for real months, "total" for year summary */
+  mes: string;
+  /** Display label, e.g. "Ago 26" or "Total" */
+  label: string;
+  /** Number of facilitators hired (fecha_ingreso) in this month */
+  contratados: number;
+  /** Cumulative active/registered facilitator pool up to the end of this month */
+  acumulado: number;
+  /** Percentage growth vs prior month's cumulative pool */
+  crecimientoPct: number | null;
+  /** Interviews conducted in this month */
+  entrevistasRealizadas: number;
+  /** Approved interviews in this month */
+  entrevistasAprobadas: number;
+  /** Facilitators hired in this month */
+  items: FacilitadorContratadoItem[];
+}
+
+export interface ContratacionFacilitadoresFilters {
+  year: number;
+  estadoId?: string;
+  ciudadId?: string;
+  fuente?: string;
+  soloActivos?: boolean;
+}
+
+export interface ContratacionFacilitadoresResponse {
+  year: number;
+  meses: ContratacionMesBucket[];
+  totalAnio: ContratacionMesBucket;
+  yearsDisponibles: number[];
+  /** All facilitators matching location/source/active filters (for directory & backfill) */
+  todosFacilitadores: FacilitadorContratadoItem[];
+  /** Summary KPIs */
+  kpis: {
+    totalPlantilla: number;
+    totalActivos: number;
+    contratadosAnio: number;
+    contratadosTrackeados: number;
+    sinFechaIngreso: number;
+    crecimientoAnualPct: number | null;
+    promedioMensualTrackeado: number;
+    tasaConversionEntrevistas: number | null;
+    totalEntrevistasAnio: number;
+    totalEntrevistasAprobadasAnio: number;
+  };
+  porEstado: { id: number | null; nombre: string; total: number; contratadosAnio: number }[];
+  porCiudad: { id: number | null; nombre: string; estadoNombre: string | null; total: number; contratadosAnio: number }[];
+  porFuente: { fuente: string; label: string; total: number; contratadosAnio: number }[];
+  ciudadesDisponibles: { id: number; nombre: string; idEstado: number }[];
+}
+
 export * from "./entrevistas-facilitadores";
