@@ -38,6 +38,7 @@ interface ProcesoStepsTimelineProps {
 }
 
 const HIDE_DATE_STEP_KEYS = new Set([
+  "material_recibido_fisico",
   "certificados_impresos",
   "sobre_espera_autorizacion",
   "sobre_enviado_zoom",
