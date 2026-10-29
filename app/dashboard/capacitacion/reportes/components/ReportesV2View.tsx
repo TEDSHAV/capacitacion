@@ -744,7 +744,9 @@ export default function ReportesV2View({
                   ${overview.totalHonorariosFacilitadores.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
                 <p className="text-[11px] text-emerald-700 mt-0.5">
-                  Procesado por Administración vía requisición
+                  {overview.pendingFacilitatorHonorarios > 0
+                    ? `+$${overview.pendingFacilitatorHonorarios.toLocaleString()} en requisiciones pendientes`
+                    : "Procesado por Administración vía requisición"}
                 </p>
               </div>
 
@@ -756,7 +758,9 @@ export default function ReportesV2View({
                   {overview.totalFacilitatorHours.toLocaleString()}h
                 </p>
                 <p className="text-[11px] text-amber-700 mt-0.5">
-                  Horas académicas registradas en requisiciones
+                  {overview.pendingFacilitatorHours > 0
+                    ? `+${overview.pendingFacilitatorHours.toLocaleString()}h en requisiciones pendientes`
+                    : "Horas académicas registradas en requisiciones"}
                 </p>
               </div>
 
@@ -768,7 +772,7 @@ export default function ReportesV2View({
                   {overview.paidFacilitatorsCount}
                 </p>
                 <p className="text-[11px] text-sky-700 mt-0.5">
-                  de {overview.totalFacilitators} facilitadores activos
+                  de {data.facilitators.length} facilitadores con actividad en el período
                 </p>
               </div>
             </div>
@@ -780,11 +784,12 @@ export default function ReportesV2View({
                     <th className="py-2.5 px-3 font-semibold">Facilitador</th>
                     <th className="py-2.5 px-3 font-semibold">Cédula</th>
                     <th className="py-2.5 px-3 font-semibold">Estado Base</th>
-                    <th className="py-2.5 px-3 font-semibold text-right">Horas Requisición</th>
-                    <th className="py-2.5 px-3 font-semibold text-right">Honorarios Pagados ($)</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">Horas Pagadas</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">Honorarios ($)</th>
                     <th className="py-2.5 px-3 font-semibold text-right">Grupos (OSIs)</th>
                     <th className="py-2.5 px-3 font-semibold text-right">Certificados</th>
                     <th className="py-2.5 px-3 font-semibold text-right">Temas</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">Rating</th>
                     <th className="py-2.5 px-3 font-semibold text-center">Estatus Requisición</th>
                   </tr>
                 </thead>
@@ -792,15 +797,32 @@ export default function ReportesV2View({
                   {filteredFacilitators.map((f) => (
                     <tr key={f.id} className="hover:bg-sky-50/40 transition-colors">
                       <td className="py-3 px-3 font-medium text-gray-900">
-                        {f.nombreApellido}
+                        <span>{f.nombreApellido}</span>
+                        {!f.isActive && (
+                          <span className="ml-1.5 text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-normal">
+                            Inactivo
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-3 text-gray-500 font-mono text-[11px]">{f.cedula || "N/A"}</td>
                       <td className="py-3 px-3 text-gray-600">{f.estadoNombre}</td>
-                      <td className="py-3 px-3 text-right text-amber-700 font-bold tabular-nums">
-                        {f.totalHours}h
+                      <td className="py-3 px-3 text-right tabular-nums">
+                        <span className="text-amber-700 font-bold">{f.totalHours}h</span>
+                        {f.pendingHours > 0 && (
+                          <span className="block text-[10px] text-amber-600 font-normal">
+                            (+{f.pendingHours}h pend.)
+                          </span>
+                        )}
                       </td>
-                      <td className="py-3 px-3 text-right text-emerald-600 font-bold text-sm tabular-nums">
-                        ${f.totalHonorarios.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      <td className="py-3 px-3 text-right tabular-nums">
+                        <span className="text-emerald-600 font-bold text-sm">
+                          ${f.totalHonorarios.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </span>
+                        {f.pendingHonorarios > 0 && (
+                          <span className="block text-[10px] text-amber-600 font-normal">
+                            (+${f.pendingHonorarios.toLocaleString()} pend.)
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-3 text-right text-sky-700 font-semibold tabular-nums">
                         {f.totalOsis}
@@ -811,10 +833,30 @@ export default function ReportesV2View({
                       <td className="py-3 px-3 text-right text-gray-700 tabular-nums">
                         {f.uniqueCourses}
                       </td>
+                      <td className="py-3 px-3 text-right tabular-nums">
+                        {f.averageRating > 0 ? (
+                          <span
+                            className="inline-flex items-center gap-1 font-semibold text-amber-700"
+                            title={`Promedio de ${f.surveyCount} encuesta(s)`}
+                          >
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
+                            {f.averageRating}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
                       <td className="py-3 px-3 text-center">
-                        {f.hasRequisicion ? (
+                        {f.estatusRequisicion === "procesada" ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
                             <Check className="w-3 h-3" /> Procesada
+                          </span>
+                        ) : f.estatusRequisicion === "pendiente" ? (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800"
+                            title="Requisición entregada pero pendiente de procesamiento por Administración"
+                          >
+                            <Clock className="w-3 h-3" /> Pendiente
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-600">

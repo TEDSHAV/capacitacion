@@ -58,6 +58,8 @@ export interface ReportesV2Data {
     totalOsis: number;
     totalHonorariosFacilitadores: number;
     totalFacilitatorHours: number;
+    pendingFacilitatorHours: number;
+    pendingFacilitatorHonorarios: number;
     paidFacilitatorsCount: number;
   };
   companies: Array<{
@@ -94,10 +96,13 @@ export interface ReportesV2Data {
     totalOsis: number;
     totalHours: number;
     totalHonorarios: number;
+    pendingHours: number;
+    pendingHonorarios: number;
     uniqueCourses: number;
     averageRating: number;
     surveyCount: number;
     hasRequisicion: boolean;
+    estatusRequisicion: "procesada" | "pendiente" | "sin_requisicion";
     lastActivity: string | null;
   }>;
   locations: Array<{
@@ -184,6 +189,8 @@ export async function getReportesV2Data(
       carnetsRows,
       requisicionesRows,
       osiFormatoRows,
+      sesionesRows,
+      assignmentsRows,
       surveyRows,
     ] = await Promise.all([
       // 1. Certificates (with count for parallel paging)
@@ -291,23 +298,28 @@ export async function getReportesV2Data(
         return q;
       }, "carnets"),
 
-      // 8. requisiciones (processed only, for facilitator hours)
+      // 8. requisiciones (active, for facilitator hours & status attribution)
       fetchTableParallel<{
         id: number;
         cod_facilitador: number | null;
         id_osi: number | null;
+        id_sesion: number | null;
+        estatus_admin: string | null;
+        coordinador_estatus: string | null;
+        lider_estatus: string | null;
         osi_fixed_items: any[] | null;
+        created_at: string;
       }>(() => {
         return supabase
           .from("requisiciones")
-          .select("id, cod_facilitador, id_osi, osi_fixed_items", { count: "exact" })
-          .eq("estatus_admin", "procesada")
+          .select("id, cod_facilitador, id_osi, id_sesion, estatus_admin, coordinador_estatus, lider_estatus, osi_fixed_items, created_at", { count: "exact" })
           .is("deleted_at", null)
           .not("cod_facilitador", "is", null)
+          .neq("estatus_admin", "rechazada")
           .order("id", { ascending: true });
       }, "requisiciones"),
 
-      // 9. v_osi_formato_completo (hours + costs)
+      // 9. v_osi_formato_completo (hours + costs + date)
       fetchTableParallel<{
         id_osi: number | null;
         nro_osi: string | null;
@@ -322,6 +334,7 @@ export async function getReportesV2Data(
         costo_logistica_comida: number | null;
         costo_impresion_material: number | null;
         costo_otros: number | null;
+        fecha_inicio_real: string | null;
         id_estado_direccion_ejecucion_efectiva: number | null;
       }>(() => {
         let q = supabase
@@ -332,6 +345,7 @@ export async function getReportesV2Data(
             costo_honorarios_instructor, costo_carnetizacion,
             costo_traslado, costo_hospedaje, costo_logistica_comida,
             costo_impresion_material, costo_otros,
+            fecha_inicio_real,
             id_estado_direccion_ejecucion_efectiva
           `, { count: "exact" })
           .ilike("tipo_servicio", "%capacitacion%")
@@ -341,18 +355,46 @@ export async function getReportesV2Data(
         return q;
       }, "v_osi_formato_completo"),
 
-      // 10. Survey ratings
+      // 10. osi_sesion (session dates for requisición attribution)
       fetchTableParallel<{
+        id: number;
+        id_osi: number;
+        nro_sesion: number | null;
+        fecha: string | null;
+      }>(() => {
+        return supabase
+          .from("osi_sesion")
+          .select("id, id_osi, nro_sesion, fecha", { count: "exact" })
+          .order("id", { ascending: true });
+      }, "osi_sesion"),
+
+      // 11. facilitador_osi_assignments (attribution for surveys)
+      fetchTableParallel<{
+        osi_id: number;
+        facilitador_id: number;
+        nro_sesion: number | null;
+      }>(() => {
+        return supabase
+          .from("facilitador_osi_assignments")
+          .select("osi_id, facilitador_id, nro_sesion", { count: "exact" })
+          .order("id", { ascending: true });
+      }, "facilitador_osi_assignments"),
+
+      // 12. Survey ratings
+      fetchTableParallel<{
+        id: number;
         id_osi: number;
         q1: number;
         q2: number;
         q3: number;
         q4: number;
         q5: number;
+        created_at: string;
+        nro_sesion: number | null;
       }>(() => {
         return supabase
           .from("course_satisfaction_surveys")
-          .select("id_osi, q1, q2, q3, q4, q5", { count: "exact" })
+          .select("id, id_osi, q1, q2, q3, q4, q5, created_at, nro_sesion", { count: "exact" })
           .order("id", { ascending: true });
       }, "course_satisfaction_surveys"),
     ]);
@@ -371,6 +413,35 @@ export async function getReportesV2Data(
     const statesMap = new Map(statesRows.map((s) => [s.id, s.nombre_estado]));
     const empresasMap = new Map(empresasRows.map((e) => [e.id, e]));
     const facilitadoresMap = new Map(facilitadoresRows.map((f) => [f.id, f]));
+    const sesionById = new Map(sesionesRows.map((s) => [s.id, s]));
+
+    // Assignments lookup: osi_id -> Map<nro_sesion | null, number[]>
+    const assignmentsByOsi = new Map<number, Map<number | null, number[]>>();
+    for (const a of assignmentsRows) {
+      let bySes = assignmentsByOsi.get(a.osi_id);
+      if (!bySes) {
+        bySes = new Map();
+        assignmentsByOsi.set(a.osi_id, bySes);
+      }
+      const arr = bySes.get(a.nro_sesion) || [];
+      arr.push(a.facilitador_id);
+      bySes.set(a.nro_sesion, arr);
+    }
+
+    // Map OSI to facilitators seen on certificates (fallback for survey attribution)
+    const osiFacilitatorsFromCerts = new Map<number, Set<number>>();
+    for (const c of certs) {
+      if (!c.id_facilitador || !c.nro_osi) continue;
+      const idOsi = numericOsiToIdOsi.get(String(c.nro_osi).trim());
+      if (idOsi) {
+        let set = osiFacilitatorsFromCerts.get(idOsi);
+        if (!set) {
+          set = new Set();
+          osiFacilitatorsFromCerts.set(idOsi, set);
+        }
+        set.add(c.id_facilitador);
+      }
+    }
 
     // OSI details map (id_osi → OSI data with hours & costs)
     const osiDetailsMap = new Map<number, typeof osiFormatoRows[0]>();
@@ -404,13 +475,27 @@ export async function getReportesV2Data(
       });
     }
 
-    // Survey metrics
+    // ── Survey metrics (SCOPED by date & state, attributed to facilitators) ──
     let totalSurveyScoreSum = 0;
     let totalQuestionsCount = 0;
     const qSums = { q1: 0, q2: 0, q3: 0, q4: 0, q5: 0 };
     const surveyAvgByOsi = new Map<number, { total: number; count: number }>();
+    const facSurveyStats = new Map<number, { totalScore: number; count: number }>();
 
     for (const s of surveyRows) {
+      const idOsi = s.id_osi;
+      const osi = osiDetailsMap.get(idOsi);
+
+      // Attribution date: survey created_at or OSI start date
+      const sFecha = s.created_at ? s.created_at.slice(0, 10) : (osi?.fecha_inicio_real ?? null);
+      if (dateFrom && sFecha && sFecha < dateFrom) continue;
+      if (dateTo && sFecha && sFecha > dateTo) continue;
+      if (dateFrom && !sFecha) continue;
+
+      // Filter by state
+      const effectiveState = osi?.id_estado_direccion_ejecucion_efectiva ?? null;
+      if (stateId && effectiveState !== Number(stateId)) continue;
+
       const avg = (s.q1 + s.q2 + s.q3 + s.q4 + s.q5) / 5;
       totalSurveyScoreSum += avg;
       totalQuestionsCount += 1;
@@ -424,28 +509,120 @@ export async function getReportesV2Data(
       cur.total += avg;
       cur.count += 1;
       surveyAvgByOsi.set(s.id_osi, cur);
-    }
 
-    // Requisiciones → facilitator hours & honorarios
-    const reqStatsByFacilitador = new Map<
-      number,
-      { hours: number; monto: number; osis: Set<number> }
-    >();
-    for (const req of requisicionesRows) {
-      const fid = req.cod_facilitador;
-      if (fid == null) continue;
-      const cur = reqStatsByFacilitador.get(fid) ?? { hours: 0, monto: 0, osis: new Set<number>() };
-      const items = Array.isArray(req.osi_fixed_items) ? req.osi_fixed_items : [];
-      for (const item of items) {
-        const h = Number(item.honorarios_horas ?? 0);
-        const m = Number(item.honorarios_total ?? (h * (item.honorarios_costo_hora ?? 0)));
-        if (h > 0) {
-          cur.hours += h;
-          cur.monto += m;
-          if (item.id_osi) cur.osis.add(item.id_osi);
+      // Facilitator attribution: assignments first, fallback to certs
+      let fids: number[] = [];
+      const bySes = assignmentsByOsi.get(idOsi);
+      if (bySes) {
+        if (s.nro_sesion != null && bySes.has(s.nro_sesion)) {
+          fids = bySes.get(s.nro_sesion) || [];
+        }
+        if (fids.length === 0) {
+          fids = bySes.get(null) || [];
         }
       }
-      reqStatsByFacilitador.set(fid, cur);
+      if (fids.length === 0 && osiFacilitatorsFromCerts.has(idOsi)) {
+        fids = Array.from(osiFacilitatorsFromCerts.get(idOsi)!);
+      }
+
+      for (const fid of fids) {
+        let fst = facSurveyStats.get(fid);
+        if (!fst) {
+          fst = { totalScore: 0, count: 0 };
+          facSurveyStats.set(fid, fst);
+        }
+        fst.totalScore += avg;
+        fst.count += 1;
+      }
+    }
+
+    // ── Requisiciones (SCOPED by date & state, with processed + pending) ────
+    const activeReqs = requisicionesRows.filter(
+      (r) =>
+        r.coordinador_estatus !== "rechazada" &&
+        r.lider_estatus !== "rechazada"
+    );
+
+    const reqStatsByFacilitador = new Map<
+      number,
+      {
+        hours: number;
+        monto: number;
+        pendingHours: number;
+        pendingMonto: number;
+        osis: Set<number>;
+        hasProcesada: boolean;
+        hasPendiente: boolean;
+      }
+    >();
+
+    for (const req of activeReqs) {
+      const fid = req.cod_facilitador;
+      if (fid == null) continue;
+      const isProcesada = req.estatus_admin === "procesada";
+      const items = Array.isArray(req.osi_fixed_items) ? req.osi_fixed_items : [];
+
+      for (const raw of items) {
+        const item = raw as {
+          id_osi?: number | null;
+          honorarios_horas?: number | null;
+          honorarios_costo_hora?: number | null;
+          honorarios_total?: number | null;
+        };
+        const idOsi = item.id_osi || req.id_osi;
+        if (!idOsi) continue;
+
+        const osi = osiDetailsMap.get(idOsi);
+
+        // Date attribution: session date if id_sesion matches, else OSI start date, else req created_at
+        let fecha: string | null = null;
+        if (req.id_sesion != null && sesionById.has(req.id_sesion)) {
+          const ses = sesionById.get(req.id_sesion)!;
+          if (ses.id_osi === idOsi) fecha = ses.fecha;
+        }
+        if (!fecha && osi) fecha = osi.fecha_inicio_real;
+        if (!fecha && req.created_at) fecha = req.created_at.slice(0, 10);
+
+        // Filter by date
+        if (dateFrom && fecha && fecha < dateFrom) continue;
+        if (dateTo && fecha && fecha > dateTo) continue;
+        if (dateFrom && !fecha) continue;
+
+        // Filter by state (execution effective state of the OSI)
+        const effectiveState = osi?.id_estado_direccion_ejecucion_efectiva ?? null;
+        if (stateId && effectiveState !== Number(stateId)) continue;
+
+        const h = Number(item.honorarios_horas ?? 0);
+        const rate = Number(item.honorarios_costo_hora ?? 0);
+        const m = Number(item.honorarios_total ?? (h * rate));
+
+        let cur = reqStatsByFacilitador.get(fid);
+        if (!cur) {
+          cur = {
+            hours: 0,
+            monto: 0,
+            pendingHours: 0,
+            pendingMonto: 0,
+            osis: new Set<number>(),
+            hasProcesada: false,
+            hasPendiente: false,
+          };
+          reqStatsByFacilitador.set(fid, cur);
+        }
+
+        if (h > 0 || m > 0) {
+          cur.osis.add(idOsi);
+          if (isProcesada) {
+            cur.hours += h;
+            cur.monto += m;
+            cur.hasProcesada = true;
+          } else {
+            cur.pendingHours += h;
+            cur.pendingMonto += m;
+            cur.hasPendiente = true;
+          }
+        }
+      }
     }
 
     // ─── Aggregate dimensions ─────────────────────────────────────────────
@@ -497,7 +674,6 @@ export async function getReportesV2Data(
         legacyOsis: Set<string>;
         courses: Set<number>;
         lastActivity: string | null;
-        surveyScores: number[];
       }
     >();
 
@@ -632,7 +808,6 @@ export async function getReportesV2Data(
             legacyOsis: new Set(),
             courses: new Set(),
             lastActivity: null,
-            surveyScores: [],
           };
           facilitatorAgg.set(cert.id_facilitador, fac);
         }
@@ -642,10 +817,6 @@ export async function getReportesV2Data(
         if (cert.id_curso) fac.courses.add(cert.id_curso);
         if (cert.fecha_emision && (!fac.lastActivity || cert.fecha_emision > fac.lastActivity)) {
           fac.lastActivity = cert.fecha_emision;
-        }
-        if (idOsi != null && surveyAvgByOsi.has(idOsi)) {
-          const sv = surveyAvgByOsi.get(idOsi)!;
-          fac.surveyScores.push(sv.total / sv.count);
         }
       }
 
@@ -821,13 +992,36 @@ export async function getReportesV2Data(
       .map((f) => {
         const agg = facilitatorAgg.get(f.id);
         const req = reqStatsByFacilitador.get(f.id);
-        const avgRating = agg?.surveyScores.length
-          ? parseFloat((agg.surveyScores.reduce((a, b) => a + b, 0) / agg.surveyScores.length).toFixed(1))
-          : 0;
+        const sv = facSurveyStats.get(f.id);
+
+        const surveyCount = sv?.count ?? 0;
+        const averageRating =
+          surveyCount > 0
+            ? parseFloat((sv!.totalScore / surveyCount).toFixed(1))
+            : 0;
 
         const totalHours = req?.hours ?? 0;
         const totalHonorarios = req?.monto ?? 0;
-        const totalOsis = Math.max(agg ? (agg.osis.size + agg.legacyOsis.size) : 0, req?.osis.size ?? 0);
+        const pendingHours = req?.pendingHours ?? 0;
+        const pendingHonorarios = req?.pendingMonto ?? 0;
+
+        // Distinct OSIs taught (Set union of certificates and requisiciones)
+        const osiSet = new Set<string | number>();
+        if (agg) {
+          for (const id of agg.osis) osiSet.add(id);
+          for (const leg of agg.legacyOsis) osiSet.add(leg);
+        }
+        if (req) {
+          for (const id of req.osis) osiSet.add(id);
+        }
+        const totalOsis = osiSet.size;
+
+        const totalCertificates = agg?.totalCertificates ?? 0;
+        const hasProcesada = req?.hasProcesada ?? false;
+        const hasPendiente = req?.hasPendiente ?? false;
+        let estatusRequisicion: "procesada" | "pendiente" | "sin_requisicion" = "sin_requisicion";
+        if (hasProcesada) estatusRequisicion = "procesada";
+        else if (hasPendiente) estatusRequisicion = "pendiente";
 
         return {
           id: f.id,
@@ -836,19 +1030,22 @@ export async function getReportesV2Data(
           email: f.email,
           estadoNombre: statesMap.get(f.id_estado_geografico ?? -1) || "No asignado",
           isActive: f.is_active,
-          totalCertificates: agg?.totalCertificates ?? 0,
+          totalCertificates,
           totalOsis,
           totalHours: Math.round(totalHours * 10) / 10,
           totalHonorarios: Math.round(totalHonorarios * 100) / 100,
+          pendingHours: Math.round(pendingHours * 10) / 10,
+          pendingHonorarios: Math.round(pendingHonorarios * 100) / 100,
           uniqueCourses: agg?.courses.size ?? 0,
-          averageRating: avgRating,
-          surveyCount: agg?.surveyScores.length ?? 0,
-          hasRequisicion: req != null,
+          averageRating,
+          surveyCount,
+          hasRequisicion: hasProcesada || hasPendiente,
+          estatusRequisicion,
           lastActivity: agg?.lastActivity ?? null,
         };
       })
-      .filter((f) => f.totalCertificates > 0 || f.totalHours > 0 || f.totalOsis > 0)
-      .sort((a, b) => b.totalHonorarios - a.totalHonorarios || b.totalHours - a.totalHours);
+      .filter((f) => f.totalCertificates > 0 || f.totalHours > 0 || f.pendingHours > 0 || f.totalOsis > 0 || f.surveyCount > 0)
+      .sort((a, b) => b.totalHonorarios - a.totalHonorarios || b.totalHours - a.totalHours || b.totalCertificates - a.totalCertificates);
 
     const locationsResult = Array.from(locationAgg.entries())
       .map(([id, l]) => {
@@ -913,9 +1110,11 @@ export async function getReportesV2Data(
 
     const tProcess = performance.now();
 
-    // Facilitator honorarios totals from processed requisiciones
+    // Facilitator honorarios totals from requisiciones within scope
     let totalFacilitatorHonorarios = 0;
     let totalFacilitatorHours = 0;
+    let pendingFacilitatorHours = 0;
+    let pendingFacilitatorHonorarios = 0;
     let paidFacilitatorsCount = 0;
     for (const cur of reqStatsByFacilitador.values()) {
       if (cur.monto > 0 || cur.hours > 0) {
@@ -923,6 +1122,8 @@ export async function getReportesV2Data(
         totalFacilitatorHours += cur.hours;
         paidFacilitatorsCount++;
       }
+      pendingFacilitatorHours += cur.pendingHours;
+      pendingFacilitatorHonorarios += cur.pendingMonto;
     }
 
     const overview = {
@@ -939,6 +1140,8 @@ export async function getReportesV2Data(
       totalOsis: allCertOsiIds.size + allLegacyOsis.size,
       totalHonorariosFacilitadores: Math.round(totalFacilitatorHonorarios * 100) / 100,
       totalFacilitatorHours: Math.round(totalFacilitatorHours * 10) / 10,
+      pendingFacilitatorHours: Math.round(pendingFacilitatorHours * 10) / 10,
+      pendingFacilitatorHonorarios: Math.round(pendingFacilitatorHonorarios * 100) / 100,
       paidFacilitatorsCount,
     };
 
