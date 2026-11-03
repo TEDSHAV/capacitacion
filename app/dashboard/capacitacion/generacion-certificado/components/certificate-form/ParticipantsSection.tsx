@@ -97,7 +97,7 @@ export const ParticipantsSection = ({
         const portalParticipants = result.data.map((p: any) => ({
           name: toTitleCase(p.nombre_apellido),
           idNumber: p.cedula,
-          score: p.score,
+          score: p.score != null && p.score !== "" ? Number(p.score) : 0,
           nationality: "venezolano" as const, // Fixed TS error: string not assignable to union
         }));
 

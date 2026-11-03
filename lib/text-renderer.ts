@@ -78,14 +78,16 @@ export class TextRenderer {
     y: number,
     config: TextLayoutConfig,
   ): number {
-    if (score === undefined || score === null) {
-      return 0;
-    }
+    const numScore = score ?? 0;
+    // Score must be > 0 and passingGrade > 0 and numScore >= passingGrade to be approved.
+    // If score is 0, or passingGrade is 0 (participation only), or numScore < passingGrade,
+    // it renders the participation phrase ("Por haber asistido al curso:").
+    const isApproved =
+      numScore > 0 && passingGrade > 0 && numScore >= passingGrade;
 
-    const conditionalText =
-      score >= passingGrade
-        ? "Por haber aprobado el curso:"
-        : "Por haber asistido al curso:";
+    const conditionalText = isApproved
+      ? "Por haber aprobado el curso:"
+      : "Por haber asistido al curso:";
 
     return this.renderCenteredText(conditionalText, x, y, config, false);
   }

@@ -1061,7 +1061,7 @@ export async function saveParticipants(
     facilitador_id: facilitadorId,
     nombre_apellido: p.nombre_apellido,
     cedula: p.cedula,
-    score: p.score,
+    score: p.score != null && p.score !== "" ? Number(p.score) : 0,
     status: status,
   }));
 

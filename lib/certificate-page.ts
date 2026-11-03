@@ -252,26 +252,22 @@ export class CertificatePage {
         this.config.name,
       );
       currentY += nameHeight;
-
-      if (participant.score !== undefined && participant.score !== null) {
-        currentY += this.config.uniformGap;
-      }
+      currentY += this.config.uniformGap;
     }
 
-    // Render conditional text
-    if (participant.score !== undefined && participant.score !== null) {
-      const conditionalHeight = this.textRenderer.renderConditionalText(
-        participant.score,
-        certificateData.passing_grade || 0,
-        this.pageWidth / 2,
-        currentY,
-        this.config.conditionalText,
-      );
-      currentY += conditionalHeight;
+    // Render conditional text (always rendered: either approval or participation/attendance)
+    const effectiveScore = participant.score ?? 0;
+    const conditionalHeight = this.textRenderer.renderConditionalText(
+      effectiveScore,
+      certificateData.passing_grade || 0,
+      this.pageWidth / 2,
+      currentY,
+      this.config.conditionalText,
+    );
+    currentY += conditionalHeight;
 
-      if (certificate_title) {
-        currentY += 2; // Smaller gap to move title up
-      }
+    if (certificate_title) {
+      currentY += 2; // Smaller gap to move title up
     }
 
     // Render course title
@@ -349,11 +345,9 @@ export class CertificatePage {
         ? 2 * lineHeight
         : lineHeight;
 
-    // Calculate conditional text height
-    if (score !== undefined && score !== null) {
-      mainElementsHeight += lineHeight;
-      if (name) mainElementsHeight += uniformGap;
-    }
+    // Calculate conditional text height (always rendered: either approval or participation)
+    mainElementsHeight += lineHeight;
+    if (name) mainElementsHeight += uniformGap;
 
     // Calculate title height
     if (title) {
@@ -364,8 +358,7 @@ export class CertificatePage {
         ) > 20
           ? 2 * lineHeight
           : lineHeight;
-      if (score !== undefined && score !== null)
-        mainElementsHeight += uniformGap;
+      mainElementsHeight += uniformGap;
     }
 
     const startY = this.config.centerPoint - mainElementsHeight / 2;

@@ -218,7 +218,7 @@ export const ParticipantScannerModal = ({
           idNumber: p.idNumber,
           nationality: p.nationality || "venezolano",
           idType: "cedula",
-          score: p.score,
+          score: p.score ?? 0,
           seniatVerification: verification,
         };
       },

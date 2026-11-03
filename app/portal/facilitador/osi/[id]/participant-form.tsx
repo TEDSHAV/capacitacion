@@ -783,7 +783,7 @@ export const ParticipantForm = ({
     const mappedParticipants = participantsToSave.map((p) => ({
       nombre_apellido: toTitleCase(p.nombre_apellido.trim()),
       cedula: p.cedula,
-      score: p.score === "" ? null : Number(p.score),
+      score: p.score === "" || p.score === null || p.score === undefined ? 0 : Number(p.score),
     }));
 
     if (!navigator.onLine) {

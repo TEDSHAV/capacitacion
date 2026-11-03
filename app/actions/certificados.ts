@@ -398,7 +398,7 @@ export async function saveCertificatesToDatabase(
         id_plantilla_certificado:
           updatedCertificateData.id_plantilla_certificado || null,
 
-        calificacion: participant.score || 0,
+        calificacion: participant.score != null ? Number(participant.score) : 0,
 
         is_active: true, // Default value
 
@@ -1080,7 +1080,7 @@ function generateContentSnapshot(
 
       nacionalidad: participant.nationality || "venezolano",
 
-      score: participant.score,
+      score: participant.score != null ? Number(participant.score) : 0,
 
       cedula_completa: (() => {
         const rawId = (participant.idNumber || "").trim();
@@ -1247,7 +1247,7 @@ function generateContentSnapshotWithControlNumbers(
 
       nacionalidad: participant.nationality || "venezolano",
 
-      score: participant.score,
+      score: participant.score != null ? Number(participant.score) : 0,
 
       cedula_completa: (() => {
         const rawId = (participant.idNumber || "").trim();

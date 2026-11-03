@@ -109,7 +109,11 @@ export async function GET(
               ? "extranjero"
               : "venezolano"
           ) as "venezolano" | "extranjero",
-          score: snapshotData.participante?.score,
+          score:
+            snapshotData.participante?.score ??
+            snapshotData.certificado?.calificacion ??
+            certificate.calificacion ??
+            0,
         },
       ],
       facilitator_id: snapshotData.firmas?.facilitator_id?.toString(),
