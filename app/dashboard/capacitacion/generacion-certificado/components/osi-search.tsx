@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { CertificateOSI, CourseTopic, OSISearchProps } from "@/types";
+import { CertificateOSI, CourseTopic, OSISearchProps, Empresa } from "@/types";
 import { Button } from "@/components/ui/button";
-import { X, Search } from "lucide-react";
+import { X, Search, Building2, RotateCcw, Check } from "lucide-react";
 
 export default function OSISearch({
   osis,
@@ -12,6 +12,8 @@ export default function OSISearch({
   matchedCourse,
   allCourses,
   disabled = false,
+  companies,
+  onCompanyChange,
 }: OSISearchProps & {
   matchedCourse?: CourseTopic | null;
   allCourses?: CourseTopic[];
@@ -22,6 +24,45 @@ export default function OSISearch({
   const [visibleCount, setVisibleCount] = useState(10);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [companySearchTerm, setCompanySearchTerm] = useState("");
+  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
+  const [isManualCompanyInput, setIsManualCompanyInput] = useState(false);
+  const companyDropdownRef = useRef<HTMLDivElement>(null);
+
+  const filteredCompanies = useMemo(() => {
+    if (!companies || companies.length === 0) return [];
+    if (!companySearchTerm.trim()) return companies.slice(0, 30);
+    const q = companySearchTerm.toLowerCase().trim();
+    return companies
+      .filter(
+        (c) =>
+          (c.razon_social && c.razon_social.toLowerCase().includes(q)) ||
+          (c.rif && c.rif.toLowerCase().includes(q)),
+      )
+      .slice(0, 30);
+  }, [companies, companySearchTerm]);
+
+  useEffect(() => {
+    setCompanySearchTerm("");
+    setIsCompanyDropdownOpen(false);
+    setIsManualCompanyInput(false);
+  }, [selectedOSI?.id]);
+
+  useEffect(() => {
+    const handleCompanyClickOutside = (e: MouseEvent) => {
+      if (
+        companyDropdownRef.current &&
+        !companyDropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsCompanyDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleCompanyClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleCompanyClickOutside);
+  }, []);
 
   // id_curso is id_servicio from v_osi_formato_completo — direct match against catalogo_servicios.id
   const findMatchingCourse = (osi: CertificateOSI): CourseTopic | null => {
@@ -222,12 +263,34 @@ export default function OSISearch({
               >
                 OSI: {selectedOSI.nro_osi}
               </div>
-              <div
-                className={`text-sm mt-1 ${disabled ? "text-gray-600" : "text-blue-700"}`}
-              >
-                <span className="font-semibold">Cliente:</span>{" "}
-                {selectedOSI.cliente_nombre_empresa || "N/A"}
-              </div>
+              {selectedOSI.is_company_override ? (
+                <>
+                  <div
+                    className={`text-sm mt-1 ${disabled ? "text-gray-600" : "text-blue-700"}`}
+                  >
+                    <span className="font-semibold">Cliente Original (OSI):</span>{" "}
+                    {selectedOSI.original_cliente_nombre_empresa || "N/A"}
+                  </div>
+                  <div className="text-sm mt-1 flex flex-wrap items-center gap-1.5">
+                    <span className="font-semibold text-blue-900">
+                      Cliente para este Lote:
+                    </span>{" "}
+                    <span className="font-bold text-blue-950 bg-blue-100 px-2 py-0.5 rounded border border-blue-200">
+                      {selectedOSI.cliente_nombre_empresa}
+                    </span>
+                    <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded border border-amber-200 uppercase tracking-wide">
+                      Lote Específico
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div
+                  className={`text-sm mt-1 ${disabled ? "text-gray-600" : "text-blue-700"}`}
+                >
+                  <span className="font-semibold">Cliente:</span>{" "}
+                  {selectedOSI.cliente_nombre_empresa || "N/A"}
+                </div>
+              )}
               <div
                 className={`text-sm mt-1 ${disabled ? "text-gray-600" : "text-blue-700"}`}
               >
@@ -292,6 +355,183 @@ export default function OSISearch({
                 <p className="text-[10px] text-green-700 mt-2 font-medium flex items-center gap-1">
                   <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
                   Curso vinculado: {matchedCourse.nombre}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Batch Client / Company Selection */}
+          {!disabled && companies && onCompanyChange && (
+            <div className="mt-4 pt-4 border-t border-blue-100">
+              <div className="flex items-center justify-between mb-1">
+                <label
+                  htmlFor="batch_company_search"
+                  className="block text-sm font-bold text-blue-900"
+                >
+                  Cliente / Empresa para este Lote
+                </label>
+                {selectedOSI.is_company_override && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const origId = selectedOSI.original_empresa_id ?? null;
+                      const origName =
+                        selectedOSI.original_cliente_nombre_empresa || "";
+                      onCompanyChange(origId, origName);
+                      setCompanySearchTerm("");
+                      setIsCompanyDropdownOpen(false);
+                      setIsManualCompanyInput(false);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                    title="Restablecer a la empresa original de la OSI"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Restablecer a cliente de OSI
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-blue-700 mb-3 italic">
+                El cliente se autocompletó con la empresa de la OSI. Puedes seleccionar una empresa distinta si este lote se genera para otro cliente (ej. contratista o filial). Los lotes anteriores y la OSI no se modifican.
+              </p>
+
+              {!isManualCompanyInput ? (
+                <div className="relative" ref={companyDropdownRef}>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Building2 className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      id="batch_company_search"
+                      value={
+                        companySearchTerm ||
+                        (isCompanyDropdownOpen
+                          ? ""
+                          : selectedOSI.cliente_nombre_empresa || "")
+                      }
+                      onChange={(e) => {
+                        setCompanySearchTerm(e.target.value);
+                        setIsCompanyDropdownOpen(true);
+                      }}
+                      onFocus={() => {
+                        setIsCompanyDropdownOpen(true);
+                      }}
+                      placeholder="Buscar cliente/empresa por nombre o RIF..."
+                      className="w-full pl-9 pr-24 py-2 bg-white border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsManualCompanyInput(true);
+                        setIsCompanyDropdownOpen(false);
+                      }}
+                      className="absolute inset-y-0 right-0 px-2.5 text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center border-l border-blue-200 hover:bg-blue-50 rounded-r-md transition-colors"
+                      title="Escribir nombre de empresa manualmente si no está en el catálogo"
+                    >
+                      Otro nombre
+                    </button>
+                  </div>
+
+                  {/* Dropdown suggestions */}
+                  {isCompanyDropdownOpen && (
+                    <div className="absolute mt-1 w-full border border-gray-300 rounded-md shadow-lg bg-white max-h-56 overflow-y-auto z-50">
+                      {filteredCompanies.length === 0 ? (
+                        <div className="p-3 text-sm text-gray-500 text-center">
+                          No se encontraron empresas con &ldquo;{companySearchTerm}&rdquo;
+                          <div className="mt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsManualCompanyInput(true);
+                                setIsCompanyDropdownOpen(false);
+                              }}
+                              className="text-xs text-blue-600 hover:underline font-semibold"
+                            >
+                              Ingresar &ldquo;{companySearchTerm}&rdquo; manualmente
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        filteredCompanies.map((comp) => {
+                          const isCurrent =
+                            (comp.id &&
+                              comp.id.toString() ===
+                                selectedOSI.empresa_id?.toString()) ||
+                            comp.razon_social ===
+                              selectedOSI.cliente_nombre_empresa;
+                          return (
+                            <div
+                              key={comp.id}
+                              onClick={() => {
+                                onCompanyChange(
+                                  typeof comp.id === "string"
+                                    ? parseInt(comp.id, 10) || null
+                                    : comp.id,
+                                  comp.razon_social,
+                                );
+                                setCompanySearchTerm("");
+                                setIsCompanyDropdownOpen(false);
+                              }}
+                              className={`px-3 py-2 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm flex items-center justify-between ${
+                                isCurrent
+                                  ? "bg-blue-50 text-blue-700 font-medium"
+                                  : "hover:bg-gray-50 text-gray-900"
+                              }`}
+                            >
+                              <div>
+                                <span>{comp.razon_social}</span>
+                                {comp.rif && (
+                                  <span className="text-xs text-gray-500 ml-2">
+                                    ({comp.rif})
+                                  </span>
+                                )}
+                              </div>
+                              {isCurrent && (
+                                <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={selectedOSI.cliente_nombre_empresa || ""}
+                    onChange={(e) => {
+                      onCompanyChange(null, e.target.value);
+                    }}
+                    placeholder="Nombre manual de la empresa..."
+                    className="flex-1 px-3 py-2 bg-white border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsManualCompanyInput(false);
+                      setCompanySearchTerm("");
+                    }}
+                    className="px-3 py-2 text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md font-medium border border-gray-300 transition-colors whitespace-nowrap"
+                  >
+                    Buscar en catálogo
+                  </button>
+                </div>
+              )}
+
+              {selectedOSI.is_company_override ? (
+                <p className="text-[10px] text-amber-800 mt-2 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                  Lote asignado a cliente:{" "}
+                  <strong>{selectedOSI.cliente_nombre_empresa}</strong> (difiere de la OSI)
+                </p>
+              ) : (
+                <p className="text-[10px] text-green-700 mt-2 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                  Usando cliente original de la OSI: {selectedOSI.cliente_nombre_empresa}
                 </p>
               )}
             </div>

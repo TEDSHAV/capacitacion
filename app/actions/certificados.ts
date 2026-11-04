@@ -152,7 +152,7 @@ export async function saveCertificatesToDatabase(
     if (
       (!osiData.id_sede ||
         !osiData.id_ciudad ||
-        !osiData.empresa_id) &&
+        (!osiData.is_company_override && !osiData.empresa_id)) &&
       (osiData.nro_osi || updatedCertificateData.osi_id)
     ) {
       try {
@@ -192,6 +192,7 @@ export async function saveCertificatesToDatabase(
               osiMatch.id_ciudad_direccion_ejecucion_efectiva;
           }
           if (
+            !osiData.is_company_override &&
             !osiData.empresa_id &&
             osiMatch.id_empresa
           ) {

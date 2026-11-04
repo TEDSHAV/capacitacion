@@ -393,7 +393,17 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
       }
     }
 
-    setSelectedOSI(osi);
+    const osiWithOriginals: CertificateOSI | undefined = osi
+      ? {
+          ...osi,
+          original_empresa_id: osi.original_empresa_id ?? osi.empresa_id,
+          original_cliente_nombre_empresa:
+            osi.original_cliente_nombre_empresa ?? osi.cliente_nombre_empresa,
+          is_company_override: false,
+        }
+      : undefined;
+
+    setSelectedOSI(osiWithOriginals || null);
 
     if (osi) {
       setIsOSILoading(true);
@@ -430,7 +440,7 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
       setCertificateData((prev) => ({
         ...prev,
         osi_id: osi.id,
-        osi_data: osi,
+        osi_data: osiWithOriginals,
         course_topic_id: selectedCourse?.id || "",
         course_topic_data: selectedCourse || undefined,
         course_content: selectedCourse?.contenido_curso || "",
@@ -492,6 +502,36 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
       handleOSISelect(target);
     }
   }, [initialOsiParam, osis, courses, editData]);
+
+  const handleCompanyChange = (
+    companyId: number | null,
+    companyName: string,
+  ) => {
+    if (!selectedOSI) return;
+
+    const origId = selectedOSI.original_empresa_id ?? selectedOSI.empresa_id;
+    const origName =
+      selectedOSI.original_cliente_nombre_empresa ??
+      selectedOSI.cliente_nombre_empresa;
+    const isOverride =
+      (companyId !== null && companyId !== origId) ||
+      companyName.trim().toLowerCase() !== origName.trim().toLowerCase();
+
+    const updatedOSI: CertificateOSI = {
+      ...selectedOSI,
+      original_empresa_id: origId,
+      original_cliente_nombre_empresa: origName,
+      empresa_id: companyId ?? 0,
+      cliente_nombre_empresa: companyName,
+      is_company_override: isOverride,
+    };
+
+    setSelectedOSI(updatedOSI);
+    setCertificateData((prev) => ({
+      ...prev,
+      osi_data: updatedOSI,
+    }));
+  };
 
   const handleCertificateDataChange = (
     field: keyof CertificateGeneration,
@@ -555,12 +595,16 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
     if (isOSILoading) return; // Safeguard: don't restore during OSI load
     isRestoringDraftRef.current = true; // Safeguard: prevent effect clobbering
     const data = d.certificateData;
+    const restoredOsiData = data.osi_data || certificateData.osi_data;
     setCertificateData({
       ...data,
       osi_id: certificateData.osi_id, // keep live OSI ref
-      osi_data: certificateData.osi_data, // keep live OSI object
+      osi_data: restoredOsiData, // keep live OSI object
       sha_signature_data: undefined, // re-resolved by effect in use-certificate-form.ts
     });
+    if (restoredOsiData) {
+      setSelectedOSI(restoredOsiData);
+    }
     if (data.course_topic_id) {
       const course = courses.find((c: CourseTopic) => c.id === data.course_topic_id);
       if (course) setSelectedCourseTopic(course);
@@ -1864,6 +1908,8 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
             matchedCourse={selectedCourseTopic}
             allCourses={courses}
             disabled={!!editData}
+            companies={companies}
+            onCompanyChange={handleCompanyChange}
           />
         ) : !editData && osiInputMode === "manual" ? (
           <ManualOSIInputComponent

@@ -792,6 +792,9 @@ export interface CertificateOSI {
   curso_nombre?: string; // Mapped from v_osi_formato_completo.servicio (catalogo_servicios.nombre)
   tema?: string | null;
   has_certificates?: boolean;
+  original_empresa_id?: number | null;
+  original_cliente_nombre_empresa?: string | null;
+  is_company_override?: boolean;
 }
 
 // Manual OSI input type for certificate generation without database OSI record
@@ -862,6 +865,8 @@ export interface OSISearchProps {
   onSelect: (osi: CertificateOSI | null) => void;
   allCourses?: CourseTopic[];
   disabled?: boolean;
+  companies?: Empresa[];
+  onCompanyChange?: (companyId: number | null, companyName: string) => void;
 }
 
 export interface CourseTopicSearchProps {

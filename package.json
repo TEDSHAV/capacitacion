@@ -16,7 +16,7 @@
         "lint": "eslint",
         "release": "commit-and-tag-version",
         "update-types": "npx supabase gen types typescript --project-id oboslhhemuvzvjnbqeih > types/supabase.ts",
-        "test": "node --test scripts/test-facilitador-flow.mjs",
+        "test": "node --test scripts/test-facilitador-flow.mjs tests/test-batch-client-selection.mjs",
         "seed:test-facilitador": "node --env-file=.env scripts/seed-test-facilitador.mjs",
         "clean:test-facilitador": "node --env-file=.env scripts/cleanup-test-facilitador.mjs"
     },
