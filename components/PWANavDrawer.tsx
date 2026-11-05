@@ -161,7 +161,7 @@ export function PWANavDrawer({
       {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          className="fixed inset-0 bg-black/50 z-50 md:hidden"
           onClick={onClose}
         />
       )}
@@ -169,7 +169,7 @@ export function PWANavDrawer({
       {/* Drawer */}
       {/* Mobile: fixed slide-in/out. Desktop: sticky, collapses to icon-only (w-16) when !isOpen */}
       <div
-        className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-200 shadow-lg transform transition-all duration-300 z-30 overflow-y-auto overflow-x-hidden self-start flex flex-col ${
+        className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-200 shadow-lg transform transition-all duration-300 z-50 md:z-30 overflow-y-auto overflow-x-hidden self-start flex flex-col ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         } md:sticky md:top-0 md:h-full md:shadow-none md:flex-shrink-0 md:translate-x-0 ${
           isOpen ? "md:w-64" : "md:w-16"

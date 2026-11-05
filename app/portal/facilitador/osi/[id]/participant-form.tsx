@@ -841,7 +841,17 @@ export const ParticipantForm = ({
     result: ParticipantVerificationResult
   ) => {
     const newParticipants = [...participants];
-    newParticipants[index] = { ...newParticipants[index], seniatVerification: result };
+    const currentName = (newParticipants[index].nombre_apellido || "").trim();
+    const updatedName =
+      !currentName && result.seniatName
+        ? toTitleCase(result.seniatName)
+        : newParticipants[index].nombre_apellido;
+
+    newParticipants[index] = {
+      ...newParticipants[index],
+      nombre_apellido: updatedName,
+      seniatVerification: result,
+    };
     setParticipants(newParticipants);
     setActiveVerificationIndex(null);
   };
@@ -894,7 +904,7 @@ export const ParticipantForm = ({
   };
 
   return (
-    <div className="space-y-6 pb-28 md:pb-8">
+    <div className="space-y-6 pb-28 md:pb-24">
       {/* ─── 1. TOP INTERACTIVE STEPPER ─── */}
       <div id="tour-stepper">
         <OSIWorkflowStepper
@@ -1359,8 +1369,58 @@ export const ParticipantForm = ({
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
-                      {/* Name input */}
-                      <div className="sm:col-span-5 space-y-1">
+                      {/* 1. Nationality & Cedula input with SENIAT magnifier lookup */}
+                      <div className="sm:col-span-5 lg:col-span-4 space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-slate-400">
+                          Cédula de Identidad
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={p.nationality || "venezolano"}
+                            onChange={(e) => updateParticipant(index, "nationality", e.target.value)}
+                            disabled={isFinal}
+                            className="w-16 h-10 px-2 border border-slate-200 rounded-lg bg-white text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-slate-50 disabled:text-slate-600 shrink-0"
+                          >
+                            <option value="venezolano">V-</option>
+                            <option value="extranjero">E-</option>
+                          </select>
+                          <Input
+                            value={p.cedula}
+                            onChange={(e) => updateParticipant(index, "cedula", e.target.value)}
+                            placeholder="12345678"
+                            disabled={isFinal}
+                            className="bg-white border-slate-200 font-mono text-sm flex-1 disabled:bg-slate-50 disabled:text-slate-700"
+                          />
+                          <div className="relative shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setActiveVerificationIndex(index)}
+                              disabled={activeVerificationIndex !== null || isFinal || !p.cedula}
+                              className="h-10 w-10 flex items-center justify-center rounded-lg text-sky-700 hover:bg-sky-100 transition-colors border border-sky-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                              title="Verificar cédula con SENIAT"
+                            >
+                              <Search className="w-4 h-4" />
+                            </button>
+                            {activeVerificationIndex === index && (
+                              <SeniatVerificationPopover
+                                participant={
+                                  {
+                                    name: p.nombre_apellido,
+                                    idNumber: p.cedula,
+                                    nationality: p.nationality,
+                                  } as ExtractedParticipant
+                                }
+                                onVerify={(result) => handleVerificationComplete(index, result)}
+                                onClose={() => setActiveVerificationIndex(null)}
+                                useFixedPosition
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. Name input & SENIAT verification status */}
+                      <div className="sm:col-span-7 lg:col-span-5 space-y-1">
                         <label className="text-[10px] font-bold uppercase text-slate-400">
                           Nombre y Apellido
                         </label>
@@ -1375,12 +1435,25 @@ export const ParticipantForm = ({
                         {p.seniatVerification && (
                           <div className="mt-1">
                             {p.seniatVerification.status === "verified" ? (
-                              <span className="inline-flex items-center text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                                <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
-                                <span className="truncate max-w-[220px]" title={p.seniatVerification.seniatName}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!isFinal && p.seniatVerification?.seniatName) {
+                                    updateParticipant(index, "nombre_apellido", toTitleCase(p.seniatVerification.seniatName));
+                                  }
+                                }}
+                                disabled={isFinal}
+                                title="Clic para aplicar este nombre al campo"
+                                className="inline-flex items-center text-[10px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100/90 px-2 py-0.5 rounded-md border border-emerald-200 transition-colors cursor-pointer group text-left max-w-full"
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600 shrink-0" />
+                                <span className="truncate max-w-[200px] sm:max-w-[240px]" title={p.seniatVerification.seniatName}>
                                   {p.seniatVerification.seniatName}
                                 </span>
-                              </span>
+                                <span className="ml-1 text-[9px] text-emerald-600 font-bold opacity-75 group-hover:opacity-100 hidden sm:inline">
+                                  • Clic para aplicar
+                                </span>
+                              </button>
                             ) : (
                               <span className="inline-flex items-center text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                                 <AlertCircle className="h-3 w-3 mr-1" /> No verificado
@@ -1390,33 +1463,8 @@ export const ParticipantForm = ({
                         )}
                       </div>
 
-                      {/* Nationality & Cedula input */}
-                      <div className="sm:col-span-4 space-y-1">
-                        <label className="text-[10px] font-bold uppercase text-slate-400">
-                          Cédula de Identidad
-                        </label>
-                        <div className="flex items-center gap-1.5">
-                          <select
-                            value={p.nationality || "venezolano"}
-                            onChange={(e) => updateParticipant(index, "nationality", e.target.value)}
-                            disabled={isFinal}
-                            className="w-16 h-10 px-2 border border-slate-200 rounded-lg bg-white text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:bg-slate-50 disabled:text-slate-600"
-                          >
-                            <option value="venezolano">V-</option>
-                            <option value="extranjero">E-</option>
-                          </select>
-                          <Input
-                            value={p.cedula}
-                            onChange={(e) => updateParticipant(index, "cedula", e.target.value)}
-                            placeholder="12345678"
-                            disabled={isFinal}
-                            className="bg-white border-slate-200 font-mono text-sm flex-1 disabled:bg-slate-50 disabled:text-slate-700"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Score input */}
-                      <div className="sm:col-span-2 space-y-1">
+                      {/* 3. Score input */}
+                      <div className="sm:col-span-10 lg:col-span-2 space-y-1">
                         <label className="text-[10px] font-bold uppercase text-slate-400">
                           Nota (0-20){!isParticipationOnly ? ` • Mín ${passingGrade}` : ""}
                         </label>
@@ -1433,34 +1481,8 @@ export const ParticipantForm = ({
                         />
                       </div>
 
-                      {/* Verification and Delete Actions */}
-                      <div className="sm:col-span-1 flex items-center justify-end gap-1 pt-6">
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() => setActiveVerificationIndex(index)}
-                            disabled={activeVerificationIndex !== null || isFinal}
-                            className="p-2 rounded-lg text-sky-700 hover:bg-sky-100 transition-colors border border-sky-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Verificar cédula"
-                          >
-                            <Search className="w-4 h-4" />
-                          </button>
-                          {activeVerificationIndex === index && (
-                            <SeniatVerificationPopover
-                              participant={
-                                {
-                                  name: p.nombre_apellido,
-                                  idNumber: p.cedula,
-                                  nationality: p.nationality,
-                                } as ExtractedParticipant
-                              }
-                              onVerify={(result) => handleVerificationComplete(index, result)}
-                              onClose={() => setActiveVerificationIndex(null)}
-                              useFixedPosition
-                            />
-                          )}
-                        </div>
-
+                      {/* 4. Delete Action */}
+                      <div className="sm:col-span-2 lg:col-span-1 flex items-center justify-end sm:pt-6 pt-1">
                         {!isFinal && (
                           <button
                             type="button"
