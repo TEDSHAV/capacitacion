@@ -2822,6 +2822,57 @@ export async function batchUpdateCertificatesAction(
       };
     }
 
+    // Check if reassigning to a new OSI
+    let targetOsiData: {
+      id_osi: number;
+      nro_osi: string;
+      nombre_empresa?: string;
+      id_empresa?: number;
+      direccion_ejecucion?: string;
+      id_ciudad_direccion_ejecucion_efectiva?: number;
+    } | null = null;
+
+    if (updates.new_nro_osi && updates.new_nro_osi.trim()) {
+      const cleanTargetNro = updates.new_nro_osi.trim().replace(/[^\d]/g, "");
+      if (!cleanTargetNro) {
+        return {
+          success: false,
+          message: "El nuevo número de OSI proporcionado no es válido.",
+          updatedCount: 0,
+        };
+      }
+
+      if (cleanTargetNro !== String(osiNumber)) {
+        // Look up target OSI in v_osi_lista
+        const { data: foundOsi } = await supabase
+          .from("v_osi_lista")
+          .select("id_osi, nro_osi, nombre_empresa, id_empresa, direccion_ejecucion, id_ciudad_direccion_ejecucion_efectiva")
+          .eq("nro_osi", cleanTargetNro)
+          .maybeSingle();
+
+        if (foundOsi) {
+          targetOsiData = foundOsi;
+        } else {
+          // Fallback to v_osi_formato_completo
+          const { data: formatoMatch } = await supabase
+            .from("v_osi_formato_completo")
+            .select("id_osi, nro_osi, nombre_empresa, id_empresa, direccion_ejecucion, id_ciudad_direccion_ejecucion_efectiva")
+            .eq("nro_osi", cleanTargetNro)
+            .maybeSingle();
+
+          if (formatoMatch) {
+            targetOsiData = formatoMatch;
+          } else {
+            return {
+              success: false,
+              message: `No se encontró la OSI de destino con número ${cleanTargetNro}. Verifique que exista en el sistema.`,
+              updatedCount: 0,
+            };
+          }
+        }
+      }
+    }
+
     let updatedCount = 0;
 
     // Pre-fetch facilitator data if facilitator is being updated
@@ -2838,6 +2889,12 @@ export async function batchUpdateCertificatesAction(
         if (updates.date) dbUpdate.fecha_emision = updates.date;
         if (updates.fecha_vencimiento) dbUpdate.fecha_vencimiento = updates.fecha_vencimiento;
         if (updates.id_facilitador) dbUpdate.id_facilitador = parseInt(updates.id_facilitador);
+        if (targetOsiData) {
+          dbUpdate.nro_osi = parseInt(targetOsiData.nro_osi, 10);
+          if (targetOsiData.id_empresa) {
+            dbUpdate.id_empresa = targetOsiData.id_empresa;
+          }
+        }
 
         // Update snapshot (Where all fields are stored)
         let finalSnapshot = cert.snapshot_contenido;
@@ -2889,6 +2946,32 @@ export async function batchUpdateCertificatesAction(
                 snapshotObj.curso.contenido = updates.course_content;
               }
             }
+
+            if (targetOsiData) {
+              if (snapshotObj.certificado) {
+                snapshotObj.certificado.nro_osi = targetOsiData.nro_osi;
+                if (targetOsiData.id_empresa) {
+                  snapshotObj.certificado.id_empresa = targetOsiData.id_empresa;
+                }
+              }
+              if (!snapshotObj.osi) {
+                snapshotObj.osi = {};
+              }
+              snapshotObj.osi.id_osi = targetOsiData.id_osi;
+              snapshotObj.osi.nro_osi = targetOsiData.nro_osi;
+              if (targetOsiData.nombre_empresa) {
+                snapshotObj.osi.cliente_nombre_empresa = targetOsiData.nombre_empresa;
+              }
+              if (targetOsiData.id_empresa) {
+                snapshotObj.osi.empresa_id = targetOsiData.id_empresa;
+              }
+              if (targetOsiData.direccion_ejecucion && !('location' in updates && updates.location)) {
+                snapshotObj.osi.direccion_ejecucion = targetOsiData.direccion_ejecucion;
+              }
+              if (targetOsiData.id_ciudad_direccion_ejecucion_efectiva) {
+                snapshotObj.osi.id_ciudad = targetOsiData.id_ciudad_direccion_ejecucion_efectiva;
+              }
+            }
             
             finalSnapshot = JSON.stringify(snapshotObj, null, 2);
             dbUpdate.snapshot_contenido = finalSnapshot;
@@ -2920,6 +3003,12 @@ export async function batchUpdateCertificatesAction(
           if ('certificate_subtitle' in updates) carnetUpdate.subtitulo_curso = updates.certificate_subtitle;
           if ('date' in updates) carnetUpdate.fecha_emision = updates.date;
           if ('fecha_vencimiento' in updates) carnetUpdate.fecha_vencimiento = updates.fecha_vencimiento;
+          if (targetOsiData) {
+            carnetUpdate.id_osi = targetOsiData.id_osi;
+            if (targetOsiData.id_empresa) {
+              carnetUpdate.id_empresa = targetOsiData.id_empresa;
+            }
+          }
 
           let carnetSnapshot = carnet.snapshot_contenido;
           if (carnet.snapshot_contenido) {
@@ -2929,6 +3018,12 @@ export async function batchUpdateCertificatesAction(
               if ('certificate_subtitle' in updates) cSnapshotObj.subtitulo_curso = updates.certificate_subtitle;
               if ('date' in updates) cSnapshotObj.fecha_emision = updates.date;
               if ('fecha_vencimiento' in updates) cSnapshotObj.fecha_vencimiento = updates.fecha_vencimiento;
+              if (targetOsiData) {
+                cSnapshotObj.id_osi = targetOsiData.id_osi;
+                if (targetOsiData.id_empresa) {
+                  cSnapshotObj.id_empresa = targetOsiData.id_empresa;
+                }
+              }
               
               carnetSnapshot = JSON.stringify(cSnapshotObj, null, 2);
               carnetUpdate.snapshot_contenido = carnetSnapshot;
@@ -2955,12 +3050,16 @@ export async function batchUpdateCertificatesAction(
     let generatedCarnetsCount = 0;
     if (updates.generate_missing_carnets) {
       try {
+        const effectiveOsi = targetOsiData ? parseInt(targetOsiData.nro_osi, 10) : osiNumber;
+        const effectiveCompany = targetOsiData?.nombre_empresa || companyName;
+        const effectiveIdEmpresa = targetOsiData?.id_empresa ?? idEmpresa;
+
         const carnetGenResult = await generateCarnetsForBatchAction(
-          osiNumber,
+          effectiveOsi,
           courseId,
           updates.fecha_vencimiento,
-          companyName,
-          idEmpresa,
+          effectiveCompany,
+          effectiveIdEmpresa,
         );
         if (carnetGenResult.success) {
           generatedCarnetsCount = carnetGenResult.generatedCount || 0;
@@ -2970,14 +3069,54 @@ export async function batchUpdateCertificatesAction(
       }
     }
 
+    // Auto-mark "elaboracion_certificados" step in capacitacion_proceso_steps for target OSI
+    if (targetOsiData) {
+      try {
+        const { data: sesionRows } = await supabase
+          .from("osi_sesion")
+          .select("nro_sesion")
+          .eq("id_osi", targetOsiData.id_osi);
+
+        const sessionNumbers =
+          sesionRows && sesionRows.length > 0
+            ? sesionRows.map((s) => s.nro_sesion)
+            : [1];
+
+        const stepRows = sessionNumbers.map((nro) => ({
+          osi_id: targetOsiData!.id_osi,
+          nro_sesion: nro,
+          phase: "ejecucion" as const,
+          step_key: "elaboracion_certificados",
+          completed: true,
+          completed_at: new Date().toISOString(),
+        }));
+
+        await supabase
+          .from("capacitacion_proceso_steps")
+          .upsert(stepRows, { onConflict: "osi_id,nro_sesion,phase,step_key" });
+
+        const { clearSeguimientoServerCache } = await import("./capacitacion-proceso-steps");
+        await clearSeguimientoServerCache();
+      } catch (stepErr) {
+        console.warn("Failed to auto-mark elaboracion_certificados for target OSI:", stepErr);
+      }
+    }
+
+    revalidatePath("/dashboard/capacitacion/gestion-certificados");
+    revalidatePath("/dashboard/capacitacion/gestion-osi");
+
     const carnetsSuffix =
       generatedCarnetsCount > 0
         ? ` Además se generaron ${generatedCarnetsCount} nuevos carnets.`
         : "";
 
+    const targetOsiSuffix = targetOsiData
+      ? ` y se reasignaron a la OSI ${targetOsiData.nro_osi}`
+      : "";
+
     return {
       success: true,
-      message: `Se actualizaron ${updatedCount} certificados y sus respectivos carnets para la OSI ${osiNumber}${courseId ? " y el curso seleccionado" : ""}.${carnetsSuffix}`,
+      message: `Se actualizaron ${updatedCount} certificados y sus respectivos carnets para la OSI ${osiNumber}${courseId ? " y el curso seleccionado" : ""}${targetOsiSuffix}.${carnetsSuffix}`,
       updatedCount,
       generatedCarnetsCount,
     };

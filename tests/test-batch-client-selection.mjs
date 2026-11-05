@@ -449,5 +449,132 @@ describe("Batch Client Selection for Certificates & Multi-Batch Support", () => 
       assert.ok(options.some((o) => o.course_name === "TRABAJO EN ALTURAS" && o.company_name.includes("ALIVA STUMP")));
     });
   });
+
+  describe("8. Batch OSI Reassignment (batchUpdateCertificatesAction)", () => {
+    const mockTargetOsi = {
+      id_osi: 413,
+      nro_osi: "3636",
+      nombre_empresa: "ALIVA STUMP, C.A",
+      id_empresa: 798,
+      servicio: "TRABAJO EN ALTURAS",
+      direccion_ejecucion: "Club el Tablazo, Maracaibo Zulia",
+      id_ciudad_direccion_ejecucion_efectiva: 57,
+    };
+
+    function simulateBatchReassignment(cert, carnet, targetOsiData) {
+      const dbUpdate = {};
+      let finalSnapshot = cert.snapshot_contenido;
+
+      if (targetOsiData) {
+        dbUpdate.nro_osi = parseInt(targetOsiData.nro_osi, 10);
+        if (targetOsiData.id_empresa) {
+          dbUpdate.id_empresa = targetOsiData.id_empresa;
+        }
+
+        const snapshotObj = JSON.parse(cert.snapshot_contenido);
+        if (snapshotObj.certificado) {
+          snapshotObj.certificado.nro_osi = targetOsiData.nro_osi;
+          if (targetOsiData.id_empresa) {
+            snapshotObj.certificado.id_empresa = targetOsiData.id_empresa;
+          }
+        }
+        if (!snapshotObj.osi) snapshotObj.osi = {};
+        snapshotObj.osi.id_osi = targetOsiData.id_osi;
+        snapshotObj.osi.nro_osi = targetOsiData.nro_osi;
+        if (targetOsiData.nombre_empresa) {
+          snapshotObj.osi.cliente_nombre_empresa = targetOsiData.nombre_empresa;
+        }
+        if (targetOsiData.id_empresa) {
+          snapshotObj.osi.empresa_id = targetOsiData.id_empresa;
+        }
+        if (targetOsiData.direccion_ejecucion) {
+          snapshotObj.osi.direccion_ejecucion = targetOsiData.direccion_ejecucion;
+        }
+        if (targetOsiData.id_ciudad_direccion_ejecucion_efectiva) {
+          snapshotObj.osi.id_ciudad = targetOsiData.id_ciudad_direccion_ejecucion_efectiva;
+        }
+        finalSnapshot = JSON.stringify(snapshotObj);
+        dbUpdate.snapshot_contenido = finalSnapshot;
+      }
+
+      const carnetUpdate = {};
+      if (carnet && targetOsiData) {
+        carnetUpdate.id_osi = targetOsiData.id_osi;
+        if (targetOsiData.id_empresa) {
+          carnetUpdate.id_empresa = targetOsiData.id_empresa;
+        }
+        const cSnap = JSON.parse(carnet.snapshot_contenido);
+        cSnap.id_osi = targetOsiData.id_osi;
+        if (targetOsiData.id_empresa) {
+          cSnap.id_empresa = targetOsiData.id_empresa;
+        }
+        carnetUpdate.snapshot_contenido = JSON.stringify(cSnap);
+      }
+
+      return { dbUpdate, carnetUpdate };
+    }
+
+    it("should reassign certificate and carnet to target OSI properly", () => {
+      const mockCert = {
+        id: 5114,
+        nro_osi: 3637,
+        id_empresa: 798,
+        snapshot_contenido: JSON.stringify({
+          certificado: { nro_osi: "3637", id_empresa: 552 },
+          osi: { id_osi: 414, nro_osi: "3637", cliente_nombre_empresa: "ALIVA STUMP, C.A" },
+        }),
+      };
+
+      const mockCarnet = {
+        id: 4728,
+        id_certificado: 5114,
+        id_osi: 414,
+        id_empresa: 552,
+        snapshot_contenido: JSON.stringify({
+          id_osi: 414,
+          id_empresa: 552,
+        }),
+      };
+
+      const result = simulateBatchReassignment(mockCert, mockCarnet, mockTargetOsi);
+
+      // Verify certificate table updates
+      assert.equal(result.dbUpdate.nro_osi, 3636);
+      assert.equal(result.dbUpdate.id_empresa, 798);
+
+      // Verify certificate snapshot updates
+      const updatedCertSnap = JSON.parse(result.dbUpdate.snapshot_contenido);
+      assert.equal(updatedCertSnap.certificado.nro_osi, "3636");
+      assert.equal(updatedCertSnap.certificado.id_empresa, 798);
+      assert.equal(updatedCertSnap.osi.id_osi, 413);
+      assert.equal(updatedCertSnap.osi.nro_osi, "3636");
+      assert.equal(updatedCertSnap.osi.cliente_nombre_empresa, "ALIVA STUMP, C.A");
+      assert.equal(updatedCertSnap.osi.direccion_ejecucion, "Club el Tablazo, Maracaibo Zulia");
+      assert.equal(updatedCertSnap.osi.id_ciudad, 57);
+
+      // Verify carnet table and snapshot updates
+      assert.equal(result.carnetUpdate.id_osi, 413);
+      assert.equal(result.carnetUpdate.id_empresa, 798);
+      const updatedCarnetSnap = JSON.parse(result.carnetUpdate.snapshot_contenido);
+      assert.equal(updatedCarnetSnap.id_osi, 413);
+      assert.equal(updatedCarnetSnap.id_empresa, 798);
+    });
+
+    it("should preserve original OSI when new_nro_osi is omitted or empty", () => {
+      const mockCert = {
+        id: 5039,
+        nro_osi: 3637,
+        id_empresa: 552,
+        snapshot_contenido: JSON.stringify({
+          certificado: { nro_osi: "3637", id_empresa: 552 },
+          osi: { id_osi: 414, nro_osi: "3637" },
+        }),
+      };
+
+      const result = simulateBatchReassignment(mockCert, null, null);
+      assert.equal(result.dbUpdate.nro_osi, undefined);
+      assert.equal(result.dbUpdate.id_empresa, undefined);
+    });
+  });
 });
 

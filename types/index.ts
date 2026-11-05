@@ -1262,6 +1262,7 @@ export interface BatchUpdateData {
   id_facilitador?: string;
   course_content?: string;
   generate_missing_carnets?: boolean;
+  new_nro_osi?: string;
 }
 
 export interface BatchUpdateResult {

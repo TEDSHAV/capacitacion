@@ -91,6 +91,7 @@ export function BatchEditModal({
     horas_estimadas: "",
     id_facilitador: "",
     course_content: "",
+    new_nro_osi: "",
   });
 
   // Load OSIs on mount
@@ -165,6 +166,7 @@ export function BatchEditModal({
           horas_estimadas: result.data.horas_estimadas || "",
           id_facilitador: facilitatorId,
           course_content: result.data.course_content || "",
+          new_nro_osi: "",
         });
         const stats = {
           total_certificates: (result.data as any).total_certificates ?? 0,
@@ -294,6 +296,7 @@ export function BatchEditModal({
       setLoading(true);
       const updatesToSend: BatchUpdateData = {
         ...updates,
+        new_nro_osi: updates.new_nro_osi?.trim() || undefined,
         generate_missing_carnets: generateCarnets && (batchStats?.carnets_missing ?? 0) > 0,
       };
 
@@ -319,6 +322,7 @@ export function BatchEditModal({
           horas_estimadas: "",
           id_facilitador: "",
           course_content: "",
+          new_nro_osi: "",
         });
         setBatchStats(null);
         setGenerateCarnets(false);
@@ -469,6 +473,33 @@ export function BatchEditModal({
               </div>
               
               <div className="space-y-4">
+                {/* Reasignar a otra OSI (Opcional) */}
+                <div className="p-4 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="new_nro_osi" className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Reasignar Lote a otra OSI (Opcional)</span>
+                    </Label>
+                    {selectedOsiData && (
+                      <span className="text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                        OSI Actual: {selectedOsiData.nro_osi}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="new_nro_osi"
+                      value={updates.new_nro_osi || ""}
+                      onChange={(e) => handleUpdateChange("new_nro_osi", e.target.value)}
+                      className="h-10 bg-white border-amber-300 focus:border-amber-500 rounded-lg text-sm"
+                      placeholder={`Deje en blanco para mantener la OSI actual (${selectedOsiData?.nro_osi || ""}), o ingrese nuevo número (ej. 3634)`}
+                      disabled={loading || loadingDetails}
+                    />
+                  </div>
+                  <p className="text-[11px] text-amber-800/90 leading-tight">
+                    Si este lote de certificados y carnets fue registrado bajo un número de OSI erróneo, ingrese el número de la OSI correcta para transferirlos automáticamente.
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="title" className="text-sm font-semibold text-gray-700">
                     Título del Curso
@@ -807,6 +838,7 @@ export function BatchEditModal({
                 horas_estimadas: "",
                 id_facilitador: "",
                 course_content: "",
+                new_nro_osi: "",
               });
               setBatchStats(null);
               setGenerateCarnets(false);
