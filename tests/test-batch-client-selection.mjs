@@ -297,5 +297,157 @@ describe("Batch Client Selection for Certificates & Multi-Batch Support", () => 
       assert.ok(clientBPortalCerts.every((c) => c.id_empresa === 25));
     });
   });
+
+  describe("6. Batch Partitioning in gestion-osi (OSIDetailsModalV2)", () => {
+    it("should partition batches by course, date, and client company so multiple batches under the same OSI/course are separated", () => {
+      const mockCerts = [
+        // Batch 1: Manlift - Costa Norte (7 certs)
+        ...Array.from({ length: 7 }, (_, i) => ({
+          id: 5039 + i,
+          fecha_emision: "2026-10-24",
+          catalogo_servicios: { nombre: "SEGURIDAD EN ELEVADORES DE CARGA (MANLIFT)" },
+          empresas: { razon_social: "COSTA NORTE CONSTRUCCIONES, C.A." },
+          snapshot_contenido: JSON.stringify({
+            osi: { cliente_nombre_empresa: "COSTA NORTE CONSTRUCCIONES, C.A." },
+          }),
+        })),
+        // Batch 2: Trabajo en Alturas - Costa Norte (49 certs)
+        ...Array.from({ length: 49 }, (_, i) => ({
+          id: 5065 + i,
+          fecha_emision: "2026-10-24",
+          catalogo_servicios: { nombre: "TRABAJO EN ALTURAS" },
+          empresas: { razon_social: "COSTA NORTE CONSTRUCCIONES, C.A." },
+          snapshot_contenido: JSON.stringify({
+            osi: { cliente_nombre_empresa: "COSTA NORTE CONSTRUCCIONES, C.A" },
+          }),
+        })),
+        // Batch 3: Trabajo en Alturas - ALIVA STUMP (13 certs)
+        ...Array.from({ length: 13 }, (_, i) => ({
+          id: 5114 + i,
+          fecha_emision: "2026-10-24",
+          catalogo_servicios: { nombre: "TRABAJO EN ALTURAS" },
+          empresas: { razon_social: "COSTA NORTE CONSTRUCCIONES, C.A." },
+          snapshot_contenido: JSON.stringify({
+            osi: { cliente_nombre_empresa: "ALIVA STUMP, C.A" },
+          }),
+        })),
+      ];
+
+      // Replicate grouping logic in osi-details-modal-v2.tsx
+      const batchMap = new Map();
+      mockCerts.forEach((cert) => {
+        const snapshot = JSON.parse(cert.snapshot_contenido);
+        const date = cert.fecha_emision || "Sin fecha";
+        const course = cert.catalogo_servicios?.nombre || "Sin curso";
+        const rawCompany =
+          snapshot?.osi?.cliente_nombre_empresa ||
+          cert.empresas?.razon_social ||
+          "Sin empresa";
+        const company = rawCompany.trim();
+        const companyKey = company.toLowerCase();
+        const key = `${date}_${course}_${companyKey}`;
+
+        if (!batchMap.has(key)) {
+          batchMap.set(key, {
+            id: key,
+            date,
+            course,
+            company,
+            certificates: [],
+          });
+        }
+        batchMap.get(key).certificates.push(cert);
+      });
+
+      const batches = Array.from(batchMap.values());
+
+      // Exactly 3 batches divided properly!
+      assert.equal(batches.length, 3);
+
+      const manliftBatch = batches.find((b) => b.course.includes("MANLIFT"));
+      const alturasCostaBatch = batches.find(
+        (b) => b.course === "TRABAJO EN ALTURAS" && b.company.includes("COSTA NORTE")
+      );
+      const alturasAlivaBatch = batches.find(
+        (b) => b.course === "TRABAJO EN ALTURAS" && b.company.includes("ALIVA STUMP")
+      );
+
+      assert.ok(manliftBatch);
+      assert.equal(manliftBatch.certificates.length, 7);
+
+      assert.ok(alturasCostaBatch);
+      assert.equal(alturasCostaBatch.certificates.length, 49);
+
+      assert.ok(alturasAlivaBatch);
+      assert.equal(alturasAlivaBatch.certificates.length, 13);
+    });
+  });
+
+  describe("7. Batch Partitioning in BatchEditModal (getOSIsWithCertificatesAction)", () => {
+    it("should include company in the unique key so all distinct batches can be selected and edited", () => {
+      const mockDbRows = [
+        // Batch 1: Manlift - Costa Norte
+        {
+          nro_osi: 3637,
+          id_curso: 12,
+          empresas: { razon_social: "COSTA NORTE CONSTRUCCIONES, C.A." },
+          catalogo_servicios: { nombre: "SEGURIDAD EN ELEVADORES DE CARGA (MANLIFT)" },
+          snapshot_contenido: JSON.stringify({
+            osi: { cliente_nombre_empresa: "COSTA NORTE CONSTRUCCIONES, C.A." },
+          }),
+        },
+        // Batch 2: Trabajo en Alturas - Costa Norte
+        {
+          nro_osi: 3637,
+          id_curso: 14,
+          empresas: { razon_social: "COSTA NORTE CONSTRUCCIONES, C.A." },
+          catalogo_servicios: { nombre: "TRABAJO EN ALTURAS" },
+          snapshot_contenido: JSON.stringify({
+            osi: { cliente_nombre_empresa: "COSTA NORTE CONSTRUCCIONES, C.A" },
+          }),
+        },
+        // Batch 3: Trabajo en Alturas - ALIVA STUMP
+        {
+          nro_osi: 3637,
+          id_curso: 14,
+          empresas: { razon_social: "COSTA NORTE CONSTRUCCIONES, C.A." },
+          catalogo_servicios: { nombre: "TRABAJO EN ALTURAS" },
+          snapshot_contenido: JSON.stringify({
+            osi: { cliente_nombre_empresa: "ALIVA STUMP, C.A" },
+          }),
+        },
+      ];
+
+      // Replicate grouping in getOSIsWithCertificatesAction
+      const osiMap = new Map();
+      mockDbRows.forEach((item) => {
+        let snapCompanyName = null;
+        if (item.snapshot_contenido) {
+          const snap = JSON.parse(item.snapshot_contenido);
+          snapCompanyName = snap?.osi?.cliente_nombre_empresa;
+        }
+        const companyName = (snapCompanyName || item.empresas?.razon_social || "S/N").trim();
+        const courseName = item.catalogo_servicios?.nombre || "S/N";
+        const key = `${item.nro_osi}-${item.id_curso}-${companyName.toLowerCase()}`;
+
+        if (!osiMap.has(key)) {
+          osiMap.set(key, {
+            nro_osi: item.nro_osi,
+            id_curso: item.id_curso,
+            company_name: companyName,
+            course_name: courseName,
+          });
+        }
+      });
+
+      const options = Array.from(osiMap.values());
+
+      // Exactly 3 selectable batch options in BatchEditModal
+      assert.equal(options.length, 3);
+      assert.ok(options.some((o) => o.course_name.includes("MANLIFT") && o.company_name.includes("COSTA NORTE")));
+      assert.ok(options.some((o) => o.course_name === "TRABAJO EN ALTURAS" && o.company_name.includes("COSTA NORTE")));
+      assert.ok(options.some((o) => o.course_name === "TRABAJO EN ALTURAS" && o.company_name.includes("ALIVA STUMP")));
+    });
+  });
 });
 

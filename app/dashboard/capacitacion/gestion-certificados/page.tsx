@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CachedDataBanner } from "@/components/CachedDataBanner";
 import CertificateFiltersComponent from "./components/certificate-filters";
@@ -27,12 +28,20 @@ import {
 } from "@/types";
 
 export default function GestionCertificadosPage() {
+  const searchParams = useSearchParams();
+  const batchOsiParam = searchParams.get("batchOsi") || searchParams.get("osi");
   const isOnline = useOnlineStatus();
   const { addToast } = useToast();
   const [filters, setFilters] = useState<CertificateFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
+
+  useEffect(() => {
+    if (batchOsiParam) {
+      setIsBatchEditOpen(true);
+    }
+  }, [batchOsiParam]);
 
   // --- Anulación modal state ---
   const [isAnularOpen, setIsAnularOpen] = useState(false);
@@ -293,9 +302,10 @@ export default function GestionCertificadosPage() {
         onClose={() => setIsBatchEditOpen(false)}
         onSuccess={reloadCerts}
         initialOsi={
-          filters.searchTerm && /^\d+$/.test(filters.searchTerm)
+          batchOsiParam ||
+          (filters.searchTerm && /^\d+$/.test(filters.searchTerm)
             ? filters.searchTerm
-            : ""
+            : "")
         }
       />
 

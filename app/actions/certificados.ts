@@ -150,6 +150,26 @@ export async function saveCertificatesToDatabase(
 
     // Ensure id_sede, id_ciudad, and empresa_id are resolved from v_osi_formato_completo if missing
     if (
+      osiData &&
+      (!osiData.empresa_id || osiData.empresa_id === 0) &&
+      osiData.cliente_nombre_empresa
+    ) {
+      try {
+        const { data: matchedComp } = await supabase
+          .from("empresas")
+          .select("id")
+          .ilike("razon_social", osiData.cliente_nombre_empresa.trim())
+          .limit(1)
+          .maybeSingle();
+        if (matchedComp?.id) {
+          osiData.empresa_id = matchedComp.id;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (
       (!osiData.id_sede ||
         !osiData.id_ciudad ||
         (!osiData.is_company_override && !osiData.empresa_id)) &&
@@ -617,7 +637,7 @@ export async function saveCertificatesToDatabase(
           fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
           nombre_participante: participants[index].name,
           cedula_participante: participants[index].idNumber,
-          empresa_participante: null,
+          empresa_participante: updatedCertificateData.osi_data?.cliente_nombre_empresa || null,
           nro_control: certificateNumbers[index]?.nro_control || 0,
         }));
 
@@ -2480,11 +2500,12 @@ export async function getFacilitatorsForFilters(): Promise<
 }
 
 /**
- * Get unique OSIs that have active certificates
+ * Get unique OSIs that have active certificates, divided by course and client company
  */
 export async function getOSIsWithCertificatesAction(): Promise<{
   nro_osi: number;
   id_curso: number;
+  id_empresa?: number | null;
   company_name: string;
   course_name: string;
 }[]> {
@@ -2496,29 +2517,52 @@ export async function getOSIsWithCertificatesAction(): Promise<{
       .select(`
         nro_osi,
         id_curso,
+        id_empresa,
+        snapshot_contenido,
         empresas(razon_social),
         catalogo_servicios(nombre)
       `)
       .not("nro_osi", "is", null)
+      .eq("is_active", true)
       .order('id', { ascending: false })
-      .limit(10000); // Further increase limit and order by ID to get recent ones first
+      .limit(10000); // Order by ID to get recent ones first
 
     if (error) throw error;
 
-    // Use a Map to keep unique OSI-Course pairs
-    const osiMap = new Map<string, { nro_osi: number; id_curso: number; company_name: string; course_name: string }>();
+    // Use a Map to keep unique OSI-Course-Company combinations
+    const osiMap = new Map<string, { nro_osi: number; id_curso: number; id_empresa?: number | null; company_name: string; course_name: string }>();
     
     data?.forEach((item: any) => {
-      const key = `${item.nro_osi}-${item.id_curso}`;
-      if (!osiMap.has(key)) {
-        const company = Array.isArray(item.empresas) ? item.empresas[0] : item.empresas;
-        const course = Array.isArray(item.catalogo_servicios) ? item.catalogo_servicios[0] : item.catalogo_servicios;
+      let snapCompanyName: string | null = null;
+      if (item.snapshot_contenido) {
+        try {
+          const snap =
+            typeof item.snapshot_contenido === "string"
+              ? JSON.parse(item.snapshot_contenido)
+              : item.snapshot_contenido;
+          snapCompanyName =
+            snap?.osi?.cliente_nombre_empresa ||
+            snap?.cliente?.nombre_empresa ||
+            snap?.empresa?.razon_social ||
+            null;
+        } catch {
+          // ignore parsing error
+        }
+      }
 
+      const company = Array.isArray(item.empresas) ? item.empresas[0] : item.empresas;
+      const companyName = (snapCompanyName || company?.razon_social || "S/N").trim();
+      const course = Array.isArray(item.catalogo_servicios) ? item.catalogo_servicios[0] : item.catalogo_servicios;
+      const courseName = course?.nombre || "S/N";
+
+      const key = `${item.nro_osi}-${item.id_curso}-${companyName.toLowerCase()}`;
+      if (!osiMap.has(key)) {
         osiMap.set(key, {
           nro_osi: item.nro_osi,
           id_curso: item.id_curso,
-          company_name: company?.razon_social || "S/N",
-          course_name: course?.nombre || "S/N"
+          id_empresa: item.id_empresa || null,
+          company_name: companyName,
+          course_name: courseName,
         });
       }
     });
@@ -2533,7 +2577,12 @@ export async function getOSIsWithCertificatesAction(): Promise<{
 /**
  * Get details for a single certificate from a batch to pre-populate edit form
  */
-export async function getBatchCertificateDetailsAction(osiNumber: number, courseId?: number) {
+export async function getBatchCertificateDetailsAction(
+  osiNumber: number,
+  courseId?: number,
+  companyName?: string,
+  idEmpresa?: number | null,
+) {
   try {
     const supabase = await createClient();
 
@@ -2541,11 +2590,14 @@ export async function getBatchCertificateDetailsAction(osiNumber: number, course
     let query = supabase
       .from("certificados")
       .select(`
+        id,
         snapshot_contenido, 
         fecha_emision, 
         fecha_vencimiento,
         id_facilitador,
         id_curso,
+        id_empresa,
+        empresas(razon_social),
         catalogo_servicios(nombre, contenido_curso)
       `)
       .eq("nro_osi", osiNumber)
@@ -2554,13 +2606,45 @@ export async function getBatchCertificateDetailsAction(osiNumber: number, course
     if (courseId) {
       query = query.eq("id_curso", courseId);
     }
+    if (idEmpresa) {
+      query = query.eq("id_empresa", idEmpresa);
+    }
 
-    const { data, error } = await query
-      .limit(1)
-      .maybeSingle();
+    const { data: certRows, error } = await query;
 
     if (error) throw error;
-    if (!data) return { success: false, message: "No se encontró el lote" };
+    if (!certRows || certRows.length === 0) return { success: false, message: "No se encontró el lote" };
+
+    let matchingCerts = certRows;
+    if (companyName && !idEmpresa) {
+      const targetCompany = companyName.trim().toLowerCase();
+      const filtered = certRows.filter((r: any) => {
+        let snapComp = "";
+        if (r.snapshot_contenido) {
+          try {
+            const snap =
+              typeof r.snapshot_contenido === "string"
+                ? JSON.parse(r.snapshot_contenido)
+                : r.snapshot_contenido;
+            snapComp =
+              snap?.osi?.cliente_nombre_empresa ||
+              snap?.cliente?.nombre_empresa ||
+              snap?.empresa?.razon_social ||
+              "";
+          } catch {}
+        }
+        const dbComp = Array.isArray(r.empresas)
+          ? r.empresas[0]?.razon_social
+          : (r.empresas as any)?.razon_social;
+        const actualComp = (snapComp || dbComp || "").trim().toLowerCase();
+        return actualComp === targetCompany;
+      });
+      if (filtered.length > 0) {
+        matchingCerts = filtered;
+      }
+    }
+
+    const data = matchingCerts[0];
 
     let snapshotData: any = {};
     if (data.snapshot_contenido) {
@@ -2624,15 +2708,11 @@ export async function getBatchCertificateDetailsAction(osiNumber: number, course
     // Helper to ensure date is YYYY-MM-DD without timezone shifts
     const formatDate = (dateInput: any) => {
       if (!dateInput) return "";
-      // If it's already YYYY-MM-DD string, return it
       if (typeof dateInput === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
         return dateInput;
       }
-      // Otherwise, parse and format to YYYY-MM-DD in UTC to avoid shifts
       const d = new Date(dateInput);
       if (isNaN(d.getTime())) return "";
-      // Use UTC methods to get the date parts to prevent local timezone from shifting it back/forward
-      // especially when the input is just YYYY-MM-DD (which is treated as midnight UTC)
       const year = d.getUTCFullYear();
       const month = String(d.getUTCMonth() + 1).padStart(2, '0');
       const day = String(d.getUTCDate()).padStart(2, '0');
@@ -2640,18 +2720,7 @@ export async function getBatchCertificateDetailsAction(osiNumber: number, course
     };
 
     // Query batch certificate IDs to count certificates and existing carnets
-    let countQuery = supabase
-      .from("certificados")
-      .select("id")
-      .eq("nro_osi", osiNumber)
-      .eq("is_active", true);
-
-    if (courseId) {
-      countQuery = countQuery.eq("id_curso", courseId);
-    }
-
-    const { data: batchCertRows } = await countQuery;
-    const batchCertIds = (batchCertRows || []).map((r) => r.id);
+    const batchCertIds = matchingCerts.map((r: any) => r.id);
     const totalCertificates = batchCertIds.length;
 
     let totalCarnets = 0;
@@ -2690,35 +2759,65 @@ export async function getBatchCertificateDetailsAction(osiNumber: number, course
 }
 
 /**
- * Batch update certificates and carnets for a specific OSI number (and optionally a course)
+ * Batch update certificates and carnets for a specific OSI number (and optionally a course/company)
  */
 export async function batchUpdateCertificatesAction(
   osiNumber: number,
   updates: BatchUpdateData,
-  courseId?: number
+  courseId?: number,
+  companyName?: string,
+  idEmpresa?: number | null,
 ): Promise<BatchUpdateResult> {
   try {
     const supabase = await createClient();
 
-    // 1. Fetch only the columns we read/update — avoids pulling heavy
-    // TOAST blobs like qr_code that batchUpdate never touches.
     let query = supabase
       .from("certificados")
-      .select("id, snapshot_contenido, fecha_emision, fecha_vencimiento, id_facilitador")
+      .select("id, snapshot_contenido, fecha_emision, fecha_vencimiento, id_facilitador, id_empresa, empresas(razon_social)")
       .eq("nro_osi", osiNumber)
       .eq("is_active", true);
 
     if (courseId) {
       query = query.eq("id_curso", courseId);
     }
+    if (idEmpresa) {
+      query = query.eq("id_empresa", idEmpresa);
+    }
 
-    const { data: certificates, error: fetchError } = await query;
+    const { data: rawCertificates, error: fetchError } = await query;
 
     if (fetchError) throw fetchError;
-    if (!certificates || certificates.length === 0) {
+
+    let certificates = rawCertificates || [];
+    if (companyName && !idEmpresa) {
+      const targetCompany = companyName.trim().toLowerCase();
+      certificates = certificates.filter((r: any) => {
+        let snapComp = "";
+        if (r.snapshot_contenido) {
+          try {
+            const snap =
+              typeof r.snapshot_contenido === "string"
+                ? JSON.parse(r.snapshot_contenido)
+                : r.snapshot_contenido;
+            snapComp =
+              snap?.osi?.cliente_nombre_empresa ||
+              snap?.cliente?.nombre_empresa ||
+              snap?.empresa?.razon_social ||
+              "";
+          } catch {}
+        }
+        const dbComp = Array.isArray(r.empresas)
+          ? r.empresas[0]?.razon_social
+          : (r.empresas as any)?.razon_social;
+        const actualComp = (snapComp || dbComp || "").trim().toLowerCase();
+        return actualComp === targetCompany;
+      });
+    }
+
+    if (certificates.length === 0) {
       return {
         success: false,
-        message: `No se encontraron certificados activos para la OSI ${osiNumber}`,
+        message: `No se encontraron certificados activos para la OSI ${osiNumber}${companyName ? ` (${companyName})` : ""}`,
         updatedCount: 0,
       };
     }
@@ -2860,6 +2959,8 @@ export async function batchUpdateCertificatesAction(
           osiNumber,
           courseId,
           updates.fecha_vencimiento,
+          companyName,
+          idEmpresa,
         );
         if (carnetGenResult.success) {
           generatedCarnetsCount = carnetGenResult.generatedCount || 0;

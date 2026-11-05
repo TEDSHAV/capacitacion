@@ -10,6 +10,7 @@ import {
   Loader2,
   ShieldCheck,
   ShieldAlert,
+  Edit3,
 } from "lucide-react";
 import { getCertificatesByOSIAction } from "@/app/actions/certificados";
 import { getAcknowledgmentByOSI } from "@/app/actions/facilitador-portal";
@@ -92,7 +93,7 @@ export default function OSIDetailsModalV2({
 
   const groupCertificatesIntoBatches = (certs: any[]) => {
     console.log("OSIDetailsModal - Grouping certificates into batches...");
-    // Group by emission date and course title
+    // Group by emission date, course title, and client company
     const batchMap = new Map();
 
     certs.forEach((cert) => {
@@ -109,13 +110,26 @@ export default function OSIDetailsModalV2({
         cert.titulo_curso ||
         "Sin curso";
 
-      const key = `${date}_${course}`;
+      // Try to get company from snapshot (which supports company override per batch) or DB join
+      const rawCompany =
+        snapshot?.osi?.cliente_nombre_empresa ||
+        snapshot?.cliente?.nombre_empresa ||
+        snapshot?.empresa?.razon_social ||
+        (Array.isArray(cert.empresas) ? cert.empresas[0]?.razon_social : (cert.empresas as any)?.razon_social) ||
+        osi?.nombre_empresa ||
+        "Sin empresa";
+
+      const company = rawCompany.trim();
+      const companyKey = company.toLowerCase();
+
+      const key = `${date}_${course}_${companyKey}`;
 
       if (!batchMap.has(key)) {
         batchMap.set(key, {
           id: key,
           date,
           course,
+          company,
           certificates: [],
         });
       }
@@ -133,7 +147,11 @@ export default function OSIDetailsModalV2({
       const results = await downloadBatchAction(
         choice,
         batch.certificates,
-        osi,
+        {
+          ...osi,
+          nombre_empresa: batch.company || osi?.nombre_empresa,
+          cliente_nombre_empresa: batch.company || osi?.nombre_empresa,
+        },
         batch.course,
         batch.date,
       );
@@ -295,15 +313,34 @@ export default function OSIDetailsModalV2({
                               </div>
                               <div>
                                 <h5 className="font-bold text-gray-900 text-sm">{batch.course}</h5>
-                                <p className="text-[10px] text-gray-500 flex items-center gap-1.5 mt-0.5">
-                                  <Calendar className="w-3 h-3" />
-                                  Emitido el {formatDate(batch.date)}
-                                </p>
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  {batch.company && (
+                                    <span className="text-xs font-semibold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                      {batch.company}
+                                    </span>
+                                  )}
+                                  <p className="text-[10px] text-gray-500 flex items-center gap-1.5">
+                                    <Calendar className="w-3 h-3" />
+                                    Emitido el {formatDate(batch.date)}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                            <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-blue-100">
-                              {batch.certificates.length} Participantes
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`/dashboard/capacitacion/gestion-certificados?batchOsi=${osi.nro_osi}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-900 bg-white hover:bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200 shadow-sm transition-all"
+                                title="Editar este lote en Gestión de Certificados"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Editar Lote</span>
+                              </a>
+                              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-blue-100">
+                                {batch.certificates.length} Participantes
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <div className="p-4 bg-white">

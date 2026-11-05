@@ -517,11 +517,24 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
       (companyId !== null && companyId !== origId) ||
       companyName.trim().toLowerCase() !== origName.trim().toLowerCase();
 
+    // If companyId is not provided (e.g. manual input), check if name matches an existing company in catalog
+    let resolvedCompanyId = companyId;
+    if (!resolvedCompanyId && companies && companies.length > 0) {
+      const match = companies.find(
+        (c) =>
+          c.razon_social &&
+          c.razon_social.trim().toLowerCase() === companyName.trim().toLowerCase(),
+      );
+      if (match?.id) {
+        resolvedCompanyId = typeof match.id === "string" ? parseInt(match.id, 10) : match.id;
+      }
+    }
+
     const updatedOSI: CertificateOSI = {
       ...selectedOSI,
       original_empresa_id: origId,
       original_cliente_nombre_empresa: origName,
-      empresa_id: companyId ?? 0,
+      empresa_id: resolvedCompanyId ?? 0,
       cliente_nombre_empresa: companyName,
       is_company_override: isOverride,
     };

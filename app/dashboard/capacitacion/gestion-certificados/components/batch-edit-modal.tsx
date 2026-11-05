@@ -42,6 +42,7 @@ interface BatchEditModalProps {
 interface OSILookup {
   nro_osi: number;
   id_curso: number;
+  id_empresa?: number | null;
   company_name: string;
   course_name: string;
 }
@@ -103,12 +104,15 @@ export function BatchEditModal({
           
           // If initial OSI is provided, find and select it
           if (initialOsi) {
-            setOsiSearchTerm(initialOsi); // Set search term to show all courses for this OSI
+            setOsiSearchTerm(initialOsi); // Set search term to show all courses/batches for this OSI
             const numericInitial = parseInt(initialOsi.replace(/[^\d]/g, ""));
-            const found = data.find(o => o.nro_osi === numericInitial);
-            if (found) {
-              setSelectedOsiData(found);
-              handleOsiSelect(found);
+            const matches = data.filter(o => o.nro_osi === numericInitial);
+            if (matches.length === 1) {
+              setSelectedOsiData(matches[0]);
+              handleOsiSelect(matches[0]);
+            } else if (matches.length > 1) {
+              // Multiple batches exist for this OSI: open dropdown so the user can choose which one
+              setIsOsiDropdownOpen(true);
             }
           }
         } catch (error) {
@@ -139,7 +143,12 @@ export function BatchEditModal({
     
     try {
       setLoadingDetails(true);
-      const result = await getBatchCertificateDetailsAction(osi.nro_osi, osi.id_curso);
+      const result = await getBatchCertificateDetailsAction(
+        osi.nro_osi,
+        osi.id_curso,
+        osi.company_name,
+        osi.id_empresa,
+      );
       if (result.success && result.data) {
         const facilitatorId = result.data.id_facilitador || "";
         const foundFacilitator = facilitatorId
@@ -235,6 +244,8 @@ export function BatchEditModal({
         selectedOsiData.nro_osi,
         selectedOsiData.id_curso,
         updates.fecha_vencimiento,
+        selectedOsiData.company_name,
+        selectedOsiData.id_empresa,
       );
 
       if (res.success) {
@@ -242,6 +253,8 @@ export function BatchEditModal({
         const refreshed = await getBatchCertificateDetailsAction(
           selectedOsiData.nro_osi,
           selectedOsiData.id_curso,
+          selectedOsiData.company_name,
+          selectedOsiData.id_empresa,
         );
         if (refreshed.success && refreshed.data) {
           setBatchStats({
@@ -284,7 +297,13 @@ export function BatchEditModal({
         generate_missing_carnets: generateCarnets && (batchStats?.carnets_missing ?? 0) > 0,
       };
 
-      const result = await batchUpdateCertificatesAction(numericOsi, updatesToSend, selectedOsiData.id_curso);
+      const result = await batchUpdateCertificatesAction(
+        numericOsi,
+        updatesToSend,
+        selectedOsiData.id_curso,
+        selectedOsiData.company_name,
+        selectedOsiData.id_empresa,
+      );
       
       if (result.success) {
         alert(result.message);
@@ -358,8 +377,13 @@ export function BatchEditModal({
                 <div className="flex flex-col truncate">
                   {selectedOsiData ? (
                     <>
-                      <span className="text-sm font-bold text-gray-900">OSI: {selectedOsiData.nro_osi}</span>
-                      <span className="text-[10px] text-gray-500 truncate">{selectedOsiData.company_name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-gray-900">OSI: {selectedOsiData.nro_osi}</span>
+                        <span className="text-[10px] font-bold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                          {selectedOsiData.company_name}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-gray-600 truncate font-medium">{selectedOsiData.course_name}</span>
                     </>
                   ) : (
                     <span className="text-sm text-gray-400">Buscar por N° OSI o Empresa...</span>
@@ -390,26 +414,37 @@ export function BatchEditModal({
                   </div>
                   <div className="max-h-60 overflow-y-auto py-1">
                     {filteredOsis.length > 0 ? (
-                      filteredOsis.map((osi) => (
-                        <div
-                          key={`${osi.nro_osi}-${osi.id_curso}`}
-                          onClick={() => handleOsiSelect(osi)}
-                          className={`px-4 py-3 cursor-pointer flex items-center justify-between hover:bg-blue-50 transition-colors ${
-                            selectedOsiData?.nro_osi === osi.nro_osi && selectedOsiData?.id_curso === osi.id_curso ? "bg-blue-50" : ""
-                          }`}
-                        >
-                          <div className="flex flex-col min-w-0">
-                            <span className={`text-sm font-bold ${selectedOsiData?.nro_osi === osi.nro_osi && selectedOsiData?.id_curso === osi.id_curso ? "text-blue-700" : "text-gray-900"}`}>
-                              OSI: {osi.nro_osi}
-                            </span>
-                            <span className="text-[11px] text-gray-600 truncate font-medium">{osi.course_name}</span>
-                            <span className="text-[10px] text-gray-500 truncate">{osi.company_name}</span>
+                      filteredOsis.map((osi) => {
+                        const isSelected =
+                          selectedOsiData?.nro_osi === osi.nro_osi &&
+                          selectedOsiData?.id_curso === osi.id_curso &&
+                          selectedOsiData?.company_name.trim().toLowerCase() === osi.company_name.trim().toLowerCase();
+
+                        return (
+                          <div
+                            key={`${osi.nro_osi}-${osi.id_curso}-${osi.company_name}`}
+                            onClick={() => handleOsiSelect(osi)}
+                            className={`px-4 py-3 cursor-pointer flex items-center justify-between hover:bg-blue-50 transition-colors ${
+                              isSelected ? "bg-blue-50" : ""
+                            }`}
+                          >
+                            <div className="flex flex-col min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm font-bold ${isSelected ? "text-blue-700" : "text-gray-900"}`}>
+                                  OSI: {osi.nro_osi}
+                                </span>
+                                <span className="text-[10px] font-bold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                  {osi.company_name}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-gray-600 truncate font-medium mt-0.5">{osi.course_name}</span>
+                            </div>
+                            {isSelected && (
+                              <Check className="h-4 w-4 text-blue-600 shrink-0" />
+                            )}
                           </div>
-                          {selectedOsiData?.nro_osi === osi.nro_osi && selectedOsiData?.id_curso === osi.id_curso && (
-                            <Check className="h-4 w-4 text-blue-600 shrink-0" />
-                          )}
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className="px-4 py-8 text-center text-gray-500 text-sm italic">
                         No se encontraron OSIs con certificados activos
@@ -421,7 +456,7 @@ export function BatchEditModal({
 
               <p className="text-[11px] text-amber-600 flex items-center gap-1 font-medium">
                 <AlertCircle className="h-3 w-3" />
-                Se actualizarán solo los certificados del curso seleccionado bajo esta OSI.
+                Se actualizarán solo los certificados del curso y empresa seleccionados bajo esta OSI.
               </p>
             </div>
             

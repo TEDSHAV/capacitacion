@@ -219,7 +219,7 @@ export async function downloadBatchAction(
               fecha_vencimiento: snapshot.certificado?.fecha_vencimiento || cert.fecha_vencimiento,
               nombre_participante: participant.name,
               cedula_participante: participant.idNumber,
-              empresa_participante: snapshot.osi?.cliente_nombre_empresa || osiData.nombre_empresa,
+              empresa_participante: snapshot.osi?.cliente_nombre_empresa || osiData.cliente_nombre_empresa || osiData.nombre_empresa,
               nro_control: snapshot.certificado?.nro_control || cert.nro_control,
             },
             templateImage: carnetTemplateImage,
@@ -275,7 +275,7 @@ export async function downloadBatchAction(
         }),
         osiData: {
           ...osiData,
-          cliente_nombre_empresa: firstSnapshot?.osi?.cliente_nombre_empresa || osiData.nombre_empresa,
+          cliente_nombre_empresa: firstSnapshot?.osi?.cliente_nombre_empresa || osiData.cliente_nombre_empresa || osiData.nombre_empresa,
           nro_osi: firstSnapshot?.osi?.nro_osi || osiData.nro_osi,
           tema: firstSnapshot?.certificado_detalles?.title || courseTitle,
           id_curso: firstSnapshot?.certificado?.id_curso || firstCert.id_curso,
@@ -373,7 +373,17 @@ export async function downloadBatchAction(
             ? "Documentos"
             : "Resultado_Actividad";
 
-  const zipFileName = `${prefix}_${osiData.nro_osi}_${date}_${courseTitle.replace(/\s+/g, "_")}.zip`;
+  const rawBatchCompany =
+    osiData.cliente_nombre_empresa ||
+    osiData.nombre_empresa ||
+    "";
+  const cleanCompany = rawBatchCompany
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "_");
+  const companyPart = cleanCompany ? `_${cleanCompany}` : "";
+
+  const zipFileName = `${prefix}_${osiData.nro_osi}${companyPart}_${date}_${courseTitle.replace(/\s+/g, "_")}.zip`;
 
   // Trigger download
   const url = URL.createObjectURL(content);

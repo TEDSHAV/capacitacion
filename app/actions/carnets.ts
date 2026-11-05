@@ -713,6 +713,8 @@ export async function generateCarnetsForBatchAction(
   osiNumber: number,
   courseId?: number,
   customFechaVencimiento?: string,
+  companyName?: string,
+  idEmpresa?: number | null,
 ): Promise<{
   success: boolean;
   message: string;
@@ -730,7 +732,7 @@ export async function generateCarnetsForBatchAction(
       };
     }
 
-    // 1. Fetch active certificates for this OSI (and course if specified)
+    // 1. Fetch active certificates for this OSI (and course/company if specified)
     let query = supabase
       .from("certificados")
       .select(`
@@ -767,8 +769,11 @@ export async function generateCarnetsForBatchAction(
     if (courseId) {
       query = query.eq("id_curso", courseId);
     }
+    if (idEmpresa) {
+      query = query.eq("id_empresa", idEmpresa);
+    }
 
-    const { data: certificates, error: certError } = await query;
+    const { data: rawCertificates, error: certError } = await query;
     if (certError) {
       console.error("Error fetching certificates for batch carnets:", certError);
       return {
@@ -776,6 +781,32 @@ export async function generateCarnetsForBatchAction(
         message: `Error al consultar certificados: ${certError.message}`,
         generatedCount: 0,
       };
+    }
+
+    let certificates = rawCertificates || [];
+    if (companyName && !idEmpresa) {
+      const targetCompany = companyName.trim().toLowerCase();
+      certificates = certificates.filter((c: any) => {
+        let snapComp = "";
+        if (c.snapshot_contenido) {
+          try {
+            const snap =
+              typeof c.snapshot_contenido === "string"
+                ? JSON.parse(c.snapshot_contenido)
+                : c.snapshot_contenido;
+            snapComp =
+              snap?.osi?.cliente_nombre_empresa ||
+              snap?.cliente?.nombre_empresa ||
+              snap?.empresa?.razon_social ||
+              "";
+          } catch {}
+        }
+        const dbComp = Array.isArray(c.empresas)
+          ? c.empresas[0]?.razon_social
+          : (c.empresas as any)?.razon_social;
+        const actualComp = (snapComp || dbComp || "").trim().toLowerCase();
+        return actualComp === targetCompany;
+      });
     }
 
     if (!certificates || certificates.length === 0) {
@@ -902,7 +933,9 @@ export async function generateCarnetsForBatchAction(
         snap.subtitulo_curso ||
         null;
 
-      const companyName =
+      const companyNameResolved =
+        snap.osi?.cliente_nombre_empresa ||
+        companyName ||
         (Array.isArray(cert.empresas)
           ? cert.empresas[0]?.razon_social
           : (cert.empresas as any)?.razon_social) ||
@@ -979,7 +1012,7 @@ export async function generateCarnetsForBatchAction(
         fecha_vencimiento: expiryDate,
         nombre_participante: participantName,
         cedula_participante: participantCedula,
-        empresa_participante: companyName,
+        empresa_participante: companyNameResolved,
         id_plantilla_carnet: plantillaId,
         nro_control: cert.nro_control || 0,
         uuid: cert.uuid,
