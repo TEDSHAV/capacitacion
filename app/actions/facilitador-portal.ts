@@ -1229,6 +1229,171 @@ export async function saveParticipants(
   return { success: true };
 }
 
+/**
+ * DEV ONLY: Quickly marks a session as completed for a facilitador by seeding dummy
+ * attendance, photo, qualification, and a final participant if missing.
+ * Strictly gated by process.env.NODE_ENV === "development".
+ */
+export async function markSessionCompletedDev(
+  osiId: number,
+  facilitadorId: number,
+  nroSesion: number = 1,
+): Promise<{ success: boolean; error?: string }> {
+  if (process.env.NODE_ENV !== "development") {
+    return { success: false, error: "Solo disponible en entorno de desarrollo." };
+  }
+
+  const supabase = await createAdminClient();
+
+  // 1. Ensure participant row with status 'final'
+  const { data: existingParts } = await supabase
+    .from("ejecucion_osi_participantes")
+    .select("id, status")
+    .eq("osi_id", osiId)
+    .eq("facilitador_id", facilitadorId)
+    .limit(10);
+
+  if (!existingParts || existingParts.length === 0) {
+    try {
+      await supabase.from("ejecucion_osi_participantes").insert({
+        osi_id: osiId,
+        facilitador_id: facilitadorId,
+        nombre_apellido: "Participante Verificado (Dev)",
+        cedula: "10000001",
+        score: "20",
+        status: "final",
+        nro_sesion: nroSesion,
+      });
+    } catch {
+      await supabase.from("ejecucion_osi_participantes").insert({
+        osi_id: osiId,
+        facilitador_id: facilitadorId,
+        nombre_apellido: "Participante Verificado (Dev)",
+        cedula: "10000001",
+        score: "20",
+        status: "final",
+      });
+    }
+  } else {
+    try {
+      await supabase
+        .from("ejecucion_osi_participantes")
+        .update({ status: "final", nro_sesion: nroSesion })
+        .eq("osi_id", osiId)
+        .eq("facilitador_id", facilitadorId);
+    } catch {
+      await supabase
+        .from("ejecucion_osi_participantes")
+        .update({ status: "final" })
+        .eq("osi_id", osiId)
+        .eq("facilitador_id", facilitadorId);
+    }
+  }
+
+  // 2. Ensure required attachments in ejecucion_osi_asistencia
+  const { data: existingAtts } = await supabase
+    .from("ejecucion_osi_asistencia")
+    .select("category")
+    .eq("osi_id", osiId)
+    .eq("facilitador_id", facilitadorId);
+
+  const categories = new Set((existingAtts || []).map((a) => a.category));
+  const dummyAtts = [];
+  if (!categories.has("lista_asistencia")) {
+    dummyAtts.push({
+      osi_id: osiId,
+      facilitador_id: facilitadorId,
+      category: "lista_asistencia",
+      file_name: "asistencia_dev.pdf",
+      storage_path: "dev/placeholder.pdf",
+      file_size: 1024,
+      content_type: "application/pdf",
+      nro_sesion: nroSesion,
+    });
+  }
+  if (!categories.has("hoja_calificacion")) {
+    dummyAtts.push({
+      osi_id: osiId,
+      facilitador_id: facilitadorId,
+      category: "hoja_calificacion",
+      file_name: "calificacion_dev.pdf",
+      storage_path: "dev/placeholder.pdf",
+      file_size: 1024,
+      content_type: "application/pdf",
+      nro_sesion: nroSesion,
+    });
+  }
+  if (!categories.has("material_fotografico")) {
+    dummyAtts.push({
+      osi_id: osiId,
+      facilitador_id: facilitadorId,
+      category: "material_fotografico",
+      file_name: "foto_dev.jpg",
+      storage_path: "dev/placeholder.jpg",
+      file_size: 1024,
+      content_type: "image/jpeg",
+      nro_sesion: nroSesion,
+    });
+  }
+
+  if (dummyAtts.length > 0) {
+    try {
+      await supabase.from("ejecucion_osi_asistencia").insert(dummyAtts);
+    } catch {
+      const stripped = dummyAtts.map(({ nro_sesion, ...rest }) => rest);
+      await supabase.from("ejecucion_osi_asistencia").insert(stripped);
+    }
+  }
+
+  // 3. Set acknowledgment
+  try {
+    await supabase.from("facilitador_acknowledgments").upsert(
+      {
+        osi_id: osiId,
+        facilitador_id: facilitadorId,
+        nro_sesion: nroSesion,
+        acknowledged_at: new Date().toISOString(),
+      },
+      { onConflict: "osi_id,facilitador_id,nro_sesion" }
+    );
+  } catch {
+    await supabase.from("facilitador_acknowledgments").upsert(
+      {
+        osi_id: osiId,
+        facilitador_id: facilitadorId,
+        acknowledged_at: new Date().toISOString(),
+      },
+      { onConflict: "osi_id,facilitador_id" }
+    );
+  }
+
+  // 4. Mark tracking steps in capacitacion_proceso_steps
+  const now = new Date().toISOString();
+  try {
+    const stepsToMark = ["lista_asistencia", "calificacion", "material_fotografico", "nomina_participantes", "en_proceso"];
+    for (const stepKey of stepsToMark) {
+      await supabase
+        .from("capacitacion_proceso_steps")
+        .upsert(
+          {
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: "ejecucion",
+            step_key: stepKey,
+            completed: true,
+            completed_at: now,
+          },
+          { onConflict: "osi_id,nro_sesion,phase,step_key" }
+        );
+    }
+  } catch {}
+
+  revalidatePath("/portal/facilitador/dashboard");
+  revalidatePath(`/portal/facilitador/osi/${osiId}`);
+  revalidatePath("/dashboard/capacitacion/seguimiento-servicios");
+  return { success: true };
+}
+
 export async function getFacilitatorByOSI(osiId: number) {
   const supabase = await createAdminClient();
 

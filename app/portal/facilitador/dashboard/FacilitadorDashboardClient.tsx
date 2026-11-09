@@ -18,11 +18,12 @@ import {
   IdCard,
   Calendar,
   Layers,
+  Zap,
 } from "lucide-react";
 import { DashboardTour } from "./DashboardTour";
 import { DashboardTourAutoStart as AutoStart } from "./DashboardTourAutoStart";
 import { toTitleCase } from "@/utils/string-utils";
-import type { FacilitadorFullData } from "@/app/actions/facilitador-portal";
+import { markSessionCompletedDev, type FacilitadorFullData } from "@/app/actions/facilitador-portal";
 import { ComplianceBanner } from "@/components/compliance/ComplianceBanner";
 
 interface OSISessionItem {
@@ -86,6 +87,26 @@ export default function FacilitadorDashboardClient({
   const rating = facilitador?.rating ?? facilitador?.calificacion ?? null;
   const reviewCount = facilitador?.review_count ?? 0;
   const effectiveFacilitadorId = facilitadorId ?? facilitador?.id;
+
+  const [devCompleting, setDevCompleting] = useState<string | null>(null);
+
+  const handleDevComplete = async (osiId: number, targetSession: number) => {
+    if (!effectiveFacilitadorId) return;
+    const key = `${osiId}_${targetSession}`;
+    setDevCompleting(key);
+    try {
+      const res = await markSessionCompletedDev(osiId, effectiveFacilitadorId, targetSession);
+      if (res.success) {
+        window.location.reload();
+      } else {
+        alert(res.error || "Error al completar en Dev");
+      }
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally {
+      setDevCompleting(null);
+    }
+  };
 
   const isOsiDone = (osi: OSIItem) => {
     const allSessionsDone =
@@ -578,9 +599,27 @@ export default function FacilitadorDashboardClient({
                               <span>{isMultiSession ? `Sesión ${targetSession} Finalizada` : "Servicio Finalizado"}</span>
                             </div>
                           ) : (
-                            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
-                              <Clock className="w-4 h-4 text-amber-600" />
-                              <span>{isMultiSession ? `Sesión ${targetSession} Pendiente` : "Pendiente de Carga"}</span>
+                            <div className="flex flex-col items-end gap-1.5">
+                              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                                <Clock className="w-4 h-4 text-amber-600" />
+                                <span>{isMultiSession ? `Sesión ${targetSession} Pendiente` : "Pendiente de Carga"}</span>
+                              </div>
+                              {process.env.NODE_ENV === "development" && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleDevComplete(osi.id_osi, targetSession);
+                                  }}
+                                  disabled={devCompleting === `${osi.id_osi}_${targetSession}`}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
+                                  title="Marcar como completada en servidor de desarrollo"
+                                >
+                                  <Zap className="w-3 h-3 text-purple-600" />
+                                  <span>{devCompleting === `${osi.id_osi}_${targetSession}` ? "Completando..." : "Completar (Dev)"}</span>
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>

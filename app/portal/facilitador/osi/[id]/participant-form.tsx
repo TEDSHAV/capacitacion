@@ -24,8 +24,9 @@ import {
   Layers,
   Calendar,
   Copy,
+  Zap,
 } from "lucide-react";
-import { saveParticipants, getOSIAttachments } from "@/app/actions/facilitador-portal";
+import { saveParticipants, getOSIAttachments, markSessionCompletedDev } from "@/app/actions/facilitador-portal";
 import { enqueueOp } from "@/lib/offline/sync-queue";
 import { toTitleCase } from "@/utils/string-utils";
 import { AttachmentUploadSection } from "./attachment-upload-section";
@@ -239,6 +240,23 @@ export const ParticipantForm = ({
   const disclaimerRef = useRef<HTMLDivElement>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [pendingSync, setPendingSync] = useState(false);
+  const [devCompleting, setDevCompleting] = useState(false);
+
+  const handleDevComplete = async () => {
+    setDevCompleting(true);
+    try {
+      const res = await markSessionCompletedDev(osiId, facilitadorId, selectedSession);
+      if (res.success) {
+        window.location.reload();
+      } else {
+        alert(res.error || "Error al completar en Dev");
+      }
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally {
+      setDevCompleting(false);
+    }
+  };
 
   // Network offline listener
   useEffect(() => {
@@ -2115,6 +2133,20 @@ export const ParticipantForm = ({
                       {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                       <span>Guardar borrador</span>
                     </Button>
+
+                    {process.env.NODE_ENV === "development" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleDevComplete}
+                        disabled={saving || devCompleting}
+                        className="h-12 px-4 text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-300 font-bold cursor-pointer"
+                        title="Marcar sesión como completada inmediatamente (solo en entorno de desarrollo)"
+                      >
+                        {devCompleting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Zap className="w-4 h-4 mr-1.5 text-purple-600" />}
+                        <span>Completar (Dev)</span>
+                      </Button>
+                    )}
 
                     <Button
                       id="tour-submit-button"
