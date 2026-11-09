@@ -340,10 +340,9 @@ export const ParticipantForm = ({
     if (sessionCount <= 1) return null;
 
     const currentSessionDate = sessionsInfo?.find((s) => s.nro_sesion === selectedSession)?.fecha;
-    const isSingleAssignment = assignedSession !== null;
 
     return (
-      <div className="p-4 bg-gradient-to-r from-sky-50 via-sky-50/70 to-blue-50/40 border border-sky-200/90 rounded-2xl space-y-3 shadow-2xs">
+      <div className="p-4 bg-gradient-to-r from-sky-50 via-sky-50/70 to-blue-50/40 border border-sky-200/90 rounded-2xl space-y-2 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <span className="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
@@ -352,7 +351,7 @@ export const ParticipantForm = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-bold uppercase tracking-wider text-sky-950">
-                  Sesión Activa de Carga:
+                  Sesión Activa:
                 </span>
                 <span className="text-xs font-extrabold bg-sky-600 text-white px-2.5 py-0.5 rounded-md shadow-2xs">
                   Sesión {selectedSession}
@@ -368,73 +367,11 @@ export const ParticipantForm = ({
                 )}
               </div>
               <p className="text-xs text-sky-800 mt-1">
-                {isSingleAssignment
-                  ? `Estás asignado a la Sesión ${assignedSession}. Todos los documentos se guardarán para esa fecha.`
-                  : `Cargando ${categoryLabel} para la Sesión ${selectedSession}. Si tienes archivos de otra fecha, pulsa abajo la sesión correspondiente:`}
+                Estás gestionando {categoryLabel} para la <strong>Sesión {selectedSession}</strong>. Todos los recaudos cargados se registrarán para esta sesión.
               </p>
             </div>
           </div>
-
-          {!isSingleAssignment && selectableSessionsList.length > 1 && (
-            <span className="text-[11px] text-sky-700 bg-sky-100/70 border border-sky-200 px-2.5 py-1 rounded-lg font-semibold self-start sm:self-auto">
-              💡 Cambia la sesión antes de subir
-            </span>
-          )}
         </div>
-
-        {/* Interactive session selector pills */}
-        {!isSingleAssignment && selectableSessionsList.length > 1 && (
-          <div className="pt-2 border-t border-sky-100 flex flex-wrap gap-2">
-            {selectableSessionsList.map((n) => {
-              const sesDate = sessionsInfo?.find((s) => s.nro_sesion === n)?.fecha;
-              const stats = getSessionStats(n);
-              const isSelected = selectedSession === n;
-
-              return (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => handleSelectSession(n)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-                    isSelected
-                      ? "bg-sky-600 text-white shadow-sm ring-2 ring-sky-300"
-                      : "bg-white text-slate-700 border border-slate-200 hover:bg-sky-50 hover:border-sky-200"
-                  }`}
-                >
-                  <span
-                    className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
-                      isSelected ? "bg-white text-sky-600" : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {n}
-                  </span>
-                  <span>Sesión {n}</span>
-                  {sesDate ? (
-                    <span className={`text-[11px] font-normal ${isSelected ? "text-sky-100" : "text-slate-400"}`}>
-                      ({formatSessionDate(sesDate)})
-                    </span>
-                  ) : (
-                    <span className={`text-[11px] font-normal italic ${isSelected ? "text-sky-200" : "text-amber-600"}`}>
-                      (Por confirmar)
-                    </span>
-                  )}
-
-                  {stats.total > 0 && (
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                        isSelected
-                          ? "bg-white/20 text-white"
-                          : "bg-emerald-100 text-emerald-800"
-                      }`}
-                    >
-                      ✓ {stats.total}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
     );
   };
@@ -960,10 +897,8 @@ export const ParticipantForm = ({
       );
       setSuccess(
         status === "final"
-          ? (selectableSessionsList.length > 1
-              ? remainingPending.length > 0
-                ? `¡Sesión ${selectedSession} finalizada con éxito! Tienes pendiente la Sesión ${remainingPending[0]}.`
-                : `¡Sesión ${selectedSession} finalizada y enviada con éxito!`
+          ? (sessionCount > 1
+              ? `¡Sesión ${selectedSession} finalizada y enviada con éxito!`
               : "¡Listado finalizado y enviado exitosamente a Capacitación!")
           : "Guardado correctamente",
       );
@@ -1895,11 +1830,11 @@ export const ParticipantForm = ({
                   <div className="flex items-center gap-2">
                     <Layers className="w-4 h-4 text-sky-600" />
                     <h4 className="text-sm font-bold text-slate-900">
-                      Estado de Soportes por Sesión ({selectableSessionsList.length} sesión{selectableSessionsList.length > 1 ? "es" : ""})
+                      Estado de Soportes — Sesión {selectedSession}
                     </h4>
                   </div>
                   <span className="text-[11px] text-slate-500 font-medium">
-                    Verifica que cada fecha tenga sus recaudos cargados
+                    Verifica que la sesión tenga sus recaudos cargados
                   </span>
                 </div>
 
@@ -2042,7 +1977,7 @@ export const ParticipantForm = ({
 
 
             {/* Pending Sessions Warning Card */}
-            {!isCurrentSessionAttachmentsComplete && selectableSessionsList.length > 1 && (
+            {!isCurrentSessionAttachmentsComplete && (sessionCount > 1 || selectableSessionsList.length > 1) && (
               <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-950 space-y-2">
                 <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-amber-900">
                   <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
@@ -2069,7 +2004,7 @@ export const ParticipantForm = ({
             )}
 
             {/* Session Ready Info Card */}
-            {isCurrentSessionAttachmentsComplete && selectableSessionsList.length > 1 && !isFinal && (
+            {isCurrentSessionAttachmentsComplete && (sessionCount > 1 || selectableSessionsList.length > 1) && !isFinal && (
               <div className="p-4 rounded-2xl bg-sky-50/80 border border-sky-200 text-sky-950 space-y-2">
                 <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-sky-900">
                   <CheckCircle2 className="w-4 h-4 shrink-0 text-sky-600" />
@@ -2077,9 +2012,6 @@ export const ParticipantForm = ({
                 </div>
                 <p className="text-xs text-sky-800 leading-relaxed">
                   Al pulsar <strong>&quot;Finalizar Sesión {selectedSession}&quot;</strong>, esta sesión se marcará como concluida y aparecerá en tu pestaña de <strong>&quot;Finalizados&quot;</strong>.
-                  {selectableSessionsList.filter((s) => s !== selectedSession && !finalizedSessions.has(s)).length > 0 && (
-                    <span> Las demás sesiones asignadas pendientes continuarán disponibles en tu pestaña de <strong>&quot;Pendientes&quot;</strong>.</span>
-                  )}
                 </p>
               </div>
             )}
@@ -2089,19 +2021,19 @@ export const ParticipantForm = ({
               <div>
                 {!hasCurrentSessionAttendance ? (
                   <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Falta cargar la lista de asistencia física{selectableSessionsList.length > 1 ? ` de la Sesión ${selectedSession}` : ""}.
+                    ⚠️ Falta cargar la lista de asistencia física{sessionCount > 1 ? ` de la Sesión ${selectedSession}` : ""}.
                   </p>
                 ) : !hasCurrentSessionGradeSheet ? (
                   <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Falta cargar la hoja de calificación física firmada{selectableSessionsList.length > 1 ? ` de la Sesión ${selectedSession}` : ""}.
+                    ⚠️ Falta cargar la hoja de calificación física firmada{sessionCount > 1 ? ` de la Sesión ${selectedSession}` : ""}.
                   </p>
                 ) : !hasCompletedParticipants ? (
                   <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Debes registrar al menos 1 participante con su nota respectiva{selectableSessionsList.length > 1 ? ` para la Sesión ${selectedSession}` : ""}.
+                    ⚠️ Debes registrar al menos 1 participante con su nota respectiva{sessionCount > 1 ? ` para la Sesión ${selectedSession}` : ""}.
                   </p>
                 ) : !hasCurrentSessionPhotos ? (
                   <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Falta cargar fotos de la actividad{selectableSessionsList.length > 1 ? ` de la Sesión ${selectedSession}` : ""}.
+                    ⚠️ Falta cargar fotos de la actividad{sessionCount > 1 ? ` de la Sesión ${selectedSession}` : ""}.
                   </p>
                 ) : !hasAcknowledged ? (
                   <p className="text-xs text-amber-600 font-medium">
@@ -2109,7 +2041,7 @@ export const ParticipantForm = ({
                   </p>
                 ) : (
                   <p className="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Todo listo para enviar {selectableSessionsList.length > 1 ? `la Sesión ${selectedSession}` : "el servicio"} a Capacitación.
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Todo listo para enviar {sessionCount > 1 ? `la Sesión ${selectedSession}` : "el servicio"} a Capacitación.
                   </p>
                 )}
               </div>
@@ -2121,7 +2053,7 @@ export const ParticipantForm = ({
                     className="h-12 px-6 font-bold rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 cursor-not-allowed shadow-2xs"
                   >
                     <CheckCheck className="w-4 h-4 mr-2 text-emerald-600" />
-                    <span>{selectableSessionsList.length > 1 ? `Sesión ${selectedSession} Finalizada` : "Servicio Finalizado y Enviado"}</span>
+                    <span>{sessionCount > 1 ? `Sesión ${selectedSession} Finalizada` : "Servicio Finalizado y Enviado"}</span>
                   </Button>
                 ) : (
                   <>
@@ -2184,7 +2116,7 @@ export const ParticipantForm = ({
                       ) : (
                         <CheckCheck className="w-4 h-4 mr-2" />
                       )}
-                      <span>{selectableSessionsList.length > 1 ? `Finalizar Sesión ${selectedSession}` : "Finalizar y Enviar a Capacitación"}</span>
+                      <span>{sessionCount > 1 ? `Finalizar Sesión ${selectedSession}` : "Finalizar y Enviar a Capacitación"}</span>
                     </Button>
                   </>
                 )}
@@ -2258,7 +2190,7 @@ export const ParticipantForm = ({
                 disabled
                 className="h-11 px-4 sm:px-6 font-bold rounded-xl text-xs sm:text-sm shadow-xs bg-emerald-100 text-emerald-800 border border-emerald-200 cursor-not-allowed"
               >
-                <span>{selectableSessionsList.length > 1 ? `Sesión ${selectedSession} Finalizada` : "Finalizado"}</span>
+                <span>{sessionCount > 1 ? `Sesión ${selectedSession} Finalizada` : "Finalizado"}</span>
                 <CheckCheck className="w-4 h-4 ml-1.5" />
               </Button>
             ) : (
@@ -2271,7 +2203,7 @@ export const ParticipantForm = ({
                   : "bg-slate-200 text-slate-400 cursor-not-allowed"
                   }`}
               >
-                <span>{selectableSessionsList.length > 1 ? `Finalizar Sesión ${selectedSession}` : "Finalizar"}</span>
+                <span>{sessionCount > 1 ? `Finalizar Sesión ${selectedSession}` : "Finalizar"}</span>
                 <CheckCheck className="w-4 h-4 ml-1.5" />
               </Button>
             )}

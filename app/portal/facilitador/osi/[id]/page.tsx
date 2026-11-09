@@ -6,7 +6,7 @@ import { getOSIForControlServicios } from "@/app/actions/control-servicios";
 import { getMaterialKitForOSI } from "@/app/actions/material-didactico";
 import { createAdminClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, Building2, Calendar, MapPin } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, MapPin, ChevronRight, CheckCheck } from "lucide-react";
 import Link from "next/link";
 import { ParticipantForm } from "./participant-form";
 import { getSessionCount } from "@/lib/osi-utils";
@@ -40,7 +40,7 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
   const supabase = await createAdminClient();
   const { data: assignments } = await supabase
     .from("facilitador_osi_assignments")
-    .select("id, nro_sesion")
+    .select("id, nro_sesion, attachment_received")
     .eq("osi_id", osiId)
     .eq("facilitador_id", session.facilitador_id)
     .eq("is_active", true);
@@ -109,10 +109,15 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
 
   const relevantSessionNums =
     specificSessions.length > 0 && !hasAllSessionsAssignment
-      ? specificSessions
+      ? [...specificSessions].sort((a, b) => a - b)
       : Array.from({ length: sessionCount }, (_, i) => i + 1);
 
   const finalizedSessionNums = relevantSessionNums.filter((ses) => {
+    const isMarkedReceived = (assignments || []).some(
+      (a) => (a.nro_sesion === ses || a.nro_sesion == null) && a.attachment_received
+    );
+    if (isMarkedReceived) return true;
+
     const forSes =
       relevantSessionNums.length > 1
         ? (attachments || []).filter((a) => a.nro_sesion === ses)
@@ -139,14 +144,20 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
     : { data: [] };
   const hasCertificates = Boolean(certRows && certRows.length > 0);
 
-  const resolvedInitialSession =
+  // Determine target session strictly:
+  const targetSession =
     querySession && relevantSessionNums.includes(querySession)
       ? querySession
       : pendingSessionNums.length > 0
       ? pendingSessionNums[0]
       : relevantSessionNums[0] || 1;
 
-  const isInitialSessionFinal = finalizedSessionNums.includes(resolvedInitialSession);
+  // Enforce canonical isolated URL if multi-session
+  if (relevantSessionNums.length > 1 && resolvedSearch.sesion !== String(targetSession)) {
+    redirect(`/portal/facilitador/osi/${osiId}?sesion=${targetSession}`);
+  }
+
+  const isTargetSessionFinal = finalizedSessionNums.includes(targetSession);
 
   return (
     <div className="max-w-7xl mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8 space-y-6">
@@ -163,13 +174,21 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
 
       {/* Header Service Card (Light & Modern) */}
       <header className="p-6 rounded-2xl bg-gradient-to-br from-white via-sky-50/40 to-blue-50/30 border border-sky-100/90 shadow-xs space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider bg-sky-100 text-sky-800 px-2.5 py-1 rounded-md border border-sky-200">
-            OSI #{osi.nro_osi}
-          </span>
-          <span className="text-xs text-slate-500 font-semibold">
-            {osi.servicio || "Servicio General"}
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider bg-sky-100 text-sky-800 px-2.5 py-1 rounded-md border border-sky-200">
+              OSI #{osi.nro_osi}
+            </span>
+            <span className="text-xs text-slate-500 font-semibold">
+              {osi.servicio || "Servicio General"}
+            </span>
+          </div>
+
+          {sessionCount > 1 && (
+            <span className="text-xs font-extrabold bg-sky-600 text-white px-3 py-1 rounded-lg shadow-2xs">
+              Sesión {targetSession} de {sessionCount}
+            </span>
+          )}
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
@@ -183,10 +202,14 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
               <span><strong>{[osi.ciudad, osi.estado].filter(Boolean).join(", ")}</strong></span>
             </div>
           )}
+
+          {/* Active Session Date */}
           {(() => {
+            const targetSessionInfo = sessionsInfo.find((s) => s.nro_sesion === targetSession);
             const dateStr =
+              targetSessionInfo?.fecha ||
+              (Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[targetSession - 1]?.fecha) ||
               osi.fecha_inicio_real ||
-              (Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[0]?.fecha) ||
               osi.fecha_emision;
             if (!dateStr) return null;
             let formattedDate = dateStr;
@@ -201,38 +224,43 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
             return (
               <div className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-slate-400" />
-                <span>Fecha: <strong>{formattedDate}</strong></span>
+                <span>Fecha {sessionCount > 1 ? `Sesión ${targetSession}` : ""}: <strong>{formattedDate}</strong></span>
               </div>
             );
           })()}
 
-          {/* Session assignment badges (Light Sky/Teal) */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-400">Asignado:</span>
-            {sessionCount === 1 ? (
-              <span className="inline-flex items-center text-xs font-semibold bg-sky-50 text-sky-700 px-2 py-0.5 rounded border border-sky-200">
-                Sesión 1
-              </span>
-            ) : hasAllSessionsAssignment && specificSessions.length === 0 ? (
-              <span className="inline-flex items-center text-xs font-semibold bg-sky-50 text-sky-700 px-2 py-0.5 rounded border border-sky-200">
-                Todas las sesiones
-              </span>
-            ) : (
-              specificSessions.sort((a, b) => a - b).map((s) => (
-                <span
-                  key={s}
-                  className="inline-flex items-center text-xs font-semibold bg-sky-50 text-sky-700 px-2 py-0.5 rounded border border-sky-200"
-                >
-                  Sesión {s}
-                </span>
-              ))
-            )}
-            {sessionCount > 1 && hasAllSessionsAssignment && specificSessions.length > 0 && (
-              <span className="inline-flex items-center text-xs font-semibold bg-sky-50 text-sky-700 px-2 py-0.5 rounded border border-sky-200">
-                + Todas
-              </span>
-            )}
-          </div>
+          {/* Sibling sessions navigation (if facilitator has multiple sessions assigned) */}
+          {relevantSessionNums.length > 1 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-slate-400 font-medium">Tus sesiones:</span>
+              {relevantSessionNums.map((s) => {
+                const isCurrent = s === targetSession;
+                const isFin = finalizedSessionNums.includes(s);
+                return isCurrent ? (
+                  <span
+                    key={s}
+                    className="inline-flex items-center gap-1 text-xs font-bold bg-sky-600 text-white px-2.5 py-0.5 rounded-md shadow-2xs"
+                  >
+                    Sesión {s} (Actual)
+                  </span>
+                ) : (
+                  <Link
+                    key={s}
+                    href={`/portal/facilitador/osi/${osiId}?sesion=${s}`}
+                    className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded border transition-colors ${
+                      isFin
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-sky-50 hover:border-sky-300"
+                    }`}
+                    title={isFin ? `Sesión ${s} Finalizada` : `Ir a Sesión ${s}`}
+                  >
+                    <span>Sesión {s}</span>
+                    {isFin ? <CheckCheck className="w-3 h-3 text-emerald-600" /> : <ChevronRight className="w-3 h-3 text-slate-400" />}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
       </header>
 
@@ -243,13 +271,13 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
         initialParticipants={participants.data || []}
         materialKit={materialKitRes.data}
         osi={osi}
-        assignedSession={assignedSession}
-        needsSessionPicker={needsSessionPicker}
+        assignedSession={targetSession}
+        needsSessionPicker={false}
         sessionCount={sessionCount}
-        assignedSessions={specificSessions}
-        hasAllSessionsAssignment={hasAllSessionsAssignment}
-        isFinal={isInitialSessionFinal}
-        initialSession={resolvedInitialSession}
+        assignedSessions={[targetSession]}
+        hasAllSessionsAssignment={false}
+        isFinal={isTargetSessionFinal}
+        initialSession={targetSession}
         initialFinalizedSessions={finalizedSessionNums}
         notaAprobatoria={notaAprobatoria}
         sessionsInfo={sessionsInfo}
