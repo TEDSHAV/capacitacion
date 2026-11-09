@@ -6,7 +6,7 @@ import { getOSIForControlServicios } from "@/app/actions/control-servicios";
 import { getMaterialKitForOSI } from "@/app/actions/material-didactico";
 import { createAdminClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, Building2, Calendar, MapPin, ChevronRight, CheckCheck } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin } from "lucide-react";
 import Link from "next/link";
 import { ParticipantForm } from "./participant-form";
 import { getSessionCount } from "@/lib/osi-utils";
@@ -224,43 +224,10 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
             return (
               <div className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-slate-400" />
-                <span>Fecha {sessionCount > 1 ? `Sesión ${targetSession}` : ""}: <strong>{formattedDate}</strong></span>
+                <span>Fecha: <strong>{formattedDate}</strong></span>
               </div>
             );
           })()}
-
-          {/* Sibling sessions navigation (if facilitator has multiple sessions assigned) */}
-          {relevantSessionNums.length > 1 && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-slate-400 font-medium">Tus sesiones:</span>
-              {relevantSessionNums.map((s) => {
-                const isCurrent = s === targetSession;
-                const isFin = finalizedSessionNums.includes(s);
-                return isCurrent ? (
-                  <span
-                    key={s}
-                    className="inline-flex items-center gap-1 text-xs font-bold bg-sky-600 text-white px-2.5 py-0.5 rounded-md shadow-2xs"
-                  >
-                    Sesión {s} (Actual)
-                  </span>
-                ) : (
-                  <Link
-                    key={s}
-                    href={`/portal/facilitador/osi/${osiId}?sesion=${s}`}
-                    className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded border transition-colors ${
-                      isFin
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                        : "bg-white text-slate-700 border-slate-200 hover:bg-sky-50 hover:border-sky-300"
-                    }`}
-                    title={isFin ? `Sesión ${s} Finalizada` : `Ir a Sesión ${s}`}
-                  >
-                    <span>Sesión {s}</span>
-                    {isFin ? <CheckCheck className="w-3 h-3 text-emerald-600" /> : <ChevronRight className="w-3 h-3 text-slate-400" />}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
         </div>
       </header>
 
