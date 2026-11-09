@@ -3309,6 +3309,7 @@ export type Database = {
           facilitador_id: number
           id: number
           nombre_apellido: string
+          nro_sesion: number | null
           osi_id: number
           score: number | null
           status: string | null
@@ -3320,6 +3321,7 @@ export type Database = {
           facilitador_id: number
           id?: number
           nombre_apellido: string
+          nro_sesion?: number | null
           osi_id: number
           score?: number | null
           status?: string | null
@@ -3331,6 +3333,7 @@ export type Database = {
           facilitador_id?: number
           id?: number
           nombre_apellido?: string
+          nro_sesion?: number | null
           osi_id?: number
           score?: number | null
           status?: string | null
@@ -3714,6 +3717,7 @@ export type Database = {
           disclaimer_text: string
           facilitador_id: number
           id: string
+          nro_sesion: number | null
           osi_id: number
         }
         Insert: {
@@ -3721,6 +3725,7 @@ export type Database = {
           disclaimer_text: string
           facilitador_id: number
           id?: string
+          nro_sesion?: number | null
           osi_id: number
         }
         Update: {
@@ -3728,6 +3733,7 @@ export type Database = {
           disclaimer_text?: string
           facilitador_id?: number
           id?: string
+          nro_sesion?: number | null
           osi_id?: number
         }
         Relationships: []

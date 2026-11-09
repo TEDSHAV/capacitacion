@@ -1107,6 +1107,7 @@ export interface OSIManagement {
   pop_incluido?: boolean | null;
   traslado_externo?: number | null;
   sesiones_programadas?: unknown[] | null;
+  sesiones_solped?: number | null;
   desglose_recursos_sesiones?: OSISesion[] | null;
   // Computed fields
   status_name?: string;

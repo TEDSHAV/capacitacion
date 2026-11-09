@@ -23,6 +23,7 @@ import {
   Sparkles,
   Layers,
   Calendar,
+  Copy,
 } from "lucide-react";
 import { saveParticipants, getOSIAttachments } from "@/app/actions/facilitador-portal";
 import { enqueueOp } from "@/lib/offline/sync-queue";
@@ -69,6 +70,8 @@ export interface ParticipantFormProps {
   /** True if facilitador has an all-sessions (NULL nro_sesion) assignment */
   hasAllSessionsAssignment?: boolean;
   isFinal?: boolean;
+  initialSession?: number | null;
+  initialFinalizedSessions?: number[];
   notaAprobatoria?: number | null;
   sessionsInfo?: Array<{
     nro_sesion: number;
@@ -109,6 +112,8 @@ export const ParticipantForm = ({
   assignedSessions = [],
   hasAllSessionsAssignment = false,
   isFinal: initialIsFinal = false,
+  initialSession = null,
+  initialFinalizedSessions = [],
   notaAprobatoria = 14,
   sessionsInfo = [],
 }: ParticipantFormProps) => {
@@ -123,18 +128,99 @@ export const ParticipantForm = ({
     hasMaterial ? "material" : "asistencia"
   );
 
-  const [participants, setParticipants] = useState<Participant[]>(
-    initialParticipants.length > 0
-      ? initialParticipants.map((p) => ({
+  const selectableSessionsList = useMemo(() => {
+    if (assignedSession !== null) {
+      return [assignedSession];
+    }
+    if (hasAllSessionsAssignment) {
+      return Array.from({ length: sessionCount }, (_, i) => i + 1);
+    }
+    if (assignedSessions.length > 0) {
+      return [...assignedSessions].sort((a, b) => a - b);
+    }
+    return Array.from({ length: sessionCount }, (_, i) => i + 1);
+  }, [assignedSession, hasAllSessionsAssignment, assignedSessions, sessionCount]);
+
+  const defaultInitialSession =
+    initialSession ??
+    assignedSession ??
+    (assignedSessions.length > 0 && !hasAllSessionsAssignment ? assignedSessions[0] : 1);
+
+  const [selectedSession, setSelectedSession] = useState<number>(defaultInitialSession);
+
+  const [finalizedSessions, setFinalizedSessions] = useState<Set<number>>(() => {
+    const set = new Set<number>(initialFinalizedSessions || []);
+    for (const p of (initialParticipants as any[])) {
+      if (p.status === "final") {
+        set.add(p.nro_sesion ?? 1);
+      }
+    }
+    return set;
+  });
+
+  const [participantsBySession, setParticipantsBySession] = useState<Record<number, Participant[]>>(() => {
+    const map: Record<number, Participant[]> = {};
+    const raw = (initialParticipants as any[]) || [];
+    for (const p of raw) {
+      const sesNum = p.nro_sesion ?? 1;
+      if (!map[sesNum]) map[sesNum] = [];
+      map[sesNum].push({
         nombre_apellido: toTitleCase(p.nombre_apellido),
         cedula: p.cedula,
-        score: p.score || "",
+        score: p.score ?? "",
         nationality: p.nationality || "venezolano",
-      }))
-      : [{ nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" }]
-  );
+      });
+    }
+    return map;
+  });
 
-  const [isFinal, setIsFinal] = useState(initialIsFinal);
+  const initialList: Participant[] =
+    participantsBySession[defaultInitialSession] && participantsBySession[defaultInitialSession].length > 0
+      ? participantsBySession[defaultInitialSession]
+      : initialParticipants.length > 0
+      ? initialParticipants.map((p) => ({
+          nombre_apellido: toTitleCase(p.nombre_apellido),
+          cedula: p.cedula,
+          score: p.score ?? "",
+          nationality: (p.nationality === "extranjero" ? "extranjero" : "venezolano") as "venezolano" | "extranjero",
+        }))
+      : [{ nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" as const }];
+
+  const [participants, setParticipants] = useState<Participant[]>(initialList);
+  const [isFinal, setIsFinal] = useState<boolean>(finalizedSessions.has(defaultInitialSession) || initialIsFinal);
+  const [hasAcknowledged, setHasAcknowledged] = useState<boolean>(finalizedSessions.has(defaultInitialSession) || initialIsFinal);
+
+  const [clipboardCount, setClipboardCount] = useState<number>(0);
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(`facilitador_clipboard_${facilitadorId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setClipboardCount(parsed.length);
+      }
+    } catch {}
+  }, [facilitadorId]);
+
+  const handleSelectSession = useCallback((newSes: number) => {
+    if (newSes === selectedSession) return;
+    setParticipantsBySession((prev) => ({
+      ...prev,
+      [selectedSession]: participants,
+    }));
+    const nextList = participantsBySession[newSes];
+    if (nextList && nextList.length > 0) {
+      setParticipants(nextList);
+    } else {
+      setParticipants([{ nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" }]);
+    }
+    setSelectedSession(newSes);
+    const sesIsFinal = finalizedSessions.has(newSes);
+    setIsFinal(sesIsFinal);
+    setHasAcknowledged(sesIsFinal);
+    setError(null);
+  }, [selectedSession, participants, participantsBySession, finalizedSessions]);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -143,15 +229,10 @@ export const ParticipantForm = ({
   const [photoCount, setPhotoCount] = useState(0);
   const [allAttachments, setAllAttachments] = useState<OSIAttachment[]>([]);
 
-  const defaultInitialSession =
-    assignedSession ??
-    (assignedSessions.length > 0 && !hasAllSessionsAssignment ? assignedSessions[0] : 1);
-  const [selectedSession, setSelectedSession] = useState<number>(defaultInitialSession);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [selectedPortalFile, setSelectedPortalFile] = useState<File | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [isScanningAttachment, setIsScanningAttachment] = useState(false);
-  const [hasAcknowledged, setHasAcknowledged] = useState(initialIsFinal);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [activeVerificationIndex, setActiveVerificationIndex] = useState<number | null>(null);
@@ -211,19 +292,6 @@ export const ParticipantForm = ({
     }
   }, [activeStep, refreshAttachmentCounts]);
 
-  const selectableSessionsList = useMemo(() => {
-    if (assignedSession !== null) {
-      return [assignedSession];
-    }
-    if (hasAllSessionsAssignment) {
-      return Array.from({ length: sessionCount }, (_, i) => i + 1);
-    }
-    if (assignedSessions.length > 0) {
-      return [...assignedSessions].sort((a, b) => a - b);
-    }
-    return Array.from({ length: sessionCount }, (_, i) => i + 1);
-  }, [assignedSession, hasAllSessionsAssignment, assignedSessions, sessionCount]);
-
   const availableSessionsWithDates = useMemo(() => {
     return selectableSessionsList.map((n) => {
       const match = sessionsInfo?.find((s) => s.nro_sesion === n);
@@ -238,7 +306,7 @@ export const ParticipantForm = ({
     (n: number) => {
       const forSes =
         selectableSessionsList.length > 1
-          ? allAttachments.filter((a) => a.nro_sesion === n)
+          ? allAttachments.filter((a) => a.nro_sesion === n || (n === 1 && a.nro_sesion == null))
           : allAttachments.filter((a) => a.nro_sesion === n || a.nro_sesion == null);
       const asist = forSes.filter((a) => a.category === "lista_asistencia").length;
       const calif = forSes.filter((a) => a.category === "hoja_calificacion").length;
@@ -306,7 +374,7 @@ export const ParticipantForm = ({
                 <button
                   key={n}
                   type="button"
-                  onClick={() => setSelectedSession(n)}
+                  onClick={() => handleSelectSession(n)}
                   className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
                     isSelected
                       ? "bg-sky-600 text-white shadow-sm ring-2 ring-sky-300"
@@ -356,6 +424,50 @@ export const ParticipantForm = ({
     participants.length === 1 && !participants[0].nombre_apellido && !participants[0].cedula;
   const validParticipants = participants.filter((p) => p.nombre_apellido.trim() && p.cedula.trim());
   const hasValidParticipants = validParticipants.length > 0;
+
+  const handleCopyParticipants = useCallback(() => {
+    if (validParticipants.length === 0) return;
+    const toCopy = validParticipants.map((p) => ({
+      nombre_apellido: p.nombre_apellido.trim(),
+      cedula: p.cedula.trim(),
+      score: p.score ?? "",
+      nationality: p.nationality || "venezolano",
+    }));
+    try {
+      sessionStorage.setItem(`facilitador_clipboard_${facilitadorId}`, JSON.stringify(toCopy));
+      setClipboardCount(toCopy.length);
+      setSuccess(`📋 Se copiaron ${toCopy.length} participante(s) de la Sesión ${selectedSession}`);
+      setTimeout(() => setSuccess(null), 3500);
+    } catch (err) {
+      console.error("[ParticipantForm] Error saving to clipboard:", err);
+    }
+  }, [validParticipants, facilitadorId, selectedSession]);
+
+  const handlePasteParticipants = useCallback(() => {
+    try {
+      const stored = sessionStorage.getItem(`facilitador_clipboard_${facilitadorId}`);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+
+      const newItems: Participant[] = parsed.map((p: any) => ({
+        nombre_apellido: toTitleCase(String(p.nombre_apellido || "")),
+        cedula: String(p.cedula || "").trim(),
+        score: p.score != null ? String(p.score) : "",
+        nationality: p.nationality === "extranjero" ? "extranjero" : "venezolano",
+      }));
+
+      setParticipants(newItems);
+      setParticipantsBySession((prev) => ({
+        ...prev,
+        [selectedSession]: newItems,
+      }));
+      setSuccess(`📋 Se pegaron ${newItems.length} participante(s) en la Sesión ${selectedSession}`);
+      setTimeout(() => setSuccess(null), 3500);
+    } catch (err) {
+      console.error("[ParticipantForm] Error pasting participants:", err);
+    }
+  }, [facilitadorId, selectedSession]);
 
   const validCedulasCount = participants.filter((p) => p.cedula.trim()).length;
 
@@ -411,7 +523,15 @@ export const ParticipantForm = ({
 
   const hasCompletedAllSessions = sessionsMissingAttachments.length === 0;
 
-  // Prerequisites helpers for finalizing service (must cover ALL assigned sessions)
+  // Active session prerequisites helpers for finalizing
+  const currentSessionStats = getSessionStats(selectedSession);
+  const hasCurrentSessionAttendance = currentSessionStats.asist > 0;
+  const hasCurrentSessionGradeSheet = isParticipationOnly || currentSessionStats.calif > 0;
+  const hasCurrentSessionPhotos = currentSessionStats.fotos > 0;
+  const isCurrentSessionAttachmentsComplete =
+    hasCurrentSessionAttendance && hasCurrentSessionGradeSheet && hasCurrentSessionPhotos;
+
+  // All-sessions helpers (kept for global executive overview)
   const hasCompletedAttendance =
     selectableSessionsList.length > 0 &&
     selectableSessionsList.every((n) => getSessionStats(n).asist > 0);
@@ -430,16 +550,16 @@ export const ParticipantForm = ({
 
   const canFinalize =
     hasAcknowledged &&
-    hasCompletedAllSessions &&
+    isCurrentSessionAttachmentsComplete &&
     hasCompletedParticipants;
 
-  // Step completion status for indicators
+  // Step completion status for indicators (reflects active session)
   const completedSteps: Partial<Record<WizardStepId, boolean>> = {
     material: hasMaterial,
-    asistencia: hasCompletedAttendance,
-    calificacion: hasCompletedGradeSheet,
+    asistencia: hasCurrentSessionAttendance,
+    calificacion: hasCurrentSessionGradeSheet,
     participantes: hasCompletedParticipants,
-    evidencias: hasCompletedPhotos,
+    evidencias: hasCurrentSessionPhotos,
     envio: isFinal,
   };
 
@@ -706,39 +826,19 @@ export const ParticipantForm = ({
 
   const handleSave = async (status: "draft" | "final" = "draft") => {
     if (status === "final") {
-      if (!hasCompletedAllSessions) {
-        const missingDetails = sessionsMissingAttachments
-          .map((s) => {
-            const stats = getSessionStats(s);
-            const missing: string[] = [];
-            if (stats.asist === 0) missing.push("Lista de Asistencia");
-            if (!isParticipationOnly && stats.calif === 0) missing.push("Hoja de Calificación");
-            if (stats.fotos === 0) missing.push("Registro Fotográfico");
-            return `Sesión ${s}: ${missing.join(", ")}`;
-          })
-          .join("; ");
+      const stats = getSessionStats(selectedSession);
+      const hasSessionAsist = stats.asist > 0;
+      const hasSessionCalif = isParticipationOnly || stats.calif > 0;
+      const hasSessionFotos = stats.fotos > 0;
 
-        setError(
-          `No es posible finalizar el servicio. Faltan soportes obligatorios en: ${missingDetails}. Hasta completar todas las sesiones solo puedes usar 'Guardar borrador'.`
-        );
-        goToStep(
-          !hasCompletedAttendance
-            ? "asistencia"
-            : !hasCompletedGradeSheet
-            ? "calificacion"
-            : "evidencias"
-        );
-        return;
-      }
-
-      if (!hasCompletedAttendance) {
-        setError("Debes cargar la foto o archivo de la lista de asistencia física firmada.");
+      if (!hasSessionAsist) {
+        setError(`Debes cargar la foto o archivo de la lista de asistencia física firmada para la Sesión ${selectedSession}.`);
         goToStep("asistencia");
         return;
       }
 
-      if (!hasCompletedGradeSheet) {
-        setError("Debes cargar la foto o archivo de la hoja de calificación física firmada.");
+      if (!hasSessionCalif) {
+        setError(`Debes cargar la foto o archivo de la hoja de calificación física firmada para la Sesión ${selectedSession}.`);
         goToStep("calificacion");
         return;
       }
@@ -757,8 +857,8 @@ export const ParticipantForm = ({
         return;
       }
 
-      if (!hasCompletedPhotos) {
-        setError("Debes adjuntar al menos una foto de la actividad como soporte de ejecución.");
+      if (!hasSessionFotos) {
+        setError(`Debes adjuntar al menos una foto de la actividad como soporte de ejecución para la Sesión ${selectedSession}.`);
         goToStep("evidencias");
         return;
       }
@@ -790,10 +890,11 @@ export const ParticipantForm = ({
       try {
         await enqueueOp(
           "saveParticipants",
-          `osi_${osiId}_participants`,
+          `osi_${osiId}_ses_${selectedSession}_participants`,
           {
             osiId,
             facilitadorId,
+            nroSesion: selectedSession,
             participants: mappedParticipants,
             status,
             acknowledged: status === "final" ? hasAcknowledged : false,
@@ -801,10 +902,15 @@ export const ParticipantForm = ({
           },
         );
         setPendingSync(true);
-        if (status === "final") setIsFinal(true);
+        if (status === "final") {
+          setIsFinal(true);
+          setFinalizedSessions((prev) => new Set(prev).add(selectedSession));
+        }
         setSuccess(
           status === "final"
-            ? "Listado finalizado — pendiente de sincronización"
+            ? (selectableSessionsList.length > 1
+                ? `Sesión ${selectedSession} finalizada — pendiente de sincronización`
+                : "Listado finalizado — pendiente de sincronización")
             : "Guardado — pendiente de sincronización",
         );
       } catch (err) {
@@ -821,13 +927,24 @@ export const ParticipantForm = ({
       status,
       status === "final" ? hasAcknowledged : false,
       status === "final" ? DISCLAIMER_TEXT : undefined,
+      selectedSession
     );
 
     if (result.success) {
-      if (status === "final") setIsFinal(true);
+      if (status === "final") {
+        setIsFinal(true);
+        setFinalizedSessions((prev) => new Set(prev).add(selectedSession));
+      }
+      const remainingPending = selectableSessionsList.filter(
+        (n) => n !== selectedSession && !finalizedSessions.has(n)
+      );
       setSuccess(
         status === "final"
-          ? "¡Listado finalizado y enviado exitosamente a Capacitación!"
+          ? (selectableSessionsList.length > 1
+              ? remainingPending.length > 0
+                ? `¡Sesión ${selectedSession} finalizada con éxito! Tienes pendiente la Sesión ${remainingPending[0]}.`
+                : `¡Sesión ${selectedSession} finalizada y enviada con éxito!`
+              : "¡Listado finalizado y enviado exitosamente a Capacitación!")
           : "Guardado correctamente",
       );
     } else {
@@ -1048,7 +1165,7 @@ export const ParticipantForm = ({
                 nroSesion={selectedSession}
                 sessionDate={sessionsInfo?.find((s) => s.nro_sesion === selectedSession)?.fecha}
                 availableSessions={availableSessionsWithDates}
-                onSessionChange={setSelectedSession}
+                onSessionChange={handleSelectSession}
                 title="Lista de Asistencia Física"
                 description="Formatos JPG, PNG o PDF."
                 badge="Requerido"
@@ -1148,7 +1265,7 @@ export const ParticipantForm = ({
                 nroSesion={selectedSession}
                 sessionDate={sessionsInfo?.find((s) => s.nro_sesion === selectedSession)?.fecha}
                 availableSessions={availableSessionsWithDates}
-                onSessionChange={setSelectedSession}
+                onSessionChange={handleSelectSession}
                 title="Hoja de Calificación Física"
                 description="Formatos JPG, PNG o PDF con las notas y firmas físicas."
                 badge="Requerido"
@@ -1225,6 +1342,9 @@ export const ParticipantForm = ({
         {/* STEP: PARTICIPANTES Y CALIFICACIONES */}
         {activeStep === "participantes" && (
           <div className="p-4 sm:p-6 space-y-6">
+            {/* Session Indicator & Selector */}
+            {renderSessionHeader("la lista de participantes")}
+
             {/* Step Header & Live Metrics Strip */}
             <div className="space-y-4 pb-4 border-b border-slate-100">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1242,29 +1362,60 @@ export const ParticipantForm = ({
                   </p>
                 </div>
 
-                {!isFinal && (
-                  <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap" id="tour-participant-actions">
+                <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap" id="tour-participant-actions">
+                  {/* Copy button: allows copying valid participants even when finalized */}
+                  {validParticipants.length > 0 && (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setIsScannerOpen(true)}
-                      className="h-10 text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 font-bold cursor-pointer"
+                      onClick={handleCopyParticipants}
+                      className="h-10 text-slate-700 bg-white border-slate-300 hover:bg-slate-50 font-bold cursor-pointer"
+                      title="Copiar lista de participantes de esta sesión al portapapeles"
                     >
-                      <Sparkles className="w-4 h-4 mr-1.5 text-sky-600" />
-                      <span>Escanear OCR</span>
+                      <Copy className="w-4 h-4 mr-1.5 text-slate-600" />
+                      <span>Copiar lista</span>
                     </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={addParticipant}
-                      className="h-10 bg-sky-600 hover:bg-sky-700 text-white font-bold cursor-pointer"
-                    >
-                      <Plus className="w-4 h-4 mr-1.5" />
-                      <span>Agregar Fila</span>
-                    </Button>
-                  </div>
-                )}
+                  )}
+
+                  {!isFinal && (
+                    <>
+                      {clipboardCount > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePasteParticipants}
+                          className="h-10 text-emerald-800 bg-emerald-50 border-emerald-300 hover:bg-emerald-100 font-bold cursor-pointer"
+                          title={`Pegar ${clipboardCount} participante(s) copiados de otra sesión`}
+                        >
+                          <ClipboardCheck className="w-4 h-4 mr-1.5 text-emerald-600" />
+                          <span>Pegar participantes ({clipboardCount})</span>
+                        </Button>
+                      )}
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsScannerOpen(true)}
+                        className="h-10 text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100 font-bold cursor-pointer"
+                      >
+                        <Sparkles className="w-4 h-4 mr-1.5 text-sky-600" />
+                        <span>Escanear OCR</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={addParticipant}
+                        className="h-10 bg-sky-600 hover:bg-sky-700 text-white font-bold cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4 mr-1.5" />
+                        <span>Agregar Fila</span>
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Real-time KPI Metric Pills */}
@@ -1572,7 +1723,7 @@ export const ParticipantForm = ({
                 nroSesion={selectedSession}
                 sessionDate={sessionsInfo?.find((s) => s.nro_sesion === selectedSession)?.fecha}
                 availableSessions={availableSessionsWithDates}
-                onSessionChange={setSelectedSession}
+                onSessionChange={handleSelectSession}
                 title="Registro Fotográfico de la Actividad"
                 description="Fotos de la sesión, facilitador y participantes"
                 badge={photoCount > 0 ? `${photoCount} Cargada(s)` : undefined}
@@ -1871,58 +2022,66 @@ export const ParticipantForm = ({
 
 
             {/* Pending Sessions Warning Card */}
-            {!hasCompletedAllSessions && selectableSessionsList.length > 1 && (
+            {!isCurrentSessionAttachmentsComplete && selectableSessionsList.length > 1 && (
               <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-950 space-y-2">
                 <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-amber-900">
                   <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
-                  <span>Soportes pendientes en {sessionsMissingAttachments.length} de {selectableSessionsList.length} sesiones asignadas</span>
+                  <span>Soportes pendientes en la Sesión {selectedSession}</span>
                 </div>
                 <p className="text-xs text-amber-800 leading-relaxed">
-                  Para finalizar oficialmente el servicio debes cargar todos los soportes (asistencia, calificaciones y fotos) de cada una de las sesiones. Mientras tanto, puedes resguardar tu avance utilizando <strong>&quot;Guardar borrador&quot;</strong>.
+                  Para finalizar y remitir la <strong>Sesión {selectedSession}</strong> debes cargar sus soportes obligatorios (asistencia, calificaciones y fotos). Mientras tanto, puedes resguardar tu avance utilizando <strong>&quot;Guardar borrador&quot;</strong>.
                 </p>
                 <div className="pt-1 flex flex-wrap gap-2 text-xs">
-                  {sessionsMissingAttachments.map((s) => {
-                    const stats = getSessionStats(s);
+                  {(() => {
+                    const stats = currentSessionStats;
                     const missing: string[] = [];
                     if (stats.asist === 0) missing.push("Asistencia");
                     if (!isParticipationOnly && stats.calif === 0) missing.push("Calificación");
                     if (stats.fotos === 0) missing.push("Fotos");
                     return (
-                      <span
-                        key={s}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-amber-300 font-semibold text-amber-900"
-                      >
-                        ⚠️ <strong>Sesión {s}:</strong> Falta {missing.join(", ")}
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-amber-300 font-semibold text-amber-900">
+                        ⚠️ <strong>Sesión {selectedSession}:</strong> Falta {missing.join(", ")}
                       </span>
                     );
-                  })}
+                  })()}
                 </div>
+              </div>
+            )}
+
+            {/* Session Ready Info Card */}
+            {isCurrentSessionAttachmentsComplete && selectableSessionsList.length > 1 && !isFinal && (
+              <div className="p-4 rounded-2xl bg-sky-50/80 border border-sky-200 text-sky-950 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-sky-900">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-sky-600" />
+                  <span>Soportes completos para la Sesión {selectedSession}</span>
+                </div>
+                <p className="text-xs text-sky-800 leading-relaxed">
+                  Al pulsar <strong>&quot;Finalizar Sesión {selectedSession}&quot;</strong>, esta sesión se marcará como concluida y aparecerá en tu pestaña de <strong>&quot;Finalizados&quot;</strong>.
+                  {selectableSessionsList.filter((s) => s !== selectedSession && !finalizedSessions.has(s)).length > 0 && (
+                    <span> Las demás sesiones asignadas pendientes continuarán disponibles en tu pestaña de <strong>&quot;Pendientes&quot;</strong>.</span>
+                  )}
+                </p>
               </div>
             )}
 
             {/* Submission Actions */}
             <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                {!hasCompletedAllSessions ? (
-                  <p className="text-xs text-amber-700 font-medium flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
-                    <span>Faltan soportes en {sessionsMissingAttachments.map((s) => `Sesión ${s}`).join(", ")}. Solo puedes guardar borrador.</span>
-                  </p>
-                ) : !hasCompletedAttendance ? (
+                {!hasCurrentSessionAttendance ? (
                   <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Falta cargar la lista de asistencia física{selectableSessionsList.length > 1 ? " en todas las sesiones asignadas" : ""}.
+                    ⚠️ Falta cargar la lista de asistencia física{selectableSessionsList.length > 1 ? ` de la Sesión ${selectedSession}` : ""}.
                   </p>
-                ) : !hasCompletedGradeSheet ? (
+                ) : !hasCurrentSessionGradeSheet ? (
                   <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Falta cargar la hoja de calificación física firmada{selectableSessionsList.length > 1 ? " en todas las sesiones asignadas" : ""}.
+                    ⚠️ Falta cargar la hoja de calificación física firmada{selectableSessionsList.length > 1 ? ` de la Sesión ${selectedSession}` : ""}.
                   </p>
                 ) : !hasCompletedParticipants ? (
                   <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Debes registrar al menos 1 participante con su nota respectiva.
+                    ⚠️ Debes registrar al menos 1 participante con su nota respectiva{selectableSessionsList.length > 1 ? ` para la Sesión ${selectedSession}` : ""}.
                   </p>
-                ) : !hasCompletedPhotos ? (
+                ) : !hasCurrentSessionPhotos ? (
                   <p className="text-xs text-amber-600 font-medium">
-                    ⚠️ Falta cargar fotos de la actividad{selectableSessionsList.length > 1 ? " en todas las sesiones asignadas" : ""}.
+                    ⚠️ Falta cargar fotos de la actividad{selectableSessionsList.length > 1 ? ` de la Sesión ${selectedSession}` : ""}.
                   </p>
                 ) : !hasAcknowledged ? (
                   <p className="text-xs text-amber-600 font-medium">
@@ -1930,7 +2089,7 @@ export const ParticipantForm = ({
                   </p>
                 ) : (
                   <p className="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Todo listo para enviar a Capacitación.
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Todo listo para enviar {selectableSessionsList.length > 1 ? `la Sesión ${selectedSession}` : "el servicio"} a Capacitación.
                   </p>
                 )}
               </div>
@@ -1942,7 +2101,7 @@ export const ParticipantForm = ({
                     className="h-12 px-6 font-bold rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 cursor-not-allowed shadow-2xs"
                   >
                     <CheckCheck className="w-4 h-4 mr-2 text-emerald-600" />
-                    <span>Servicio Finalizado y Enviado</span>
+                    <span>{selectableSessionsList.length > 1 ? `Sesión ${selectedSession} Finalizada` : "Servicio Finalizado y Enviado"}</span>
                   </Button>
                 ) : (
                   <>
@@ -1971,7 +2130,7 @@ export const ParticipantForm = ({
                       ) : (
                         <CheckCheck className="w-4 h-4 mr-2" />
                       )}
-                      <span>Finalizar y Enviar a Capacitación</span>
+                      <span>{selectableSessionsList.length > 1 ? `Finalizar Sesión ${selectedSession}` : "Finalizar y Enviar a Capacitación"}</span>
                     </Button>
                   </>
                 )}
@@ -2045,7 +2204,7 @@ export const ParticipantForm = ({
                 disabled
                 className="h-11 px-4 sm:px-6 font-bold rounded-xl text-xs sm:text-sm shadow-xs bg-emerald-100 text-emerald-800 border border-emerald-200 cursor-not-allowed"
               >
-                <span>Finalizado</span>
+                <span>{selectableSessionsList.length > 1 ? `Sesión ${selectedSession} Finalizada` : "Finalizado"}</span>
                 <CheckCheck className="w-4 h-4 ml-1.5" />
               </Button>
             ) : (
@@ -2058,7 +2217,7 @@ export const ParticipantForm = ({
                   : "bg-slate-200 text-slate-400 cursor-not-allowed"
                   }`}
               >
-                <span>Finalizar</span>
+                <span>{selectableSessionsList.length > 1 ? `Finalizar Sesión ${selectedSession}` : "Finalizar"}</span>
                 <CheckCheck className="w-4 h-4 ml-1.5" />
               </Button>
             )}

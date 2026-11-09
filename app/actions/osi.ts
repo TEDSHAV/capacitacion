@@ -431,7 +431,7 @@ export async function getOSIsForManagement(
       osiIds.length > 0
         ? supabase
             .from("v_osi_formato_completo")
-            .select("id_osi, desglose_recursos_sesiones, sesiones_programadas, sede, direccion_ejecucion_real")
+            .select("id_osi, desglose_recursos_sesiones, sesiones_programadas, sesiones_solped, sede, direccion_ejecucion_real")
             .in("id_osi", osiIds)
         : Promise.resolve({ data: null as any, error: null as any }),
       getOSIStatuses(),
@@ -448,6 +448,7 @@ export async function getOSIsForManagement(
       {
         desglose_recursos_sesiones: any;
         sesiones_programadas: any;
+        sesiones_solped: number | null;
         sede: string | null;
         direccion_ejecucion_real: string | null;
       }
@@ -457,6 +458,7 @@ export async function getOSIsForManagement(
         heavyMap.set(row.id_osi, {
           desglose_recursos_sesiones: row.desglose_recursos_sesiones,
           sesiones_programadas: row.sesiones_programadas,
+          sesiones_solped: row.sesiones_solped ?? null,
           sede: row.sede || null,
           direccion_ejecucion_real: row.direccion_ejecucion_real || null,
         });
@@ -480,6 +482,7 @@ export async function getOSIsForManagement(
         direccion_ejecucion: direccion,
         desglose_recursos_sesiones: heavy?.desglose_recursos_sesiones ?? null,
         sesiones_programadas: heavy?.sesiones_programadas ?? null,
+        sesiones_solped: heavy?.sesiones_solped ?? null,
         status_name: status?.nombre_estado || "Desconocido",
         status_color: status?.color_hex || "#gray",
         status_order: status?.orden || 0,

@@ -17,12 +17,23 @@ import {
   ShieldCheck,
   IdCard,
   Calendar,
+  Layers,
 } from "lucide-react";
 import { DashboardTour } from "./DashboardTour";
 import { DashboardTourAutoStart as AutoStart } from "./DashboardTourAutoStart";
 import { toTitleCase } from "@/utils/string-utils";
 import type { FacilitadorFullData } from "@/app/actions/facilitador-portal";
 import { ComplianceBanner } from "@/components/compliance/ComplianceBanner";
+
+interface OSISessionItem {
+  nro_sesion: number;
+  fecha: string | null;
+  fecha_ejecutada: string | null;
+  hora_inicio?: string | null;
+  hora_fin?: string | null;
+  is_completed?: boolean;
+  participant_status?: "final" | "draft" | null;
+}
 
 interface OSIItem {
   id_osi: number;
@@ -49,6 +60,7 @@ interface OSIItem {
   all_sessions_completed?: boolean;
   completed_sessions_count?: number;
   total_sessions_count?: number;
+  sessions_list?: OSISessionItem[];
 }
 
 interface FacilitadorDashboardClientProps {
@@ -82,42 +94,97 @@ export default function FacilitadorDashboardClient({
     return osi.participant_status === "final" && allSessionsDone;
   };
 
+  // Build per-session dashboard items for multi-session OSIs so sessions move independently
+  const dashboardItems = useMemo(() => {
+    const items: Array<{
+      key: string;
+      osi: OSIItem;
+      targetSession: number;
+      isMultiSession: boolean;
+      sessionDate: string | null;
+      isDone: boolean;
+      sessionStatus?: "final" | "draft" | null;
+    }> = [];
+
+    for (const osi of osis) {
+      const sessions = osi.sessions_list && osi.sessions_list.length > 0 ? osi.sessions_list : [];
+      const isMulti = (osi.session_count && osi.session_count > 1) || sessions.length > 1;
+
+      if (!isMulti || sessions.length <= 1) {
+        const isDone = isOsiDone(osi);
+        items.push({
+          key: `${osi.id_osi}_single`,
+          osi,
+          targetSession: 1,
+          isMultiSession: false,
+          sessionDate: osi.display_date || null,
+          isDone,
+          sessionStatus: osi.participant_status,
+        });
+      } else {
+        for (const ses of sessions) {
+          const isSesDone = Boolean(ses.is_completed);
+          items.push({
+            key: `${osi.id_osi}_ses_${ses.nro_sesion}`,
+            osi,
+            targetSession: ses.nro_sesion,
+            isMultiSession: true,
+            sessionDate: ses.fecha_ejecutada || ses.fecha || osi.display_date || null,
+            isDone: isSesDone,
+            sessionStatus: ses.participant_status,
+          });
+        }
+      }
+    }
+
+    return items;
+  }, [osis]);
+
+  // Metrics calculation based on sessions
+  const totalCount = dashboardItems.length;
+  const finalizadosCount = dashboardItems.filter((i) => i.isDone).length;
+  const pendientesCount = totalCount - finalizadosCount;
+
   const stats = initialData?.stats || {
-    totalServicios: osis.length,
-    totalFinalizados: osis.filter(isOsiDone).length,
-    totalPendientes: osis.filter((o) => !isOsiDone(o)).length,
+    totalServicios: totalCount,
+    totalFinalizados: finalizadosCount,
+    totalPendientes: pendientesCount,
     totalEmpresas: new Set(osis.map((o) => o.nombre_empresa)).size,
-    totalHoras: osis.length * 8,
+    totalHoras: totalCount * 8,
     cursosUnicos: new Set(osis.map((o) => o.servicio)).size,
   };
 
-  // Metrics calculation
-  const totalCount = osis.length;
-  const finalizadosCount = osis.filter(isOsiDone).length;
-  const pendientesCount = totalCount - finalizadosCount;
-
-  // Filtered active OSIs list
-  const filteredOSIs = useMemo(() => {
-    return osis.filter((osi) => {
-      const isDone = isOsiDone(osi);
+  // Filtered active OSIs / sessions list
+  const filteredDashboardItems = useMemo(() => {
+    return dashboardItems.filter((item) => {
       // Tab filter
-      if (filterTab === "pendientes" && isDone) return false;
-      if (filterTab === "finalizados" && !isDone) return false;
+      if (filterTab === "pendientes" && item.isDone) return false;
+      if (filterTab === "finalizados" && !item.isDone) return false;
 
       // Search query
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
-        const nro = String(osi.nro_osi || "").toLowerCase();
-        const emp = (osi.nombre_empresa || "").toLowerCase();
-        const serv = (osi.servicio || "").toLowerCase();
-        const ciudad = (osi.ciudad || "").toLowerCase();
-        const estado = (osi.estado || "").toLowerCase();
-        return nro.includes(query) || emp.includes(query) || serv.includes(query) || ciudad.includes(query) || estado.includes(query);
+        const nro = String(item.osi.nro_osi || "").toLowerCase();
+        const emp = (item.osi.nombre_empresa || "").toLowerCase();
+        const serv = (item.osi.servicio || "").toLowerCase();
+        const ciudad = (item.osi.ciudad || "").toLowerCase();
+        const estado = (item.osi.estado || "").toLowerCase();
+        const sesQuery = `sesión ${item.targetSession}`.toLowerCase();
+        const sesQueryNoAccent = `sesion ${item.targetSession}`.toLowerCase();
+        return (
+          nro.includes(query) ||
+          emp.includes(query) ||
+          serv.includes(query) ||
+          ciudad.includes(query) ||
+          estado.includes(query) ||
+          sesQuery.includes(query) ||
+          sesQueryNoAccent.includes(query)
+        );
       }
 
       return true;
     });
-  }, [osis, filterTab, searchTerm]);
+  }, [dashboardItems, filterTab, searchTerm]);
 
   const formatDateDayMonth = (dateStr?: string) => {
     if (!dateStr) return { day: "--", month: "---" };
@@ -381,23 +448,22 @@ export default function FacilitadorDashboardClient({
           </div>
 
           {/* Services Cards List */}
-          {filteredOSIs.length > 0 ? (
+          {filteredDashboardItems.length > 0 ? (
             <div className="grid gap-3.5" id="tour-osi-cards">
-              {filteredOSIs.map((osi, idx) => {
+              {filteredDashboardItems.map((item, idx) => {
                 const isFirst = idx === 0;
-                const effectiveDate =
-                  osi.display_date ||
-                  osi.fecha_inicio_real ||
-                  (Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[0]?.fecha) ||
-                  osi.fecha_emision;
+                const { osi, targetSession, isMultiSession, sessionDate, isDone } = item;
+                const effectiveDate = sessionDate || osi.display_date || osi.fecha_inicio_real || osi.fecha_emision;
                 const dateInfo = formatDateDayMonth(effectiveDate);
-                const isFinal = osi.participant_status === "final" && osi.all_sessions_completed !== false;
-                const hasPendingSessions = osi.participant_status === "final" && osi.all_sessions_completed === false;
+
+                const cardHref = isMultiSession
+                  ? `/portal/facilitador/osi/${osi.id_osi}?sesion=${targetSession}`
+                  : `/portal/facilitador/osi/${osi.id_osi}`;
 
                 return (
                   <Link
-                    key={osi.id_osi}
-                    href={`/portal/facilitador/osi/${osi.id_osi}`}
+                    key={item.key}
+                    href={cardHref}
                     className="block bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 hover:border-slate-300 hover:shadow-2xs transition-all group relative overflow-hidden"
                     id={isFirst ? "tour-osi-card" : undefined}
                   >
@@ -405,14 +471,14 @@ export default function FacilitadorDashboardClient({
                       <div className="flex items-start gap-3.5 min-w-0 flex-1">
                         {/* Left Calendar Date Badge */}
                         <div className="hidden sm:flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-slate-50 border border-slate-200 text-center shrink-0 group-hover:border-slate-400 transition-colors p-1">
-                          {osi.display_date_type === "next_pending" && (
+                          {isMultiSession && !isDone && (
                             <span className="text-[8px] font-black uppercase text-amber-600 tracking-tight leading-none mb-0.5">
-                              Próxima
+                              Sesión {targetSession}
                             </span>
                           )}
-                          {osi.display_date_type === "last_executed" && osi.session_count && osi.session_count > 1 && (
+                          {isMultiSession && isDone && (
                             <span className="text-[8px] font-black uppercase text-emerald-700 tracking-tight leading-none mb-0.5">
-                              Última
+                              Sesión {targetSession}
                             </span>
                           )}
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight leading-none">
@@ -444,46 +510,21 @@ export default function FacilitadorDashboardClient({
                             <div className="sm:hidden inline-flex items-center gap-1 text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                               <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                               <span>
-                                {osi.display_date_label && osi.display_date_type !== "single"
-                                  ? `${osi.display_date_label} (${dateInfo.day} ${dateInfo.month})`
-                                  : `${dateInfo.day} ${dateInfo.month}`}
+                                {isMultiSession ? `Sesión ${targetSession} (${dateInfo.day} ${dateInfo.month})` : `${dateInfo.day} ${dateInfo.month}`}
                               </span>
                             </div>
 
-                            {/* Multi-session desktop context indicator */}
-                            {osi.display_date_type === "next_pending" && osi.display_date_label && (
-                              <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-md">
-                                <Clock className="w-3 h-3 text-amber-600 shrink-0" />
-                                <span>{osi.display_date_label}</span>
+                            {/* Session Tag */}
+                            {isMultiSession ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200 px-2.5 py-0.5 rounded-md shadow-2xs">
+                                <Layers className="w-3 h-3 text-sky-600" />
+                                <span>Sesión {targetSession}</span>
                               </span>
-                            )}
-                            {osi.display_date_type === "last_executed" && osi.display_date_label && osi.session_count && osi.session_count > 1 && (
-                              <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200 px-2 py-0.5 rounded-md">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span>{osi.display_date_label}</span>
-                              </span>
-                            )}
-
-                            {osi.session_count === 1 ? (
+                            ) : (
                               <span className="inline-flex items-center text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-md">
                                 Sesión 1
                               </span>
-                            ) : osi.assigned_all_sessions ? (
-                              <span className="inline-flex items-center text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-md">
-                                Todas las sesiones
-                              </span>
-                            ) : osi.assigned_sessions && osi.assigned_sessions.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {osi.assigned_sessions.sort((a, b) => a - b).map((s) => (
-                                  <span
-                                    key={s}
-                                    className="inline-flex items-center text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-md"
-                                  >
-                                    Sesión {s}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
+                            )}
 
                             {(() => {
                               const ubicacion =
@@ -507,20 +548,15 @@ export default function FacilitadorDashboardClient({
                             className="sm:hidden pt-1"
                             id={isFirst ? "tour-status-badge-mobile" : undefined}
                           >
-                            {isFinal ? (
+                            {isDone ? (
                               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                Servicio Finalizado
-                              </span>
-                            ) : hasPendingSessions ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                                <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                Sesión pendiente ({osi.completed_sessions_count ?? 1}/{osi.total_sessions_count ?? 2})
+                                {isMultiSession ? `Sesión ${targetSession} Finalizada` : "Servicio Finalizado"}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                                 <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                Pendiente de Carga
+                                {isMultiSession ? `Sesión ${targetSession} Pendiente` : "Pendiente de Carga"}
                               </span>
                             )}
                           </div>
@@ -536,20 +572,15 @@ export default function FacilitadorDashboardClient({
                           <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tight mb-1">
                             Estado
                           </p>
-                          {isFinal ? (
+                          {isDone ? (
                             <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                              <span>Servicio Finalizado</span>
-                            </div>
-                          ) : hasPendingSessions ? (
-                            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
-                              <Clock className="w-4 h-4 text-amber-600" />
-                              <span>Sesión pendiente ({osi.completed_sessions_count ?? 1}/{osi.total_sessions_count ?? 2})</span>
+                              <span>{isMultiSession ? `Sesión ${targetSession} Finalizada` : "Servicio Finalizado"}</span>
                             </div>
                           ) : (
                             <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
                               <Clock className="w-4 h-4 text-amber-600" />
-                              <span>Pendiente Datos</span>
+                              <span>{isMultiSession ? `Sesión ${targetSession} Pendiente` : "Pendiente de Carga"}</span>
                             </div>
                           )}
                         </div>

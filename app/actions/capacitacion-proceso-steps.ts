@@ -22,6 +22,7 @@ import {
 } from "@/lib/sync/sync-osi-estatus";
 import { addOsiNota } from "@/app/actions/capacitacion-osi-notas";
 import { createOsiComment } from "@/lib/comments/create-osi-comment";
+import { getSessionCount } from "@/lib/osi-utils";
 
 /**
  * Returns current date in Venezuela timezone (America/Caracas, UTC-4) as YYYY-MM-DD.
@@ -64,18 +65,24 @@ export interface ListaAsistenciaInfo {
  *   2. sesiones_programadas (JSONB array on ejecucion_osi)
  *   3. osi_sesion table (relational fallback)
  * Returns an array of { nro_sesion, fecha, hora_inicio, hora_fin }.
+ * If the OSI has contracted sessions (via getSessionCount) that do not yet
+ * have dates, they are padded with fecha: null so they remain visible in tracking/assignments.
  */
 function resolveSessions(
   osi: {
     desglose_recursos_sesiones?: OSISesion[] | unknown[] | null;
     sesiones_programadas?: unknown[] | null;
+    sesiones_ejecucion?: number | null;
+    sesiones_solped?: number | null;
   },
   osiSesionRows?: { nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[],
 ): { nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[] {
+  let resolved: { nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[] = [];
+
   // 1. desglose_recursos_sesiones
   const desglose = osi.desglose_recursos_sesiones;
   if (Array.isArray(desglose) && desglose.length > 0) {
-    return desglose.map((s) => {
+    resolved = desglose.map((s) => {
       const row = s as Record<string, unknown>;
       return {
         nro_sesion: (row.nro_sesion as number) ?? 1,
@@ -84,12 +91,8 @@ function resolveSessions(
         hora_fin: (row.hora_fin as string) ?? null,
       };
     });
-  }
-
-  // 2. sesiones_programadas
-  const programadas = osi.sesiones_programadas;
-  if (Array.isArray(programadas) && programadas.length > 0) {
-    return programadas.map((s, i) => {
+  } else if (Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas.length > 0) {
+    resolved = osi.sesiones_programadas.map((s, i) => {
       const row = s as Record<string, unknown>;
       return {
         nro_sesion: (row.nro_sesion as number) ?? i + 1,
@@ -98,20 +101,35 @@ function resolveSessions(
         hora_fin: (row.hora_fin as string) ?? null,
       };
     });
-  }
-
-  // 3. osi_sesion table
-  if (osiSesionRows && osiSesionRows.length > 0) {
-    return osiSesionRows.map((s) => ({
+  } else if (osiSesionRows && osiSesionRows.length > 0) {
+    resolved = osiSesionRows.map((s) => ({
       nro_sesion: s.nro_sesion,
       fecha: s.fecha,
       hora_inicio: s.hora_inicio,
       hora_fin: s.hora_fin,
     }));
+  } else {
+    resolved = [{ nro_sesion: 1, fecha: null, hora_inicio: null, hora_fin: null }];
   }
 
-  // Fallback: single session
-  return [{ nro_sesion: 1, fecha: null, hora_inicio: null, hora_fin: null }];
+  // Pad up to getSessionCount(osi) so undated contracted sessions are not omitted
+  const count = getSessionCount(osi);
+  if (count > resolved.length) {
+    const existing = new Set(resolved.map((s) => s.nro_sesion));
+    for (let i = 1; i <= count; i++) {
+      if (!existing.has(i)) {
+        resolved.push({
+          nro_sesion: i,
+          fecha: null,
+          hora_inicio: null,
+          hora_fin: null,
+        });
+      }
+    }
+    resolved.sort((a, b) => (a.nro_sesion ?? 0) - (b.nro_sesion ?? 0));
+  }
+
+  return resolved;
 }
 
 /**
@@ -122,19 +140,19 @@ function toOSISessions(
   osi: {
     desglose_recursos_sesiones?: OSISesion[] | unknown[] | null;
     sesiones_programadas?: unknown[] | null;
+    sesiones_ejecucion?: number | null;
+    sesiones_solped?: number | null;
   },
   osiSesionRows?: { id: number; nro_sesion: number; fecha: string | null; hora_inicio: string | null; hora_fin: string | null }[],
 ): OSISesion[] {
+  let resolved: OSISesion[] = [];
+
   // 1. desglose_recursos_sesiones (already full OSISesion[] shape from the view)
   const desglose = osi.desglose_recursos_sesiones;
   if (Array.isArray(desglose) && desglose.length > 0) {
-    return desglose as OSISesion[];
-  }
-
-  // 2. sesiones_programadas
-  const programadas = osi.sesiones_programadas;
-  if (Array.isArray(programadas) && programadas.length > 0) {
-    return programadas.map((s, i) => {
+    resolved = [...(desglose as OSISesion[])];
+  } else if (Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas.length > 0) {
+    resolved = osi.sesiones_programadas.map((s, i) => {
       const row = s as Record<string, unknown>;
       return {
         id: i,
@@ -150,11 +168,8 @@ function toOSISessions(
         costo_honorarios_instructor: null,
       };
     });
-  }
-
-  // 3. osi_sesion table rows
-  if (osiSesionRows && osiSesionRows.length > 0) {
-    return osiSesionRows.map((s) => ({
+  } else if (osiSesionRows && osiSesionRows.length > 0) {
+    resolved = osiSesionRows.map((s) => ({
       id: s.id,
       id_sesion: s.id,
       nro_sesion: s.nro_sesion,
@@ -167,22 +182,47 @@ function toOSISessions(
       tarifa_hora_honorarios: null,
       costo_honorarios_instructor: null,
     }));
+  } else {
+    resolved = [{
+      id: 0,
+      id_sesion: 1,
+      nro_sesion: 1,
+      fecha: null,
+      hora_inicio: null,
+      hora_fin: null,
+      costo_traslado: null,
+      costo_impresion_material: null,
+      horas_honorarios_instructor: null,
+      tarifa_hora_honorarios: null,
+      costo_honorarios_instructor: null,
+    }];
   }
 
-  // Fallback: single session
-  return [{
-    id: 0,
-    id_sesion: 1,
-    nro_sesion: 1,
-    fecha: null,
-    hora_inicio: null,
-    hora_fin: null,
-    costo_traslado: null,
-    costo_impresion_material: null,
-    horas_honorarios_instructor: null,
-    tarifa_hora_honorarios: null,
-    costo_honorarios_instructor: null,
-  }];
+  // Pad up to getSessionCount(osi) so undated contracted sessions are not omitted
+  const count = getSessionCount(osi);
+  if (count > resolved.length) {
+    const existing = new Set(resolved.map((s) => s.nro_sesion));
+    for (let i = 1; i <= count; i++) {
+      if (!existing.has(i)) {
+        resolved.push({
+          id: i,
+          id_sesion: i,
+          nro_sesion: i,
+          fecha: null,
+          hora_inicio: null,
+          hora_fin: null,
+          costo_traslado: null,
+          costo_impresion_material: null,
+          horas_honorarios_instructor: null,
+          tarifa_hora_honorarios: null,
+          costo_honorarios_instructor: null,
+        });
+      }
+    }
+    resolved.sort((a, b) => (a.nro_sesion ?? 0) - (b.nro_sesion ?? 0));
+  }
+
+  return resolved;
 }
 
 // ─── Step CRUD ───────────────────────────────────────────────────────────────
@@ -512,6 +552,8 @@ export async function autoAdvanceEjecucionSteps(
     fecha_inicio_real?: string | null;
     desglose_recursos_sesiones?: OSISesion[] | unknown[] | null;
     sesiones_programadas?: unknown[] | null;
+    sesiones_ejecucion?: number | null;
+    sesiones_solped?: number | null;
   }[],
 ): Promise<AutoAdvanceResult> {
   const emptyResult: AutoAdvanceResult = {
@@ -1136,6 +1178,8 @@ export async function getSeguimientoPageData(
       fecha_inicio_real: o.fecha_inicio_real ?? null,
       desglose_recursos_sesiones: o.desglose_recursos_sesiones ?? null,
       sesiones_programadas: o.sesiones_programadas ?? null,
+      sesiones_ejecucion: o.sesiones_ejecucion ?? null,
+      sesiones_solped: o.sesiones_solped ?? null,
     })),
   );
 
@@ -2198,7 +2242,7 @@ export async function bulkCompleteStepsForFinishedOsis(): Promise<{
     // 1. Fetch all capacitacion OSIs (non-pending)
     const { data: osis, error: osiError } = await admin
       .from("v_osi_formato_completo")
-      .select("id_osi, fecha_inicio_real, desglose_recursos_sesiones, sesiones_programadas")
+      .select("id_osi, fecha_inicio_real, desglose_recursos_sesiones, sesiones_programadas, sesiones_ejecucion, sesiones_solped")
       .ilike("tipo_servicio", "%capacitacion%")
       .not("nro_osi", "ilike", "%PEN-%");
 

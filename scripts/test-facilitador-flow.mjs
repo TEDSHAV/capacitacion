@@ -301,3 +301,99 @@ describe("3. Facilitador Participant Form Data Transformation & Submission", () 
     assert.equal(records[0].status, "final");
   });
 });
+
+describe("4. Multi-Session Independent Completion & Clipboard Isolation", () => {
+  it("should separate multi-session OSIs into independent items for pending vs completed", () => {
+    const multiSessionOsi = {
+      id_osi: 999,
+      nro_osi: "OSI-2026-999",
+      session_count: 2,
+      sessions_list: [
+        { nro_sesion: 1, is_completed: true, participant_status: "final", fecha: "2026-11-01" },
+        { nro_sesion: 2, is_completed: false, participant_status: "draft", fecha: "2026-11-02" },
+      ],
+    };
+
+    // Dashboard expansion logic
+    const items = multiSessionOsi.sessions_list.map((s) => ({
+      osi: multiSessionOsi,
+      targetSession: s.nro_sesion,
+      isDone: Boolean(s.is_completed),
+      key: `${multiSessionOsi.id_osi}_s${s.nro_sesion}`,
+    }));
+
+    const pendientes = items.filter((item) => !item.isDone);
+    const finalizados = items.filter((item) => item.isDone);
+
+    assert.equal(pendientes.length, 1);
+    assert.equal(pendientes[0].targetSession, 2);
+    assert.equal(pendientes[0].isDone, false);
+
+    assert.equal(finalizados.length, 1);
+    assert.equal(finalizados[0].targetSession, 1);
+    assert.equal(finalizados[0].isDone, true);
+  });
+
+  it("should enforce clipboard isolation by facilitadorId", () => {
+    const fakeSessionStorage = new Map();
+    const saveClipboard = (facilitadorId, participants) => {
+      fakeSessionStorage.set(`facilitador_clipboard_${facilitadorId}`, JSON.stringify(participants));
+    };
+    const getClipboard = (facilitadorId) => {
+      const val = fakeSessionStorage.get(`facilitador_clipboard_${facilitadorId}`);
+      return val ? JSON.parse(val) : null;
+    };
+
+    const fac1Id = 101;
+    const fac2Id = 202;
+
+    const listFac1 = [
+      { nombre_apellido: "Juan Perez", cedula: "11222333", score: "19", nationality: "venezolano" },
+    ];
+    saveClipboard(fac1Id, listFac1);
+
+    // Facilitador 2 should NOT have access to Facilitador 1's clipboard
+    assert.equal(getClipboard(fac2Id), null);
+    assert.deepEqual(getClipboard(fac1Id), listFac1);
+  });
+
+  it("should validate active session attachments independently without blocking on other pending sessions", () => {
+    const attachments = [
+      // Session 1 attachments complete
+      { nro_sesion: 1, category: "lista_asistencia" },
+      { nro_sesion: 1, category: "hoja_calificacion" },
+      { nro_sesion: 1, category: "material_fotografico" },
+      // Session 2 has no attachments
+    ];
+
+    const isSessionComplete = (sesNum, isParticipationOnly = false) => {
+      const forSes = attachments.filter((a) => a.nro_sesion === sesNum);
+      const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
+      const hasCalif = isParticipationOnly ? true : forSes.some((a) => a.category === "hoja_calificacion");
+      const hasFotos = forSes.some((a) => a.category === "material_fotografico");
+      return hasAsist && hasCalif && hasFotos;
+    };
+
+    assert.equal(isSessionComplete(1), true, "Session 1 should be complete and ready to finalize");
+    assert.equal(isSessionComplete(2), false, "Session 2 should be incomplete");
+  });
+
+  it("should attribute legacy attachments with nro_sesion == null to Session 1 so facilitators who already uploaded are not blocked", () => {
+    const legacyAttachments = [
+      { nro_sesion: null, category: "lista_asistencia" },
+      { nro_sesion: null, category: "hoja_calificacion" },
+      { nro_sesion: null, category: "material_fotografico" },
+    ];
+    const totalSessions = 2;
+
+    const forSes1 = totalSessions > 1
+      ? legacyAttachments.filter((a) => a.nro_sesion === 1 || (1 === 1 && a.nro_sesion == null))
+      : legacyAttachments;
+    const forSes2 = totalSessions > 1
+      ? legacyAttachments.filter((a) => a.nro_sesion === 2 || (2 === 1 && a.nro_sesion == null))
+      : legacyAttachments;
+
+    assert.equal(forSes1.length, 3, "Session 1 should adopt legacy null-session attachments");
+    assert.equal(forSes2.length, 0, "Session 2 should NOT adopt legacy null-session attachments");
+  });
+});

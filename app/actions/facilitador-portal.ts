@@ -287,11 +287,23 @@ export async function getAssignedOSIs(facilitadorId: number) {
   // Fetch participant submission status for each OSI
   let enrichedData = data || [];
   if (allOsiIds.length > 0) {
-    const [participantsRes, osiSessionsRes, attachmentsRes] = await Promise.all([
-      supabase
+    let participantsData: Array<{ osi_id: number; status: string; nro_sesion?: number | null }> = [];
+    const { data: pData, error: pError } = await supabase
+      .from("ejecucion_osi_participantes")
+      .select("osi_id, status, nro_sesion")
+      .in("osi_id", allOsiIds);
+
+    if (pError && pError.code === "42703") {
+      const fb = await supabase
         .from("ejecucion_osi_participantes")
         .select("osi_id, status")
-        .in("osi_id", allOsiIds),
+        .in("osi_id", allOsiIds);
+      participantsData = (fb.data || []).map((p) => ({ ...p, nro_sesion: 1 }));
+    } else {
+      participantsData = pData || [];
+    }
+
+    const [osiSessionsRes, attachmentsRes] = await Promise.all([
       supabase
         .from("osi_sesion")
         .select("id_osi, nro_sesion, fecha, fecha_ejecutada, hora_inicio, hora_fin")
@@ -304,15 +316,23 @@ export async function getAssignedOSIs(facilitadorId: number) {
         .in("osi_id", allOsiIds),
     ]);
 
-    const participantsData = participantsRes.data;
-
     const osiStatusMap = new Map<number, string>();
+    const sessionStatusMap = new Map<string, string>();
     if (participantsData && participantsData.length > 0) {
       for (const p of participantsData) {
-        const current = osiStatusMap.get(p.osi_id);
+        const sesNum = p.nro_sesion ?? 1;
+        const key = `${p.osi_id}_${sesNum}`;
+        const currentSes = sessionStatusMap.get(key);
+        if (p.status === "final") {
+          sessionStatusMap.set(key, "final");
+        } else if (currentSes !== "final") {
+          sessionStatusMap.set(key, "draft");
+        }
+
+        const currentOsi = osiStatusMap.get(p.osi_id);
         if (p.status === "final") {
           osiStatusMap.set(p.osi_id, "final");
-        } else if (current !== "final") {
+        } else if (currentOsi !== "final") {
           osiStatusMap.set(p.osi_id, "draft");
         }
       }
@@ -440,21 +460,39 @@ export async function getAssignedOSIs(facilitadorId: number) {
           ? sessionInfo.specificSessions
           : Array.from({ length: Math.max(1, fullSessionCount) }, (_, i) => i + 1);
 
-      const completedSessionsCount = sessionNumbers.filter((n) => {
+      const enrichedSessionsList = sessionNumbers.map((n) => {
+        const found = relevantSessions.find((s) => s.nro_sesion === n);
         const forSes =
           sessionNumbers.length > 1
-            ? osiAttachments.filter((a) => a.nro_sesion === n)
+            ? osiAttachments.filter((a) => a.nro_sesion === n || (n === 1 && a.nro_sesion == null))
             : osiAttachments.filter((a) => a.nro_sesion === n || a.nro_sesion == null);
         const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
-        const hasFotos = forSes.some((a) => a.category === "material_fotografico");
-        return hasAsist && hasFotos;
-      }).length;
+        const hasFotos = forSes.some((a) => a.category === "material_fotografico") || osi.id_estatus === 12;
+        const partStatus = sessionStatusMap.get(`${osi.id_osi}_${n}`) || (n === 1 ? osiStatusMap.get(osi.id_osi) : null);
+        const isSessionCompleted = hasAsist && hasFotos && partStatus === "final";
 
-      const allSessionsCompleted = completedSessionsCount === sessionNumbers.length;
+        let sessionDate = found?.fecha_ejecutada || found?.fecha || null;
+        if (!sessionDate && Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[n - 1]?.fecha) {
+          sessionDate = osi.sesiones_programadas[n - 1].fecha;
+        }
+
+        return {
+          nro_sesion: n,
+          fecha: sessionDate,
+          fecha_ejecutada: found?.fecha_ejecutada || null,
+          hora_inicio: found?.hora_inicio || null,
+          hora_fin: found?.hora_fin || null,
+          is_completed: isSessionCompleted,
+          participant_status: partStatus || null,
+        };
+      });
+
+      const completedSessionsCount = enrichedSessionsList.filter((s) => s.is_completed).length;
+      const allSessionsCompleted = completedSessionsCount === sessionNumbers.length && sessionNumbers.length > 0;
 
       return {
         ...osi,
-        participant_status: osiStatusMap.get(osi.id_osi) || null,
+        participant_status: allSessionsCompleted ? "final" : osiStatusMap.get(osi.id_osi) || null,
         assigned_sessions: sessionInfo?.specificSessions || [],
         assigned_all_sessions: sessionInfo?.hasAllSessions || false,
         session_count: getSessionCount(osi),
@@ -463,7 +501,7 @@ export async function getAssignedOSIs(facilitadorId: number) {
         display_date,
         display_date_label,
         display_date_type,
-        sessions_list: relevantSessions,
+        sessions_list: enrichedSessionsList,
         all_sessions_completed: allSessionsCompleted,
         completed_sessions_count: completedSessionsCount,
         total_sessions_count: sessionNumbers.length,
@@ -730,10 +768,14 @@ export async function getFacilitatorPortalData(facilitadorId: number): Promise<{
   }
 }
 
-export async function getOSIParticipants(osiId: number, facilitadorId?: number): Promise<{ data?: any[]; error?: string }> {
+export async function getOSIParticipants(
+  osiId: number,
+  facilitadorId?: number,
+  nroSesion?: number
+): Promise<{ data?: any[]; error?: string }> {
   const supabase = await createAdminClient();
   
-  console.log(`[getOSIParticipants] Searching for OSI: ${osiId}, Facilitador: ${facilitadorId || 'ANY'}`);
+  console.log(`[getOSIParticipants] Searching for OSI: ${osiId}, Facilitador: ${facilitadorId || 'ANY'}, Sesión: ${nroSesion ?? 'ANY'}`);
 
   let query = supabase
     .from("ejecucion_osi_participantes")
@@ -742,6 +784,34 @@ export async function getOSIParticipants(osiId: number, facilitadorId?: number):
   
   if (facilitadorId) {
     query = query.eq("facilitador_id", facilitadorId);
+  }
+
+  if (nroSesion !== undefined && nroSesion !== null) {
+    const { data, error } = await query.eq("nro_sesion", nroSesion).order("id", { ascending: true });
+    if (error && error.code === "42703") {
+      // Column nro_sesion does not exist yet: fall back without nro_sesion filter
+      let fallbackQuery = supabase
+        .from("ejecucion_osi_participantes")
+        .select("*")
+        .eq("osi_id", osiId);
+      if (facilitadorId) fallbackQuery = fallbackQuery.eq("facilitador_id", facilitadorId);
+      const fb = await fallbackQuery.order("id", { ascending: true });
+      return { data: fb.data || [] };
+    }
+    // If no records found for session 1, also check for legacy rows where nro_sesion is NULL
+    if ((!data || data.length === 0) && nroSesion === 1) {
+      let legacyQuery = supabase
+        .from("ejecucion_osi_participantes")
+        .select("*")
+        .eq("osi_id", osiId)
+        .is("nro_sesion", null);
+      if (facilitadorId) legacyQuery = legacyQuery.eq("facilitador_id", facilitadorId);
+      const leg = await legacyQuery.order("id", { ascending: true });
+      if (leg.data && leg.data.length > 0) {
+        return { data: leg.data };
+      }
+    }
+    return { data: data || [] };
   }
 
   const { data, error } = await query.order("id", { ascending: true });
@@ -757,7 +827,8 @@ export async function getOSIParticipants(osiId: number, facilitadorId?: number):
 export async function saveAcknowledgment(
   osiId: number,
   facilitadorId: number,
-  disclaimerText: string
+  disclaimerText: string,
+  nroSesion: number = 1
 ) {
   const session = await getFacilitatorSession();
   if (!session || session.facilitador_id !== facilitadorId) {
@@ -772,13 +843,32 @@ export async function saveAcknowledgment(
       {
         osi_id: osiId,
         facilitador_id: facilitadorId,
+        nro_sesion: nroSesion,
         disclaimer_text: disclaimerText,
         acknowledged_at: new Date().toISOString(),
       },
-      { onConflict: "osi_id,facilitador_id" }
+      { onConflict: "osi_id,facilitador_id,nro_sesion" }
     );
 
   if (error) {
+    if (error.code === "42703" || error.message.includes("nro_sesion")) {
+      const fb = await supabase
+        .from("facilitador_acknowledgments")
+        .upsert(
+          {
+            osi_id: osiId,
+            facilitador_id: facilitadorId,
+            disclaimer_text: disclaimerText,
+            acknowledged_at: new Date().toISOString(),
+          },
+          { onConflict: "osi_id,facilitador_id" }
+        );
+      if (fb.error) {
+        console.error("Error saving acknowledgment fallback:", fb.error);
+        return { error: fb.error.message };
+      }
+      return { success: true };
+    }
     console.error("Error saving acknowledgment:", error);
     return { error: error.message };
   }
@@ -834,7 +924,8 @@ export async function saveParticipants(
   participants: any[],
   status: "draft" | "final" = "draft",
   acknowledged: boolean = false,
-  disclaimerText?: string
+  disclaimerText?: string,
+  nroSesion: number = 1
 ) {
   const session = await getFacilitatorSession();
   if (!session || session.facilitador_id !== facilitadorId) {
@@ -911,20 +1002,6 @@ export async function saveParticipants(
       ...specificSessions
     );
 
-    const hasAllSessions =
-      !assignments ||
-      assignments.length === 0 ||
-      assignments.some((a) => a.nro_sesion === null);
-
-    let targetSessions: number[] = [];
-    if (hasAllSessions) {
-      targetSessions = Array.from({ length: Math.max(1, totalSessions) }, (_, i) => i + 1);
-    } else if (specificSessions.length > 0) {
-      targetSessions = [...new Set(specificSessions)].sort((a, b) => a - b);
-    } else {
-      targetSessions = Array.from({ length: Math.max(1, totalSessions) }, (_, i) => i + 1);
-    }
-
     // Check if course requires passing grade (if passingGrade === 0, qualification sheet is optional)
     let isParticipationOnly = false;
     if (osiRow?.id_servicio) {
@@ -938,7 +1015,7 @@ export async function saveParticipants(
       }
     }
 
-    // 3. Mandatory attachments per assigned session: asistencia, calificacion, photos
+    // 3. Mandatory attachments for THIS session (nroSesion): asistencia, calificacion, photos
     const { data: attachments, error: attError } = await supabase
       .from("ejecucion_osi_asistencia")
       .select("category, nro_sesion")
@@ -951,152 +1028,185 @@ export async function saveParticipants(
     }
 
     const attList = attachments || [];
+    const forSes =
+      totalSessions > 1
+        ? attList.filter((a) => a.nro_sesion === nroSesion || (nroSesion === 1 && a.nro_sesion == null))
+        : attList.filter((a) => a.nro_sesion === nroSesion || a.nro_sesion == null);
+    const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
+    const hasCalif = isParticipationOnly || forSes.some((a) => a.category === "hoja_calificacion");
+    const hasFotos = forSes.some((a) => a.category === "material_fotografico");
 
-    for (const ses of targetSessions) {
-      const forSes =
-        targetSessions.length > 1
-          ? attList.filter((a) => a.nro_sesion === ses)
-          : attList.filter((a) => a.nro_sesion === ses || a.nro_sesion == null);
-      const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
-      const hasCalif = isParticipationOnly || forSes.some((a) => a.category === "hoja_calificacion");
-      const hasFotos = forSes.some((a) => a.category === "material_fotografico");
-
-      if (!hasAsist) {
-        return { error: `Falta adjuntar la lista de asistencia física firmada para la Sesión ${ses}. No puedes finalizar hasta que todas las sesiones tengan soportes.` };
-      }
-      if (!hasCalif) {
-        return { error: `Falta adjuntar la hoja de calificación física firmada para la Sesión ${ses}. No puedes finalizar hasta que todas las sesiones tengan soportes.` };
-      }
-      if (!hasFotos) {
-        return { error: `Falta adjuntar al menos una foto de soporte para la Sesión ${ses}. No puedes finalizar hasta que todas las sesiones tengan soportes.` };
-      }
+    if (!hasAsist) {
+      return { error: `Falta adjuntar la lista de asistencia física firmada para la Sesión ${nroSesion}.` };
+    }
+    if (!hasCalif) {
+      return { error: `Falta adjuntar la hoja de calificación física firmada para la Sesión ${nroSesion}.` };
+    }
+    if (!hasFotos) {
+      return { error: `Falta adjuntar al menos una foto de soporte para la Sesión ${nroSesion}.` };
     }
   }
 
-  // Guard: if already finalized AND all sessions are truly complete, prevent edits.
-  // If prematurely marked final with missing session attachments, allow the facilitador to complete it.
-  const { data: existingFinal } = await supabase
+  // Guard: if this session is already finalized AND has complete attachments, prevent overwriting.
+  let sessionFinalCheck = supabase
     .from("ejecucion_osi_participantes")
     .select("id")
     .eq("osi_id", osiId)
-    .eq("status", "final")
-    .limit(1);
+    .eq("facilitador_id", facilitadorId)
+    .eq("status", "final");
 
-  if (existingFinal && existingFinal.length > 0) {
+  const { data: existingFinal, error: finalCheckErr } = await sessionFinalCheck.eq("nro_sesion", nroSesion).limit(1);
+  let hasFinalForThisSession = false;
+  if (finalCheckErr && finalCheckErr.code === "42703") {
+    // Column nro_sesion not yet present: fall back to checking without nro_sesion
+    const { data: fbFinal } = await supabase
+      .from("ejecucion_osi_participantes")
+      .select("id")
+      .eq("osi_id", osiId)
+      .eq("facilitador_id", facilitadorId)
+      .eq("status", "final")
+      .limit(1);
+    hasFinalForThisSession = Boolean(fbFinal && fbFinal.length > 0);
+  } else {
+    hasFinalForThisSession = Boolean(existingFinal && existingFinal.length > 0);
+  }
+
+  if (hasFinalForThisSession) {
     const { data: allAtts } = await supabase
       .from("ejecucion_osi_asistencia")
       .select("category, nro_sesion")
       .eq("osi_id", osiId)
       .eq("facilitador_id", facilitadorId);
 
-    const { data: assignments } = await supabase
-      .from("facilitador_osi_assignments")
-      .select("nro_sesion")
-      .eq("osi_id", osiId)
-      .eq("facilitador_id", facilitadorId)
-      .eq("is_active", true);
+    const forSes = (allAtts || []).filter((a) => a.nro_sesion === nroSesion || a.nro_sesion == null);
+    const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
+    const hasFotos = forSes.some((a) => a.category === "material_fotografico");
 
-    const sessionInfo = await getOsiSessionInfo(osiId);
-    const { data: osiRow } = await supabase
-      .from("v_osi_formato_completo")
-      .select("id_servicio, servicio, desglose_recursos_sesiones, sesiones_programadas, sesiones_solped, sesiones_ejecucion")
-      .eq("id_osi", osiId)
-      .maybeSingle();
-
-    const specificSessions = (assignments || [])
-      .map((a) => a.nro_sesion)
-      .filter((n): n is number => n !== null);
-
-    const totalSessions = Math.max(
-      sessionInfo.totalCount,
-      getSessionCount(osiRow || {}),
-      ...specificSessions
-    );
-
-    const hasAll = !assignments || assignments.length === 0 || assignments.some((a) => a.nro_sesion === null);
-    let targetSessions: number[] = [];
-    if (hasAll) {
-      targetSessions = Array.from({ length: Math.max(1, totalSessions) }, (_, i) => i + 1);
-    } else if (specificSessions.length > 0) {
-      targetSessions = [...new Set(specificSessions)].sort((a, b) => a - b);
-    } else {
-      targetSessions = Array.from({ length: Math.max(1, totalSessions) }, (_, i) => i + 1);
-    }
-
-    const allComplete = targetSessions.every((ses) => {
-      const forSes =
-        targetSessions.length > 1
-          ? (allAtts || []).filter((a) => a.nro_sesion === ses)
-          : (allAtts || []).filter((a) => a.nro_sesion === ses || a.nro_sesion == null);
-      return forSes.some((a) => a.category === "lista_asistencia") && forSes.some((a) => a.category === "material_fotografico");
-    });
-
-    if (allComplete) {
-      return { error: "Este servicio ya ha sido finalizado y sus datos no pueden ser modificados." };
+    if (hasAsist && hasFotos) {
+      return { error: `La Sesión ${nroSesion} ya ha sido finalizada y sus datos no pueden ser modificados.` };
     }
   }
 
   if (status === "draft") {
-    // Clear any premature acknowledgment so draft state is clean
-    await supabase
+    // Clear any premature acknowledgment for this session so draft state is clean
+    const { error: delAckErr } = await supabase
       .from("facilitador_acknowledgments")
       .delete()
       .eq("osi_id", osiId)
-      .eq("facilitador_id", facilitadorId);
+      .eq("facilitador_id", facilitadorId)
+      .eq("nro_sesion", nroSesion);
+
+    if (delAckErr && delAckErr.code === "42703") {
+      await supabase
+        .from("facilitador_acknowledgments")
+        .delete()
+        .eq("osi_id", osiId)
+        .eq("facilitador_id", facilitadorId);
+    }
   }
 
-  // Delete existing ones for this OSI/Facilitator to overwrite
-  const { error: deleteError } = await supabase
+  // Delete existing ones for this (OSI, Facilitator, nroSesion) to overwrite
+  const delQuery = supabase
     .from("ejecucion_osi_participantes")
     .delete()
     .eq("osi_id", osiId)
     .eq("facilitador_id", facilitadorId);
 
-  if (deleteError) {
+  const { error: deleteError } = await delQuery.eq("nro_sesion", nroSesion);
+  if (deleteError && deleteError.code === "42703") {
+    // Column nro_sesion does not exist yet: fallback delete
+    await supabase
+      .from("ejecucion_osi_participantes")
+      .delete()
+      .eq("osi_id", osiId)
+      .eq("facilitador_id", facilitadorId);
+  } else if (deleteError) {
     return { error: deleteError.message };
   }
 
-  const records = participants.map((p) => ({
+  const recordsWithSession = participants.map((p) => ({
     osi_id: osiId,
     facilitador_id: facilitadorId,
+    nro_sesion: nroSesion,
     nombre_apellido: p.nombre_apellido,
     cedula: p.cedula,
     score: p.score != null && p.score !== "" ? Number(p.score) : 0,
     status: status,
   }));
 
-  if (records.length === 0) {
-    // Clear any existing acknowledgment since there are no participants
-    await supabase
+  if (recordsWithSession.length === 0) {
+    // Clear acknowledgment if participants are cleared
+    const { error: delAckErr } = await supabase
       .from("facilitador_acknowledgments")
       .delete()
       .eq("osi_id", osiId)
-      .eq("facilitador_id", facilitadorId);
+      .eq("facilitador_id", facilitadorId)
+      .eq("nro_sesion", nroSesion);
+
+    if (delAckErr && delAckErr.code === "42703") {
+      await supabase
+        .from("facilitador_acknowledgments")
+        .delete()
+        .eq("osi_id", osiId)
+        .eq("facilitador_id", facilitadorId);
+    }
 
     revalidatePath("/portal/facilitador/dashboard");
     return { success: true };
   }
 
-  const { data, error } = await supabase
+  let { error: insertError } = await supabase
     .from("ejecucion_osi_participantes")
-    .insert(records);
+    .insert(recordsWithSession);
 
-  if (error) {
-    return { error: error.message };
+  if (insertError && insertError.code === "42703") {
+    // Fallback without nro_sesion if column not yet migrated
+    const recordsWithoutSession = participants.map((p) => ({
+      osi_id: osiId,
+      facilitador_id: facilitadorId,
+      nombre_apellido: p.nombre_apellido,
+      cedula: p.cedula,
+      score: p.score != null && p.score !== "" ? Number(p.score) : 0,
+      status: status,
+    }));
+    const fbInsert = await supabase
+      .from("ejecucion_osi_participantes")
+      .insert(recordsWithoutSession);
+    insertError = fbInsert.error;
+  }
+
+  if (insertError) {
+    return { error: insertError.message };
   }
 
   // Save acknowledgment audit record on final submission
   if (status === "final" && acknowledged && disclaimerText) {
-    const ackResult = await saveAcknowledgment(osiId, facilitadorId, disclaimerText);
+    const ackResult = await saveAcknowledgment(osiId, facilitadorId, disclaimerText, nroSesion);
     if (ackResult.error) {
       console.error("Failed to save acknowledgment:", ackResult.error);
     }
   }
 
   // Notify capacitacion users when the facilitador submits the final participant list
-  // Fire-and-forget — don't block the submission on notification errors
+  // and auto-mark execution process steps for this session
   if (status === "final") {
     try {
+      const now = new Date().toISOString();
+      await supabase
+        .from("capacitacion_proceso_steps")
+        .upsert(
+          {
+            osi_id: osiId,
+            nro_sesion: nroSesion,
+            phase: "ejecucion",
+            step_key: "nomina_participantes",
+            completed: true,
+            completed_at: now,
+            completed_by: null,
+          },
+          { onConflict: "osi_id,nro_sesion,phase,step_key" }
+        );
+
       const { data: osiInfo } = await supabase
         .from("v_osi_lista")
         .select("nro_osi")
@@ -1110,7 +1220,7 @@ export async function saveParticipants(
         category: "servicio_finalizado",
       });
     } catch (notifErr) {
-      console.error("[saveParticipants] Notification error (non-fatal):", notifErr);
+      console.error("[saveParticipants] Notification/Step error (non-fatal):", notifErr);
     }
   }
 

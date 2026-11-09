@@ -15,10 +15,13 @@ import { getOsiSessionInfo } from "@/app/actions/osi-facilitador-assignments";
 
 interface OSIPageProps {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ sesion?: string }>;
 }
 
-export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
+export default async function FacilitadorOSIPage({ params, searchParams }: OSIPageProps) {
   const resolvedParams = await params;
+  const resolvedSearch = searchParams ? await searchParams : {};
+  const querySession = resolvedSearch.sesion ? parseInt(resolvedSearch.sesion) : null;
   const session = await getFacilitatorSession();
   if (!session) redirect("/portal/facilitador/login");
 
@@ -109,23 +112,30 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
       ? specificSessions
       : Array.from({ length: sessionCount }, (_, i) => i + 1);
 
-  const allAssignedSessionsHaveAttachments =
-    relevantSessionNums.length === 0 ||
-    relevantSessionNums.every((ses) => {
-      const forSes =
-        relevantSessionNums.length > 1
-          ? (attachments || []).filter((a) => a.nro_sesion === ses)
-          : (attachments || []).filter((a) => a.nro_sesion === ses || a.nro_sesion == null);
-      const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
-      const hasCalif = (notaAprobatoria === 0) || forSes.some((a) => a.category === "hoja_calificacion");
-      const hasFotos = forSes.some((a) => a.category === "material_fotografico");
-      return hasAsist && hasCalif && hasFotos;
-    });
+  const finalizedSessionNums = relevantSessionNums.filter((ses) => {
+    const forSes =
+      relevantSessionNums.length > 1
+        ? (attachments || []).filter((a) => a.nro_sesion === ses)
+        : (attachments || []).filter((a) => a.nro_sesion === ses || a.nro_sesion == null);
+    const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
+    const hasCalif = (notaAprobatoria === 0) || forSes.some((a) => a.category === "hoja_calificacion");
+    const hasFotos = forSes.some((a) => a.category === "material_fotografico");
+    const hasFinalPart = (participants.data || []).some(
+      (p: any) => (p.nro_sesion ?? 1) === ses && p.status === "final"
+    );
+    return hasAsist && hasCalif && hasFotos && hasFinalPart;
+  });
 
-  // Determine if list has been finalized/sent AND all assigned sessions have attachments
-  const isFinal =
-    (participants.data || []).some((p: any) => p.status === "final") &&
-    allAssignedSessionsHaveAttachments;
+  const pendingSessionNums = relevantSessionNums.filter((ses) => !finalizedSessionNums.includes(ses));
+
+  const resolvedInitialSession =
+    querySession && relevantSessionNums.includes(querySession)
+      ? querySession
+      : pendingSessionNums.length > 0
+      ? pendingSessionNums[0]
+      : relevantSessionNums[0] || 1;
+
+  const isInitialSessionFinal = finalizedSessionNums.includes(resolvedInitialSession);
 
   return (
     <div className="max-w-7xl mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8 space-y-6">
@@ -227,7 +237,9 @@ export default async function FacilitadorOSIPage({ params }: OSIPageProps) {
         sessionCount={sessionCount}
         assignedSessions={specificSessions}
         hasAllSessionsAssignment={hasAllSessionsAssignment}
-        isFinal={isFinal}
+        isFinal={isInitialSessionFinal}
+        initialSession={resolvedInitialSession}
+        initialFinalizedSessions={finalizedSessionNums}
         notaAprobatoria={notaAprobatoria}
         sessionsInfo={sessionsInfo}
       />
