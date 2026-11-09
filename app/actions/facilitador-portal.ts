@@ -306,7 +306,11 @@ export async function getAssignedOSIs(facilitadorId: number) {
       participantsData = pData || [];
     }
 
-    const [osiSessionsRes, attachmentsRes] = await Promise.all([
+    const nroOsiInts = (data || [])
+      .map((o) => parseInt(String(o.nro_osi || "").replace(/[^\d]/g, ""), 10))
+      .filter((n) => !isNaN(n) && n > 0);
+
+    const [osiSessionsRes, attachmentsRes, certsRes] = await Promise.all([
       supabase
         .from("osi_sesion")
         .select("id_osi, nro_sesion, fecha, fecha_ejecutada, hora_inicio, hora_fin")
@@ -317,7 +321,19 @@ export async function getAssignedOSIs(facilitadorId: number) {
         .select("osi_id, nro_sesion, category")
         .eq("facilitador_id", facilitadorId)
         .in("osi_id", allOsiIds),
+      nroOsiInts.length > 0
+        ? supabase
+            .from("certificados")
+            .select("nro_osi")
+            .in("nro_osi", nroOsiInts)
+            .is("motivo_anulacion", null)
+        : Promise.resolve({ data: [] }),
     ]);
+
+    const osisWithCertificates = new Set<number>();
+    for (const c of (certsRes.data || []) as { nro_osi: number }[]) {
+      if (c.nro_osi) osisWithCertificates.add(c.nro_osi);
+    }
 
     const osiStatusMap = new Map<number, string>();
     const sessionStatusMap = new Map<string, string>();
@@ -480,6 +496,9 @@ export async function getAssignedOSIs(facilitadorId: number) {
           sessionDate = osi.sesiones_programadas[n - 1].fecha;
         }
 
+        const nroInt = parseInt(String(osi.nro_osi || "").replace(/[^\d]/g, ""), 10);
+        const hasCertificates = osisWithCertificates.has(nroInt);
+
         return {
           nro_sesion: n,
           fecha: sessionDate,
@@ -488,14 +507,18 @@ export async function getAssignedOSIs(facilitadorId: number) {
           hora_fin: found?.hora_fin || null,
           is_completed: isSessionCompleted,
           participant_status: partStatus || null,
+          has_certificates: hasCertificates,
         };
       });
 
       const completedSessionsCount = enrichedSessionsList.filter((s) => s.is_completed).length;
       const allSessionsCompleted = completedSessionsCount === sessionNumbers.length && sessionNumbers.length > 0;
+      const nroInt = parseInt(String(osi.nro_osi || "").replace(/[^\d]/g, ""), 10);
+      const hasCertificates = osisWithCertificates.has(nroInt);
 
       return {
         ...osi,
+        has_certificates: hasCertificates,
         participant_status: allSessionsCompleted ? "final" : osiStatusMap.get(osi.id_osi) || null,
         assigned_sessions: sessionInfo?.specificSessions || [],
         assigned_all_sessions: sessionInfo?.hasAllSessions || false,
@@ -1234,21 +1257,43 @@ export async function saveParticipants(
 }
 
 /**
- * DEV ONLY: Toggles attachment_received on the facilitador assignment row
+ * Toggles attachment_received on the facilitador assignment row
  * so the session marks as completed and moves out of "Pendientes" on the dashboard.
  * Does NOT alter participants, files, nor process steps.
- * Strictly gated by process.env.NODE_ENV === "development".
+ * Allowed in development OR for any OSI that already has certificates generated.
  */
 export async function markSessionCompletedDev(
   osiId: number,
   facilitadorId: number,
   nroSesion: number = 1,
 ): Promise<{ success: boolean; error?: string }> {
-  if (process.env.NODE_ENV !== "development") {
-    return { success: false, error: "Solo disponible en entorno de desarrollo." };
-  }
-
   const supabase = await createAdminClient();
+
+  if (process.env.NODE_ENV !== "development") {
+    // In production, verify that certificates have already been generated for this OSI
+    const { data: osiRow } = await supabase
+      .from("v_osi_lista")
+      .select("nro_osi")
+      .eq("id_osi", osiId)
+      .maybeSingle();
+
+    const nroInt = parseInt(String(osiRow?.nro_osi || "").replace(/[^\d]/g, ""), 10);
+    const { data: certs } = nroInt
+      ? await supabase
+          .from("certificados")
+          .select("id")
+          .eq("nro_osi", nroInt)
+          .is("motivo_anulacion", null)
+          .limit(1)
+      : { data: [] };
+
+    if (!certs || certs.length === 0) {
+      return {
+        success: false,
+        error: "Esta acción solo está permitida para servicios que ya tienen certificados emitidos o en entorno de desarrollo.",
+      };
+    }
+  }
 
   const { data: assignments, error: queryErr } = await supabase
     .from("facilitador_osi_assignments")

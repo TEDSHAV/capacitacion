@@ -80,6 +80,7 @@ export interface ParticipantFormProps {
     hora_inicio?: string | null;
     hora_fin?: string | null;
   }>;
+  hasCertificates?: boolean;
 }
 
 function formatSessionDate(dateStr?: string | null): string {
@@ -117,6 +118,7 @@ export const ParticipantForm = ({
   initialFinalizedSessions = [],
   notaAprobatoria = 14,
   sessionsInfo = [],
+  hasCertificates = false,
 }: ParticipantFormProps) => {
   const passingGrade = typeof notaAprobatoria === "number" ? notaAprobatoria : 14;
   const isParticipationOnly = passingGrade === 0;
@@ -2134,17 +2136,37 @@ export const ParticipantForm = ({
                       <span>Guardar borrador</span>
                     </Button>
 
-                    {process.env.NODE_ENV === "development" && (
+                    {(process.env.NODE_ENV === "development" || hasCertificates) && (
                       <Button
                         type="button"
                         variant="outline"
                         onClick={handleDevComplete}
                         disabled={saving || devCompleting}
-                        className="h-12 px-4 text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-300 font-bold cursor-pointer"
-                        title="Marcar sesión como completada inmediatamente (solo en entorno de desarrollo)"
+                        className={`h-12 px-4 font-bold cursor-pointer ${
+                          hasCertificates
+                            ? "text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300"
+                            : "text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-300"
+                        }`}
+                        title={
+                          hasCertificates
+                            ? "Marcar sesión como completada porque los certificados ya fueron emitidos por Capacitación"
+                            : "Marcar sesión como completada inmediatamente (solo en entorno de desarrollo)"
+                        }
                       >
-                        {devCompleting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Zap className="w-4 h-4 mr-1.5 text-purple-600" />}
-                        <span>Completar (Dev)</span>
+                        {devCompleting ? (
+                          <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                        ) : hasCertificates ? (
+                          <CheckCheck className="w-4 h-4 mr-1.5 text-emerald-600" />
+                        ) : (
+                          <Zap className="w-4 h-4 mr-1.5 text-purple-600" />
+                        )}
+                        <span>
+                          {devCompleting
+                            ? "Completando..."
+                            : hasCertificates
+                            ? "Completar (Certificado)"
+                            : "Completar (Dev)"}
+                        </span>
                       </Button>
                     )}
 

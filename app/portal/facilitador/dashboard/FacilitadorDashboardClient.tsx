@@ -19,6 +19,7 @@ import {
   Calendar,
   Layers,
   Zap,
+  CheckCheck,
 } from "lucide-react";
 import { DashboardTour } from "./DashboardTour";
 import { DashboardTourAutoStart as AutoStart } from "./DashboardTourAutoStart";
@@ -34,6 +35,7 @@ interface OSISessionItem {
   hora_fin?: string | null;
   is_completed?: boolean;
   participant_status?: "final" | "draft" | null;
+  has_certificates?: boolean;
 }
 
 interface OSIItem {
@@ -53,6 +55,7 @@ interface OSIItem {
   assigned_all_sessions?: boolean;
   assigned_sessions?: number[];
   has_material?: boolean;
+  has_certificates?: boolean;
   material_count?: number;
   participant_status?: "final" | "draft" | null;
   display_date?: string | null;
@@ -125,6 +128,7 @@ export default function FacilitadorDashboardClient({
       sessionDate: string | null;
       isDone: boolean;
       sessionStatus?: "final" | "draft" | null;
+      hasCertificates?: boolean;
     }> = [];
 
     for (const osi of osis) {
@@ -141,6 +145,7 @@ export default function FacilitadorDashboardClient({
           sessionDate: osi.display_date || null,
           isDone,
           sessionStatus: osi.participant_status,
+          hasCertificates: Boolean(osi.has_certificates),
         });
       } else {
         for (const ses of sessions) {
@@ -153,6 +158,7 @@ export default function FacilitadorDashboardClient({
             sessionDate: ses.fecha_ejecutada || ses.fecha || osi.display_date || null,
             isDone: isSesDone,
             sessionStatus: ses.participant_status,
+            hasCertificates: Boolean(ses.has_certificates ?? osi.has_certificates),
           });
         }
       }
@@ -473,7 +479,7 @@ export default function FacilitadorDashboardClient({
             <div className="grid gap-3.5" id="tour-osi-cards">
               {filteredDashboardItems.map((item, idx) => {
                 const isFirst = idx === 0;
-                const { osi, targetSession, isMultiSession, sessionDate, isDone } = item;
+                const { osi, targetSession, isMultiSession, sessionDate, isDone, hasCertificates } = item;
                 const effectiveDate = sessionDate || osi.display_date || osi.fecha_inicio_real || osi.fecha_emision;
                 const dateInfo = formatDateDayMonth(effectiveDate);
 
@@ -575,10 +581,43 @@ export default function FacilitadorDashboardClient({
                                 {isMultiSession ? `Sesión ${targetSession} Finalizada` : "Servicio Finalizado"}
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                                <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                {isMultiSession ? `Sesión ${targetSession} Pendiente` : "Pendiente de Carga"}
-                              </span>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                  {isMultiSession ? `Sesión ${targetSession} Pendiente` : "Pendiente de Carga"}
+                                </span>
+                                {hasCertificates ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleDevComplete(osi.id_osi, targetSession);
+                                    }}
+                                    disabled={devCompleting === `${osi.id_osi}_${targetSession}`}
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 px-2 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
+                                    title="Marcar como completada porque los certificados ya fueron emitidos por Capacitación"
+                                  >
+                                    <CheckCheck className="w-3 h-3 text-emerald-700" />
+                                    <span>Completar (Certificado)</span>
+                                  </button>
+                                ) : process.env.NODE_ENV === "development" ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleDevComplete(osi.id_osi, targetSession);
+                                    }}
+                                    disabled={devCompleting === `${osi.id_osi}_${targetSession}`}
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                                    title="Marcar como completada en servidor de desarrollo"
+                                  >
+                                    <Zap className="w-3 h-3 text-purple-600" />
+                                    <span>Dev</span>
+                                  </button>
+                                ) : null}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -604,22 +643,55 @@ export default function FacilitadorDashboardClient({
                                 <Clock className="w-4 h-4 text-amber-600" />
                                 <span>{isMultiSession ? `Sesión ${targetSession} Pendiente` : "Pendiente de Carga"}</span>
                               </div>
-                              {process.env.NODE_ENV === "development" && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleDevComplete(osi.id_osi, targetSession);
-                                  }}
-                                  disabled={devCompleting === `${osi.id_osi}_${targetSession}`}
-                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
-                                  title="Marcar como completada en servidor de desarrollo"
-                                >
-                                  <Zap className="w-3 h-3 text-purple-600" />
-                                  <span>{devCompleting === `${osi.id_osi}_${targetSession}` ? "Completando..." : "Completar (Dev)"}</span>
-                                </button>
-                              )}
+                              {hasCertificates ? (
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-md shadow-2xs">
+                                    🎓 Certificados emitidos
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleDevComplete(osi.id_osi, targetSession);
+                                    }}
+                                    disabled={devCompleting === `${osi.id_osi}_${targetSession}`}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 px-2.5 py-1 rounded-lg cursor-pointer transition-colors shadow-2xs"
+                                    title="Marcar como completada porque los certificados ya fueron emitidos por Capacitación"
+                                  >
+                                    <CheckCheck className="w-3.5 h-3.5 text-emerald-700" />
+                                    <span>
+                                      {devCompleting === `${osi.id_osi}_${targetSession}`
+                                        ? "Completando..."
+                                        : "Completar (Certificados listos)"}
+                                    </span>
+                                  </button>
+                                </div>
+                              ) : process.env.NODE_ENV === "development" ? (
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+                                    Sin certificados
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleDevComplete(osi.id_osi, targetSession);
+                                    }}
+                                    disabled={devCompleting === `${osi.id_osi}_${targetSession}`}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
+                                    title="Marcar como completada en servidor de desarrollo (sin certificados)"
+                                  >
+                                    <Zap className="w-3 h-3 text-purple-600" />
+                                    <span>
+                                      {devCompleting === `${osi.id_osi}_${targetSession}`
+                                        ? "Completando..."
+                                        : "Completar (Dev)"}
+                                    </span>
+                                  </button>
+                                </div>
+                              ) : null}
                             </div>
                           )}
                         </div>

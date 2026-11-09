@@ -128,6 +128,17 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
 
   const pendingSessionNums = relevantSessionNums.filter((ses) => !finalizedSessionNums.includes(ses));
 
+  const nroOsiInt = parseInt(String(osi.nro_osi || "").replace(/[^\d]/g, ""), 10);
+  const { data: certRows } = nroOsiInt
+    ? await supabase
+        .from("certificados")
+        .select("id")
+        .eq("nro_osi", nroOsiInt)
+        .is("motivo_anulacion", null)
+        .limit(1)
+    : { data: [] };
+  const hasCertificates = Boolean(certRows && certRows.length > 0);
+
   const resolvedInitialSession =
     querySession && relevantSessionNums.includes(querySession)
       ? querySession
@@ -242,6 +253,7 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
         initialFinalizedSessions={finalizedSessionNums}
         notaAprobatoria={notaAprobatoria}
         sessionsInfo={sessionsInfo}
+        hasCertificates={hasCertificates}
       />
     </div>
   );
