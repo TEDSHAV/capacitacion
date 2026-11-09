@@ -54,9 +54,7 @@ interface OSIItem {
   session_count?: number;
   assigned_all_sessions?: boolean;
   assigned_sessions?: number[];
-  has_material?: boolean;
   has_certificates?: boolean;
-  material_count?: number;
   participant_status?: "final" | "draft" | null;
   display_date?: string | null;
   display_date_label?: string | null;

@@ -38,11 +38,9 @@ import {
   CertificateParticipant,
   OSIAttachment,
 } from "@/types";
-import type { MaterialKitInfo } from "@/types/material-didactico";
 import { driver, type DriveStep } from "driver.js";
 import "driver.js/dist/driver.css";
 import ISOComplianceBanner from "./ISOComplianceBanner";
-import FacilitadorMaterialKit from "./FacilitadorMaterialKit";
 import OSIWorkflowStepper, { WizardStepId, getWizardSteps } from "./OSIWorkflowStepper";
 
 export interface Participant {
@@ -58,7 +56,6 @@ export interface ParticipantFormProps {
   facilitadorId: number;
   facilitadorNombre?: string;
   initialParticipants: Participant[];
-  materialKit?: MaterialKitInfo | null;
   osi?: Record<string, unknown>;
   /** Specific session assigned to this facilitador, or null if they need to pick */
   assignedSession?: number | null;
@@ -106,7 +103,6 @@ export const ParticipantForm = ({
   facilitadorId,
   facilitadorNombre = "Facilitador",
   initialParticipants,
-  materialKit,
   osi,
   assignedSession = null,
   needsSessionPicker = false,
@@ -123,13 +119,10 @@ export const ParticipantForm = ({
   const passingGrade = typeof notaAprobatoria === "number" ? notaAprobatoria : 14;
   const isParticipationOnly = passingGrade === 0;
 
-  const hasMaterial = Boolean(materialKit && materialKit.materiales && materialKit.materiales.length > 0);
-  const steps = useMemo(() => getWizardSteps(hasMaterial), [hasMaterial]);
+  const steps = useMemo(() => getWizardSteps(), []);
 
-  // Wizard active step state
-  const [activeStep, setActiveStep] = useState<WizardStepId>(
-    hasMaterial ? "material" : "asistencia"
-  );
+  // Wizard active step state (starts on Step 1: Lista de Asistencia)
+  const [activeStep, setActiveStep] = useState<WizardStepId>("asistencia");
 
   const selectableSessionsList = useMemo(() => {
     if (assignedSession !== null) {
@@ -512,7 +505,6 @@ export const ParticipantForm = ({
 
   // Step completion status for indicators (reflects active session)
   const completedSteps: Partial<Record<WizardStepId, boolean>> = {
-    material: hasMaterial,
     asistencia: hasCurrentSessionAttendance,
     calificacion: hasCurrentSessionGradeSheet,
     participantes: hasCompletedParticipants,
@@ -575,38 +567,11 @@ export const ParticipantForm = ({
       },
     ];
 
-    if (hasMaterial) {
-      list.push(
-        {
-          element: getStepHeaderTarget("material"),
-          popover: {
-            title: "Paso 1: Material Didáctico Oficial",
-            description:
-              "Accede a los recursos preparados para este curso antes de iniciar o durante la sesión.",
-          },
-        },
-        {
-          element: getStepTarget("material", "#tour-material-content"),
-          popover: {
-            title: "Descarga de Presentación y Guías",
-            description:
-              "Aquí puedes descargar la presentación PPTX optimizada en alta definición y las guías del participante. Si observas alguna oportunidad de mejora en el contenido, utiliza el botón 'Sugerir mejora' para notificar al equipo técnico.",
-          },
-        }
-      );
-    }
-
-    const asistenciaStepNum = hasMaterial ? "2" : "1";
-    const califStepNum = hasMaterial ? "3" : "2";
-    const partStepNum = hasMaterial ? "4" : "3";
-    const evidStepNum = hasMaterial ? "5" : "4";
-    const envioStepNum = hasMaterial ? "6" : "5";
-
     list.push(
       {
         element: getStepHeaderTarget("asistencia"),
         popover: {
-          title: `Paso ${asistenciaStepNum}: Lista de Asistencia Física`,
+          title: "Paso 1: Lista de Asistencia Física",
           description:
             "En esta sección debes cargar la lista de asistencia en papel firmada por los participantes durante la capacitación.",
         },
@@ -630,7 +595,7 @@ export const ParticipantForm = ({
       {
         element: getStepHeaderTarget("calificacion"),
         popover: {
-          title: `Paso ${califStepNum}: Hoja de Calificación Física`,
+          title: "Paso 2: Hoja de Calificación Física",
           description:
             "Adjunta la foto o escaneo de la hoja de calificaciones física con las notas y firmas del facilitador y participantes.",
         },
@@ -646,7 +611,7 @@ export const ParticipantForm = ({
       {
         element: getStepHeaderTarget("participantes"),
         popover: {
-          title: `Paso ${partStepNum}: Participantes y Calificaciones`,
+          title: "Paso 3: Participantes y Calificaciones",
           description:
             "Aquí revisas la nómina de participantes, corriges datos si es necesario y asignas las calificaciones de cada participante.",
         },
@@ -670,7 +635,7 @@ export const ParticipantForm = ({
       {
         element: getStepHeaderTarget("evidencias"),
         popover: {
-          title: `Paso ${evidStepNum}: Registro Fotográfico`,
+          title: "Paso 4: Registro Fotográfico",
           description:
             "Respaldo visual obligatorio de la realización del curso para los departamentos de Calidad y Capacitación.",
         },
@@ -686,7 +651,7 @@ export const ParticipantForm = ({
       {
         element: getStepHeaderTarget("envio"),
         popover: {
-          title: `Paso ${envioStepNum}: Revisión y Envío Final`,
+          title: "Paso 5: Revisión y Envío Final",
           description:
             "Consolidación final de todos los soportes y remisión oficial del servicio.",
         },
@@ -718,7 +683,7 @@ export const ParticipantForm = ({
     );
 
     return list;
-  }, [hasMaterial, getStepHeaderTarget, getStepTarget]);
+  }, [getStepHeaderTarget, getStepTarget]);
 
   const startTour = useCallback(() => {
     const driverInstance = driver({
@@ -982,7 +947,6 @@ export const ParticipantForm = ({
         <OSIWorkflowStepper
           currentStepId={activeStep}
           onStepSelect={goToStep}
-          hasMaterial={hasMaterial}
           isFinal={isFinal}
           completedSteps={completedSteps}
           onStartTour={startTour}
@@ -1061,19 +1025,7 @@ export const ParticipantForm = ({
 
       {/* ─── 2. ACTIVE STEP CONTAINER ─── */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden transition-all">
-        {/* STEP 1: MATERIAL DIDACTICO (IF APPLICABLE) */}
-        {activeStep === "material" && materialKit && (
-          <div className="p-4 sm:p-6 space-y-6">
-            <FacilitadorMaterialKit
-              kit={materialKit}
-              facilitadorId={facilitadorId}
-              facilitadorNombre={facilitadorNombre}
-              onContinue={() => goToStep("asistencia")}
-            />
-          </div>
-        )}
-
-        {/* STEP 2: LISTA DE ASISTENCIA & OCR */}
+        {/* STEP 1: LISTA DE ASISTENCIA & OCR */}
         {activeStep === "asistencia" && (
           <div className="p-4 sm:p-6 space-y-6">
             {/* Step Header */}
@@ -1081,7 +1033,7 @@ export const ParticipantForm = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
-                    {hasMaterial ? "2" : "1"}
+                    1
                   </span>
                   <h2 className="text-base sm:text-lg font-bold text-slate-900">
                     Cargar Lista de Asistencia Firmada
@@ -1193,7 +1145,7 @@ export const ParticipantForm = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
-                    {hasMaterial ? "3" : "2"}
+                    2
                   </span>
                   <h2 className="text-base sm:text-lg font-bold text-slate-900">
                     Cargar Hoja de Calificación Física
@@ -1306,7 +1258,7 @@ export const ParticipantForm = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
-                      {hasMaterial ? "4" : "3"}
+                      3
                     </span>
                     <h2 className="text-base sm:text-lg font-bold text-slate-900">
                       Registro de Participantes y Notas
@@ -1653,7 +1605,7 @@ export const ParticipantForm = ({
             <div className="pb-4 border-b border-slate-100 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
-                  {hasMaterial ? "5" : "4"}
+                  4
                 </span>
                 <h2 className="text-base sm:text-lg font-bold text-slate-900">
                   Registro Fotográfico
@@ -1728,7 +1680,7 @@ export const ParticipantForm = ({
             <div className="pb-4 border-b border-slate-100 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">
-                  {hasMaterial ? "6" : "5"}
+                  5
                 </span>
                 <h2 className="text-base sm:text-lg font-bold text-slate-900">
                   Resumen Ejecutivo y Declaración de Envío

@@ -18,7 +18,6 @@ import {
   clearLoginFailures,
 } from "@/lib/login-rate-limiter";
 import { hashPassword, verifyPassword, isBcryptHash } from "@/lib/password-hashing";
-import { isMaterialesEnabled } from "@/lib/materiales-flags";
 import { toTitleCase } from "@/utils/string-utils";
 
 // Legacy SHA-256 hash for verifying old (unmigrated) credentials
@@ -382,49 +381,8 @@ export async function getAssignedOSIs(facilitadorId: number) {
       attachmentsListByOsi.set(a.osi_id, list);
     }
 
-    const materialesActive = isMaterialesEnabled();
-    const courseMaterialsMap = new Map<number, number>();
-    const osiMaterialsMap = new Map<number, number>();
-    const courseNameToIdMap = new Map<string, number>();
-
-    if (materialesActive) {
-      // Fetch material existence for these OSIs / courses
-      const [materialsRes, coursesRes] = await Promise.all([
-        supabase
-          .from("capacitacion_material_didactico")
-          .select("id, id_curso, id_osi, tipo_material"),
-        supabase
-          .from("catalogo_servicios")
-          .select("id, nombre"),
-      ]);
-
-      for (const c of coursesRes.data || []) {
-        if (c.nombre) {
-          const norm = c.nombre.trim().toLowerCase();
-          courseNameToIdMap.set(norm, c.id);
-        }
-      }
-
-      for (const m of materialsRes.data || []) {
-        if (m.id_osi) {
-          osiMaterialsMap.set(m.id_osi, (osiMaterialsMap.get(m.id_osi) || 0) + 1);
-        }
-        if (m.id_curso) {
-          courseMaterialsMap.set(m.id_curso, (courseMaterialsMap.get(m.id_curso) || 0) + 1);
-        }
-      }
-    }
-
     enrichedData = enrichedData.map((osi: any) => {
       const sessionInfo = sessionsByOsi.get(osi.id_osi);
-      const osiServicioNorm = (osi.servicio || "").trim().toLowerCase();
-      const resolvedCourseId = osi.id_servicio || courseNameToIdMap.get(osiServicioNorm);
-
-      const matCount = materialesActive
-        ? (osiMaterialsMap.get(osi.id_osi) || 0) +
-          (resolvedCourseId ? courseMaterialsMap.get(resolvedCourseId) || 0 : 0)
-        : 0;
-
       const allSessionsForOsi = sessionsListByOsi.get(osi.id_osi) || [];
       const relevantSessions =
         sessionInfo && !sessionInfo.hasAllSessions && sessionInfo.specificSessions.length > 0
@@ -526,8 +484,6 @@ export async function getAssignedOSIs(facilitadorId: number) {
         assigned_sessions: sessionInfo?.specificSessions || [],
         assigned_all_sessions: sessionInfo?.hasAllSessions || false,
         session_count: getSessionCount(osi),
-        has_material: matCount > 0,
-        material_count: matCount,
         display_date,
         display_date_label,
         display_date_type,

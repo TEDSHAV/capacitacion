@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Presentation,
   FileSpreadsheet,
   Users,
   Camera,
@@ -11,7 +10,7 @@ import {
   Award,
 } from "lucide-react";
 
-export type WizardStepId = "material" | "asistencia" | "calificacion" | "participantes" | "evidencias" | "envio";
+export type WizardStepId = "asistencia" | "calificacion" | "participantes" | "evidencias" | "envio";
 
 export interface WizardStep {
   id: WizardStepId;
@@ -19,7 +18,7 @@ export interface WizardStep {
   title: string;
   shortTitle: string;
   desc: string;
-  icon: typeof Presentation;
+  icon: typeof FileSpreadsheet;
 }
 
 interface OSIWorkflowStepperProps {
@@ -31,20 +30,9 @@ interface OSIWorkflowStepperProps {
   onStartTour?: () => void;
 }
 
-export function getWizardSteps(hasMaterial: boolean): WizardStep[] {
+export function getWizardSteps(_hasMaterial?: boolean): WizardStep[] {
   const steps: WizardStep[] = [];
   let num = 1;
-
-  if (hasMaterial) {
-    steps.push({
-      id: "material",
-      number: num++,
-      title: "Material Didáctico",
-      shortTitle: "Material",
-      desc: "PPTX y Guías Oficiales",
-      icon: Presentation,
-    });
-  }
 
   steps.push({
     id: "asistencia",

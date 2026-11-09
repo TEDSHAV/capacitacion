@@ -20,8 +20,7 @@ import {
   DEFAULT_COURSE_CATEGORIES,
   resolveCourseCategory,
 } from "@/lib/course-categories";
-import { FolderOpen, AlertCircle, Presentation, EyeOff } from "lucide-react";
-import PresentationStudioModal from "./PresentationStudioModal";
+import { FolderOpen, AlertCircle, EyeOff } from "lucide-react";
 
 export default function GestionCursosClient({
   user,
@@ -38,7 +37,6 @@ export default function GestionCursosClient({
   const [creandoCurso, setCreandoCurso] = useState(false);
   const [editandoCurso, setEditandoCurso] = useState<number | null>(null);
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
-  const [estudioPresentacionAbierto, setEstudioPresentacionAbierto] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [cursosList, setCursosList] = useState<Curso[]>(cursos || []);
@@ -291,14 +289,6 @@ export default function GestionCursosClient({
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setEstudioPresentacionAbierto(true)}
-                className="inline-flex items-center space-x-2 px-3.5 py-2 border border-sky-300 text-sky-800 bg-sky-50 hover:bg-sky-100 rounded-lg text-sm font-semibold shadow-2xs transition-colors hover:border-sky-400"
-              >
-                <Presentation className="w-4 h-4 text-sky-700" />
-                <span>Prisma Studio</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => setGestionandoCategorias(true)}
                 className="inline-flex items-center space-x-2 px-3.5 py-2 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 rounded-lg text-sm font-semibold shadow-2xs transition-colors hover:border-gray-400"
               >
@@ -309,15 +299,6 @@ export default function GestionCursosClient({
             </div>
           </div>
         </div>
-
-        {/* Presentation Studio Modal */}
-        {estudioPresentacionAbierto && (
-          <PresentationStudioModal
-            isOpen={estudioPresentacionAbierto}
-            onClose={() => setEstudioPresentacionAbierto(false)}
-            cursosCatalogo={cursosList}
-          />
-        )}
 
         {/* Create/Edit Course Modal */}
         {(creandoCurso || editandoCurso) && (

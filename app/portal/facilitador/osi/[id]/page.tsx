@@ -3,7 +3,6 @@ import {
   getOSIParticipants,
 } from "@/app/actions/facilitador-portal";
 import { getOSIForControlServicios } from "@/app/actions/control-servicios";
-import { getMaterialKitForOSI } from "@/app/actions/material-didactico";
 import { createAdminClient } from "@/utils/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { ArrowLeft, Calendar, MapPin } from "lucide-react";
@@ -28,10 +27,9 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
   const osiId = parseInt(resolvedParams.id);
   if (isNaN(osiId)) notFound();
 
-  const [osi, participants, materialKitRes] = await Promise.all([
+  const [osi, participants] = await Promise.all([
     getOSIForControlServicios(osiId).catch(() => null),
     getOSIParticipants(osiId, session.facilitador_id),
-    getMaterialKitForOSI(osiId).catch(() => ({ data: null, error: null })),
   ]);
 
   if (!osi) notFound();
@@ -234,12 +232,11 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
         </div>
       </header>
 
-      {/* Guided Wizard: Stepper, Material Kit, Attendance, Participants, Photos, and Final Review */}
+      {/* Guided Wizard: Stepper, Attendance, Participants, Photos, and Final Review */}
       <ParticipantForm
         osiId={osiId}
         facilitadorId={session.facilitador_id}
         initialParticipants={participants.data || []}
-        materialKit={materialKitRes.data}
         osi={osi}
         assignedSession={targetSession}
         needsSessionPicker={false}
