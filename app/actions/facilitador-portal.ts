@@ -488,7 +488,10 @@ export async function getAssignedOSIs(facilitadorId: number) {
         const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
         const hasFotos = forSes.some((a) => a.category === "material_fotografico") || osi.id_estatus === 12;
         const partStatus = sessionStatusMap.get(`${osi.id_osi}_${n}`) || (n === 1 ? osiStatusMap.get(osi.id_osi) : null);
-        const isReceived = Boolean(sessionInfo?.receivedSessions.has(null) || sessionInfo?.receivedSessions.has(n));
+        const isReceived =
+          sessionNumbers.length > 1
+            ? Boolean(sessionInfo?.receivedSessions.has(n))
+            : Boolean(sessionInfo?.receivedSessions.has(null) || sessionInfo?.receivedSessions.has(n));
         const isSessionCompleted = (hasAsist && hasFotos && partStatus === "final") || isReceived;
 
         let sessionDate = found?.fecha_ejecutada || found?.fecha || null;
@@ -1297,35 +1300,107 @@ export async function markSessionCompletedDev(
 
   const { data: assignments, error: queryErr } = await supabase
     .from("facilitador_osi_assignments")
-    .select("id, attachment_received, nro_sesion")
+    .select("id, attachment_received, nro_sesion, assigned_by, source, is_active")
     .eq("osi_id", osiId)
-    .eq("facilitador_id", facilitadorId);
+    .eq("facilitador_id", facilitadorId)
+    .eq("is_active", true);
 
   if (queryErr) {
     return { success: false, error: queryErr.message };
   }
 
-  const target =
-    (assignments || []).find((a) => a.nro_sesion === nroSesion) ||
-    (assignments || []).find((a) => a.nro_sesion === null) ||
-    assignments?.[0];
+  // 1. If an exact assignment for nroSesion exists, toggle that specific row
+  const exactTarget = (assignments || []).find((a) => a.nro_sesion === nroSesion);
+  if (exactTarget) {
+    const newStatus = !exactTarget.attachment_received;
+    const { error: updateErr } = await supabase
+      .from("facilitador_osi_assignments")
+      .update({
+        attachment_received: newStatus,
+        attachment_received_at: newStatus ? new Date().toISOString() : null,
+      })
+      .eq("id", exactTarget.id);
 
-  if (!target) {
+    if (updateErr) return { success: false, error: updateErr.message };
+
+    revalidatePath("/portal/facilitador/dashboard");
+    revalidatePath(`/portal/facilitador/osi/${osiId}`);
+    return { success: true };
+  }
+
+  // 2. If no exact row for nroSesion exists, check for an all-sessions row (nro_sesion === null)
+  const allSessionsRow = (assignments || []).find((a) => a.nro_sesion === null);
+  if (!allSessionsRow) {
     return { success: false, error: "No se encontró asignación para esta sesión." };
   }
 
-  const newStatus = !target.attachment_received;
+  // Determine if this OSI has multiple sessions
+  const { data: osiSesRows } = await supabase
+    .from("osi_sesion")
+    .select("nro_sesion")
+    .eq("id_osi", osiId);
 
-  const { error: updateErr } = await supabase
-    .from("facilitador_osi_assignments")
-    .update({
-      attachment_received: newStatus,
-      attachment_received_at: newStatus ? new Date().toISOString() : null,
-    })
-    .eq("id", target.id);
+  const { data: osiRow } = await supabase
+    .from("v_osi_formato_completo")
+    .select("sesiones_programadas, sesiones_solped")
+    .eq("id_osi", osiId)
+    .maybeSingle();
 
-  if (updateErr) {
-    return { success: false, error: updateErr.message };
+  const totalSessionCount = Math.max(
+    osiSesRows?.length || 0,
+    osiRow?.sesiones_solped || 0,
+    Array.isArray(osiRow?.sesiones_programadas) ? osiRow.sesiones_programadas.length : 0,
+    1
+  );
+
+  if (totalSessionCount > 1) {
+    // Multi-session OSI: split all-sessions assignment into per-session rows so only nroSesion is completed
+    const { error: updateErr } = await supabase
+      .from("facilitador_osi_assignments")
+      .update({
+        nro_sesion: nroSesion,
+        attachment_received: true,
+        attachment_received_at: new Date().toISOString(),
+      })
+      .eq("id", allSessionsRow.id);
+
+    if (updateErr) return { success: false, error: updateErr.message };
+
+    const otherSessionsToInsert = [];
+    for (let s = 1; s <= totalSessionCount; s++) {
+      if (s !== nroSesion) {
+        otherSessionsToInsert.push({
+          osi_id: osiId,
+          facilitador_id: facilitadorId,
+          nro_sesion: s,
+          is_active: true,
+          attachment_received: false,
+          assigned_by: allSessionsRow.assigned_by,
+          source: allSessionsRow.source || "direct",
+        });
+      }
+    }
+
+    if (otherSessionsToInsert.length > 0) {
+      const { error: insertErr } = await supabase
+        .from("facilitador_osi_assignments")
+        .insert(otherSessionsToInsert);
+
+      if (insertErr) return { success: false, error: insertErr.message };
+    }
+  } else {
+    // Single session OSI
+    const newStatus = !allSessionsRow.attachment_received;
+    const { error: updateErr } = await supabase
+      .from("facilitador_osi_assignments")
+      .update({
+        nro_sesion: 1,
+        attachment_received: newStatus,
+        attachment_received_at: newStatus ? new Date().toISOString() : null,
+      })
+      .eq("id", allSessionsRow.id);
+
+    if (updateErr) return { success: false, error: updateErr.message };
   }
 
   revalidatePath("/portal/facilitador/dashboard");

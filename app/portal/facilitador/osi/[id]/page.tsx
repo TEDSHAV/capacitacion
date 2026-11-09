@@ -114,7 +114,10 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
 
   const finalizedSessionNums = relevantSessionNums.filter((ses) => {
     const isMarkedReceived = (assignments || []).some(
-      (a) => (a.nro_sesion === ses || a.nro_sesion == null) && a.attachment_received
+      (a) =>
+        (relevantSessionNums.length > 1
+          ? a.nro_sesion === ses
+          : a.nro_sesion === ses || a.nro_sesion == null) && a.attachment_received
     );
     if (isMarkedReceived) return true;
 
