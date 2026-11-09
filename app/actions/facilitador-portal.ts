@@ -242,10 +242,10 @@ export async function getAssignedOSIs(facilitadorId: number) {
   const supabase = await createAdminClient();
 
   // Query the facilitador_osi_assignments table (sole source of truth)
-  // Include nro_sesion so the dashboard can show which session(s) the facilitador is assigned to
+  // Include nro_sesion and attachment_received so the dashboard knows completion status
   const { data: assignments, error: assignError } = await supabase
     .from("facilitador_osi_assignments")
-    .select("osi_id, nro_sesion")
+    .select("osi_id, nro_sesion, attachment_received")
     .eq("facilitador_id", facilitadorId)
     .eq("is_active", true);
 
@@ -260,14 +260,17 @@ export async function getAssignedOSIs(facilitadorId: number) {
     return { data: [] };
   }
 
-  // Build a map: osi_id → { specificSessions: number[], hasAllSessions: boolean }
-  const sessionsByOsi = new Map<number, { specificSessions: number[]; hasAllSessions: boolean }>();
+  // Build a map: osi_id → { specificSessions: number[], hasAllSessions: boolean, receivedSessions: Set<number | null> }
+  const sessionsByOsi = new Map<number, { specificSessions: number[]; hasAllSessions: boolean; receivedSessions: Set<number | null> }>();
   for (const a of assignments || []) {
-    const entry = sessionsByOsi.get(a.osi_id) || { specificSessions: [], hasAllSessions: false };
+    const entry = sessionsByOsi.get(a.osi_id) || { specificSessions: [], hasAllSessions: false, receivedSessions: new Set<number | null>() };
     if (a.nro_sesion === null) {
       entry.hasAllSessions = true;
     } else {
       entry.specificSessions.push(a.nro_sesion);
+    }
+    if (a.attachment_received) {
+      entry.receivedSessions.add(a.nro_sesion);
     }
     sessionsByOsi.set(a.osi_id, entry);
   }
@@ -469,7 +472,8 @@ export async function getAssignedOSIs(facilitadorId: number) {
         const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
         const hasFotos = forSes.some((a) => a.category === "material_fotografico") || osi.id_estatus === 12;
         const partStatus = sessionStatusMap.get(`${osi.id_osi}_${n}`) || (n === 1 ? osiStatusMap.get(osi.id_osi) : null);
-        const isSessionCompleted = hasAsist && hasFotos && partStatus === "final";
+        const isReceived = Boolean(sessionInfo?.receivedSessions.has(null) || sessionInfo?.receivedSessions.has(n));
+        const isSessionCompleted = (hasAsist && hasFotos && partStatus === "final") || isReceived;
 
         let sessionDate = found?.fecha_ejecutada || found?.fecha || null;
         if (!sessionDate && Array.isArray(osi.sesiones_programadas) && osi.sesiones_programadas[n - 1]?.fecha) {
@@ -1230,8 +1234,9 @@ export async function saveParticipants(
 }
 
 /**
- * DEV ONLY: Quickly marks a session as completed for a facilitador by seeding dummy
- * attendance, photo, qualification, and a final participant if missing.
+ * DEV ONLY: Toggles attachment_received on the facilitador assignment row
+ * so the session marks as completed and moves out of "Pendientes" on the dashboard.
+ * Does NOT alter participants, files, nor process steps.
  * Strictly gated by process.env.NODE_ENV === "development".
  */
 export async function markSessionCompletedDev(
@@ -1245,152 +1250,41 @@ export async function markSessionCompletedDev(
 
   const supabase = await createAdminClient();
 
-  // 1. Ensure participant row with status 'final'
-  const { data: existingParts } = await supabase
-    .from("ejecucion_osi_participantes")
-    .select("id, status")
-    .eq("osi_id", osiId)
-    .eq("facilitador_id", facilitadorId)
-    .limit(10);
-
-  if (!existingParts || existingParts.length === 0) {
-    try {
-      await supabase.from("ejecucion_osi_participantes").insert({
-        osi_id: osiId,
-        facilitador_id: facilitadorId,
-        nombre_apellido: "Participante Verificado (Dev)",
-        cedula: "10000001",
-        score: "20",
-        status: "final",
-        nro_sesion: nroSesion,
-      });
-    } catch {
-      await supabase.from("ejecucion_osi_participantes").insert({
-        osi_id: osiId,
-        facilitador_id: facilitadorId,
-        nombre_apellido: "Participante Verificado (Dev)",
-        cedula: "10000001",
-        score: "20",
-        status: "final",
-      });
-    }
-  } else {
-    try {
-      await supabase
-        .from("ejecucion_osi_participantes")
-        .update({ status: "final", nro_sesion: nroSesion })
-        .eq("osi_id", osiId)
-        .eq("facilitador_id", facilitadorId);
-    } catch {
-      await supabase
-        .from("ejecucion_osi_participantes")
-        .update({ status: "final" })
-        .eq("osi_id", osiId)
-        .eq("facilitador_id", facilitadorId);
-    }
-  }
-
-  // 2. Ensure required attachments in ejecucion_osi_asistencia
-  const { data: existingAtts } = await supabase
-    .from("ejecucion_osi_asistencia")
-    .select("category")
+  const { data: assignments, error: queryErr } = await supabase
+    .from("facilitador_osi_assignments")
+    .select("id, attachment_received, nro_sesion")
     .eq("osi_id", osiId)
     .eq("facilitador_id", facilitadorId);
 
-  const categories = new Set((existingAtts || []).map((a) => a.category));
-  const dummyAtts = [];
-  if (!categories.has("lista_asistencia")) {
-    dummyAtts.push({
-      osi_id: osiId,
-      facilitador_id: facilitadorId,
-      category: "lista_asistencia",
-      file_name: "asistencia_dev.pdf",
-      storage_path: "dev/placeholder.pdf",
-      file_size: 1024,
-      content_type: "application/pdf",
-      nro_sesion: nroSesion,
-    });
-  }
-  if (!categories.has("hoja_calificacion")) {
-    dummyAtts.push({
-      osi_id: osiId,
-      facilitador_id: facilitadorId,
-      category: "hoja_calificacion",
-      file_name: "calificacion_dev.pdf",
-      storage_path: "dev/placeholder.pdf",
-      file_size: 1024,
-      content_type: "application/pdf",
-      nro_sesion: nroSesion,
-    });
-  }
-  if (!categories.has("material_fotografico")) {
-    dummyAtts.push({
-      osi_id: osiId,
-      facilitador_id: facilitadorId,
-      category: "material_fotografico",
-      file_name: "foto_dev.jpg",
-      storage_path: "dev/placeholder.jpg",
-      file_size: 1024,
-      content_type: "image/jpeg",
-      nro_sesion: nroSesion,
-    });
+  if (queryErr) {
+    return { success: false, error: queryErr.message };
   }
 
-  if (dummyAtts.length > 0) {
-    try {
-      await supabase.from("ejecucion_osi_asistencia").insert(dummyAtts);
-    } catch {
-      const stripped = dummyAtts.map(({ nro_sesion, ...rest }) => rest);
-      await supabase.from("ejecucion_osi_asistencia").insert(stripped);
-    }
+  const target =
+    (assignments || []).find((a) => a.nro_sesion === nroSesion) ||
+    (assignments || []).find((a) => a.nro_sesion === null) ||
+    assignments?.[0];
+
+  if (!target) {
+    return { success: false, error: "No se encontró asignación para esta sesión." };
   }
 
-  // 3. Set acknowledgment
-  try {
-    await supabase.from("facilitador_acknowledgments").upsert(
-      {
-        osi_id: osiId,
-        facilitador_id: facilitadorId,
-        nro_sesion: nroSesion,
-        acknowledged_at: new Date().toISOString(),
-      },
-      { onConflict: "osi_id,facilitador_id,nro_sesion" }
-    );
-  } catch {
-    await supabase.from("facilitador_acknowledgments").upsert(
-      {
-        osi_id: osiId,
-        facilitador_id: facilitadorId,
-        acknowledged_at: new Date().toISOString(),
-      },
-      { onConflict: "osi_id,facilitador_id" }
-    );
-  }
+  const newStatus = !target.attachment_received;
 
-  // 4. Mark tracking steps in capacitacion_proceso_steps
-  const now = new Date().toISOString();
-  try {
-    const stepsToMark = ["lista_asistencia", "calificacion", "material_fotografico", "nomina_participantes", "en_proceso"];
-    for (const stepKey of stepsToMark) {
-      await supabase
-        .from("capacitacion_proceso_steps")
-        .upsert(
-          {
-            osi_id: osiId,
-            nro_sesion: nroSesion,
-            phase: "ejecucion",
-            step_key: stepKey,
-            completed: true,
-            completed_at: now,
-          },
-          { onConflict: "osi_id,nro_sesion,phase,step_key" }
-        );
-    }
-  } catch {}
+  const { error: updateErr } = await supabase
+    .from("facilitador_osi_assignments")
+    .update({
+      attachment_received: newStatus,
+      attachment_received_at: newStatus ? new Date().toISOString() : null,
+    })
+    .eq("id", target.id);
+
+  if (updateErr) {
+    return { success: false, error: updateErr.message };
+  }
 
   revalidatePath("/portal/facilitador/dashboard");
   revalidatePath(`/portal/facilitador/osi/${osiId}`);
-  revalidatePath("/dashboard/capacitacion/seguimiento-servicios");
   return { success: true };
 }
 
