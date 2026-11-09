@@ -133,9 +133,27 @@ export default function FacilitadorDashboardClient({
 
     for (const osi of osis) {
       const sessions = osi.sessions_list && osi.sessions_list.length > 0 ? osi.sessions_list : [];
-      const isMulti = (osi.session_count && osi.session_count > 1) || sessions.length > 1;
+      const isMultiCourse = Boolean(
+        (osi.session_count && osi.session_count > 1) ||
+        sessions.length > 1 ||
+        (sessions[0]?.nro_sesion && sessions[0].nro_sesion > 1)
+      );
 
-      if (!isMulti || sessions.length <= 1) {
+      if (sessions.length > 0) {
+        for (const ses of sessions) {
+          const isSesDone = Boolean(ses.is_completed);
+          items.push({
+            key: `${osi.id_osi}_ses_${ses.nro_sesion}`,
+            osi,
+            targetSession: ses.nro_sesion,
+            isMultiSession: isMultiCourse,
+            sessionDate: ses.fecha_ejecutada || ses.fecha || osi.display_date || null,
+            isDone: isSesDone,
+            sessionStatus: ses.participant_status,
+            hasCertificates: Boolean(ses.has_certificates ?? osi.has_certificates),
+          });
+        }
+      } else {
         const isDone = isOsiDone(osi);
         items.push({
           key: `${osi.id_osi}_single`,
@@ -147,20 +165,6 @@ export default function FacilitadorDashboardClient({
           sessionStatus: osi.participant_status,
           hasCertificates: Boolean(osi.has_certificates),
         });
-      } else {
-        for (const ses of sessions) {
-          const isSesDone = Boolean(ses.is_completed);
-          items.push({
-            key: `${osi.id_osi}_ses_${ses.nro_sesion}`,
-            osi,
-            targetSession: ses.nro_sesion,
-            isMultiSession: true,
-            sessionDate: ses.fecha_ejecutada || ses.fecha || osi.display_date || null,
-            isDone: isSesDone,
-            sessionStatus: ses.participant_status,
-            hasCertificates: Boolean(ses.has_certificates ?? osi.has_certificates),
-          });
-        }
       }
     }
 

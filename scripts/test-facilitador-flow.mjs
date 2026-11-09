@@ -334,6 +334,41 @@ describe("4. Multi-Session Independent Completion & Clipboard Isolation", () => 
     assert.equal(finalizados[0].isDone, true);
   });
 
+  it("should preserve specific targetSession when facilitator is assigned only to Session 2 of a multi-session course", () => {
+    const osiWithOnlySession2Assigned = {
+      id_osi: 386,
+      nro_osi: "3609",
+      session_count: 3,
+      sessions_list: [
+        { nro_sesion: 2, is_completed: false, participant_status: "draft", fecha: "2026-10-26" },
+      ],
+    };
+
+    // Dashboard expansion logic as implemented in FacilitadorDashboardClient
+    const sessions = osiWithOnlySession2Assigned.sessions_list && osiWithOnlySession2Assigned.sessions_list.length > 0 ? osiWithOnlySession2Assigned.sessions_list : [];
+    const isMultiCourse =
+      (osiWithOnlySession2Assigned.session_count && osiWithOnlySession2Assigned.session_count > 1) ||
+      sessions.length > 1 ||
+      (sessions[0]?.nro_sesion && sessions[0].nro_sesion > 1);
+
+    const items = [];
+    if (sessions.length > 0) {
+      for (const ses of sessions) {
+        items.push({
+          key: `${osiWithOnlySession2Assigned.id_osi}_ses_${ses.nro_sesion}`,
+          targetSession: ses.nro_sesion,
+          isMultiSession: isMultiCourse,
+          isDone: Boolean(ses.is_completed),
+        });
+      }
+    }
+
+    assert.equal(items.length, 1);
+    assert.equal(items[0].targetSession, 2, "targetSession must be 2, not hardcoded to 1");
+    assert.equal(items[0].isMultiSession, true, "isMultiSession must be true for multi-session course");
+    assert.equal(items[0].key, "386_ses_2");
+  });
+
   it("should enforce clipboard isolation by facilitadorId", () => {
     const fakeSessionStorage = new Map();
     const saveClipboard = (facilitadorId, participants) => {

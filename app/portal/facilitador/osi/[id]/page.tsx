@@ -156,7 +156,7 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
       : relevantSessionNums[0] || 1;
 
   // Enforce canonical isolated URL if multi-session
-  if (relevantSessionNums.length > 1 && resolvedSearch.sesion !== String(targetSession)) {
+  if ((relevantSessionNums.length > 1 || (sessionCount > 1 && targetSession > 1)) && resolvedSearch.sesion !== String(targetSession)) {
     redirect(`/portal/facilitador/osi/${osiId}?sesion=${targetSession}`);
   }
 
