@@ -239,15 +239,59 @@ export async function generateDocumentsServer(
       localidad_cliente: osiData.direccion_ejecucion || "",
       fecha_ejecucion: osiData.fecha_ejecucion || "",
 
+      // Detect if Teoría/Práctica applies for this certificate batch
+      evaluacion_teorica_practica: certificates.some((cert) => {
+        let snap = cert.snapshot_contenido;
+        if (typeof snap === "string") {
+          try { snap = JSON.parse(snap); } catch {}
+        }
+        return (
+          cert.evaluacion_teorica_practica ||
+          snap?.curso?.evaluacion_teorica_practica ||
+          (cert.score_teorica != null && cert.score_practica != null) ||
+          (snap?.participante?.score_teorica != null && snap?.participante?.score_practica != null)
+        );
+      }),
+
       // Participants array with exact field names from templates
-      participantes: certificates.map((cert, index) => ({
-        index: index + 1,
-        nombre_apellido: cert.participant_name || "",
-        cedula: formatCedula(cert), // Use conditional formatting based on participant data
-        puntuacion: cert.score?.toString() || "",
-        condicion: cert.score && cert.score >= 14 ? "APROBADO" : "REPROBADO",
-        numero_control: cert.control_number?.toString() || "", // No fallback - use actual data only
-      })),
+      participantes: certificates.map((cert, index) => {
+        let snap = cert.snapshot_contenido;
+        if (typeof snap === "string") {
+          try { snap = JSON.parse(snap); } catch {}
+        }
+        const part = snap?.participante;
+        const teoria = cert.score_teorica ?? part?.score_teorica;
+        const practica = cert.score_practica ?? part?.score_practica;
+        const promedio = cert.score_promedio ?? part?.score_promedio;
+        const scoreVal = cert.score ?? part?.score ?? 0;
+        const isTeoriaPractica = Boolean(
+          cert.evaluacion_teorica_practica ||
+          snap?.curso?.evaluacion_teorica_practica ||
+          (teoria != null && practica != null)
+        );
+        const passingGrade = cert.passing_grade || snap?.certificado_detalles?.passing_grade || 14;
+
+        let effectiveScore = Number(scoreVal);
+        if (isTeoriaPractica && promedio != null && promedio !== "") {
+          effectiveScore = Number(promedio);
+        } else if (part?.score_post != null && part.score_post !== "") {
+          effectiveScore = Number(part.score_post);
+        }
+
+        const isAprobado = effectiveScore >= passingGrade;
+
+        return {
+          index: index + 1,
+          nombre_apellido: cert.participant_name || part?.name || "",
+          cedula: formatCedula(cert),
+          puntuacion: (part?.score_post != null ? part.score_post : (cert.score ?? part?.score))?.toString() || "",
+          condicion: isAprobado ? "APROBADO" : "REPROBADO",
+          numero_control: cert.control_number?.toString() || "",
+          teoria: teoria != null && teoria !== "" ? String(teoria) : "",
+          practica: practica != null && practica !== "" ? String(practica) : "",
+          promedio: promedio != null && promedio !== "" ? String(promedio) : (isTeoriaPractica ? String(effectiveScore) : ""),
+        };
+      }),
     } as TemplateData;
 
     const documents: { [key: string]: string } = {};

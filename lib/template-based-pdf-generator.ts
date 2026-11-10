@@ -330,19 +330,20 @@ export class TemplateBasedPdfGenerator {
       pdf.text("Puntuacion promedio", x + 2, y + rowH / 2 + 1.5);
       x += labelW;
 
-      // Score cell
-      pdf.rect(x, y, colWidths[3], rowH);
-      pdf.text(config.averageValue, x + colWidths[3] / 2, y + rowH / 2 + 1.5, {
-        align: "center",
-      });
-      x += colWidths[3];
-
-      // Condition cell empty
-      pdf.rect(x, y, colWidths[4], rowH);
-      x += colWidths[4];
-
-      // Control number cell empty
-      pdf.rect(x, y, colWidths[5], rowH);
+      // Draw remaining cells
+      // In 6-col mode (standard): score is at index 3, then empty cells at index 4 and 5
+      // In 8-col mode (teoria_practica): empty cells at 3 (teoria) and 4 (practica), score at 5 (promedio), empty cells at 6 and 7
+      const scoreColIdx = colWidths.length === 8 ? 5 : 3;
+      for (let ci = 3; ci < colWidths.length; ci++) {
+        pdf.rect(x, y, colWidths[ci], rowH);
+        if (ci === scoreColIdx) {
+          pdf.setFont("helvetica", "bold");
+          pdf.text(config.averageValue, x + colWidths[ci] / 2, y + rowH / 2 + 1.5, {
+            align: "center",
+          });
+        }
+        x += colWidths[ci];
+      }
       y += rowH;
     }
 
@@ -441,29 +442,76 @@ export class TemplateBasedPdfGenerator {
       pdf.text("La nota mínima aprobatoria es de 14 puntos.", ML, y);
       y += 10;
 
-      const certHeaders = [
-        "N°",
-        "NOMBRE Y APELLIDO",
-        "CÉDULA",
-        "PUNTUACIÓN",
-        "CONDICIÓN",
-        "N° DE\nCONTROL",
-      ];
-      const certColWidths = [10, 50, 40, 25, 30, 30];
-      const certRows: string[][] = data.participantes.map((p, i) => {
-        return [
+      const isTeoriaPractica = Boolean(data.evaluacion_teorica_practica);
+
+      let certHeaders: string[];
+      let certColWidths: number[];
+      let certRows: string[][];
+      let certAlignments: ("left" | "center" | "right" | "center-left")[];
+
+      if (isTeoriaPractica) {
+        certHeaders = [
+          "N°",
+          "NOMBRE Y APELLIDO",
+          "CÉDULA",
+          "TEORÍA",
+          "PRÁCTICA",
+          "PROMEDIO",
+          "CONDICIÓN",
+          "N° DE\nCONTROL",
+        ];
+        certColWidths = [8, 45, 32, 20, 20, 20, 22, 18];
+        certAlignments = [
+          "center",
+          "left",
+          "center-left",
+          "center",
+          "center",
+          "center",
+          "center",
+          "center",
+        ];
+        certRows = data.participantes.map((p, i) => [
+          String(p.index ?? i + 1),
+          (p.nombre_apellido || "").toUpperCase(),
+          p.cedula ? p.cedula.replace(/^[ve]/, (c) => c.toUpperCase()) : "",
+          p.teoria || "",
+          p.practica || "",
+          p.promedio || p.puntuacion || "",
+          p.condicion || "",
+          p.numero_control || "",
+        ]);
+      } else {
+        certHeaders = [
+          "N°",
+          "NOMBRE Y APELLIDO",
+          "CÉDULA",
+          "PUNTUACIÓN",
+          "CONDICIÓN",
+          "N° DE\nCONTROL",
+        ];
+        certColWidths = [10, 50, 40, 25, 30, 30];
+        certAlignments = [
+          "center",
+          "left",
+          "center-left",
+          "center",
+          "center",
+          "center",
+        ];
+        certRows = data.participantes.map((p, i) => [
           String(p.index ?? i + 1),
           (p.nombre_apellido || "").toUpperCase(),
           p.cedula ? p.cedula.replace(/^[ve]/, (c) => c.toUpperCase()) : "",
           p.puntuacion || "",
           p.condicion || "",
           p.numero_control || "",
-        ];
-      });
+        ]);
+      }
 
       // Calculate average score
       const validScores = data.participantes
-        .map((p) => Number(p.puntuacion))
+        .map((p) => Number(isTeoriaPractica ? (p.promedio || p.puntuacion) : p.puntuacion))
         .filter((score) => !isNaN(score) && score > 0);
       const averageScore =
         validScores.length > 0
@@ -487,14 +535,7 @@ export class TemplateBasedPdfGenerator {
           codigo: "SHA-RG-CAP-006",
           showAverage: true,
           averageValue: averageScore,
-          alignments: [
-            "center",
-            "left",
-            "center-left",
-            "center",
-            "center",
-            "center",
-          ],
+          alignments: certAlignments,
         },
       );
       y += 10;

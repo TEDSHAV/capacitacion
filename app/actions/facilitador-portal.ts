@@ -944,20 +944,51 @@ export async function saveParticipants(
       const name = (p.nombre_apellido || "").trim();
       const cedula = (p.cedula || "").trim();
 
-      if (name || cedula || (p.score !== null && p.score !== undefined && p.score !== "")) {
+      if (name || cedula || (p.score !== null && p.score !== undefined && p.score !== "") || p.score_pre || p.score_post || p.score_teorica || p.score_practica) {
         if (!name || name.length < 2) {
           return { error: `El participante en la fila ${i + 1} debe tener nombre y apellido completos.` };
         }
         if (!cedula || cedula.length < 4) {
           return { error: `El participante ${name || `#${i + 1}`} debe tener una cédula válida.` };
         }
-        const scoreVal = p.score;
-        if (scoreVal === null || scoreVal === undefined || scoreVal === "") {
-          return { error: `El participante ${name} no tiene calificación asignada. Todos deben tener nota de 0 a 20.` };
-        }
-        const numScore = Number(scoreVal);
-        if (isNaN(numScore) || numScore < 0 || numScore > 20) {
-          return { error: `La calificación de ${name} (${scoreVal}) no es válida. Debe ser un número entre 0 y 20.` };
+
+        if (p.tipo_evaluacion === "teoria_practica") {
+          const teoricaVal = p.score_teorica;
+          const practicaVal = p.score_practica;
+          if (teoricaVal === null || teoricaVal === undefined || teoricaVal === "") {
+            return { error: `El participante ${name} no tiene calificación teórica asignada (0 a 20).` };
+          }
+          if (practicaVal === null || practicaVal === undefined || practicaVal === "") {
+            return { error: `El participante ${name} no tiene calificación práctica asignada (0 a 20).` };
+          }
+          const numT = Number(teoricaVal);
+          const numP = Number(practicaVal);
+          if (isNaN(numT) || numT < 0 || numT > 20 || isNaN(numP) || numP < 0 || numP > 20) {
+            return { error: `Las calificaciones teórica y práctica de ${name} deben ser números entre 0 y 20.` };
+          }
+        } else if (p.tipo_evaluacion === "pre_post") {
+          const preVal = p.score_pre;
+          const postVal = p.score_post;
+          if (preVal === null || preVal === undefined || preVal === "") {
+            return { error: `El participante ${name} no tiene calificación de pre-evaluación asignada (0 a 20).` };
+          }
+          if (postVal === null || postVal === undefined || postVal === "") {
+            return { error: `El participante ${name} no tiene calificación de post-evaluación asignada (0 a 20).` };
+          }
+          const numPre = Number(preVal);
+          const numPost = Number(postVal);
+          if (isNaN(numPre) || numPre < 0 || numPre > 20 || isNaN(numPost) || numPost < 0 || numPost > 20) {
+            return { error: `Las calificaciones de pre y post evaluación de ${name} deben ser números entre 0 y 20.` };
+          }
+        } else {
+          const scoreVal = p.score;
+          if (scoreVal === null || scoreVal === undefined || scoreVal === "") {
+            return { error: `El participante ${name} no tiene calificación asignada. Todos deben tener nota de 0 a 20.` };
+          }
+          const numScore = Number(scoreVal);
+          if (isNaN(numScore) || numScore < 0 || numScore > 20) {
+            return { error: `La calificación de ${name} (${scoreVal}) no es válida. Debe ser un número entre 0 y 20.` };
+          }
         }
       }
     }
@@ -1110,15 +1141,49 @@ export async function saveParticipants(
     return { error: deleteError.message };
   }
 
-  const recordsWithSession = participants.map((p) => ({
-    osi_id: osiId,
-    facilitador_id: facilitadorId,
-    nro_sesion: nroSesion,
-    nombre_apellido: p.nombre_apellido,
-    cedula: p.cedula,
-    score: p.score != null && p.score !== "" ? Number(p.score) : 0,
-    status: status,
-  }));
+  const recordsWithSession = participants.map((p) => {
+    let qualScore = 0;
+    let computedPromedio: number | null = null;
+    if (p.tipo_evaluacion === "teoria_practica") {
+      const t = p.score_teorica != null && p.score_teorica !== "" ? Number(p.score_teorica) : null;
+      const pr = p.score_practica != null && p.score_practica !== "" ? Number(p.score_practica) : null;
+      if (t != null && pr != null) {
+        computedPromedio = Math.round(((t + pr) / 2) * 100) / 100;
+        qualScore = computedPromedio;
+      } else if (p.score != null && p.score !== "") {
+        qualScore = Number(p.score);
+      }
+    } else if (p.tipo_evaluacion === "pre_post") {
+      const pre = p.score_pre != null && p.score_pre !== "" ? Number(p.score_pre) : null;
+      const post = p.score_post != null && p.score_post !== "" ? Number(p.score_post) : null;
+      if (post != null) {
+        qualScore = post;
+      } else if (p.score != null && p.score !== "") {
+        qualScore = Number(p.score);
+      }
+      if (pre != null && post != null) {
+        computedPromedio = Math.round(((pre + post) / 2) * 100) / 100;
+      }
+    } else {
+      qualScore = p.score != null && p.score !== "" ? Number(p.score) : 0;
+    }
+
+    return {
+      osi_id: osiId,
+      facilitador_id: facilitadorId,
+      nro_sesion: nroSesion,
+      nombre_apellido: p.nombre_apellido,
+      cedula: p.cedula,
+      score: qualScore,
+      score_pre: p.score_pre != null && p.score_pre !== "" ? Number(p.score_pre) : null,
+      score_post: p.score_post != null && p.score_post !== "" ? Number(p.score_post) : null,
+      score_teorica: p.score_teorica != null && p.score_teorica !== "" ? Number(p.score_teorica) : null,
+      score_practica: p.score_practica != null && p.score_practica !== "" ? Number(p.score_practica) : null,
+      score_promedio: p.score_promedio != null && p.score_promedio !== "" ? Number(p.score_promedio) : computedPromedio,
+      tipo_evaluacion: p.tipo_evaluacion || "standard",
+      status: status,
+    };
+  });
 
   if (recordsWithSession.length === 0) {
     // Clear acknowledgment if participants are cleared
@@ -1146,19 +1211,36 @@ export async function saveParticipants(
     .insert(recordsWithSession);
 
   if (insertError && insertError.code === "42703") {
-    // Fallback without nro_sesion if column not yet migrated
-    const recordsWithoutSession = participants.map((p) => ({
-      osi_id: osiId,
-      facilitador_id: facilitadorId,
-      nombre_apellido: p.nombre_apellido,
-      cedula: p.cedula,
-      score: p.score != null && p.score !== "" ? Number(p.score) : 0,
-      status: status,
+    // 1st Fallback: keep nro_sesion, strip multi-score columns if not yet migrated
+    const recordsWithSessionOnly = recordsWithSession.map((r) => ({
+      osi_id: r.osi_id,
+      facilitador_id: r.facilitador_id,
+      nro_sesion: r.nro_sesion,
+      nombre_apellido: r.nombre_apellido,
+      cedula: r.cedula,
+      score: r.score,
+      status: r.status,
     }));
-    const fbInsert = await supabase
+    let fbInsert = await supabase
       .from("ejecucion_osi_participantes")
-      .insert(recordsWithoutSession);
+      .insert(recordsWithSessionOnly);
     insertError = fbInsert.error;
+
+    if (insertError && insertError.code === "42703") {
+      // 2nd Fallback: strip nro_sesion as well
+      const recordsWithoutSession = recordsWithSession.map((r) => ({
+        osi_id: r.osi_id,
+        facilitador_id: r.facilitador_id,
+        nombre_apellido: r.nombre_apellido,
+        cedula: r.cedula,
+        score: r.score,
+        status: r.status,
+      }));
+      fbInsert = await supabase
+        .from("ejecucion_osi_participantes")
+        .insert(recordsWithoutSession);
+      insertError = fbInsert.error;
+    }
   }
 
   if (insertError) {

@@ -11,6 +11,11 @@ export interface TemplateParticipant {
   puntuacion?: string;
   condicion?: string;
   numero_control: string;
+  teoria?: string;
+  practica?: string;
+  promedio?: string;
+  pre?: string;
+  post?: string;
 }
 
 export interface TemplateData {
@@ -30,6 +35,7 @@ export interface TemplateData {
   localidad?: string;
   localidad_cliente?: string;
   fecha_ejecucion?: string;
+  evaluacion_teorica_practica?: boolean;
   participantes: TemplateParticipant[];
 }
 

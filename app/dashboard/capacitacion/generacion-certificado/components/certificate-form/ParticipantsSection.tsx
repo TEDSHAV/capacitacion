@@ -98,6 +98,12 @@ export const ParticipantsSection = ({
           name: toTitleCase(p.nombre_apellido),
           idNumber: p.cedula,
           score: p.score != null && p.score !== "" ? Number(p.score) : 0,
+          score_pre: p.score_pre != null && p.score_pre !== "" ? Number(p.score_pre) : undefined,
+          score_post: p.score_post != null && p.score_post !== "" ? Number(p.score_post) : undefined,
+          score_teorica: p.score_teorica != null && p.score_teorica !== "" ? Number(p.score_teorica) : undefined,
+          score_practica: p.score_practica != null && p.score_practica !== "" ? Number(p.score_practica) : undefined,
+          score_promedio: p.score_promedio != null && p.score_promedio !== "" ? Number(p.score_promedio) : undefined,
+          tipo_evaluacion: p.tipo_evaluacion || undefined,
           nationality: "venezolano" as const, // Fixed TS error: string not assignable to union
         }));
 

@@ -47,6 +47,12 @@ export interface Participant {
   nombre_apellido: string;
   cedula: string;
   score: string | number;
+  score_pre?: string | number | null;
+  score_post?: string | number | null;
+  score_teorica?: string | number | null;
+  score_practica?: string | number | null;
+  score_promedio?: string | number | null;
+  tipo_evaluacion?: "standard" | "pre_post" | "teoria_practica";
   nationality?: "venezolano" | "extranjero";
   seniatVerification?: ParticipantVerificationResult;
 }
@@ -78,6 +84,8 @@ export interface ParticipantFormProps {
     hora_fin?: string | null;
   }>;
   hasCertificates?: boolean;
+  isPlanta?: boolean;
+  evaluacionTeoricaPractica?: boolean;
 }
 
 function formatSessionDate(dateStr?: string | null): string {
@@ -115,9 +123,62 @@ export const ParticipantForm = ({
   notaAprobatoria = 14,
   sessionsInfo = [],
   hasCertificates = false,
+  isPlanta = false,
+  evaluacionTeoricaPractica = false,
 }: ParticipantFormProps) => {
   const passingGrade = typeof notaAprobatoria === "number" ? notaAprobatoria : 14;
   const isParticipationOnly = passingGrade === 0;
+
+  const initialHasPrePost = useMemo(() => {
+    return (initialParticipants as any[]).some(
+      (p) =>
+        (p.score_pre !== null && p.score_pre !== undefined && p.score_pre !== "") ||
+        (p.score_post !== null && p.score_post !== undefined && p.score_post !== "") ||
+        p.tipo_evaluacion === "pre_post"
+    );
+  }, [initialParticipants]);
+
+  // Pre/Post toggle state: only active if course does NOT require Teoría y Práctica (Teoría/Práctica takes precedence)
+  const [isPrePostEnabled, setIsPrePostEnabled] = useState<boolean>(() => {
+    if (evaluacionTeoricaPractica) return false;
+    return initialHasPrePost || Boolean(isPlanta);
+  });
+
+  const effectiveEvaluationMode: "standard" | "pre_post" | "teoria_practica" = useMemo(() => {
+    if (evaluacionTeoricaPractica) return "teoria_practica";
+    if (isPrePostEnabled) return "pre_post";
+    return "standard";
+  }, [evaluacionTeoricaPractica, isPrePostEnabled]);
+
+  const handleTogglePrePost = (checked: boolean) => {
+    setIsPrePostEnabled(checked);
+    setParticipants((prev) =>
+      prev.map((p) => {
+        if (checked) {
+          const postVal = p.score_post !== "" && p.score_post != null ? p.score_post : p.score;
+          const preVal = p.score_pre ?? "";
+          let avg: string | number = "";
+          if (preVal !== "" && postVal !== "") {
+            avg = Math.round(((Number(preVal) + Number(postVal)) / 2) * 100) / 100;
+          }
+          return {
+            ...p,
+            score: postVal ?? "",
+            score_post: postVal ?? "",
+            score_pre: preVal,
+            score_promedio: avg,
+            tipo_evaluacion: "pre_post",
+          };
+        } else {
+          return {
+            ...p,
+            score: p.score_post || p.score || "",
+            tipo_evaluacion: "standard",
+          };
+        }
+      })
+    );
+  };
 
   const steps = useMemo(() => getWizardSteps(), []);
 
@@ -164,6 +225,12 @@ export const ParticipantForm = ({
         nombre_apellido: toTitleCase(p.nombre_apellido),
         cedula: p.cedula,
         score: p.score ?? "",
+        score_pre: p.score_pre != null ? String(p.score_pre) : "",
+        score_post: p.score_post != null ? String(p.score_post) : "",
+        score_teorica: p.score_teorica != null ? String(p.score_teorica) : "",
+        score_practica: p.score_practica != null ? String(p.score_practica) : "",
+        score_promedio: p.score_promedio != null ? String(p.score_promedio) : "",
+        tipo_evaluacion: p.tipo_evaluacion || undefined,
         nationality: p.nationality || "venezolano",
       });
     }
@@ -178,9 +245,15 @@ export const ParticipantForm = ({
           nombre_apellido: toTitleCase(p.nombre_apellido),
           cedula: p.cedula,
           score: p.score ?? "",
+          score_pre: p.score_pre != null ? String(p.score_pre) : "",
+          score_post: p.score_post != null ? String(p.score_post) : "",
+          score_teorica: p.score_teorica != null ? String(p.score_teorica) : "",
+          score_practica: p.score_practica != null ? String(p.score_practica) : "",
+          score_promedio: p.score_promedio != null ? String(p.score_promedio) : "",
+          tipo_evaluacion: p.tipo_evaluacion || undefined,
           nationality: (p.nationality === "extranjero" ? "extranjero" : "venezolano") as "venezolano" | "extranjero",
         }))
-      : [{ nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" as const }];
+      : [{ nombre_apellido: "", cedula: "", score: "", score_pre: "", score_post: "", score_teorica: "", score_practica: "", score_promedio: "", nationality: "venezolano" as const }];
 
   const [participants, setParticipants] = useState<Participant[]>(initialList);
   const [isFinal, setIsFinal] = useState<boolean>(finalizedSessions.has(defaultInitialSession) || initialIsFinal);
@@ -421,6 +494,97 @@ export const ParticipantForm = ({
 
   const validCedulasCount = participants.filter((p) => p.cedula.trim()).length;
 
+  const checkIsParticipantApproved = useCallback(
+    (p: Participant) => {
+      if (effectiveEvaluationMode === "teoria_practica") {
+        if (p.score_promedio === "" || p.score_promedio == null) return false;
+        const num = Number(p.score_promedio);
+        if (isNaN(num)) return false;
+        return isParticipationOnly ? true : num >= passingGrade;
+      }
+      if (effectiveEvaluationMode === "pre_post") {
+        if (p.score_post === "" || p.score_post == null) return false;
+        const num = Number(p.score_post);
+        if (isNaN(num)) return false;
+        return isParticipationOnly ? true : num >= passingGrade;
+      }
+      const num = Number(p.score);
+      if (p.score === "" || isNaN(num)) return false;
+      return isParticipationOnly ? true : num >= passingGrade;
+    },
+    [effectiveEvaluationMode, isParticipationOnly, passingGrade],
+  );
+
+  const checkIsParticipantFailed = useCallback(
+    (p: Participant) => {
+      if (isParticipationOnly) return false;
+      if (effectiveEvaluationMode === "teoria_practica") {
+        if (p.score_promedio === "" || p.score_promedio == null) return false;
+        const num = Number(p.score_promedio);
+        return !isNaN(num) && num < passingGrade;
+      }
+      if (effectiveEvaluationMode === "pre_post") {
+        if (p.score_post === "" || p.score_post == null) return false;
+        const num = Number(p.score_post);
+        return !isNaN(num) && num < passingGrade;
+      }
+      if (p.score === "" || p.score == null) return false;
+      const num = Number(p.score);
+      return !isNaN(num) && num < passingGrade;
+    },
+    [effectiveEvaluationMode, isParticipationOnly, passingGrade],
+  );
+
+  const checkHasMissingScore = useCallback(
+    (p: Participant) => {
+      if (effectiveEvaluationMode === "teoria_practica") {
+        return (
+          p.score_teorica === "" || p.score_teorica == null ||
+          p.score_practica === "" || p.score_practica == null
+        );
+      }
+      if (effectiveEvaluationMode === "pre_post") {
+        return (
+          p.score_pre === "" || p.score_pre == null ||
+          p.score_post === "" || p.score_post == null
+        );
+      }
+      return p.score === "" || p.score == null;
+    },
+    [effectiveEvaluationMode],
+  );
+
+  const checkHasInvalidScore = useCallback(
+    (p: Participant) => {
+      if (effectiveEvaluationMode === "teoria_practica") {
+        if (p.score_teorica !== "" && p.score_teorica != null) {
+          const t = Number(p.score_teorica);
+          if (isNaN(t) || t < 0 || t > 20) return true;
+        }
+        if (p.score_practica !== "" && p.score_practica != null) {
+          const pr = Number(p.score_practica);
+          if (isNaN(pr) || pr < 0 || pr > 20) return true;
+        }
+        return false;
+      }
+      if (effectiveEvaluationMode === "pre_post") {
+        if (p.score_pre !== "" && p.score_pre != null) {
+          const pre = Number(p.score_pre);
+          if (isNaN(pre) || pre < 0 || pre > 20) return true;
+        }
+        if (p.score_post !== "" && p.score_post != null) {
+          const post = Number(p.score_post);
+          if (isNaN(post) || post < 0 || post > 20) return true;
+        }
+        return false;
+      }
+      if (p.score === "" || p.score == null) return false;
+      const num = Number(p.score);
+      return isNaN(num) || num < 0 || num > 20;
+    },
+    [effectiveEvaluationMode],
+  );
+
   const isPassing = (scoreVal: string | number) => {
     if (scoreVal === "" || scoreVal === null || scoreVal === undefined) return false;
     const num = Number(scoreVal);
@@ -435,30 +599,41 @@ export const ParticipantForm = ({
     return isParticipationOnly ? false : num < passingGrade;
   };
 
-  const aprobadosCount = participants.filter((p) => isPassing(p.score)).length;
-  const reprobadosCount = participants.filter((p) => isFailing(p.score)).length;
+  const aprobadosCount = participants.filter(checkIsParticipantApproved).length;
+  const reprobadosCount = participants.filter(checkIsParticipantFailed).length;
 
   // Grade count based on valid participants with name & cedula
-  const sinNotaCount = validParticipants.filter(
-    (p) => p.score === "" || p.score === null || p.score === undefined
-  ).length;
+  const sinNotaCount = validParticipants.filter(checkHasMissingScore).length;
 
-  const filledParticipants = participants.filter(
-    (p) =>
+  const filledParticipants = participants.filter((p) => {
+    if (effectiveEvaluationMode === "teoria_practica") {
+      return (
+        p.nombre_apellido.trim() ||
+        p.cedula.trim() ||
+        (p.score_teorica !== "" && p.score_teorica != null) ||
+        (p.score_practica !== "" && p.score_practica != null)
+      );
+    }
+    if (effectiveEvaluationMode === "pre_post") {
+      return (
+        p.nombre_apellido.trim() ||
+        p.cedula.trim() ||
+        (p.score_pre !== "" && p.score_pre != null) ||
+        (p.score_post !== "" && p.score_post != null)
+      );
+    }
+    return (
       p.nombre_apellido.trim() ||
       p.cedula.trim() ||
       (p.score !== "" && p.score !== null && p.score !== undefined)
-  );
+    );
+  });
   const hasIncompleteRows = filledParticipants.some(
     (p) => !p.nombre_apellido.trim() || !p.cedula.trim()
   );
 
   // Check for scores out of 0-20 scale
-  const hasInvalidScoreRange = validParticipants.some((p) => {
-    if (p.score === "" || p.score === null || p.score === undefined) return false;
-    const num = Number(p.score);
-    return isNaN(num) || num < 0 || num > 20;
-  });
+  const hasInvalidScoreRange = validParticipants.some(checkHasInvalidScore);
 
   // Check which sessions are missing required attachments
   const sessionsMissingAttachments = useMemo(() => {
@@ -718,7 +893,18 @@ export const ParticipantForm = ({
   const addParticipant = () => {
     setParticipants([
       ...participants,
-      { nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" },
+      {
+        nombre_apellido: "",
+        cedula: "",
+        score: "",
+        score_pre: "",
+        score_post: "",
+        score_teorica: "",
+        score_practica: "",
+        score_promedio: "",
+        tipo_evaluacion: effectiveEvaluationMode,
+        nationality: "venezolano",
+      },
     ]);
     setSuccess(null);
   };
@@ -731,7 +917,20 @@ export const ParticipantForm = ({
   };
 
   const handleClearAll = () => {
-    setParticipants([{ nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" }]);
+    setParticipants([
+      {
+        nombre_apellido: "",
+        cedula: "",
+        score: "",
+        score_pre: "",
+        score_post: "",
+        score_teorica: "",
+        score_practica: "",
+        score_promedio: "",
+        tipo_evaluacion: effectiveEvaluationMode,
+        nationality: "venezolano",
+      },
+    ]);
     setSuccess(null);
     setError(null);
     setUploadStatus(null);
@@ -740,7 +939,44 @@ export const ParticipantForm = ({
 
   const updateParticipant = (index: number, field: keyof Participant, value: string) => {
     const newParticipants = [...participants];
-    newParticipants[index] = { ...newParticipants[index], [field]: value };
+    const updated = { ...newParticipants[index], [field]: value };
+
+    if (effectiveEvaluationMode === "teoria_practica") {
+      const t = field === "score_teorica" ? value : updated.score_teorica;
+      const pr = field === "score_practica" ? value : updated.score_practica;
+      const numT = t !== "" && t !== null && t !== undefined ? Number(t) : null;
+      const numP = pr !== "" && pr !== null && pr !== undefined ? Number(pr) : null;
+      if (numT !== null && numP !== null && !isNaN(numT) && !isNaN(numP)) {
+        const avg = Math.round(((numT + numP) / 2) * 100) / 100;
+        updated.score_promedio = avg;
+        updated.score = avg;
+      } else {
+        updated.score_promedio = "";
+        updated.score = "";
+      }
+      updated.tipo_evaluacion = "teoria_practica";
+    } else if (effectiveEvaluationMode === "pre_post") {
+      const pre = field === "score_pre" ? value : updated.score_pre;
+      const post = field === "score_post" ? value : updated.score_post;
+      const numPre = pre !== "" && pre !== null && pre !== undefined ? Number(pre) : null;
+      const numPost = post !== "" && post !== null && post !== undefined ? Number(post) : null;
+      if (numPost !== null && !isNaN(numPost)) {
+        updated.score = numPost;
+      } else {
+        updated.score = "";
+      }
+      if (numPre !== null && numPost !== null && !isNaN(numPre) && !isNaN(numPost)) {
+        const avg = Math.round(((numPre + numPost) / 2) * 100) / 100;
+        updated.score_promedio = avg;
+      } else {
+        updated.score_promedio = "";
+      }
+      updated.tipo_evaluacion = "pre_post";
+    } else {
+      updated.tipo_evaluacion = "standard";
+    }
+
+    newParticipants[index] = updated;
     setParticipants(newParticipants);
     setSuccess(null);
     setError(null);
@@ -772,6 +1008,10 @@ export const ParticipantForm = ({
           setError("Por favor completa el nombre y cédula de todos los participantes ingresados.");
         } else if (hasInvalidScoreRange) {
           setError("Todas las calificaciones deben ser números válidos entre 0 y 20.");
+        } else if (effectiveEvaluationMode === "teoria_practica") {
+          setError("Todos los participantes deben tener calificación teórica y práctica asignadas (0 a 20).");
+        } else if (effectiveEvaluationMode === "pre_post") {
+          setError("Todos los participantes deben tener calificación de pre y post evaluación asignadas (0 a 20).");
         } else {
           setError("Todos los participantes deben tener su calificación asignada (escala de 0 a 20).");
         }
@@ -802,11 +1042,45 @@ export const ParticipantForm = ({
         ? participants.filter((p) => p.nombre_apellido && p.cedula)
         : participants;
 
-    const mappedParticipants = participantsToSave.map((p) => ({
-      nombre_apellido: toTitleCase(p.nombre_apellido.trim()),
-      cedula: p.cedula,
-      score: p.score === "" || p.score === null || p.score === undefined ? 0 : Number(p.score),
-    }));
+    const mappedParticipants = participantsToSave.map((p) => {
+      let qualScore = 0;
+      let computedPromedio: number | null = null;
+      if (effectiveEvaluationMode === "teoria_practica") {
+        const t = p.score_teorica !== "" && p.score_teorica != null ? Number(p.score_teorica) : null;
+        const pr = p.score_practica !== "" && p.score_practica != null ? Number(p.score_practica) : null;
+        if (t != null && pr != null) {
+          computedPromedio = Math.round(((t + pr) / 2) * 100) / 100;
+          qualScore = computedPromedio;
+        } else if (p.score !== "" && p.score != null) {
+          qualScore = Number(p.score);
+        }
+      } else if (effectiveEvaluationMode === "pre_post") {
+        const pre = p.score_pre !== "" && p.score_pre != null ? Number(p.score_pre) : null;
+        const post = p.score_post !== "" && p.score_post != null ? Number(p.score_post) : null;
+        if (post != null) {
+          qualScore = post;
+        } else if (p.score !== "" && p.score != null) {
+          qualScore = Number(p.score);
+        }
+        if (pre != null && post != null) {
+          computedPromedio = Math.round(((pre + post) / 2) * 100) / 100;
+        }
+      } else {
+        qualScore = p.score !== "" && p.score != null ? Number(p.score) : 0;
+      }
+
+      return {
+        nombre_apellido: toTitleCase(p.nombre_apellido.trim()),
+        cedula: p.cedula,
+        score: qualScore,
+        score_pre: p.score_pre !== "" && p.score_pre != null ? Number(p.score_pre) : null,
+        score_post: p.score_post !== "" && p.score_post != null ? Number(p.score_post) : null,
+        score_teorica: p.score_teorica !== "" && p.score_teorica != null ? Number(p.score_teorica) : null,
+        score_practica: p.score_practica !== "" && p.score_practica != null ? Number(p.score_practica) : null,
+        score_promedio: p.score_promedio !== "" && p.score_promedio != null ? Number(p.score_promedio) : computedPromedio,
+        tipo_evaluacion: effectiveEvaluationMode,
+      };
+    });
 
     if (!navigator.onLine) {
       try {
@@ -921,13 +1195,22 @@ export const ParticipantForm = ({
   };
 
   const handleAddScannedParticipants = (scanned: CertificateParticipant[]) => {
-    const mapped: Participant[] = scanned.map((p) => ({
-      nombre_apellido: toTitleCase(p.name),
-      cedula: p.idNumber,
-      score: p.score ?? "",
-      nationality: p.nationality || "venezolano",
-      seniatVerification: p.seniatVerification,
-    }));
+    const mapped: Participant[] = scanned.map((p) => {
+      const sc = p.score != null ? String(p.score) : "";
+      return {
+        nombre_apellido: toTitleCase(p.name),
+        cedula: p.idNumber,
+        score: sc,
+        score_pre: p.score_pre != null ? String(p.score_pre) : "",
+        score_post: p.score_post != null ? String(p.score_post) : sc,
+        score_teorica: p.score_teorica != null ? String(p.score_teorica) : sc,
+        score_practica: p.score_practica != null ? String(p.score_practica) : "",
+        score_promedio: p.score_promedio != null ? String(p.score_promedio) : "",
+        tipo_evaluacion: effectiveEvaluationMode,
+        nationality: p.nationality || "venezolano",
+        seniatVerification: p.seniatVerification,
+      };
+    });
 
     if (hasOnlyEmptyRow) {
       setParticipants(mapped);
@@ -1361,6 +1644,29 @@ export const ParticipantForm = ({
                   <p className="text-lg font-bold text-sky-800 mt-0.5">{validCedulasCount}</p>
                 </div>
               </div>
+
+              {/* Optional Pre/Post Toggle (hidden if course requires Teoría/Práctica) */}
+              {!evaluacionTeoricaPractica && (
+                <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/90 rounded-xl">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isPrePostEnabled}
+                      onChange={(e) => handleTogglePrePost(e.target.checked)}
+                      disabled={isFinal}
+                      className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 disabled:opacity-50 cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-slate-800">
+                      Evaluación diagnóstica (Pre y Post)
+                    </span>
+                  </label>
+                  <span className="text-[11px] text-slate-500 hidden sm:inline">
+                    {isPrePostEnabled
+                      ? "2 notas: Pre (diagnóstico) y Post (aprobatoria)"
+                      : "1 nota final estándar"}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Clear All Confirmation Box */}
@@ -1396,39 +1702,72 @@ export const ParticipantForm = ({
             {/* Participant Cards / Rows */}
             <div className="space-y-3" id="tour-participant-list">
               {participants.map((p, index) => {
-                const isGradeValid = p.score !== "" && Number(p.score) >= 0 && Number(p.score) <= 20;
-                const isAprobado = isGradeValid && (isParticipationOnly ? true : Number(p.score) >= passingGrade);
+                const isApproved = checkIsParticipantApproved(p);
 
                 return (
                   <div
                     key={index}
                     className="p-3.5 sm:p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 hover:border-sky-300 hover:bg-white transition-all space-y-3"
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-2xs">
                         #{index + 1}
                       </span>
 
-                      {/* Score status pill */}
-                      {p.score !== "" && (
+                      {/* Status / score pills based on evaluation mode */}
+                      {effectiveEvaluationMode === "teoria_practica" && p.score_promedio !== "" && p.score_promedio != null ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                            Promedio: {p.score_promedio}
+                          </span>
+                          <span
+                            className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${isApproved
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : "bg-red-50 text-red-800 border-red-200"
+                            }`}
+                          >
+                            {isApproved
+                              ? "Aprobado (Certificado + Carnet)"
+                              : `Reprobado / Asistencia (<${passingGrade})`}
+                          </span>
+                        </div>
+                      ) : effectiveEvaluationMode === "pre_post" && p.score_post !== "" && p.score_post != null ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {p.score_promedio !== "" && p.score_promedio != null && (
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
+                              Prom. Aprendizaje: {p.score_promedio}
+                            </span>
+                          )}
+                          <span
+                            className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${isApproved
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : "bg-red-50 text-red-800 border-red-200"
+                            }`}
+                          >
+                            {isApproved
+                              ? `Aprobado (Post: ${p.score_post}/20)`
+                              : `Reprobado (Post: ${p.score_post}/20 - Mín. ${passingGrade})`}
+                          </span>
+                        </div>
+                      ) : effectiveEvaluationMode === "standard" && p.score !== "" && p.score != null ? (
                         <span
-                          className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${isAprobado
+                          className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${isApproved
                             ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                             : "bg-red-50 text-red-800 border-red-200"
-                            }`}
+                          }`}
                         >
                           {isParticipationOnly
                             ? `Nota: ${p.score}/20 (Participación)`
-                            : isAprobado
+                            : isApproved
                               ? `Aprobado (${p.score}/20)`
                               : `Reprobado (${p.score}/20 - Mín. ${passingGrade})`}
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
                       {/* 1. Nationality & Cedula input with SENIAT magnifier lookup */}
-                      <div className="sm:col-span-5 lg:col-span-4 space-y-1">
+                      <div className={`${effectiveEvaluationMode === "standard" ? "sm:col-span-5 lg:col-span-4" : "sm:col-span-4 lg:col-span-3"} space-y-1`}>
                         <label className="text-[10px] font-bold uppercase text-slate-400">
                           Cédula de Identidad
                         </label>
@@ -1478,7 +1817,7 @@ export const ParticipantForm = ({
                       </div>
 
                       {/* 2. Name input & SENIAT verification status */}
-                      <div className="sm:col-span-7 lg:col-span-5 space-y-1">
+                      <div className={`${effectiveEvaluationMode === "standard" ? "sm:col-span-7 lg:col-span-5" : "sm:col-span-8 lg:col-span-4"} space-y-1`}>
                         <label className="text-[10px] font-bold uppercase text-slate-400">
                           Nombre y Apellido
                         </label>
@@ -1521,23 +1860,97 @@ export const ParticipantForm = ({
                         )}
                       </div>
 
-                      {/* 3. Score input */}
-                      <div className="sm:col-span-10 lg:col-span-2 space-y-1">
-                        <label className="text-[10px] font-bold uppercase text-slate-400">
-                          Nota (0-20){!isParticipationOnly ? ` • Mín ${passingGrade}` : ""}
-                        </label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="20"
-                          value={p.score}
-                          onChange={(e) => updateParticipant(index, "score", e.target.value)}
-                          placeholder="0-20"
-                          disabled={isFinal}
-                          className={`bg-white text-center font-bold text-sm disabled:bg-slate-50 disabled:text-slate-800 ${isAprobado ? "text-emerald-700 border-emerald-300" : ""
-                            }`}
-                        />
-                      </div>
+                      {/* 3. Evaluation Mode Score Inputs */}
+                      {effectiveEvaluationMode === "teoria_practica" ? (
+                        <>
+                          <div className="sm:col-span-5 lg:col-span-2 space-y-1">
+                            <label className="text-[10px] font-bold uppercase text-slate-400">
+                              Teoría (0-20)
+                            </label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="20"
+                              step="0.5"
+                              value={p.score_teorica ?? ""}
+                              onChange={(e) => updateParticipant(index, "score_teorica", e.target.value)}
+                              placeholder="0-20"
+                              disabled={isFinal}
+                              className="bg-white text-center font-bold text-sm disabled:bg-slate-50 disabled:text-slate-800"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-5 lg:col-span-2 space-y-1">
+                            <label className="text-[10px] font-bold uppercase text-slate-400">
+                              Práctica (0-20)
+                            </label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="20"
+                              step="0.5"
+                              value={p.score_practica ?? ""}
+                              onChange={(e) => updateParticipant(index, "score_practica", e.target.value)}
+                              placeholder="0-20"
+                              disabled={isFinal}
+                              className="bg-white text-center font-bold text-sm disabled:bg-slate-50 disabled:text-slate-800"
+                            />
+                          </div>
+                        </>
+                      ) : effectiveEvaluationMode === "pre_post" ? (
+                        <>
+                          <div className="sm:col-span-5 lg:col-span-2 space-y-1">
+                            <label className="text-[10px] font-bold uppercase text-slate-400">
+                              Pre-Eval (0-20)
+                            </label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="20"
+                              step="0.5"
+                              value={p.score_pre ?? ""}
+                              onChange={(e) => updateParticipant(index, "score_pre", e.target.value)}
+                              placeholder="0-20"
+                              disabled={isFinal}
+                              className="bg-white text-center font-bold text-sm disabled:bg-slate-50 disabled:text-slate-800"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-5 lg:col-span-2 space-y-1">
+                            <label className="text-[10px] font-bold uppercase text-slate-400">
+                              Post-Eval (0-20)
+                            </label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="20"
+                              step="0.5"
+                              value={p.score_post ?? ""}
+                              onChange={(e) => updateParticipant(index, "score_post", e.target.value)}
+                              placeholder="0-20"
+                              disabled={isFinal}
+                              className={`bg-white text-center font-bold text-sm disabled:bg-slate-50 disabled:text-slate-800 ${isApproved ? "text-emerald-700 border-emerald-300" : ""}`}
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="sm:col-span-10 lg:col-span-2 space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-slate-400">
+                            Nota (0-20){!isParticipationOnly ? ` • Mín ${passingGrade}` : ""}
+                          </label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="20"
+                            step="0.5"
+                            value={p.score}
+                            onChange={(e) => updateParticipant(index, "score", e.target.value)}
+                            placeholder="0-20"
+                            disabled={isFinal}
+                            className={`bg-white text-center font-bold text-sm disabled:bg-slate-50 disabled:text-slate-800 ${isApproved ? "text-emerald-700 border-emerald-300" : ""}`}
+                          />
+                        </div>
+                      )}
 
                       {/* 4. Delete Action */}
                       <div className="sm:col-span-2 lg:col-span-1 flex items-center justify-end sm:pt-6 pt-1">

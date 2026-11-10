@@ -49,27 +49,58 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
     redirect("/portal/facilitador/dashboard");
   }
 
-  // Fetch course passing grade (nota_aprobatoria) from catalogo_servicios
+  // Fetch course passing grade (nota_aprobatoria) and evaluation mode from catalogo_servicios
   let notaAprobatoria: number | null = null;
+  let evaluacionTeoricaPractica = false;
   if (osi.id_servicio) {
-    const { data: curso } = await supabase
+    const { data: curso, error: cursoErr } = await supabase
       .from("catalogo_servicios")
-      .select("nota_aprobatoria")
+      .select("nota_aprobatoria, evaluacion_teorica_practica")
       .eq("id", osi.id_servicio)
       .maybeSingle();
-    if (curso && curso.nota_aprobatoria !== null) {
-      notaAprobatoria = curso.nota_aprobatoria;
+
+    if (cursoErr && cursoErr.code === "42703") {
+      const { data: fbCurso } = await supabase
+        .from("catalogo_servicios")
+        .select("nota_aprobatoria")
+        .eq("id", osi.id_servicio)
+        .maybeSingle();
+      if (fbCurso && fbCurso.nota_aprobatoria !== null) {
+        notaAprobatoria = fbCurso.nota_aprobatoria;
+      }
+    } else if (curso) {
+      if (curso.nota_aprobatoria !== null) {
+        notaAprobatoria = curso.nota_aprobatoria;
+      }
+      evaluacionTeoricaPractica = Boolean((curso as any).evaluacion_teorica_practica);
     }
   } else if (osi.servicio) {
-    const { data: curso } = await supabase
+    const { data: curso, error: cursoErr } = await supabase
       .from("catalogo_servicios")
-      .select("nota_aprobatoria")
+      .select("nota_aprobatoria, evaluacion_teorica_practica")
       .ilike("nombre", osi.servicio.trim())
       .maybeSingle();
-    if (curso && curso.nota_aprobatoria !== null) {
-      notaAprobatoria = curso.nota_aprobatoria;
+
+    if (cursoErr && cursoErr.code === "42703") {
+      const { data: fbCurso } = await supabase
+        .from("catalogo_servicios")
+        .select("nota_aprobatoria")
+        .ilike("nombre", osi.servicio.trim())
+        .maybeSingle();
+      if (fbCurso && fbCurso.nota_aprobatoria !== null) {
+        notaAprobatoria = fbCurso.nota_aprobatoria;
+      }
+    } else if (curso) {
+      if (curso.nota_aprobatoria !== null) {
+        notaAprobatoria = curso.nota_aprobatoria;
+      }
+      evaluacionTeoricaPractica = Boolean((curso as any).evaluacion_teorica_practica);
     }
   }
+
+  const sedeUpper = String(osi.sede || "").toUpperCase();
+  const nombreEmpresaUpper = String(osi.nombre_empresa || "").toUpperCase();
+  const isPlanta = sedeUpper.includes("PLANTA") || nombreEmpresaUpper.includes("PLANTA");
 
   const sessionAssignments = (assignments || []).map((a) => a.nro_sesion);
   const specificSessions = sessionAssignments.filter((s) => s !== null) as number[];
@@ -249,6 +280,8 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
         notaAprobatoria={notaAprobatoria}
         sessionsInfo={sessionsInfo}
         hasCertificates={hasCertificates}
+        isPlanta={isPlanta}
+        evaluacionTeoricaPractica={evaluacionTeoricaPractica}
       />
     </div>
   );

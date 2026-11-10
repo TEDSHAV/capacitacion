@@ -49,6 +49,7 @@ export async function createCurso(formData: FormData) {
     const horas_estimadas = formData.get("horas_estimadas") as string;
     const nota_aprobatoria = formData.get("nota_aprobatoria") as string;
     const emite_carnet = formData.get("emite_carnet") as string;
+    const evaluacion_teorica_practica = formData.get("evaluacion_teorica_practica") === "true";
     const para_quien = formData.get("para_quien") as string;
     const modalidad = formData.get("modalidad") as string;
     const objetivo_general = formData.get("objetivo_general") as string;
@@ -117,6 +118,7 @@ export async function createCurso(formData: FormData) {
       id_departamento_ejecutante: 3, // Capacitacion department
       tipo_servicio: 1,
       mostrar_en_catalogo: mostrar_en_catalogo,
+      evaluacion_teorica_practica: evaluacion_teorica_practica,
     };
 
     if (categoria) {
@@ -129,10 +131,11 @@ export async function createCurso(formData: FormData) {
       .select("*")
       .single();
 
-    // Fallback if column 'categoria' or 'mostrar_en_catalogo' does not exist yet in DB schema
+    // Fallback if column 'categoria', 'mostrar_en_catalogo', or 'evaluacion_teorica_practica' does not exist yet in DB schema
     if (error && error.code === "42703") {
       delete coursePayload.categoria;
       delete coursePayload.mostrar_en_catalogo;
+      delete coursePayload.evaluacion_teorica_practica;
       const retry = await supabase
         .from("catalogo_servicios")
         .insert(coursePayload)
@@ -171,6 +174,7 @@ export async function updateCurso(id: string, formData: FormData) {
     const horas_estimadas = formData.get("horas_estimadas") as string;
     const nota_aprobatoria = formData.get("nota_aprobatoria") as string;
     const emite_carnet = formData.get("emite_carnet") as string;
+    const evaluacion_teorica_practica = formData.get("evaluacion_teorica_practica") === "true";
     const para_quien = formData.get("para_quien") as string;
     const modalidad = formData.get("modalidad") as string;
     const objetivo_general = formData.get("objetivo_general") as string;
@@ -240,6 +244,7 @@ export async function updateCurso(id: string, formData: FormData) {
         : null,
       categoria: categoria,
       mostrar_en_catalogo: mostrar_en_catalogo,
+      evaluacion_teorica_practica: evaluacion_teorica_practica,
     };
 
     let { data, error } = await supabase
@@ -249,10 +254,11 @@ export async function updateCurso(id: string, formData: FormData) {
       .select("*")
       .single();
 
-    // Fallback if column 'categoria' or 'mostrar_en_catalogo' does not exist yet in DB schema
+    // Fallback if column 'categoria', 'mostrar_en_catalogo', or 'evaluacion_teorica_practica' does not exist yet in DB schema
     if (error && error.code === "42703") {
       delete updatePayload.categoria;
       delete updatePayload.mostrar_en_catalogo;
+      delete updatePayload.evaluacion_teorica_practica;
       const retry = await supabase
         .from("catalogo_servicios")
         .update(updatePayload)

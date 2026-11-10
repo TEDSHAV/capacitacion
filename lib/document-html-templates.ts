@@ -75,10 +75,11 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 
   const pagination = getPaginationStrategy(data.participantes.length);
   const totalPages = pagination.pages;
+  const isTeoriaPractica = Boolean(data.evaluacion_teorica_practica);
 
   // Calculate average score (ignoring zeros and nulls)
   const validScores = data.participantes
-    .map((p) => Number(p.puntuacion))
+    .map((p) => Number(isTeoriaPractica ? (p.promedio || p.puntuacion) : p.puntuacion))
     .filter((score) => !isNaN(score) && score > 0);
   const averageScore =
     validScores.length > 0
@@ -88,9 +89,22 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
         ).toFixed(2)
       : "";
 
-  const tableRows = data.participantes
-    .map(
-      (p) => `
+  const renderRow = (p: (typeof data.participantes)[0]) => {
+    if (isTeoriaPractica) {
+      return `
+    <tr>
+      <td>${p.index}</td>
+      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
+      <td class="text-center">${escapeHtml(p.cedula)}</td>
+      <td class="text-center">${p.teoria || ""}</td>
+      <td class="text-center">${p.practica || ""}</td>
+      <td class="text-center font-bold">${p.promedio || p.puntuacion || ""}</td>
+      <td class="text-center">${p.condicion || ""}</td>
+      <td class="text-center">${escapeHtml(p.numero_control)}</td>
+    </tr>
+  `;
+    }
+    return `
     <tr>
       <td>${p.index}</td>
       <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
@@ -99,27 +113,67 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
       <td class="text-center">${p.condicion || ""}</td>
       <td class="text-center">${escapeHtml(p.numero_control)}</td>
     </tr>
-  `,
-    )
-    .join("");
+  `;
+  };
+
+  const tableHeaderHtml = isTeoriaPractica
+    ? `
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>NOMBRE Y APELLIDO</th>
+            <th>CÉDULA</th>
+            <th>TEORÍA</th>
+            <th>PRÁCTICA</th>
+            <th>PROMEDIO</th>
+            <th>CONDICIÓN</th>
+            <th>N° DE CONTROL</th>
+          </tr>
+        </thead>`
+    : `
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>NOMBRE Y APELLIDO</th>
+            <th>CÉDULA</th>
+            <th>PUNTUACIÓN</th>
+            <th>CONDICIÓN</th>
+            <th>N° DE CONTROL</th>
+          </tr>
+        </thead>`;
+
+  const tableFooterHtml = isTeoriaPractica
+    ? `
+        <tfoot>
+          <tr>
+            <td></td>
+            <td colspan="2">Puntuacion promedio</td>
+            <td class="text-center"></td>
+            <td class="text-center"></td>
+            <td class="text-center font-bold">${averageScore}</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tfoot>`
+    : `
+        <tfoot>
+          <tr>
+            <td></td>
+            <td colspan="2">Puntuacion promedio</td>
+            <td class="text-center">${averageScore}</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tfoot>`;
+
+  const tableRows = data.participantes.map(renderRow).join("");
 
   // Split table rows if multi-page
   const firstPageRows =
     pagination.pages === 2
       ? data.participantes
           .slice(0, pagination.splitIndex)
-          .map(
-            (p) => `
-    <tr>
-      <td>${p.index}</td>
-      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
-      <td class="text-center">${escapeHtml(p.cedula)}</td>
-      <td class="text-center">${p.puntuacion || ""}</td>
-      <td class="text-center">${p.condicion || ""}</td>
-      <td class="text-center">${escapeHtml(p.numero_control)}</td>
-    </tr>
-  `,
-          )
+          .map(renderRow)
           .join("")
       : tableRows;
 
@@ -127,18 +181,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     pagination.pages === 2
       ? data.participantes
           .slice(pagination.splitIndex)
-          .map(
-            (p) => `
-    <tr>
-      <td>${p.index}</td>
-      <td>${escapeHtml(p.nombre_apellido.toUpperCase())}</td>
-      <td class="text-center">${escapeHtml(p.cedula)}</td>
-      <td class="text-center">${p.puntuacion || ""}</td>
-      <td class="text-center">${p.condicion || ""}</td>
-      <td class="text-center">${escapeHtml(p.numero_control)}</td>
-    </tr>
-  `,
-          )
+          .map(renderRow)
           .join("")
       : "";
 
@@ -202,28 +245,11 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     // Single page
     const tableContent = `
       <table>
-        <thead>
-          <tr>
-            <th>N°</th>
-            <th>NOMBRE Y APELLIDO</th>
-            <th>CÉDULA</th>
-            <th>PUNTUACIÓN</th>
-            <th>CONDICIÓN</th>
-            <th>N° DE CONTROL</th>
-          </tr>
-        </thead>
+        ${tableHeaderHtml}
         <tbody>
           ${tableRows}
         </tbody>
-        <tfoot>
-          <tr>
-            <td></td>
-            <td colspan="2">Puntuacion promedio</td>
-            <td class="text-center">${averageScore}</td>
-            <td></td>
-            <td></td>
-          </tr>
-        </tfoot>
+        ${tableFooterHtml}
       </table>
     `;
     pagesHtml = generatePage(1, introContent + tableContent, true);
@@ -231,16 +257,7 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
     // Two pages
     const firstPageTable = `
       <table>
-        <thead>
-          <tr>
-            <th>N°</th>
-            <th>NOMBRE Y APELLIDO</th>
-            <th>CÉDULA</th>
-            <th>PUNTUACIÓN</th>
-            <th>CONDICIÓN</th>
-            <th>N° DE CONTROL</th>
-          </tr>
-        </thead>
+        ${tableHeaderHtml}
         <tbody>
           ${firstPageRows}
         </tbody>
@@ -249,28 +266,11 @@ export function buildCertificacionCompetenciasHtml(data: TemplateData): string {
 
     const secondPageTable = `
       <table>
-        <thead>
-          <tr>
-            <th>N°</th>
-            <th>NOMBRE Y APELLIDO</th>
-            <th>CÉDULA</th>
-            <th>PUNTUACIÓN</th>
-            <th>CONDICIÓN</th>
-            <th>N° DE CONTROL</th>
-          </tr>
-        </thead>
+        ${tableHeaderHtml}
         <tbody>
           ${secondPageRows}
         </tbody>
-        <tfoot>
-          <tr>
-            <td></td>
-            <td colspan="2">Puntuacion promedio</td>
-            <td class="text-center">${averageScore}</td>
-            <td></td>
-            <td></td>
-          </tr>
-        </tfoot>
+        ${tableFooterHtml}
       </table>
     `;
 

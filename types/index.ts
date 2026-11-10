@@ -83,6 +83,7 @@ export interface Curso {
   objetivo_especifico: string | null;
   categoria?: string | null;
   mostrar_en_catalogo?: boolean | null;
+  evaluacion_teorica_practica?: boolean | null;
   empresas?: { razon_social: string; rif?: string | null } | null;
 }
 
@@ -220,6 +221,7 @@ export interface CourseTopic {
   subtitulo?: string; // Subtitle from catalogo_servicios
   id_plantilla_certificado?: number; // Preferred certificate template for this course
   mostrar_en_catalogo?: boolean;
+  evaluacion_teorica_practica?: boolean;
 }
 
 export interface PersonalInfoSectionProps {
@@ -408,6 +410,12 @@ export interface CertificateParticipant {
   idNumber: string;
   company?: string;
   score?: number;
+  score_pre?: number | null;
+  score_post?: number | null;
+  score_teorica?: number | null;
+  score_practica?: number | null;
+  score_promedio?: number | null;
+  tipo_evaluacion?: "standard" | "pre_post" | "teoria_practica";
   position?: string;
   email?: string;
   phone?: string;

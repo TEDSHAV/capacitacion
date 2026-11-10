@@ -61,6 +61,7 @@ export default function CourseForm({
     tipo_certificado: string;
     nota_aprobatoria: number;
     emite_carnet: boolean;
+    evaluacion_teorica_practica: boolean;
     para_quien: string;
     modalidad: string;
     objetivo_general: string;
@@ -76,6 +77,7 @@ export default function CourseForm({
       curso?.nota_aprobatoria === 0 ? "participacion" : "calificacion", // Certificate type
     nota_aprobatoria: curso?.nota_aprobatoria || 14, // Default to 14 for graded courses
     emite_carnet: curso?.emite_carnet || false, // Default to false
+    evaluacion_teorica_practica: curso?.evaluacion_teorica_practica || false, // Default to false
     para_quien: curso?.para_quien || "",
     modalidad: curso?.modalidad || "Presencial",
     objetivo_general: curso?.objetivo_general || "",
@@ -211,6 +213,10 @@ export default function CourseForm({
       datosFormulario.nota_aprobatoria.toString(),
     );
     formData.append("emite_carnet", datosFormulario.emite_carnet.toString());
+    formData.append(
+      "evaluacion_teorica_practica",
+      datosFormulario.evaluacion_teorica_practica ? "true" : "false",
+    );
     formData.append("para_quien", datosFormulario.para_quien);
     formData.append("modalidad", datosFormulario.modalidad);
     formData.append("objetivo_general", datosFormulario.objetivo_general);
@@ -731,6 +737,30 @@ export default function CourseForm({
               </label>
               <p className="text-xs text-gray-500 pt-0.5">
                 Marca esta opción si el curso emite carnet además del certificado
+              </p>
+            </div>
+
+            {/* Requiere Evaluación Teórica y Práctica Checkbox */}
+            <div className="flex items-start space-x-3 pt-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="evaluacion_teorica_practica"
+                  checked={datosFormulario.evaluacion_teorica_practica || false}
+                  onChange={(e) =>
+                    setDatosFormulario((prev) => ({
+                      ...prev,
+                      evaluacion_teorica_practica: e.target.checked,
+                    }))
+                  }
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-semibold text-gray-700">
+                  Requiere Evaluación Teórica y Práctica
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 pt-0.5">
+                Permite al facilitador registrar notas de teoría y práctica; la aprobación y carnet se calculan sobre el promedio
               </p>
             </div>
 

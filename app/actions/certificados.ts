@@ -611,14 +611,29 @@ export async function saveCertificatesToDatabase(
 
         // Only generate carnets for participants who approved (score >= passing_grade)
         const passingGrade = updatedCertificateData.passing_grade || 14;
+        const isTeoriaPractica = Boolean(
+          updatedCertificateData.course_topic_data?.evaluacion_teorica_practica ||
+          participants.some(
+            (p) =>
+              p.tipo_evaluacion === "teoria_practica" ||
+              (p.score_teorica != null && p.score_practica != null),
+          ),
+        );
+
         const carnetEligibleIndices = participants
           .map((participant, index) => ({ participant, index }))
-          .filter(
-            ({ participant }) =>
-              participant.score !== null &&
-              participant.score !== undefined &&
-              participant.score >= passingGrade,
-          )
+          .filter(({ participant }) => {
+            const scoreToCheck =
+              isTeoriaPractica && participant.score_promedio != null
+                ? Number(participant.score_promedio)
+                : Number(participant.score);
+            return (
+              scoreToCheck !== null &&
+              scoreToCheck !== undefined &&
+              !isNaN(scoreToCheck) &&
+              scoreToCheck >= passingGrade
+            );
+          })
           .map(({ index }) => index);
 
         const carnetDataList = carnetEligibleIndices.map((index) => ({
@@ -1102,6 +1117,12 @@ function generateContentSnapshot(
       nacionalidad: participant.nationality || "venezolano",
 
       score: participant.score != null ? Number(participant.score) : 0,
+      score_pre: participant.score_pre != null ? Number(participant.score_pre) : undefined,
+      score_post: participant.score_post != null ? Number(participant.score_post) : undefined,
+      score_teorica: participant.score_teorica != null ? Number(participant.score_teorica) : undefined,
+      score_practica: participant.score_practica != null ? Number(participant.score_practica) : undefined,
+      score_promedio: participant.score_promedio != null ? Number(participant.score_promedio) : undefined,
+      tipo_evaluacion: participant.tipo_evaluacion || undefined,
 
       cedula_completa: (() => {
         const rawId = (participant.idNumber || "").trim();
@@ -1170,6 +1191,7 @@ function generateContentSnapshot(
         updatedCertificateData.course_topic_data?.nota_aprobatoria,
 
       emite_carnet: updatedCertificateData.course_topic_data?.emite_carnet,
+      evaluacion_teorica_practica: updatedCertificateData.course_topic_data?.evaluacion_teorica_practica || false,
     },
 
     // Template and signatures
@@ -1269,6 +1291,12 @@ function generateContentSnapshotWithControlNumbers(
       nacionalidad: participant.nationality || "venezolano",
 
       score: participant.score != null ? Number(participant.score) : 0,
+      score_pre: participant.score_pre != null ? Number(participant.score_pre) : undefined,
+      score_post: participant.score_post != null ? Number(participant.score_post) : undefined,
+      score_teorica: participant.score_teorica != null ? Number(participant.score_teorica) : undefined,
+      score_practica: participant.score_practica != null ? Number(participant.score_practica) : undefined,
+      score_promedio: participant.score_promedio != null ? Number(participant.score_promedio) : undefined,
+      tipo_evaluacion: participant.tipo_evaluacion || undefined,
 
       cedula_completa: (() => {
         const rawId = (participant.idNumber || "").trim();
