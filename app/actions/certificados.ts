@@ -2080,10 +2080,19 @@ export async function updateCertificateAction(
 
     if (updateError) throw updateError;
 
-    // 5b. Update carnet if course emits it
+    // 5b. Update carnet if course emits it and participant approved
+    const participantScore =
+      participant.score != null ? Number(participant.score) : 0;
+    const passingGrade =
+      certificateData.passing_grade ??
+      certificateData.course_topic_data?.nota_aprobatoria ??
+      14;
+    const isPassing = participantScore >= passingGrade;
+
     if (
       certificateData.course_topic_data?.emite_carnet &&
-      !certificateData.skip_carnets
+      !certificateData.skip_carnets &&
+      isPassing
     ) {
       try {
         let editOsiId: number | null = certificateData.osi_data?.id
@@ -2141,10 +2150,30 @@ export async function updateCertificateAction(
           nro_control: existingCert.nro_control,
           id_plantilla_carnet: certificateData.id_plantilla_carnet,
         });
+
+        // Ensure carnet is active
+        await supabase
+          .from("carnets")
+          .update({ is_active: true })
+          .eq("id_certificado", certificateId);
       } catch (carnetErr) {
         console.warn(
           "Non-fatal: Failed to update carnet during certificate edit",
           carnetErr,
+        );
+      }
+    } else {
+      // If participant did not pass, or carnet is skipped/not emitted by course,
+      // deactivate any existing carnet linked to this certificate
+      try {
+        await supabase
+          .from("carnets")
+          .update({ is_active: false })
+          .eq("id_certificado", certificateId);
+      } catch (carnetDeactErr) {
+        console.warn(
+          "Non-fatal: Failed to deactivate carnet on certificate edit",
+          carnetDeactErr,
         );
       }
     }
@@ -2261,6 +2290,41 @@ export async function updateCertificateScoreAction(
       .eq("id", certificateId);
 
     if (updateError) throw updateError;
+
+    // 4. Synchronize carnet active status based on passing grade
+    try {
+      let passingGrade = 14;
+      if (existingCert.snapshot_contenido) {
+        try {
+          const snap = JSON.parse(existingCert.snapshot_contenido);
+          passingGrade =
+            snap?.certificado_detalles?.passing_grade ??
+            snap?.curso?.nota_aprobatoria ??
+            14;
+        } catch {
+          // ignore parsing error
+        }
+      }
+
+      if (roundedScore < passingGrade) {
+        // Deactivate carnet if it exists
+        await supabase
+          .from("carnets")
+          .update({ is_active: false })
+          .eq("id_certificado", certificateId);
+      } else {
+        // Reactivate carnet if it exists
+        await supabase
+          .from("carnets")
+          .update({ is_active: true })
+          .eq("id_certificado", certificateId);
+      }
+    } catch (carnetSyncErr) {
+      console.warn(
+        "Non-fatal: Failed to sync carnet status on score update:",
+        carnetSyncErr,
+      );
+    }
 
     return {
       success: true,

@@ -843,7 +843,72 @@ export async function generateCarnetsForBatchAction(
       (existingCarnets || []).map((c) => c.id_certificado),
     );
 
-    const missingCerts = certificates.filter((c) => !existingCertIdSet.has(c.id));
+    // Only consider eligible certificates where participant approved (score >= passingGrade)
+    const missingCerts = certificates.filter((c) => {
+      if (existingCertIdSet.has(c.id)) return false;
+
+      let snap: any = {};
+      if (c.snapshot_contenido) {
+        try {
+          snap = JSON.parse(c.snapshot_contenido);
+        } catch {
+          // ignore parsing error
+        }
+      }
+
+      const passingGrade =
+        snap.certificado_detalles?.passing_grade ??
+        snap.curso?.nota_aprobatoria ??
+        (Array.isArray(c.catalogo_servicios)
+          ? c.catalogo_servicios[0]?.nota_aprobatoria
+          : (c.catalogo_servicios as any)?.nota_aprobatoria) ??
+        14;
+
+      const score =
+        snap.participante?.score ??
+        snap.certificado?.calificacion ??
+        c.calificacion ??
+        0;
+
+      return score >= passingGrade;
+    });
+
+    // Also deactivate any existing carnets in this batch for non-approved participants
+    const failingCertIds = certificates
+      .filter((c) => {
+        let snap: any = {};
+        if (c.snapshot_contenido) {
+          try {
+            snap = JSON.parse(c.snapshot_contenido);
+          } catch {
+            // ignore parsing error
+          }
+        }
+
+        const passingGrade =
+          snap.certificado_detalles?.passing_grade ??
+          snap.curso?.nota_aprobatoria ??
+          (Array.isArray(c.catalogo_servicios)
+            ? c.catalogo_servicios[0]?.nota_aprobatoria
+            : (c.catalogo_servicios as any)?.nota_aprobatoria) ??
+          14;
+
+        const score =
+          snap.participante?.score ??
+          snap.certificado?.calificacion ??
+          c.calificacion ??
+          0;
+
+        return score < passingGrade;
+      })
+      .map((c) => c.id);
+
+    if (failingCertIds.length > 0) {
+      await supabase
+        .from("carnets")
+        .update({ is_active: false })
+        .in("id_certificado", failingCertIds);
+    }
 
     if (missingCerts.length === 0) {
       return {
