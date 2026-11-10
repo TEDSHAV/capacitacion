@@ -626,11 +626,14 @@ export async function updateCarnetAction(
     // 1. Find existing carnet for this certificate
     const { data: existingCarnet, error: findError } = await supabase
       .from("carnets")
-      .select("id")
+      .select("id, id_osi")
       .eq("id_certificado", certificateId)
       .maybeSingle();
 
     if (findError) throw findError;
+
+    // Ensure we preserve existing id_osi if incoming payload did not provide one
+    const resolvedOsiId = carnetData.id_osi ?? existingCarnet?.id_osi ?? null;
 
     // 2. Prepare QR code
     const qrData = QRService.generateQRData(certificateId);
@@ -648,6 +651,7 @@ export async function updateCarnetAction(
     // 3. Prepare snapshot
     const snapshotContent = JSON.stringify({
       ...carnetData,
+      id_osi: resolvedOsiId,
       nombre_participante: nombre_participante_upper,
       qr_code: qrDataURL,
       updated_at: new Date().toISOString(),
@@ -658,7 +662,7 @@ export async function updateCarnetAction(
       id_participante: carnetData.id_participante,
       id_empresa: carnetData.id_empresa,
       id_curso: carnetData.id_curso,
-      id_osi: carnetData.id_osi,
+      id_osi: resolvedOsiId,
       titulo_curso: carnetData.titulo_curso,
       subtitulo_curso: carnetData.subtitulo_curso,
       fecha_emision: carnetData.fecha_emision,
@@ -858,17 +862,28 @@ export async function generateCarnetsForBatchAction(
       .limit(1)
       .maybeSingle();
 
-    // 3.1 Resolve OSI id from v_osi_formato_completo if possible
+    // 3.1 Resolve OSI id from v_osi_formato_completo or ejecucion_osi if possible
     let osiIdFromDb: number | null = null;
     try {
+      const cleanOsi = String(osiNumber).replace(/[^\d]/g, "");
       const { data: osiRow } = await supabase
         .from("v_osi_formato_completo")
         .select("id_osi")
-        .eq("nro_osi", String(osiNumber))
+        .eq("nro_osi", cleanOsi)
         .limit(1)
         .maybeSingle();
       if (osiRow?.id_osi) {
         osiIdFromDb = osiRow.id_osi;
+      } else {
+        const { data: ejecRow } = await supabase
+          .from("ejecucion_osi")
+          .select("id")
+          .eq("nro_osi_secuencial", cleanOsi)
+          .limit(1)
+          .maybeSingle();
+        if (ejecRow?.id) {
+          osiIdFromDb = ejecRow.id;
+        }
       }
     } catch {
       // ignore lookup error

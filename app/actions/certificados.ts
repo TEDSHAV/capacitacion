@@ -636,6 +636,29 @@ export async function saveCertificatesToDatabase(
           })
           .map(({ index }) => index);
 
+        // Resolve reliable internal id_osi from osi_data or lookup by nro_osi in ejecucion_osi
+        let resolvedBatchOsiId: number | null = updatedCertificateData.osi_data?.id
+          ? parseInt(String(updatedCertificateData.osi_data.id))
+          : null;
+
+        if (!resolvedBatchOsiId || isNaN(resolvedBatchOsiId)) {
+          const rawNro = updatedCertificateData.osi_data?.nro_osi;
+          if (rawNro) {
+            const cleanNro = String(rawNro).replace(/[^\d]/g, "");
+            if (cleanNro) {
+              const { data: osiRow } = await supabase
+                .from("ejecucion_osi")
+                .select("id")
+                .eq("nro_osi_secuencial", cleanNro)
+                .limit(1)
+                .maybeSingle();
+              if (osiRow?.id) {
+                resolvedBatchOsiId = osiRow.id;
+              }
+            }
+          }
+        }
+
         const carnetDataList = carnetEligibleIndices.map((index) => ({
           id_certificado: certificateIds[index],
           id_participante: participantIds[index],
@@ -643,9 +666,7 @@ export async function saveCertificatesToDatabase(
           id_curso: updatedCertificateData.course_topic_data?.id
             ? parseInt(updatedCertificateData.course_topic_data.id)
             : null,
-          id_osi: updatedCertificateData.osi_data?.id
-            ? parseInt(updatedCertificateData.osi_data.id)
-            : null,
+          id_osi: resolvedBatchOsiId,
           titulo_curso: updatedCertificateData.certificate_title || "",
           subtitulo_curso: updatedCertificateData.certificate_subtitle || null,
           fecha_emision: batchEmissionDate,
@@ -1157,6 +1178,10 @@ function generateContentSnapshot(
     // OSI information
 
     osi: {
+      id_osi: updatedCertificateData.osi_data?.id
+        ? parseInt(String(updatedCertificateData.osi_data.id))
+        : null,
+
       nro_osi: updatedCertificateData.osi_data?.nro_osi,
 
       cliente_nombre_empresa:
@@ -2061,6 +2086,42 @@ export async function updateCertificateAction(
       !certificateData.skip_carnets
     ) {
       try {
+        let editOsiId: number | null = certificateData.osi_data?.id
+          ? parseInt(String(certificateData.osi_data.id))
+          : null;
+
+        if (!editOsiId || isNaN(editOsiId)) {
+          // 1. Try to preserve existing carnet's id_osi if already set
+          const { data: currentCarnet } = await supabase
+            .from("carnets")
+            .select("id_osi")
+            .eq("id_certificado", certificateId)
+            .maybeSingle();
+
+          if (currentCarnet?.id_osi) {
+            editOsiId = currentCarnet.id_osi;
+          } else {
+            // 2. Resolve from nro_osi via ejecucion_osi
+            const rawNro =
+              certificateData.osi_data?.nro_osi ||
+              (existingCert as any)?.nro_osi;
+            if (rawNro) {
+              const cleanNro = String(rawNro).replace(/[^\d]/g, "");
+              if (cleanNro) {
+                const { data: osiRow } = await supabase
+                  .from("ejecucion_osi")
+                  .select("id")
+                  .eq("nro_osi_secuencial", cleanNro)
+                  .limit(1)
+                  .maybeSingle();
+                if (osiRow?.id) {
+                  editOsiId = osiRow.id;
+                }
+              }
+            }
+          }
+        }
+
         const { updateCarnetAction } = await import("./carnets");
         await updateCarnetAction(certificateId, {
           id_certificado: certificateId,
@@ -2069,9 +2130,7 @@ export async function updateCertificateAction(
           id_curso: certificateData.course_topic_data?.id
             ? parseInt(certificateData.course_topic_data.id)
             : null,
-          id_osi: certificateData.osi_data?.id
-            ? parseInt(certificateData.osi_data.id)
-            : null,
+          id_osi: editOsiId,
           titulo_curso: certificateData.certificate_title || "",
           subtitulo_curso: certificateData.certificate_subtitle || null,
           fecha_emision: certificateData.date || "",
