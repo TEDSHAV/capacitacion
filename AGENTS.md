@@ -1,5 +1,9 @@
 # Project Preferences & Offline Architecture
 
+## Communication & Language
+
+- ALWAYS respond in English in the chat, regardless of the codebase language, Spanish database values, or domain terms.
+
 ## Git commits
 
 - NEVER add `Co-Authored-By:` trailers to commit messages.
