@@ -43,6 +43,28 @@ async function fetchTableParallel<T>(
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+export interface PotentialMultiOsiGroup {
+  groupKey: string;
+  fecha: string;
+  empresaNombre: string;
+  cursoNombre: string;
+  companies: string[];
+  isOpenCourse: boolean;
+  isCorporateMulti: boolean;
+  parentOsiId?: number;
+  totalGroupCost?: number;
+  hasCostValidation?: boolean;
+  osis: Array<{
+    idOsi: number;
+    nroOsi: string;
+    hours: number;
+    certificatesCount: number;
+    empresaNombre: string;
+    totalCost: number;
+    isParentCandidate: boolean;
+  }>;
+}
+
 export interface ReportesV2Data {
   overview: {
     totalCertificates: number;
@@ -61,6 +83,7 @@ export interface ReportesV2Data {
     pendingFacilitatorHours: number;
     pendingFacilitatorHonorarios: number;
     paidFacilitatorsCount: number;
+    potentialDuplicatesCount: number;
   };
   companies: Array<{
     id: number;
@@ -80,10 +103,46 @@ export interface ReportesV2Data {
     cargaHorariaStd: number;
     totalCertificates: number;
     totalOsis: number;
+    totalSessions: number;
     totalCompanies: number;
     totalFacilitators: number;
     totalHours: number;
     lastActivity: string | null;
+    deliveries?: Array<{
+      fecha: string;
+      isOpenCourse: boolean;
+      isCorporateMulti: boolean;
+      distinctCompaniesCount: number;
+      parentOsi: {
+        idOsi: number;
+        nroOsi: string;
+        fecha: string | null;
+        empresa: string;
+        sede?: string | null;
+        hours: number;
+        certificatesCount: number;
+        totalCost: number;
+      };
+      childOsis: Array<{
+        idOsi: number;
+        nroOsi: string;
+        fecha: string | null;
+        empresa: string;
+        sede?: string | null;
+        hours: number;
+        certificatesCount: number;
+        totalCost: number;
+      }>;
+    }>;
+    osisList: Array<{
+      idOsi: number;
+      nroOsi: string;
+      fecha: string | null;
+      empresa: string;
+      hours: number;
+      certificatesCount: number;
+      totalCost?: number;
+    }>;
   }>;
   facilitators: Array<{
     id: number;
@@ -151,6 +210,7 @@ export interface ReportesV2Data {
       averageRating: number;
     }>;
   };
+  potentialMultiOsiGroups: PotentialMultiOsiGroup[];
   timing: {
     fetchMs: number;
     processMs: number;
@@ -192,6 +252,7 @@ export async function getReportesV2Data(
       sesionesRows,
       assignmentsRows,
       surveyRows,
+      ajustesRows,
     ] = await Promise.all([
       // 1. Certificates (with count for parallel paging)
       fetchTableParallel<{
@@ -219,14 +280,15 @@ export async function getReportesV2Data(
         return q;
       }, "certificados"),
 
-      // 2. ejecucion_osi (for nro_osi_secuencial → id mapping)
+      // 2. ejecucion_osi (for nro_osi_secuencial → id mapping & status)
       fetchTableParallel<{
         id: number;
         nro_osi_secuencial: string | number | null;
+        id_estatus: number | null;
       }>(() => {
         return supabase
           .from("ejecucion_osi")
-          .select("id, nro_osi_secuencial", { count: "exact" })
+          .select("id, nro_osi_secuencial, id_estatus", { count: "exact" })
           .order("id", { ascending: true });
       }, "ejecucion_osi"),
 
@@ -324,6 +386,7 @@ export async function getReportesV2Data(
         id_osi: number | null;
         nro_osi: string | null;
         id_empresa: number | null;
+        nombre_empresa: string | null;
         id_servicio: number | null;
         horas_academicas_ejecucion: number | null;
         horas_academicas_solped: number | null;
@@ -336,17 +399,21 @@ export async function getReportesV2Data(
         costo_otros: number | null;
         fecha_inicio_real: string | null;
         id_estado_direccion_ejecucion_efectiva: number | null;
+        id_sede: number | null;
+        sede: string | null;
+        direccion_ejecucion: string | null;
       }>(() => {
         let q = supabase
           .from("v_osi_formato_completo")
           .select(`
-            id_osi, nro_osi, id_empresa, id_servicio,
+            id_osi, nro_osi, id_empresa, nombre_empresa, id_servicio,
             horas_academicas_ejecucion, horas_academicas_solped,
             costo_honorarios_instructor, costo_carnetizacion,
             costo_traslado, costo_hospedaje, costo_logistica_comida,
             costo_impresion_material, costo_otros,
             fecha_inicio_real,
-            id_estado_direccion_ejecucion_efectiva
+            id_estado_direccion_ejecucion_efectiva,
+            id_sede, sede, direccion_ejecucion
           `, { count: "exact" })
           .ilike("tipo_servicio", "%capacitacion%")
           .not("nro_osi", "ilike", "%PEN-%")
@@ -397,15 +464,41 @@ export async function getReportesV2Data(
           .select("id, id_osi, q1, q2, q3, q4, q5, created_at, nro_sesion", { count: "exact" })
           .order("id", { ascending: true });
       }, "course_satisfaction_surveys"),
+
+      // 13. Manual & Grouped adjustments (for multi-OSI same-service deduplication)
+      fetchTableParallel<{
+        id: number;
+        osi_id: number;
+        emitido_en_otra_osi: boolean | null;
+        osi_referencia_id: number | null;
+        nro_osi_referencia: string | null;
+      }>(() => {
+        return supabase
+          .from("capacitacion_indicadores_ajustes")
+          .select("id, osi_id, emitido_en_otra_osi, osi_referencia_id, nro_osi_referencia", { count: "exact" })
+          .order("id", { ascending: true });
+      }, "capacitacion_indicadores_ajustes"),
     ]);
 
     const tFetch = performance.now();
 
     // ─── Build lookup maps ────────────────────────────────────────────────
     const numericOsiToIdOsi = new Map<string, number>();
+    const osiStatusMap = new Map<number, number>();
     for (const e of ejecucionRows) {
       if (e.nro_osi_secuencial != null) {
         numericOsiToIdOsi.set(String(e.nro_osi_secuencial).trim(), e.id);
+      }
+      if (e.id_estatus != null) {
+        osiStatusMap.set(e.id, e.id_estatus);
+      }
+    }
+
+    // Build set of child OSIs (services grouped under another primary OSI to avoid double counting)
+    const childOsiIds = new Set<number>();
+    for (const aj of ajustesRows) {
+      if (aj.emitido_en_otra_osi && aj.osi_referencia_id) {
+        childOsiIds.add(aj.osi_id);
       }
     }
 
@@ -414,6 +507,18 @@ export async function getReportesV2Data(
     const empresasMap = new Map(empresasRows.map((e) => [e.id, e]));
     const facilitadoresMap = new Map(facilitadoresRows.map((f) => [f.id, f]));
     const sesionById = new Map(sesionesRows.map((s) => [s.id, s]));
+
+    // Session dates map: id_osi -> Set of date strings YYYY-MM-DD
+    const osiDatesMap = new Map<number, Set<string>>();
+    for (const s of sesionesRows) {
+      if (!s.fecha) continue;
+      let set = osiDatesMap.get(s.id_osi);
+      if (!set) {
+        set = new Set();
+        osiDatesMap.set(s.id_osi, set);
+      }
+      set.add(s.fecha.slice(0, 10));
+    }
 
     // Assignments lookup: osi_id -> Map<nro_sesion | null, number[]>
     const assignmentsByOsi = new Map<number, Map<number | null, number[]>>();
@@ -695,7 +800,8 @@ export async function getReportesV2Data(
     let totalScoreCount = 0;
     let activeCertsCount = 0;
 
-    const allCertOsiIds = new Set<number>();
+    const allDeliveredOsiIds = new Set<number>();
+    const certCountByOsiId = new Map<number, number>();
     const allLegacyOsis = new Map<string, number>(); // sequential string → course standard hours
 
     for (const cert of certs) {
@@ -722,7 +828,19 @@ export async function getReportesV2Data(
         }
       }
 
-      if (idOsi != null) allCertOsiIds.add(idOsi);
+      // Check whether the training course execution date matches the filtered period.
+      // If a course took place in October, it must NOT be attributed to November's courses/hours
+      // even if its certificates were printed in November.
+      const osi = idOsi != null ? osiDetailsMap.get(idOsi) : null;
+      const execDate = osi?.fecha_inicio_real?.slice(0, 10);
+      const matchesPeriod = !execDate || ((!dateFrom || execDate >= dateFrom) && (!dateTo || execDate <= dateTo));
+
+      if (idOsi != null) {
+        certCountByOsiId.set(idOsi, (certCountByOsiId.get(idOsi) || 0) + 1);
+        if (matchesPeriod) {
+          allDeliveredOsiIds.add(idOsi);
+        }
+      }
 
       const effectiveStateId = cert.id_estado ?? (idOsi != null ? osiDetailsMap.get(idOsi)?.id_estado_direccion_ejecucion_efectiva : null) ?? null;
 
@@ -742,7 +860,7 @@ export async function getReportesV2Data(
           companyAgg.set(cert.id_empresa, comp);
         }
         comp.totalCertificates++;
-        if (idOsi != null) comp.osis.add(idOsi);
+        if (idOsi != null && matchesPeriod) comp.osis.add(idOsi);
         else if (legacyKey) comp.legacyOsis.add(legacyKey);
         if (cert.id_curso) comp.courses.add(cert.id_curso);
         if (effectiveStateId && statesMap.has(effectiveStateId)) {
@@ -769,7 +887,7 @@ export async function getReportesV2Data(
           courseAgg.set(cert.id_curso, crs);
         }
         crs.totalCertificates++;
-        if (idOsi != null) crs.osis.add(idOsi);
+        if (idOsi != null && matchesPeriod) crs.osis.add(idOsi);
         else if (legacyKey) crs.legacyOsis.add(legacyKey);
         if (cert.id_empresa) crs.companies.add(cert.id_empresa);
         if (cert.id_facilitador) crs.facilitators.add(cert.id_facilitador);
@@ -793,7 +911,7 @@ export async function getReportesV2Data(
           locationAgg.set(effectiveStateId, loc);
         }
         loc.totalCertificates++;
-        if (idOsi != null) loc.osis.add(idOsi);
+        if (idOsi != null && matchesPeriod) loc.osis.add(idOsi);
         else if (legacyKey) loc.legacyOsis.add(legacyKey);
         if (cert.id_empresa) loc.companies.add(cert.id_empresa);
       }
@@ -812,7 +930,7 @@ export async function getReportesV2Data(
           facilitatorAgg.set(cert.id_facilitador, fac);
         }
         fac.totalCertificates++;
-        if (idOsi != null) fac.osis.add(idOsi);
+        if (idOsi != null && matchesPeriod) fac.osis.add(idOsi);
         else if (legacyKey) fac.legacyOsis.add(legacyKey);
         if (cert.id_curso) fac.courses.add(cert.id_curso);
         if (cert.fecha_emision && (!fac.lastActivity || cert.fecha_emision > fac.lastActivity)) {
@@ -841,8 +959,153 @@ export async function getReportesV2Data(
             monthTrendMap.set(mk, mItem);
           }
           mItem.certificatesCount++;
-          if (idOsi != null) mItem.osisSet.add(idOsi);
+          if (idOsi != null && matchesPeriod) mItem.osisSet.add(idOsi);
           else if (legacyKey) mItem.legacyOsisSet.add(legacyKey);
+        }
+      }
+    }
+
+    // ── Include executed OSIs that do not have certificates issued yet ───────
+    for (const o of osiFormatoRows) {
+      if (!o.id_osi) continue;
+      const idOsi = o.id_osi;
+      const status = osiStatusMap.get(idOsi);
+      // Strictly require status 12 (EJECUTADO) for OSIs without certificates yet.
+      // Status 10 (Pendiente), 11 (En Proceso), 39 (No Ejecutada), 46 (Reagendada) are NOT completed.
+      if (status !== 12) continue;
+
+      const execDate = o.fecha_inicio_real?.slice(0, 10);
+
+      // Check state filter
+      if (stateId && o.id_estado_direccion_ejecucion_efectiva !== Number(stateId)) continue;
+
+      // Check date filter
+      let matchesDate = false;
+      if (dateFrom || dateTo) {
+        if (execDate) {
+          const afterFrom = !dateFrom || execDate >= dateFrom;
+          const beforeTo = !dateTo || execDate <= dateTo;
+          matchesDate = afterFrom && beforeTo;
+        }
+      } else {
+        matchesDate = true;
+      }
+
+      // If the OSI matches the period and hasn't been counted via certificates yet
+      if (matchesDate && !allDeliveredOsiIds.has(idOsi)) {
+        allDeliveredOsiIds.add(idOsi);
+
+        // Course dimension
+        if (o.id_servicio) {
+          let crs = courseAgg.get(o.id_servicio);
+          if (!crs) {
+            crs = {
+              totalCertificates: 0,
+              osis: new Set(),
+              legacyOsis: new Set(),
+              companies: new Set(),
+              facilitators: new Set(),
+              scores: [],
+              lastActivity: null,
+            };
+            courseAgg.set(o.id_servicio, crs);
+          }
+          crs.osis.add(idOsi);
+          if (o.id_empresa) crs.companies.add(o.id_empresa);
+          if (execDate && (!crs.lastActivity || execDate > crs.lastActivity)) {
+            crs.lastActivity = execDate;
+          }
+        }
+
+        // Company dimension
+        if (o.id_empresa) {
+          let comp = companyAgg.get(o.id_empresa);
+          if (!comp) {
+            comp = {
+              totalCertificates: 0,
+              totalCarnets: 0,
+              osis: new Set(),
+              legacyOsis: new Set(),
+              courses: new Set(),
+              states: new Set(),
+              lastActivity: null,
+            };
+            companyAgg.set(o.id_empresa, comp);
+          }
+          comp.osis.add(idOsi);
+          if (o.id_servicio) comp.courses.add(o.id_servicio);
+          if (o.id_estado_direccion_ejecucion_efectiva && statesMap.has(o.id_estado_direccion_ejecucion_efectiva)) {
+            comp.states.add(statesMap.get(o.id_estado_direccion_ejecucion_efectiva)!);
+          }
+          if (execDate && (!comp.lastActivity || execDate > comp.lastActivity)) {
+            comp.lastActivity = execDate;
+          }
+        }
+
+        // Location dimension
+        if (o.id_estado_direccion_ejecucion_efectiva) {
+          let loc = locationAgg.get(o.id_estado_direccion_ejecucion_efectiva);
+          if (!loc) {
+            loc = {
+              totalCertificates: 0,
+              totalCarnets: 0,
+              osis: new Set(),
+              legacyOsis: new Set(),
+              companies: new Set(),
+            };
+            locationAgg.set(o.id_estado_direccion_ejecucion_efectiva, loc);
+          }
+          loc.osis.add(idOsi);
+          if (o.id_empresa) loc.companies.add(o.id_empresa);
+        }
+
+        // Facilitator attribution from assignments
+        const bySes = assignmentsByOsi.get(idOsi);
+        if (bySes) {
+          for (const fids of bySes.values()) {
+            for (const fid of fids) {
+              let fac = facilitatorAgg.get(fid);
+              if (!fac) {
+                fac = {
+                  totalCertificates: 0,
+                  osis: new Set(),
+                  legacyOsis: new Set(),
+                  courses: new Set(),
+                  lastActivity: null,
+                };
+                facilitatorAgg.set(fid, fac);
+              }
+              fac.osis.add(idOsi);
+              if (o.id_servicio) fac.courses.add(o.id_servicio);
+              if (execDate && (!fac.lastActivity || execDate > fac.lastActivity)) {
+                fac.lastActivity = execDate;
+              }
+            }
+          }
+        }
+
+        // Monthly trend
+        if (execDate) {
+          const d = new Date(execDate + "T12:00:00");
+          if (!isNaN(d.getTime())) {
+            const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            let mItem = monthTrendMap.get(mk);
+            if (!mItem) {
+              const lbl = d.toLocaleDateString("es-VE", { month: "short", year: "2-digit" });
+              mItem = {
+                monthKey: mk,
+                label: lbl,
+                year: d.getFullYear(),
+                month: d.getMonth() + 1,
+                certificatesCount: 0,
+                carnetsCount: 0,
+                osisSet: new Set(),
+                legacyOsisSet: new Set(),
+              };
+              monthTrendMap.set(mk, mItem);
+            }
+            mItem.osisSet.add(idOsi);
+          }
         }
       }
     }
@@ -913,28 +1176,175 @@ export async function getReportesV2Data(
       }
     }
 
-    // ── Compute OSI-level totals for overview ───────────────────────────────
-    let totalHoursDelivered = 0;
-    let totalEstimatedAmount = 0;
+    // Helper to group OSIs by course delivery and compute real instructional hours.
+    // Open courses shared across multiple clients share the same course (id_servicio)
+    // and session execution dates.
+    // The instructional hours for each group delivery is strictly the OSI's total academic hours
+    // (horas_academicas_ejecucion / solped), NEVER multiplied by sessions or clients.
+    const groupOsisByDelivery = (osiSet: Set<number>) => {
+      const validOsis = Array.from(osiSet)
+        .filter((id) => !childOsiIds.has(id))
+        .map((id) => osiDetailsMap.get(id))
+        .filter((osi): osi is NonNullable<typeof osi> => {
+          if (!osi || !osi.id_osi) return false;
+          const status = osiStatusMap.get(osi.id_osi);
+          const hasCerts = (certCountByOsiId.get(osi.id_osi) || 0) > 0;
+          // Strictly require issued certificates OR confirmed executed status (12: EJECUTADO)
+          if (!hasCerts && status !== 12) return false;
+          if (status === 39 || status === 10 || status === 46) return false;
+          return true;
+        });
 
-    for (const osiId of allCertOsiIds) {
-      const m = osiMetrics.get(osiId);
-      if (m) {
-        totalHoursDelivered += m.hours;
-        totalEstimatedAmount += m.amount;
+      const byCourse = new Map<number, typeof validOsis>();
+      const noCourseOsis: typeof validOsis = [];
+      for (const osi of validOsis) {
+        if (osi.id_servicio) {
+          let list = byCourse.get(osi.id_servicio);
+          if (!list) {
+            list = [];
+            byCourse.set(osi.id_servicio, list);
+          }
+          list.push(osi);
+        } else {
+          noCourseOsis.push(osi);
+        }
       }
-    }
 
-    // Add legacy OSIs hours (counted once per legacy OSI sequential)
-    for (const stdHours of allLegacyOsis.values()) {
-      totalHoursDelivered += stdHours;
-    }
+      interface DeliveryGroup {
+        courseId: number | null;
+        dates: Set<string>;
+        sedeId: number | null;
+        stateId: number | null;
+        hasPaidInstructor: boolean;
+        osis: typeof validOsis;
+        hours: number;
+      }
 
-    // Helper: sum hours & amount for a set of OSI ids and legacy OSIs
+      const groups: DeliveryGroup[] = [];
+
+      for (const [courseId, osiList] of byCourse.entries()) {
+        const svc = serviciosMap.get(courseId);
+        const stdH = svc?.carga_horaria_std || 0;
+
+        for (const osi of osiList) {
+          let dates = osiDatesMap.get(osi.id_osi!);
+          if (!dates || dates.size === 0) {
+            dates = new Set();
+            if (osi.fecha_inicio_real) dates.add(osi.fecha_inicio_real.slice(0, 10));
+          }
+
+          const osiFee = osi.costo_honorarios_instructor || 0;
+          const hasFee = osiFee > 0;
+          const stateId = osi.id_estado_direccion_ejecucion_efectiva;
+          const sedeId = osi.id_sede;
+
+          let matchedGroup: DeliveryGroup | null = null;
+          for (const g of groups) {
+            if (g.courseId !== courseId) continue;
+            let sharesDate = false;
+            for (const d of dates) {
+              if (g.dates.has(d)) {
+                sharesDate = true;
+                break;
+              }
+            }
+            if (!sharesDate) continue;
+
+            // Strict Location Audit:
+            // 1. If both define a specific sede/branch, they must be identical
+            if (g.sedeId != null && sedeId != null && g.sedeId !== sedeId) continue;
+            // 2. If both define an execution state, they must be identical (different states = separate classes)
+            if (g.stateId != null && stateId != null && g.stateId !== stateId) continue;
+
+            // 3. Open Course Venue Check:
+            // Multi-client open courses typically occur for "Excelencia Operacional"
+            // or at SHA training headquarters (or hotel facilities like Hotel Rassil).
+            // Separate companies are never grouped into an open course if held at a third-party client site.
+            const isExcelencia = (svc?.nombre || "").toUpperCase().includes("EXCELENCIA OPERACIONAL");
+            const isDifferentCompany = g.osis.some((o) => o.id_empresa !== osi.id_empresa);
+            if (isDifferentCompany && !isExcelencia) {
+              const gVenueIsOpen = g.osis.some((o) => {
+                const dir = (o.direccion_ejecucion || "").toLowerCase();
+                return dir.includes("sha") || dir.includes("rassil") || dir.includes("hotel") || dir.includes("aula");
+              });
+              const osiVenueIsOpen = (() => {
+                const dir = (osi.direccion_ejecucion || "").toLowerCase();
+                return dir.includes("sha") || dir.includes("rassil") || dir.includes("hotel") || dir.includes("aula");
+              })();
+
+              if (!gVenueIsOpen && !osiVenueIsOpen) {
+                continue;
+              }
+            }
+
+            // Strict Cost Audit:
+            // Shared multi-OSI courses have at most 1 primary contract holding instructor honorarios.
+            // If both OSIs independently carry instructor fees, they are separate paid instruction sessions!
+            if (hasFee && g.hasPaidInstructor) continue;
+
+            matchedGroup = g;
+            break;
+          }
+
+          const h = osi.horas_academicas_ejecucion || osi.horas_academicas_solped || stdH;
+          if (matchedGroup) {
+            matchedGroup.osis.push(osi);
+            for (const d of dates) matchedGroup.dates.add(d);
+            matchedGroup.hours = Math.max(matchedGroup.hours, h);
+            if (hasFee) matchedGroup.hasPaidInstructor = true;
+            if (matchedGroup.sedeId == null && sedeId != null) matchedGroup.sedeId = sedeId;
+            if (matchedGroup.stateId == null && stateId != null) matchedGroup.stateId = stateId;
+          } else {
+            groups.push({
+              courseId,
+              dates: new Set(dates),
+              sedeId: sedeId ?? null,
+              stateId: stateId ?? null,
+              hasPaidInstructor: hasFee,
+              osis: [osi],
+              hours: h,
+            });
+          }
+        }
+      }
+
+      for (const osi of noCourseOsis) {
+        const h = osi.horas_academicas_ejecucion || osi.horas_academicas_solped || 0;
+        groups.push({
+          courseId: null,
+          dates: new Set(osi.fecha_inicio_real ? [osi.fecha_inicio_real.slice(0, 10)] : []),
+          sedeId: osi.id_sede ?? null,
+          stateId: osi.id_estado_direccion_ejecucion_efectiva ?? null,
+          hasPaidInstructor: (osi.costo_honorarios_instructor || 0) > 0,
+          osis: [osi],
+          hours: h,
+        });
+      }
+
+      return groups;
+    };
+
+    const calculateDeliveredSessionHours = (osiSet: Set<number>, legacySet?: Set<string>) => {
+      const groups = groupOsisByDelivery(osiSet);
+      let hours = groups.reduce((acc, g) => acc + g.hours, 0);
+
+      if (legacySet) {
+        for (const leg of legacySet) {
+          hours += allLegacyOsis.get(leg) ?? 0;
+        }
+      }
+      return hours;
+    };
+
+    // ── Compute OSI-level totals for overview ───────────────────────────────
+    const totalHoursDelivered = calculateDeliveredSessionHours(allDeliveredOsiIds, new Set(allLegacyOsis.keys()));
+
+    // Helper: sum hours & amount for a set of OSI ids and legacy OSIs, excluding grouped child OSIs
     const sumOsiMetrics = (osiSet: Set<number>, legacySet?: Set<string>) => {
       let hours = 0;
       let amount = 0;
       for (const id of osiSet) {
+        if (childOsiIds.has(id)) continue; // Skip child OSIs to prevent inflating hours
         const m = osiMetrics.get(id);
         if (m) {
           hours += m.hours;
@@ -954,13 +1364,14 @@ export async function getReportesV2Data(
       .map(([id, c]) => {
         const info = empresasMap.get(id);
         const { hours } = sumOsiMetrics(c.osis, c.legacyOsis);
+        const distinctOsis = Array.from(c.osis).filter((osiId) => !childOsiIds.has(osiId)).length + c.legacyOsis.size;
         return {
           id,
           razonSocial: info?.razon_social || `Empresa #${id}`,
           rif: info?.rif || "N/A",
           totalCertificates: c.totalCertificates,
           totalCarnets: c.totalCarnets,
-          totalOsis: c.osis.size + c.legacyOsis.size,
+          totalOsis: distinctOsis,
           totalHours: Math.round(hours * 10) / 10,
           uniqueCourses: c.courses.size,
           states: Array.from(c.states),
@@ -972,21 +1383,89 @@ export async function getReportesV2Data(
     const coursesResult = Array.from(courseAgg.entries())
       .map(([id, c]) => {
         const svc = serviciosMap.get(id);
-        const { hours } = sumOsiMetrics(c.osis, c.legacyOsis);
         const stdHours = svc?.carga_horaria_std || 0;
+        const deliveryGroups = groupOsisByDelivery(c.osis);
+        const legacyHours = Array.from(c.legacyOsis).reduce((acc, leg) => acc + (allLegacyOsis.get(leg) || 0), 0);
+        const hours = deliveryGroups.reduce((acc, g) => acc + g.hours, 0) + legacyHours;
+        const distinctDeliveries = deliveryGroups.length + c.legacyOsis.size;
+
+        const deliveries = deliveryGroups.map((group) => {
+          const sortedDates = Array.from(group.dates).sort();
+          const primaryDate = sortedDates[0] || group.osis[0].fecha_inicio_real?.slice(0, 10) || "";
+
+          const osisWithCosts = group.osis.map((o) => {
+            const emp = (o.id_empresa ? empresasMap.get(o.id_empresa)?.razon_social : null) || o.nombre_empresa || "Empresa";
+            const cost =
+              (o.costo_honorarios_instructor || 0) +
+              (o.costo_traslado || 0) +
+              (o.costo_hospedaje || 0) +
+              (o.costo_logistica_comida || 0) +
+              (o.costo_impresion_material || 0) +
+              (o.costo_carnetizacion || 0) +
+              (o.costo_otros || 0);
+
+            return {
+              idOsi: o.id_osi!,
+              nroOsi: o.nro_osi || `OSI-${o.id_osi}`,
+              fecha: o.fecha_inicio_real?.slice(0, 10) || null,
+              empresa: emp,
+              sede: o.sede || null,
+              hours: o.horas_academicas_ejecucion || o.horas_academicas_solped || (svc?.carga_horaria_std || 0),
+              certificatesCount: certCountByOsiId.get(o.id_osi!) || 0,
+              totalCost: Math.round(cost * 100) / 100,
+            };
+          });
+
+          // Sort so the parent candidate (highest cost) is first
+          osisWithCosts.sort((a, b) => b.totalCost - a.totalCost || a.idOsi - b.idOsi);
+
+          const distinctCompanies = Array.from(new Set(group.osis.map((o) => o.id_empresa).filter(Boolean)));
+          const isOpenCourse = group.osis.length > 1 && distinctCompanies.length > 1;
+          const isCorporateMulti = group.osis.length > 1 && distinctCompanies.length <= 1;
+
+          return {
+            fecha: primaryDate,
+            isOpenCourse,
+            isCorporateMulti,
+            distinctCompaniesCount: distinctCompanies.length,
+            parentOsi: osisWithCosts[0],
+            childOsis: osisWithCosts.slice(1),
+          };
+        }).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+
+        const osisList = Array.from(c.osis)
+          .filter((osiId) => !childOsiIds.has(osiId))
+          .map((osiId) => {
+            const osi = osiDetailsMap.get(osiId);
+            const m = osiMetrics.get(osiId);
+            return {
+              idOsi: osiId,
+              nroOsi: osi?.nro_osi || `OSI-${osiId}`,
+              fecha: osi?.fecha_inicio_real?.slice(0, 10) || null,
+              empresa: (osi?.id_empresa ? empresasMap.get(osi.id_empresa)?.razon_social : null) || osi?.nombre_empresa || "Empresa",
+              hours: osi?.horas_academicas_ejecucion || osi?.horas_academicas_solped || (svc?.carga_horaria_std || 0),
+              certificatesCount: certCountByOsiId.get(osiId) || 0,
+              totalCost: m?.amount ?? 0,
+            };
+          })
+          .sort((a, b) => (b.fecha || "").localeCompare(a.fecha || "") || b.idOsi - a.idOsi);
+
         return {
           id,
           nombre: svc?.nombre || `Curso #${id}`,
           cargaHorariaStd: stdHours,
           totalCertificates: c.totalCertificates,
-          totalOsis: c.osis.size + c.legacyOsis.size,
+          totalOsis: osisList.length,
+          totalSessions: distinctDeliveries,
           totalCompanies: c.companies.size,
           totalFacilitators: c.facilitators.size,
           totalHours: Math.round(hours * 10) / 10,
           lastActivity: c.lastActivity,
+          deliveries,
+          osisList,
         };
       })
-      .sort((a, b) => b.totalCertificates - a.totalCertificates);
+      .sort((a, b) => b.totalOsis - a.totalOsis || b.totalHours - a.totalHours || b.totalCertificates - a.totalCertificates);
 
     const facilitatorsResult = facilitadoresRows
       .map((f) => {
@@ -1064,14 +1543,8 @@ export async function getReportesV2Data(
 
     const monthlyTrends = Array.from(monthTrendMap.values())
       .map((m) => {
-        let monthHours = 0;
-        for (const osiId of m.osisSet) {
-          const om = osiMetrics.get(osiId);
-          if (om) monthHours += om.hours;
-        }
-        for (const leg of m.legacyOsisSet) {
-          monthHours += allLegacyOsis.get(leg) ?? 0;
-        }
+        const monthHours = calculateDeliveredSessionHours(m.osisSet, m.legacyOsisSet);
+        const distinctOsis = Array.from(m.osisSet).filter((osiId) => !childOsiIds.has(osiId)).length + m.legacyOsisSet.size;
         return {
           monthKey: m.monthKey,
           label: m.label,
@@ -1079,7 +1552,7 @@ export async function getReportesV2Data(
           month: m.month,
           certificatesCount: m.certificatesCount,
           carnetsCount: m.carnetsCount,
-          osisCount: m.osisSet.size + m.legacyOsisSet.size,
+          osisCount: distinctOsis,
           hoursCount: Math.round(monthHours * 10) / 10,
         };
       })
@@ -1126,6 +1599,110 @@ export async function getReportesV2Data(
       pendingFacilitatorHonorarios += cur.pendingMonto;
     }
 
+    // Detect potential ungrouped multi-OSI same-service groups (e.g. open courses across multiple clients sharing session dates)
+    const allExecutedOsiIds = new Set<number>();
+    for (const o of osiFormatoRows) {
+      if (!o.id_osi || childOsiIds.has(o.id_osi)) continue;
+      const status = osiStatusMap.get(o.id_osi);
+      if (status === 39 || status === 10 || status === 46) continue;
+      // Filter by date / state if supplied
+      const execDate = o.fecha_inicio_real?.slice(0, 10);
+      if (dateFrom && execDate && execDate < dateFrom) continue;
+      if (dateTo && execDate && execDate > dateTo) continue;
+      if (stateId && o.id_estado_direccion_ejecucion_efectiva !== Number(stateId)) continue;
+      allExecutedOsiIds.add(o.id_osi);
+    }
+
+    const multiDeliveryGroups = groupOsisByDelivery(allExecutedOsiIds);
+    const potentialMultiOsiGroups: PotentialMultiOsiGroup[] = [];
+
+    for (const group of multiDeliveryGroups) {
+      if (group.osis.length > 1) {
+        const companies = Array.from(
+          new Set(
+            group.osis
+              .map((o) => (o.id_empresa ? empresasMap.get(o.id_empresa)?.razon_social : null) || o.nombre_empresa || "Empresa")
+              .filter(Boolean),
+          ),
+        );
+        const svcName = group.courseId
+          ? serviciosMap.get(group.courseId)?.nombre || `Curso #${group.courseId}`
+          : "Curso";
+        const empLabel =
+          companies.length > 2
+            ? `${companies.slice(0, 2).join(", ")} (+${companies.length - 2} más)`
+            : companies.join(", ");
+
+        const sortedDates = Array.from(group.dates).sort();
+        const primaryDate = sortedDates[0] || group.osis[0].fecha_inicio_real?.slice(0, 10) || "";
+
+        // Calculate costs on each OSI to identify parent contract holding the costs
+        const osisWithCosts = group.osis.map((o) => {
+          const emp = (o.id_empresa ? empresasMap.get(o.id_empresa)?.razon_social : null) || o.nombre_empresa || "Empresa";
+          const cost =
+            (o.costo_honorarios_instructor || 0) +
+            (o.costo_traslado || 0) +
+            (o.costo_hospedaje || 0) +
+            (o.costo_logistica_comida || 0) +
+            (o.costo_impresion_material || 0) +
+            (o.costo_carnetizacion || 0) +
+            (o.costo_otros || 0);
+
+          return {
+            idOsi: o.id_osi!,
+            nroOsi: o.nro_osi || `OSI-${o.id_osi}`,
+            hours: o.horas_academicas_ejecucion || o.horas_academicas_solped || 0,
+            certificatesCount: certCountByOsiId.get(o.id_osi!) || 0,
+            empresaNombre: emp,
+            totalCost: Math.round(cost * 100) / 100,
+            isParentCandidate: false,
+          };
+        });
+
+        // Identify parent candidate: OSI with the highest cost (holds instructor/logistics costs)
+        let maxCost = -1;
+        let parentCandidateIndex = 0;
+        osisWithCosts.forEach((o, idx) => {
+          if (o.totalCost > maxCost) {
+            maxCost = o.totalCost;
+            parentCandidateIndex = idx;
+          }
+        });
+
+        if (maxCost > 0) {
+          osisWithCosts[parentCandidateIndex].isParentCandidate = true;
+        }
+
+        // Sort so the parent candidate is displayed first
+        osisWithCosts.sort((a, b) => (b.isParentCandidate ? 1 : 0) - (a.isParentCandidate ? 1 : 0) || b.totalCost - a.totalCost || a.idOsi - b.idOsi);
+
+        const totalGroupCost = osisWithCosts.reduce((acc, o) => acc + o.totalCost, 0);
+        const zeroCostCount = osisWithCosts.filter((o) => o.totalCost === 0).length;
+        const nonZeroCostCount = osisWithCosts.filter((o) => o.totalCost > 0).length;
+        const hasCostValidation = nonZeroCostCount >= 1 && zeroCostCount >= 1;
+
+        const distinctEmpresaIds = Array.from(new Set(group.osis.map((o) => o.id_empresa).filter(Boolean)));
+        const isOpenCourse = distinctEmpresaIds.length > 1;
+        const isCorporateMulti = distinctEmpresaIds.length <= 1;
+
+        potentialMultiOsiGroups.push({
+          groupKey: `multi_${group.courseId || "nocourse"}_${primaryDate}_${group.sedeId || "nosede"}`,
+          fecha: primaryDate,
+          empresaNombre: empLabel,
+          cursoNombre: svcName,
+          companies,
+          isOpenCourse,
+          isCorporateMulti,
+          parentOsiId: osisWithCosts[0].idOsi,
+          totalGroupCost,
+          hasCostValidation,
+          osis: osisWithCosts,
+        });
+      }
+    }
+
+    const totalEffectiveOsis = Array.from(allDeliveredOsiIds).filter((id) => !childOsiIds.has(id)).length + allLegacyOsis.size;
+
     const overview = {
       totalCertificates: certs.length,
       activeCertificates: activeCertsCount,
@@ -1137,12 +1714,13 @@ export async function getReportesV2Data(
       totalCompanies: companyAgg.size,
       totalFacilitators: facilitatorsResult.length,
       totalCourses: courseAgg.size,
-      totalOsis: allCertOsiIds.size + allLegacyOsis.size,
+      totalOsis: totalEffectiveOsis,
       totalHonorariosFacilitadores: Math.round(totalFacilitatorHonorarios * 100) / 100,
       totalFacilitatorHours: Math.round(totalFacilitatorHours * 10) / 10,
       pendingFacilitatorHours: Math.round(pendingFacilitatorHours * 10) / 10,
       pendingFacilitatorHonorarios: Math.round(pendingFacilitatorHonorarios * 100) / 100,
       paidFacilitatorsCount,
+      potentialDuplicatesCount: potentialMultiOsiGroups.length,
     };
 
     return {
@@ -1175,6 +1753,7 @@ export async function getReportesV2Data(
           },
           osis: surveysByOsi,
         },
+        potentialMultiOsiGroups,
         timing: {
           fetchMs: Math.round(tFetch - t0),
           processMs: Math.round(tProcess - tFetch),

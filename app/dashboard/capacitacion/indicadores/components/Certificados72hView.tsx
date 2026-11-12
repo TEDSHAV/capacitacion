@@ -23,6 +23,7 @@ import {
 import type { IndicadorEstado, IndicadorOsiRow, IndicadoresAggregates } from "@/types";
 import { parseDate } from "@/lib/business-days";
 import { useToast } from "@/lib/ui/toast-context";
+import { useDebounce } from "@/hooks/use-debounce";
 import { desagruparOsi, desagruparGrupo } from "@/app/actions/indicadores-ajustes";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
 import EditarFechasModal from "./EditarFechasModal";
@@ -67,9 +68,10 @@ function formatDate(s: string | null | undefined): string {
 export default function Certificados72hView({ aggregates, rows, mesLabel, onRefresh }: Props) {
   const { addToast } = useToast();
   const [filterEstado, setFilterEstado] = useState<
-    IndicadorEstado | "ajustadas" | "otra_osi" | "agrupadas" | "demora_facilitador" | "all"
+    IndicadorEstado | "ajustadas" | "otra_osi" | "agrupadas" | "demora_facilitador" | "posibles_duplicadas" | "all"
   >("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 250);
   const [sortKey, setSortKey] = useState<SortKey>("diasHabiles");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -203,11 +205,13 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
       result = result.filter((r) => r.isParentService || r.isChildService);
     } else if (filterEstado === "demora_facilitador") {
       result = result.filter((r) => r.atribucionDemora === "demora_facilitador");
+    } else if (filterEstado === "posibles_duplicadas") {
+      result = result.filter((r) => r.isPotentialDuplicate);
     } else if (filterEstado !== "all") {
       result = result.filter((r) => r.estado === filterEstado);
     }
 
-    const term = searchTerm.trim().toLowerCase();
+    const term = debouncedSearchTerm.trim().toLowerCase();
     if (term) {
       result = result.filter((r) => {
         const facilitador = (r.facilitadorSesionNombre || r.facilitadorNombre || "").toLowerCase();
@@ -233,7 +237,7 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
     }
 
     return result;
-  }, [rows, filterEstado, searchTerm, viewMode]);
+  }, [rows, filterEstado, debouncedSearchTerm, viewMode]);
 
   // Sorted rows
   const sortedRows = useMemo(() => {
@@ -513,6 +517,36 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
         </div>
       )}
 
+      {/* ── Banner de Detección de Posibles Multi-OSI ──────────────────────── */}
+      {(aggregates.potentialDuplicateGroupsCount ?? 0) > 0 && filterEstado !== "posibles_duplicadas" && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-amber-100 rounded-xl shrink-0 text-amber-700">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                <span>Detección de Posibles Servicios Multi-OSI</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-200 text-amber-900">
+                  {aggregates.potentialDuplicateGroupsCount} grupos detectados
+                </span>
+              </h4>
+              <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                Se detectaron {aggregates.potentialDuplicateOsisCount} OSIs que coinciden en fecha de ejecución, empresa y curso pero no están agrupadas. Agruparlas consolida los indicadores de 72h y evita duplicar horas dictadas en reportes.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFilterEstado("posibles_duplicadas")}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition-colors shrink-0 self-start sm:self-auto cursor-pointer"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Revisar y Agrupar →</span>
+          </button>
+        </div>
+      )}
+
       {/* ── 2. Filtros Rápidos + Selector de Vista + Buscador ────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         {/* Pills de Estado */}
@@ -603,6 +637,25 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
             >
               <Layers className="w-3.5 h-3.5" />
               Agrupadas ({aggregates.totalGrupos ?? 0} grupos)
+            </button>
+          )}
+
+          {(aggregates.potentialDuplicateGroupsCount ?? 0) > 0 && (
+            <button
+              onClick={() =>
+                setFilterEstado(
+                  filterEstado === "posibles_duplicadas" ? "all" : "posibles_duplicadas"
+                )
+              }
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+                filterEstado === "posibles_duplicadas"
+                  ? "bg-amber-600 text-white font-semibold"
+                  : "bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 font-medium"
+              }`}
+              title="Filtrar OSIs no agrupadas que ocurrieron el mismo día, misma empresa y mismo curso para su revisión y agrupación"
+            >
+              <Layers className="w-3.5 h-3.5 text-amber-600" />
+              <span>Posibles Multi-OSI ({aggregates.potentialDuplicateGroupsCount} grupos)</span>
             </button>
           )}
 
@@ -931,8 +984,21 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                         </td>
 
                         {/* Curso / Servicio */}
-                        <td className="px-2.5 py-2.5 text-gray-700 max-w-[180px] truncate text-xs" title={r.servicio}>
-                          {r.servicio || "—"}
+                        <td className="px-2.5 py-2.5 text-gray-700 max-w-[200px] text-xs">
+                          <div className="truncate font-medium text-gray-800" title={r.servicio}>
+                            {r.servicio || "—"}
+                          </div>
+                          {r.isPotentialDuplicate && r.potentialDuplicateWith && (
+                            <div className="mt-0.5">
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300"
+                                title={`Misma fecha, empresa y curso que OSI: ${r.potentialDuplicateWith.join(", ")}`}
+                              >
+                                <Layers className="w-3 h-3 text-amber-600" />
+                                Mismo servicio que OSI {r.potentialDuplicateWith.join(", ")}
+                              </span>
+                            </div>
+                          )}
                         </td>
 
                         {/* Fecha de Ejecución */}

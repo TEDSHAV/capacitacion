@@ -16,6 +16,7 @@ const getFacilitatorHoursStats = cache(
           `
         id_facilitador,
         id_curso,
+        nro_osi,
         fecha_emision,
         facilitadores!inner(
           nombre_apellido,
@@ -69,6 +70,7 @@ const getFacilitatorHoursStats = cache(
           is_active: boolean;
         }
       >();
+      const processedFacilitatorOsis = new Set<string>();
 
       // Helper function to get state name by ID
       const getStateName = (stateId: number | null) => {
@@ -92,9 +94,13 @@ const getFacilitatorHoursStats = cache(
           });
         }
 
-        // Accumulate hours per facilitator
-        const currentHours = facilitatorHoursMap.get(facilitatorId) || 0;
-        facilitatorHoursMap.set(facilitatorId, currentHours + hours);
+        // Accumulate hours per facilitator (once per course/OSI group, NOT per certificate)
+        const osiKey = `${facilitatorId}-${cert.nro_osi || cert.id_curso}`;
+        if (!processedFacilitatorOsis.has(osiKey)) {
+          processedFacilitatorOsis.add(osiKey);
+          const currentHours = facilitatorHoursMap.get(facilitatorId) || 0;
+          facilitatorHoursMap.set(facilitatorId, currentHours + hours);
+        }
 
         // Store course info
         if (!facilitatorCourseMap.has(facilitatorId)) {
@@ -223,6 +229,7 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
         `
         id_curso,
         id_facilitador,
+        nro_osi,
         id_estado,
         fecha_emision,
         facilitadores!inner(
@@ -299,6 +306,8 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
       }
     >();
 
+    const processedFacCourseOsis = new Set<string>();
+
     certificates.forEach((cert: any) => {
       const servicio = serviciosMap.get(cert.id_curso);
       const facilitatorData = cert.facilitadores;
@@ -334,7 +343,12 @@ const getCourseStats = cache(async (stateId?: string, courseId?: string) => {
       }
 
       const facilitator = course.facilitadores.get(cert.id_facilitador)!;
-      facilitator.totalHours += hours;
+      // Deduplicate hours by OSI group
+      const osiKey = `${courseId}-${cert.id_facilitador}-${cert.nro_osi || 'no-osi'}`;
+      if (!processedFacCourseOsis.has(osiKey)) {
+        processedFacCourseOsis.add(osiKey);
+        facilitator.totalHours += hours;
+      }
       facilitator.totalCertificates += 1;
       facilitator.certificates.push({
         nro_osi: cert.nro_osi || 0,

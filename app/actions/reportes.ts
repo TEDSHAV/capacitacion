@@ -107,39 +107,47 @@ export async function getOverviewMetrics(
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    let query = supabase
-      .from("certificados")
-      .select(
-        `id, is_active, fecha_emision, calificacion,
-         id_curso, id_facilitador, id_participante, id_empresa, id_estado, nro_osi,
-         facilitadores(id, nombre_apellido),
-         empresas(id, razon_social)`,
-      )
-      .limit(5000);
-
-    if (dateFrom) query = query.gte("fecha_emision", dateFrom);
-    if (dateTo) query = query.lte("fecha_emision", dateTo);
-    if (stateId) query = query.eq("id_estado", stateId);
-
-    const [{ data: certs, error }, { data: servicios }, { data: osiData }, { data: carnets }] = await Promise.all([
-      query,
+    const [certs, serviciosRes, osiData, carnets] = await Promise.all([
+      fetchAllPages<any>(
+        (from, to) => {
+          let q = supabase
+            .from("certificados")
+            .select(
+              `id, is_active, fecha_emision, calificacion,
+               id_curso, id_facilitador, id_participante, id_empresa, id_estado, nro_osi, snapshot_contenido,
+               facilitadores(id, nombre_apellido),
+               empresas(id, razon_social)`,
+            );
+          if (dateFrom) q = q.gte("fecha_emision", dateFrom);
+          if (dateTo) q = q.lte("fecha_emision", dateTo);
+          if (stateId) q = q.eq("id_estado", stateId);
+          return q.range(from, to);
+        },
+        "getOverviewMetrics.certificados",
+      ),
       supabase
         .from("catalogo_servicios")
         .select("id, nombre, carga_horaria_std"),
-      supabase
-        .from("v_osi_lista")
-        .select("id_osi, nro_osi, horas_academicas_ejecucion")
-        .limit(5000),
-      supabase
-        .from("carnets")
-        .select("id, is_active, fecha_emision, fecha_vencimiento, id_certificado, created_at")
-        .limit(5000),
+      fetchAllPages<any>(
+        (from, to) =>
+          supabase
+            .from("v_osi_lista")
+            .select("id_osi, nro_osi, horas_academicas_ejecucion")
+            .range(from, to),
+        "getOverviewMetrics.osiData",
+      ),
+      fetchAllPages<any>(
+        (from, to) =>
+          supabase
+            .from("carnets")
+            .select("id, is_active, fecha_emision, fecha_vencimiento, id_certificado, created_at")
+            .range(from, to),
+        "getOverviewMetrics.carnets",
+      ),
     ]);
 
-    if (error) return { error: error.message, data: null };
-
-    // Check for truncation
-    const truncationWarning = checkTruncation(certs, 5000);
+    const servicios = serviciosRes.data || [];
+    const truncationWarning: { isTruncated: boolean; message?: string } = { isTruncated: false };
 
     // Create a map of servicios for quick lookup
     const serviciosMap = new Map((servicios || []).map((s: any) => [s.id, s]));
@@ -395,34 +403,38 @@ export async function getCursosReport(
 ): Promise<{ data: CursoReportItem[]; error: string | null }> {
   const supabase = await createClient();
   try {
-    let query = supabase
-      .from("certificados")
-      .select(
-        `id, fecha_emision, calificacion, id_curso, id_facilitador, id_estado, nro_osi,
-         facilitadores(id, nombre_apellido)`,
-      )
-      .not("id_curso", "is", null)
-      .limit(5000);
-
-    if (dateFrom) query = query.gte("fecha_emision", dateFrom);
-    if (dateTo) query = query.lte("fecha_emision", dateTo);
-    if (stateId) query = query.eq("id_estado", stateId);
-
-    const [{ data: certs, error }, { data: servicios }, { data: osiData }] = await Promise.all([
-      query,
+    const [certs, serviciosRes, osiData] = await Promise.all([
+      fetchAllPages<any>(
+        (from, to) => {
+          let q = supabase
+            .from("certificados")
+            .select(
+              `id, fecha_emision, calificacion, id_curso, id_facilitador, id_estado, nro_osi, snapshot_contenido,
+               facilitadores(id, nombre_apellido)`,
+            )
+            .not("id_curso", "is", null);
+          if (dateFrom) q = q.gte("fecha_emision", dateFrom);
+          if (dateTo) q = q.lte("fecha_emision", dateTo);
+          if (stateId) q = q.eq("id_estado", stateId);
+          return q.range(from, to);
+        },
+        "getCursosReport.certificados",
+      ),
       supabase
         .from("catalogo_servicios")
         .select("id, nombre, carga_horaria_std"),
-      supabase
-        .from("v_osi_lista")
-        .select("id_osi, nro_osi, horas_academicas_ejecucion")
-        .limit(5000),
+      fetchAllPages<any>(
+        (from, to) =>
+          supabase
+            .from("v_osi_lista")
+            .select("id_osi, nro_osi, horas_academicas_ejecucion")
+            .range(from, to),
+        "getCursosReport.osiData",
+      ),
     ]);
 
-    if (error) return { error: error.message, data: [] };
-
-    // Check for truncation
-    const truncationWarning = checkTruncation(certs, 5000);
+    const servicios = serviciosRes.data || [];
+    const truncationWarning: { isTruncated: boolean; message?: string } = { isTruncated: false };
 
     // Create a map of servicios for quick lookup
     const serviciosMap = new Map((servicios || []).map((s: any) => [s.id, s]));
@@ -962,24 +974,24 @@ export async function getEmpresasReport(
 ): Promise<{ data: EmpresaReportItem[]; error: string | null }> {
   const supabase = await createClient();
   try {
-    let query = supabase
-      .from("certificados")
-      .select(
-        `id, fecha_emision, id_empresa, id_participante, id_curso, id_estado,
-         empresas(id, razon_social, rif)`,
-      )
-      .not("id_empresa", "is", null)
-      .limit(5000);
+    const certs = await fetchAllPages<any>(
+      (from, to) => {
+        let q = supabase
+          .from("certificados")
+          .select(
+            `id, fecha_emision, id_empresa, id_participante, id_curso, id_estado,
+             empresas(id, razon_social, rif)`,
+          )
+          .not("id_empresa", "is", null);
+        if (dateFrom) q = q.gte("fecha_emision", dateFrom);
+        if (dateTo) q = q.lte("fecha_emision", dateTo);
+        if (stateId) q = q.eq("id_estado", stateId);
+        return q.range(from, to);
+      },
+      "getEmpresasReport.certificados",
+    );
 
-    if (dateFrom) query = query.gte("fecha_emision", dateFrom);
-    if (dateTo) query = query.lte("fecha_emision", dateTo);
-    if (stateId) query = query.eq("id_estado", stateId);
-
-    const { data: certs, error } = await query;
-    if (error) return { error: error.message, data: [] };
-
-    // Check for truncation
-    const truncationWarning = checkTruncation(certs, 5000);
+    const truncationWarning: { isTruncated: boolean; message?: string } = { isTruncated: false };
 
     const companyMap = new Map<
       number,
@@ -1055,26 +1067,26 @@ export async function getCompanyCourseDetails(
 ): Promise<{ data: Array<{ id: number; nombre: string; count: number; lastActivity: string | null }>; error: string | null }> {
   const supabase = await createClient();
   try {
-    let query = supabase
-      .from("certificados")
-      .select(`
-        id_curso,
-        fecha_emision,
-        catalogo_servicios(id, nombre)
-      `)
-      .eq("id_empresa", companyId)
-      .not("id_curso", "is", null)
-      .limit(5000);
+    const certs = await fetchAllPages<any>(
+      (from, to) => {
+        let q = supabase
+          .from("certificados")
+          .select(`
+            id_curso,
+            fecha_emision,
+            catalogo_servicios(id, nombre)
+          `)
+          .eq("id_empresa", companyId)
+          .not("id_curso", "is", null);
+        if (dateFrom) q = q.gte("fecha_emision", dateFrom);
+        if (dateTo) q = q.lte("fecha_emision", dateTo);
+        if (stateId) q = q.eq("id_estado", stateId);
+        return q.range(from, to);
+      },
+      "getCompanyCourseDetails.certificados",
+    );
 
-    if (dateFrom) query = query.gte("fecha_emision", dateFrom);
-    if (dateTo) query = query.lte("fecha_emision", dateTo);
-    if (stateId) query = query.eq("id_estado", stateId);
-
-    const { data: certs, error } = await query;
-    if (error) return { error: error.message, data: [] };
-
-    // Check for truncation
-    const truncationWarning = checkTruncation(certs, 5000);
+    const truncationWarning: { isTruncated: boolean; message?: string } = { isTruncated: false };
 
     const courseMap = new Map<number, {
       id: number;
@@ -1126,24 +1138,23 @@ export async function getTendenciasReport(stateId?: string): Promise<{
 }> {
   const supabase = await createClient();
   try {
-    let query = supabase
-      .from("certificados")
-      .select("id, fecha_emision, id_estado")
-      .not("fecha_emision", "is", null)
-      .order("fecha_emision", { ascending: true })
-      .limit(10000);
-
-    if (stateId) query = query.eq("id_estado", stateId);
-
-    const [certsRes, statesRes] = await Promise.all([
-      query,
+    const [certs, statesRes] = await Promise.all([
+      fetchAllPages<any>(
+        (from, to) => {
+          let q = supabase
+            .from("certificados")
+            .select("id, fecha_emision, id_estado")
+            .not("fecha_emision", "is", null)
+            .order("fecha_emision", { ascending: true });
+          if (stateId) q = q.eq("id_estado", stateId);
+          return q.range(from, to);
+        },
+        "getTendenciasReport.certificados",
+      ),
       supabase.from("cat_estados_venezuela").select("id, nombre_estado"),
     ]);
 
-    if (certsRes.error) return { error: certsRes.error.message, data: null };
-
-    // Check for truncation
-    const truncationWarning = checkTruncation(certsRes.data, 10000);
+    const truncationWarning: { isTruncated: boolean; message?: string } = { isTruncated: false };
 
     const stateNames = new Map<number, string>();
     statesRes.data?.forEach((s: any) => stateNames.set(s.id, s.nombre_estado));
@@ -1151,7 +1162,7 @@ export async function getTendenciasReport(stateId?: string): Promise<{
     const monthMap = new Map<string, number>();
     const stateMap = new Map<string, number>();
 
-    certsRes.data?.forEach((cert: any) => {
+    certs.forEach((cert: any) => {
       const d = new Date(cert.fecha_emision + "T12:00:00");
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       monthMap.set(mk, (monthMap.get(mk) || 0) + 1);
@@ -1343,21 +1354,18 @@ export async function getCarnetsMetrics(
 
     // Only fetch the columns needed for metrics — avoids reading heavy
     // TOAST blobs (snapshot_contenido, qr_code) and unused joins.
-    let query = supabase
-      .from("carnets")
-      .select("id, fecha_emision, fecha_vencimiento, is_active, created_at")
-      .order("created_at", { ascending: false });
-
-    // Push date filters to Postgres instead of filtering in JS
-    if (dateFrom) query = query.gte("fecha_emision", dateFrom);
-    if (dateTo) query = query.lte("fecha_emision", dateTo);
-
-    const { data: filteredCarnets, error: carnetsError } = await query;
-
-    if (carnetsError) {
-      console.error("Error fetching carnets:", carnetsError);
-      return { error: "Error fetching carnets data" };
-    }
+    const filteredCarnets = await fetchAllPages<any>(
+      (from, to) => {
+        let q = supabase
+          .from("carnets")
+          .select("id, fecha_emision, fecha_vencimiento, is_active, created_at")
+          .order("created_at", { ascending: false });
+        if (dateFrom) q = q.gte("fecha_emision", dateFrom);
+        if (dateTo) q = q.lte("fecha_emision", dateTo);
+        return q.range(from, to);
+      },
+      "getCarnetsMetrics.carnets",
+    );
 
     // Calculate basic metrics
     const totalCarnets = filteredCarnets.length;

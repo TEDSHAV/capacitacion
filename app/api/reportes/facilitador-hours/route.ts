@@ -46,7 +46,8 @@ export async function GET(request: NextRequest) {
       { data: servicios },
       { data: facilitadores },
       { data: allStates },
-      { data: osiData },
+      { data: assignmentsData },
+      { data: ejecucionData },
     ] = await Promise.all([
       query,
       supabase
@@ -69,9 +70,12 @@ export async function GET(request: NextRequest) {
         .select("id, nombre_estado")
         .order("nombre_estado"),
       supabase
+        .from("facilitador_osi_assignments")
+        .select("facilitador_id, osi_id")
+        .eq("is_active", true),
+      supabase
         .from("ejecucion_osi")
-        .select("nro_osi, id_facilitador, dias_servicio")
-        .not("id_facilitador", "is", null),
+        .select("id, horas_academicas_ejecucion"),
     ]);
 
     if (error) {
@@ -184,14 +188,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Add OSI hours
+    // Add OSI hours mapped via facilitador_osi_assignments
+    const ejecucionHoursMap = new Map<number, number>(
+      (ejecucionData || []).map((e: any) => [e.id, e.horas_academicas_ejecucion || 0]),
+    );
     const osiHours = new Map<number, number>();
-    if (osiData) {
-      osiData.forEach((osi: any) => {
-        if (osi.id_facilitador && osi.dias_servicio) {
-          const hours = osi.dias_servicio * 8; // 8 hours per day
-          const current = osiHours.get(osi.id_facilitador) || 0;
-          osiHours.set(osi.id_facilitador, current + hours);
+    if (assignmentsData) {
+      assignmentsData.forEach((a: any) => {
+        if (a.facilitador_id && a.osi_id) {
+          const hours = ejecucionHoursMap.get(a.osi_id) || 0;
+          const current = osiHours.get(a.facilitador_id) || 0;
+          osiHours.set(a.facilitador_id, current + hours);
         }
       });
     }

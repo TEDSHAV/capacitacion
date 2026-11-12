@@ -2044,6 +2044,9 @@ export interface IndicadorOsiRow {
   soportesCompletos?: boolean;
   atribucionDemora?: "demora_facilitador" | "en_gestion" | null;
   atribucionDetalle?: string | null;
+  // Multi-OSI same-service detection
+  isPotentialDuplicate?: boolean;
+  potentialDuplicateWith?: string[];
 }
 
 export interface IndicadoresAggregates {
@@ -2068,6 +2071,8 @@ export interface IndicadoresAggregates {
   totalOsisAgrupadas?: number;
   totalGrupos?: number;
   demoraFacilitadorCount?: number;
+  potentialDuplicateGroupsCount?: number;
+  potentialDuplicateOsisCount?: number;
 }
 
 export interface IndicadoresResponse {

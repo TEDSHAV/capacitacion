@@ -13,6 +13,7 @@ import {
   CalendarDays,
   FileDown,
   Eye,
+  X,
 } from "lucide-react";
 import type {
   IndicadorOsiOption,
@@ -20,6 +21,7 @@ import type {
 } from "@/types";
 import { trackedMonthIndicesForYear } from "@/lib/indicadores-cutoff";
 import { toTitleCase } from "@/utils/string-utils";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export interface IndicadoresFilterState {
   osiIds: number[];
@@ -85,6 +87,7 @@ export default function FilterBar({
 }: Props) {
   const [osiDropdownOpen, setOsiDropdownOpen] = useState(false);
   const [osiSearch, setOsiSearch] = useState("");
+  const debouncedOsiSearch = useDebounce(osiSearch, 200);
   const osiRef = useRef<HTMLDivElement>(null);
 
   // Close the OSI dropdown on outside click
@@ -99,7 +102,7 @@ export default function FilterBar({
   }, []);
 
   const filteredOsis = useMemo(() => {
-    const term = osiSearch.trim().toLowerCase();
+    const term = debouncedOsiSearch.trim().toLowerCase();
     if (!term) return options.osis;
     return options.osis.filter(
       (o) =>
@@ -107,7 +110,7 @@ export default function FilterBar({
         (o.nombre_empresa ?? "").toLowerCase().includes(term) ||
         (o.servicio ?? "").toLowerCase().includes(term),
     );
-  }, [options.osis, osiSearch]);
+  }, [options.osis, debouncedOsiSearch]);
 
   function toggleOsi(id: number) {
     const next = state.osiIds.includes(id)
@@ -284,6 +287,28 @@ export default function FilterBar({
           >
             <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
             Solo incumplimientos
+          </button>
+        )}
+
+        {/* Botón Limpiar filtros activos */}
+        {(state.empresaId || state.facilitadorId || state.estadoId || state.osiIds.length > 0 || state.soloIncumplimientos) && (
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                ...state,
+                empresaId: "",
+                facilitadorId: "",
+                estadoId: "",
+                osiIds: [],
+                soloIncumplimientos: false,
+              })
+            }
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
+            title="Restablecer filtros"
+          >
+            <X className="w-3.5 h-3.5 text-gray-400" />
+            <span>Limpiar filtros</span>
           </button>
         )}
 

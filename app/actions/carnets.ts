@@ -859,9 +859,8 @@ export async function generateCarnetsForBatchAction(
       const passingGrade =
         snap.certificado_detalles?.passing_grade ??
         snap.curso?.nota_aprobatoria ??
-        (Array.isArray(c.catalogo_servicios)
-          ? c.catalogo_servicios[0]?.nota_aprobatoria
-          : (c.catalogo_servicios as any)?.nota_aprobatoria) ??
+        ((c.catalogo_servicios as any)?.[0]?.nota_aprobatoria ||
+          (c.catalogo_servicios as any)?.nota_aprobatoria) ??
         14;
 
       const score =
@@ -888,9 +887,8 @@ export async function generateCarnetsForBatchAction(
         const passingGrade =
           snap.certificado_detalles?.passing_grade ??
           snap.curso?.nota_aprobatoria ??
-          (Array.isArray(c.catalogo_servicios)
-            ? c.catalogo_servicios[0]?.nota_aprobatoria
-            : (c.catalogo_servicios as any)?.nota_aprobatoria) ??
+          ((c.catalogo_servicios as any)?.[0]?.nota_aprobatoria ||
+            (c.catalogo_servicios as any)?.nota_aprobatoria) ??
           14;
 
         const score =

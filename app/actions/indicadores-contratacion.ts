@@ -40,6 +40,30 @@ const FUENTE_LABELS: Record<string, string> = {
   sin_especificar: "Sin especificar",
 };
 
+const PAGE_SIZE = 1000;
+const MAX_PAGES = 50;
+
+type PagedResult<T> = { data: T[] | null; error: { message: string } | null };
+
+async function fetchAllPages<T>(
+  build: (from: number, to: number) => PromiseLike<PagedResult<T>>,
+  label: string,
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const from = page * PAGE_SIZE;
+    const { data, error } = await build(from, from + PAGE_SIZE - 1);
+    if (error) {
+      console.error(`[indicadores-contratacion] Error fetching ${label} page ${page}:`, error);
+      break;
+    }
+    const rows = data ?? [];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return all;
+}
+
 function normalizeFuenteKey(raw: string | null | undefined): string {
   if (!raw || !raw.trim()) return "sin_especificar";
   return raw.trim().toLowerCase();
@@ -79,58 +103,69 @@ export async function getIndicadoresContratacionFacilitadores(
     const { year, estadoId, ciudadId, fuente, soloActivos } = filters;
 
     const [
-      facilitadoresRes,
-      entrevistasRes,
-      assignmentsRes,
-      ciudadesRes,
+      rawFacilitadores,
+      rawEntrevistas,
+      rawAssignments,
+      rawCiudades,
     ] = await Promise.all([
-      supabase
-        .from("facilitadores")
-        .select(
-          `
-          id,
-          nombre_apellido,
-          cedula,
-          email,
-          telefono,
-          fecha_ingreso,
-          ano_ingreso,
-          fecha_creacion,
-          fuente,
-          id_estado_geografico,
-          id_ciudad,
-          is_active,
-          temas_cursos,
-          titulo_profesional,
-          nivel_educacion,
-          cat_ciudades!left ( id, nombre_ciudad, id_estado ),
-          cat_estados_venezuela!left ( id, nombre_estado )
-        `
-        )
-        .order("fecha_ingreso", { ascending: false, nullsFirst: false }),
-      supabase
-        .from("facilitador_entrevistas")
-        .select(
-          "id, nombre_apellido, cedula, fecha_entrevista, estatus, facilitador_id, promovido_at"
-        ),
-      supabase
-        .from("facilitador_osi_assignments")
-        .select("facilitador_id, osi_id")
-        .eq("is_active", true),
-      supabase
-        .from("cat_ciudades")
-        .select("id, nombre_ciudad, id_estado")
-        .order("nombre_ciudad", { ascending: true }),
+      fetchAllPages<any>(
+        (from, to) =>
+          supabase
+            .from("facilitadores")
+            .select(
+              `
+              id,
+              nombre_apellido,
+              cedula,
+              email,
+              telefono,
+              fecha_ingreso,
+              ano_ingreso,
+              fecha_creacion,
+              fuente,
+              id_estado_geografico,
+              id_ciudad,
+              is_active,
+              temas_cursos,
+              titulo_profesional,
+              nivel_educacion,
+              cat_ciudades!left ( id, nombre_ciudad, id_estado ),
+              cat_estados_venezuela!left ( id, nombre_estado )
+            `
+            )
+            .order("fecha_ingreso", { ascending: false, nullsFirst: false })
+            .range(from, to),
+        "facilitadores",
+      ),
+      fetchAllPages<any>(
+        (from, to) =>
+          supabase
+            .from("facilitador_entrevistas")
+            .select(
+              "id, nombre_apellido, cedula, fecha_entrevista, estatus, facilitador_id, promovido_at"
+            )
+            .range(from, to),
+        "facilitador_entrevistas",
+      ),
+      fetchAllPages<any>(
+        (from, to) =>
+          supabase
+            .from("facilitador_osi_assignments")
+            .select("facilitador_id, osi_id")
+            .eq("is_active", true)
+            .range(from, to),
+        "facilitador_osi_assignments",
+      ),
+      fetchAllPages<any>(
+        (from, to) =>
+          supabase
+            .from("cat_ciudades")
+            .select("id, nombre_ciudad, id_estado")
+            .order("nombre_ciudad", { ascending: true })
+            .range(from, to),
+        "cat_ciudades",
+      ),
     ]);
-
-    if (facilitadoresRes.error) {
-      throw new Error(facilitadoresRes.error.message);
-    }
-
-    const rawFacilitadores = facilitadoresRes.data ?? [];
-    const rawEntrevistas = entrevistasRes.data ?? [];
-    const rawAssignments = assignmentsRes.data ?? [];
-    const rawCiudades = ciudadesRes.data ?? [];
 
     // Count distinct OSIs assigned per facilitator
     const osiCountByFac = new Map<number, Set<number>>();

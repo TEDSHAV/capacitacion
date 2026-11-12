@@ -1130,6 +1130,35 @@ export async function getIndicadoresCertificados72h(
         r.atribucionDemora === "demora_facilitador"
     ).length;
 
+    // Detect potential ungrouped multi-OSI services (taking place same day and same course topic, including open courses across clients)
+    const candidateMap = new Map<string, IndicadorOsiRow[]>();
+    for (const r of serviceRows) {
+      const dateKey = r.fechaEjecucion?.slice(0, 10) || "";
+      if (!dateKey) continue;
+      const svcKey = (r.servicio || "").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+      if (!svcKey) continue;
+      const key = `${dateKey}_${svcKey}`;
+      const list = candidateMap.get(key) || [];
+      list.push(r);
+      candidateMap.set(key, list);
+    }
+
+    let potentialDuplicateGroupsCount = 0;
+    let potentialDuplicateOsisCount = 0;
+
+    for (const [, group] of candidateMap.entries()) {
+      if (group.length > 1) {
+        potentialDuplicateGroupsCount++;
+        potentialDuplicateOsisCount += group.length;
+        for (const item of group) {
+          item.isPotentialDuplicate = true;
+          item.potentialDuplicateWith = group
+            .filter((o) => o.osiId !== item.osiId)
+            .map((o) => o.nroOsi);
+        }
+      }
+    }
+
     const aggregates: IndicadoresAggregates = {
       totalOsis: rows.length,
       totalServicios: serviceRows.length,
@@ -1149,6 +1178,8 @@ export async function getIndicadoresCertificados72h(
       totalOsisAgrupadas,
       totalGrupos,
       demoraFacilitadorCount,
+      potentialDuplicateGroupsCount,
+      potentialDuplicateOsisCount,
     };
 
     return { data: { rows, aggregates }, error: null };
