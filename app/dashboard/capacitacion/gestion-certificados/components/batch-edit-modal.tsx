@@ -11,6 +11,7 @@ import {
   getOSIsWithCertificatesAction,
   getBatchCertificateDetailsAction,
   getFacilitatorsForFilters,
+  getActiveCoursesForBatchEdit,
 } from "@/app/actions/certificados";
 import { generateCarnetsForBatchAction } from "@/app/actions/carnets";
 import { toTitleCase } from "@/utils/string-utils";
@@ -52,6 +53,14 @@ interface FacilitatorLookup {
   nombre_apellido: string;
 }
 
+interface CourseLookup {
+  id: number;
+  nombre: string;
+  subtitulo?: string | null;
+  contenido_curso?: string | null;
+  carga_horaria_std?: number | null;
+}
+
 export function BatchEditModal({
   isOpen,
   onClose,
@@ -70,6 +79,12 @@ export function BatchEditModal({
   const [facilitatorSearchTerm, setFacilitatorSearchTerm] = useState("");
   const [isFacilitatorDropdownOpen, setIsFacilitatorDropdownOpen] = useState(false);
   const [selectedFacilitator, setSelectedFacilitator] = useState<FacilitatorLookup | null>(null);
+
+  const [courses, setCourses] = useState<CourseLookup[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
+  const [courseSearchTerm, setCourseSearchTerm] = useState("");
+  const [isCourseDropdownOpen, setIsCourseDropdownOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<CourseLookup | null>(null);
 
   const [catalogCourseContent, setCatalogCourseContent] = useState("");
 
@@ -133,6 +148,19 @@ export function BatchEditModal({
           console.error("Error loading facilitators:", error);
         }
       })();
+
+      // Load active courses
+      (async () => {
+        try {
+          setLoadingCourses(true);
+          const courseData = await getActiveCoursesForBatchEdit();
+          setCourses(courseData);
+        } catch (error) {
+          console.error("Error loading active courses:", error);
+        } finally {
+          setLoadingCourses(false);
+        }
+      })();
     }
   }, [isOpen, initialOsi]);
 
@@ -156,6 +184,12 @@ export function BatchEditModal({
           ? facilitators.find(f => f.id.toString() === facilitatorId)
           : null;
         setSelectedFacilitator(foundFacilitator || null);
+
+        const foundCourse = (osi.id_curso && courses.length > 0)
+          ? courses.find(c => c.id === osi.id_curso)
+          : (courses.find(c => c.nombre.trim().toLowerCase() === (result.data.certificate_title || "").trim().toLowerCase()) || null);
+        setSelectedCourse(foundCourse || null);
+
         setCatalogCourseContent(result.data.catalog_course_content || "");
         setUpdates({
           certificate_title: result.data.certificate_title || "",
@@ -167,6 +201,7 @@ export function BatchEditModal({
           id_facilitador: facilitatorId,
           course_content: result.data.course_content || "",
           new_nro_osi: "",
+          id_curso: foundCourse?.id || osi.id_curso,
         });
         const stats = {
           total_certificates: (result.data as any).total_certificates ?? 0,
@@ -202,11 +237,36 @@ export function BatchEditModal({
     ).slice(0, 50);
   }, [facilitators, facilitatorSearchTerm]);
 
+  const filteredCourses = useMemo(() => {
+    if (!courseSearchTerm.trim()) return courses.slice(0, 100);
+    const term = courseSearchTerm.toLowerCase();
+    return courses.filter(c =>
+      c.nombre.toLowerCase().includes(term) ||
+      (c.subtitulo && c.subtitulo.toLowerCase().includes(term))
+    ).slice(0, 100);
+  }, [courses, courseSearchTerm]);
+
   const handleFacilitatorSelect = (facilitator: FacilitatorLookup) => {
     setSelectedFacilitator(facilitator);
     handleUpdateChange("id_facilitador", facilitator.id.toString());
     setIsFacilitatorDropdownOpen(false);
     setFacilitatorSearchTerm("");
+  };
+
+  const handleCourseSelect = (course: CourseLookup) => {
+    setSelectedCourse(course);
+    setIsCourseDropdownOpen(false);
+    setCourseSearchTerm("");
+    setUpdates((prev) => ({
+      ...prev,
+      certificate_title: course.nombre,
+      id_curso: course.id,
+      ...(course.subtitulo && !prev.certificate_subtitle ? { certificate_subtitle: course.subtitulo } : {}),
+      ...(course.carga_horaria_std && !prev.horas_estimadas ? { horas_estimadas: course.carga_horaria_std.toString() } : {}),
+    }));
+    if (course.contenido_curso) {
+      setCatalogCourseContent(course.contenido_curso);
+    }
   };
 
   // Prevent scrolling when modal is open
@@ -229,7 +289,30 @@ export function BatchEditModal({
     }
   }, [facilitators, updates.id_facilitador, selectedFacilitator]);
 
-  const handleUpdateChange = (field: keyof BatchUpdateData, value: string) => {
+  // Sync selectedCourse when courses list loads after certificate_title or id_curso is set
+  useEffect(() => {
+    if (courses.length > 0 && !selectedCourse) {
+      if (updates.id_curso) {
+        const found = courses.find(c => c.id === updates.id_curso);
+        if (found) setSelectedCourse(found);
+      } else if (selectedOsiData?.id_curso) {
+        const found = courses.find(c => c.id === selectedOsiData.id_curso);
+        if (found) {
+          setSelectedCourse(found);
+          setUpdates(prev => ({ ...prev, id_curso: found.id }));
+        }
+      } else if (updates.certificate_title) {
+        const targetTitle = updates.certificate_title.trim().toLowerCase();
+        const found = courses.find(c => c.nombre.trim().toLowerCase() === targetTitle);
+        if (found) {
+          setSelectedCourse(found);
+          setUpdates(prev => ({ ...prev, id_curso: found.id }));
+        }
+      }
+    }
+  }, [courses, updates.id_curso, updates.certificate_title, selectedOsiData, selectedCourse]);
+
+  const handleUpdateChange = (field: keyof BatchUpdateData, value: any) => {
     setUpdates((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -329,9 +412,14 @@ export function BatchEditModal({
         setCatalogCourseContent("");
         setSelectedOsiData(null);
         setSelectedFacilitator(null);
+        setSelectedCourse(null);
         setOsiNumber("");
         setOsiSearchTerm("");
         setFacilitatorSearchTerm("");
+        setCourseSearchTerm("");
+        setIsOsiDropdownOpen(false);
+        setIsFacilitatorDropdownOpen(false);
+        setIsCourseDropdownOpen(false);
       } else {
         alert(`Error: ${result.message}`);
       }
@@ -376,7 +464,13 @@ export function BatchEditModal({
                 className={`w-full px-4 h-12 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${
                   isOsiDropdownOpen ? "border-blue-500 ring-2 ring-blue-500/20" : "border-gray-200 hover:border-gray-300"
                 } ${loadingOsis ? "bg-gray-50 opacity-70 cursor-not-allowed" : "bg-white"}`}
-                onClick={() => !loadingOsis && setIsOsiDropdownOpen(!isOsiDropdownOpen)}
+                onClick={() => {
+                  if (!loadingOsis) {
+                    setIsOsiDropdownOpen(!isOsiDropdownOpen);
+                    setIsCourseDropdownOpen(false);
+                    setIsFacilitatorDropdownOpen(false);
+                  }
+                }}
               >
                 <div className="flex flex-col truncate">
                   {selectedOsiData ? (
@@ -500,21 +594,97 @@ export function BatchEditModal({
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="title" className="text-sm font-semibold text-gray-700">
-                    Título del Curso
+                <div className="space-y-2 relative">
+                  <Label className="text-sm font-semibold text-gray-700">
+                    Título del Curso (Catálogo Activo)
                   </Label>
-                  <div className="relative">
-                    <Input
-                      id="title"
-                      value={updates.certificate_title}
-                      onChange={(e) => handleUpdateChange("certificate_title", e.target.value)}
-                      className="h-11 border-gray-200 focus:border-blue-500 rounded-xl"
-                      placeholder="Título que aparecerá en el certificado"
-                      disabled={loading || loadingDetails}
-                    />
-                    {loadingDetails && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-400" />}
+                  <div
+                    className={`w-full px-4 h-11 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${
+                      isCourseDropdownOpen ? "border-blue-500 ring-2 ring-blue-500/20" : "border-gray-200 hover:border-gray-300"
+                    } ${loading || loadingDetails || loadingCourses ? "bg-gray-50 opacity-70 cursor-not-allowed" : "bg-white"}`}
+                    onClick={() => {
+                      if (!(loading || loadingDetails || loadingCourses)) {
+                        setIsCourseDropdownOpen(!isCourseDropdownOpen);
+                        setIsOsiDropdownOpen(false);
+                        setIsFacilitatorDropdownOpen(false);
+                      }
+                    }}
+                  >
+                    <div className="flex flex-col truncate">
+                      {selectedCourse ? (
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {selectedCourse.nombre}
+                        </span>
+                      ) : updates.certificate_title ? (
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {updates.certificate_title}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">Seleccionar curso activo...</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {loadingCourses || loadingDetails ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                      ) : (
+                        <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isCourseDropdownOpen ? "rotate-180" : ""}`} />
+                      )}
+                    </div>
                   </div>
+
+                  {isCourseDropdownOpen && (
+                    <div className="absolute z-[60] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="p-3 border-b border-gray-100 flex items-center gap-2 bg-gray-50">
+                        <Search className="h-4 w-4 text-gray-400 shrink-0" />
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="Buscar curso activo..."
+                          value={courseSearchTerm}
+                          onChange={(e) => setCourseSearchTerm(e.target.value)}
+                          className="w-full bg-transparent border-none focus:ring-0 text-sm p-0 h-6"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="max-h-52 overflow-y-auto py-1">
+                        {filteredCourses.length > 0 ? (
+                          filteredCourses.map((course) => {
+                            const isSelected =
+                              selectedCourse?.id === course.id ||
+                              updates.certificate_title?.trim().toLowerCase() === course.nombre.trim().toLowerCase();
+
+                            return (
+                              <div
+                                key={course.id}
+                                onClick={() => handleCourseSelect(course)}
+                                className={`px-4 py-3 cursor-pointer flex items-center justify-between hover:bg-blue-50 transition-colors ${
+                                  isSelected ? "bg-blue-50" : ""
+                                }`}
+                              >
+                                <div className="flex flex-col min-w-0 pr-2">
+                                  <span className={`text-sm font-medium ${isSelected ? "text-blue-700 font-semibold" : "text-gray-900"}`}>
+                                    {course.nombre}
+                                  </span>
+                                  {course.subtitulo && (
+                                    <span className="text-[11px] text-gray-500 truncate mt-0.5">
+                                      {course.subtitulo}
+                                    </span>
+                                  )}
+                                </div>
+                                {isSelected && (
+                                  <Check className="h-4 w-4 text-blue-600 shrink-0" />
+                                )}
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="px-4 py-6 text-center text-gray-500 text-sm italic">
+                            No se encontraron cursos activos
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -699,7 +869,13 @@ export function BatchEditModal({
                       className={`w-full px-4 h-11 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${
                         isFacilitatorDropdownOpen ? "border-blue-500 ring-2 ring-blue-500/20" : "border-gray-200 hover:border-gray-300"
                       } ${loading || loadingDetails ? "bg-gray-50 opacity-70 cursor-not-allowed" : "bg-white"}`}
-                      onClick={() => !(loading || loadingDetails) && setIsFacilitatorDropdownOpen(!isFacilitatorDropdownOpen)}
+                      onClick={() => {
+                        if (!(loading || loadingDetails)) {
+                          setIsFacilitatorDropdownOpen(!isFacilitatorDropdownOpen);
+                          setIsOsiDropdownOpen(false);
+                          setIsCourseDropdownOpen(false);
+                        }
+                      }}
                     >
                       <div className="flex flex-col truncate">
                         {selectedFacilitator ? (
@@ -845,11 +1021,14 @@ export function BatchEditModal({
               setCatalogCourseContent("");
               setSelectedOsiData(null);
               setSelectedFacilitator(null);
+              setSelectedCourse(null);
               setOsiNumber("");
               setOsiSearchTerm("");
               setFacilitatorSearchTerm("");
+              setCourseSearchTerm("");
               setIsOsiDropdownOpen(false);
               setIsFacilitatorDropdownOpen(false);
+              setIsCourseDropdownOpen(false);
               onClose();
             }}
             className="flex-1 h-12 rounded-xl font-semibold border-gray-300 text-gray-700 hover:bg-white transition-all"

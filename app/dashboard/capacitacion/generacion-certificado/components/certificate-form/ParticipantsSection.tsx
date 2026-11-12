@@ -33,10 +33,20 @@ export const ParticipantsSection = ({
   // Remove duplicates by ID number (memoized to prevent infinite loop)
   const uniqueParticipants = useMemo(
     () =>
-      safeParticipants.filter(
-        (participant, index, self) =>
-          index === self.findIndex((p) => p.idNumber === participant.idNumber),
-      ),
+      safeParticipants.filter((participant, index, self) => {
+        if (participant.idNumber && participant.idNumber.trim()) {
+          return (
+            index ===
+            self.findIndex(
+              (p) => p.idNumber?.trim() === participant.idNumber.trim(),
+            )
+          );
+        }
+        if (participant.id) {
+          return index === self.findIndex((p) => p.id === participant.id);
+        }
+        return true;
+      }),
     [safeParticipants],
   );
 
@@ -94,18 +104,46 @@ export const ParticipantsSection = ({
       if (result.error) {
         setImportError(result.error);
       } else if (result.data && result.data.length > 0) {
-        const portalParticipants = result.data.map((p: any) => ({
-          name: toTitleCase(p.nombre_apellido),
-          idNumber: p.cedula,
-          score: p.score != null && p.score !== "" ? Number(p.score) : 0,
-          score_pre: p.score_pre != null && p.score_pre !== "" ? Number(p.score_pre) : undefined,
-          score_post: p.score_post != null && p.score_post !== "" ? Number(p.score_post) : undefined,
-          score_teorica: p.score_teorica != null && p.score_teorica !== "" ? Number(p.score_teorica) : undefined,
-          score_practica: p.score_practica != null && p.score_practica !== "" ? Number(p.score_practica) : undefined,
-          score_promedio: p.score_promedio != null && p.score_promedio !== "" ? Number(p.score_promedio) : undefined,
-          tipo_evaluacion: p.tipo_evaluacion || undefined,
-          nationality: "venezolano" as const, // Fixed TS error: string not assignable to union
-        }));
+        const portalParticipants = result.data.map((p: any, index: number) => {
+          const rawCedula = p.cedula ? String(p.cedula).trim() : "";
+          const isExtranjero =
+            p.nacionalidad === "extranjero" ||
+            rawCedula.toUpperCase().startsWith("E");
+          const cleanCedula = rawCedula.replace(/^[VEve][-\s]?/, "");
+
+          return {
+            id: p.id
+              ? `portal-${p.id}`
+              : `portal-${Date.now()}-${index}-${cleanCedula || index}`,
+            name: toTitleCase(p.nombre_apellido || ""),
+            idNumber: cleanCedula,
+            score: p.score != null && p.score !== "" ? Number(p.score) : 0,
+            score_pre:
+              p.score_pre != null && p.score_pre !== ""
+                ? Number(p.score_pre)
+                : undefined,
+            score_post:
+              p.score_post != null && p.score_post !== ""
+                ? Number(p.score_post)
+                : undefined,
+            score_teorica:
+              p.score_teorica != null && p.score_teorica !== ""
+                ? Number(p.score_teorica)
+                : undefined,
+            score_practica:
+              p.score_practica != null && p.score_practica !== ""
+                ? Number(p.score_practica)
+                : undefined,
+            score_promedio:
+              p.score_promedio != null && p.score_promedio !== ""
+                ? Number(p.score_promedio)
+                : undefined,
+            tipo_evaluacion: p.tipo_evaluacion || undefined,
+            nationality: (isExtranjero ? "extranjero" : "venezolano") as
+              | "venezolano"
+              | "extranjero",
+          };
+        });
 
         // Replace or merge? Usually for OSIs we want to replace if importing from portal
         if (confirm(`Se han encontrado ${portalParticipants.length} participantes en el portal. ¿Deseas importarlos? Esto reemplazará la lista actual.`)) {
@@ -198,8 +236,9 @@ export const ParticipantsSection = ({
     index: number,
     result: ParticipantVerificationResult,
   ) => {
-    const newParticipants = [...uniqueParticipants];
-    newParticipants[index].seniatVerification = result;
+    const newParticipants = uniqueParticipants.map((p, i) =>
+      i === index ? { ...p, seniatVerification: result } : p,
+    );
     onChange(newParticipants);
     setActiveVerificationIndex(null);
   };
@@ -379,7 +418,7 @@ export const ParticipantsSection = ({
 
             return (
               <div
-                key={participant.id || index}
+                key={participant.id || `p-${participant.idNumber || index}-${index}`}
                 className="flex justify-between items-center p-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex-1 flex items-center gap-2">
@@ -393,8 +432,9 @@ export const ParticipantsSection = ({
                           type="text"
                           value={participant.name}
                           onChange={(e) => {
-                            const newParticipants = [...uniqueParticipants];
-                            newParticipants[index].name = e.target.value;
+                            const newParticipants = uniqueParticipants.map((p, i) =>
+                              i === index ? { ...p, name: e.target.value } : p,
+                            );
                             onChange(newParticipants);
                           }}
                           className="px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
@@ -453,8 +493,9 @@ export const ParticipantsSection = ({
                         type="text"
                         value={participant.name}
                         onChange={(e) => {
-                          const newParticipants = [...uniqueParticipants];
-                          newParticipants[index].name = e.target.value;
+                          const newParticipants = uniqueParticipants.map((p, i) =>
+                            i === index ? { ...p, name: e.target.value } : p,
+                          );
                           onChange(newParticipants);
                         }}
                         className="font-medium text-gray-900 uppercase whitespace-nowrap px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
@@ -463,8 +504,9 @@ export const ParticipantsSection = ({
                         <select
                           value={participant.nationality || "venezolano"}
                           onChange={(e) => {
-                            const newParticipants = [...uniqueParticipants];
-                            newParticipants[index].nationality = e.target.value as "venezolano" | "extranjero";
+                            const newParticipants = uniqueParticipants.map((p, i) =>
+                              i === index ? { ...p, nationality: e.target.value as "venezolano" | "extranjero" } : p,
+                            );
                             onChange(newParticipants);
                           }}
                           className="px-1 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -476,8 +518,9 @@ export const ParticipantsSection = ({
                           type="text"
                           value={participant.idNumber}
                           onChange={(e) => {
-                            const newParticipants = [...uniqueParticipants];
-                            newParticipants[index].idNumber = e.target.value;
+                            const newParticipants = uniqueParticipants.map((p, i) =>
+                              i === index ? { ...p, idNumber: e.target.value } : p,
+                            );
                             onChange(newParticipants);
                           }}
                           className="text-gray-500 text-sm whitespace-nowrap px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-28"
@@ -572,8 +615,9 @@ export const ParticipantsSection = ({
                             type="text"
                             value={participant.idNumber}
                             onChange={(e) => {
-                              const newParticipants = [...uniqueParticipants];
-                              newParticipants[index].idNumber = e.target.value;
+                              const newParticipants = uniqueParticipants.map((p, i) =>
+                                i === index ? { ...p, idNumber: e.target.value } : p,
+                              );
                               onChange(newParticipants);
                             }}
                             className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
@@ -595,14 +639,16 @@ export const ParticipantsSection = ({
                               : ""
                           }
                           onChange={(e) => {
-                            const newScore = parseInt(e.target.value) || 0;
+                            const val = e.target.value;
+                            const newScore = val === "" ? 0 : parseInt(val, 10);
                             // Validate score range
-                            if (newScore < 0 || newScore > 20) {
+                            if (isNaN(newScore) || newScore < 0 || newScore > 20) {
                               alert("La calificación debe estar entre 0 y 20");
                               return;
                             }
-                            const newParticipants = [...uniqueParticipants];
-                            newParticipants[index].score = newScore;
+                            const newParticipants = uniqueParticipants.map((p, i) =>
+                              i === index ? { ...p, score: newScore } : p,
+                            );
                             onChange(newParticipants);
                           }}
                           min="0"
@@ -621,7 +667,7 @@ export const ParticipantsSection = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => removeParticipant(participant.id!)}
+                    onClick={() => removeParticipant(participant.id, index)}
                     className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full ml-4 flex-shrink-0"
                     title="Eliminar participante"
                   >

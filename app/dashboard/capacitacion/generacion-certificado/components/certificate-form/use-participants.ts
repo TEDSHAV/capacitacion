@@ -96,7 +96,7 @@ export const useParticipants = (
       }
 
       const participant: CertificateParticipant = {
-        id: Date.now().toString(),
+        id: `manual-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         name: toTitleCase(newParticipant.name.trim()),
         idNumber: newParticipant.idNumber.trim(),
         score: score,
@@ -117,14 +117,37 @@ export const useParticipants = (
   }, [newParticipant, currentParticipants, onParticipantsChange]);
 
   const removeParticipant = useCallback(
-    (id: string) => {
-      const updatedParticipants = currentParticipants.filter(
-        (p) => p.id !== id,
-      );
+    (id?: string, index?: number) => {
+      // Guard: do nothing if neither id nor a valid index is provided
+      if (!id && (index === undefined || index < 0)) {
+        return;
+      }
+
+      const sourceList =
+        initialParticipants && initialParticipants.length > 0
+          ? initialParticipants
+          : currentParticipants;
+
+      const updatedParticipants = sourceList.filter((p, i) => {
+        // If a valid index is provided, prioritize matching by index
+        if (index !== undefined && index >= 0) {
+          return i !== index;
+        }
+        // Match by unique ID if present
+        if (id && p.id) {
+          return p.id !== id;
+        }
+        // Fallback to idNumber
+        if (id && p.idNumber) {
+          return p.idNumber !== id;
+        }
+        return true;
+      });
+
       setCurrentParticipants(updatedParticipants);
       onParticipantsChange(updatedParticipants);
     },
-    [currentParticipants, onParticipantsChange],
+    [currentParticipants, initialParticipants, onParticipantsChange],
   );
 
   const updateNewParticipant = useCallback(

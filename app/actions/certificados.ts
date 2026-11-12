@@ -2618,6 +2618,58 @@ export async function getCoursesForFilters(): Promise<
 }
 
 /**
+ * Get active courses from the catalog for batch editing
+ */
+export async function getActiveCoursesForBatchEdit(): Promise<
+  {
+    id: number;
+    nombre: string;
+    subtitulo?: string | null;
+    contenido_curso?: string | null;
+    carga_horaria_std?: number | null;
+  }[]
+> {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("catalogo_servicios")
+      .select("id, nombre, subtitulo, contenido_curso, carga_horaria_std")
+      .eq("esta_activo", true)
+      .eq("id_departamento_ejecutante", 3)
+      .order("nombre", { ascending: true });
+
+    if (error) {
+      console.warn("Fallback query for active courses without departamento filter:", error);
+      const retry = await supabase
+        .from("catalogo_servicios")
+        .select("id, nombre, subtitulo, contenido_curso, carga_horaria_std")
+        .eq("esta_activo", true)
+        .order("nombre", { ascending: true });
+
+      return (retry.data || []).map((c: any) => ({
+        id: c.id,
+        nombre: c.nombre,
+        subtitulo: c.subtitulo || null,
+        contenido_curso: c.contenido_curso || null,
+        carga_horaria_std: c.carga_horaria_std || null,
+      }));
+    }
+
+    return (data || []).map((c: any) => ({
+      id: c.id,
+      nombre: c.nombre,
+      subtitulo: c.subtitulo || null,
+      contenido_curso: c.contenido_curso || null,
+      carga_horaria_std: c.carga_horaria_std || null,
+    }));
+  } catch (error) {
+    console.error("Error in getActiveCoursesForBatchEdit:", error);
+    return [];
+  }
+}
+
+/**
 
  * Get facilitators for filter dropdown
 
@@ -3040,6 +3092,7 @@ export async function batchUpdateCertificatesAction(
         if (updates.date) dbUpdate.fecha_emision = updates.date;
         if (updates.fecha_vencimiento) dbUpdate.fecha_vencimiento = updates.fecha_vencimiento;
         if (updates.id_facilitador) dbUpdate.id_facilitador = parseInt(updates.id_facilitador);
+        if (updates.id_curso) dbUpdate.id_curso = updates.id_curso;
         if (targetOsiData) {
           dbUpdate.nro_osi = parseInt(targetOsiData.nro_osi, 10);
           if (targetOsiData.id_empresa) {
@@ -3054,8 +3107,14 @@ export async function batchUpdateCertificatesAction(
             const snapshotObj = JSON.parse(cert.snapshot_contenido);
             
             // Handle both flat and nested structures for robustness
+            if (updates.id_curso) {
+              if (snapshotObj.certificado) snapshotObj.certificado.id_curso = updates.id_curso;
+              if (snapshotObj.curso) snapshotObj.curso.id = updates.id_curso;
+              snapshotObj.id_curso = updates.id_curso;
+            }
             if ('certificate_title' in updates) {
               if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.title = updates.certificate_title;
+              if (snapshotObj.curso) snapshotObj.curso.nombre = updates.certificate_title;
               snapshotObj.certificate_title = updates.certificate_title;
             }
             if ('certificate_subtitle' in updates) {
@@ -3150,6 +3209,7 @@ export async function batchUpdateCertificatesAction(
 
         if (carnet) {
           const carnetUpdate: any = {};
+          if (updates.id_curso) carnetUpdate.id_curso = updates.id_curso;
           if ('certificate_title' in updates) carnetUpdate.titulo_curso = updates.certificate_title;
           if ('certificate_subtitle' in updates) carnetUpdate.subtitulo_curso = updates.certificate_subtitle;
           if ('date' in updates) carnetUpdate.fecha_emision = updates.date;
@@ -3165,6 +3225,7 @@ export async function batchUpdateCertificatesAction(
           if (carnet.snapshot_contenido) {
             try {
               const cSnapshotObj = JSON.parse(carnet.snapshot_contenido);
+              if (updates.id_curso) cSnapshotObj.id_curso = updates.id_curso;
               if ('certificate_title' in updates) cSnapshotObj.titulo_curso = updates.certificate_title;
               if ('certificate_subtitle' in updates) cSnapshotObj.subtitulo_curso = updates.certificate_subtitle;
               if ('date' in updates) cSnapshotObj.fecha_emision = updates.date;
@@ -3204,10 +3265,11 @@ export async function batchUpdateCertificatesAction(
         const effectiveOsi = targetOsiData ? parseInt(targetOsiData.nro_osi, 10) : osiNumber;
         const effectiveCompany = targetOsiData?.nombre_empresa || companyName;
         const effectiveIdEmpresa = targetOsiData?.id_empresa ?? idEmpresa;
+        const effectiveCourseId = updates.id_curso || courseId;
 
         const carnetGenResult = await generateCarnetsForBatchAction(
           effectiveOsi,
-          courseId,
+          effectiveCourseId,
           updates.fecha_vencimiento,
           effectiveCompany,
           effectiveIdEmpresa,
