@@ -799,19 +799,13 @@ export async function getReportesV2Data(
     let totalScoreSum = 0;
     let totalScoreCount = 0;
     let activeCertsCount = 0;
+    let periodCertsCount = 0;
 
     const allDeliveredOsiIds = new Set<number>();
     const certCountByOsiId = new Map<number, number>();
     const allLegacyOsis = new Map<string, number>(); // sequential string → course standard hours
 
     for (const cert of certs) {
-      if (cert.is_active) activeCertsCount++;
-
-      if (cert.calificacion != null && cert.calificacion > 0) {
-        totalScoreSum += cert.calificacion;
-        totalScoreCount++;
-      }
-
       // 1. Resolve id_osi via numeric sequential join
       let idOsi: number | null = null;
       let legacyKey: string | null = null;
@@ -829,17 +823,25 @@ export async function getReportesV2Data(
       }
 
       // Check whether the training course execution date matches the filtered period.
-      // If a course took place in October, it must NOT be attributed to November's courses/hours
-      // even if its certificates were printed in November.
+      // If a course took place in October, it must NOT be attributed to November
+      // even if its certificates were printed in November. Execution date is authoritative.
       const osi = idOsi != null ? osiDetailsMap.get(idOsi) : null;
       const execDate = osi?.fecha_inicio_real?.slice(0, 10);
       const matchesPeriod = !execDate || ((!dateFrom || execDate >= dateFrom) && (!dateTo || execDate <= dateTo));
 
+      if (!matchesPeriod) continue;
+
+      periodCertsCount++;
+      if (cert.is_active) activeCertsCount++;
+
+      if (cert.calificacion != null && cert.calificacion > 0) {
+        totalScoreSum += cert.calificacion;
+        totalScoreCount++;
+      }
+
       if (idOsi != null) {
         certCountByOsiId.set(idOsi, (certCountByOsiId.get(idOsi) || 0) + 1);
-        if (matchesPeriod) {
-          allDeliveredOsiIds.add(idOsi);
-        }
+        allDeliveredOsiIds.add(idOsi);
       }
 
       const effectiveStateId = cert.id_estado ?? (idOsi != null ? osiDetailsMap.get(idOsi)?.id_estado_direccion_ejecucion_efectiva : null) ?? null;
@@ -1704,7 +1706,7 @@ export async function getReportesV2Data(
     const totalEffectiveOsis = Array.from(allDeliveredOsiIds).filter((id) => !childOsiIds.has(id)).length + allLegacyOsis.size;
 
     const overview = {
-      totalCertificates: certs.length,
+      totalCertificates: periodCertsCount,
       activeCertificates: activeCertsCount,
       totalCarnets: carnetsRows.length,
       activeCarnets: activeCarnetsCount,
