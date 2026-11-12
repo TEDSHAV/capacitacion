@@ -882,42 +882,52 @@ export default function ReportesV2View({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-left text-xs border-collapse min-w-[680px]">
                 <thead>
                   <tr className="border-b border-gray-200 text-gray-500 uppercase tracking-wider text-[11px] bg-gray-50/70 select-none">
                     <th
                       onClick={() => toggleCourseSort("nombre")}
-                      className="py-2.5 px-3 font-semibold cursor-pointer hover:text-sky-900 hover:bg-gray-100 transition-colors"
+                      className="py-2.5 px-3 font-semibold cursor-pointer hover:text-sky-900 hover:bg-gray-100 transition-colors w-[36%] min-w-[220px]"
                     >
                       Curso / Tema {renderSortIndicator(courseSortKey, "nombre", courseSortDir)}
                     </th>
                     <th
                       onClick={() => toggleCourseSort("totalOsis")}
-                      className="py-2.5 px-3 font-semibold text-right cursor-pointer hover:text-sky-900 hover:bg-gray-100 transition-colors"
+                      className="py-2.5 px-3 font-semibold text-right cursor-pointer hover:text-sky-900 hover:bg-gray-100 transition-colors w-[12%] min-w-[70px]"
                     >
                       OSIs {renderSortIndicator(courseSortKey, "totalOsis", courseSortDir)}
                     </th>
                     <th
                       onClick={() => toggleCourseSort("totalHours")}
-                      className="py-2.5 px-3 font-semibold text-right cursor-pointer hover:text-sky-900 hover:bg-gray-100 transition-colors"
+                      className="py-2.5 px-3 font-semibold text-right cursor-pointer hover:text-sky-900 hover:bg-gray-100 transition-colors w-[13%] min-w-[85px]"
                     >
                       Horas Dictadas {renderSortIndicator(courseSortKey, "totalHours", courseSortDir)}
                     </th>
                     <th
                       onClick={() => toggleCourseSort("totalCertificates")}
-                      className="py-2.5 px-3 font-semibold text-right cursor-pointer hover:text-sky-900 hover:bg-gray-100 transition-colors"
+                      className="py-2.5 px-3 font-semibold text-right cursor-pointer hover:text-sky-900 hover:bg-gray-100 transition-colors w-[13%] min-w-[85px]"
                     >
                       Participantes {renderSortIndicator(courseSortKey, "totalCertificates", courseSortDir)}
                     </th>
-                    <th className="py-2.5 px-3 font-semibold text-right">Empresas</th>
-                    <th className="py-2.5 px-3 font-semibold text-right">Facilitadores</th>
+                    <th className="py-2.5 px-3 font-semibold text-right w-[13%] min-w-[75px]">Empresas</th>
+                    <th className="py-2.5 px-3 font-semibold text-right w-[13%] min-w-[75px]">Facilitadores</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {sortedCourses.map((c) => (
                     <tr key={c.id} className="hover:bg-sky-50/40 transition-colors">
-                      <td className="py-3 px-3 font-medium text-gray-900 max-w-[280px]">
-                        {c.nombre}
+                      <td className="py-3 px-3 font-medium text-gray-900">
+                        <span className="block leading-snug">{c.nombre}</span>
+                        {c.totalOsis === 0 && c.totalCertificates > 0 && (
+                          <span className="inline-block mt-0.5 text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 font-normal">
+                            Certificados emitidos de cursos previos
+                          </span>
+                        )}
+                        {c.totalOsis > 0 && c.totalCertificates === 0 && (
+                          <span className="inline-block mt-0.5 text-[10px] text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200/60 font-normal">
+                            Curso ejecutado · Certificados en trámite
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-3 text-right tabular-nums">
                         {c.osisList && c.osisList.length > 0 ? (
@@ -968,7 +978,7 @@ export default function ReportesV2View({
             </div>
             <div className="p-3 bg-gray-50/80 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
               <span>
-                * <strong>Horas Dictadas</strong>: Tiempo total acumulado de instrucción impartido en los grupos y OSIs ejecutadas.
+                * <strong>Horas Dictadas</strong>: Horas académicas acumuladas de los cursos y OSIs ejecutadas en el período.
               </span>
               <span>
                 Mostrando {filteredCourses.length} cursos impartidos
