@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { FacilitadorHistoryEntry } from "@/types";
 import { notifyMercadeoFacilitadorAssigned } from "@/lib/email/notify-mercadeo-assignment";
+import { notifyClientFacilitadorAssigned } from "@/lib/email/notify-client-assignment";
 import { getSessionCount } from "@/lib/osi-utils";
 
 import { toTitleCase } from "@/utils/string-utils";
@@ -14,6 +15,11 @@ export async function assignOSIToFacilitador(
   facilitadorId: number,
   source: "direct" | "requisicion" = "direct",
   nroSesion?: number | null,
+  clientNotification?: {
+    send: boolean;
+    clientEmail?: string | null;
+    templateId?: number | null;
+  },
 ) {
   const supabase = await createClient();
   const userResponse = await supabase.auth.getUser();
@@ -155,6 +161,21 @@ export async function assignOSIToFacilitador(
   }).catch((err) => {
     console.error("[assignOSIToFacilitador] Error sending notification to Mercadeo:", err);
   });
+
+  // Asynchronously notify Client contact if requested
+  if (clientNotification?.send && clientNotification.clientEmail?.trim()) {
+    notifyClientFacilitadorAssigned({
+      osiId,
+      facilitadorId,
+      clientEmail: clientNotification.clientEmail.trim(),
+      assignmentId: data.id,
+      assignedBy,
+      templateId: clientNotification.templateId,
+      nroSesion: sessionValue,
+    }).catch((err) => {
+      console.error("[assignOSIToFacilitador] Error sending notification to Client:", err);
+    });
+  }
 
   revalidatePath("/dashboard/capacitacion/gestion-de-facilitadores");
   revalidatePath("/dashboard/capacitacion/gestion-osi");

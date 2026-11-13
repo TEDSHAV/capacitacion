@@ -32,7 +32,7 @@ export async function getOSIEmailContext(
     supabase
       .from("v_osi_formato_completo")
       .select(
-        "nro_osi, servicio, nombre_empresa, direccion_ejecucion, persona_contacto, contacto_telefono, contenido_servicio, observaciones_totales, fecha_inicio_real, desglose_recursos_sesiones, costo_honorarios_instructor, costo_traslado, costo_impresion_material, horas_academicas_ejecucion, sesiones_ejecucion",
+        "nro_osi, servicio, nombre_empresa, direccion_ejecucion, persona_contacto, contacto_telefono, contacto_email, contenido_servicio, observaciones_totales, fecha_inicio_real, desglose_recursos_sesiones, costo_honorarios_instructor, costo_traslado, costo_impresion_material, horas_academicas_ejecucion, sesiones_ejecucion",
       )
       .eq("id_osi", osiId)
       .maybeSingle(),
@@ -153,6 +153,7 @@ export async function getOSIEmailContext(
       direccion_ejecucion: osiRes.data.direccion_ejecucion,
       persona_contacto: osiRes.data.persona_contacto,
       contacto_telefono: osiRes.data.contacto_telefono,
+      contacto_email: osiRes.data.contacto_email,
       contenido_servicio: osiRes.data.contenido_servicio,
       observaciones_totales: osiRes.data.observaciones_totales,
       fecha_inicio_real: osiRes.data.fecha_inicio_real,
@@ -177,5 +178,49 @@ export async function getOSIEmailContext(
   ctx.enlace_portal = `${baseUrl}/portal/facilitador/osi/${osiId}`;
 
   return { data: ctx, error: null };
+}
+
+export interface OsiClientContactInfo {
+  personaContacto: string | null;
+  contactoEmail: string | null;
+  contactoTelefono: string | null;
+  empresa: string | null;
+  servicio: string | null;
+  nroOsi: string | null;
+}
+
+/**
+ * Fetch the client contact details for an OSI directly from `v_osi_formato_completo`.
+ * Used by assignment modals to pre-fill the client confirmation recipient.
+ */
+export async function getOsiClientContact(
+  osiId: number,
+): Promise<{ data: OsiClientContactInfo | null; error: string | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_osi_formato_completo")
+    .select("persona_contacto, contacto_email, contacto_telefono, nombre_empresa, servicio, nro_osi")
+    .eq("id_osi", osiId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[getOsiClientContact] error:", error);
+    return { data: null, error: error.message };
+  }
+  if (!data) {
+    return { data: null, error: "OSI no encontrada" };
+  }
+
+  return {
+    data: {
+      personaContacto: data.persona_contacto ?? null,
+      contactoEmail: data.contacto_email ?? null,
+      contactoTelefono: data.contacto_telefono ?? null,
+      empresa: data.nombre_empresa ?? null,
+      servicio: data.servicio ?? null,
+      nroOsi: data.nro_osi ?? null,
+    },
+    error: null,
+  };
 }
 

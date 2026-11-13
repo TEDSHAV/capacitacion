@@ -13,6 +13,7 @@
 
 export type EmailEventType =
   | "asignacion_facilitador"
+  | "confirmacion_facilitador_cliente"
   | (string & {}); // open for future event types
 
 export interface EmailTemplate {
@@ -102,6 +103,7 @@ export interface EmailContext {
   direccion: string;
   contacto: string;
   contacto_telefono: string;
+  contacto_email?: string | null;
   observaciones: string;
   honorarios?: string;
   traslado?: string;

@@ -78,7 +78,52 @@ export async function getDefaultEmailTemplate(
     .maybeSingle();
 
   if (fbErr) return { data: null, error: fbErr.message };
-  return { data: (fallback as EmailTemplate) ?? null, error: null };
+  if (fallback) return { data: (fallback as EmailTemplate) ?? null, error: null };
+
+  if (eventType === "confirmacion_facilitador_cliente") {
+    return {
+      data: {
+        id: -1,
+        name: "Confirmación de Facilitador al Cliente",
+        slug: "confirmacion-facilitador-cliente",
+        event_type: "confirmacion_facilitador_cliente",
+        subject: "Confirmación de Facilitador: {{facilitador_nombre}} — {{curso}} (OSI {{nro_osi}})",
+        body: `Estimado/a {{contacto}},
+
+Es un placer saludarle en nombre de SHA de Venezuela.
+
+Le informamos que ha sido confirmado y asignado el facilitador para el desarrollo del servicio de capacitación contratado por {{empresa}}:
+
+DATOS DEL SERVICIO:
+• Curso / Servicio: {{curso}}
+• N° OSI: {{nro_osi}}
+• Fecha(s): {{fechas}}
+• Horario: {{horario}}
+• Duración: {{duracion}} horas
+• Ubicación / Dirección: {{direccion}}
+
+FACILITADOR ASIGNADO:
+• Facilitador: {{facilitador_nombre}}
+
+📎 Se adjunta la Ficha Técnica oficial del facilitador con su síntesis curricular, perfil profesional y competencias técnicas.
+
+Quedamos a su entera disposición para cualquier consulta o coordinación previa a la actividad.
+
+Atentamente,
+Coordinación de Capacitación
+SHA de Venezuela, C.A.
+capacitacion@shadevenezuela.com.ve`,
+        is_default: true,
+        is_active: true,
+        created_by: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      error: null,
+    };
+  }
+
+  return { data: null, error: null };
 }
 
 export interface EmailTemplateInput {

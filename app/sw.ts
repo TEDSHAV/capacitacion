@@ -35,7 +35,8 @@ const serwist = new Serwist({
           url.pathname.startsWith("/portal/cliente") ||
           url.pathname.startsWith("/dashboard") ||
           url.pathname.startsWith("/survey/") ||
-          url.pathname.startsWith("/verify-certificate/")),
+          url.pathname.startsWith("/verify-certificate/") ||
+          url.pathname.startsWith("/evaluacion/")),
       handler: new NetworkFirst({
         cacheName: "rsc-payloads",
         networkTimeoutSeconds: 10,
@@ -130,7 +131,8 @@ const serwist = new Serwist({
         request.mode === "navigate" &&
         (url.pathname.startsWith("/survey/") ||
           url.pathname.startsWith("/verify-certificate/") ||
-          url.pathname.startsWith("/postulacion/")),
+          url.pathname.startsWith("/postulacion/") ||
+          url.pathname.startsWith("/evaluacion/")),
       handler: new NetworkFirst({
         cacheName: "public-pages",
         networkTimeoutSeconds: 10,

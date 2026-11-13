@@ -69,6 +69,7 @@ export function emailContextToMap(ctx: EmailContext): Record<string, string> {
     direccion: ctx.direccion,
     contacto: ctx.contacto,
     contacto_telefono: ctx.contacto_telefono,
+    contacto_email: ctx.contacto_email ?? "",
     observaciones: ctx.observaciones,
     honorarios: ctx.honorarios ?? "",
     traslado: ctx.traslado ?? "",
@@ -137,6 +138,7 @@ export function buildEmailContext(
     direccion_ejecucion: string | null;
     persona_contacto?: string | null;
     contacto_telefono?: string | null;
+    contacto_email?: string | null;
     contenido_servicio?: string | null;
     observaciones_totales?: string | null;
     fecha_inicio_real?: string | null;
@@ -227,6 +229,7 @@ export function buildEmailContext(
     direccion: osi.direccion_ejecucion ?? "",
     contacto: osi.persona_contacto ?? osi.nombre_empresa ?? "",
     contacto_telefono: osi.contacto_telefono ?? "",
+    contacto_email: osi.contacto_email ?? null,
     observaciones: osi.contenido_servicio ?? osi.observaciones_totales ?? "",
     honorarios,
     traslado,

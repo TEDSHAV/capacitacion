@@ -8,6 +8,7 @@ import { redirect, notFound } from "next/navigation";
 import { ArrowLeft, Calendar, MapPin } from "lucide-react";
 import Link from "next/link";
 import { ParticipantForm } from "./participant-form";
+import FacilitadorExamCard from "./FacilitadorExamCard";
 import { getSessionCount } from "@/lib/osi-utils";
 import { getOsiSessionInfo } from "@/app/actions/osi-facilitador-assignments";
 
@@ -136,6 +137,21 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
     .eq("osi_id", osiId)
     .eq("facilitador_id", session.facilitador_id);
 
+  // Check if an active digital evaluation exists for this OSI
+  const { data: osiEvaluacion } = await supabase
+    .from("capacitacion_osi_evaluaciones")
+    .select("id, titulo, is_active, preguntas")
+    .eq("id_osi", osiId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  const { count: submissionsCount } = osiEvaluacion
+    ? await supabase
+        .from("capacitacion_evaluaciones_respuestas")
+        .select("id", { count: "exact", head: true })
+        .eq("id_osi", osiId)
+    : { count: 0 };
+
   const relevantSessionNums =
     specificSessions.length > 0 && !hasAllSessionsAssignment
       ? [...specificSessions].sort((a, b) => a - b)
@@ -155,7 +171,8 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
         ? (attachments || []).filter((a) => a.nro_sesion === ses)
         : (attachments || []).filter((a) => a.nro_sesion === ses || a.nro_sesion == null);
     const hasAsist = forSes.some((a) => a.category === "lista_asistencia");
-    const hasCalif = (notaAprobatoria === 0) || forSes.some((a) => a.category === "hoja_calificacion");
+    const hasDigitalEval = Boolean(osiEvaluacion && (submissionsCount ?? 0) > 0);
+    const hasCalif = (notaAprobatoria === 0) || hasDigitalEval || forSes.some((a) => a.category === "hoja_calificacion");
     const hasFotos = forSes.some((a) => a.category === "material_fotografico");
     const hasFinalPart = (participants.data || []).some(
       (p: any) => (p.nro_sesion ?? 1) === ses && p.status === "final"
@@ -263,6 +280,23 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
         </div>
       </header>
 
+      {/* Classroom Digital Evaluation Card (if assigned by Capacitación) */}
+      {osiEvaluacion && (
+        <FacilitadorExamCard
+          osi={{
+            id_osi: osiId,
+            nro_osi: osi.nro_osi || String(osiId),
+            servicio: osi.servicio || "Servicio General",
+            nombre_empresa: osi.nombre_empresa || "",
+          }}
+          examTitle={osiEvaluacion.titulo}
+          submissionsCount={submissionsCount || 0}
+          totalQuestions={
+            Array.isArray(osiEvaluacion.preguntas) ? osiEvaluacion.preguntas.length : undefined
+          }
+        />
+      )}
+
       {/* Guided Wizard: Stepper, Attendance, Participants, Photos, and Final Review */}
       <ParticipantForm
         osiId={osiId}
@@ -282,6 +316,9 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
         hasCertificates={hasCertificates}
         isPlanta={isPlanta}
         evaluacionTeoricaPractica={evaluacionTeoricaPractica}
+        hasDigitalEvaluation={Boolean(osiEvaluacion)}
+        digitalSubmissionsCount={submissionsCount || 0}
+        digitalExamTitle={osiEvaluacion?.titulo}
       />
     </div>
   );

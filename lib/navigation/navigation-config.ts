@@ -251,6 +251,13 @@ const DASHBOARD_NAV: NavItem[] = [
         icon: LayoutGrid,
         offlineAvailable: true,
       },
+      {
+        id: "course-evaluations",
+        label: "Evaluaciones",
+        href: "/dashboard/capacitacion/gestion-examenes",
+        icon: ClipboardCheck,
+        offlineAvailable: true,
+      },
     ],
   },
   {

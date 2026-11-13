@@ -175,3 +175,34 @@ export async function sendAssignmentEmail(input: {
     error: result.error,
   };
 }
+
+/**
+ * Send the client confirmation email when a facilitator is assigned to an OSI.
+ * Includes the official Ficha Técnica del Facilitador as an attached PDF.
+ */
+export async function sendClientConfirmationEmail(input: {
+  osiId: number;
+  facilitadorId: number;
+  clientEmail: string;
+  assignmentId?: number | null;
+  templateId?: number | null;
+  nroSesion?: number | null;
+}): Promise<{ success: boolean; status: EmailLogStatus; error?: string }> {
+  const supabase = await createClient();
+  const userRes = await supabase.auth.getUser();
+  const sentBy = userRes.data.user?.id ?? null;
+
+  const { notifyClientFacilitadorAssigned } = await import(
+    "@/lib/email/notify-client-assignment"
+  );
+
+  return notifyClientFacilitadorAssigned({
+    osiId: input.osiId,
+    facilitadorId: input.facilitadorId,
+    clientEmail: input.clientEmail,
+    assignmentId: input.assignmentId ?? null,
+    assignedBy: sentBy,
+    templateId: input.templateId ?? null,
+    nroSesion: input.nroSesion ?? null,
+  });
+}

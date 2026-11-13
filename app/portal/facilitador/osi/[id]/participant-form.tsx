@@ -25,8 +25,14 @@ import {
   Calendar,
   Copy,
   Zap,
+  RotateCcw,
 } from "lucide-react";
-import { saveParticipants, getOSIAttachments, markSessionCompletedDev } from "@/app/actions/facilitador-portal";
+import {
+  saveParticipants,
+  getOSIAttachments,
+  markSessionCompletedDev,
+  getOSIParticipants,
+} from "@/app/actions/facilitador-portal";
 import { enqueueOp } from "@/lib/offline/sync-queue";
 import { toTitleCase } from "@/utils/string-utils";
 import { AttachmentUploadSection } from "./attachment-upload-section";
@@ -86,6 +92,9 @@ export interface ParticipantFormProps {
   hasCertificates?: boolean;
   isPlanta?: boolean;
   evaluacionTeoricaPractica?: boolean;
+  hasDigitalEvaluation?: boolean;
+  digitalSubmissionsCount?: number;
+  digitalExamTitle?: string;
 }
 
 function formatSessionDate(dateStr?: string | null): string {
@@ -125,6 +134,9 @@ export const ParticipantForm = ({
   hasCertificates = false,
   isPlanta = false,
   evaluacionTeoricaPractica = false,
+  hasDigitalEvaluation = false,
+  digitalSubmissionsCount = 0,
+  digitalExamTitle,
 }: ParticipantFormProps) => {
   const passingGrade = typeof notaAprobatoria === "number" ? notaAprobatoria : 14;
   const isParticipationOnly = passingGrade === 0;
@@ -260,6 +272,7 @@ export const ParticipantForm = ({
   const [hasAcknowledged, setHasAcknowledged] = useState<boolean>(finalizedSessions.has(defaultInitialSession) || initialIsFinal);
 
   const [clipboardCount, setClipboardCount] = useState<number>(0);
+  const [isSyncingEvaluations, setIsSyncingEvaluations] = useState<boolean>(false);
 
   useEffect(() => {
     try {
@@ -492,6 +505,69 @@ export const ParticipantForm = ({
     }
   }, [facilitadorId, selectedSession]);
 
+  const handleSyncDigitalEvaluations = useCallback(async () => {
+    setIsSyncingEvaluations(true);
+    try {
+      const res = await getOSIParticipants(osiId, facilitadorId, selectedSession);
+      if (res.data && res.data.length > 0) {
+        const freshList: Participant[] = res.data.map((row: any) => ({
+          nombre_apellido: toTitleCase(String(row.nombre_apellido || "")),
+          cedula: String(row.cedula || "").trim().toUpperCase(),
+          score: row.score !== null && row.score !== undefined ? String(row.score) : "",
+          score_teorica: row.score_teorica !== null && row.score_teorica !== undefined ? String(row.score_teorica) : "",
+          score_practica: row.score_practica !== null && row.score_practica !== undefined ? String(row.score_practica) : "",
+          score_pre: row.score_pre !== null && row.score_pre !== undefined ? String(row.score_pre) : "",
+          score_post: row.score_post !== null && row.score_post !== undefined ? String(row.score_post) : "",
+          score_promedio: row.score_promedio !== null && row.score_promedio !== undefined ? String(row.score_promedio) : "",
+          nationality: (row.nationality === "extranjero" ? "extranjero" : "venezolano") as "venezolano" | "extranjero",
+        }));
+
+        setParticipants((prev) => {
+          const currentNonEmpty = prev.filter(
+            (p) => p.cedula.trim() !== "" || p.nombre_apellido.trim() !== ""
+          );
+          const merged = [...currentNonEmpty];
+          for (const fresh of freshList) {
+            const idx = merged.findIndex(
+              (m) => m.cedula.trim().toUpperCase() === fresh.cedula
+            );
+            if (idx >= 0) {
+              merged[idx] = {
+                ...merged[idx],
+                score: fresh.score !== "" ? fresh.score : merged[idx].score,
+                score_teorica: fresh.score_teorica !== "" ? fresh.score_teorica : merged[idx].score_teorica,
+                nombre_apellido: fresh.nombre_apellido || merged[idx].nombre_apellido,
+              };
+            } else {
+              merged.push(fresh);
+            }
+          }
+          return merged.length > 0
+            ? merged
+            : [{ nombre_apellido: "", cedula: "", score: "", nationality: "venezolano" }];
+        });
+
+        setParticipantsBySession((prev) => ({
+          ...prev,
+          [selectedSession]: freshList,
+        }));
+
+        setSuccess(
+          `✅ Se sincronizaron ${freshList.length} participante(s) con las evaluaciones del aula.`
+        );
+        setTimeout(() => setSuccess(null), 3500);
+      } else {
+        setSuccess("Aún no hay evaluaciones registradas en el servidor para este curso.");
+        setTimeout(() => setSuccess(null), 3000);
+      }
+    } catch (err) {
+      console.error("[handleSyncDigitalEvaluations] Error:", err);
+      setError("Error al sincronizar las evaluaciones.");
+    } finally {
+      setIsSyncingEvaluations(false);
+    }
+  }, [osiId, facilitadorId, selectedSession]);
+
   const validCedulasCount = participants.filter((p) => p.cedula.trim()).length;
 
   const checkIsParticipantApproved = useCallback(
@@ -635,23 +711,30 @@ export const ParticipantForm = ({
   // Check for scores out of 0-20 scale
   const hasInvalidScoreRange = validParticipants.some(checkHasInvalidScore);
 
+  const hasDigitalGrades = Boolean(
+    hasDigitalEvaluation &&
+      ((digitalSubmissionsCount ?? 0) > 0 ||
+        validParticipants.some((p) => p.score !== "" && p.score !== null && p.score !== undefined))
+  );
+
   // Check which sessions are missing required attachments
   const sessionsMissingAttachments = useMemo(() => {
     return selectableSessionsList.filter((n) => {
       const stats = getSessionStats(n);
       const hasAsist = stats.asist > 0;
-      const hasCalif = isParticipationOnly ? true : stats.calif > 0;
+      const hasCalif = isParticipationOnly || hasDigitalGrades ? true : stats.calif > 0;
       const hasFotos = stats.fotos > 0;
       return !hasAsist || !hasCalif || !hasFotos;
     });
-  }, [selectableSessionsList, getSessionStats, isParticipationOnly]);
+  }, [selectableSessionsList, getSessionStats, isParticipationOnly, hasDigitalGrades]);
 
   const hasCompletedAllSessions = sessionsMissingAttachments.length === 0;
 
   // Active session prerequisites helpers for finalizing
   const currentSessionStats = getSessionStats(selectedSession);
   const hasCurrentSessionAttendance = currentSessionStats.asist > 0;
-  const hasCurrentSessionGradeSheet = isParticipationOnly || currentSessionStats.calif > 0;
+  const hasCurrentSessionGradeSheet =
+    isParticipationOnly || hasDigitalGrades || currentSessionStats.calif > 0;
   const hasCurrentSessionPhotos = currentSessionStats.fotos > 0;
   const isCurrentSessionAttachmentsComplete =
     hasCurrentSessionAttendance && hasCurrentSessionGradeSheet && hasCurrentSessionPhotos;
@@ -662,6 +745,9 @@ export const ParticipantForm = ({
     selectableSessionsList.every((n) => getSessionStats(n).asist > 0);
   const hasCompletedGradeSheet =
     isParticipationOnly ||
+    hasDigitalGrades ||
+    (selectableSessionsList.length > 0 &&
+      selectableSessionsList.every((n) => getSessionStats(n).calif > 0));
     (selectableSessionsList.length > 0 &&
       selectableSessionsList.every((n) => getSessionStats(n).calif > 0));
   const hasCompletedPhotos =
@@ -1433,8 +1519,14 @@ export const ParticipantForm = ({
                   <h2 className="text-base sm:text-lg font-bold text-slate-900">
                     Cargar Hoja de Calificación Física
                   </h2>
-                  <span className="text-[10px] font-bold uppercase text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">
-                    Requerido
+                  <span
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
+                      hasDigitalEvaluation
+                        ? "text-teal-700 bg-teal-50 border-teal-200"
+                        : "text-red-600 bg-red-50 border-red-100"
+                    }`}
+                  >
+                    {hasDigitalEvaluation ? "Opcional (Digital Activo)" : "Requerido"}
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-600">
@@ -1442,6 +1534,28 @@ export const ParticipantForm = ({
                 </p>
               </div>
             </div>
+
+            {hasDigitalEvaluation && (
+              <div className="p-4 rounded-xl bg-teal-50 border border-teal-200 text-teal-900 space-y-1.5">
+                <div className="flex items-center gap-2 font-bold text-sm text-teal-950">
+                  <Sparkles className="w-4 h-4 text-teal-600" />
+                  <span>Evaluación Digital en Aula Habilitada</span>
+                </div>
+                <p className="text-xs text-teal-800 leading-relaxed">
+                  Este servicio cuenta con evaluación digital interactiva vía QR y Kiosk en el aula.
+                  Las calificaciones de los participantes se integran automáticamente en la nómina.
+                  {digitalSubmissionsCount > 0 ? (
+                    <strong className="block mt-1 text-teal-950">
+                      Ya se han registrado {digitalSubmissionsCount} evaluación(es) digital(es). No es obligatorio cargar una hoja física de examen.
+                    </strong>
+                  ) : (
+                    <span className="block mt-1 text-teal-800">
+                      Una vez que los alumnos completen su evaluación digital, este adjunto en papel no será obligatorio.
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
 
             {/* Session Indicator & Selector */}
             {renderSessionHeader("la hoja de calificación")}
@@ -1458,8 +1572,8 @@ export const ParticipantForm = ({
                 onSessionChange={handleSelectSession}
                 title="Hoja de Calificación Física"
                 description="Formatos JPG, PNG o PDF con las notas y firmas físicas."
-                badge="Requerido"
-                badgeColor="red"
+                badge={hasDigitalEvaluation ? "Opcional" : "Requerido"}
+                badgeColor={hasDigitalEvaluation ? "green" : "red"}
                 onAttachmentCountChange={refreshAttachmentCounts}
                 onStatusChange={setUploadStatus}
                 tourId="tour-calificacion-button"
@@ -1584,6 +1698,27 @@ export const ParticipantForm = ({
                         </Button>
                       )}
 
+                      {hasDigitalEvaluation && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSyncDigitalEvaluations}
+                          disabled={isSyncingEvaluations}
+                          className="h-10 text-teal-800 bg-teal-50 border-teal-300 hover:bg-teal-100 font-bold cursor-pointer"
+                          title="Cargar automáticamente participantes y notas registradas en las evaluaciones digitales"
+                        >
+                          {isSyncingEvaluations ? (
+                            <Loader2 className="w-4 h-4 mr-1.5 animate-spin text-teal-600" />
+                          ) : (
+                            <RotateCcw className="w-4 h-4 mr-1.5 text-teal-600" />
+                          )}
+                          <span>
+                            Sincronizar Exámenes
+                            {digitalSubmissionsCount > 0 ? ` (${digitalSubmissionsCount})` : ""}
+                          </span>
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
@@ -1607,6 +1742,27 @@ export const ParticipantForm = ({
                   )}
                 </div>
               </div>
+
+              {hasDigitalEvaluation && (
+                <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-900 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-teal-600 shrink-0" />
+                    <span>
+                      Evaluación Digital activa ({digitalExamTitle || "Examen de Aula"}). Las notas y participantes aparecen aquí automáticamente al enviar su examen.
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSyncDigitalEvaluations}
+                    disabled={isSyncingEvaluations}
+                    className="text-xs text-teal-700 hover:text-teal-900 hover:bg-teal-100 font-bold h-7 px-2.5 shrink-0"
+                  >
+                    {isSyncingEvaluations ? "Sincronizando..." : "Sincronizar ahora"}
+                  </Button>
+                </div>
+              )}
 
               {/* Real-time KPI Metric Pills */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">

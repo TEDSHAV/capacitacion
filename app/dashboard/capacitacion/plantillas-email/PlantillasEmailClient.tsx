@@ -28,6 +28,7 @@ import type { EmailTemplateListItem } from "@/types/email";
 
 const EVENT_TYPES = [
   { value: "asignacion_facilitador", label: "Asignación de Facilitador" },
+  { value: "confirmacion_facilitador_cliente", label: "Confirmación Facilitador (Cliente)" },
 ];
 
 export default function PlantillasEmailClient() {
@@ -187,6 +188,7 @@ export default function PlantillasEmailClient() {
     direccion: "Av. Principal, Edificio Centro, Caracas",
     contacto: "María González",
     contacto_telefono: "+58 212-555-0000",
+    contacto_email: "maria.gonzalez@empresademo.com",
     observaciones: "Observaciones de ejemplo",
     honorarios: "$80",
     traslado: "$20",
@@ -447,7 +449,7 @@ export default function PlantillasEmailClient() {
                 <p className="text-xs text-gray-400 mt-1">
                   Placeholders disponibles:{" "}
                   <code className="text-gray-600">
-                    {"{{facilitador_nombre}} {{curso}} {{empresa}} {{nro_osi}} {{osi}} {{fechas}} {{horario}} {{duracion}} {{direccion}} {{contacto}} {{contacto_telefono}} {{honorarios}} {{traslado}} {{impresion}} {{observaciones}}"}
+                    {"{{facilitador_nombre}} {{curso}} {{empresa}} {{nro_osi}} {{osi}} {{fechas}} {{horario}} {{duracion}} {{direccion}} {{contacto}} {{contacto_telefono}} {{contacto_email}} {{honorarios}} {{traslado}} {{impresion}} {{observaciones}}"}
                   </code>
                 </p>
               </div>

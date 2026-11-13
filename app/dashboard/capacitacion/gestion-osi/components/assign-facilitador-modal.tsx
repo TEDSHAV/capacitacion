@@ -21,6 +21,9 @@ import {
   Check,
   MessageCircle,
   Laptop,
+  Building2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   getAssignmentByOSI,
@@ -31,17 +34,27 @@ import {
   type OsiSessionDetail,
 } from "@/app/actions/osi-facilitador-assignments";
 
-import { getOSIEmailContext } from "@/app/actions/osi-email-context";
+import { getOSIEmailContext, getOsiClientContact } from "@/app/actions/osi-email-context";
 import {
   getEmailTemplates,
   getDefaultEmailTemplate,
 } from "@/app/actions/email-templates";
-import { sendAssignmentEmail, isEmailServerConfigured } from "@/app/actions/email-send";
+import {
+  sendAssignmentEmail,
+  sendClientConfirmationEmail,
+  isEmailServerConfigured,
+} from "@/app/actions/email-send";
 import { getEmailLogsForOSI } from "@/app/actions/email-log";
 import { uploadFileDirectToB2 } from "@/lib/email/b2-direct-upload";
 import { toTitleCase } from "@/utils/string-utils";
 import { renderTemplateBoth, emailContextToMap } from "@/lib/email/template-render";
-import type { UploadedAttachment, EmailContext, EmailLogEntry, EmailTemplateListItem } from "@/types/email";
+import type {
+  UploadedAttachment,
+  EmailContext,
+  EmailLogEntry,
+  EmailTemplateListItem,
+  EmailTemplate,
+} from "@/types/email";
 import {
   Select,
   SelectContent,
@@ -115,6 +128,13 @@ export default function AssignFacilitadorModal({
   const [linkExpiryDays, setLinkExpiryDays] = useState<string>("0");
   const [emailLogs, setEmailLogs] = useState<EmailLogEntry[]>([]);
   const [copied, setCopied] = useState(false);
+
+  // Client confirmation email state
+  const [clientContactName, setClientContactName] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [notifyClient, setNotifyClient] = useState(true);
+  const [clientTemplate, setClientTemplate] = useState<EmailTemplate | null>(null);
+  const [showClientPreview, setShowClientPreview] = useState(false);
 
   const handleCopyBody = async () => {
     if (!emailBody) return;
@@ -219,13 +239,24 @@ export default function AssignFacilitadorModal({
     setLoading(true);
     setError(null);
     try {
-      const [assignRes, facilitatorsData, templatesData, configured, sessionInfo, logs] = await Promise.all([
+      const [
+        assignRes,
+        facilitatorsData,
+        templatesData,
+        configured,
+        sessionInfo,
+        logs,
+        contactRes,
+        clientTplRes,
+      ] = await Promise.all([
         getAssignmentByOSI(osiId),
         getActiveFacilitatorsForDropdown(),
         getEmailTemplates(),
         isEmailServerConfigured(),
         getOsiSessionInfo(osiId),
         getEmailLogsForOSI(osiId),
+        getOsiClientContact(osiId),
+        getDefaultEmailTemplate("confirmacion_facilitador_cliente"),
       ]);
 
       if (assignRes.error) {
@@ -243,6 +274,15 @@ export default function AssignFacilitadorModal({
       setSessionDetails(sessionInfo.sessions);
       setSessionCountLoaded(true);
       setEmailLogs(logs || []);
+
+      if (contactRes?.data) {
+        setClientContactName(contactRes.data.personaContacto || "");
+        setClientEmail(contactRes.data.contactoEmail || "");
+        setNotifyClient(Boolean(contactRes.data.contactoEmail?.trim()));
+      }
+      if (clientTplRes?.data) {
+        setClientTemplate(clientTplRes.data);
+      }
 
 
       // Pick the default template automatically.
