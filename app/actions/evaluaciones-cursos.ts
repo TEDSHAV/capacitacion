@@ -13,27 +13,145 @@ import type {
   ParticipantStageResult,
   TipoEvaluacionCurso,
   EtapaEvaluacion,
+  TipoPreguntaEvaluacion,
+  SalonId,
+  SalonInfo,
 } from "@/types/evaluacion";
+import { SALONES } from "@/types/evaluacion";
 import { toTitleCase } from "@/utils/string-utils";
 
+interface SalonMetadataItem {
+  _is_salon_meta: true;
+  salon_id: SalonId;
+  salon_fecha_inicio?: string | null;
+  salon_fecha_fin?: string | null;
+}
+
 /**
- * Resolves an OSI by either its internal numeric ID or its sequential/formatted number
- * (e.g. "153", "2026-042", "OSI-2026-042").
+ * Helper to identify a salon from its slug, ID, or alias.
+ */
+export function getSalonFromSlug(slug: string): SalonInfo | null {
+  if (!slug) return null;
+  const clean = slug.trim().toLowerCase();
+  return SALONES.find((s) => s.slugs.includes(clean) || s.id === clean) || null;
+}
+
+/**
+ * Returns today's date in Venezuela local timezone (YYYY-MM-DD).
+ */
+export function getTodayDateString(): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Caracas" }).format(new Date());
+  } catch {
+    return new Date().toISOString().split("T")[0];
+  }
+}
+
+/**
+ * Resolves an OSI by either:
+ * 1. A physical classroom slug ("salon-principal", "salon-elite", "salon-oriente") active today
+ * 2. An internal numeric ID
+ * 3. A sequential/formatted number (e.g. "153", "2026-042", "OSI-2026-042").
  */
 export async function resolveOSIByIdentifier(identifier: string): Promise<{
   id_osi: number;
   nro_osi: string;
   servicio: string;
   nombre_empresa: string;
+  eval_pre_post?: boolean;
+  fecha_inicio_real?: string | null;
+  fecha_fin_real?: string | null;
+  salon_id?: SalonId | null;
+  salon_nombre?: string | null;
 } | null> {
   const admin = await createAdminClient();
   const trimmed = identifier.trim();
+
+  // 0. Check if identifier is a classroom slug
+  const salon = getSalonFromSlug(trimmed);
+  if (salon) {
+    const today = getTodayDateString();
+    let matchedOsiId: number | null = null;
+
+    // A. Check dedicated assignments table if present
+    try {
+      const { data: sa } = await admin
+        .from("capacitacion_salones_asignaciones")
+        .select("id_osi")
+        .eq("salon_id", salon.id)
+        .eq("is_active", true)
+        .lte("fecha_inicio", today)
+        .gte("fecha_fin", today)
+        .order("id", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (sa && sa.id_osi) {
+        matchedOsiId = sa.id_osi;
+      }
+    } catch {
+      // Ignored if table not created yet in schema cache
+    }
+
+    // B. Check dual-storage metadata inside capacitacion_osi_evaluaciones.preguntas
+    if (!matchedOsiId) {
+      const { data: activeEvals } = await admin
+        .from("capacitacion_osi_evaluaciones")
+        .select("id, id_osi, preguntas")
+        .eq("is_active", true);
+
+      if (activeEvals && activeEvals.length > 0) {
+        for (const ev of activeEvals) {
+          const rawPreguntas = Array.isArray(ev.preguntas) ? ev.preguntas : [];
+          const meta = rawPreguntas.find(
+            (p): p is SalonMetadataItem =>
+              typeof p === "object" && p !== null && "_is_salon_meta" in p && (p as SalonMetadataItem)._is_salon_meta === true,
+          );
+          if (meta && meta.salon_id === salon.id) {
+            const fInicio = meta.salon_fecha_inicio || today;
+            const fFin = meta.salon_fecha_fin || fInicio || today;
+            if (today >= fInicio && today <= fFin) {
+              matchedOsiId = ev.id_osi;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (!matchedOsiId) {
+      // Salon has no active course scheduled for today
+      return null;
+    }
+
+    const { data: osiData } = await admin
+      .from("v_osi_formato_completo")
+      .select("id_osi, nro_osi, servicio, nombre_empresa, eval_pre_post, fecha_inicio_real, fecha_fin_real")
+      .eq("id_osi", matchedOsiId)
+      .maybeSingle();
+
+    if (osiData) {
+      return {
+        id_osi: osiData.id_osi,
+        nro_osi: osiData.nro_osi || `OSI-${osiData.id_osi}`,
+        servicio: osiData.servicio || "Servicio de Capacitación",
+        nombre_empresa: osiData.nombre_empresa || "Cliente",
+        eval_pre_post: Boolean(osiData.eval_pre_post),
+        fecha_inicio_real: osiData.fecha_inicio_real,
+        fecha_fin_real: osiData.fecha_fin_real,
+        salon_id: salon.id,
+        salon_nombre: salon.nombre,
+      };
+    }
+    return null;
+  }
+
   const cleanNumber = trimmed.replace(/^OSI-?/i, "").trim();
 
   // 1. Try exact match on nro_osi (since users and URLs type e.g. "3746" or "2026-042")
   const { data: byExactNro } = await admin
     .from("v_osi_formato_completo")
-    .select("id_osi, nro_osi, servicio, nombre_empresa")
+    .select("id_osi, nro_osi, servicio, nombre_empresa, eval_pre_post, fecha_inicio_real, fecha_fin_real")
     .eq("nro_osi", cleanNumber)
     .limit(1)
     .maybeSingle();
@@ -44,6 +162,9 @@ export async function resolveOSIByIdentifier(identifier: string): Promise<{
       nro_osi: byExactNro.nro_osi || `OSI-${byExactNro.id_osi}`,
       servicio: byExactNro.servicio || "Servicio de Capacitación",
       nombre_empresa: byExactNro.nombre_empresa || "Cliente",
+      eval_pre_post: Boolean(byExactNro.eval_pre_post),
+      fecha_inicio_real: byExactNro.fecha_inicio_real,
+      fecha_fin_real: byExactNro.fecha_fin_real,
     };
   }
 
@@ -52,7 +173,7 @@ export async function resolveOSIByIdentifier(identifier: string): Promise<{
   if (!isNaN(numericId) && numericId > 0 && String(numericId) === trimmed) {
     const { data: byId } = await admin
       .from("v_osi_formato_completo")
-      .select("id_osi, nro_osi, servicio, nombre_empresa")
+      .select("id_osi, nro_osi, servicio, nombre_empresa, eval_pre_post, fecha_inicio_real, fecha_fin_real")
       .eq("id_osi", numericId)
       .maybeSingle();
 
@@ -62,6 +183,9 @@ export async function resolveOSIByIdentifier(identifier: string): Promise<{
         nro_osi: byId.nro_osi || `OSI-${byId.id_osi}`,
         servicio: byId.servicio || "Servicio de Capacitación",
         nombre_empresa: byId.nombre_empresa || "Cliente",
+        eval_pre_post: Boolean(byId.eval_pre_post),
+        fecha_inicio_real: byId.fecha_inicio_real,
+        fecha_fin_real: byId.fecha_fin_real,
       };
     }
   }
@@ -69,7 +193,7 @@ export async function resolveOSIByIdentifier(identifier: string): Promise<{
   // 3. Try partial substring match on nro_osi
   const { data: byNroLike } = await admin
     .from("v_osi_formato_completo")
-    .select("id_osi, nro_osi, servicio, nombre_empresa")
+    .select("id_osi, nro_osi, servicio, nombre_empresa, eval_pre_post, fecha_inicio_real, fecha_fin_real")
     .ilike("nro_osi", `%${cleanNumber}%`)
     .limit(1)
     .maybeSingle();
@@ -80,6 +204,9 @@ export async function resolveOSIByIdentifier(identifier: string): Promise<{
       nro_osi: byNroLike.nro_osi || `OSI-${byNroLike.id_osi}`,
       servicio: byNroLike.servicio || "Servicio de Capacitación",
       nombre_empresa: byNroLike.nombre_empresa || "Cliente",
+      eval_pre_post: Boolean(byNroLike.eval_pre_post),
+      fecha_inicio_real: byNroLike.fecha_inicio_real,
+      fecha_fin_real: byNroLike.fecha_fin_real,
     };
   }
 
@@ -94,7 +221,7 @@ export async function resolveOSIByIdentifier(identifier: string): Promise<{
 export async function getActiveCoursesCatalog(): Promise<Array<{ id: number; nombre: string; nota_aprobatoria?: number | null }>> {
   const admin = await createAdminClient();
 
-  let { data, error } = await admin
+  const { data: initialData, error } = await admin
     .from("catalogo_servicios")
     .select("id, nombre, nota_aprobatoria")
     .eq("esta_activo", true)
@@ -102,6 +229,8 @@ export async function getActiveCoursesCatalog(): Promise<Array<{ id: number; nom
     .eq("tipo_servicio", 1)
     .eq("mostrar_en_catalogo", true)
     .order("nombre", { ascending: true });
+
+  let data = initialData;
 
   if (error && (error.code === "42703" || error.message?.includes("mostrar_en_catalogo"))) {
     const retry = await admin
@@ -114,7 +243,7 @@ export async function getActiveCoursesCatalog(): Promise<Array<{ id: number; nom
     data = retry.data;
   }
 
-  return (data || []).map((c: any) => ({
+  return (data || []).map((c: { id: number; nombre: string; nota_aprobatoria?: number | string | null }) => ({
     id: c.id,
     nombre: c.nombre,
     nota_aprobatoria: c.nota_aprobatoria != null ? Number(c.nota_aprobatoria) : null,
@@ -147,19 +276,19 @@ export async function getEvaluacionPlantillas(): Promise<EvaluacionPlantilla[]> 
     countMap.set(q.plantilla_id, (countMap.get(q.plantilla_id) || 0) + 1);
   }
 
-  return (templates || []).map((t: any) => ({
-    id: t.id,
-    id_curso: t.id_curso,
-    titulo: t.titulo,
-    descripcion: t.descripcion,
+  return (templates || []).map((t: Record<string, unknown>) => ({
+    id: Number(t.id),
+    id_curso: t.id_curso != null ? Number(t.id_curso) : null,
+    titulo: String(t.titulo || ""),
+    descripcion: t.descripcion ? String(t.descripcion) : null,
     nota_aprobatoria: Number(t.nota_aprobatoria) || 14,
-    duracion_minutos: t.duracion_minutos,
+    duracion_minutos: t.duracion_minutos != null ? Number(t.duracion_minutos) : null,
     tipo_evaluacion: (t.tipo_evaluacion as TipoEvaluacionCurso) || "standard",
-    is_active: t.is_active,
-    created_at: t.created_at,
-    updated_at: t.updated_at,
-    preguntas_count: countMap.get(t.id) || 0,
-    curso_nombre: t.catalogo_servicios?.nombre || null,
+    is_active: Boolean(t.is_active),
+    created_at: String(t.created_at || ""),
+    updated_at: String(t.updated_at || ""),
+    preguntas_count: countMap.get(Number(t.id)) || 0,
+    curso_nombre: (t.catalogo_servicios as { nombre?: string })?.nombre || null,
   }));
 }
 
@@ -189,14 +318,14 @@ export async function getEvaluacionPlantilla(id: number): Promise<{
     .order("orden", { ascending: true })
     .order("id", { ascending: true });
 
-  const formattedQuestions: EvaluacionPregunta[] = (questions || []).map((q: any) => ({
+  const formattedQuestions: EvaluacionPregunta[] = (questions || []).map((q: Record<string, unknown>) => ({
     id: String(q.id),
-    enunciado: q.enunciado,
-    tipo: q.tipo || "single_choice",
+    enunciado: String(q.enunciado || ""),
+    tipo: (q.tipo as TipoPreguntaEvaluacion) || "single_choice",
     puntos: Number(q.puntos) || 2,
-    orden: q.orden || 1,
-    etapa: q.etapa || "post",
-    opciones: Array.isArray(q.opciones) ? q.opciones : [],
+    orden: Number(q.orden) || 1,
+    etapa: (q.etapa as EtapaEvaluacion) || "post",
+    opciones: Array.isArray(q.opciones) ? (q.opciones as EvaluacionPregunta["opciones"]) : [],
   }));
 
   return {
@@ -332,7 +461,7 @@ export async function deleteEvaluacionPlantilla(id: number): Promise<{ success: 
  * Get active evaluation assigned to an OSI.
  */
 export async function getOSIEvaluacion(osiId: number): Promise<{
-  data: OSIEvaluacion | null;
+  data: (OSIEvaluacion & { submissions_count: number }) | null;
   error?: string;
 }> {
   const admin = await createAdminClient();
@@ -355,6 +484,15 @@ export async function getOSIEvaluacion(osiId: number): Promise<{
     .select("id", { count: "exact", head: true })
     .eq("id_osi", osiId);
 
+  const rawPreguntas = Array.isArray(data.preguntas) ? data.preguntas : [];
+  const salonMeta = rawPreguntas.find(
+    (p): p is SalonMetadataItem =>
+      typeof p === "object" && p !== null && "_is_salon_meta" in p && (p as SalonMetadataItem)._is_salon_meta === true,
+  );
+  const cleanPreguntas = rawPreguntas.filter(
+    (p) => !(typeof p === "object" && p !== null && "_is_salon_meta" in p),
+  ) as EvaluacionPregunta[];
+
   return {
     data: {
       id: data.id,
@@ -363,7 +501,11 @@ export async function getOSIEvaluacion(osiId: number): Promise<{
       titulo: data.titulo,
       nota_aprobatoria: Number(data.nota_aprobatoria) || 14,
       duracion_minutos: data.duracion_minutos,
-      preguntas: Array.isArray(data.preguntas) ? data.preguntas : [],
+      tipo_evaluacion: (data.tipo_evaluacion as TipoEvaluacionCurso) || "standard",
+      preguntas: cleanPreguntas,
+      salon_id: salonMeta?.salon_id || null,
+      salon_fecha_inicio: salonMeta?.salon_fecha_inicio || null,
+      salon_fecha_fin: salonMeta?.salon_fecha_fin || null,
       is_active: data.is_active,
       created_at: data.created_at,
       updated_at: data.updated_at,
@@ -384,6 +526,10 @@ export async function assignEvaluacionToOSI(payload: {
   nota_aprobatoria?: number;
   duracion_minutos?: number | null;
   preguntas?: EvaluacionPregunta[];
+  salon_id?: SalonId | null;
+  salon_fecha_inicio?: string | null;
+  salon_fecha_fin?: string | null;
+  tipo_evaluacion?: TipoEvaluacionCurso;
 }): Promise<{ data?: OSIEvaluacion; error?: string }> {
   const admin = await createAdminClient();
   const supabase = await createClient();
@@ -394,8 +540,21 @@ export async function assignEvaluacionToOSI(payload: {
     let titulo = payload.titulo?.trim();
     let notaAprobatoria = payload.nota_aprobatoria ?? 14;
     let duracionMinutos = payload.duracion_minutos ?? null;
-    let preguntas: EvaluacionPregunta[] = payload.preguntas || [];
-    let tipoEvaluacion: TipoEvaluacionCurso = "standard";
+    let preguntas: EvaluacionPregunta[] = (payload.preguntas || []).filter(
+      (p) => !(typeof p === "object" && p !== null && "_is_salon_meta" in p),
+    );
+    let tipoEvaluacion: TipoEvaluacionCurso = payload.tipo_evaluacion || "standard";
+
+    // Check if OSI in v_osi_formato_completo specifies eval_pre_post
+    const { data: osiInfo } = await admin
+      .from("v_osi_formato_completo")
+      .select("eval_pre_post, fecha_inicio_real, fecha_fin_real")
+      .eq("id_osi", payload.id_osi)
+      .maybeSingle();
+
+    if (osiInfo && osiInfo.eval_pre_post !== null && osiInfo.eval_pre_post !== undefined) {
+      tipoEvaluacion = osiInfo.eval_pre_post ? "pre_post" : "standard";
+    }
 
     // If template specified and no explicit questions provided, load from template
     if (payload.plantilla_id && preguntas.length === 0) {
@@ -404,13 +563,32 @@ export async function assignEvaluacionToOSI(payload: {
         if (!titulo) titulo = tplRes.data.titulo;
         notaAprobatoria = tplRes.data.nota_aprobatoria;
         duracionMinutos = tplRes.data.duracion_minutos;
-        preguntas = tplRes.data.preguntas || [];
-        tipoEvaluacion = tplRes.data.tipo_evaluacion || "standard";
+        preguntas = (tplRes.data.preguntas || []).filter(
+          (p) => !(typeof p === "object" && p !== null && "_is_salon_meta" in p),
+        );
+        if (!osiInfo || osiInfo.eval_pre_post === null) {
+          tipoEvaluacion = tplRes.data.tipo_evaluacion || "standard";
+        }
       }
     }
 
     if (!titulo) {
       titulo = "Evaluación de Curso";
+    }
+
+    const today = getTodayDateString();
+    const fechaInicio = payload.salon_fecha_inicio || osiInfo?.fecha_inicio_real || today;
+    const fechaFin = payload.salon_fecha_fin || osiInfo?.fecha_fin_real || fechaInicio || today;
+
+    // Prepare questions with salon metadata if salon assigned
+    const preguntasWithMeta: Array<EvaluacionPregunta | SalonMetadataItem> = [...preguntas];
+    if (payload.salon_id) {
+      preguntasWithMeta.push({
+        _is_salon_meta: true,
+        salon_id: payload.salon_id,
+        salon_fecha_inicio: fechaInicio,
+        salon_fecha_fin: fechaFin,
+      });
     }
 
     const { data: saved, error } = await admin
@@ -423,7 +601,7 @@ export async function assignEvaluacionToOSI(payload: {
           nota_aprobatoria: notaAprobatoria,
           duracion_minutos: duracionMinutos,
           tipo_evaluacion: tipoEvaluacion,
-          preguntas,
+          preguntas: preguntasWithMeta,
           is_active: true,
           updated_at: new Date().toISOString(),
           created_by: userId,
@@ -435,9 +613,31 @@ export async function assignEvaluacionToOSI(payload: {
 
     if (error || !saved) throw error;
 
+    // Dual-storage attempt for capacitacion_salones_asignaciones
+    if (payload.salon_id) {
+      try {
+        await admin.from("capacitacion_salones_asignaciones").upsert(
+          {
+            salon_id: payload.salon_id,
+            id_osi: payload.id_osi,
+            fecha_inicio: fechaInicio,
+            fecha_fin: fechaFin,
+            is_active: true,
+          },
+          { onConflict: "salon_id,fecha_inicio,id_osi" },
+        );
+      } catch {
+        // Ignored if table not created yet in schema cache
+      }
+    }
+
     revalidatePath(`/dashboard/capacitacion/gestion-osi`);
+    revalidatePath(`/dashboard/capacitacion/gestion-examenes`);
     revalidatePath(`/portal/facilitador/osi/${payload.id_osi}`);
     revalidatePath(`/evaluacion/${payload.id_osi}`);
+    revalidatePath(`/evaluacion/salon-principal`);
+    revalidatePath(`/evaluacion/salon-elite`);
+    revalidatePath(`/evaluacion/salon-oriente`);
 
     return {
       data: {
@@ -448,7 +648,10 @@ export async function assignEvaluacionToOSI(payload: {
         nota_aprobatoria: Number(saved.nota_aprobatoria) || 14,
         duracion_minutos: saved.duracion_minutos,
         tipo_evaluacion: (saved.tipo_evaluacion as TipoEvaluacionCurso) || "standard",
-        preguntas: Array.isArray(saved.preguntas) ? saved.preguntas : [],
+        preguntas,
+        salon_id: payload.salon_id || null,
+        salon_fecha_inicio: payload.salon_id ? fechaInicio : null,
+        salon_fecha_fin: payload.salon_id ? fechaFin : null,
         is_active: saved.is_active,
         created_at: saved.created_at,
         updated_at: saved.updated_at,
@@ -491,8 +694,16 @@ export async function getOSIEvaluacionPublicData(identifier: string): Promise<{
   data: EvaluacionPublicData | null;
   error?: string;
 }> {
+  const salonInfo = getSalonFromSlug(identifier);
   const osi = await resolveOSIByIdentifier(identifier);
+
   if (!osi) {
+    if (salonInfo) {
+      return {
+        data: null,
+        error: `No hay una evaluación activa asignada para el ${salonInfo.nombre} el día de hoy.`,
+      };
+    }
     return { data: null, error: `No se encontró la OSI correspondiente al código "${identifier}".` };
   }
 
@@ -511,12 +722,24 @@ export async function getOSIEvaluacionPublicData(identifier: string): Promise<{
     };
   }
 
-  const rawQuestions: EvaluacionPregunta[] = Array.isArray(osiEval.preguntas)
-    ? osiEval.preguntas
-    : [];
+  const rawQuestions = Array.isArray(osiEval.preguntas) ? osiEval.preguntas : [];
+
+  const salonMeta = rawQuestions.find(
+    (q): q is SalonMetadataItem =>
+      typeof q === "object" && q !== null && "_is_salon_meta" in q && (q as SalonMetadataItem)._is_salon_meta === true,
+  );
+  const cleanQuestions = rawQuestions.filter(
+    (q) => !(typeof q === "object" && q !== null && "_is_salon_meta" in q),
+  ) as EvaluacionPregunta[];
+
+  let salonNombre = osi.salon_nombre || null;
+  if (!salonNombre && salonMeta && salonMeta.salon_id) {
+    const s = SALONES.find((sl) => sl.id === salonMeta.salon_id);
+    if (s) salonNombre = s.nombre;
+  }
 
   // Strip correct answer flags
-  const sanitizedQuestions = rawQuestions.map((q) => ({
+  const sanitizedQuestions = cleanQuestions.map((q) => ({
     id: String(q.id),
     enunciado: q.enunciado,
     tipo: q.tipo,
@@ -529,6 +752,13 @@ export async function getOSIEvaluacionPublicData(identifier: string): Promise<{
     })),
   }));
 
+  const tipoEvaluacion: TipoEvaluacionCurso =
+    osi.eval_pre_post === true
+      ? "pre_post"
+      : osi.eval_pre_post === false
+      ? "standard"
+      : (osiEval.tipo_evaluacion as TipoEvaluacionCurso) || "standard";
+
   return {
     data: {
       osiId: osi.id_osi,
@@ -539,7 +769,8 @@ export async function getOSIEvaluacionPublicData(identifier: string): Promise<{
       titulo: osiEval.titulo,
       notaAprobatoria: Number(osiEval.nota_aprobatoria) || 14,
       duracionMinutos: osiEval.duracion_minutos,
-      tipoEvaluacion: (osiEval.tipo_evaluacion as TipoEvaluacionCurso) || "standard",
+      tipoEvaluacion,
+      salonNombre,
       preguntas: sanitizedQuestions,
     },
   };
@@ -599,7 +830,12 @@ export async function getParticipantEvaluationStage(
       };
     }
 
-    const isPrePost = osiEval.tipo_evaluacion === "pre_post";
+    const isPrePost =
+      osi.eval_pre_post === true
+        ? true
+        : osi.eval_pre_post === false
+        ? false
+        : osiEval.tipo_evaluacion === "pre_post";
 
     const { data: subs } = await admin
       .from("capacitacion_evaluaciones_respuestas")
@@ -718,7 +954,12 @@ export async function submitOSIEvaluacion(
       return { success: false, error: "No hay una evaluación activa disponible para esta OSI." };
     }
 
-    const isPrePost = osiEval.tipo_evaluacion === "pre_post";
+    const isPrePost =
+      osi.eval_pre_post === true
+        ? true
+        : osi.eval_pre_post === false
+        ? false
+        : osiEval.tipo_evaluacion === "pre_post";
 
     // Check existing submissions and participant records
     const { data: existingSubs } = await admin
@@ -773,13 +1014,15 @@ export async function submitOSIEvaluacion(
     }
 
     // 2. Auto-grading
-    const rawQuestions: EvaluacionPregunta[] = Array.isArray(osiEval.preguntas)
-      ? osiEval.preguntas
-      : [];
+    const rawQuestions = Array.isArray(osiEval.preguntas) ? osiEval.preguntas : [];
+
+    const cleanQuestions: EvaluacionPregunta[] = rawQuestions.filter(
+      (q) => !(typeof q === "object" && q !== null && "_is_salon_meta" in q),
+    ) as EvaluacionPregunta[];
 
     const questions = isPrePost
-      ? rawQuestions.filter((q) => (q.etapa || "post") === etapa)
-      : rawQuestions;
+      ? cleanQuestions.filter((q) => (q.etapa || "post") === etapa)
+      : cleanQuestions;
 
     let totalPointsEarned = 0;
     let totalPossiblePoints = 0;
@@ -806,8 +1049,9 @@ export async function submitOSIEvaluacion(
     const notaAprobatoria = Number(osiEval.nota_aprobatoria) || 14;
     const aprobado = finalScore >= notaAprobatoria;
 
-    // 3. Save submission record
-    const { error: subErr } = await admin
+    // 3. Save submission record (with retry without etapa if column missing from schema cache)
+    let subErr: { code?: string; message?: string } | null = null;
+    const { error: initialErr } = await admin
       .from("capacitacion_evaluaciones_respuestas")
       .insert({
         osi_evaluacion_id: osiEval.id,
@@ -821,6 +1065,25 @@ export async function submitOSIEvaluacion(
         dispositivo: payload.dispositivo || "mobile_qr",
         etapa,
       });
+
+    subErr = initialErr;
+
+    if (subErr && (subErr.code === "PGRST204" || subErr.message?.includes("etapa"))) {
+      const { error: retryErr } = await admin
+        .from("capacitacion_evaluaciones_respuestas")
+        .insert({
+          osi_evaluacion_id: osiEval.id,
+          id_osi: osi.id_osi,
+          nro_sesion: payload.nroSesion ?? 1,
+          cedula: cleanCedula,
+          nombre_apellido: cleanNombre,
+          respuestas: payload.respuestas,
+          nota: finalScore,
+          aprobado,
+          dispositivo: payload.dispositivo || "mobile_qr",
+        });
+      subErr = retryErr;
+    }
 
     if (subErr) {
       console.error("[submitOSIEvaluacion] Error saving submission:", subErr);
@@ -841,7 +1104,7 @@ export async function submitOSIEvaluacion(
       const facilitadorId = assignment?.facilitador_id || 0;
 
       if (existingParticipant) {
-        const updateData: Record<string, any> = {
+        const updateData: Record<string, unknown> = {
           nombre_apellido: cleanNombre,
           status: "guardado",
           updated_at: new Date().toISOString(),
@@ -877,7 +1140,7 @@ export async function submitOSIEvaluacion(
           .update(updateData)
           .eq("id", existingParticipant.id);
       } else {
-        const insertData: Record<string, any> = {
+        const insertData: Record<string, unknown> = {
           osi_id: osi.id_osi,
           facilitador_id: facilitadorId,
           nombre_apellido: cleanNombre,
@@ -945,18 +1208,18 @@ export async function getOSIEvaluacionSubmissions(osiId: number): Promise<Evalua
     return [];
   }
 
-  return (data || []).map((r: any) => ({
-    id: r.id,
-    osi_evaluacion_id: r.osi_evaluacion_id,
-    id_osi: r.id_osi,
-    nro_sesion: r.nro_sesion,
-    cedula: r.cedula,
-    nombre_apellido: r.nombre_apellido,
-    respuestas: r.respuestas || {},
+  return (data || []).map((r: Record<string, unknown>) => ({
+    id: Number(r.id),
+    osi_evaluacion_id: Number(r.osi_evaluacion_id),
+    id_osi: Number(r.id_osi),
+    nro_sesion: Number(r.nro_sesion || 1),
+    cedula: String(r.cedula || ""),
+    nombre_apellido: String(r.nombre_apellido || ""),
+    respuestas: (r.respuestas as Record<string, string>) || {},
     nota: Number(r.nota),
-    aprobado: r.aprobado,
-    dispositivo: r.dispositivo,
-    created_at: r.created_at,
+    aprobado: Boolean(r.aprobado),
+    dispositivo: String(r.dispositivo || "mobile_qr"),
+    created_at: String(r.created_at || ""),
   }));
 }
 

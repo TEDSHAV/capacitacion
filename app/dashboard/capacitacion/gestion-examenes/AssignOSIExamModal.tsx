@@ -12,8 +12,12 @@ import {
   Save,
   Loader2,
   FileCheck2,
+  MapPin,
+  Calendar,
+  Sparkles,
 } from "lucide-react";
-import type { EvaluacionPlantilla, EvaluacionPregunta, OSIEvaluacion } from "@/types/evaluacion";
+import type { EvaluacionPlantilla, EvaluacionPregunta, OSIEvaluacion, SalonId } from "@/types/evaluacion";
+import { SALONES } from "@/types/evaluacion";
 import {
   getOSIEvaluacion,
   assignEvaluacionToOSI,
@@ -27,6 +31,8 @@ interface AssignOSIExamModalProps {
     nro_osi: string;
     servicio: string;
     nombre_empresa: string;
+    fecha_inicio_real?: string | null;
+    fecha_fin_real?: string | null;
   };
   templates: EvaluacionPlantilla[];
   onClose: () => void;
@@ -39,18 +45,22 @@ export default function AssignOSIExamModal({
   onClose,
   onSaved,
 }: AssignOSIExamModalProps) {
-  const [loading, setLoading] = useState(true);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [titulo, setTitulo] = useState(`Evaluación: ${osi.servicio || "Curso"}`);
   const [notaAprobatoria, setNotaAprobatoria] = useState<number>(14);
   const [preguntas, setPreguntas] = useState<EvaluacionPregunta[]>([]);
   const [existingEvaluation, setExistingEvaluation] = useState<OSIEvaluacion | null>(null);
+  const [selectedSalon, setSelectedSalon] = useState<SalonId | "">("");
+  const [salonFechaInicio, setSalonFechaInicio] = useState<string>("");
+  const [salonFechaFin, setSalonFechaFin] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Load existing OSI evaluation if any
   useEffect(() => {
     let cancelled = false;
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Caracas" }).format(new Date());
+
     getOSIEvaluacion(osi.id_osi)
       .then((res) => {
         if (cancelled) return;
@@ -62,17 +72,25 @@ export default function AssignOSIExamModal({
           if (res.data.plantilla_id) {
             setSelectedTemplateId(String(res.data.plantilla_id));
           }
+          if (res.data.salon_id) {
+            setSelectedSalon(res.data.salon_id);
+            setSalonFechaInicio(res.data.salon_fecha_inicio || osi.fecha_inicio_real || today);
+            setSalonFechaFin(res.data.salon_fecha_fin || res.data.salon_fecha_inicio || osi.fecha_fin_real || today);
+          } else {
+            setSalonFechaInicio(osi.fecha_inicio_real || today);
+            setSalonFechaFin(osi.fecha_fin_real || osi.fecha_inicio_real || today);
+          }
+        } else {
+          setSalonFechaInicio(osi.fecha_inicio_real || today);
+          setSalonFechaFin(osi.fecha_fin_real || osi.fecha_inicio_real || today);
         }
       })
-      .catch((err) => console.error("Error loading OSI evaluation:", err))
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .catch((err) => console.error("Error loading OSI evaluation:", err));
 
     return () => {
       cancelled = true;
     };
-  }, [osi.id_osi, osi.servicio]);
+  }, [osi.id_osi, osi.servicio, osi.fecha_inicio_real, osi.fecha_fin_real]);
 
   // Load questions when template changes
   const handleTemplateSelect = async (tplIdStr: string) => {
@@ -111,7 +129,11 @@ export default function AssignOSIExamModal({
     setPreguntas(preguntas.filter((_, i) => i !== idx));
   };
 
-  const handleUpdateQuestion = (idx: number, field: keyof EvaluacionPregunta, val: any) => {
+  const handleUpdateQuestion = <K extends keyof EvaluacionPregunta>(
+    idx: number,
+    field: K,
+    val: EvaluacionPregunta[K],
+  ) => {
     setPreguntas(preguntas.map((q, i) => (i === idx ? { ...q, [field]: val } : q)));
   };
 
@@ -161,6 +183,9 @@ export default function AssignOSIExamModal({
         titulo: titulo.trim(),
         nota_aprobatoria: notaAprobatoria,
         preguntas,
+        salon_id: selectedSalon ? (selectedSalon as SalonId) : null,
+        salon_fecha_inicio: selectedSalon ? (salonFechaInicio || null) : null,
+        salon_fecha_fin: selectedSalon ? (salonFechaFin || salonFechaInicio || null) : null,
       });
 
       if (res.error) {
@@ -168,7 +193,7 @@ export default function AssignOSIExamModal({
       } else {
         onSaved();
       }
-    } catch (err) {
+    } catch {
       setError("Error al asignar la evaluación.");
     } finally {
       setSaving(false);
@@ -187,7 +212,7 @@ export default function AssignOSIExamModal({
       } else {
         onSaved();
       }
-    } catch (err) {
+    } catch {
       setError("Error al eliminar la evaluación.");
     } finally {
       setSaving(false);
@@ -287,6 +312,86 @@ export default function AssignOSIExamModal({
                 className="w-full text-xs sm:text-sm border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500"
               />
             </div>
+          </div>
+
+          {/* Static Classroom Assignment */}
+          <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-emerald-700" />
+                Asignación de Salón Físico (Código QR Estático de Pared)
+              </label>
+              <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-emerald-600" />
+                Sin imprimir QR diario
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-emerald-900 mb-1">
+                  Salón de Capacitación
+                </label>
+                <select
+                  value={selectedSalon}
+                  onChange={(e) => {
+                    const val = e.target.value as SalonId | "";
+                    setSelectedSalon(val);
+                    if (val && !salonFechaInicio) {
+                      const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Caracas" }).format(new Date());
+                      setSalonFechaInicio(osi.fecha_inicio_real || today);
+                      setSalonFechaFin(osi.fecha_fin_real || osi.fecha_inicio_real || today);
+                    }
+                  }}
+                  className="w-full text-xs border border-emerald-300 rounded-md px-2.5 py-1.5 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+                >
+                  <option value="">-- Sin salón asignado (solo enlace directo OSI) --</option>
+                  {SALONES.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-emerald-900 mb-1 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-emerald-700" />
+                  Fecha Inicio de Curso
+                </label>
+                <input
+                  type="date"
+                  disabled={!selectedSalon}
+                  value={salonFechaInicio}
+                  onChange={(e) => setSalonFechaInicio(e.target.value)}
+                  className="w-full text-xs border border-emerald-300 rounded-md px-2.5 py-1.5 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 disabled:bg-gray-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-emerald-900 mb-1 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-emerald-700" />
+                  Fecha Fin de Curso (Multidía)
+                </label>
+                <input
+                  type="date"
+                  disabled={!selectedSalon}
+                  value={salonFechaFin}
+                  onChange={(e) => setSalonFechaFin(e.target.value)}
+                  className="w-full text-xs border border-emerald-300 rounded-md px-2.5 py-1.5 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 disabled:bg-gray-100"
+                />
+              </div>
+            </div>
+
+            {selectedSalon ? (
+              <p className="text-[11px] text-emerald-800 leading-relaxed bg-white/70 p-2 rounded border border-emerald-200">
+                💡 Los participantes en <strong>{SALONES.find((s) => s.id === selectedSalon)?.nombre}</strong> escanearán el código QR fijo laminado en la pared y responderán esta evaluación. Al vencer la fecha ({salonFechaFin || salonFechaInicio}), el salón quedará libre automáticamente para el siguiente curso.
+              </p>
+            ) : (
+              <p className="text-[11px] text-emerald-700/80">
+                Selecciona un salón para vincularlo al código QR permanente de esa aula durante las fechas del curso.
+              </p>
+            )}
           </div>
 
           {/* Questions Header */}

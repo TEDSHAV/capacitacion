@@ -15,6 +15,7 @@ import {
   Check,
   RotateCcw,
   Sparkles,
+  MapPin,
 } from "lucide-react";
 import type { EvaluacionPublicData } from "@/types/evaluacion";
 import {
@@ -239,6 +240,12 @@ export default function EvaluacionTakerClient({
               <span className="text-[11px] font-bold uppercase tracking-wider text-teal-600 bg-teal-50 px-2 py-0.5 rounded">
                 OSI: {evaluacion.nroOsi}
               </span>
+              {evaluacion.salonNombre && (
+                <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-emerald-600" />
+                  {evaluacion.salonNombre}
+                </span>
+              )}
               {isKiosk && (
                 <span className="text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded flex items-center gap-1">
                   <Laptop className="w-3 h-3" />

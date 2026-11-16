@@ -7,6 +7,32 @@ export type TipoPreguntaEvaluacion = "single_choice" | "true_false" | "multiple_
 export type TipoEvaluacionCurso = "standard" | "pre_post";
 export type EtapaEvaluacion = "pre" | "post";
 
+export type SalonId = "salon-principal" | "salon-elite" | "salon-oriente";
+
+export interface SalonInfo {
+  id: SalonId;
+  nombre: string;
+  slugs: string[];
+}
+
+export const SALONES: SalonInfo[] = [
+  {
+    id: "salon-principal",
+    nombre: "Salón Principal",
+    slugs: ["salon-principal", "principal", "1"],
+  },
+  {
+    id: "salon-elite",
+    nombre: "Salón Elite",
+    slugs: ["salon-elite", "elite", "2"],
+  },
+  {
+    id: "salon-oriente",
+    nombre: "Salón Oriente",
+    slugs: ["salon-oriente", "oriente", "3"],
+  },
+];
+
 export interface EvaluacionOpcion {
   id: string;
   texto: string;
@@ -63,6 +89,9 @@ export interface OSIEvaluacion {
   duracion_minutos: number | null;
   tipo_evaluacion?: TipoEvaluacionCurso;
   preguntas: EvaluacionPregunta[];
+  salon_id?: SalonId | null;
+  salon_fecha_inicio?: string | null;
+  salon_fecha_fin?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -80,6 +109,7 @@ export interface EvaluacionPublicData {
   notaAprobatoria: number;
   duracionMinutos: number | null;
   tipoEvaluacion?: TipoEvaluacionCurso;
+  salonNombre?: string | null;
   preguntas: EvaluacionPreguntaPublic[];
 }
 

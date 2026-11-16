@@ -11,14 +11,13 @@ import {
   QrCode,
   Users,
   CheckCircle2,
-  AlertCircle,
   Pencil,
   Trash2,
-  ExternalLink,
   Laptop,
   BookOpen,
+  MapPin,
 } from "lucide-react";
-import type { EvaluacionPlantilla, OSIEvaluacion } from "@/types/evaluacion";
+import type { EvaluacionPlantilla } from "@/types/evaluacion";
 import AssignOSIExamModal from "./AssignOSIExamModal";
 import OSIExamQRModal from "./OSIExamQRModal";
 import OSIExamSubmissionsModal from "./OSIExamSubmissionsModal";
@@ -38,6 +37,9 @@ interface OSIRow {
   evaluation_title?: string;
   evaluation_questions_count?: number;
   submissions_count?: number;
+  fecha_inicio_real?: string | null;
+  fecha_fin_real?: string | null;
+  salon_nombre?: string | null;
 }
 
 interface GestionExamenesClientProps {
@@ -286,10 +288,18 @@ export default function GestionExamenesClient({
                         </td>
                         <td className="px-4 py-3 text-center whitespace-nowrap">
                           {osi.has_evaluation ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                              Asignada ({osi.evaluation_questions_count || 0} preg)
-                            </span>
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                Asignada ({osi.evaluation_questions_count || 0} preg)
+                              </span>
+                              {osi.salon_nombre && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200 px-1.5 py-0.5 rounded shrink-0">
+                                  <MapPin className="w-2.5 h-2.5 text-teal-600" />
+                                  {osi.salon_nombre}
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                               Sin evaluación
