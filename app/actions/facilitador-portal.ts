@@ -810,6 +810,112 @@ export async function getOSIParticipants(
   return { data: data || [] };
 }
 
+export async function syncDigitalEvaluationsToRoster(
+  osiId: number,
+  facilitadorId: number,
+  nroSesion: number = 1
+): Promise<{ success: boolean; count: number; participants?: any[]; error?: string }> {
+  try {
+    const supabase = await createAdminClient();
+
+    // 1. Fetch digital submissions for this OSI
+    const { data: submissions, error: subErr } = await supabase
+      .from("capacitacion_evaluaciones_respuestas")
+      .select("*")
+      .eq("id_osi", osiId)
+      .order("created_at", { ascending: false });
+
+    if (subErr) {
+      console.error("[syncDigitalEvaluationsToRoster] Error fetching submissions:", subErr);
+      return { success: false, count: 0, error: subErr.message };
+    }
+
+    if (!submissions || submissions.length === 0) {
+      const current = await getOSIParticipants(osiId, facilitadorId, nroSesion);
+      return { success: true, count: 0, participants: current.data || [] };
+    }
+
+    // 2. Fetch existing participants for this OSI
+    const { data: existingRows } = await supabase
+      .from("ejecucion_osi_participantes")
+      .select("*")
+      .eq("osi_id", osiId);
+
+    // Group submissions by normalized cedula (latest submission first)
+    const latestByCedula = new Map<string, (typeof submissions)[0]>();
+    for (const sub of submissions) {
+      const cleanCed = String(sub.cedula || "").trim().toUpperCase();
+      if (cleanCed && !latestByCedula.has(cleanCed)) {
+        latestByCedula.set(cleanCed, sub);
+      }
+    }
+
+    // 3. Upsert / update each digital submission into ejecucion_osi_participantes
+    let syncedCount = 0;
+    for (const [cleanCed, sub] of latestByCedula.entries()) {
+      const existing = (existingRows || []).find(
+        (r) => String(r.cedula || "").trim().toUpperCase() === cleanCed
+      );
+
+      const finalScore = Number(sub.nota ?? 0);
+      const cleanNombre = toTitleCase(String(sub.nombre_apellido || "").trim());
+
+      if (existing) {
+        if (existing.status !== "final") {
+          const updatePayload: Record<string, unknown> = {
+            score: finalScore,
+            score_teorica: finalScore,
+            status: "draft",
+            updated_at: new Date().toISOString(),
+          };
+          if (!existing.nombre_apellido || existing.nombre_apellido.trim() === "") {
+            updatePayload.nombre_apellido = cleanNombre;
+          }
+          await supabase
+            .from("ejecucion_osi_participantes")
+            .update(updatePayload)
+            .eq("id", existing.id);
+          syncedCount++;
+        }
+      } else {
+        const insertPayload: Record<string, unknown> = {
+          osi_id: osiId,
+          facilitador_id: facilitadorId || 0,
+          nro_sesion: nroSesion,
+          cedula: cleanCed,
+          nombre_apellido: cleanNombre,
+          score: finalScore,
+          score_teorica: finalScore,
+          status: "draft",
+        };
+
+        const { error: insErr } = await supabase
+          .from("ejecucion_osi_participantes")
+          .insert(insertPayload);
+
+        if (!insErr) {
+          syncedCount++;
+        } else {
+          console.error("[syncDigitalEvaluationsToRoster] Insert error:", insErr);
+        }
+      }
+    }
+
+    // 4. Return refreshed participants
+    const refreshed = await getOSIParticipants(osiId, facilitadorId, nroSesion);
+    revalidatePath(`/portal/facilitador/osi/${osiId}`);
+
+    return {
+      success: true,
+      count: latestByCedula.size,
+      participants: refreshed.data || [],
+    };
+  } catch (err: any) {
+    console.error("[syncDigitalEvaluationsToRoster] Unexpected error:", err);
+    return { success: false, count: 0, error: err?.message || "Error al sincronizar" };
+  }
+}
+
 export async function saveAcknowledgment(
   osiId: number,
   facilitadorId: number,

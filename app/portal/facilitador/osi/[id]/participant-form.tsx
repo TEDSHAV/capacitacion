@@ -32,6 +32,7 @@ import {
   getOSIAttachments,
   markSessionCompletedDev,
   getOSIParticipants,
+  syncDigitalEvaluationsToRoster,
 } from "@/app/actions/facilitador-portal";
 import { enqueueOp } from "@/lib/offline/sync-queue";
 import { toTitleCase } from "@/utils/string-utils";
@@ -508,9 +509,10 @@ export const ParticipantForm = ({
   const handleSyncDigitalEvaluations = useCallback(async () => {
     setIsSyncingEvaluations(true);
     try {
-      const res = await getOSIParticipants(osiId, facilitadorId, selectedSession);
-      if (res.data && res.data.length > 0) {
-        const freshList: Participant[] = res.data.map((row: any) => ({
+      const res = await syncDigitalEvaluationsToRoster(osiId, facilitadorId, selectedSession);
+      const participantRows = res.participants || [];
+      if (res.success && participantRows.length > 0) {
+        const freshList: Participant[] = participantRows.map((row: any) => ({
           nombre_apellido: toTitleCase(String(row.nombre_apellido || "")),
           cedula: String(row.cedula || "").trim().toUpperCase(),
           score: row.score !== null && row.score !== undefined ? String(row.score) : "",
@@ -553,7 +555,7 @@ export const ParticipantForm = ({
         }));
 
         setSuccess(
-          `✅ Se sincronizaron ${freshList.length} participante(s) con las evaluaciones del aula.`
+          `✅ Se sincronizaron ${res.count || freshList.length} participante(s) con las evaluaciones del aula.`
         );
         setTimeout(() => setSuccess(null), 3500);
       } else {

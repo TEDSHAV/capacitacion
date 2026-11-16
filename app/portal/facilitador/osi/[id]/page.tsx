@@ -1,6 +1,7 @@
 import {
   getFacilitatorSession,
   getOSIParticipants,
+  syncDigitalEvaluationsToRoster,
 } from "@/app/actions/facilitador-portal";
 import { getOSIForControlServicios } from "@/app/actions/control-servicios";
 import { createAdminClient } from "@/utils/supabase/server";
@@ -28,10 +29,11 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
   const osiId = parseInt(resolvedParams.id);
   if (isNaN(osiId)) notFound();
 
-  const [osi, participants] = await Promise.all([
+  const [osi, rawParticipants] = await Promise.all([
     getOSIForControlServicios(osiId).catch(() => null),
     getOSIParticipants(osiId, session.facilitador_id),
   ]);
+  let participants = rawParticipants;
 
   if (!osi) notFound();
 
@@ -204,6 +206,18 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
   // Enforce canonical isolated URL if multi-session
   if ((relevantSessionNums.length > 1 || (sessionCount > 1 && targetSession > 1)) && resolvedSearch.sesion !== String(targetSession)) {
     redirect(`/portal/facilitador/osi/${osiId}?sesion=${targetSession}`);
+  }
+
+  // Pre-sync digital evaluations if any are recorded
+  if (osiEvaluacion && (submissionsCount ?? 0) > 0) {
+    try {
+      const syncRes = await syncDigitalEvaluationsToRoster(osiId, session.facilitador_id, targetSession);
+      if (syncRes.participants && syncRes.participants.length > 0) {
+        participants = { data: syncRes.participants };
+      }
+    } catch (err) {
+      console.warn("[FacilitadorOSIPage] Auto-sync warning:", err);
+    }
   }
 
   const isTargetSessionFinal = finalizedSessionNums.includes(targetSession);

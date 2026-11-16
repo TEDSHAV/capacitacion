@@ -1170,7 +1170,7 @@ export async function submitOSIEvaluacion(
       if (existingParticipant) {
         const updateData: Record<string, unknown> = {
           nombre_apellido: cleanNombre,
-          status: "guardado",
+          status: "draft",
           updated_at: new Date().toISOString(),
         };
 
@@ -1209,7 +1209,7 @@ export async function submitOSIEvaluacion(
           facilitador_id: facilitadorId,
           nombre_apellido: cleanNombre,
           cedula: cleanCedula,
-          status: "guardado",
+          status: "draft",
           nro_sesion: payload.nroSesion ?? 1,
         };
 
