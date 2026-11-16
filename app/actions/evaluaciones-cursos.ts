@@ -22,9 +22,10 @@ import { toTitleCase } from "@/utils/string-utils";
 
 interface SalonMetadataItem {
   _is_salon_meta: true;
-  salon_id: SalonId;
+  salon_id?: SalonId | null;
   salon_fecha_inicio?: string | null;
   salon_fecha_fin?: string | null;
+  tipo_evaluacion?: TipoEvaluacionCurso;
 }
 
 /**
@@ -116,7 +117,7 @@ export async function resolveOSIByIdentifier(identifier: string): Promise<{
         nro_osi: osiData.nro_osi || `OSI-${osiData.id_osi}`,
         servicio: osiData.servicio || "Servicio de Capacitación",
         nombre_empresa: osiData.nombre_empresa || "Cliente",
-        eval_pre_post: Boolean(osiData.eval_pre_post),
+        eval_pre_post: typeof osiData.eval_pre_post === "boolean" ? osiData.eval_pre_post : undefined,
         fecha_inicio_real: osiData.fecha_inicio_real,
         fecha_fin_real: osiData.fecha_fin_real,
         salon_id: salon.id,
@@ -142,7 +143,7 @@ export async function resolveOSIByIdentifier(identifier: string): Promise<{
       nro_osi: byExactNro.nro_osi || `OSI-${byExactNro.id_osi}`,
       servicio: byExactNro.servicio || "Servicio de Capacitación",
       nombre_empresa: byExactNro.nombre_empresa || "Cliente",
-      eval_pre_post: Boolean(byExactNro.eval_pre_post),
+      eval_pre_post: typeof byExactNro.eval_pre_post === "boolean" ? byExactNro.eval_pre_post : undefined,
       fecha_inicio_real: byExactNro.fecha_inicio_real,
       fecha_fin_real: byExactNro.fecha_fin_real,
     };
@@ -163,7 +164,7 @@ export async function resolveOSIByIdentifier(identifier: string): Promise<{
         nro_osi: byId.nro_osi || `OSI-${byId.id_osi}`,
         servicio: byId.servicio || "Servicio de Capacitación",
         nombre_empresa: byId.nombre_empresa || "Cliente",
-        eval_pre_post: Boolean(byId.eval_pre_post),
+        eval_pre_post: typeof byId.eval_pre_post === "boolean" ? byId.eval_pre_post : undefined,
         fecha_inicio_real: byId.fecha_inicio_real,
         fecha_fin_real: byId.fecha_fin_real,
       };
@@ -184,7 +185,7 @@ export async function resolveOSIByIdentifier(identifier: string): Promise<{
       nro_osi: byNroLike.nro_osi || `OSI-${byNroLike.id_osi}`,
       servicio: byNroLike.servicio || "Servicio de Capacitación",
       nombre_empresa: byNroLike.nombre_empresa || "Cliente",
-      eval_pre_post: Boolean(byNroLike.eval_pre_post),
+      eval_pre_post: typeof byNroLike.eval_pre_post === "boolean" ? byNroLike.eval_pre_post : undefined,
       fecha_inicio_real: byNroLike.fecha_inicio_real,
       fecha_fin_real: byNroLike.fecha_fin_real,
     };
@@ -348,19 +349,31 @@ export async function saveEvaluacionPlantilla(payload: {
     const tipoEvaluacion = payload.tipo_evaluacion || "standard";
 
     if (templateId) {
-      const { error: updateErr } = await admin
+      const baseUpdate = {
+        id_curso: payload.id_curso ?? null,
+        titulo: payload.titulo.trim(),
+        descripcion: payload.descripcion?.trim() || null,
+        nota_aprobatoria: payload.nota_aprobatoria ?? 14,
+        duracion_minutos: payload.duracion_minutos ?? null,
+        is_active: payload.is_active ?? true,
+        updated_at: new Date().toISOString(),
+      };
+
+      let { error: updateErr } = await admin
         .from("capacitacion_evaluaciones_plantillas")
-        .update({
-          id_curso: payload.id_curso ?? null,
-          titulo: payload.titulo.trim(),
-          descripcion: payload.descripcion?.trim() || null,
-          nota_aprobatoria: payload.nota_aprobatoria ?? 14,
-          duracion_minutos: payload.duracion_minutos ?? null,
-          tipo_evaluacion: tipoEvaluacion,
-          is_active: payload.is_active ?? true,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ ...baseUpdate, tipo_evaluacion: tipoEvaluacion })
         .eq("id", templateId);
+
+      if (
+        updateErr &&
+        (updateErr.code === "PGRST204" || updateErr.code === "42703" || updateErr.message?.includes("tipo_evaluacion"))
+      ) {
+        const retry = await admin
+          .from("capacitacion_evaluaciones_plantillas")
+          .update(baseUpdate)
+          .eq("id", templateId);
+        updateErr = retry.error;
+      }
 
       if (updateErr) throw updateErr;
 
@@ -370,19 +383,33 @@ export async function saveEvaluacionPlantilla(payload: {
         .delete()
         .eq("plantilla_id", templateId);
     } else {
-      const { data: newTpl, error: insertErr } = await admin
+      const baseInsert = {
+        id_curso: payload.id_curso ?? null,
+        titulo: payload.titulo.trim(),
+        descripcion: payload.descripcion?.trim() || null,
+        nota_aprobatoria: payload.nota_aprobatoria ?? 14,
+        duracion_minutos: payload.duracion_minutos ?? null,
+        is_active: payload.is_active ?? true,
+      };
+
+      let { data: newTpl, error: insertErr } = await admin
         .from("capacitacion_evaluaciones_plantillas")
-        .insert({
-          id_curso: payload.id_curso ?? null,
-          titulo: payload.titulo.trim(),
-          descripcion: payload.descripcion?.trim() || null,
-          nota_aprobatoria: payload.nota_aprobatoria ?? 14,
-          duracion_minutos: payload.duracion_minutos ?? null,
-          tipo_evaluacion: tipoEvaluacion,
-          is_active: payload.is_active ?? true,
-        })
+        .insert({ ...baseInsert, tipo_evaluacion: tipoEvaluacion })
         .select()
         .single();
+
+      if (
+        insertErr &&
+        (insertErr.code === "PGRST204" || insertErr.code === "42703" || insertErr.message?.includes("tipo_evaluacion"))
+      ) {
+        const retry = await admin
+          .from("capacitacion_evaluaciones_plantillas")
+          .insert(baseInsert)
+          .select()
+          .single();
+        newTpl = retry.data;
+        insertErr = retry.error;
+      }
 
       if (insertErr || !newTpl) throw insertErr;
       templateId = newTpl.id;
@@ -390,7 +417,7 @@ export async function saveEvaluacionPlantilla(payload: {
 
     // Insert questions
     if (payload.preguntas && payload.preguntas.length > 0) {
-      const questionsToInsert = payload.preguntas.map((q, idx) => ({
+      const questionsWithEtapa = payload.preguntas.map((q, idx) => ({
         plantilla_id: templateId,
         enunciado: q.enunciado.trim(),
         tipo: q.tipo || "single_choice",
@@ -400,9 +427,27 @@ export async function saveEvaluacionPlantilla(payload: {
         opciones: q.opciones || [],
       }));
 
-      const { error: qErr } = await admin
+      let { error: qErr } = await admin
         .from("capacitacion_evaluaciones_preguntas")
-        .insert(questionsToInsert);
+        .insert(questionsWithEtapa);
+
+      if (
+        qErr &&
+        (qErr.code === "PGRST204" || qErr.code === "42703" || qErr.message?.includes("etapa"))
+      ) {
+        const questionsWithoutEtapa = payload.preguntas.map((q, idx) => ({
+          plantilla_id: templateId,
+          enunciado: q.enunciado.trim(),
+          tipo: q.tipo || "single_choice",
+          puntos: Number(q.puntos) || 2,
+          orden: idx + 1,
+          opciones: q.opciones || [],
+        }));
+        const retryQ = await admin
+          .from("capacitacion_evaluaciones_preguntas")
+          .insert(questionsWithoutEtapa);
+        qErr = retryQ.error;
+      }
 
       if (qErr) throw qErr;
     }
@@ -473,6 +518,17 @@ export async function getOSIEvaluacion(osiId: number): Promise<{
     (p: unknown) => !(typeof p === "object" && p !== null && "_is_salon_meta" in p),
   ) as EvaluacionPregunta[];
 
+  const { data: osiInfo } = await admin
+    .from("v_osi_formato_completo")
+    .select("eval_pre_post")
+    .eq("id_osi", osiId)
+    .maybeSingle();
+
+  const resolvedTipo: TipoEvaluacionCurso =
+    osiInfo && typeof osiInfo.eval_pre_post === "boolean"
+      ? (osiInfo.eval_pre_post ? "pre_post" : "standard")
+      : salonMeta?.tipo_evaluacion || (data.tipo_evaluacion as TipoEvaluacionCurso) || "standard";
+
   return {
     data: {
       id: data.id,
@@ -481,7 +537,7 @@ export async function getOSIEvaluacion(osiId: number): Promise<{
       titulo: data.titulo,
       nota_aprobatoria: Number(data.nota_aprobatoria) || 14,
       duracion_minutos: data.duracion_minutos,
-      tipo_evaluacion: (data.tipo_evaluacion as TipoEvaluacionCurso) || "standard",
+      tipo_evaluacion: resolvedTipo,
       preguntas: cleanPreguntas,
       salon_id: salonMeta?.salon_id || null,
       salon_fecha_inicio: salonMeta?.salon_fecha_inicio || null,
@@ -560,36 +616,52 @@ export async function assignEvaluacionToOSI(payload: {
     const fechaInicio = payload.salon_fecha_inicio || osiInfo?.fecha_inicio_real || today;
     const fechaFin = payload.salon_fecha_fin || osiInfo?.fecha_fin_real || fechaInicio || today;
 
-    // Prepare questions with salon metadata if salon assigned
+    // Prepare questions with salon metadata and evaluation mode
     const preguntasWithMeta: Array<EvaluacionPregunta | SalonMetadataItem> = [...preguntas];
-    if (payload.salon_id) {
-      preguntasWithMeta.push({
-        _is_salon_meta: true,
-        salon_id: payload.salon_id,
-        salon_fecha_inicio: fechaInicio,
-        salon_fecha_fin: fechaFin,
-      });
-    }
+    preguntasWithMeta.push({
+      _is_salon_meta: true,
+      salon_id: payload.salon_id || null,
+      salon_fecha_inicio: payload.salon_id ? fechaInicio : null,
+      salon_fecha_fin: payload.salon_id ? fechaFin : null,
+      tipo_evaluacion: tipoEvaluacion,
+    });
 
-    const { data: saved, error } = await admin
+    const baseUpsert = {
+      id_osi: payload.id_osi,
+      plantilla_id: payload.plantilla_id ?? null,
+      titulo,
+      nota_aprobatoria: notaAprobatoria,
+      duracion_minutos: duracionMinutos,
+      preguntas: preguntasWithMeta,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+      created_by: userId,
+    };
+
+    let { data: saved, error } = await admin
       .from("capacitacion_osi_evaluaciones")
       .upsert(
         {
-          id_osi: payload.id_osi,
-          plantilla_id: payload.plantilla_id ?? null,
-          titulo,
-          nota_aprobatoria: notaAprobatoria,
-          duracion_minutos: duracionMinutos,
+          ...baseUpsert,
           tipo_evaluacion: tipoEvaluacion,
-          preguntas: preguntasWithMeta,
-          is_active: true,
-          updated_at: new Date().toISOString(),
-          created_by: userId,
         },
         { onConflict: "id_osi" },
       )
       .select()
       .single();
+
+    if (
+      error &&
+      (error.code === "PGRST204" || error.code === "42703" || error.message?.includes("tipo_evaluacion"))
+    ) {
+      const retryRes = await admin
+        .from("capacitacion_osi_evaluaciones")
+        .upsert(baseUpsert, { onConflict: "id_osi" })
+        .select()
+        .single();
+      saved = retryRes.data;
+      error = retryRes.error;
+    }
 
     if (error || !saved) throw error;
 
@@ -627,7 +699,7 @@ export async function assignEvaluacionToOSI(payload: {
         titulo: saved.titulo,
         nota_aprobatoria: Number(saved.nota_aprobatoria) || 14,
         duracion_minutos: saved.duracion_minutos,
-        tipo_evaluacion: (saved.tipo_evaluacion as TipoEvaluacionCurso) || "standard",
+        tipo_evaluacion: tipoEvaluacion,
         preguntas,
         salon_id: payload.salon_id || null,
         salon_fecha_inicio: payload.salon_id ? fechaInicio : null,
@@ -737,7 +809,7 @@ export async function getOSIEvaluacionPublicData(identifier: string): Promise<{
       ? "pre_post"
       : osi.eval_pre_post === false
       ? "standard"
-      : (osiEval.tipo_evaluacion as TipoEvaluacionCurso) || "standard";
+      : salonMeta?.tipo_evaluacion || (osiEval.tipo_evaluacion as TipoEvaluacionCurso) || "standard";
 
   return {
     data: {
@@ -795,7 +867,7 @@ export async function getParticipantEvaluationStage(
 
     const { data: osiEval } = await admin
       .from("capacitacion_osi_evaluaciones")
-      .select("id, tipo_evaluacion")
+      .select("id, preguntas")
       .eq("id_osi", osi.id_osi)
       .eq("is_active", true)
       .maybeSingle();
@@ -810,16 +882,22 @@ export async function getParticipantEvaluationStage(
       };
     }
 
+    const rawQuestions = Array.isArray(osiEval.preguntas) ? (osiEval.preguntas as unknown[]) : [];
+    const salonMeta = rawQuestions.find(
+      (p: unknown): p is SalonMetadataItem =>
+        typeof p === "object" && p !== null && "_is_salon_meta" in p && (p as SalonMetadataItem)._is_salon_meta === true,
+    );
+
     const isPrePost =
       osi.eval_pre_post === true
         ? true
         : osi.eval_pre_post === false
         ? false
-        : osiEval.tipo_evaluacion === "pre_post";
+        : salonMeta?.tipo_evaluacion === "pre_post";
 
     const { data: subs } = await admin
       .from("capacitacion_evaluaciones_respuestas")
-      .select("id, etapa, nombre_apellido")
+      .select("id, nombre_apellido")
       .eq("id_osi", osi.id_osi)
       .eq("cedula", cleanCedula);
 
@@ -837,7 +915,7 @@ export async function getParticipantEvaluationStage(
 
     if (!isPrePost) {
       const alreadyDone =
-        (subs && subs.length > 0) || (part && part.score !== null);
+        (subs && subs.length > 0) || (part && part.score !== null && part.score !== undefined);
       return {
         success: true,
         isPrePost: false,
@@ -847,11 +925,12 @@ export async function getParticipantEvaluationStage(
       };
     }
 
+    const subCount = subs ? subs.length : 0;
     const hasPre =
-      (subs || []).some((s) => s.etapa === "pre") ||
+      subCount >= 1 ||
       (part && part.score_pre !== null && part.score_pre !== undefined);
     const hasPost =
-      (subs || []).some((s) => s.etapa === "post") ||
+      subCount >= 2 ||
       (part && part.score_post !== null && part.score_post !== undefined);
 
     if (hasPost) {
@@ -934,17 +1013,23 @@ export async function submitOSIEvaluacion(
       return { success: false, error: "No hay una evaluación activa disponible para esta OSI." };
     }
 
+    const rawQuestions = Array.isArray(osiEval.preguntas) ? (osiEval.preguntas as unknown[]) : [];
+    const salonMeta = rawQuestions.find(
+      (p: unknown): p is SalonMetadataItem =>
+        typeof p === "object" && p !== null && "_is_salon_meta" in p && (p as SalonMetadataItem)._is_salon_meta === true,
+    );
+
     const isPrePost =
       osi.eval_pre_post === true
         ? true
         : osi.eval_pre_post === false
         ? false
-        : osiEval.tipo_evaluacion === "pre_post";
+        : salonMeta?.tipo_evaluacion === "pre_post" || osiEval.tipo_evaluacion === "pre_post";
 
     // Check existing submissions and participant records
     const { data: existingSubs } = await admin
       .from("capacitacion_evaluaciones_respuestas")
-      .select("id, etapa")
+      .select("id")
       .eq("id_osi", osi.id_osi)
       .eq("cedula", cleanCedula);
 
@@ -955,14 +1040,15 @@ export async function submitOSIEvaluacion(
       .eq("cedula", cleanCedula)
       .maybeSingle();
 
-    let etapa: EtapaEvaluacion = "post";
+    let etapa: EtapaEvaluacion = payload.etapa || "post";
 
     if (isPrePost) {
+      const subCount = existingSubs ? existingSubs.length : 0;
       const hasPre =
-        (existingSubs || []).some((s) => s.etapa === "pre") ||
+        subCount >= 1 ||
         (existingParticipant && existingParticipant.score_pre !== null && existingParticipant.score_pre !== undefined);
       const hasPost =
-        (existingSubs || []).some((s) => s.etapa === "post") ||
+        subCount >= 2 ||
         (existingParticipant && existingParticipant.score_post !== null && existingParticipant.score_post !== undefined);
 
       if (hasPost) {
@@ -994,8 +1080,6 @@ export async function submitOSIEvaluacion(
     }
 
     // 2. Auto-grading
-    const rawQuestions = Array.isArray(osiEval.preguntas) ? (osiEval.preguntas as unknown[]) : [];
-
     const cleanQuestions: EvaluacionPregunta[] = rawQuestions.filter(
       (q: unknown) => !(typeof q === "object" && q !== null && "_is_salon_meta" in q),
     ) as EvaluacionPregunta[];
