@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2,
@@ -218,26 +219,22 @@ export default function EvaluacionTakerClient({
   };
 
   return (
-    <div
-      className={`min-h-screen flex flex-col justify-between ${
-        isKiosk ? "bg-slate-900 text-slate-100" : "bg-slate-50 text-slate-900"
-      }`}
-    >
+    <div className="min-h-screen flex flex-col justify-between bg-slate-50 text-slate-900">
       {/* Top Banner / Header */}
-      <header
-        className={`px-4 sm:px-8 py-3.5 border-b flex items-center justify-between ${
-          isKiosk
-            ? "bg-slate-800/90 border-slate-700"
-            : "bg-white border-slate-200 shadow-sm"
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-teal-600 text-white flex items-center justify-center font-black text-sm shadow">
-            SHA
-          </div>
+      <header className="px-4 sm:px-8 py-3 bg-white border-b border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <Image
+            src="/logo.png"
+            alt="SHA de Venezuela"
+            width={130}
+            height={42}
+            className="h-8 sm:h-9 w-auto object-contain"
+            priority
+          />
+          <div className="h-7 w-[1px] bg-slate-200 hidden sm:block" />
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-teal-600 bg-teal-50 px-2 py-0.5 rounded">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded">
                 OSI: {evaluacion.nroOsi}
               </span>
               {evaluacion.salonNombre && (
@@ -247,23 +244,23 @@ export default function EvaluacionTakerClient({
                 </span>
               )}
               {isKiosk && (
-                <span className="text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded flex items-center gap-1">
-                  <Laptop className="w-3 h-3" />
+                <span className="text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded flex items-center gap-1">
+                  <Laptop className="w-3 h-3 text-blue-600" />
                   Estación Kiosk Aula
                 </span>
               )}
             </div>
-            <h1 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate max-w-sm sm:max-w-xl">
+            <h1 className="text-xs sm:text-sm font-bold text-slate-900 truncate max-w-sm sm:max-w-xl">
               {evaluacion.servicio}
             </h1>
           </div>
         </div>
 
         <div className="text-right hidden sm:block">
-          <span className="text-xs text-slate-500 dark:text-slate-400 block truncate max-w-xs">
+          <span className="text-xs text-slate-500 font-medium block truncate max-w-xs">
             {evaluacion.nombreEmpresa}
           </span>
-          <span className="text-[11px] text-teal-600 font-semibold">
+          <span className="text-[11px] text-teal-600 font-bold tracking-wide">
             Evaluación Digital SHA
           </span>
         </div>
@@ -276,21 +273,15 @@ export default function EvaluacionTakerClient({
           {/* PHASE 1: IDENTITY INPUT                                    */}
           {/* ─────────────────────────────────────────────────────────── */}
           {phase === "IDENTITY_PROMPT" && (
-            <div
-              className={`rounded-2xl p-6 sm:p-8 shadow-xl border space-y-6 animate-in fade-in zoom-in-95 duration-200 ${
-                isKiosk
-                  ? "bg-slate-800 border-slate-700 text-white"
-                  : "bg-white border-slate-200"
-              }`}
-            >
+            <div className="rounded-2xl p-6 sm:p-8 shadow-xl border border-slate-200 bg-white text-slate-900 space-y-6 animate-in fade-in zoom-in-95 duration-200">
               <div className="text-center space-y-1.5">
-                <div className="w-12 h-12 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center mx-auto mb-2 font-bold shadow-inner">
-                  <ShieldCheck className="w-6 h-6 text-teal-700" />
+                <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 flex items-center justify-center mx-auto mb-2 font-bold shadow-sm">
+                  <ShieldCheck className="w-6 h-6 text-teal-600" />
                 </div>
-                <h2 className="text-lg sm:text-xl font-bold">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900">
                   Evaluación de Aprendizaje
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-slate-500">
                   {evaluacion.titulo}
                 </p>
               </div>
@@ -316,18 +307,14 @@ export default function EvaluacionTakerClient({
               {/* Input Form */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  <label className="block text-xs font-semibold mb-1 text-slate-700">
                     Cédula de Identidad *
                   </label>
                   <div className="flex gap-2">
                     <select
                       value={cedulaPrefix}
                       onChange={(e) => setCedulaPrefix(e.target.value as "V" | "E")}
-                      className={`text-xs sm:text-sm font-bold border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500 ${
-                        isKiosk
-                          ? "bg-slate-700 border-slate-600 text-white"
-                          : "bg-white border-slate-300 text-slate-900"
-                      }`}
+                      className="text-xs sm:text-sm font-bold border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white border-slate-300 text-slate-900 shadow-sm"
                     >
                       <option value="V">V-</option>
                       <option value="E">E-</option>
@@ -338,17 +325,13 @@ export default function EvaluacionTakerClient({
                       value={cedulaNumber}
                       onChange={(e) => setCedulaNumber(e.target.value)}
                       placeholder="Ej. 18452123"
-                      className={`flex-1 text-xs sm:text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500 ${
-                        isKiosk
-                          ? "bg-slate-700 border-slate-600 text-white placeholder-slate-400"
-                          : "bg-white border-slate-300 text-slate-900"
-                      }`}
+                      className="flex-1 text-xs sm:text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-sm"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  <label className="block text-xs font-semibold mb-1 text-slate-700">
                     Nombre y Apellido Completos *
                   </label>
                   <input
@@ -356,11 +339,7 @@ export default function EvaluacionTakerClient({
                     value={nombreApellido}
                     onChange={(e) => setNombreApellido(e.target.value)}
                     placeholder="Ej. Carlos Eduardo Mendoza Pérez"
-                    className={`w-full text-xs sm:text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500 ${
-                      isKiosk
-                        ? "bg-slate-700 border-slate-600 text-white placeholder-slate-400"
-                        : "bg-white border-slate-300 text-slate-900"
-                    }`}
+                    className="w-full text-xs sm:text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-sm"
                   />
                   <span className="text-[10px] text-slate-400 mt-1 block">
                     Tal como aparece en tu documento de identidad oficial.
@@ -369,7 +348,7 @@ export default function EvaluacionTakerClient({
 
                 {/* Pre / Post Automatic Detection Notice */}
                 {isPrePost && (
-                  <div className="p-3 bg-teal-50/60 dark:bg-slate-700/50 rounded-xl border border-teal-200/60 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                  <div className="p-3 bg-teal-50/70 rounded-xl border border-teal-200 text-xs text-slate-700 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-teal-600 shrink-0" />
                     <span className="text-[11px] leading-relaxed">
                       El sistema detectará automáticamente si corresponde tu <strong>Pre-Evaluación (Diagnóstico)</strong> o <strong>Post-Evaluación (Examen Final)</strong> según el registro de tu cédula.
@@ -477,41 +456,35 @@ export default function EvaluacionTakerClient({
           {/* PHASE 2: TAKING THE EVALUATION                             */}
           {/* ─────────────────────────────────────────────────────────── */}
           {phase === "TAKING_EXAM" && currentQ && (
-            <div
-              className={`rounded-2xl p-5 sm:p-7 shadow-xl border space-y-5 animate-in fade-in duration-150 ${
-                isKiosk
-                  ? "bg-slate-800 border-slate-700 text-white"
-                  : "bg-white border-slate-200"
-              }`}
-            >
+            <div className="rounded-2xl p-5 sm:p-7 shadow-xl border border-slate-200 bg-white text-slate-900 space-y-5 animate-in fade-in duration-150">
               {/* Progress Bar & Header */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-teal-600 uppercase tracking-wider">
+                    <span className="font-bold text-teal-700 uppercase tracking-wider">
                       Pregunta {currentQuestionIdx + 1} de {totalQuestions}
                     </span>
                     {isPrePost && (
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
                           selectedStage === "pre"
-                            ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
-                            : "bg-teal-500/20 text-teal-300 border-teal-500/40"
+                            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                            : "bg-teal-50 text-teal-700 border-teal-200"
                         }`}
                       >
                         {selectedStage === "pre" ? "Pre-Evaluación" : "Post-Evaluación"}
                       </span>
                     )}
                   </div>
-                  <span className="text-slate-400">
+                  <span className="text-slate-500 font-medium">
                     {answeredCount} de {totalQuestions} respondidas
                   </span>
                 </div>
 
                 {/* Progress track */}
-                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                   <div
-                    className="bg-teal-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-teal-600 h-2.5 rounded-full transition-all duration-300"
                     style={{
                       width: `${((currentQuestionIdx + 1) / totalQuestions) * 100}%`,
                     }}
@@ -522,16 +495,16 @@ export default function EvaluacionTakerClient({
               {/* Question Statement */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
+                  <span className="text-[11px] font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-md border border-slate-200">
                     Pregunta {currentQuestionIdx + 1}
                   </span>
                 </div>
-                <h3 className="text-sm sm:text-base font-semibold leading-snug">
+                <h3 className="text-sm sm:text-base font-semibold text-slate-900 leading-snug">
                   {currentQ.enunciado}
                 </h3>
               </div>
 
-              {/* Options (Point #3: Single choice with 3 standard options) */}
+              {/* Options */}
               <div className="space-y-2.5 pt-1">
                 {currentQ.opciones.map((opt, optIdx) => {
                   const isSelected = answers[currentQ.id] === opt.id;
@@ -541,25 +514,21 @@ export default function EvaluacionTakerClient({
                       onClick={() => handleSelectOption(currentQ.id, opt.id)}
                       className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
                         isSelected
-                          ? isKiosk
-                            ? "bg-teal-950/40 border-teal-500 shadow-md"
-                            : "bg-teal-50/70 border-teal-600 shadow-sm"
-                          : isKiosk
-                            ? "bg-slate-700/50 border-slate-700 hover:border-slate-600"
-                            : "bg-white border-slate-200 hover:border-slate-300"
+                          ? "bg-teal-50/70 border-teal-600 shadow-sm"
+                          : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
                       }`}
                     >
                       <div
                         className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 font-bold text-xs mt-0.5 border ${
                           isSelected
-                            ? "bg-teal-600 text-white border-teal-600"
-                            : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600"
+                            ? "bg-teal-600 text-white border-teal-600 shadow-sm"
+                            : "bg-slate-100 text-slate-600 border-slate-300"
                         }`}
                       >
                         {String.fromCharCode(65 + optIdx)}
                       </div>
 
-                      <div className="text-xs sm:text-sm font-medium flex-1 pt-0.5 leading-snug">
+                      <div className="text-xs sm:text-sm font-medium text-slate-800 flex-1 pt-0.5 leading-snug">
                         {opt.texto}
                       </div>
 
@@ -579,13 +548,13 @@ export default function EvaluacionTakerClient({
               )}
 
               {/* Navigation Bar */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between pt-4 border-t border-slate-200">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setCurrentQuestionIdx((p) => Math.max(0, p - 1))}
                   disabled={currentQuestionIdx === 0}
-                  className="text-xs"
+                  className="text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-50"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 mr-1" />
                   Anterior
@@ -597,7 +566,7 @@ export default function EvaluacionTakerClient({
                     onClick={() =>
                       setCurrentQuestionIdx((p) => Math.min(totalQuestions - 1, p + 1))
                     }
-                    className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold"
+                    className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm"
                   >
                     Siguiente
                     <ArrowRight className="w-3.5 h-3.5 ml-1" />
@@ -607,7 +576,7 @@ export default function EvaluacionTakerClient({
                     type="button"
                     onClick={() => setShowSubmitConfirm(true)}
                     disabled={submitting}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 shadow-sm"
                   >
                     {submitting ? (
                       <>
@@ -636,12 +605,10 @@ export default function EvaluacionTakerClient({
                       onClick={() => setCurrentQuestionIdx(idx)}
                       className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
                         isCurrent
-                          ? "ring-2 ring-teal-500 bg-teal-600 text-white"
+                          ? "ring-2 ring-teal-500 bg-teal-600 text-white shadow-sm"
                           : hasAnswer
-                            ? "bg-teal-100 text-teal-800"
-                            : isKiosk
-                              ? "bg-slate-700 text-slate-400"
-                              : "bg-slate-100 text-slate-500"
+                            ? "bg-teal-50 text-teal-800 border border-teal-200"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
                       }`}
                     >
                       {idx + 1}
@@ -700,27 +667,21 @@ export default function EvaluacionTakerClient({
           {/* PHASE 3: CONFIRMATION & REVIEW SCREEN (NO SCORES DISPLAYED) */}
           {/* ─────────────────────────────────────────────────────────── */}
           {phase === "RESULT" && (
-            <div
-              className={`rounded-2xl p-6 sm:p-8 shadow-2xl border text-center space-y-6 animate-in fade-in zoom-in-95 duration-200 ${
-                isKiosk
-                  ? "bg-slate-800 border-slate-700 text-white"
-                  : "bg-white border-slate-200"
-              }`}
-            >
+            <div className="rounded-2xl p-6 sm:p-8 shadow-xl border border-slate-200 bg-white text-slate-900 text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
               <div className="space-y-3">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-inner bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-inner bg-teal-50 text-teal-700 border border-teal-200">
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
 
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-black">
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900">
                     {alreadySubmitted
                       ? "Evaluación Registrada Previamente"
                       : isPrePost && selectedStage === "pre"
                       ? "¡Diagnóstico Pre-Capacitación Enviado!"
                       : "¡Evaluación Enviada con Éxito!"}
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+                  <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
                     {alreadySubmitted
                       ? "Tus respuestas para este curso ya fueron recibidas y se encuentran bajo revisión académica."
                       : isPrePost && selectedStage === "pre"
@@ -731,63 +692,63 @@ export default function EvaluacionTakerClient({
               </div>
 
               {/* Status Confirmation Card - Scores are kept confidential */}
-              <div className="p-5 rounded-2xl border text-center space-y-2 bg-slate-50 dark:bg-slate-700/40 border-slate-200 dark:border-slate-700">
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200 shadow-sm">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <div className="p-5 rounded-2xl border text-center space-y-2 bg-slate-50 border-slate-200">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-teal-100 text-teal-800 shadow-sm">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-700" />
                   <span>RESPUESTAS GUARDADAS PARA REVISIÓN</span>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300 max-w-sm mx-auto leading-relaxed pt-1">
+                <p className="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed pt-1">
                   La evaluación ha sido enviada para su procesamiento. Las calificaciones y certificados oficiales serán gestionados y comunicados a través de tu empresa y el facilitador del curso.
                 </p>
               </div>
 
               {/* Student & Course Summary */}
-              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 text-xs space-y-2 text-left border border-slate-200 dark:border-slate-700">
+              <div className="bg-slate-50 rounded-xl p-4 text-xs space-y-2 text-left border border-slate-200">
                 <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Participante:</span>
-                  <strong className="text-slate-900 dark:text-white uppercase">{nombreApellido}</strong>
+                  <span className="text-slate-500">Participante:</span>
+                  <strong className="text-slate-900 uppercase">{nombreApellido}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Cédula:</span>
-                  <span className="font-mono text-slate-800 dark:text-slate-200">{fullCedula}</span>
+                  <span className="text-slate-500">Cédula:</span>
+                  <span className="font-mono text-slate-800">{fullCedula}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Curso:</span>
-                  <span className="text-slate-800 dark:text-slate-200 truncate max-w-xs">{evaluacion.servicio}</span>
+                  <span className="text-slate-500">Curso:</span>
+                  <span className="text-slate-800 truncate max-w-xs">{evaluacion.servicio}</span>
                 </div>
                 {isPrePost && (
-                  <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-600">
-                    <span className="text-slate-500 dark:text-slate-400">Fase:</span>
-                    <span className="font-semibold text-teal-700 dark:text-teal-300">
+                  <div className="flex justify-between pt-1 border-t border-slate-200">
+                    <span className="text-slate-500">Fase:</span>
+                    <span className="font-semibold text-teal-700">
                       {selectedStage === "pre"
                         ? "Pre-Evaluación (Diagnóstico Inicial)"
                         : "Post-Evaluación (Evaluación Final)"}
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-600">
-                  <span className="text-slate-500 dark:text-slate-400">Estado:</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                <div className="flex justify-between pt-1 border-t border-slate-200">
+                  <span className="text-slate-500">Estado:</span>
+                  <span className="font-semibold text-emerald-700">
                     Enviado y registrado
                   </span>
                 </div>
               </div>
 
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              <div className="text-[11px] text-slate-500 leading-relaxed">
                 Tus datos y respuestas han sido sincronizados en tiempo real con el registro del facilitador. No es necesario realizar ningún trámite adicional.
               </div>
 
               {/* Kiosk Mode Reset Action */}
               {isKiosk && (
-                <div className="pt-3 border-t border-slate-700 space-y-3">
-                  <div className="text-xs text-amber-300 font-semibold flex items-center justify-center gap-1.5">
-                    <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                <div className="pt-3 border-t border-slate-200 space-y-3">
+                  <div className="text-xs text-amber-800 font-semibold flex items-center justify-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg py-2">
+                    <RotateCcw className="w-3.5 h-3.5 animate-spin text-amber-700" />
                     <span>Reiniciando estación en {countdown} segundos...</span>
                   </div>
                   <Button
                     type="button"
                     onClick={handleResetKiosk}
-                    className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 text-xs rounded-xl shadow"
+                    className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 text-xs rounded-xl shadow-sm"
                   >
                     Finalizar y preparar para el siguiente participante
                   </Button>
