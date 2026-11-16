@@ -16,6 +16,7 @@ import {
   Laptop,
   BookOpen,
   MapPin,
+  Eye,
 } from "lucide-react";
 import type { EvaluacionPlantilla } from "@/types/evaluacion";
 import AssignOSIExamModal from "./AssignOSIExamModal";
@@ -310,11 +311,11 @@ export default function GestionExamenesClient({
                           {osi.has_evaluation ? (
                             <button
                               onClick={() => setSubmissionsModalOsi(osi)}
-                              className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2.5 py-0.5 rounded-md transition-colors"
-                              title="Ver participantes evaluados"
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2.5 py-1 rounded-md transition-all shadow-2xs group"
+                              title="Ver participantes y respuestas de esta evaluación"
                             >
-                              <Users className="w-3 h-3" />
-                              {osi.submissions_count || 0}
+                              <Users className="w-3.5 h-3.5 text-teal-600 group-hover:scale-110 transition-transform" />
+                              <span>{osi.submissions_count || 0}</span>
                             </button>
                           ) : (
                             <span className="text-gray-300">—</span>
@@ -322,11 +323,24 @@ export default function GestionExamenesClient({
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
+                            {osi.has_evaluation && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSubmissionsModalOsi(osi)}
+                                className="text-xs h-7 px-2.5 text-teal-700 border-teal-200 hover:bg-teal-50 flex items-center gap-1 font-semibold"
+                                title="Ver respuestas y calificaciones de participantes"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-teal-600" />
+                                <span>Ver Respuestas</span>
+                              </Button>
+                            )}
+
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => setAssigningOsi(osi)}
-                              className="text-xs h-7 px-2.5 text-teal-700 border-teal-200 hover:bg-teal-50"
+                              className="text-xs h-7 px-2.5 text-gray-700 border-gray-200 hover:bg-gray-50"
                             >
                               {osi.has_evaluation ? "Editar" : "Asignar"}
                             </Button>
@@ -338,7 +352,7 @@ export default function GestionExamenesClient({
                                   size="sm"
                                   onClick={() => setQrModalOsi(osi)}
                                   className="text-xs h-7 px-2 text-indigo-700 border-indigo-200 hover:bg-indigo-50"
-                                  title="Ver Código QR para el aula"
+                                  title="Ver Códigos QR para el aula"
                                 >
                                   <QrCode className="w-3.5 h-3.5" />
                                 </Button>

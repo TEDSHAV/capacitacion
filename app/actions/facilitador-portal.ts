@@ -769,7 +769,7 @@ export async function getOSIParticipants(
     .eq("osi_id", osiId);
   
   if (facilitadorId) {
-    query = query.eq("facilitador_id", facilitadorId);
+    query = query.or(`facilitador_id.eq.${facilitadorId},facilitador_id.is.null,facilitador_id.eq.0`);
   }
 
   if (nroSesion !== undefined && nroSesion !== null) {
@@ -780,7 +780,7 @@ export async function getOSIParticipants(
         .from("ejecucion_osi_participantes")
         .select("*")
         .eq("osi_id", osiId);
-      if (facilitadorId) fallbackQuery = fallbackQuery.eq("facilitador_id", facilitadorId);
+      if (facilitadorId) fallbackQuery = fallbackQuery.or(`facilitador_id.eq.${facilitadorId},facilitador_id.is.null,facilitador_id.eq.0`);
       const fb = await fallbackQuery.order("id", { ascending: true });
       return { data: fb.data || [] };
     }
@@ -791,7 +791,7 @@ export async function getOSIParticipants(
         .select("*")
         .eq("osi_id", osiId)
         .is("nro_sesion", null);
-      if (facilitadorId) legacyQuery = legacyQuery.eq("facilitador_id", facilitadorId);
+      if (facilitadorId) legacyQuery = legacyQuery.or(`facilitador_id.eq.${facilitadorId},facilitador_id.is.null,facilitador_id.eq.0`);
       const leg = await legacyQuery.order("id", { ascending: true });
       if (leg.data && leg.data.length > 0) {
         return { data: leg.data };

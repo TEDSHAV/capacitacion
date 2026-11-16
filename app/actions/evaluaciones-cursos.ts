@@ -1239,6 +1239,7 @@ export async function submitOSIEvaluacion(
     // Revalidate paths for Facilitator portal and dashboard
     revalidatePath(`/portal/facilitador/osi/${osi.id_osi}`);
     revalidatePath(`/dashboard/capacitacion/gestion-osi`);
+    revalidatePath(`/dashboard/capacitacion/gestion-examenes`);
 
     // Intentionally do NOT send score or approval flag back to participant UI
     return {
