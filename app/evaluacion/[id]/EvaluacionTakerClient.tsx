@@ -11,14 +11,16 @@ import {
   Send,
   Loader2,
   Laptop,
-  Smartphone,
   ShieldCheck,
   Check,
   RotateCcw,
   Sparkles,
 } from "lucide-react";
 import type { EvaluacionPublicData } from "@/types/evaluacion";
-import { submitOSIEvaluacion } from "@/app/actions/evaluaciones-cursos";
+import {
+  submitOSIEvaluacion,
+  getParticipantEvaluationStage,
+} from "@/app/actions/evaluaciones-cursos";
 
 interface EvaluacionTakerClientProps {
   evaluacion: EvaluacionPublicData;
@@ -41,6 +43,7 @@ export default function EvaluacionTakerClient({
   const [nombreApellido, setNombreApellido] = useState("");
   const [identityError, setIdentityError] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [checkingStage, setCheckingStage] = useState(false);
 
   // Exam state
   const [selectedStage, setSelectedStage] = useState<"pre" | "post">("pre");
@@ -50,10 +53,7 @@ export default function EvaluacionTakerClient({
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Result state
-  const [resultScore, setResultScore] = useState<number | null>(null);
-  const [resultApproved, setResultApproved] = useState<boolean | null>(null);
-  const [correctCount, setCorrectCount] = useState<number | null>(null);
+  // Result state (scores are kept private from participants)
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
   // Kiosk countdown state
@@ -93,37 +93,79 @@ export default function EvaluacionTakerClient({
     setNombreApellido("");
     setAnswers({});
     setCurrentQuestionIdx(0);
-    setResultScore(null);
-    setResultApproved(null);
-    setCorrectCount(null);
     setAlreadySubmitted(false);
     setSubmitError(null);
     setIdentityError(null);
     setShowConfirmModal(false);
     setShowSubmitConfirm(false);
     setSelectedStage("pre");
+    setCheckingStage(false);
     setPhase("IDENTITY_PROMPT");
   };
 
-  const handleStartExam = () => {
+  const handleStartExam = async () => {
     setIdentityError(null);
     const cleanNum = cedulaNumber.replace(/\D/g, "");
     if (!cleanNum || cleanNum.length < 5) {
       setIdentityError("Por favor ingresa un número de cédula válido.");
       return;
     }
-    if (!nombreApellido.trim() || nombreApellido.trim().length < 3) {
-      setIdentityError("Por favor ingresa tu nombre y apellido completos.");
-      return;
-    }
 
-    if (totalQuestions === 0) {
-      setIdentityError("No hay preguntas disponibles para esta fase de evaluación.");
-      return;
-    }
+    setCheckingStage(true);
+    try {
+      const stageRes = await getParticipantEvaluationStage(
+        evaluacion.nroOsi || String(evaluacion.osiId),
+        fullCedula,
+      );
 
-    // Open confirmation prompt to verify spelling for certificates (Requirement #6)
-    setShowConfirmModal(true);
+      if (!stageRes.success) {
+        setIdentityError(stageRes.error || "No se pudo verificar el estado del participante.");
+        setCheckingStage(false);
+        return;
+      }
+
+      if (stageRes.alreadyCompletedAll) {
+        setAlreadySubmitted(true);
+        if (stageRes.participantName && !nombreApellido.trim()) {
+          setNombreApellido(stageRes.participantName);
+        }
+        setPhase("RESULT");
+        setCheckingStage(false);
+        return;
+      }
+
+      // Auto-assign the stage detected by server
+      setSelectedStage(stageRes.stage);
+
+      // Auto-fill participant name if previously registered in pre-test
+      if (stageRes.participantName && !nombreApellido.trim()) {
+        setNombreApellido(stageRes.participantName);
+      } else if (!nombreApellido.trim() || nombreApellido.trim().length < 3) {
+        setIdentityError("Por favor ingresa tu nombre y apellido completos.");
+        setCheckingStage(false);
+        return;
+      }
+
+      const targetQuestions = isPrePost
+        ? evaluacion.preguntas.filter((q) => (q.etapa || "post") === stageRes.stage)
+        : evaluacion.preguntas;
+
+      if (targetQuestions.length === 0) {
+        setIdentityError(
+          `No hay preguntas disponibles configuradas para la ${
+            stageRes.stage === "pre" ? "Pre-Evaluación" : "Post-Evaluación"
+          }.`
+        );
+        setCheckingStage(false);
+        return;
+      }
+
+      setShowConfirmModal(true);
+    } catch {
+      setIdentityError("Error de conexión al verificar cédula. Intenta de nuevo.");
+    } finally {
+      setCheckingStage(false);
+    }
   };
 
   const handleConfirmIdentity = () => {
@@ -162,12 +204,12 @@ export default function EvaluacionTakerClient({
         return;
       }
 
-      setResultScore(res.score ?? 0);
-      setResultApproved(res.aprobado ?? false);
-      setCorrectCount(res.correctCount ?? null);
       setAlreadySubmitted(res.alreadySubmitted ?? false);
+      if (res.etapa) {
+        setSelectedStage(res.etapa);
+      }
       setPhase("RESULT");
-    } catch (err) {
+    } catch {
       setSubmitError("Error de conexión al enviar respuestas. Intente de nuevo.");
     } finally {
       setSubmitting(false);
@@ -215,7 +257,7 @@ export default function EvaluacionTakerClient({
             {evaluacion.nombreEmpresa}
           </span>
           <span className="text-[11px] text-teal-600 font-semibold">
-            Nota aprobatoria: {evaluacion.notaAprobatoria}/20 pts
+            Evaluación Digital SHA
           </span>
         </div>
       </header>
@@ -318,43 +360,13 @@ export default function EvaluacionTakerClient({
                   </span>
                 </div>
 
-                {/* Pre / Post Stage selection if applicable */}
+                {/* Pre / Post Automatic Detection Notice */}
                 {isPrePost && (
-                  <div>
-                    <label className="block text-xs font-semibold mb-1.5 text-slate-700 dark:text-slate-300">
-                      Selecciona la fase de evaluación *
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedStage("pre")}
-                        className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                          selectedStage === "pre"
-                            ? "bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/20 text-indigo-950 font-bold"
-                            : isKiosk
-                            ? "bg-slate-700 border-slate-600 text-slate-200"
-                            : "bg-white border-slate-200 text-slate-700"
-                        }`}
-                      >
-                        <span className="text-xs block">1. Pre-Evaluación</span>
-                        <span className="text-[10px] text-slate-400 font-normal">Diagnóstico inicial</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setSelectedStage("post")}
-                        className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                          selectedStage === "post"
-                            ? "bg-teal-50 border-teal-500 ring-2 ring-teal-500/20 text-teal-950 font-bold"
-                            : isKiosk
-                            ? "bg-slate-700 border-slate-600 text-slate-200"
-                            : "bg-white border-slate-200 text-slate-700"
-                        }`}
-                      >
-                        <span className="text-xs block">2. Post-Evaluación</span>
-                        <span className="text-[10px] text-slate-400 font-normal">Examen final</span>
-                      </button>
-                    </div>
+                  <div className="p-3 bg-teal-50/60 dark:bg-slate-700/50 rounded-xl border border-teal-200/60 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-teal-600 shrink-0" />
+                    <span className="text-[11px] leading-relaxed">
+                      El sistema detectará automáticamente si corresponde tu <strong>Pre-Evaluación (Diagnóstico)</strong> o <strong>Post-Evaluación (Examen Final)</strong> según el registro de tu cédula.
+                    </span>
                   </div>
                 )}
 
@@ -362,10 +374,20 @@ export default function EvaluacionTakerClient({
                   <Button
                     type="button"
                     onClick={handleStartExam}
+                    disabled={checkingStage}
                     className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
                   >
-                    <span>Comenzar Evaluación</span>
-                    <ArrowRight className="w-4 h-4" />
+                    {checkingStage ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Verificando estado...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Comenzar Evaluación</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -411,12 +433,13 @@ export default function EvaluacionTakerClient({
                   {isPrePost && (
                     <div>
                       <span className="text-slate-400 block text-[10px] uppercase font-bold">
-                        Fase de Evaluación:
+                        Fase Asignada Automáticamente:
                       </span>
-                      <strong className="text-indigo-700 text-xs font-bold">
+                      <strong className="text-teal-800 text-xs font-bold flex items-center gap-1.5 mt-0.5">
+                        <Sparkles className="w-3.5 h-3.5 text-teal-600" />
                         {selectedStage === "pre"
-                          ? "Evaluación Pre-Capacitación (Inicial)"
-                          : "Evaluación Post-Capacitación (Final)"}
+                          ? "1. Pre-Evaluación (Diagnóstico Inicial)"
+                          : "2. Post-Evaluación (Evaluación Final)"}
                       </strong>
                     </div>
                   )}
@@ -492,8 +515,8 @@ export default function EvaluacionTakerClient({
               {/* Question Statement */}
               <div className="space-y-2 pt-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-2 py-0.5 rounded">
-                    Valor: {currentQ.puntos} pts
+                  <span className="text-[11px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
+                    Pregunta {currentQuestionIdx + 1}
                   </span>
                 </div>
                 <h3 className="text-sm sm:text-base font-semibold leading-snug">
@@ -596,7 +619,7 @@ export default function EvaluacionTakerClient({
 
               {/* Questions Pagination Strip */}
               <div className="flex items-center justify-center gap-1.5 pt-2 flex-wrap">
-                {evaluacion.preguntas.map((q, idx) => {
+                {activeQuestions.map((q, idx) => {
                   const hasAnswer = Boolean(answers[q.id]);
                   const isCurrent = idx === currentQuestionIdx;
                   return (
@@ -667,7 +690,7 @@ export default function EvaluacionTakerClient({
           )}
 
           {/* ─────────────────────────────────────────────────────────── */}
-          {/* PHASE 3: INSTANT RESULT SCREEN                             */}
+          {/* PHASE 3: CONFIRMATION & REVIEW SCREEN (NO SCORES DISPLAYED) */}
           {/* ─────────────────────────────────────────────────────────── */}
           {phase === "RESULT" && (
             <div
@@ -678,76 +701,44 @@ export default function EvaluacionTakerClient({
               }`}
             >
               <div className="space-y-3">
-                <div
-                  className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-inner ${
-                    resultApproved
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-red-100 text-red-600"
-                  }`}
-                >
-                  {resultApproved ? (
-                    <CheckCircle2 className="w-10 h-10" />
-                  ) : (
-                    <XCircle className="w-10 h-10" />
-                  )}
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-inner bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                  <CheckCircle2 className="w-10 h-10" />
                 </div>
 
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black">
-                    {isPrePost && selectedStage === "pre"
-                      ? "Diagnóstico Pre-Capacitación Registrado"
-                      : resultApproved
-                      ? "¡Felicitaciones!"
-                      : "Evaluación Finalizada"}
+                    {alreadySubmitted
+                      ? "Evaluación Registrada Previamente"
+                      : isPrePost && selectedStage === "pre"
+                      ? "¡Diagnóstico Pre-Capacitación Enviado!"
+                      : "¡Evaluación Enviada con Éxito!"}
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    {isPrePost && selectedStage === "pre"
-                      ? "Tus respuestas iniciales han sido registradas para medir los conocimientos adquiridos al finalizar el curso."
-                      : resultApproved
-                      ? "Has superado satisfactoriamente los requisitos académicos del curso."
-                      : "No has alcanzado la nota mínima aprobatoria requerida para la certificación."}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+                    {alreadySubmitted
+                      ? "Tus respuestas para este curso ya fueron recibidas y se encuentran bajo revisión académica."
+                      : isPrePost && selectedStage === "pre"
+                      ? "Tus respuestas iniciales han sido registradas para el análisis comparativo del curso."
+                      : "Tus respuestas han sido recibidas y guardadas exitosamente en el sistema de Capacitación SHA."}
                   </p>
                 </div>
               </div>
 
-              {/* Score Display Card */}
-              <div
-                className={`p-6 rounded-2xl border text-center space-y-2 ${
-                  resultApproved
-                    ? "bg-emerald-50/70 border-emerald-300 text-emerald-950"
-                    : "bg-red-50/70 border-red-300 text-red-950"
-                }`}
-              >
-                <span className="text-[11px] font-bold uppercase tracking-wider block text-slate-600">
-                  Calificación Obtenida
-                </span>
-                <div className="text-4xl sm:text-5xl font-black">
-                  {resultScore?.toFixed(1)}
-                  <span className="text-lg font-normal text-slate-400"> / 20</span>
+              {/* Status Confirmation Card - Scores are kept confidential */}
+              <div className="p-5 rounded-2xl border text-center space-y-2 bg-slate-50 dark:bg-slate-700/40 border-slate-200 dark:border-slate-700">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200 shadow-sm">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                  <span>RESPUESTAS GUARDADAS PARA REVISIÓN</span>
                 </div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-white shadow-sm">
-                  {resultApproved ? (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-emerald-700">APROBADO</span>
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-3.5 h-3.5 text-red-600" />
-                      <span className="text-red-700">NO APROBATORIO</span>
-                    </>
-                  )}
-                  <span className="text-slate-400 font-normal">
-                    (Mínimo: {evaluacion.notaAprobatoria} pts)
-                  </span>
-                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 max-w-sm mx-auto leading-relaxed pt-1">
+                  La evaluación ha sido enviada para su procesamiento. Las calificaciones y certificados oficiales serán gestionados y comunicados a través de tu empresa y el facilitador del curso.
+                </p>
               </div>
 
               {/* Student & Course Summary */}
-              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 text-xs space-y-1.5 text-left border border-slate-200 dark:border-slate-700">
+              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 text-xs space-y-2 text-left border border-slate-200 dark:border-slate-700">
                 <div className="flex justify-between">
                   <span className="text-slate-500 dark:text-slate-400">Participante:</span>
-                  <strong className="text-slate-900 dark:text-white">{nombreApellido}</strong>
+                  <strong className="text-slate-900 dark:text-white uppercase">{nombreApellido}</strong>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 dark:text-slate-400">Cédula:</span>
@@ -757,16 +748,26 @@ export default function EvaluacionTakerClient({
                   <span className="text-slate-500 dark:text-slate-400">Curso:</span>
                   <span className="text-slate-800 dark:text-slate-200 truncate max-w-xs">{evaluacion.servicio}</span>
                 </div>
-                {correctCount !== null && (
+                {isPrePost && (
                   <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-600">
-                    <span className="text-slate-500 dark:text-slate-400">Respuestas correctas:</span>
-                    <strong className="text-teal-600">{correctCount} de {totalQuestions}</strong>
+                    <span className="text-slate-500 dark:text-slate-400">Fase:</span>
+                    <span className="font-semibold text-teal-700 dark:text-teal-300">
+                      {selectedStage === "pre"
+                        ? "Pre-Evaluación (Diagnóstico Inicial)"
+                        : "Post-Evaluación (Evaluación Final)"}
+                    </span>
                   </div>
                 )}
+                <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-600">
+                  <span className="text-slate-500 dark:text-slate-400">Estado:</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    Enviado y registrado
+                  </span>
+                </div>
               </div>
 
               <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Tus datos y calificación ya han sido sincronizados en tiempo real con el Portal del Facilitador. No es necesario realizar ningún trámite adicional.
+                Tus datos y respuestas han sido sincronizados en tiempo real con el registro del facilitador. No es necesario realizar ningún trámite adicional.
               </div>
 
               {/* Kiosk Mode Reset Action */}
@@ -774,14 +775,14 @@ export default function EvaluacionTakerClient({
                 <div className="pt-3 border-t border-slate-700 space-y-3">
                   <div className="text-xs text-amber-300 font-semibold flex items-center justify-center gap-1.5">
                     <RotateCcw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Reiniciando pantalla en {countdown} segundos...</span>
+                    <span>Reiniciando estación en {countdown} segundos...</span>
                   </div>
                   <Button
                     type="button"
                     onClick={handleResetKiosk}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 text-xs rounded-xl"
+                    className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 text-xs rounded-xl shadow"
                   >
-                    Finalizar y limpiar pantalla para el siguiente participante
+                    Finalizar y preparar para el siguiente participante
                   </Button>
                 </div>
               )}

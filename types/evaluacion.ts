@@ -108,6 +108,15 @@ export interface SubmitEvaluacionPayload {
   etapa?: EtapaEvaluacion;
 }
 
+export interface ParticipantStageResult {
+  success: boolean;
+  isPrePost: boolean;
+  stage: EtapaEvaluacion;
+  alreadyCompletedAll: boolean;
+  participantName?: string;
+  error?: string;
+}
+
 export interface SubmitEvaluacionResult {
   success: boolean;
   score?: number;
@@ -115,7 +124,9 @@ export interface SubmitEvaluacionResult {
   notaAprobatoria?: number;
   totalQuestions?: number;
   correctCount?: number;
+  etapa?: EtapaEvaluacion;
   error?: string;
   alreadySubmitted?: boolean;
+  message?: string;
 }
 

@@ -10,7 +10,9 @@ import type {
   EvaluacionRespuestaItem,
   SubmitEvaluacionPayload,
   SubmitEvaluacionResult,
+  ParticipantStageResult,
   TipoEvaluacionCurso,
+  EtapaEvaluacion,
 } from "@/types/evaluacion";
 import { toTitleCase } from "@/utils/string-utils";
 
@@ -543,6 +545,138 @@ export async function getOSIEvaluacionPublicData(identifier: string): Promise<{
   };
 }
 
+// ─── PARTICIPANT STAGE AUTO-DETECTION & SUBMISSION ─────────────────────────
+
+/**
+ * Checks a participant's evaluation stage for a given OSI.
+ * Automatically resolves whether they should take 'pre' or 'post',
+ * or if they have already completed both, without requiring user selection.
+ * Also retrieves their existing registered name to auto-fill.
+ */
+export async function getParticipantEvaluationStage(
+  identifier: string,
+  cedula: string,
+): Promise<ParticipantStageResult> {
+  try {
+    const osi = await resolveOSIByIdentifier(identifier);
+    if (!osi) {
+      return {
+        success: false,
+        isPrePost: false,
+        stage: "post",
+        alreadyCompletedAll: false,
+        error: "OSI no encontrada.",
+      };
+    }
+
+    const cleanCedula = cedula.trim().toUpperCase();
+    if (!cleanCedula) {
+      return {
+        success: false,
+        isPrePost: false,
+        stage: "post",
+        alreadyCompletedAll: false,
+        error: "Cédula inválida.",
+      };
+    }
+
+    const admin = await createAdminClient();
+
+    const { data: osiEval } = await admin
+      .from("capacitacion_osi_evaluaciones")
+      .select("id, tipo_evaluacion")
+      .eq("id_osi", osi.id_osi)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!osiEval) {
+      return {
+        success: false,
+        isPrePost: false,
+        stage: "post",
+        alreadyCompletedAll: false,
+        error: "No hay una evaluación activa disponible para esta OSI.",
+      };
+    }
+
+    const isPrePost = osiEval.tipo_evaluacion === "pre_post";
+
+    const { data: subs } = await admin
+      .from("capacitacion_evaluaciones_respuestas")
+      .select("id, etapa, nombre_apellido")
+      .eq("id_osi", osi.id_osi)
+      .eq("cedula", cleanCedula);
+
+    const { data: part } = await admin
+      .from("ejecucion_osi_participantes")
+      .select("nombre_apellido, score_pre, score_post, score")
+      .eq("osi_id", osi.id_osi)
+      .eq("cedula", cleanCedula)
+      .maybeSingle();
+
+    const participantName =
+      (subs && subs.length > 0 ? subs[0].nombre_apellido : undefined) ||
+      part?.nombre_apellido ||
+      undefined;
+
+    if (!isPrePost) {
+      const alreadyDone =
+        (subs && subs.length > 0) || (part && part.score !== null);
+      return {
+        success: true,
+        isPrePost: false,
+        stage: "post",
+        alreadyCompletedAll: Boolean(alreadyDone),
+        participantName,
+      };
+    }
+
+    const hasPre =
+      (subs || []).some((s) => s.etapa === "pre") ||
+      (part && part.score_pre !== null && part.score_pre !== undefined);
+    const hasPost =
+      (subs || []).some((s) => s.etapa === "post") ||
+      (part && part.score_post !== null && part.score_post !== undefined);
+
+    if (hasPost) {
+      return {
+        success: true,
+        isPrePost: true,
+        stage: "post",
+        alreadyCompletedAll: true,
+        participantName,
+      };
+    }
+
+    if (hasPre) {
+      return {
+        success: true,
+        isPrePost: true,
+        stage: "post",
+        alreadyCompletedAll: false,
+        participantName,
+      };
+    }
+
+    return {
+      success: true,
+      isPrePost: true,
+      stage: "pre",
+      alreadyCompletedAll: false,
+      participantName,
+    };
+  } catch (err) {
+    console.error("[getParticipantEvaluationStage] Error:", err);
+    return {
+      success: false,
+      isPrePost: false,
+      stage: "post",
+      alreadyCompletedAll: false,
+      error: "Error al verificar la fase de evaluación.",
+    };
+  }
+}
+
 /**
  * Submit and auto-grade an evaluation.
  *
@@ -551,6 +685,8 @@ export async function getOSIEvaluacionPublicData(identifier: string): Promise<{
  * 3. Records submission in `capacitacion_evaluaciones_respuestas`.
  * 4. Automatically upserts participant name, cédula, and score into `ejecucion_osi_participantes`,
  *    making it immediately visible in the Facilitator Portal!
+ * 5. Intentionally avoids exposing score or approval status to the participant response
+ *    to prevent classroom tension, while securely storing grades for facilitator review.
  */
 export async function submitOSIEvaluacion(
   payload: SubmitEvaluacionPayload,
@@ -582,30 +718,58 @@ export async function submitOSIEvaluacion(
       return { success: false, error: "No hay una evaluación activa disponible para esta OSI." };
     }
 
-    const etapa = payload.etapa || "post";
     const isPrePost = osiEval.tipo_evaluacion === "pre_post";
 
-    // Check if participant already submitted this exam stage
-    let subQuery = admin
+    // Check existing submissions and participant records
+    const { data: existingSubs } = await admin
       .from("capacitacion_evaluaciones_respuestas")
-      .select("id, nota, aprobado, etapa")
+      .select("id, etapa")
       .eq("id_osi", osi.id_osi)
       .eq("cedula", cleanCedula);
 
+    const { data: existingParticipant } = await admin
+      .from("ejecucion_osi_participantes")
+      .select("id, score, score_pre, score_post")
+      .eq("osi_id", osi.id_osi)
+      .eq("cedula", cleanCedula)
+      .maybeSingle();
+
+    let etapa: EtapaEvaluacion = "post";
+
     if (isPrePost) {
-      subQuery = subQuery.eq("etapa", etapa);
-    }
+      const hasPre =
+        (existingSubs || []).some((s) => s.etapa === "pre") ||
+        (existingParticipant && existingParticipant.score_pre !== null && existingParticipant.score_pre !== undefined);
+      const hasPost =
+        (existingSubs || []).some((s) => s.etapa === "post") ||
+        (existingParticipant && existingParticipant.score_post !== null && existingParticipant.score_post !== undefined);
 
-    const { data: existingSub } = await subQuery.maybeSingle();
+      if (hasPost) {
+        return {
+          success: true,
+          alreadySubmitted: true,
+          etapa: "post",
+        };
+      }
 
-    if (existingSub) {
-      return {
-        success: true,
-        alreadySubmitted: true,
-        score: Number(existingSub.nota),
-        aprobado: existingSub.aprobado,
-        notaAprobatoria: Number(osiEval.nota_aprobatoria) || 14,
-      };
+      if (hasPre) {
+        etapa = "post";
+      } else {
+        etapa = "pre";
+      }
+    } else {
+      const alreadyDone =
+        (existingSubs && existingSubs.length > 0) ||
+        (existingParticipant && existingParticipant.score !== null && existingParticipant.score !== undefined);
+
+      if (alreadyDone) {
+        return {
+          success: true,
+          alreadySubmitted: true,
+          etapa: "post",
+        };
+      }
+      etapa = "post";
     }
 
     // 2. Auto-grading
@@ -619,7 +783,6 @@ export async function submitOSIEvaluacion(
 
     let totalPointsEarned = 0;
     let totalPossiblePoints = 0;
-    let correctCount = 0;
 
     for (const q of questions) {
       const qWeight = Number(q.puntos) || 2;
@@ -630,7 +793,6 @@ export async function submitOSIEvaluacion(
 
       if (userSelectedOptId && correctOpt && userSelectedOptId === correctOpt.id) {
         totalPointsEarned += qWeight;
-        correctCount += 1;
       }
     }
 
@@ -677,14 +839,6 @@ export async function submitOSIEvaluacion(
         .maybeSingle();
 
       const facilitadorId = assignment?.facilitador_id || 0;
-
-      // Check if participant row exists in ejecucion_osi_participantes
-      const { data: existingParticipant } = await admin
-        .from("ejecucion_osi_participantes")
-        .select("id, score, score_pre, score_post")
-        .eq("osi_id", osi.id_osi)
-        .eq("cedula", cleanCedula)
-        .maybeSingle();
 
       if (existingParticipant) {
         const updateData: Record<string, any> = {
@@ -759,13 +913,11 @@ export async function submitOSIEvaluacion(
     revalidatePath(`/portal/facilitador/osi/${osi.id_osi}`);
     revalidatePath(`/dashboard/capacitacion/gestion-osi`);
 
+    // Intentionally do NOT send score or approval flag back to participant UI
     return {
       success: true,
-      score: finalScore,
-      aprobado,
-      notaAprobatoria,
-      totalQuestions: questions.length,
-      correctCount,
+      etapa,
+      alreadySubmitted: false,
     };
   } catch (err) {
     console.error("[submitOSIEvaluacion] Unexpected error:", err);
