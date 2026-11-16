@@ -1198,7 +1198,7 @@ export async function getOSIEvaluacionSubmissions(osiId: number): Promise<Evalua
     respuestas: (r.respuestas as Record<string, string>) || {},
     nota: Number(r.nota),
     aprobado: Boolean(r.aprobado),
-    dispositivo: String(r.dispositivo || "mobile_qr"),
+    dispositivo: r.dispositivo === "kiosk" ? "kiosk" : "mobile_qr",
     created_at: String(r.created_at || ""),
   }));
 }
