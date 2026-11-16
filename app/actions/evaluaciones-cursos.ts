@@ -82,9 +82,9 @@ export async function resolveOSIByIdentifier(identifier: string): Promise<{
 
       if (activeEvals && activeEvals.length > 0) {
         for (const ev of activeEvals) {
-          const rawPreguntas = Array.isArray(ev.preguntas) ? ev.preguntas : [];
+          const rawPreguntas = Array.isArray(ev.preguntas) ? (ev.preguntas as unknown[]) : [];
           const meta = rawPreguntas.find(
-            (p): p is SalonMetadataItem =>
+            (p: unknown): p is SalonMetadataItem =>
               typeof p === "object" && p !== null && "_is_salon_meta" in p && (p as SalonMetadataItem)._is_salon_meta === true,
           );
           if (meta && meta.salon_id === salon.id) {
@@ -464,13 +464,13 @@ export async function getOSIEvaluacion(osiId: number): Promise<{
     .select("id", { count: "exact", head: true })
     .eq("id_osi", osiId);
 
-  const rawPreguntas = Array.isArray(data.preguntas) ? data.preguntas : [];
+  const rawPreguntas = Array.isArray(data.preguntas) ? (data.preguntas as unknown[]) : [];
   const salonMeta = rawPreguntas.find(
-    (p): p is SalonMetadataItem =>
+    (p: unknown): p is SalonMetadataItem =>
       typeof p === "object" && p !== null && "_is_salon_meta" in p && (p as SalonMetadataItem)._is_salon_meta === true,
   );
   const cleanPreguntas = rawPreguntas.filter(
-    (p) => !(typeof p === "object" && p !== null && "_is_salon_meta" in p),
+    (p: unknown) => !(typeof p === "object" && p !== null && "_is_salon_meta" in p),
   ) as EvaluacionPregunta[];
 
   return {
@@ -521,7 +521,7 @@ export async function assignEvaluacionToOSI(payload: {
     let notaAprobatoria = payload.nota_aprobatoria ?? 14;
     let duracionMinutos = payload.duracion_minutos ?? null;
     let preguntas: EvaluacionPregunta[] = (payload.preguntas || []).filter(
-      (p) => !(typeof p === "object" && p !== null && "_is_salon_meta" in p),
+      (p: unknown) => !(typeof p === "object" && p !== null && "_is_salon_meta" in p),
     );
     let tipoEvaluacion: TipoEvaluacionCurso = payload.tipo_evaluacion || "standard";
 
@@ -544,7 +544,7 @@ export async function assignEvaluacionToOSI(payload: {
         notaAprobatoria = tplRes.data.nota_aprobatoria;
         duracionMinutos = tplRes.data.duracion_minutos;
         preguntas = (tplRes.data.preguntas || []).filter(
-          (p) => !(typeof p === "object" && p !== null && "_is_salon_meta" in p),
+          (p: unknown) => !(typeof p === "object" && p !== null && "_is_salon_meta" in p),
         );
         if (!osiInfo || osiInfo.eval_pre_post === null) {
           tipoEvaluacion = tplRes.data.tipo_evaluacion || "standard";
@@ -702,14 +702,14 @@ export async function getOSIEvaluacionPublicData(identifier: string): Promise<{
     };
   }
 
-  const rawQuestions = Array.isArray(osiEval.preguntas) ? osiEval.preguntas : [];
+  const rawQuestions = Array.isArray(osiEval.preguntas) ? (osiEval.preguntas as unknown[]) : [];
 
   const salonMeta = rawQuestions.find(
-    (q): q is SalonMetadataItem =>
+    (q: unknown): q is SalonMetadataItem =>
       typeof q === "object" && q !== null && "_is_salon_meta" in q && (q as SalonMetadataItem)._is_salon_meta === true,
   );
   const cleanQuestions = rawQuestions.filter(
-    (q) => !(typeof q === "object" && q !== null && "_is_salon_meta" in q),
+    (q: unknown) => !(typeof q === "object" && q !== null && "_is_salon_meta" in q),
   ) as EvaluacionPregunta[];
 
   let salonNombre = osi.salon_nombre || null;
@@ -994,10 +994,10 @@ export async function submitOSIEvaluacion(
     }
 
     // 2. Auto-grading
-    const rawQuestions = Array.isArray(osiEval.preguntas) ? osiEval.preguntas : [];
+    const rawQuestions = Array.isArray(osiEval.preguntas) ? (osiEval.preguntas as unknown[]) : [];
 
     const cleanQuestions: EvaluacionPregunta[] = rawQuestions.filter(
-      (q) => !(typeof q === "object" && q !== null && "_is_salon_meta" in q),
+      (q: unknown) => !(typeof q === "object" && q !== null && "_is_salon_meta" in q),
     ) as EvaluacionPregunta[];
 
     const questions = isPrePost
