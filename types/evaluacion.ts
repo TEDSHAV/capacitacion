@@ -33,6 +33,26 @@ export const SALONES: SalonInfo[] = [
   },
 ];
 
+/**
+ * Helper to identify a salon from its slug, ID, or alias.
+ */
+export function getSalonFromSlug(slug: string): SalonInfo | null {
+  if (!slug) return null;
+  const clean = slug.trim().toLowerCase();
+  return SALONES.find((s) => s.slugs.includes(clean) || s.id === clean) || null;
+}
+
+/**
+ * Returns today's date in Venezuela local timezone (YYYY-MM-DD).
+ */
+export function getTodayDateString(): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Caracas" }).format(new Date());
+  } catch {
+    return new Date().toISOString().split("T")[0];
+  }
+}
+
 export interface EvaluacionOpcion {
   id: string;
   texto: string;

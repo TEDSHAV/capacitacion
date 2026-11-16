@@ -17,7 +17,7 @@ import type {
   SalonId,
   SalonInfo,
 } from "@/types/evaluacion";
-import { SALONES } from "@/types/evaluacion";
+import { SALONES, getSalonFromSlug, getTodayDateString } from "@/types/evaluacion";
 import { toTitleCase } from "@/utils/string-utils";
 
 interface SalonMetadataItem {
@@ -25,26 +25,6 @@ interface SalonMetadataItem {
   salon_id: SalonId;
   salon_fecha_inicio?: string | null;
   salon_fecha_fin?: string | null;
-}
-
-/**
- * Helper to identify a salon from its slug, ID, or alias.
- */
-export function getSalonFromSlug(slug: string): SalonInfo | null {
-  if (!slug) return null;
-  const clean = slug.trim().toLowerCase();
-  return SALONES.find((s) => s.slugs.includes(clean) || s.id === clean) || null;
-}
-
-/**
- * Returns today's date in Venezuela local timezone (YYYY-MM-DD).
- */
-export function getTodayDateString(): string {
-  try {
-    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Caracas" }).format(new Date());
-  } catch {
-    return new Date().toISOString().split("T")[0];
-  }
 }
 
 /**

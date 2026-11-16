@@ -1,6 +1,7 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import { getOSIEvaluacionPublicData, getSalonFromSlug } from "@/app/actions/evaluaciones-cursos";
+import { getOSIEvaluacionPublicData } from "@/app/actions/evaluaciones-cursos";
+import { getSalonFromSlug } from "@/types/evaluacion";
 import EvaluacionTakerClient from "./EvaluacionTakerClient";
 import { MapPin, RefreshCw } from "lucide-react";
 
