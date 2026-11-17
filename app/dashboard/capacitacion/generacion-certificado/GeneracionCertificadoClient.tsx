@@ -83,6 +83,7 @@ export default function GeneracionCertificadoClient({
       osi_id: "",
       certificate_title: "",
       certificate_subtitle: "",
+      carnet_title: "",
       passing_grade: 14,
       course_topic_id: "",
       course_topic_data: undefined,
@@ -247,6 +248,10 @@ export default function GeneracionCertificadoClient({
           certificate.cursos?.nombre ||
           "",
         certificate_subtitle: snapshot?.certificado_detalles?.subtitle || "",
+        carnet_title:
+          snapshot?.certificado_detalles?.carnet_title ||
+          snapshot?.carnet_title ||
+          "",
         passing_grade: snapshot?.certificado_detalles?.passing_grade || 14,
         course_topic_id: certificate.id_curso?.toString() || "",
         course_topic_data: snapshot?.curso || course,
@@ -307,6 +312,7 @@ export default function GeneracionCertificadoClient({
         course_content: selectedCourseTopic.contenido_curso || "",
         certificate_title: prev.certificate_title || selectedCourseTopic.nombre,
         certificate_subtitle: selectedCourseTopic.subtitulo || prev.certificate_subtitle || "",
+        carnet_title: prev.carnet_title || selectedCourseTopic.nombre,
       }));
     }
   }, [selectedCourseTopic?.id, selectedCourseTopic?.contenido_curso, editData]);
@@ -451,6 +457,7 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
         horas_estimadas: hours,
         certificate_title: title,
         certificate_subtitle: selectedCourse?.subtitulo || prev.certificate_subtitle || "",
+        carnet_title: prev.carnet_title || title,
         // Pre-populate facilitator if found in database
         facilitator_id: facilitatorResult?.data?.id?.toString() || prev.facilitator_id,
         facilitator_data: facilitatorResult?.data
@@ -475,6 +482,7 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
         course_content: "",
         passing_grade: 14,
         certificate_title: "",
+        carnet_title: "",
         location: "",
         horas_estimadas: undefined,
         facilitator_id: undefined,
@@ -1536,7 +1544,9 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
                       ? parseInt(certificateData.course_topic_data.id)
                       : null,
                     id_osi: selectedOSI?.id ? (typeof selectedOSI.id === 'string' ? parseInt(selectedOSI.id) : selectedOSI.id) : null,
-                    titulo_curso: certificateData.certificate_title,
+                    titulo_curso:
+                      certificateData.carnet_title?.trim() ||
+                      certificateData.certificate_title,
                     subtitulo_curso: certificateData.certificate_subtitle || null,
                     fecha_emision: certificateData.date,
                     fecha_vencimiento:
@@ -1788,6 +1798,7 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
       setCertificateData({
         osi_id: "",
         certificate_title: "",
+        carnet_title: "",
         certificate_subtitle: "",
         passing_grade: 14,
         course_topic_id: "",
@@ -1946,6 +1957,7 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
                 horas_estimadas: courseTopic.horas_estimadas,
                 certificate_title: prev.certificate_title || courseTopic.name,
                 certificate_subtitle: courseTopic.subtitulo || prev.certificate_subtitle || "",
+                carnet_title: prev.carnet_title || courseTopic.name,
                 id_plantilla_certificado:
                   courseTopic.id_plantilla_certificado ||
                   prev.id_plantilla_certificado,

@@ -45,11 +45,14 @@ export const CourseTemplateSection = ({
       // Use the plantilla's certificate title when set; fall back to the
       // original course name for backwards compatibility (existing plantillas
       // created before this field was added have titulo_certificado = NULL).
-      onDataChange(
-        "certificate_title",
+      const titleToUse =
         template?.titulo_certificado ||
-          selectedCourseTopic?.nombre ||
-          "",
+        selectedCourseTopic?.nombre ||
+        "";
+      onDataChange("certificate_title", titleToUse);
+      onDataChange(
+        "carnet_title",
+        template?.titulo_carnet || titleToUse,
       );
     } else {
       onDataChange(
@@ -57,6 +60,7 @@ export const CourseTemplateSection = ({
         selectedCourseTopic?.contenido_curso || "",
       );
       onDataChange("certificate_title", selectedCourseTopic?.nombre || "");
+      onDataChange("carnet_title", selectedCourseTopic?.nombre || "");
     }
   };
 

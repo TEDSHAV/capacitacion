@@ -9,4 +9,5 @@ export interface PlantillaCurso {
   curso_nombre?: string;
   empresa_nombre?: string;
   titulo_certificado?: string | null;
+  titulo_carnet?: string | null;
 }

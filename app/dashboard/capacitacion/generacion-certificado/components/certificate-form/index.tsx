@@ -300,8 +300,8 @@ export const CertificateForm = ({
         )}
       </div>
 
-      {/* Certificate Title */}
-      <div className="grid grid-cols-1 gap-4 mb-4">
+      {/* Certificate and Carnet Titles */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div id="field-certificate_title">
           <label
             htmlFor="certificate_title"
@@ -313,7 +313,15 @@ export const CertificateForm = ({
             type="text"
             id="certificate_title"
             value={certificateData.certificate_title}
-            onChange={(e) => onDataChange("certificate_title", e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              const prevTitle = certificateData.certificate_title;
+              onDataChange("certificate_title", val);
+              // If carnet_title is empty or was identical to previous cert title, keep in sync
+              if (!certificateData.carnet_title || certificateData.carnet_title === prevTitle) {
+                onDataChange("carnet_title", val);
+              }
+            }}
             autoFocus={false}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
               hasAttemptedSubmission && !certificateData.certificate_title
@@ -340,6 +348,26 @@ export const CertificateForm = ({
               El título es requerido.
             </p>
           )}
+        </div>
+
+        <div id="field-carnet_title">
+          <label
+            htmlFor="carnet_title"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Título del Carnet (opcional)
+          </label>
+          <input
+            type="text"
+            id="carnet_title"
+            value={certificateData.carnet_title || ""}
+            onChange={(e) => onDataChange("carnet_title", e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder={certificateData.certificate_title || "Igual al título del certificado"}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Permite especificar horas u otra denominación exclusiva para el carnet. Si se deja vacío, tomará el título del certificado.
+          </p>
         </div>
       </div>
 

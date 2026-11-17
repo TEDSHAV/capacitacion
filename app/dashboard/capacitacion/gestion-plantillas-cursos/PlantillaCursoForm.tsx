@@ -25,6 +25,7 @@ export function PlantillaCursoForm({
   const [formData, setFormData] = useState({
     descripcion: plantilla?.descripcion || "",
     titulo_certificado: plantilla?.titulo_certificado || "",
+    titulo_carnet: plantilla?.titulo_carnet || "",
     contenido: plantilla?.contenido || "",
     id_curso: plantilla?.id_curso || "",
     id_empresa: plantilla?.id_empresa || "",
@@ -95,6 +96,7 @@ export function PlantillaCursoForm({
       ...formData,
       descripcion: formData.descripcion.toUpperCase(),
       titulo_certificado: formData.titulo_certificado.trim() || null,
+      titulo_carnet: formData.titulo_carnet?.trim() || null,
       id_curso: formData.id_curso
         ? parseInt(formData.id_curso.toString())
         : null,
@@ -264,6 +266,27 @@ export function PlantillaCursoForm({
                   Título que aparecerá en los certificados al usar esta
                   plantilla. Si lo dejas vacío se usará el nombre original del
                   curso.
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="titulo_carnet"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Título para Carnets (opcional)
+                </label>
+                <input
+                  type="text"
+                  id="titulo_carnet"
+                  name="titulo_carnet"
+                  value={formData.titulo_carnet}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Ej: Manejo de Montacargas (8 Horas)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Título que aparecerá en los carnets al usar esta plantilla (ej. para incluir horas). Si se deja vacío, tomará el título del certificado.
                 </p>
               </div>
             </div>

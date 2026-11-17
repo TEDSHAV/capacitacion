@@ -327,7 +327,14 @@ export async function GET(
               id_empresa: snapshot.osi?.empresa_id || osiData?.empresa_id,
               id_curso: snapshot.certificado?.id_curso || cert.id_curso,
               id_osi: snapshot.osi?.id_osi || osiData?.id_osi,
-              titulo_curso: certData.certificate_title,
+              titulo_curso:
+                // Prefer the stored carnet title (from the carnets row or snapshot),
+                // then fall back to the certificate title.
+                (Array.isArray(cert.carnets)
+                  ? cert.carnets.find((c: any) => c.is_active)?.titulo_curso
+                  : cert.carnets?.titulo_curso) ||
+                snapshot.certificado_detalles?.carnet_title ||
+                certData.certificate_title,
               subtitulo_curso: certData.certificate_subtitle || null,
               fecha_emision: snapshot.certificado?.fecha_emision || cert.fecha_emision,
               fecha_vencimiento: snapshot.certificado?.fecha_vencimiento || cert.fecha_vencimiento,

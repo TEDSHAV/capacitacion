@@ -667,7 +667,10 @@ export async function saveCertificatesToDatabase(
             ? parseInt(updatedCertificateData.course_topic_data.id)
             : null,
           id_osi: resolvedBatchOsiId,
-          titulo_curso: updatedCertificateData.certificate_title || "",
+          titulo_curso:
+            updatedCertificateData.carnet_title?.trim() ||
+            updatedCertificateData.certificate_title ||
+            "",
           subtitulo_curso: updatedCertificateData.certificate_subtitle || null,
           fecha_emision: batchEmissionDate,
           fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
@@ -1162,6 +1165,8 @@ function generateContentSnapshot(
 
       subtitle: updatedCertificateData.certificate_subtitle,
 
+      carnet_title: updatedCertificateData.carnet_title?.trim() || null,
+
       course_content: updatedCertificateData.course_content,
 
       skip_carnets: updatedCertificateData.skip_carnets === true,
@@ -1340,6 +1345,8 @@ function generateContentSnapshotWithControlNumbers(
 
       subtitle: certificateData.certificate_subtitle,
 
+      carnet_title: certificateData.carnet_title?.trim() || null,
+
       course_content: certificateData.course_content,
 
       skip_carnets: certificateData.skip_carnets === true,
@@ -1457,7 +1464,7 @@ export async function getCertificatesByOSIAction(osiId: string | number) {
         participantes_certificados(*),
         catalogo_servicios(nombre, emite_carnet),
         empresas(razon_social),
-        carnets(id, is_active)
+        carnets(id, is_active, titulo_curso)
       `,
       )
       .eq("is_active", true);
@@ -2140,7 +2147,10 @@ export async function updateCertificateAction(
             ? parseInt(certificateData.course_topic_data.id)
             : null,
           id_osi: editOsiId,
-          titulo_curso: certificateData.certificate_title || "",
+          titulo_curso:
+            certificateData.carnet_title?.trim() ||
+            certificateData.certificate_title ||
+            "",
           subtitulo_curso: certificateData.certificate_subtitle || null,
           fecha_emision: certificateData.date || "",
           fecha_vencimiento: certificateData.fecha_vencimiento || null,
@@ -2872,6 +2882,11 @@ export async function getBatchCertificateDetailsAction(
       snapshotData.subtitulo_curso ||
       "";
 
+    const carnet_title =
+      snapshotData.certificado_detalles?.carnet_title ||
+      snapshotData.carnet_title ||
+      "";
+
     const location = 
       snapshotData.certificado_detalles?.location || 
       snapshotData.location || 
@@ -2943,6 +2958,7 @@ export async function getBatchCertificateDetailsAction(
       data: {
         certificate_title,
         certificate_subtitle,
+        carnet_title,
         date: formatDate(snapshotData.certificado_detalles?.date || data.fecha_emision),
         fecha_vencimiento: formatDate(snapshotData.fecha_vencimiento || data.fecha_vencimiento),
         location,
@@ -3117,6 +3133,10 @@ export async function batchUpdateCertificatesAction(
               if (snapshotObj.curso) snapshotObj.curso.nombre = updates.certificate_title;
               snapshotObj.certificate_title = updates.certificate_title;
             }
+            if ('carnet_title' in updates) {
+              if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.carnet_title = updates.carnet_title?.trim() || null;
+              snapshotObj.carnet_title = updates.carnet_title?.trim() || null;
+            }
             if ('certificate_subtitle' in updates) {
               if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.subtitle = updates.certificate_subtitle;
               snapshotObj.certificate_subtitle = updates.certificate_subtitle;
@@ -3210,7 +3230,15 @@ export async function batchUpdateCertificatesAction(
         if (carnet) {
           const carnetUpdate: any = {};
           if (updates.id_curso) carnetUpdate.id_curso = updates.id_curso;
-          if ('certificate_title' in updates) carnetUpdate.titulo_curso = updates.certificate_title;
+          // carnet_title takes priority; fall back to certificate_title if only that changed
+          if ('carnet_title' in updates) {
+            carnetUpdate.titulo_curso =
+              (updates.carnet_title?.trim()) ||
+              updates.certificate_title ||
+              undefined;
+          } else if ('certificate_title' in updates) {
+            carnetUpdate.titulo_curso = updates.certificate_title;
+          }
           if ('certificate_subtitle' in updates) carnetUpdate.subtitulo_curso = updates.certificate_subtitle;
           if ('date' in updates) carnetUpdate.fecha_emision = updates.date;
           if ('fecha_vencimiento' in updates) carnetUpdate.fecha_vencimiento = updates.fecha_vencimiento;
@@ -3226,7 +3254,14 @@ export async function batchUpdateCertificatesAction(
             try {
               const cSnapshotObj = JSON.parse(carnet.snapshot_contenido);
               if (updates.id_curso) cSnapshotObj.id_curso = updates.id_curso;
-              if ('certificate_title' in updates) cSnapshotObj.titulo_curso = updates.certificate_title;
+              if ('carnet_title' in updates) {
+                cSnapshotObj.titulo_curso =
+                  (updates.carnet_title?.trim()) ||
+                  updates.certificate_title ||
+                  cSnapshotObj.titulo_curso;
+              } else if ('certificate_title' in updates) {
+                cSnapshotObj.titulo_curso = updates.certificate_title;
+              }
               if ('certificate_subtitle' in updates) cSnapshotObj.subtitulo_curso = updates.certificate_subtitle;
               if ('date' in updates) cSnapshotObj.fecha_emision = updates.date;
               if ('fecha_vencimiento' in updates) cSnapshotObj.fecha_vencimiento = updates.fecha_vencimiento;

@@ -100,6 +100,7 @@ export function BatchEditModal({
   const [updates, setUpdates] = useState<BatchUpdateData>({
     certificate_title: "",
     certificate_subtitle: "",
+    carnet_title: "",
     date: "",
     fecha_vencimiento: "",
     location: "",
@@ -194,6 +195,7 @@ export function BatchEditModal({
         setUpdates({
           certificate_title: result.data.certificate_title || "",
           certificate_subtitle: result.data.certificate_subtitle || "",
+          carnet_title: (result.data as any).carnet_title || "",
           date: result.data.date || "",
           fecha_vencimiento: result.data.fecha_vencimiento || "",
           location: result.data.location || "",
@@ -399,6 +401,7 @@ export function BatchEditModal({
         setUpdates({
           certificate_title: "",
           certificate_subtitle: "",
+          carnet_title: "",
           date: "",
           fecha_vencimiento: "",
           location: "",
@@ -702,6 +705,26 @@ export function BatchEditModal({
                     />
                     {loadingDetails && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-400" />}
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="carnet_title" className="text-sm font-semibold text-gray-700">
+                    Título del Carnet (opcional)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="carnet_title"
+                      value={updates.carnet_title ?? ""}
+                      onChange={(e) => handleUpdateChange("carnet_title", e.target.value)}
+                      className="h-11 border-gray-200 focus:border-blue-500 rounded-xl"
+                      placeholder={updates.certificate_title || "Igual al título del certificado"}
+                      disabled={loading || loadingDetails}
+                    />
+                    {loadingDetails && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-400" />}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Título exclusivo para el carnet PVC (ej. con horas). Si se deja vacío, usa el título del certificado.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -1008,6 +1031,7 @@ export function BatchEditModal({
               setUpdates({
                 certificate_title: "",
                 certificate_subtitle: "",
+                carnet_title: "",
                 date: "",
                 fecha_vencimiento: "",
                 location: "",

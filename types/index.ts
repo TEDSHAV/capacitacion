@@ -373,6 +373,7 @@ export interface CertificateGeneration {
   osi_data?: CertificateOSI;
   certificate_title: string;
   certificate_subtitle?: string;
+  carnet_title?: string; // Optional custom title for carnet (defaults to certificate_title if empty)
   passing_grade?: number; // Minimum score to pass (default 14, editable)
   course_topic_id: string;
   course_topic_data?: CourseTopic;
@@ -1264,6 +1265,7 @@ export interface ParticipantLookupResponse {
 export interface BatchUpdateData {
   certificate_title?: string;
   certificate_subtitle?: string;
+  carnet_title?: string; // Optional separate title for carnets (e.g. with hours)
   date?: string;
   fecha_vencimiento?: string;
   location?: string;

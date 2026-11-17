@@ -69,6 +69,7 @@ const createPlantillaCurso = cache(async (plantillaData: any) => {
       .insert({
         descripcion: plantillaData.descripcion.toUpperCase(),
         titulo_certificado: plantillaData.titulo_certificado ?? null,
+        titulo_carnet: plantillaData.titulo_carnet ?? null,
         contenido: plantillaData.contenido,
         id_curso: plantillaData.id_curso || null,
         id_empresa: plantillaData.id_empresa || null,
@@ -99,6 +100,7 @@ const updatePlantillaCurso = cache(async (id: number, plantillaData: any) => {
       .update({
         descripcion: plantillaData.descripcion.toUpperCase(),
         titulo_certificado: plantillaData.titulo_certificado ?? null,
+        titulo_carnet: plantillaData.titulo_carnet ?? null,
         contenido: plantillaData.contenido,
         id_curso: plantillaData.id_curso || null,
         id_empresa: plantillaData.id_empresa || null,

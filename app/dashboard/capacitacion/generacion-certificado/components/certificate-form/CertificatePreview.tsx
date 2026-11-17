@@ -279,7 +279,9 @@ export const CertificatePreview = ({
         id_empresa: null,
         id_curso: selectedCourse?.id || 0,
         id_osi: certificateData.osi_id ? parseInt(certificateData.osi_id) : 0,
-        titulo_curso: certificateData.certificate_title,
+        titulo_curso:
+          certificateData.carnet_title?.trim() ||
+          certificateData.certificate_title,
         subtitulo_curso: certificateData.certificate_subtitle || null,
         fecha_emision: certificateData.date,
         fecha_vencimiento: certificateData.fecha_vencimiento || null,
