@@ -38,6 +38,9 @@ interface BatchEditModalProps {
   onClose: () => void;
   onSuccess: () => void;
   initialOsi?: string;
+  initialCourse?: string;
+  initialDate?: string;
+  initialCourseId?: number;
 }
 
 interface OSILookup {
@@ -46,6 +49,8 @@ interface OSILookup {
   id_empresa?: number | null;
   company_name: string;
   course_name: string;
+  fecha_emision?: string | null;
+  certificate_count?: number;
 }
 
 interface FacilitatorLookup {
@@ -66,6 +71,9 @@ export function BatchEditModal({
   onClose,
   onSuccess,
   initialOsi = "",
+  initialCourse = "",
+  initialDate = "",
+  initialCourseId,
 }: BatchEditModalProps) {
   const [osiNumber, setOsiNumber] = useState(initialOsi);
   const [loading, setLoading] = useState(false);
@@ -125,7 +133,43 @@ export function BatchEditModal({
             setOsiSearchTerm(initialOsi); // Set search term to show all courses/batches for this OSI
             const numericInitial = parseInt(initialOsi.replace(/[^\d]/g, ""));
             const matches = data.filter(o => o.nro_osi === numericInitial);
-            if (matches.length === 1) {
+
+            // Try to find specific batch match if course or date params are provided
+            let specificMatch: OSILookup | undefined;
+            if (initialCourseId || initialDate || initialCourse) {
+              specificMatch = matches.find(o => {
+                const courseIdMatch = !initialCourseId || o.id_curso === initialCourseId;
+                const dateMatch = !initialDate || o.fecha_emision === initialDate;
+                const courseNameMatch = !initialCourse ||
+                  o.course_name.trim().toLowerCase() === initialCourse.trim().toLowerCase();
+                return courseIdMatch && dateMatch && courseNameMatch;
+              });
+
+              if (!specificMatch && (initialCourseId || initialDate)) {
+                specificMatch = matches.find(o => {
+                  const courseIdMatch = !initialCourseId || o.id_curso === initialCourseId;
+                  const dateMatch = !initialDate || o.fecha_emision === initialDate;
+                  return courseIdMatch && dateMatch;
+                });
+              }
+
+              if (!specificMatch && initialDate) {
+                specificMatch = matches.find(o => o.fecha_emision === initialDate);
+              }
+              if (!specificMatch && initialCourseId) {
+                specificMatch = matches.find(o => o.id_curso === initialCourseId);
+              }
+              if (!specificMatch && initialCourse) {
+                specificMatch = matches.find(o =>
+                  o.course_name.trim().toLowerCase() === initialCourse.trim().toLowerCase()
+                );
+              }
+            }
+
+            if (specificMatch) {
+              setSelectedOsiData(specificMatch);
+              handleOsiSelect(specificMatch);
+            } else if (matches.length === 1) {
               setSelectedOsiData(matches[0]);
               handleOsiSelect(matches[0]);
             } else if (matches.length > 1) {
@@ -164,7 +208,7 @@ export function BatchEditModal({
         }
       })();
     }
-  }, [isOpen, initialOsi]);
+  }, [isOpen, initialOsi, initialCourse, initialDate, initialCourseId]);
 
   // Load details when OSI is selected
   const handleOsiSelect = async (osi: OSILookup) => {
@@ -179,6 +223,7 @@ export function BatchEditModal({
         osi.id_curso,
         osi.company_name,
         osi.id_empresa,
+        osi.fecha_emision || undefined,
       );
       if (result.success && result.data) {
         const facilitatorId = result.data.id_facilitador || "";
@@ -228,7 +273,8 @@ export function BatchEditModal({
     return osis.filter(o => 
       o.nro_osi.toString().includes(term) || 
       o.company_name.toLowerCase().includes(term) || 
-      o.course_name.toLowerCase().includes(term)
+      o.course_name.toLowerCase().includes(term) ||
+      (o.fecha_emision && o.fecha_emision.includes(term))
     ).slice(0, 100);
   }, [osis, osiSearchTerm]);
 
@@ -335,6 +381,7 @@ export function BatchEditModal({
         updates.fecha_vencimiento,
         selectedOsiData.company_name,
         selectedOsiData.id_empresa,
+        selectedOsiData.fecha_emision || undefined,
       );
 
       if (res.success) {
@@ -344,6 +391,7 @@ export function BatchEditModal({
           selectedOsiData.id_curso,
           selectedOsiData.company_name,
           selectedOsiData.id_empresa,
+          selectedOsiData.fecha_emision || undefined,
         );
         if (refreshed.success && refreshed.data) {
           setBatchStats({
@@ -393,6 +441,7 @@ export function BatchEditModal({
         selectedOsiData.id_curso,
         selectedOsiData.company_name,
         selectedOsiData.id_empresa,
+        selectedOsiData.fecha_emision || undefined,
       );
       
       if (result.success) {
@@ -437,6 +486,17 @@ export function BatchEditModal({
     }
   };
 
+  const formatDisplayDate = (d?: string | null) => {
+    if (!d || d === "Sin fecha") return "";
+    try {
+      const parts = d.split("-");
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return d;
+    } catch {
+      return d;
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -464,7 +524,7 @@ export function BatchEditModal({
           <form id="batch-edit-form" onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2 relative">
               <Label className="text-sm font-semibold text-gray-700">
-                Seleccionar OSI
+                Seleccionar Lote (OSI)
               </Label>
               <div 
                 className={`w-full px-4 h-12 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${
@@ -486,11 +546,23 @@ export function BatchEditModal({
                         <span className="text-[10px] font-bold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
                           {selectedOsiData.company_name}
                         </span>
+                        {selectedOsiData.fecha_emision && (
+                          <span className="text-[10px] font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                            {formatDisplayDate(selectedOsiData.fecha_emision)}
+                          </span>
+                        )}
                       </div>
-                      <span className="text-[11px] text-gray-600 truncate font-medium">{selectedOsiData.course_name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-gray-600 truncate font-medium">{selectedOsiData.course_name}</span>
+                        {selectedOsiData.certificate_count !== undefined && (
+                          <span className="text-[10px] text-gray-500 font-medium">
+                            ({selectedOsiData.certificate_count} {selectedOsiData.certificate_count === 1 ? 'cert.' : 'certs.'})
+                          </span>
+                        )}
+                      </div>
                     </>
                   ) : (
-                    <span className="text-sm text-gray-400">Buscar por N° OSI o Empresa...</span>
+                    <span className="text-sm text-gray-400">Buscar por N° OSI, Empresa o Fecha...</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -509,7 +581,7 @@ export function BatchEditModal({
                     <input
                       type="text"
                       autoFocus
-                      placeholder="Escriba para filtrar..."
+                      placeholder="Escriba para filtrar por OSI, curso, empresa o fecha..."
                       value={osiSearchTerm}
                       onChange={(e) => setOsiSearchTerm(e.target.value)}
                       className="w-full bg-transparent border-none focus:ring-0 text-sm p-0 h-6"
@@ -522,11 +594,12 @@ export function BatchEditModal({
                         const isSelected =
                           selectedOsiData?.nro_osi === osi.nro_osi &&
                           selectedOsiData?.id_curso === osi.id_curso &&
+                          selectedOsiData?.fecha_emision === osi.fecha_emision &&
                           selectedOsiData?.company_name.trim().toLowerCase() === osi.company_name.trim().toLowerCase();
 
                         return (
                           <div
-                            key={`${osi.nro_osi}-${osi.id_curso}-${osi.company_name}`}
+                            key={`${osi.nro_osi}-${osi.id_curso}-${osi.fecha_emision || 'none'}-${osi.company_name}`}
                             onClick={() => handleOsiSelect(osi)}
                             className={`px-4 py-3 cursor-pointer flex items-center justify-between hover:bg-blue-50 transition-colors ${
                               isSelected ? "bg-blue-50" : ""
@@ -540,8 +613,20 @@ export function BatchEditModal({
                                 <span className="text-[10px] font-bold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
                                   {osi.company_name}
                                 </span>
+                                {osi.fecha_emision && (
+                                  <span className="text-[10px] font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                                    {formatDisplayDate(osi.fecha_emision)}
+                                  </span>
+                                )}
                               </div>
-                              <span className="text-[11px] text-gray-600 truncate font-medium mt-0.5">{osi.course_name}</span>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[11px] text-gray-600 truncate font-medium">{osi.course_name}</span>
+                                {osi.certificate_count !== undefined && (
+                                  <span className="text-[10px] text-gray-500 font-medium">
+                                    ({osi.certificate_count} {osi.certificate_count === 1 ? 'cert.' : 'certs.'})
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             {isSelected && (
                               <Check className="h-4 w-4 text-blue-600 shrink-0" />
@@ -551,7 +636,7 @@ export function BatchEditModal({
                       })
                     ) : (
                       <div className="px-4 py-8 text-center text-gray-500 text-sm italic">
-                        No se encontraron OSIs con certificados activos
+                        No se encontraron lotes con certificados activos
                       </div>
                     )}
                   </div>
@@ -560,7 +645,7 @@ export function BatchEditModal({
 
               <p className="text-[11px] text-amber-600 flex items-center gap-1 font-medium">
                 <AlertCircle className="h-3 w-3" />
-                Se actualizarán solo los certificados del curso y empresa seleccionados bajo esta OSI.
+                Se actualizarán únicamente los certificados del lote seleccionado (curso, fecha y empresa bajo esta OSI).
               </p>
             </div>
             

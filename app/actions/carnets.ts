@@ -719,6 +719,7 @@ export async function generateCarnetsForBatchAction(
   customFechaVencimiento?: string,
   companyName?: string,
   idEmpresa?: number | null,
+  emissionDate?: string | null,
 ): Promise<{
   success: boolean;
   message: string;
@@ -736,7 +737,7 @@ export async function generateCarnetsForBatchAction(
       };
     }
 
-    // 1. Fetch active certificates for this OSI (and course/company if specified)
+    // 1. Fetch active certificates for this OSI (and course/company/date if specified)
     let query = supabase
       .from("certificados")
       .select(`
@@ -775,6 +776,9 @@ export async function generateCarnetsForBatchAction(
     }
     if (idEmpresa) {
       query = query.eq("id_empresa", idEmpresa);
+    }
+    if (emissionDate) {
+      query = query.eq("fecha_emision", emissionDate);
     }
 
     const { data: rawCertificates, error: certError } = await query;

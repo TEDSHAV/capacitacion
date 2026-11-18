@@ -2731,6 +2731,8 @@ export async function getOSIsWithCertificatesAction(): Promise<{
   id_empresa?: number | null;
   company_name: string;
   course_name: string;
+  fecha_emision?: string | null;
+  certificate_count?: number;
 }[]> {
   try {
     const supabase = await createClient();
@@ -2741,6 +2743,7 @@ export async function getOSIsWithCertificatesAction(): Promise<{
         nro_osi,
         id_curso,
         id_empresa,
+        fecha_emision,
         snapshot_contenido,
         empresas(razon_social),
         catalogo_servicios(nombre)
@@ -2752,11 +2755,12 @@ export async function getOSIsWithCertificatesAction(): Promise<{
 
     if (error) throw error;
 
-    // Use a Map to keep unique OSI-Course-Company combinations
-    const osiMap = new Map<string, { nro_osi: number; id_curso: number; id_empresa?: number | null; company_name: string; course_name: string }>();
-
+    // Use a Map to keep unique OSI-Course-EmissionDate-Company combinations
+    const osiMap = new Map<string, { nro_osi: number; id_curso: number; id_empresa?: number | null; company_name: string; course_name: string; fecha_emision?: string | null; certificate_count?: number }>();
     data?.forEach((item: any) => {
       let snapCompanyName: string | null = null;
+      let snapCourseName: string | null = null;
+      let snapDate: string | null = null;
       if (item.snapshot_contenido) {
         try {
           const snap =
@@ -2768,6 +2772,8 @@ export async function getOSIsWithCertificatesAction(): Promise<{
             snap?.cliente?.nombre_empresa ||
             snap?.empresa?.razon_social ||
             null;
+          snapCourseName = snap?.curso?.nombre || snap?.certificado_detalles?.title || null;
+          snapDate = snap?.certificado_detalles?.date || snap?.certificado?.fecha_emision || null;
         } catch {
           // ignore parsing error
         }
@@ -2776,9 +2782,10 @@ export async function getOSIsWithCertificatesAction(): Promise<{
       const company = Array.isArray(item.empresas) ? item.empresas[0] : item.empresas;
       const companyName = (snapCompanyName || company?.razon_social || "S/N").trim();
       const course = Array.isArray(item.catalogo_servicios) ? item.catalogo_servicios[0] : item.catalogo_servicios;
-      const courseName = course?.nombre || "S/N";
+      const courseName = course?.nombre || snapCourseName || "S/N";
+      const emissionDate = item.fecha_emision || snapDate || null;
 
-      const key = `${item.nro_osi}-${item.id_curso}-${companyName.toLowerCase()}`;
+      const key = `${item.nro_osi}-${item.id_curso}-${emissionDate || "sin-fecha"}-${companyName.toLowerCase()}`;
       if (!osiMap.has(key)) {
         osiMap.set(key, {
           nro_osi: item.nro_osi,
@@ -2786,7 +2793,12 @@ export async function getOSIsWithCertificatesAction(): Promise<{
           id_empresa: item.id_empresa || null,
           company_name: companyName,
           course_name: courseName,
+          fecha_emision: emissionDate,
+          certificate_count: 1,
         });
+      } else {
+        const existing = osiMap.get(key)!;
+        existing.certificate_count = (existing.certificate_count || 0) + 1;
       }
     });
 
@@ -2805,6 +2817,7 @@ export async function getBatchCertificateDetailsAction(
   courseId?: number,
   companyName?: string,
   idEmpresa?: number | null,
+  emissionDate?: string | null,
 ) {
   try {
     const supabase = await createClient();
@@ -2831,6 +2844,9 @@ export async function getBatchCertificateDetailsAction(
     }
     if (idEmpresa) {
       query = query.eq("id_empresa", idEmpresa);
+    }
+    if (emissionDate) {
+      query = query.eq("fecha_emision", emissionDate);
     }
 
     const { data: certRows, error } = await query;
@@ -3002,6 +3018,7 @@ export async function batchUpdateCertificatesAction(
   courseId?: number,
   companyName?: string,
   idEmpresa?: number | null,
+  emissionDate?: string | null,
 ): Promise<BatchUpdateResult> {
   try {
     const supabase = await createClient();
@@ -3017,6 +3034,9 @@ export async function batchUpdateCertificatesAction(
     }
     if (idEmpresa) {
       query = query.eq("id_empresa", idEmpresa);
+    }
+    if (emissionDate) {
+      query = query.eq("fecha_emision", emissionDate);
     }
 
     const { data: rawCertificates, error: fetchError } = await query;
@@ -3336,6 +3356,7 @@ export async function batchUpdateCertificatesAction(
           updates.fecha_vencimiento,
           effectiveCompany,
           effectiveIdEmpresa,
+          updates.date || emissionDate || undefined,
         );
         if (carnetGenResult.success) {
           generatedCarnetsCount = carnetGenResult.generatedCount || 0;

@@ -130,6 +130,8 @@ export default function OSIDetailsModalV2({
           date,
           course,
           company,
+          id_curso: cert.id_curso || snapshot?.curso?.id || snapshot?.certificado?.id_curso || null,
+          id_empresa: cert.id_empresa || null,
           certificates: [],
         });
       }
@@ -328,7 +330,7 @@ export default function OSIDetailsModalV2({
                             </div>
                             <div className="flex items-center gap-2">
                               <a
-                                href={`/dashboard/capacitacion/gestion-certificados?batchOsi=${osi.nro_osi}`}
+                                href={`/dashboard/capacitacion/gestion-certificados?batchOsi=${osi.nro_osi}${batch.date && batch.date !== "Sin fecha" ? `&batchDate=${encodeURIComponent(batch.date)}` : ""}${batch.id_curso ? `&batchCourseId=${batch.id_curso}` : ""}&batchCourse=${encodeURIComponent(batch.course || "")}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-900 bg-white hover:bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200 shadow-sm transition-all"

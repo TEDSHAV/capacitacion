@@ -30,6 +30,9 @@ import {
 export default function GestionCertificadosPage() {
   const searchParams = useSearchParams();
   const batchOsiParam = searchParams.get("batchOsi") || searchParams.get("osi");
+  const batchCourseParam = searchParams.get("batchCourse") || searchParams.get("course");
+  const batchDateParam = searchParams.get("batchDate") || searchParams.get("date");
+  const batchCourseIdParam = searchParams.get("batchCourseId") || searchParams.get("courseId");
   const isOnline = useOnlineStatus();
   const { addToast } = useToast();
   const [filters, setFilters] = useState<CertificateFilters>({});
@@ -307,6 +310,9 @@ export default function GestionCertificadosPage() {
             ? filters.searchTerm
             : "")
         }
+        initialCourse={batchCourseParam || undefined}
+        initialDate={batchDateParam || undefined}
+        initialCourseId={batchCourseIdParam ? parseInt(batchCourseIdParam, 10) : undefined}
       />
 
       {/* Anular Certificate Modal */}
