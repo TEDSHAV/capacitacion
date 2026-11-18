@@ -123,6 +123,52 @@ capacitacion@shadevenezuela.com.ve`,
     };
   }
 
+  if (eventType === "asignacion_facilitador") {
+    return {
+      data: {
+        id: -2,
+        name: "Confirmación de Asignación a Facilitador",
+        slug: "confirmacion-asignacion-facilitador",
+        event_type: "asignacion_facilitador",
+        subject: "🚀 Nueva Asignación Confirmada — OSI {{nro_osi}}",
+        body: `¡Hola {{facilitador_nombre}}!
+
+Te confirmamos que has sido asignado/a como facilitador para la siguiente actividad de capacitación:
+
+1. Detalles del Servicio:
+• 📋 N° OSI: {{nro_osi}}
+• 📚 Curso / Tema: {{curso}}
+• 🏢 Cliente / Empresa: {{empresa}}
+• 📅 Fecha(s): {{fechas}}
+• ⏰ Horario: {{horario}}
+• ⏱ Duración Total: {{duracion}} horas
+• 📍 Modalidad: {{modalidad}}
+• 📌 Ubicación / Dirección: {{direccion}}
+
+2. Contacto en Sitio / Coordinación:
+• 👤 Persona de Contacto: {{contacto}}
+• 📞 Teléfono: {{telefono}}
+
+3. Observaciones / Instrucciones Especiales:
+{{observaciones}}
+
+Por favor, confirma la recepción de este mensaje y tu disponibilidad final para esta actividad respondiendo a este correo o por WhatsApp.
+
+¡Mucho éxito en la jornada!
+
+Atentamente,
+Coordinación de Capacitación
+SHA de Venezuela, C.A.`,
+        is_default: true,
+        is_active: true,
+        created_by: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      error: null,
+    };
+  }
+
   return { data: null, error: null };
 }
 
