@@ -374,6 +374,7 @@ export interface CertificateGeneration {
   certificate_title: string;
   certificate_subtitle?: string;
   carnet_title?: string; // Optional custom title for carnet (defaults to certificate_title if empty)
+  carnet_subtitle?: string; // Optional custom subtitle for carnet (defaults to certificate_subtitle if empty)
   passing_grade?: number; // Minimum score to pass (default 14, editable)
   course_topic_id: string;
   course_topic_data?: CourseTopic;
@@ -1266,6 +1267,7 @@ export interface BatchUpdateData {
   certificate_title?: string;
   certificate_subtitle?: string;
   carnet_title?: string; // Optional separate title for carnets (e.g. with hours)
+  carnet_subtitle?: string; // Optional separate subtitle for carnets (e.g. (40 hrs))
   date?: string;
   fecha_vencimiento?: string;
   location?: string;

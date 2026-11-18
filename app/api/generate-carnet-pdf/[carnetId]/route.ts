@@ -135,6 +135,8 @@ export async function GET(
         titulo_curso: carnet.titulo_curso || snapshotData?.titulo_curso || "",
         subtitulo_curso:
           carnet.subtitulo_curso ||
+          snapshotData?.certificado_detalles?.carnet_subtitle ||
+          snapshotData?.carnet_subtitle ||
           snapshotData?.subtitulo_curso ||
           snapshotData?.certificado_detalles?.subtitle ||
           null,

@@ -54,6 +54,9 @@ export const CourseTemplateSection = ({
         "carnet_title",
         template?.titulo_carnet || titleToUse,
       );
+      if (template?.subtitulo_carnet) {
+        onDataChange("carnet_subtitle", template.subtitulo_carnet);
+      }
     } else {
       onDataChange(
         "course_content",
@@ -61,6 +64,7 @@ export const CourseTemplateSection = ({
       );
       onDataChange("certificate_title", selectedCourseTopic?.nombre || "");
       onDataChange("carnet_title", selectedCourseTopic?.nombre || "");
+      onDataChange("carnet_subtitle", "");
     }
   };
 

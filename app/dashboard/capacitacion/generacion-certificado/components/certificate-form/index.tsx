@@ -371,22 +371,44 @@ export const CertificateForm = ({
         </div>
       </div>
 
-      {/* Certificate Subtitle */}
-      <div className="mb-4">
-        <label
-          htmlFor="certificate_subtitle"
-          className="block text-sm font-medium text-gray-700 mb-2"
-        >
-          Subtítulo (Opcional)
-        </label>
-        <input
-          type="text"
-          id="certificate_subtitle"
-          value={certificateData.certificate_subtitle || ""}
-          onChange={(e) => onDataChange("certificate_subtitle", e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Ej: 5 toneladas"
-        />
+      {/* Subtitles: Certificado and Carnet */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label
+            htmlFor="certificate_subtitle"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Subtítulo del Certificado (opcional)
+          </label>
+          <input
+            type="text"
+            id="certificate_subtitle"
+            value={certificateData.certificate_subtitle || ""}
+            onChange={(e) => onDataChange("certificate_subtitle", e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Ej: 5 toneladas"
+          />
+        </div>
+
+        <div id="field-carnet_subtitle">
+          <label
+            htmlFor="carnet_subtitle"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Subtítulo del Carnet (opcional)
+          </label>
+          <input
+            type="text"
+            id="carnet_subtitle"
+            value={certificateData.carnet_subtitle || ""}
+            onChange={(e) => onDataChange("carnet_subtitle", e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder={certificateData.certificate_subtitle || "Ej: (40 hrs)"}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Centrado debajo del título en el carnet con tamaño reducido (ideal para horas). Si se deja vacío, toma el subtítulo del certificado.
+          </p>
+        </div>
       </div>
 
       {/* Passing Grade */}

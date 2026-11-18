@@ -101,6 +101,7 @@ export function BatchEditModal({
     certificate_title: "",
     certificate_subtitle: "",
     carnet_title: "",
+    carnet_subtitle: "",
     date: "",
     fecha_vencimiento: "",
     location: "",
@@ -196,6 +197,7 @@ export function BatchEditModal({
           certificate_title: result.data.certificate_title || "",
           certificate_subtitle: result.data.certificate_subtitle || "",
           carnet_title: (result.data as any).carnet_title || "",
+          carnet_subtitle: (result.data as any).carnet_subtitle || "",
           date: result.data.date || "",
           fecha_vencimiento: result.data.fecha_vencimiento || "",
           location: result.data.location || "",
@@ -402,6 +404,7 @@ export function BatchEditModal({
           certificate_title: "",
           certificate_subtitle: "",
           carnet_title: "",
+          carnet_subtitle: "",
           date: "",
           fecha_vencimiento: "",
           location: "",
@@ -723,7 +726,27 @@ export function BatchEditModal({
                     {loadingDetails && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-400" />}
                   </div>
                   <p className="text-xs text-gray-500">
-                    Título exclusivo para el carnet PVC (ej. con horas). Si se deja vacío, usa el título del certificado.
+                    Título exclusivo para el carnet PVC. Si se deja vacío, usa el título del certificado.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="carnet_subtitle" className="text-sm font-semibold text-gray-700">
+                    Subtítulo del Carnet (opcional)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="carnet_subtitle"
+                      value={updates.carnet_subtitle ?? ""}
+                      onChange={(e) => handleUpdateChange("carnet_subtitle", e.target.value)}
+                      className="h-11 border-gray-200 focus:border-blue-500 rounded-xl"
+                      placeholder={updates.certificate_subtitle || "Ej: (40 hrs)"}
+                      disabled={loading || loadingDetails}
+                    />
+                    {loadingDetails && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-400" />}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Subtítulo centrado en fuente reducida (6pt) debajo del título del carnet. Si se deja vacío, usa el subtítulo del certificado.
                   </p>
                 </div>
 
@@ -1032,6 +1055,7 @@ export function BatchEditModal({
                 certificate_title: "",
                 certificate_subtitle: "",
                 carnet_title: "",
+                carnet_subtitle: "",
                 date: "",
                 fecha_vencimiento: "",
                 location: "",

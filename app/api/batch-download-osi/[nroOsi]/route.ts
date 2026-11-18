@@ -335,7 +335,13 @@ export async function GET(
                   : cert.carnets?.titulo_curso) ||
                 snapshot.certificado_detalles?.carnet_title ||
                 certData.certificate_title,
-              subtitulo_curso: certData.certificate_subtitle || null,
+              subtitulo_curso:
+                (Array.isArray(cert.carnets)
+                  ? cert.carnets.find((c: any) => c.is_active)?.subtitulo_curso
+                  : cert.carnets?.subtitulo_curso) ||
+                snapshot.certificado_detalles?.carnet_subtitle ||
+                certData.certificate_subtitle ||
+                null,
               fecha_emision: snapshot.certificado?.fecha_emision || cert.fecha_emision,
               fecha_vencimiento: snapshot.certificado?.fecha_vencimiento || cert.fecha_vencimiento,
               nombre_participante: participant.name,

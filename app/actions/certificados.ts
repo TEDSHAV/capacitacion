@@ -405,8 +405,8 @@ export async function saveCertificatesToDatabase(
         nro_osi: updatedCertificateData.osi_data?.nro_osi
           ? typeof updatedCertificateData.osi_data.nro_osi === "string"
             ? parseInt(
-                updatedCertificateData.osi_data.nro_osi.replace(/[^\d]/g, ""),
-              ) || null
+              updatedCertificateData.osi_data.nro_osi.replace(/[^\d]/g, ""),
+            ) || null
             : updatedCertificateData.osi_data.nro_osi
           : null, // Handle string to number conversion
 
@@ -671,7 +671,10 @@ export async function saveCertificatesToDatabase(
             updatedCertificateData.carnet_title?.trim() ||
             updatedCertificateData.certificate_title ||
             "",
-          subtitulo_curso: updatedCertificateData.certificate_subtitle || null,
+          subtitulo_curso:
+            updatedCertificateData.carnet_subtitle?.trim() ||
+            updatedCertificateData.certificate_subtitle ||
+            null,
           fecha_emision: batchEmissionDate,
           fecha_vencimiento: updatedCertificateData.fecha_vencimiento || null,
           nombre_participante: participants[index].name,
@@ -948,7 +951,7 @@ async function createOrUpdateParticipant(
         // Update the participant object to use the new format for snapshot generation
         participant.nationality = (
           existingParticipant.nacionalidad === "V-" ||
-          existingParticipant.nacionalidad === "E-"
+            existingParticipant.nacionalidad === "E-"
             ? existingParticipant.nacionalidad === "V-"
               ? "venezolano"
               : "extranjero"
@@ -1167,6 +1170,8 @@ function generateContentSnapshot(
 
       carnet_title: updatedCertificateData.carnet_title?.trim() || null,
 
+      carnet_subtitle: updatedCertificateData.carnet_subtitle?.trim() || null,
+
       course_content: updatedCertificateData.course_content,
 
       skip_carnets: updatedCertificateData.skip_carnets === true,
@@ -1347,6 +1352,8 @@ function generateContentSnapshotWithControlNumbers(
 
       carnet_title: certificateData.carnet_title?.trim() || null,
 
+      carnet_subtitle: certificateData.carnet_subtitle?.trim() || null,
+
       course_content: certificateData.course_content,
 
       skip_carnets: certificateData.skip_carnets === true,
@@ -1464,7 +1471,7 @@ export async function getCertificatesByOSIAction(osiId: string | number) {
         participantes_certificados(*),
         catalogo_servicios(nombre, emite_carnet),
         empresas(razon_social),
-        carnets(id, is_active, titulo_curso)
+        carnets(id, is_active, titulo_curso, subtitulo_curso)
       `,
       )
       .eq("is_active", true);
@@ -1527,7 +1534,7 @@ export async function getPreviousParticipantsByOSIAction(
       participant_id_number: cert.participantes_certificados?.cedula || "",
       participant_id_type:
         cert.participantes_certificados?.nacionalidad === "extranjero" ||
-        cert.participantes_certificados?.cedula?.startsWith("E")
+          cert.participantes_certificados?.cedula?.startsWith("E")
           ? "E-"
           : "V-",
       participant_nationality: cert.participantes_certificados?.nacionalidad,
@@ -2067,8 +2074,8 @@ export async function updateCertificateAction(
         nro_osi: certificateData.osi_data?.nro_osi
           ? typeof certificateData.osi_data.nro_osi === "string"
             ? parseInt(
-                certificateData.osi_data.nro_osi.replace(/[^\d]/g, ""),
-              ) || null
+              certificateData.osi_data.nro_osi.replace(/[^\d]/g, ""),
+            ) || null
             : certificateData.osi_data.nro_osi
           : null,
         id_facilitador: certificateData.facilitator_id
@@ -2151,7 +2158,10 @@ export async function updateCertificateAction(
             certificateData.carnet_title?.trim() ||
             certificateData.certificate_title ||
             "",
-          subtitulo_curso: certificateData.certificate_subtitle || null,
+          subtitulo_curso:
+            certificateData.carnet_subtitle?.trim() ||
+            certificateData.certificate_subtitle ||
+            null,
           fecha_emision: certificateData.date || "",
           fecha_vencimiento: certificateData.fecha_vencimiento || null,
           nombre_participante: participant.name.toUpperCase(),
@@ -2744,7 +2754,7 @@ export async function getOSIsWithCertificatesAction(): Promise<{
 
     // Use a Map to keep unique OSI-Course-Company combinations
     const osiMap = new Map<string, { nro_osi: number; id_curso: number; id_empresa?: number | null; company_name: string; course_name: string }>();
-    
+
     data?.forEach((item: any) => {
       let snapCompanyName: string | null = null;
       if (item.snapshot_contenido) {
@@ -2844,7 +2854,7 @@ export async function getBatchCertificateDetailsAction(
               snap?.cliente?.nombre_empresa ||
               snap?.empresa?.razon_social ||
               "";
-          } catch {}
+          } catch { }
         }
         const dbComp = Array.isArray(r.empresas)
           ? r.empresas[0]?.razon_social
@@ -2869,16 +2879,16 @@ export async function getBatchCertificateDetailsAction(
     }
 
     // Try multiple levels of nesting for resilience
-    const certificate_title = 
-      snapshotData.certificado_detalles?.title || 
-      snapshotData.certificate_title || 
+    const certificate_title =
+      snapshotData.certificado_detalles?.title ||
+      snapshotData.certificate_title ||
       snapshotData.titulo_curso ||
       (Array.isArray(data.catalogo_servicios) ? data.catalogo_servicios[0]?.nombre : (data.catalogo_servicios as any)?.nombre) ||
       "";
 
-    const certificate_subtitle = 
-      snapshotData.certificado_detalles?.subtitle || 
-      snapshotData.certificate_subtitle || 
+    const certificate_subtitle =
+      snapshotData.certificado_detalles?.subtitle ||
+      snapshotData.certificate_subtitle ||
       snapshotData.subtitulo_curso ||
       "";
 
@@ -2887,18 +2897,23 @@ export async function getBatchCertificateDetailsAction(
       snapshotData.carnet_title ||
       "";
 
-    const location = 
-      snapshotData.certificado_detalles?.location || 
-      snapshotData.location || 
+    const carnet_subtitle =
+      snapshotData.certificado_detalles?.carnet_subtitle ||
+      snapshotData.carnet_subtitle ||
       "";
 
-    const horas_estimadas = 
-      snapshotData.certificado_detalles?.horas_estimadas?.toString() || 
+    const location =
+      snapshotData.certificado_detalles?.location ||
+      snapshotData.location ||
       "";
 
-    const id_facilitador = 
-      data.id_facilitador?.toString() || 
-      snapshotData.firmas?.facilitator_id?.toString() || 
+    const horas_estimadas =
+      snapshotData.certificado_detalles?.horas_estimadas?.toString() ||
+      "";
+
+    const id_facilitador =
+      data.id_facilitador?.toString() ||
+      snapshotData.firmas?.facilitator_id?.toString() ||
       "";
 
     const course_content =
@@ -2959,6 +2974,7 @@ export async function getBatchCertificateDetailsAction(
         certificate_title,
         certificate_subtitle,
         carnet_title,
+        carnet_subtitle,
         date: formatDate(snapshotData.certificado_detalles?.date || data.fecha_emision),
         fecha_vencimiento: formatDate(snapshotData.fecha_vencimiento || data.fecha_vencimiento),
         location,
@@ -3023,7 +3039,7 @@ export async function batchUpdateCertificatesAction(
               snap?.cliente?.nombre_empresa ||
               snap?.empresa?.razon_social ||
               "";
-          } catch {}
+          } catch { }
         }
         const dbComp = Array.isArray(r.empresas)
           ? r.empresas[0]?.razon_social
@@ -3121,7 +3137,7 @@ export async function batchUpdateCertificatesAction(
         if (cert.snapshot_contenido) {
           try {
             const snapshotObj = JSON.parse(cert.snapshot_contenido);
-            
+
             // Handle both flat and nested structures for robustness
             if (updates.id_curso) {
               if (snapshotObj.certificado) snapshotObj.certificado.id_curso = updates.id_curso;
@@ -3136,6 +3152,10 @@ export async function batchUpdateCertificatesAction(
             if ('carnet_title' in updates) {
               if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.carnet_title = updates.carnet_title?.trim() || null;
               snapshotObj.carnet_title = updates.carnet_title?.trim() || null;
+            }
+            if ('carnet_subtitle' in updates) {
+              if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.carnet_subtitle = updates.carnet_subtitle?.trim() || null;
+              snapshotObj.carnet_subtitle = updates.carnet_subtitle?.trim() || null;
             }
             if ('certificate_subtitle' in updates) {
               if (snapshotObj.certificado_detalles) snapshotObj.certificado_detalles.subtitle = updates.certificate_subtitle;
@@ -3202,7 +3222,7 @@ export async function batchUpdateCertificatesAction(
                 snapshotObj.osi.id_ciudad = targetOsiData.id_ciudad_direccion_ejecucion_efectiva;
               }
             }
-            
+
             finalSnapshot = JSON.stringify(snapshotObj, null, 2);
             dbUpdate.snapshot_contenido = finalSnapshot;
           } catch (e) {
@@ -3239,7 +3259,11 @@ export async function batchUpdateCertificatesAction(
           } else if ('certificate_title' in updates) {
             carnetUpdate.titulo_curso = updates.certificate_title;
           }
-          if ('certificate_subtitle' in updates) carnetUpdate.subtitulo_curso = updates.certificate_subtitle;
+          if ('carnet_subtitle' in updates) {
+            carnetUpdate.subtitulo_curso = (updates.carnet_subtitle?.trim()) || updates.certificate_subtitle || null;
+          } else if ('certificate_subtitle' in updates) {
+            carnetUpdate.subtitulo_curso = updates.certificate_subtitle;
+          }
           if ('date' in updates) carnetUpdate.fecha_emision = updates.date;
           if ('fecha_vencimiento' in updates) carnetUpdate.fecha_vencimiento = updates.fecha_vencimiento;
           if (targetOsiData) {
@@ -3262,7 +3286,11 @@ export async function batchUpdateCertificatesAction(
               } else if ('certificate_title' in updates) {
                 cSnapshotObj.titulo_curso = updates.certificate_title;
               }
-              if ('certificate_subtitle' in updates) cSnapshotObj.subtitulo_curso = updates.certificate_subtitle;
+              if ('carnet_subtitle' in updates) {
+                cSnapshotObj.subtitulo_curso = (updates.carnet_subtitle?.trim()) || updates.certificate_subtitle || null;
+              } else if ('certificate_subtitle' in updates) {
+                cSnapshotObj.subtitulo_curso = updates.certificate_subtitle;
+              }
               if ('date' in updates) cSnapshotObj.fecha_emision = updates.date;
               if ('fecha_vencimiento' in updates) cSnapshotObj.fecha_vencimiento = updates.fecha_vencimiento;
               if (targetOsiData) {
@@ -3271,7 +3299,7 @@ export async function batchUpdateCertificatesAction(
                   cSnapshotObj.id_empresa = targetOsiData.id_empresa;
                 }
               }
-              
+
               carnetSnapshot = JSON.stringify(cSnapshotObj, null, 2);
               carnetUpdate.snapshot_contenido = carnetSnapshot;
             } catch (e) {

@@ -282,7 +282,10 @@ export const CertificatePreview = ({
         titulo_curso:
           certificateData.carnet_title?.trim() ||
           certificateData.certificate_title,
-        subtitulo_curso: certificateData.certificate_subtitle || null,
+        subtitulo_curso:
+          certificateData.carnet_subtitle?.trim() ||
+          certificateData.certificate_subtitle ||
+          null,
         fecha_emision: certificateData.date,
         fecha_vencimiento: certificateData.fecha_vencimiento || null,
         nombre_participante: previewParticipant.name,

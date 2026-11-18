@@ -5222,6 +5222,7 @@ export type Database = {
           id_curso: number | null
           id_empresa: number | null
           is_active: boolean | null
+          subtitulo_carnet: string | null
           titulo_carnet: string | null
           titulo_certificado: string | null
         }
@@ -5233,6 +5234,7 @@ export type Database = {
           id_curso?: number | null
           id_empresa?: number | null
           is_active?: boolean | null
+          subtitulo_carnet?: string | null
           titulo_carnet?: string | null
           titulo_certificado?: string | null
         }
@@ -5244,6 +5246,7 @@ export type Database = {
           id_curso?: number | null
           id_empresa?: number | null
           is_active?: boolean | null
+          subtitulo_carnet?: string | null
           titulo_carnet?: string | null
           titulo_certificado?: string | null
         }

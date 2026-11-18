@@ -84,6 +84,7 @@ export default function GeneracionCertificadoClient({
       certificate_title: "",
       certificate_subtitle: "",
       carnet_title: "",
+      carnet_subtitle: "",
       passing_grade: 14,
       course_topic_id: "",
       course_topic_data: undefined,
@@ -251,6 +252,10 @@ export default function GeneracionCertificadoClient({
         carnet_title:
           snapshot?.certificado_detalles?.carnet_title ||
           snapshot?.carnet_title ||
+          "",
+        carnet_subtitle:
+          snapshot?.certificado_detalles?.carnet_subtitle ||
+          snapshot?.subtitulo_carnet ||
           "",
         passing_grade: snapshot?.certificado_detalles?.passing_grade || 14,
         course_topic_id: certificate.id_curso?.toString() || "",
@@ -483,6 +488,7 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
         passing_grade: 14,
         certificate_title: "",
         carnet_title: "",
+        carnet_subtitle: "",
         location: "",
         horas_estimadas: undefined,
         facilitator_id: undefined,
@@ -1547,7 +1553,10 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
                     titulo_curso:
                       certificateData.carnet_title?.trim() ||
                       certificateData.certificate_title,
-                    subtitulo_curso: certificateData.certificate_subtitle || null,
+                    subtitulo_curso:
+                      certificateData.carnet_subtitle?.trim() ||
+                      certificateData.certificate_subtitle ||
+                      null,
                     fecha_emision: certificateData.date,
                     fecha_vencimiento:
                       certificateData.fecha_vencimiento || null,
@@ -1799,6 +1808,7 @@ function findBestCourseMatch(osi: CertificateOSI, allCourses: CourseTopic[]): Co
         osi_id: "",
         certificate_title: "",
         carnet_title: "",
+        carnet_subtitle: "",
         certificate_subtitle: "",
         passing_grade: 14,
         course_topic_id: "",
