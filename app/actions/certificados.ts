@@ -786,6 +786,7 @@ export async function saveCertificatesToDatabase(
       }
     }
 
+    invalidateOSIBatchesCache();
     return {
       success: true,
 
@@ -2722,10 +2723,30 @@ export async function getFacilitatorsForFilters(): Promise<
   }
 }
 
+// In-memory cache for unique OSI batches to make modal loading instant
+let osiBatchesCache: {
+  data: {
+    nro_osi: number;
+    id_curso: number;
+    id_empresa?: number | null;
+    company_name: string;
+    course_name: string;
+    fecha_emision?: string | null;
+    certificate_count?: number;
+  }[];
+  timestamp: number;
+} | null = null;
+
+const OSI_BATCHES_CACHE_TTL = 30_000; // 30 seconds
+
+export function invalidateOSIBatchesCache() {
+  osiBatchesCache = null;
+}
+
 /**
  * Get unique OSIs that have active certificates, divided by course and client company
  */
-export async function getOSIsWithCertificatesAction(): Promise<{
+export async function getOSIsWithCertificatesAction(forceRefresh = false): Promise<{
   nro_osi: number;
   id_curso: number;
   id_empresa?: number | null;
@@ -2735,8 +2756,14 @@ export async function getOSIsWithCertificatesAction(): Promise<{
   certificate_count?: number;
 }[]> {
   try {
+    if (!forceRefresh && osiBatchesCache && (Date.now() - osiBatchesCache.timestamp < OSI_BATCHES_CACHE_TTL)) {
+      return osiBatchesCache.data;
+    }
+
     const supabase = await createClient();
 
+    // Do NOT select snapshot_contenido here! It is ~32MB of JSON data that slows down loading by ~6-7 seconds.
+    // Instead, query the relational fields directly.
     const { data, error } = await supabase
       .from("certificados")
       .select(`
@@ -2744,7 +2771,6 @@ export async function getOSIsWithCertificatesAction(): Promise<{
         id_curso,
         id_empresa,
         fecha_emision,
-        snapshot_contenido,
         empresas(razon_social),
         catalogo_servicios(nombre)
       `)
@@ -2758,32 +2784,11 @@ export async function getOSIsWithCertificatesAction(): Promise<{
     // Use a Map to keep unique OSI-Course-EmissionDate-Company combinations
     const osiMap = new Map<string, { nro_osi: number; id_curso: number; id_empresa?: number | null; company_name: string; course_name: string; fecha_emision?: string | null; certificate_count?: number }>();
     data?.forEach((item: any) => {
-      let snapCompanyName: string | null = null;
-      let snapCourseName: string | null = null;
-      let snapDate: string | null = null;
-      if (item.snapshot_contenido) {
-        try {
-          const snap =
-            typeof item.snapshot_contenido === "string"
-              ? JSON.parse(item.snapshot_contenido)
-              : item.snapshot_contenido;
-          snapCompanyName =
-            snap?.osi?.cliente_nombre_empresa ||
-            snap?.cliente?.nombre_empresa ||
-            snap?.empresa?.razon_social ||
-            null;
-          snapCourseName = snap?.curso?.nombre || snap?.certificado_detalles?.title || null;
-          snapDate = snap?.certificado_detalles?.date || snap?.certificado?.fecha_emision || null;
-        } catch {
-          // ignore parsing error
-        }
-      }
-
       const company = Array.isArray(item.empresas) ? item.empresas[0] : item.empresas;
-      const companyName = (snapCompanyName || company?.razon_social || "S/N").trim();
+      const companyName = (company?.razon_social || "S/N").trim();
       const course = Array.isArray(item.catalogo_servicios) ? item.catalogo_servicios[0] : item.catalogo_servicios;
-      const courseName = course?.nombre || snapCourseName || "S/N";
-      const emissionDate = item.fecha_emision || snapDate || null;
+      const courseName = course?.nombre || "S/N";
+      const emissionDate = item.fecha_emision || null;
 
       const key = `${item.nro_osi}-${item.id_curso}-${emissionDate || "sin-fecha"}-${companyName.toLowerCase()}`;
       if (!osiMap.has(key)) {
@@ -2802,7 +2807,9 @@ export async function getOSIsWithCertificatesAction(): Promise<{
       }
     });
 
-    return Array.from(osiMap.values()).sort((a, b) => b.nro_osi - a.nro_osi);
+    const result = Array.from(osiMap.values()).sort((a, b) => b.nro_osi - a.nro_osi);
+    osiBatchesCache = { data: result, timestamp: Date.now() };
+    return result;
   } catch (error) {
     console.error("Error in getOSIsWithCertificatesAction:", error);
     return [];
@@ -3399,6 +3406,7 @@ export async function batchUpdateCertificatesAction(
       }
     }
 
+    invalidateOSIBatchesCache();
     revalidatePath("/dashboard/capacitacion/gestion-certificados");
     revalidatePath("/dashboard/capacitacion/gestion-osi");
 
@@ -3604,6 +3612,7 @@ export async function reactivarCertificateAction(
       };
     }
 
+    invalidateOSIBatchesCache();
     revalidatePath("/dashboard/capacitacion/gestion-certificados");
 
     return {

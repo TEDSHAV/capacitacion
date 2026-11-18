@@ -124,7 +124,9 @@ export function BatchEditModal({
     if (isOpen) {
       const loadOsis = async () => {
         try {
-          setLoadingOsis(true);
+          if (osis.length === 0) {
+            setLoadingOsis(true);
+          }
           const data = await getOSIsWithCertificatesAction();
           setOsis(data);
           
@@ -185,28 +187,32 @@ export function BatchEditModal({
       };
       loadOsis();
 
-      // Load facilitators
-      (async () => {
-        try {
-          const facilitatorData = await getFacilitatorsForFilters();
-          setFacilitators(facilitatorData);
-        } catch (error) {
-          console.error("Error loading facilitators:", error);
-        }
-      })();
+      // Load facilitators (only if not yet loaded)
+      if (facilitators.length === 0) {
+        (async () => {
+          try {
+            const facilitatorData = await getFacilitatorsForFilters();
+            setFacilitators(facilitatorData);
+          } catch (error) {
+            console.error("Error loading facilitators:", error);
+          }
+        })();
+      }
 
-      // Load active courses
-      (async () => {
-        try {
-          setLoadingCourses(true);
-          const courseData = await getActiveCoursesForBatchEdit();
-          setCourses(courseData);
-        } catch (error) {
-          console.error("Error loading active courses:", error);
-        } finally {
-          setLoadingCourses(false);
-        }
-      })();
+      // Load active courses (only if not yet loaded)
+      if (courses.length === 0) {
+        (async () => {
+          try {
+            setLoadingCourses(true);
+            const courseData = await getActiveCoursesForBatchEdit();
+            setCourses(courseData);
+          } catch (error) {
+            console.error("Error loading active courses:", error);
+          } finally {
+            setLoadingCourses(false);
+          }
+        })();
+      }
     }
   }, [isOpen, initialOsi, initialCourse, initialDate, initialCourseId]);
 
@@ -468,6 +474,7 @@ export function BatchEditModal({
         setSelectedOsiData(null);
         setSelectedFacilitator(null);
         setSelectedCourse(null);
+        setOsis([]);
         setOsiNumber("");
         setOsiSearchTerm("");
         setFacilitatorSearchTerm("");
