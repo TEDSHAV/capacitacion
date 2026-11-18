@@ -103,7 +103,8 @@ export default async function FacilitadorOSIPage({ params, searchParams }: OSIPa
 
   const sedeUpper = String(osi.sede || "").toUpperCase();
   const nombreEmpresaUpper = String(osi.nombre_empresa || "").toUpperCase();
-  const isPlanta = sedeUpper.includes("PLANTA") || nombreEmpresaUpper.includes("PLANTA");
+  const isCocaCola = nombreEmpresaUpper.includes("COCA") || nombreEmpresaUpper.includes("FEMSA");
+  const isPlanta = isCocaCola && (sedeUpper.includes("PLANTA") || nombreEmpresaUpper.includes("PLANTA"));
 
   const sessionAssignments = (assignments || []).map((a) => a.nro_sesion);
   const specificSessions = sessionAssignments.filter((s) => s !== null) as number[];

@@ -257,12 +257,14 @@ export async function POST(request: NextRequest) {
     } else if (p.tipo_evaluacion === "pre_post") {
       const pre = p.score_pre != null && p.score_pre !== "" ? Number(p.score_pre) : null;
       const post = p.score_post != null && p.score_post !== "" ? Number(p.score_post) : null;
-      if (post != null) {
+      if (post != null && (!isNaN(post) && post > 0 || pre == null)) {
         qualScore = post;
+      } else if (pre != null && !isNaN(pre)) {
+        qualScore = pre;
       } else if (p.score != null && p.score !== "") {
         qualScore = Number(p.score);
       }
-      if (pre != null && post != null) {
+      if (pre != null && post != null && !isNaN(pre) && !isNaN(post) && (pre > 0 || post > 0)) {
         computedPromedio = Math.round(((pre + post) / 2) * 100) / 100;
       }
     } else {

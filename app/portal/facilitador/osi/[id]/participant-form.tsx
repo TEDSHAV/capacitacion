@@ -145,9 +145,12 @@ export const ParticipantForm = ({
   const initialHasPrePost = useMemo(() => {
     return (initialParticipants as any[]).some(
       (p) =>
-        (p.score_pre !== null && p.score_pre !== undefined && p.score_pre !== "") ||
-        (p.score_post !== null && p.score_post !== undefined && p.score_post !== "") ||
-        p.tipo_evaluacion === "pre_post"
+        p.score_pre != null &&
+        p.score_pre !== "" &&
+        Number(p.score_pre) > 0 &&
+        p.score_post != null &&
+        p.score_post !== "" &&
+        Number(p.score_post) > 0
     );
   }, [initialParticipants]);
 
@@ -171,7 +174,7 @@ export const ParticipantForm = ({
           const postVal = p.score_post !== "" && p.score_post != null ? p.score_post : p.score;
           const preVal = p.score_pre ?? "";
           let avg: string | number = "";
-          if (preVal !== "" && postVal !== "") {
+          if (preVal !== "" && postVal !== "" && Number(preVal) > 0 && Number(postVal) > 0) {
             avg = Math.round(((Number(preVal) + Number(postVal)) / 2) * 100) / 100;
           }
           return {
@@ -183,9 +186,18 @@ export const ParticipantForm = ({
             tipo_evaluacion: "pre_post",
           };
         } else {
+          const fallbackScore =
+            p.score_post !== "" && p.score_post != null && Number(p.score_post) > 0
+              ? p.score_post
+              : (p.score !== "" && p.score != null && Number(p.score) > 0
+                  ? p.score
+                  : (p.score_pre !== "" && p.score_pre != null && Number(p.score_pre) > 0
+                      ? p.score_pre
+                      : (p.score_post || p.score || p.score_pre || "")));
           return {
             ...p,
-            score: p.score_post || p.score || "",
+            score: fallbackScore,
+            score_promedio: "",
             tipo_evaluacion: "standard",
           };
         }
@@ -234,10 +246,19 @@ export const ParticipantForm = ({
     for (const p of raw) {
       const sesNum = p.nro_sesion ?? 1;
       if (!map[sesNum]) map[sesNum] = [];
+      const rawScore =
+        p.score !== "" && p.score != null && Number(p.score) > 0
+          ? String(p.score)
+          : (p.score_post !== "" && p.score_post != null && Number(p.score_post) > 0
+              ? String(p.score_post)
+              : (p.score_pre !== "" && p.score_pre != null && Number(p.score_pre) > 0
+                  ? String(p.score_pre)
+                  : (p.score != null ? String(p.score) : "")));
+
       map[sesNum].push({
         nombre_apellido: toTitleCase(p.nombre_apellido),
         cedula: p.cedula,
-        score: p.score ?? "",
+        score: rawScore,
         score_pre: p.score_pre != null ? String(p.score_pre) : "",
         score_post: p.score_post != null ? String(p.score_post) : "",
         score_teorica: p.score_teorica != null ? String(p.score_teorica) : "",
@@ -254,18 +275,28 @@ export const ParticipantForm = ({
     participantsBySession[defaultInitialSession] && participantsBySession[defaultInitialSession].length > 0
       ? participantsBySession[defaultInitialSession]
       : initialParticipants.length > 0
-      ? initialParticipants.map((p) => ({
-          nombre_apellido: toTitleCase(p.nombre_apellido),
-          cedula: p.cedula,
-          score: p.score ?? "",
-          score_pre: p.score_pre != null ? String(p.score_pre) : "",
-          score_post: p.score_post != null ? String(p.score_post) : "",
-          score_teorica: p.score_teorica != null ? String(p.score_teorica) : "",
-          score_practica: p.score_practica != null ? String(p.score_practica) : "",
-          score_promedio: p.score_promedio != null ? String(p.score_promedio) : "",
-          tipo_evaluacion: p.tipo_evaluacion || undefined,
-          nationality: (p.nationality === "extranjero" ? "extranjero" : "venezolano") as "venezolano" | "extranjero",
-        }))
+      ? initialParticipants.map((p) => {
+          const rawScore =
+            p.score !== "" && p.score != null && Number(p.score) > 0
+              ? String(p.score)
+              : (p.score_post !== "" && p.score_post != null && Number(p.score_post) > 0
+                  ? String(p.score_post)
+                  : (p.score_pre !== "" && p.score_pre != null && Number(p.score_pre) > 0
+                      ? String(p.score_pre)
+                      : (p.score != null ? String(p.score) : "")));
+          return {
+            nombre_apellido: toTitleCase(p.nombre_apellido),
+            cedula: p.cedula,
+            score: rawScore,
+            score_pre: p.score_pre != null ? String(p.score_pre) : "",
+            score_post: p.score_post != null ? String(p.score_post) : "",
+            score_teorica: p.score_teorica != null ? String(p.score_teorica) : "",
+            score_practica: p.score_practica != null ? String(p.score_practica) : "",
+            score_promedio: p.score_promedio != null ? String(p.score_promedio) : "",
+            tipo_evaluacion: p.tipo_evaluacion || undefined,
+            nationality: (p.nationality === "extranjero" ? "extranjero" : "venezolano") as "venezolano" | "extranjero",
+          };
+        })
       : [{ nombre_apellido: "", cedula: "", score: "", score_pre: "", score_post: "", score_teorica: "", score_practica: "", score_promedio: "", nationality: "venezolano" as const }];
 
   const [participants, setParticipants] = useState<Participant[]>(initialList);
@@ -1048,12 +1079,24 @@ export const ParticipantForm = ({
       const post = field === "score_post" ? value : updated.score_post;
       const numPre = pre !== "" && pre !== null && pre !== undefined ? Number(pre) : null;
       const numPost = post !== "" && post !== null && post !== undefined ? Number(post) : null;
-      if (numPost !== null && !isNaN(numPost)) {
+      if (numPost !== null && !isNaN(numPost) && (numPost > 0 || numPre === null || numPre === 0)) {
+        updated.score = numPost;
+      } else if (numPre !== null && !isNaN(numPre) && numPre > 0) {
+        updated.score = numPre;
+      } else if (numPost !== null && !isNaN(numPost)) {
         updated.score = numPost;
       } else {
         updated.score = "";
       }
-      if (numPre !== null && numPost !== null && !isNaN(numPre) && !isNaN(numPost)) {
+      if (
+        numPre !== null &&
+        numPost !== null &&
+        !isNaN(numPre) &&
+        !isNaN(numPost) &&
+        pre !== "" &&
+        post !== "" &&
+        (numPre > 0 || numPost > 0)
+      ) {
         const avg = Math.round(((numPre + numPost) / 2) * 100) / 100;
         updated.score_promedio = avg;
       } else {
@@ -1145,12 +1188,14 @@ export const ParticipantForm = ({
       } else if (effectiveEvaluationMode === "pre_post") {
         const pre = p.score_pre !== "" && p.score_pre != null ? Number(p.score_pre) : null;
         const post = p.score_post !== "" && p.score_post != null ? Number(p.score_post) : null;
-        if (post != null) {
+        if (post != null && (!isNaN(post) && post > 0 || pre == null)) {
           qualScore = post;
+        } else if (pre != null && !isNaN(pre)) {
+          qualScore = pre;
         } else if (p.score !== "" && p.score != null) {
           qualScore = Number(p.score);
         }
-        if (pre != null && post != null) {
+        if (pre != null && post != null && !isNaN(pre) && !isNaN(post) && (pre > 0 || post > 0)) {
           computedPromedio = Math.round(((pre + post) / 2) * 100) / 100;
         }
       } else {

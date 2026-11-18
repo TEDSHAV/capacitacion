@@ -581,15 +581,23 @@ export async function assignEvaluacionToOSI(payload: {
     );
     let tipoEvaluacion: TipoEvaluacionCurso = payload.tipo_evaluacion || "standard";
 
-    // Check if OSI in v_osi_formato_completo specifies eval_pre_post
+    // Check if OSI in v_osi_formato_completo specifies eval_pre_post or is a Planta of Coca-Cola
     const { data: osiInfo } = await admin
       .from("v_osi_formato_completo")
-      .select("eval_pre_post, fecha_inicio_real, fecha_fin_real")
+      .select("nombre_empresa, sede, eval_pre_post, fecha_inicio_real, fecha_fin_real")
       .eq("id_osi", payload.id_osi)
       .maybeSingle();
 
     if (osiInfo && osiInfo.eval_pre_post !== null && osiInfo.eval_pre_post !== undefined) {
       tipoEvaluacion = osiInfo.eval_pre_post ? "pre_post" : "standard";
+    } else if (osiInfo) {
+      const nombreEmp = String(osiInfo.nombre_empresa || "").toUpperCase();
+      const sede = String(osiInfo.sede || "").toUpperCase();
+      const isCocaCola = nombreEmp.includes("COCA") || nombreEmp.includes("FEMSA");
+      const isPlanta = isCocaCola && (sede.includes("PLANTA") || nombreEmp.includes("PLANTA"));
+      if (isPlanta) {
+        tipoEvaluacion = "pre_post";
+      }
     }
 
     // If template specified and no explicit questions provided, load from template
