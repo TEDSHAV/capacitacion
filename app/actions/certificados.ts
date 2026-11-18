@@ -2739,7 +2739,7 @@ let osiBatchesCache: {
 
 const OSI_BATCHES_CACHE_TTL = 30_000; // 30 seconds
 
-export function invalidateOSIBatchesCache() {
+function invalidateOSIBatchesCache() {
   osiBatchesCache = null;
 }
 
