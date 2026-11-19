@@ -75,7 +75,7 @@ export function ClienteDashboardClient({
     setLoading(true);
     setUsingCachedBatches(false);
     try {
-      const [batchRes, hiddenRes] = await Promise.all([
+      const [batchRes, hiddenRes, metricsRes] = await Promise.all([
         getClienteBatchesFiltered(
           empresaId,
           filters,
@@ -83,10 +83,12 @@ export function ClienteDashboardClient({
           itemsPerPage,
         ),
         getClienteHiddenBatches(empresaId),
+        getClienteMetrics(empresaId, filters),
       ]);
       setBatches(batchRes.data || []);
       setTotalCount(batchRes.totalCount || 0);
       setHiddenBatches(hiddenRes.data || []);
+      if (metricsRes.data) setMetrics(metricsRes.data);
 
       // Cache the batch list for offline use
       const cacheKey = `cliente_batches_${empresaId}_p${currentPage}`;
@@ -95,6 +97,7 @@ export function ClienteDashboardClient({
         totalCount: batchRes.totalCount || 0,
         hiddenBatches: hiddenRes.data || [],
         filters,
+        metrics: metricsRes.data || metrics,
       });
     } catch (err) {
       console.error("Error loading batches:", err);
@@ -105,11 +108,13 @@ export function ClienteDashboardClient({
         totalCount: number;
         hiddenBatches: HiddenBatchSummary[];
         filters: ClienteCertificateFilters;
+        metrics?: ClienteMetrics;
       }>(cacheKey);
       if (cached) {
         setBatches(cached.data.batches);
         setTotalCount(cached.data.totalCount);
         setHiddenBatches(cached.data.hiddenBatches);
+        if (cached.data.metrics) setMetrics(cached.data.metrics);
         setUsingCachedBatches(true);
       }
     } finally {
@@ -157,6 +162,7 @@ export function ClienteDashboardClient({
         totalCount: initialTotalCount,
         hiddenBatches: initialHiddenBatches,
         filters: DEFAULT_FILTERS,
+        metrics: initialMetrics,
       });
       return;
     }
@@ -252,11 +258,13 @@ export function ClienteDashboardClient({
         batches: ClienteBatchSummary[];
         totalCount: number;
         hiddenBatches: HiddenBatchSummary[];
+        metrics?: ClienteMetrics;
       }>(`cliente_batches_${empresaId}_p1`);
       if (cached) {
         setBatches(cached.data.batches);
         setTotalCount(cached.data.totalCount);
         setHiddenBatches(cached.data.hiddenBatches);
+        if (cached.data.metrics) setMetrics(cached.data.metrics);
         setUsingCachedBatches(true);
       }
     }

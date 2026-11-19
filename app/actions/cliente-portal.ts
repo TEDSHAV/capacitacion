@@ -308,7 +308,7 @@ const getVisibleOsiIds = cache(async (): Promise<Set<number>> => {
   try {
     const supabase = await createAdminClient();
     // Join with ejecucion_osi to get nro_osi_secuencial, which is what
-    // certificados.nro_osi and carnets.id_osi actually reference.
+    // certificados.nro_osi references (and carnets via certificados.id_certificado).
     // Also select nro_osi for orphan batches (no ejecucion_osi row).
     // Use !left so rows with osi_id=null (orphans) aren't excluded by
     // an inner join on ejecucion_osi.
@@ -667,7 +667,7 @@ export async function getClienteCarnets(
     .eq("is_active", true);
 
   // Only include OSIs visible to the cliente portal
-  if (visibleArr.length > 0) query = query.in("id_osi", visibleArr);
+  if (visibleArr.length > 0) query = query.in("certificados.nro_osi", visibleArr);
 
   if (sessionSedeIds && sessionSedeIds.length > 0) {
     query = query.in("certificados.id_sede", sessionSedeIds);
@@ -676,7 +676,7 @@ export async function getClienteCarnets(
   }
 
   if (filters.nroOsi) {
-    query = query.eq("id_osi", filters.nroOsi);
+    query = query.eq("certificados.nro_osi", filters.nroOsi);
   }
 
   if (filters.searchTerm) {
@@ -709,6 +709,7 @@ export async function getClienteCarnets(
 
 export async function getClienteMetrics(
   empresaId: number,
+  filters?: ClienteCertificateFilters,
 ): Promise<{ data?: ClienteMetrics; error?: string }> {
   if (!(await verifyClienteEmpresa(empresaId))) {
     return { error: "No autorizado" };
@@ -721,37 +722,68 @@ export async function getClienteMetrics(
   if (visibleArr.length === 0) return { data: { totalCertificates: 0, totalCarnets: 0, totalParticipants: 0, courseWithMostParticipants: null, certificatesByCourse: [] } };
 
   // Count total certificates for this company
-  let certCountQuery = supabase
-    .from("certificados")
-    .select("id", { count: "exact", head: true })
+  let certCountQuery = filters?.searchTerm
+    ? supabase
+        .from("certificados")
+        .select("id, participantes_certificados!inner(nombre, cedula)", { count: "exact", head: true })
+    : supabase
+        .from("certificados")
+        .select("id", { count: "exact", head: true });
+
+  certCountQuery = certCountQuery
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+
   if (visibleArr.length > 0) certCountQuery = certCountQuery.in("nro_osi", visibleArr);
   if (sessionSedeIds && sessionSedeIds.length > 0) certCountQuery = certCountQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) certCountQuery = certCountQuery.eq("id_ciudad", sessionCityId);
+
+  if (filters?.sedeId) certCountQuery = certCountQuery.eq("id_sede", filters.sedeId);
+  if (filters?.cityId) certCountQuery = certCountQuery.eq("id_ciudad", filters.cityId);
+  if (filters?.courseId) certCountQuery = certCountQuery.eq("id_curso", filters.courseId);
+  if (filters?.dateFrom) certCountQuery = certCountQuery.gte("fecha_emision", filters.dateFrom);
+  if (filters?.dateTo) certCountQuery = certCountQuery.lte("fecha_emision", filters.dateTo);
+  if (filters?.searchTerm) {
+    certCountQuery = certCountQuery.or(
+      `nombre.ilike.%${filters.searchTerm}%,cedula.ilike.%${filters.searchTerm}%`,
+      { referencedTable: "participantes_certificados" },
+    );
+  }
+
   const { count: certCount, error: certError } = await certCountQuery;
 
   if (certError) {
     console.error("Error counting certificates:", certError);
   }
 
-  // Count carnets for this company (filter by city via certificados join)
+  // Count carnets for this company (filter by visible OSIs, city and sede via certificados join)
   let carnetCountQuery = supabase
     .from("carnets")
     .select(
-      (sessionSedeIds && sessionSedeIds.length > 0 || sessionCityId)
-        ? "id, certificados!inner(id_ciudad, id_sede)"
-        : "id",
+      "id, certificados!inner(nro_osi, id_ciudad, id_sede)",
       { count: "exact", head: true },
     )
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
-  if (visibleArr.length > 0) carnetCountQuery = carnetCountQuery.in("id_osi", visibleArr);
+
+  if (visibleArr.length > 0) carnetCountQuery = carnetCountQuery.in("certificados.nro_osi", visibleArr);
   if (sessionSedeIds && sessionSedeIds.length > 0) {
     carnetCountQuery = carnetCountQuery.in("certificados.id_sede", sessionSedeIds);
   } else if (sessionCityId) {
     carnetCountQuery = carnetCountQuery.eq("certificados.id_ciudad", sessionCityId);
   }
+
+  if (filters?.sedeId) carnetCountQuery = carnetCountQuery.eq("certificados.id_sede", filters.sedeId);
+  if (filters?.cityId) carnetCountQuery = carnetCountQuery.eq("certificados.id_ciudad", filters.cityId);
+  if (filters?.courseId) carnetCountQuery = carnetCountQuery.eq("id_curso", filters.courseId);
+  if (filters?.dateFrom) carnetCountQuery = carnetCountQuery.gte("fecha_emision", filters.dateFrom);
+  if (filters?.dateTo) carnetCountQuery = carnetCountQuery.lte("fecha_emision", filters.dateTo);
+  if (filters?.searchTerm) {
+    carnetCountQuery = carnetCountQuery.or(
+      `nombre_participante.ilike.%${filters.searchTerm}%,cedula_participante.ilike.%${filters.searchTerm}%`,
+    );
+  }
+
   const { count: carnetCount, error: carnetError } = await carnetCountQuery;
 
   if (carnetError) {
@@ -763,21 +795,42 @@ export async function getClienteMetrics(
   // of certificate rows (one per certificate), not distinct participants, which
   // made totalParticipants always equal totalCertificates. Matches the pattern
   // used in reportes.ts (uniqueParticipants Set).
-  let participantQuery = supabase
-    .from("certificados")
-    .select("id_participante")
+  let participantQuery = filters?.searchTerm
+    ? supabase
+        .from("certificados")
+        .select("id_participante, participantes_certificados!inner(nombre, cedula)")
+    : supabase
+        .from("certificados")
+        .select("id_participante");
+
+  participantQuery = participantQuery
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+
   if (visibleArr.length > 0) participantQuery = participantQuery.in("nro_osi", visibleArr);
   if (sessionSedeIds && sessionSedeIds.length > 0) participantQuery = participantQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) participantQuery = participantQuery.eq("id_ciudad", sessionCityId);
-  const { data: participantData, error: participantError } =
+
+  if (filters?.sedeId) participantQuery = participantQuery.eq("id_sede", filters.sedeId);
+  if (filters?.cityId) participantQuery = participantQuery.eq("id_ciudad", filters.cityId);
+  if (filters?.courseId) participantQuery = participantQuery.eq("id_curso", filters.courseId);
+  if (filters?.dateFrom) participantQuery = participantQuery.gte("fecha_emision", filters.dateFrom);
+  if (filters?.dateTo) participantQuery = participantQuery.lte("fecha_emision", filters.dateTo);
+  if (filters?.searchTerm) {
+    participantQuery = participantQuery.or(
+      `nombre.ilike.%${filters.searchTerm}%,cedula.ilike.%${filters.searchTerm}%`,
+      { referencedTable: "participantes_certificados" },
+    );
+  }
+
+  const { data: rawParticipantData, error: participantError } =
     await participantQuery;
 
   if (participantError) {
     console.error("Error counting participants:", participantError);
   }
 
+  const participantData = rawParticipantData as Array<{ id_participante?: number | null }> | null;
   const uniqueParticipants = new Set<number>();
   for (const row of participantData || []) {
     const pid = row.id_participante;
@@ -786,17 +839,40 @@ export async function getClienteMetrics(
   const participantCount = uniqueParticipants.size;
 
   // Get certificates by course for "course with most participants"
-  let byCourseQuery = supabase
-    .from("certificados")
-    .select(
-      `id_curso, catalogo_servicios!inner(id, nombre)`,
-    )
+  let byCourseQuery = filters?.searchTerm
+    ? supabase
+        .from("certificados")
+        .select("id_curso, snapshot_contenido, catalogo_servicios!left(id, nombre), participantes_certificados!inner(nombre, cedula)")
+    : supabase
+        .from("certificados")
+        .select("id_curso, snapshot_contenido, catalogo_servicios!left(id, nombre)");
+
+  byCourseQuery = byCourseQuery
     .eq("id_empresa", empresaId)
     .eq("is_active", true);
+
   if (visibleArr.length > 0) byCourseQuery = byCourseQuery.in("nro_osi", visibleArr);
   if (sessionSedeIds && sessionSedeIds.length > 0) byCourseQuery = byCourseQuery.in("id_sede", sessionSedeIds);
   else if (sessionCityId) byCourseQuery = byCourseQuery.eq("id_ciudad", sessionCityId);
-  const { data: byCourseData, error: byCourseError } = await byCourseQuery;
+
+  if (filters?.sedeId) byCourseQuery = byCourseQuery.eq("id_sede", filters.sedeId);
+  if (filters?.cityId) byCourseQuery = byCourseQuery.eq("id_ciudad", filters.cityId);
+  if (filters?.courseId) byCourseQuery = byCourseQuery.eq("id_curso", filters.courseId);
+  if (filters?.dateFrom) byCourseQuery = byCourseQuery.gte("fecha_emision", filters.dateFrom);
+  if (filters?.dateTo) byCourseQuery = byCourseQuery.lte("fecha_emision", filters.dateTo);
+  if (filters?.searchTerm) {
+    byCourseQuery = byCourseQuery.or(
+      `nombre.ilike.%${filters.searchTerm}%,cedula.ilike.%${filters.searchTerm}%`,
+      { referencedTable: "participantes_certificados" },
+    );
+  }
+
+  const { data: rawByCourseData, error: byCourseError } = await byCourseQuery;
+  const byCourseData = rawByCourseData as Array<{
+    id_curso?: number | null;
+    snapshot_contenido?: unknown;
+    catalogo_servicios?: { id: number; nombre: string } | null;
+  }> | null;
 
   const courseMap = new Map<number, { name: string; count: number }>();
   if (!byCourseError && byCourseData) {
@@ -804,13 +880,27 @@ export async function getClienteMetrics(
       const courseInfo = row.catalogo_servicios as unknown as {
         id: number;
         nombre: string;
-      };
-      if (courseInfo) {
-        const existing = courseMap.get(courseInfo.id);
+      } | null;
+      let courseId = courseInfo?.id || (row.id_curso as number) || 0;
+      let courseName = courseInfo?.nombre || "";
+      if (!courseName && row.snapshot_contenido) {
+        try {
+          const snapshot = typeof row.snapshot_contenido === "string"
+            ? JSON.parse(row.snapshot_contenido)
+            : row.snapshot_contenido;
+          courseName = snapshot?.certificado_detalles?.title || snapshot?.curso?.name || "";
+        } catch {
+          // ignore parse errors
+        }
+      }
+      if (!courseName) courseName = "Curso sin nombre";
+
+      if (courseId) {
+        const existing = courseMap.get(courseId);
         if (existing) {
           existing.count++;
         } else {
-          courseMap.set(courseInfo.id, { name: courseInfo.nombre, count: 1 });
+          courseMap.set(courseId, { name: courseName, count: 1 });
         }
       }
     }
@@ -965,7 +1055,7 @@ export async function getClienteBatchesFiltered(
     .from("certificados")
     .select(
       `id, nro_osi, fecha_emision, id_curso, snapshot_contenido, id_ciudad, id_sede,
-       catalogo_servicios!inner(nombre),
+       catalogo_servicios!left(nombre),
        participantes_certificados!inner(nombre, cedula, nacionalidad),
        cat_ciudades!left(id, nombre_ciudad),
        empresa_sedes!left(id, nombre_sede)`,
@@ -1390,7 +1480,7 @@ export async function getClienteHiddenBatches(
     .from("certificados")
     .select(
       `id, nro_osi, fecha_emision, id_curso, snapshot_contenido, id_ciudad, id_sede,
-       catalogo_servicios!inner(nombre),
+       catalogo_servicios!left(nombre),
        cat_ciudades!left(id, nombre_ciudad),
        empresa_sedes!left(id, nombre_sede)`,
     )
