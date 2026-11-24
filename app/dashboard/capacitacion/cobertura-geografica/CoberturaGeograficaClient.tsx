@@ -33,21 +33,28 @@ const DATE_PRESETS = [
   { label: "Personalizado", value: "custom" },
 ];
 
+function toLocalYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function getDateRange(preset: string): { from?: string; to?: string } {
   const now = new Date();
-  const to = now.toISOString().split("T")[0];
+  const to = toLocalYmd(now);
 
   if (preset === "1m") {
     const from = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-    return { from: from.toISOString().split("T")[0], to };
+    return { from: toLocalYmd(from), to };
   }
   if (preset === "3m") {
     const from = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-    return { from: from.toISOString().split("T")[0], to };
+    return { from: toLocalYmd(from), to };
   }
   if (preset === "6m") {
     const from = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
-    return { from: from.toISOString().split("T")[0], to };
+    return { from: toLocalYmd(from), to };
   }
   if (preset === "year") {
     const from = `${now.getFullYear()}-01-01`;
@@ -477,6 +484,8 @@ export default function CoberturaGeograficaClient({ initialData }: Props) {
             allShaOsis={allShaOsis}
             salonesSummary={data?.aulasSha.salones || []}
             selectedSalon={selectedSalon}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
             onSelectSalon={setSelectedSalon}
             onPreviewOsi={setPreviewOsiId}
             onSalonUpdated={loadData}

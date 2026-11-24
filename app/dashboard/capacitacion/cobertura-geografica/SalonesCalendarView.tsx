@@ -23,7 +23,7 @@ import type {
   CoberturaOsiItem,
   CoberturaClassroomUsage,
 } from "@/app/actions/cobertura-geografica";
-import { SALONES_SHA_CONFIG } from "@/lib/constants/salones";
+import { SALONES_SHA_CONFIG, matchSalonFilter } from "@/lib/constants/salones";
 import { updateOsiSalon } from "@/app/actions/capacitacion-proceso-steps";
 
 export type SalonBucketId =
@@ -55,6 +55,8 @@ interface SalonesCalendarViewProps {
   allShaOsis: CoberturaOsiItem[];
   salonesSummary: CoberturaClassroomUsage[];
   selectedSalon: string;
+  dateFrom?: string;
+  dateTo?: string;
   onSelectSalon: (salon: string) => void;
   onPreviewOsi: (osiId: number) => void;
   onSalonUpdated: () => Promise<void> | void;
@@ -186,6 +188,8 @@ export default function SalonesCalendarView({
   allShaOsis,
   salonesSummary,
   selectedSalon,
+  dateFrom,
+  dateTo,
   onSelectSalon,
   onPreviewOsi,
   onSalonUpdated,
@@ -285,12 +289,64 @@ export default function SalonesCalendarView({
       }
     }
 
-    return result.sort((a, b) => {
-      const cmp = a.fecha.localeCompare(b.fecha);
-      if (cmp !== 0) return cmp;
-      return (a.horaInicio || "").localeCompare(b.horaInicio || "");
-    });
-  }, [allShaOsis, todayStr]);
+    const fromBound = dateFrom ? dateFrom.slice(0, 10) : null;
+    const toBound = dateTo ? dateTo.slice(0, 10) : null;
+
+    return result
+      .filter((ev) => {
+        if (fromBound && ev.fecha < fromBound) return false;
+        if (toBound && ev.fecha > toBound) return false;
+        if (selectedSalon && !matchSalonFilter(ev.salon, selectedSalon, true)) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const cmp = a.fecha.localeCompare(b.fecha);
+        if (cmp !== 0) return cmp;
+        return (a.horaInicio || "").localeCompare(b.horaInicio || "");
+      });
+  }, [allShaOsis, todayStr, dateFrom, dateTo, selectedSalon]);
+
+  // Monthly occupancy summary for the currently viewed month (cursorDate)
+  const monthlyOccupancy = useMemo(() => {
+    const year = cursorDate.getFullYear();
+    const month = cursorDate.getMonth();
+    const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const stats = new Map<
+      SalonBucketId,
+      { days: Set<string>; osis: Set<number>; sessions: number }
+    >();
+    for (const r of ROOM_ROWS) {
+      stats.set(r.id, { days: new Set(), osis: new Set(), sessions: 0 });
+    }
+
+    for (const ev of events) {
+      if (!ev.fecha.startsWith(monthPrefix)) continue;
+      const entry = stats.get(ev.bucketId);
+      if (entry) {
+        entry.days.add(ev.fecha);
+        entry.osis.add(ev.osiId);
+        entry.sessions++;
+      }
+    }
+
+    return {
+      monthLabel: `${MONTH_NAMES[month]} ${year}`,
+      daysInMonth,
+      rooms: ROOM_ROWS.map((r) => {
+        const st = stats.get(r.id)!;
+        return {
+          ...r,
+          occupiedDays: st.days.size,
+          distinctCourses: st.osis.size,
+          totalSessions: st.sessions,
+        };
+      }),
+    };
+  }, [events, cursorDate]);
 
   // Index events by date and by date+bucket
   const eventsByDate = useMemo(() => {
@@ -564,6 +620,72 @@ export default function SalonesCalendarView({
           )}
         </div>
       </div>
+
+      {/* ─── MONTHLY CLASSROOM OCCUPANCY COUNTER ───────────────────────── */}
+      {subView !== "lista" && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {monthlyOccupancy.rooms.map((room) => {
+            const isUnassigned = room.id === "sin_asignar";
+            if (isUnassigned && room.totalSessions === 0) return null;
+
+            const targetVal = isUnassigned ? "sin_salon" : room.nombre;
+            const isFiltered = selectedSalon === targetVal;
+            const pct = Math.min(
+              Math.round((room.occupiedDays / monthlyOccupancy.daysInMonth) * 100),
+              100,
+            );
+
+            return (
+              <button
+                key={room.id}
+                type="button"
+                onClick={() => onSelectSalon(isFiltered ? "" : targetVal)}
+                className={`text-left rounded-xl p-3 border transition-all ${
+                  isFiltered
+                    ? "bg-sky-50/70 border-sky-300 ring-2 ring-sky-400/30 shadow-xs"
+                    : "bg-slate-50/60 border-slate-200 hover:bg-white hover:shadow-2xs"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${room.dotClass}`} />
+                    <span className="text-xs font-bold text-slate-800 truncate">
+                      {room.shortNombre}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-slate-400 shrink-0">
+                    {monthlyOccupancy.monthLabel}
+                  </span>
+                </div>
+
+                <div className="mt-2 flex items-baseline justify-between gap-2">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-extrabold text-slate-900 tabular-nums">
+                      {room.occupiedDays}
+                    </span>
+                    <span className="text-[11px] font-medium text-slate-500">
+                      {room.occupiedDays === 1 ? "día ocupado" : "días ocupados"}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-600 tabular-nums">
+                    {room.distinctCourses}{" "}
+                    {room.distinctCourses === 1 ? "curso" : "cursos"}
+                  </span>
+                </div>
+
+                {!isUnassigned && (
+                  <div className="w-full bg-slate-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
+                    <div
+                      className={`h-1.5 rounded-full transition-all ${room.dotClass}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Empty period helper */}
       {subView !== "lista" && visibleEventsCount === 0 && events.length > 0 && (

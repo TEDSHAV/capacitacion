@@ -688,7 +688,8 @@ export async function getCoberturaGeograficaData(
           (item.direccion && item.direccion.toLowerCase().includes(q)) ||
           item.estadoNombre.toLowerCase().includes(q) ||
           (item.ciudadNombre && item.ciudadNombre.toLowerCase().includes(q)) ||
-          (item.salon && item.salon.toLowerCase().includes(q));
+          (item.salon && item.salon.toLowerCase().includes(q)) ||
+          (item.isShaVenue && !item.salon && ("por confirmar sin asignar".includes(q) || q.includes("sin asignar") || q.includes("por confirmar")));
 
         if (!match) continue;
       }
