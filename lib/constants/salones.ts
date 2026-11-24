@@ -152,6 +152,22 @@ export function isShaLocation(
   const combined = `${direccion || ""} ${sede || ""}`.toLowerCase().trim();
   if (!combined) return false;
 
+  // In-company protection: If sede specifically indicates a client plant, branch, distributor or terminal,
+  // it is an in-company client venue even if a default headquarters address was recorded.
+  const sedeLower = (sede || "").toLowerCase();
+  if (
+    sedeLower.includes("distribuidora") ||
+    sedeLower.includes("planta") ||
+    sedeLower.includes("refiner") ||
+    sedeLower.includes("sucursal") ||
+    sedeLower.includes("almacen") ||
+    sedeLower.includes("almacén") ||
+    sedeLower.includes("taladro") ||
+    sedeLower.includes("campo")
+  ) {
+    return false;
+  }
+
   return (
     /\bsha\b/i.test(combined) ||
     combined.includes("s.h.a") ||
@@ -161,7 +177,12 @@ export function isShaLocation(
     combined.includes("edificio sha") ||
     combined.includes("edif sha") ||
     combined.includes("sede sha") ||
-    combined.includes("sha de venezuela")
+    combined.includes("sha de venezuela") ||
+    combined.includes("hotel rasil") ||
+    combined.includes("rasil") ||
+    (combined.includes("paseo col") && combined.includes("cocos")) ||
+    (combined.includes("paseo col") && combined.includes("puerto la cruz")) ||
+    combined.includes("las garzas")
   );
 }
 

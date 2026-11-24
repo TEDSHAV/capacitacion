@@ -220,6 +220,8 @@ export async function getCoberturaGeograficaData(
       empresasRows,
       stepsRows,
       empresaSedesRows,
+      evalsRows,
+      notasRows,
     ] = await Promise.all([
       // 1. All capacitación OSIs with location, execution dates and hours
       fetchTableParallel<{
@@ -339,9 +341,9 @@ export async function getCoberturaGeograficaData(
         return supabase
           .from("capacitacion_proceso_steps")
           .select("osi_id, step_metadata", { count: "exact" })
-          .eq("step_key", "en_proceso")
+          .not("step_metadata->salon", "is", null)
           .order("osi_id", { ascending: true });
-      }, "capacitacion_proceso_steps_en_proceso"),
+      }, "capacitacion_proceso_steps_with_salon"),
 
       // 9. Empresa sedes catalog (resolve id_sede to readable name)
       fetchTableParallel<{
@@ -353,6 +355,29 @@ export async function getCoberturaGeograficaData(
           .select("id, nombre_sede", { count: "exact" })
           .order("id", { ascending: true });
       }, "empresa_sedes"),
+
+      // 10. Course digital evaluations (where salon was assigned during exam setup)
+      fetchTableParallel<{
+        id_osi: number;
+        preguntas: unknown;
+      }>(() => {
+        return supabase
+          .from("capacitacion_osi_evaluaciones")
+          .select("id_osi, preguntas", { count: "exact" })
+          .order("id_osi", { ascending: true });
+      }, "capacitacion_osi_evaluaciones"),
+
+      // 11. Audit notes (where salon was confirmed or updated via modal)
+      fetchTableParallel<{
+        osi_id: number;
+        nota: string;
+      }>(() => {
+        return supabase
+          .from("capacitacion_osi_notas")
+          .select("osi_id, nota", { count: "exact" })
+          .ilike("nota", "%Salón SHA%")
+          .order("osi_id", { ascending: true });
+      }, "capacitacion_osi_notas_salon"),
     ]);
 
     const tFetch = performance.now();
@@ -378,13 +403,48 @@ export async function getCoberturaGeograficaData(
       }
     }
 
-    // Salon mapping: Proceso steps metadata (authoritative en_proceso step)
+    // Salon mapping: Proceso steps metadata + Course Evaluations + Audit notes
     const salonByOsiId = new Map<number, string>();
+
+    // 1. Proceso steps (tracking or live confirmation)
     for (const step of stepsRows) {
-      if (step.osi_id && step.step_metadata?.salon) {
-        const val = String(step.step_metadata.salon).trim();
-        if (val) {
-          salonByOsiId.set(step.osi_id, val);
+      if (step.osi_id && step.step_metadata && typeof step.step_metadata === "object") {
+        const val = step.step_metadata.salon ?? step.step_metadata.salon_id;
+        if (typeof val === "string") {
+          const clean = val.trim();
+          if (clean && clean !== "null" && clean !== "undefined") {
+            salonByOsiId.set(step.osi_id, clean);
+          }
+        }
+      }
+    }
+
+    // 2. Evaluaciones (classroom assigned during digital evaluation setup)
+    for (const ev of evalsRows) {
+      if (ev.id_osi && !salonByOsiId.has(ev.id_osi)) {
+        const rawPreguntas = Array.isArray(ev.preguntas) ? ev.preguntas : [];
+        const meta = rawPreguntas.find(
+          (p: unknown): p is { _is_salon_meta?: boolean; salon_id?: string } =>
+            typeof p === "object" && p !== null && (p as Record<string, unknown>)._is_salon_meta === true,
+        );
+        if (meta?.salon_id && typeof meta.salon_id === "string") {
+          const clean = meta.salon_id.trim();
+          if (clean && clean !== "null" && clean !== "undefined") {
+            salonByOsiId.set(ev.id_osi, clean);
+          }
+        }
+      }
+    }
+
+    // 3. Audit notes (historical confirmation logs: "Salón SHA: Salón 1", etc.)
+    for (const n of notasRows) {
+      if (n.osi_id && !salonByOsiId.has(n.osi_id) && n.nota) {
+        const match = n.nota.match(/Salón SHA:?\s*([^.\n|]+)/i);
+        if (match && match[1]) {
+          const clean = match[1].trim();
+          if (clean && clean !== "null" && clean !== "undefined") {
+            salonByOsiId.set(n.osi_id, clean);
+          }
         }
       }
     }
@@ -455,18 +515,20 @@ export async function getCoberturaGeograficaData(
       const direccion = (o.direccion_ejecucion_real || o.direccion_ejecucion || "").trim() || null;
       const sede = (o.id_sede ? empresaSedesMap.get(o.id_sede) : null) || (o.sede || "").trim() || null;
 
-      // 1. Is this venue strictly an SHA facility?
-      // In-company services (e.g. Coca-Cola, Polar at client plants in other cities) CANNOT take place in SHA classrooms.
-      const isSha = isShaLocation(direccion, sede);
-
-      // 2. An SHA classroom can ONLY exist if the service was actually held at SHA facilities!
+      // 1. Did capacitacion users explicitly mark a salon for this course?
+      const rawSalon = salonByOsiId.get(o.id_osi) || null;
       let salon: string | null = null;
       let salonCanonicalId: string | null = null;
+      let isSha = false;
 
-      if (isSha) {
-        const rawSalon = salonByOsiId.get(o.id_osi) || null;
+      if (rawSalon) {
+        // Explicit user assignment from tracking steps, exams or live confirmation
         salon = normalizeSalonName(rawSalon);
         salonCanonicalId = getSalonCanonicalId(salon);
+        isSha = true;
+      } else {
+        // Physical venue check for courses held at SHA facilities awaiting room assignment vs in-company client locations
+        isSha = isShaLocation(direccion, sede);
       }
 
       // Course and Company with name fallback if ID was null

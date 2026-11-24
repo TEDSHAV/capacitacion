@@ -101,10 +101,25 @@ describe("Cobertura Geográfica: SHA Classrooms & Filters Suite", () => {
       assert.equal(isShaLocation("S.H.A de Venezuela C.A.", null), true);
       assert.equal(isShaLocation("Av Intercomunal Edif SHA", null), true);
       assert.equal(isShaLocation("Sector Las Garzas, Sede SHA", null), true);
+      assert.equal(
+        isShaLocation(
+          "Av. Paseo Colón con Calle Monagas CC Hotel Rasil Nivel 2 Local 8, sector los Cocos, Puerto La Cruz, Edo. Anzoátegui.",
+          null,
+        ),
+        true,
+      );
+      assert.equal(isShaLocation("CC Hotel Rasil, Puerto La Cruz", null), true);
     });
 
     it("should NEVER classify Coca-Cola plants or client facilities in other cities as SHA venues", () => {
       // Coca-Cola FEMSA plants and branches
+      assert.equal(
+        isShaLocation(
+          "Av. Paseo Colón con Calle Monagas CC Hotel Rasil Nivel 2 Local 8, sector los Cocos, Puerto La Cruz, Edo. Anzoátegui.",
+          "DISTRIBUIDORA SAN CRISTOBAL",
+        ),
+        false, // Client distributor in San Cristóbal overrides default HQ address
+      );
       assert.equal(
         isShaLocation(
           "Zona Industrial Los Cortijos, Caracas",
@@ -162,19 +177,24 @@ describe("Cobertura Geográfica: SHA Classrooms & Filters Suite", () => {
 
       const isSha = isShaLocation(cocaColaOsi.direccion, cocaColaOsi.sede);
       assert.equal(isSha, false, "Coca-Cola in Valencia must NOT be an SHA venue");
+    });
 
-      // Even if an accidental step metadata existed, it must be ignored if not an SHA venue
-      const rawSalonFromStep = "Salón 1";
-      let salon = null;
-      let salonCanonicalId = null;
+    it("should correctly recognize and normalize explicit salon markings by capacitacion users", () => {
+      const shaCourse = {
+        idOsi: 358,
+        nroOsi: "3579",
+        empresaNombre: "SMART SERVICE SOLUTIONS C A",
+        direccion: "Av. Paseo Colón con Calle Monagas CC Hotel Rasil Nivel 2 Local 8, sector los Cocos, Puerto La Cruz, Edo. Anzoátegui.",
+        rawSalon: "Salón Elite",
+      };
 
-      if (isSha) {
-        salon = normalizeSalonName(rawSalonFromStep);
-        salonCanonicalId = getSalonCanonicalId(salon);
-      }
+      const salon = normalizeSalonName(shaCourse.rawSalon);
+      const salonCanonicalId = getSalonCanonicalId(salon);
+      const isSha = isShaLocation(shaCourse.direccion, null) || Boolean(shaCourse.rawSalon);
 
-      assert.equal(salon, null, "In-company course must have salon=null");
-      assert.equal(salonCanonicalId, null, "In-company course must have salonCanonicalId=null");
+      assert.equal(isSha, true);
+      assert.equal(salon, "Salón Elite");
+      assert.equal(salonCanonicalId, "salon-elite");
     });
   });
 
