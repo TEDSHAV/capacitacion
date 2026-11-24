@@ -173,6 +173,28 @@ function formatReadableDate(ymd: string): string {
   return `${weekday}, ${d.getDate()} de ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+function timeToMinutes(t: string | null): number | null {
+  if (!t) return null;
+  const parts = t.split(":");
+  if (parts.length < 2) return null;
+  const h = Number(parts[0]);
+  const m = Number(parts[1]);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return h * 60 + m;
+}
+
+function eventsOverlap(a: CalendarClassroomEvent, b: CalendarClassroomEvent): boolean {
+  if (a.osiId === b.osiId) return false;
+  const aStart = timeToMinutes(a.horaInicio);
+  const aEnd = timeToMinutes(a.horaFin);
+  const bStart = timeToMinutes(b.horaInicio);
+  const bEnd = timeToMinutes(b.horaFin);
+  if (aStart != null && aEnd != null && bStart != null && bEnd != null) {
+    return aStart < bEnd && bStart < aEnd;
+  }
+  return true;
+}
+
 function resolveBucketId(canonId: string | null | undefined): SalonBucketId {
   if (
     canonId === "salon-principal" ||
@@ -200,6 +222,7 @@ export default function SalonesCalendarView({
   const [subView, setSubView] = useState<SubViewMode>("mes");
   const [cursorDate, setCursorDate] = useState<Date>(() => new Date());
   const [selectedDayStr, setSelectedDayStr] = useState<string | null>(null);
+  const [alertModalMode, setAlertModalMode] = useState<"conflicts" | "unassigned" | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [savedKey, setSavedKey] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -359,30 +382,59 @@ export default function SalonesCalendarView({
     return map;
   }, [events]);
 
-  // Detect classroom conflicts (2+ distinct OSIs in the same assigned classroom on the same day)
+  // Scope alert pills to the currently viewed month in calendar/week views
+  const currentMonthPrefix = useMemo(
+    () =>
+      `${cursorDate.getFullYear()}-${String(cursorDate.getMonth() + 1).padStart(2, "0")}`,
+    [cursorDate],
+  );
+
+  // Detect real classroom conflicts (2+ distinct overlapping OSIs in the same assigned classroom on the same day)
   const conflicts = useMemo(() => {
-    const list: Array<{ fecha: string; bucketId: SalonBucketId; count: number }> = [];
-    const byDateRoom = new Map<string, Set<number>>();
-    for (const ev of events) {
+    const scopedEvents =
+      subView === "lista"
+        ? events
+        : events.filter((e) => e.fecha.startsWith(currentMonthPrefix));
+
+    const byDateRoom = new Map<string, CalendarClassroomEvent[]>();
+    for (const ev of scopedEvents) {
       if (ev.bucketId === "sin_asignar") continue;
       const k = `${ev.fecha}__${ev.bucketId}`;
-      const set = byDateRoom.get(k) || new Set<number>();
-      set.add(ev.osiId);
-      byDateRoom.set(k, set);
+      const arr = byDateRoom.get(k);
+      if (arr) arr.push(ev);
+      else byDateRoom.set(k, [ev]);
     }
-    for (const [k, osiSet] of byDateRoom.entries()) {
-      if (osiSet.size > 1) {
+
+    const list: Array<{
+      key: string;
+      fecha: string;
+      bucketId: SalonBucketId;
+      events: CalendarClassroomEvent[];
+    }> = [];
+
+    for (const [k, dayRoomEvents] of byDateRoom.entries()) {
+      const overlapping = dayRoomEvents.filter((ev, idx) =>
+        dayRoomEvents.some((other, oIdx) => idx !== oIdx && eventsOverlap(ev, other)),
+      );
+      const distinctOsis = new Set(overlapping.map((e) => e.osiId));
+      if (distinctOsis.size > 1) {
         const [fecha, bucketId] = k.split("__") as [string, SalonBucketId];
-        list.push({ fecha, bucketId, count: osiSet.size });
+        list.push({ key: k, fecha, bucketId, events: overlapping });
       }
     }
     return list.sort((a, b) => b.fecha.localeCompare(a.fecha));
-  }, [events]);
+  }, [events, subView, currentMonthPrefix]);
 
-  const unassignedCount = useMemo(
-    () => events.filter((e) => e.bucketId === "sin_asignar").length,
-    [events],
-  );
+  const unassignedEvents = useMemo(() => {
+    const scoped =
+      subView === "lista"
+        ? events
+        : events.filter((e) => e.fecha.startsWith(currentMonthPrefix));
+    return scoped
+      .filter((e) => e.bucketId === "sin_asignar")
+      .sort((a, b) => b.fecha.localeCompare(a.fecha));
+  }, [events, subView, currentMonthPrefix]);
+  const unassignedCount = unassignedEvents.length;
 
   // Week days (Mon-Sun) for weekly matrix
   const weekDays = useMemo(() => {
@@ -562,32 +614,25 @@ export default function SalonesCalendarView({
         <div className="flex flex-wrap items-center gap-2">
           {conflicts.length > 0 && (
             <button
-              onClick={() => {
-                setCursorDate(parseYmd(conflicts[0].fecha));
-                setSelectedDayStr(conflicts[0].fecha);
-              }}
+              onClick={() => setAlertModalMode("conflicts")}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition"
-              title="Haz clic para revisar el conflicto más reciente"
+              title="Ver y resolver conflictos de salón"
             >
               <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-              {conflicts.length} {conflicts.length === 1 ? "conflicto" : "conflictos"} de salón
+              {conflicts.length} {conflicts.length === 1 ? "conflicto" : "conflictos"}
+              {subView !== "lista" ? ` en ${MONTH_NAMES[cursorDate.getMonth()]}` : ""}
             </button>
           )}
 
           {unassignedCount > 0 && (
             <button
-              onClick={() => {
-                const firstUnassigned = events.find((e) => e.bucketId === "sin_asignar");
-                if (firstUnassigned) {
-                  setCursorDate(parseYmd(firstUnassigned.fecha));
-                  setSelectedDayStr(firstUnassigned.fecha);
-                }
-              }}
+              onClick={() => setAlertModalMode("unassigned")}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition"
-              title="Haz clic para asignar salón al curso pendiente"
+              title="Ver y asignar cursos pendientes de salón"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              {unassignedCount} sin salón asignado
+              {unassignedCount} sin salón
+              {subView !== "lista" ? ` en ${MONTH_NAMES[cursorDate.getMonth()]}` : ""}
             </button>
           )}
 
@@ -819,8 +864,11 @@ export default function SalonesCalendarView({
                           (e) => e.bucketId === room.id,
                         );
                         const isToday = wd.ymd === todayStr;
+                        const overlappingCount = dayEvents.filter((ev, idx) =>
+                          dayEvents.some((other, oIdx) => idx !== oIdx && eventsOverlap(ev, other)),
+                        ).length;
                         const distinctOsis = new Set(dayEvents.map((e) => e.osiId)).size;
-                        const hasConflict = !isUnassignedRow && distinctOsis > 1;
+                        const hasConflict = !isUnassignedRow && overlappingCount > 1 && distinctOsis > 1;
 
                         return (
                           <td
@@ -1475,6 +1523,243 @@ export default function SalonesCalendarView({
             <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
               <button
                 onClick={() => setSelectedDayStr(null)}
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 transition"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── CONFLICTS / UNASSIGNED ORGANIZER MODAL ────────────────────── */}
+      {alertModalMode && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 overflow-y-auto"
+          onClick={() => setAlertModalMode(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[88vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-5 border-b border-slate-200 bg-slate-50/80 flex items-start justify-between">
+              <div>
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                    alertModalMode === "conflicts"
+                      ? "bg-rose-100 text-rose-800"
+                      : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  {alertModalMode === "conflicts" ? (
+                    <AlertTriangle className="w-3 h-3" />
+                  ) : (
+                    <Sparkles className="w-3 h-3" />
+                  )}
+                  {alertModalMode === "conflicts"
+                    ? "Conflictos de Salón"
+                    : "Cursos sin Salón Asignado"}
+                </span>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">
+                  {alertModalMode === "conflicts"
+                    ? `${conflicts.length} ${conflicts.length === 1 ? "conflicto" : "conflictos"} detectados`
+                    : `${unassignedEvents.length} cursos pendientes de salón`}
+                  {subView !== "lista" ? ` — ${monthlyOccupancy.monthLabel}` : ""}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {alertModalMode === "conflicts"
+                    ? "Cursos con horarios superpuestos en el mismo salón. Reasigna uno de ellos para liberar el conflicto."
+                    : "Asigna un salón directamente desde aquí o abre el día en el calendario."}
+                </p>
+              </div>
+              <button
+                onClick={() => setAlertModalMode(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              {saveError && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{saveError}</span>
+                </div>
+              )}
+
+              {alertModalMode === "conflicts" &&
+                (conflicts.length === 0 ? (
+                  <div className="py-10 text-center text-slate-500 text-xs">
+                    No hay conflictos pendientes en este período.
+                  </div>
+                ) : (
+                  conflicts.map((c) => {
+                    const roomMeta =
+                      ROOM_ROWS.find((r) => r.id === c.bucketId) || ROOM_ROWS[0];
+                    return (
+                      <div
+                        key={c.key}
+                        className="rounded-xl border border-rose-200 bg-rose-50/40 p-3.5 space-y-2.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2.5 h-2.5 rounded-full ${roomMeta.dotClass}`} />
+                            <span className="text-xs font-bold text-slate-900">
+                              {roomMeta.nombre}
+                            </span>
+                            <span className="text-xs text-slate-500">•</span>
+                            <span className="text-xs font-semibold text-rose-700">
+                              {formatReadableDate(c.fecha)}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setAlertModalMode(null);
+                              setCursorDate(parseYmd(c.fecha));
+                              setSelectedDayStr(c.fecha);
+                            }}
+                            className="text-[11px] font-semibold text-sky-700 hover:text-sky-900"
+                          >
+                            Ver día →
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {c.events.map((ev) => {
+                            const isSaving = savingKey === ev.key;
+                            const isSaved = savedKey === ev.key;
+                            const timeStr = formatTimeRange(ev.horaInicio, ev.horaFin);
+                            return (
+                              <div
+                                key={ev.key}
+                                className="rounded-lg border border-slate-200 bg-white p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono text-[11px] font-bold text-sky-700">
+                                      {ev.nroOsi}
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-900 truncate">
+                                      {ev.servicio}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                                    <span>{ev.empresaNombre}</span>
+                                    {timeStr && <span>• {timeStr}</span>}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <select
+                                    value={roomMeta.nombre}
+                                    disabled={isSaving}
+                                    onChange={(e) => handleAssignSalon(ev, e.target.value)}
+                                    className="text-xs font-semibold bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-slate-800"
+                                  >
+                                    <option value="">⚠️ Sin asignar</option>
+                                    {SALONES_SHA_CONFIG.map((cfg) => (
+                                      <option key={cfg.id} value={cfg.nombre}>
+                                        🏛️ {cfg.nombre}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {isSaving && (
+                                    <Loader2 className="w-3.5 h-3.5 text-purple-600 animate-spin" />
+                                  )}
+                                  {isSaved && !isSaving && (
+                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })
+                ))}
+
+              {alertModalMode === "unassigned" &&
+                (unassignedEvents.length === 0 ? (
+                  <div className="py-10 text-center text-slate-500 text-xs">
+                    Todos los cursos en este período ya tienen salón asignado.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {unassignedEvents.map((ev) => {
+                      const isSaving = savingKey === ev.key;
+                      const isSaved = savedKey === ev.key;
+                      const timeStr = formatTimeRange(ev.horaInicio, ev.horaFin);
+                      return (
+                        <div
+                          key={ev.key}
+                          className="rounded-xl border border-amber-200 bg-amber-50/30 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                                {ev.nroOsi}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-700">
+                                {formatReadableDate(ev.fecha)}
+                              </span>
+                              {timeStr && (
+                                <span className="text-[11px] text-slate-500">
+                                  ({timeStr})
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm font-bold text-slate-900">
+                              {ev.servicio}
+                            </div>
+                            <div className="text-xs text-slate-600">{ev.empresaNombre}</div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <select
+                              value=""
+                              disabled={isSaving}
+                              onChange={(e) => handleAssignSalon(ev, e.target.value)}
+                              className="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                              <option value="">⚠️ Asignar salón...</option>
+                              {SALONES_SHA_CONFIG.map((cfg) => (
+                                <option key={cfg.id} value={cfg.nombre}>
+                                  🏛️ {cfg.nombre}
+                                </option>
+                              ))}
+                            </select>
+                            {isSaving && (
+                              <Loader2 className="w-4 h-4 text-purple-600 animate-spin" />
+                            )}
+                            {isSaved && !isSaving && (
+                              <Check className="w-4 h-4 text-emerald-600" />
+                            )}
+                            <button
+                              onClick={() => {
+                                setAlertModalMode(null);
+                                setCursorDate(parseYmd(ev.fecha));
+                                setSelectedDayStr(ev.fecha);
+                              }}
+                              className="px-2 py-1.5 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200"
+                              title="Ver este día en el calendario"
+                            >
+                              Ver día
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+              <button
+                onClick={() => setAlertModalMode(null)}
                 className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 transition"
               >
                 Cerrar
