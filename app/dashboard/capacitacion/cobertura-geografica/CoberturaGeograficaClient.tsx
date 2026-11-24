@@ -18,12 +18,17 @@ import {
   Factory,
   ArrowUpDown,
   AlertTriangle,
+  Landmark,
+  CheckCircle2,
+  HelpCircle,
+  TrendingUp,
 } from "lucide-react";
 import {
   getCoberturaGeograficaData,
   type CoberturaDataResponse,
   type CoberturaFilters,
   type CoberturaTemaItem,
+  type CoberturaOsiItem,
 } from "@/app/actions/cobertura-geografica";
 import { SALONES_SHA } from "@/lib/constants/salones";
 import { OsiPreviewModal } from "@/components/osi/OsiPreviewModal";
@@ -33,7 +38,7 @@ interface Props {
   shellUrl?: string;
 }
 
-type TabMode = "temas" | "estados" | "sedes";
+type TabMode = "temas" | "aulas" | "estados" | "sedes";
 
 const DATE_PRESETS = [
   { label: "1 mes", value: "1m" },
@@ -62,7 +67,8 @@ function getDateRange(preset: string): { from?: string; to?: string } {
   }
   if (preset === "year") {
     const from = `${now.getFullYear()}-01-01`;
-    return { from, to };
+    const yearEnd = `${now.getFullYear()}-12-31`;
+    return { from, to: yearEnd };
   }
   return {};
 }
@@ -85,7 +91,7 @@ export default function CoberturaGeograficaClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Active view tab
+  // Active view tab (now includes "aulas" for SHA classroom metrics)
   const [activeTab, setActiveTab] = useState<TabMode>("temas");
 
   // Filters State
@@ -216,6 +222,22 @@ export default function CoberturaGeograficaClient({
     });
   }, [data?.temas, sortField, sortAsc]);
 
+  // Flattened all OSIs executed in SHA facilities for the classroom view
+  const allShaOsis = useMemo(() => {
+    if (!data?.temas) return [];
+    const list: CoberturaOsiItem[] = [];
+    const seen = new Set<number>();
+    for (const t of data.temas) {
+      for (const osi of t.osis) {
+        if (osi.isShaVenue && !seen.has(osi.idOsi)) {
+          seen.add(osi.idOsi);
+          list.push(osi);
+        }
+      }
+    }
+    return list.sort((a, b) => (b.fechaFin || "").localeCompare(a.fechaFin || ""));
+  }, [data?.temas]);
+
   const handleSortToggle = (field: "certs" | "cursos" | "nombre") => {
     if (sortField === field) {
       setSortAsc(!sortAsc);
@@ -240,6 +262,7 @@ export default function CoberturaGeograficaClient({
         "Ciudad",
         "Sede / Lugar de Ejecución",
         "Salón SHA",
+        "Instalaciones SHA",
         "Certificados Emitidos",
         "Participantes Estimados",
         "Horas Totales",
@@ -257,7 +280,8 @@ export default function CoberturaGeograficaClient({
           `"${osi.estadoNombre.replace(/"/g, '""')}"`,
           `"${(osi.ciudadNombre || "").replace(/"/g, '""')}"`,
           `"${(osi.sede || osi.direccion || "").replace(/"/g, '""')}"`,
-          `"${osi.isShaVenue ? (osi.salon || "Sin asignar") : "N/A"}"`,
+          `"${osi.isShaVenue ? (osi.salon || "Sin asignar / Por confirmar") : "N/A (Planta/Cliente)"}"`,
+          osi.isShaVenue ? "Sede Propia SHA" : "In-Company",
           String(osi.certificadosEmitidos),
           String(osi.participantesEstimados),
           `${osi.horasAcademicas}h`,
@@ -302,7 +326,7 @@ export default function CoberturaGeograficaClient({
                 Cobertura Geográfica y Sedes
               </h1>
               <p className="text-sm text-slate-500 mt-0.5">
-                Auditoría gerencial de cursos impartidos, temas capacitados y certificados emitidos por estado, ciudad y sede.
+                Auditoría gerencial de cursos impartidos, temas capacitados, sedes y uso de aulas SHA.
               </p>
             </div>
 
@@ -363,7 +387,7 @@ export default function CoberturaGeograficaClient({
                 onChange={(e) => {
                   const val = e.target.value ? Number(e.target.value) : null;
                   setSelectedEstadoId(val);
-                  setSelectedCiudadId(null); // Reset city when state changes
+                  setSelectedCiudadId(null);
                 }}
                 className="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition"
               >
@@ -436,7 +460,7 @@ export default function CoberturaGeograficaClient({
               </select>
             </div>
 
-            {/* Salón SHA / Sede Selector */}
+            {/* Salón SHA / Sede Selector (Now dynamically populated with counts) */}
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                 Salón / Sede SHA
@@ -446,12 +470,24 @@ export default function CoberturaGeograficaClient({
                 onChange={(e) => setSelectedSalon(e.target.value)}
                 className="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition font-medium"
               >
-                <option value="">Todas las Sedes / Salones</option>
-                <option value="all_sha">🏛️ Todas las Sedes SHA</option>
-                <option value="Salón 1">🏛️ SHA — Salón 1</option>
-                <option value="Salón Oriente">🏛️ SHA — Salón Oriente</option>
-                <option value="Salón Elite">🏛️ SHA — Salón Elite</option>
-                <option value="sin_salon">⚠️ SHA — Salón por confirmar</option>
+                <option value="">Todas las Sedes (Nacional)</option>
+                <option value="all_sha">
+                  🏛️ Todas las Sedes SHA {data?.aulasSha ? `(${data.aulasSha.totalCursosSha})` : ""}
+                </option>
+                {data?.catalogs?.salonesDetalle ? (
+                  data.catalogs.salonesDetalle.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.id === "sin_salon" ? "⚠️" : "🏛️"} {s.nombre} ({s.totalCursos})
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="Salón 1 (Principal)">🏛️ SHA — Salón 1 (Principal)</option>
+                    <option value="Salón Oriente">🏛️ SHA — Salón Oriente</option>
+                    <option value="Salón Elite">🏛️ SHA — Salón Elite</option>
+                    <option value="sin_salon">⚠️ SHA — Salón por confirmar</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
@@ -465,7 +501,7 @@ export default function CoberturaGeograficaClient({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por tema, sede, dirección, cliente o nro de OSI..."
+                placeholder="Buscar por tema, aula SHA (Salón 1, Oriente, Elite), cliente, nro de OSI..."
                 className="w-full text-xs pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition"
               />
               {searchQuery && (
@@ -635,10 +671,94 @@ export default function CoberturaGeograficaClient({
           </div>
         </div>
 
+        {/* ─── SHA CLASSROOMS EXECUTIVE SUMMARY & QUICK FILTER PILLS ───────── */}
+        {data?.aulasSha && (
+          <div className="bg-linear-to-r from-slate-900 to-indigo-950 rounded-2xl p-5 text-white shadow-md border border-slate-800">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/30 text-purple-200 border border-purple-400/30 uppercase tracking-wider">
+                    <Landmark className="w-3 h-3 mr-1 text-purple-300" />
+                    Instalaciones SHA
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    Métricas de Aulas y Sedes Propias
+                  </span>
+                </div>
+                <h2 className="text-lg font-bold text-white mt-1">
+                  Uso de Salones de Capacitación SHA
+                </h2>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300 mt-1">
+                  <span>
+                    <strong className="text-white font-bold">{data.aulasSha.totalCursosSha}</strong> cursos ({data.aulasSha.porcentajeCursosEnSha}% del total)
+                  </span>
+                  <span>•</span>
+                  <span>
+                    <strong className="text-emerald-400 font-bold">{formatNumber(data.aulasSha.totalCertificadosSha)}</strong> certificados ({data.aulasSha.porcentajeCertsEnSha}%)
+                  </span>
+                  <span>•</span>
+                  <span>
+                    <strong className="text-purple-300 font-bold">{formatNumber(data.aulasSha.totalHorasAcademicasSha)}h</strong> de aula utilizadas
+                  </span>
+                  <span>•</span>
+                  <span>
+                    <strong className="text-amber-300 font-bold">{data.aulasSha.totalEmpresasSha}</strong> empresas atendidas
+                  </span>
+                </div>
+              </div>
+
+              {/* Classroom Quick Filter Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedSalon(selectedSalon === "all_sha" ? "" : "all_sha");
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                    selectedSalon === "all_sha"
+                      ? "bg-purple-500 text-white shadow-md ring-2 ring-purple-300"
+                      : "bg-white/10 text-slate-200 hover:bg-white/20"
+                  }`}
+                >
+                  <Landmark className="w-3.5 h-3.5" />
+                  Todas las Aulas SHA ({data.aulasSha.totalCursosSha})
+                </button>
+
+                {data.aulasSha.salones.map((s) => {
+                  const isSelected = selectedSalon === s.nombre || selectedSalon === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        const targetVal = s.id === "sin_asignar" ? "sin_salon" : s.nombre;
+                        setSelectedSalon(selectedSalon === targetVal ? "" : targetVal);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                        isSelected
+                          ? "bg-sky-500 text-white shadow-md ring-2 ring-sky-300"
+                          : "bg-white/10 text-slate-200 hover:bg-white/20"
+                      }`}
+                    >
+                      <span>{s.id === "sin_asignar" ? "⚠️" : "🏛️"}</span>
+                      {s.shortNombre} ({s.totalCursos})
+                    </button>
+                  );
+                })}
+
+                <button
+                  onClick={() => setActiveTab("aulas")}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-purple-200 bg-purple-600/40 hover:bg-purple-600/60 border border-purple-400/40 transition-colors ml-auto sm:ml-0"
+                >
+                  Ver Auditoría de Aulas →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ─── Tabs Navigation ────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between">
-            <div className="flex gap-6">
+          <div className="border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between overflow-x-auto">
+            <div className="flex gap-6 whitespace-nowrap">
               <button
                 onClick={() => setActiveTab("temas")}
                 className={`py-3.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
@@ -649,6 +769,18 @@ export default function CoberturaGeograficaClient({
               >
                 <BookOpen className="w-3.5 h-3.5" />
                 Desglose por Tema y Certificados ({sortedTemas.length})
+              </button>
+
+              <button
+                onClick={() => setActiveTab("aulas")}
+                className={`py-3.5 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+                  activeTab === "aulas"
+                    ? "border-purple-600 text-purple-600"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Landmark className="w-3.5 h-3.5 text-purple-600" />
+                Uso de Aulas SHA ({data?.aulasSha?.totalCursosSha ?? 0} cursos)
               </button>
 
               <button
@@ -684,14 +816,14 @@ export default function CoberturaGeograficaClient({
             )}
           </div>
 
-          {/* ─── TAB 1: DESGLOSE POR TEMA / CURSO (Primary Requirement) ─── */}
+          {/* ─── TAB 1: DESGLOSE POR TEMA / CURSO ─────────────────────────── */}
           {activeTab === "temas" && (
             <div className="overflow-x-auto">
               {sortedTemas.length === 0 ? (
                 <div className="py-12 text-center text-slate-400">
                   <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   <p className="text-sm font-medium">No se encontraron cursos con los filtros seleccionados.</p>
-                  <p className="text-xs text-slate-400 mt-1">Prueba seleccionando otro estado o limpiando los filtros.</p>
+                  <p className="text-xs text-slate-400 mt-1">Prueba seleccionando otro estado, aula o limpiando los filtros.</p>
                 </div>
               ) : (
                 <table className="w-full text-left text-xs border-collapse">
@@ -726,7 +858,7 @@ export default function CoberturaGeograficaClient({
                       </th>
                       <th className="py-3 px-3 font-semibold text-center">Prom. Asistentes</th>
                       <th className="py-3 px-4 font-semibold">Empresas Capacitadas</th>
-                      <th className="py-3 px-4 font-semibold">Ubicaciones / Sedes</th>
+                      <th className="py-3 px-4 font-semibold">Ubicaciones / Aulas</th>
                       <th className="py-3 px-3 font-semibold text-center">Última Fecha</th>
                       <th className="py-3 px-4 font-semibold text-right">Auditoría</th>
                     </tr>
@@ -791,21 +923,26 @@ export default function CoberturaGeograficaClient({
                           </div>
                         </td>
 
-                        {/* Locations / Sedes */}
+                        {/* Locations / Aulas */}
                         <td className="py-3 px-4">
                           <div className="flex flex-wrap gap-1 max-w-xs">
-                            {tema.estados.slice(0, 2).map((est) => (
+                            {tema.sedes.slice(0, 2).map((sd, sIdx) => (
                               <span
-                                key={est.id}
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-50 text-sky-700 border border-sky-100 font-medium"
+                                key={sIdx}
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium truncate max-w-[140px] ${
+                                  sd.nombre.includes("SHA")
+                                    ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                    : "bg-sky-50 text-sky-700 border border-sky-100"
+                                }`}
+                                title={`${sd.nombre} (${sd.count} cursos)`}
                               >
-                                <MapPin className="w-2.5 h-2.5 mr-0.5 text-sky-500" />
-                                {est.nombre} ({est.osisCount})
+                                <MapPin className="w-2.5 h-2.5 mr-0.5 shrink-0" />
+                                {sd.nombre} ({sd.count})
                               </span>
                             ))}
-                            {tema.estados.length > 2 && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-sky-100 text-sky-800 font-bold">
-                                +{tema.estados.length - 2}
+                            {tema.sedes.length > 2 && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 font-bold">
+                                +{tema.sedes.length - 2}
                               </span>
                             )}
                           </div>
@@ -834,7 +971,238 @@ export default function CoberturaGeograficaClient({
             </div>
           )}
 
-          {/* ─── TAB 2: DISTRIBUCIÓN POR ESTADO ───────────────────────────── */}
+          {/* ─── TAB 2: AUDITORÍA DE AULAS SHA (New Dedicated Section) ──────── */}
+          {activeTab === "aulas" && (
+            <div className="p-5 space-y-6">
+              {/* Classroom Comparative Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {data?.aulasSha.salones.map((s) => {
+                  const isUnassigned = s.id === "sin_asignar";
+                  const isFiltered = selectedSalon === s.nombre || (isUnassigned && selectedSalon === "sin_salon");
+
+                  return (
+                    <div
+                      key={s.id}
+                      className={`rounded-2xl p-4 border transition-all flex flex-col justify-between ${
+                        isFiltered
+                          ? "bg-purple-50/50 border-purple-300 ring-2 ring-purple-400/40 shadow-md"
+                          : "bg-white border-slate-200 hover:shadow-md"
+                      }`}
+                    >
+                      <div>
+                        {/* Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`p-2 rounded-lg ${
+                              isUnassigned
+                                ? "bg-amber-100 text-amber-700"
+                                : s.id === "salon-principal"
+                                ? "bg-sky-100 text-sky-700"
+                                : s.id === "salon-oriente"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-purple-100 text-purple-700"
+                            }`}>
+                              <Landmark className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-slate-900 text-sm">{s.nombre}</h3>
+                              <span className="text-[10px] text-slate-400 block font-medium">
+                                {isUnassigned ? "Instalaciones SHA — Pendiente" : "Instalaciones SHA"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar (% of usage) */}
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 mt-3 overflow-hidden">
+                          <div
+                            className={`h-1.5 rounded-full ${
+                              isUnassigned
+                                ? "bg-amber-400"
+                                : s.id === "salon-principal"
+                                ? "bg-sky-600"
+                                : s.id === "salon-oriente"
+                                ? "bg-amber-500"
+                                : "bg-purple-600"
+                            }`}
+                            style={{ width: `${Math.min(s.porcentajeUso, 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1">
+                          <span>{s.porcentajeUso}% de cursos SHA</span>
+                          <span>Promedio: {s.promedioCertsPorCurso} certs</span>
+                        </div>
+
+                        {/* Metrics Grid */}
+                        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 text-center">
+                          <div>
+                            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Cursos</span>
+                            <span className="text-base font-extrabold text-slate-900 tabular-nums">{s.totalCursos}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Certificados</span>
+                            <span className="text-base font-extrabold text-emerald-600 tabular-nums" suppressHydrationWarning>
+                              {formatNumber(s.totalCertificados)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Horas</span>
+                            <span className="text-base font-extrabold text-purple-700 tabular-nums">{s.totalHorasAcademicas}h</span>
+                          </div>
+                        </div>
+
+                        {/* Top Courses */}
+                        {s.temasTop.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-slate-100">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                              Temas más dictados:
+                            </span>
+                            <div className="space-y-1">
+                              {s.temasTop.map((tp, idx) => (
+                                <div key={idx} className="flex items-center justify-between text-[11px]">
+                                  <span className="text-slate-700 truncate pr-2" title={tp.nombre}>
+                                    • {tp.nombre}
+                                  </span>
+                                  <span className="font-semibold text-emerald-600 shrink-0 tabular-nums">
+                                    {tp.certs} certs
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Top Companies */}
+                        {s.empresasTop.length > 0 && (
+                          <div className="mt-2.5 pt-2.5 border-t border-slate-100">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                              Principales Clientes:
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {s.empresasTop.map((ep, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-medium truncate max-w-[140px]"
+                                  title={`${ep.nombre} (${ep.cursos} cursos)`}
+                                >
+                                  {ep.nombre}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Button */}
+                      <div className="mt-4 pt-3 border-t border-slate-100">
+                        <button
+                          onClick={() => {
+                            const targetVal = isUnassigned ? "sin_salon" : s.nombre;
+                            setSelectedSalon(selectedSalon === targetVal ? "" : targetVal);
+                          }}
+                          className={`w-full py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                            isFiltered
+                              ? "bg-purple-600 text-white hover:bg-purple-700"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          }`}
+                        >
+                          {isFiltered ? "Quitar filtro de aula" : `Filtrar cursos (${s.totalCursos})`}
+                          <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Table of all OSIs in SHA classrooms */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center gap-2">
+                    <Landmark className="w-4 h-4 text-purple-600" />
+                    <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                      Cursos Realizados en Instalaciones SHA ({allShaOsis.length})
+                    </h3>
+                  </div>
+                  {selectedSalon && (
+                    <span className="text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-md">
+                      Filtro activo: {selectedSalon}
+                    </span>
+                  )}
+                </div>
+
+                <div className="overflow-x-auto">
+                  {allShaOsis.length === 0 ? (
+                    <div className="py-10 text-center text-slate-400">
+                      <Landmark className="w-8 h-8 mx-auto mb-2 opacity-40 text-purple-400" />
+                      <p className="text-xs font-medium">No hay servicios registrados en instalaciones SHA para los filtros seleccionados.</p>
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[11px] bg-slate-50">
+                          <th className="py-2.5 px-3 font-semibold">Nro OSI</th>
+                          <th className="py-2.5 px-3 font-semibold">Aula / Salón</th>
+                          <th className="py-2.5 px-3 font-semibold">Fecha</th>
+                          <th className="py-2.5 px-3 font-semibold">Curso / Tema</th>
+                          <th className="py-2.5 px-3 font-semibold">Cliente / Empresa</th>
+                          <th className="py-2.5 px-3 font-semibold text-center">Horas</th>
+                          <th className="py-2.5 px-3 font-semibold text-right">Certificados</th>
+                          <th className="py-2.5 px-3 font-semibold text-right">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {allShaOsis.map((osi) => (
+                          <tr key={osi.idOsi} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-2.5 px-3 font-mono font-bold text-sky-700">
+                              {osi.nroOsi}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              {osi.salon ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-800 border border-purple-200">
+                                  🏛️ {osi.salon}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                                  ⚠️ Por confirmar
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600 tabular-nums">
+                              {osi.fechaFin || osi.fechaInicio || "—"}
+                            </td>
+                            <td className="py-2.5 px-3 font-medium text-slate-900 max-w-xs truncate" title={osi.servicio}>
+                              {osi.servicio}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-700 truncate max-w-[180px]" title={osi.empresaNombre}>
+                              {osi.empresaNombre}
+                            </td>
+                            <td className="py-2.5 px-3 text-center text-slate-700 tabular-nums">
+                              {osi.horasAcademicas}h
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-extrabold text-emerald-600 tabular-nums">
+                              {osi.certificadosEmitidos}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <button
+                                onClick={() => setPreviewOsiId(osi.idOsi)}
+                                className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition"
+                              >
+                                Ver OSI
+                                <ExternalLink className="w-2.5 h-2.5 ml-1" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── TAB 3: DISTRIBUCIÓN POR ESTADO ───────────────────────────── */}
           {activeTab === "estados" && (
             <div className="p-5">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -916,7 +1284,7 @@ export default function CoberturaGeograficaClient({
             </div>
           )}
 
-          {/* ─── TAB 3: SEDES E INSTALACIONES ─────────────────────────────── */}
+          {/* ─── TAB 4: SEDES E INSTALACIONES ─────────────────────────────── */}
           {activeTab === "sedes" && (
             <div className="overflow-x-auto">
               {data?.sedesResumen.length === 0 ? (
@@ -1070,7 +1438,7 @@ export default function CoberturaGeograficaClient({
                             </span>
                           )}
 
-                          {/* Salón SHA badge (read-only audit view) */}
+                          {/* Salón SHA badge */}
                           {osi.isShaVenue && (
                             <div className="mt-1.5 flex items-center gap-1.5">
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -1083,9 +1451,9 @@ export default function CoberturaGeograficaClient({
                               ) : (
                                 <span
                                   className="text-[10px] font-medium rounded px-1.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200"
-                                  title="Pendiente de asignación desde Seguimiento de Servicios o Centro de Notificaciones"
+                                  title="Servicio en sede SHA pendiente de asignación específica de salón"
                                 >
-                                  ⚠️ Sin asignar
+                                  ⚠️ Por confirmar
                                 </span>
                               )}
                             </div>

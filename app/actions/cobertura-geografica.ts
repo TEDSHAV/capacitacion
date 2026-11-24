@@ -1,7 +1,15 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { SALONES_SHA, isShaLocation } from "@/lib/constants/salones";
+import {
+  SALONES_SHA,
+  SALONES_SHA_CONFIG,
+  isShaLocation,
+  normalizeSalonName,
+  getSalonCanonicalId,
+  matchSalonFilter,
+} from "@/lib/constants/salones";
+
 interface SupabaseQueryBuilder<T> {
   range: (
     from: number,
@@ -21,6 +29,11 @@ async function fetchTableParallel<T>(
   try {
     const { data: firstPage, count, error } = await buildQuery().range(0, PAGE_SIZE - 1);
     if (error) {
+      // Gracefully ignore missing tables in schema cache (PGRST205)
+      const errCode = (error as { code?: string })?.code;
+      if (errCode === "PGRST205") {
+        return [];
+      }
       console.error(`[cobertura-geografica] Error fetching ${label} page 0:`, error);
       return [];
     }
@@ -69,6 +82,7 @@ export interface CoberturaOsiItem {
   direccion: string | null;
   isShaVenue: boolean;
   salon: string | null;
+  salonCanonicalId: string | null;
   estadoNombre: string;
   idEstado: number | null;
   ciudadNombre: string | null;
@@ -122,6 +136,34 @@ export interface CoberturaSedeSummary {
   temasCount: number;
 }
 
+export interface CoberturaClassroomUsage {
+  id: "salon-principal" | "salon-oriente" | "salon-elite" | "sin_asignar";
+  nombre: string;
+  shortNombre: string;
+  badgeColor: "sky" | "amber" | "purple" | "slate";
+  totalCursos: number;
+  totalCertificados: number;
+  totalHorasAcademicas: number;
+  totalEmpresas: number;
+  promedioCertsPorCurso: number;
+  porcentajeUso: number; // % of total SHA courses
+  temasTop: Array<{ nombre: string; cursos: number; certs: number }>;
+  empresasTop: Array<{ nombre: string; cursos: number; certs: number }>;
+  ultimaFecha: string | null;
+}
+
+export interface CoberturaShaMetrics {
+  totalCursosSha: number;
+  totalCertificadosSha: number;
+  totalHorasAcademicasSha: number;
+  totalEmpresasSha: number;
+  porcentajeCursosEnSha: number;
+  porcentajeCertsEnSha: number;
+  cursosConSalonAsignado: number;
+  cursosSinSalonAsignado: number;
+  salones: CoberturaClassroomUsage[];
+}
+
 export interface CoberturaDataResponse {
   kpis: {
     totalCursosRealizados: number;
@@ -131,6 +173,7 @@ export interface CoberturaDataResponse {
     totalHorasAcademicas: number;
     promedioCertsPorCurso: number;
   };
+  aulasSha: CoberturaShaMetrics;
   temas: CoberturaTemaItem[];
   estadosResumen: CoberturaEstadoSummary[];
   sedesResumen: CoberturaSedeSummary[];
@@ -140,6 +183,13 @@ export interface CoberturaDataResponse {
     empresas: Array<{ id: number; razonSocial: string }>;
     cursos: Array<{ id: number; nombre: string }>;
     salones: string[];
+    salonesDetalle: Array<{
+      id: string;
+      nombre: string;
+      shortNombre: string;
+      color: string;
+      totalCursos: number;
+    }>;
   };
   timing: {
     fetchMs: number;
@@ -169,6 +219,7 @@ export async function getCoberturaGeograficaData(
       serviciosRows,
       empresasRows,
       stepsRows,
+      empresaSedesRows,
     ] = await Promise.all([
       // 1. All capacitación OSIs with location, execution dates and hours
       fetchTableParallel<{
@@ -280,7 +331,7 @@ export async function getCoberturaGeograficaData(
           .order("razon_social", { ascending: true });
       }, "empresas"),
 
-      // 8. Execution steps metadata (for Salón SHA tracking)
+      // 8. Execution steps metadata (authoritative Salón SHA tracking)
       fetchTableParallel<{
         osi_id: number;
         step_metadata: Record<string, unknown> | null;
@@ -291,6 +342,17 @@ export async function getCoberturaGeograficaData(
           .eq("step_key", "en_proceso")
           .order("osi_id", { ascending: true });
       }, "capacitacion_proceso_steps_en_proceso"),
+
+      // 9. Empresa sedes catalog (resolve id_sede to readable name)
+      fetchTableParallel<{
+        id: number;
+        nombre_sede: string;
+      }>(() => {
+        return supabase
+          .from("empresa_sedes")
+          .select("id, nombre_sede", { count: "exact" })
+          .order("id", { ascending: true });
+      }, "empresa_sedes"),
     ]);
 
     const tFetch = performance.now();
@@ -300,45 +362,70 @@ export async function getCoberturaGeograficaData(
     const ciudadesMap = new Map(ciudadesRows.map((c) => [c.id, c.nombre_ciudad]));
     const serviciosMap = new Map(serviciosRows.map((s) => [s.id, s]));
     const empresasMap = new Map(empresasRows.map((e) => [e.id, e.razon_social]));
+    const empresaSedesMap = new Map(empresaSedesRows.map((s) => [s.id, s.nombre_sede]));
 
-    // Salon mapping (osi_id -> salon name)
-    const salonByOsiId = new Map<number, string>();
-    for (const step of stepsRows) {
-      if (step.osi_id && step.step_metadata?.salon) {
-        salonByOsiId.set(step.osi_id, String(step.step_metadata.salon).trim());
+    // Reverse lookup maps for course and company names (fallback when ID is null)
+    const cursoIdByName = new Map<string, number>();
+    for (const s of serviciosRows) {
+      if (s.nombre) {
+        cursoIdByName.set(s.nombre.toLowerCase().trim(), s.id);
+      }
+    }
+    const empresaIdByName = new Map<string, number>();
+    for (const e of empresasRows) {
+      if (e.razon_social) {
+        empresaIdByName.set(e.razon_social.toLowerCase().trim(), e.id);
       }
     }
 
-    // Sequential OSI string -> id_osi
+    // Salon mapping: Proceso steps metadata (authoritative en_proceso step)
+    const salonByOsiId = new Map<number, string>();
+    for (const step of stepsRows) {
+      if (step.osi_id && step.step_metadata?.salon) {
+        const val = String(step.step_metadata.salon).trim();
+        if (val) {
+          salonByOsiId.set(step.osi_id, val);
+        }
+      }
+    }
+
+    // Sequential OSI string -> id_osi & ID set
     const numericOsiToIdOsi = new Map<string, number>();
+    const ejecucionIdSet = new Set<number>();
     for (const e of ejecucionRows) {
+      ejecucionIdSet.add(e.id);
       if (e.nro_osi_secuencial != null) {
         numericOsiToIdOsi.set(String(e.nro_osi_secuencial).trim(), e.id);
       }
     }
 
-    // Certificates counts mapped by id_osi
+    // Certificates counts & State fallback mapped by id_osi
     const certsByOsiId = new Map<number, number>();
-    // Certificates counts mapped by legacy string
+    const certStateByOsiId = new Map<number, number>();
     const certsByLegacyOsi = new Map<string, number>();
-    // Direct certificates mapped by (id_curso + id_estado) for standalone certs
-    const certsByCursoAndEstado = new Map<string, number>();
 
     for (const cert of certsRows) {
       let linkedOsiId: number | null = null;
       if (cert.nro_osi != null) {
         const secStr = String(cert.nro_osi).trim();
         linkedOsiId = numericOsiToIdOsi.get(secStr) ?? null;
+
+        // Fallback: Check if nro_osi is already directly the execution ID
+        if (linkedOsiId == null) {
+          const numId = parseInt(secStr, 10);
+          if (Number.isFinite(numId) && ejecucionIdSet.has(numId)) {
+            linkedOsiId = numId;
+          }
+        }
+
         if (linkedOsiId != null) {
           certsByOsiId.set(linkedOsiId, (certsByOsiId.get(linkedOsiId) ?? 0) + 1);
+          if (cert.id_estado && !certStateByOsiId.has(linkedOsiId)) {
+            certStateByOsiId.set(linkedOsiId, cert.id_estado);
+          }
         } else {
           certsByLegacyOsi.set(secStr, (certsByLegacyOsi.get(secStr) ?? 0) + 1);
         }
-      }
-
-      if (cert.id_curso && cert.id_estado) {
-        const key = `${cert.id_curso}_${cert.id_estado}`;
-        certsByCursoAndEstado.set(key, (certsByCursoAndEstado.get(key) ?? 0) + 1);
       }
     }
 
@@ -348,7 +435,11 @@ export async function getCoberturaGeograficaData(
     for (const o of osisRows) {
       if (!o.id_osi) continue;
 
-      const idEstado = o.id_estado_direccion_ejecucion_efectiva;
+      // Resolve state: effective execution state -> certificate state fallback
+      let idEstado = o.id_estado_direccion_ejecucion_efectiva;
+      if (!idEstado && certStateByOsiId.has(o.id_osi)) {
+        idEstado = certStateByOsiId.get(o.id_osi) ?? null;
+      }
       const estadoNombre = (idEstado && estadosMap.get(idEstado)) || "Sin Estado Definido";
 
       const idCiudad = o.id_ciudad_direccion_ejecucion_efectiva;
@@ -362,21 +453,45 @@ export async function getCoberturaGeograficaData(
       const partEst = Number(o.participantes_ejecucion ?? o.participantes_max_solped ?? certsCount);
 
       const direccion = (o.direccion_ejecucion_real || o.direccion_ejecucion || "").trim() || null;
-      const sede = (o.sede || "").trim() || null;
+      const sede = (o.id_sede ? empresaSedesMap.get(o.id_sede) : null) || (o.sede || "").trim() || null;
+
+      // 1. Is this venue strictly an SHA facility?
+      // In-company services (e.g. Coca-Cola, Polar at client plants in other cities) CANNOT take place in SHA classrooms.
       const isSha = isShaLocation(direccion, sede);
-      const salon = salonByOsiId.get(o.id_osi) || null;
+
+      // 2. An SHA classroom can ONLY exist if the service was actually held at SHA facilities!
+      let salon: string | null = null;
+      let salonCanonicalId: string | null = null;
+
+      if (isSha) {
+        const rawSalon = salonByOsiId.get(o.id_osi) || null;
+        salon = normalizeSalonName(rawSalon);
+        salonCanonicalId = getSalonCanonicalId(salon);
+      }
+
+      // Course and Company with name fallback if ID was null
+      let idServicio = o.id_servicio;
+      if (!idServicio && o.servicio) {
+        idServicio = cursoIdByName.get(o.servicio.toLowerCase().trim()) ?? null;
+      }
+
+      let idEmpresa = o.id_empresa;
+      if (!idEmpresa && o.nombre_empresa) {
+        idEmpresa = empresaIdByName.get(o.nombre_empresa.toLowerCase().trim()) ?? null;
+      }
 
       const item: CoberturaOsiItem = {
         idOsi: o.id_osi,
         nroOsi: o.nro_osi || `OSI-${o.id_osi}`,
-        servicio: o.servicio || (o.id_servicio ? serviciosMap.get(o.id_servicio)?.nombre || "Servicio no especificado" : "Servicio no especificado"),
-        idServicio: o.id_servicio,
-        empresaNombre: o.nombre_empresa || (o.id_empresa ? empresasMap.get(o.id_empresa) || "Cliente no especificado" : "Cliente no especificado"),
-        idEmpresa: o.id_empresa,
+        servicio: o.servicio || (idServicio ? serviciosMap.get(idServicio)?.nombre || "Servicio no especificado" : "Servicio no especificado"),
+        idServicio,
+        empresaNombre: o.nombre_empresa || (idEmpresa ? empresasMap.get(idEmpresa) || "Cliente no especificado" : "Cliente no especificado"),
+        idEmpresa,
         sede,
         direccion,
         isShaVenue: isSha,
         salon,
+        salonCanonicalId,
         estadoNombre,
         idEstado,
         ciudadNombre,
@@ -401,23 +516,17 @@ export async function getCoberturaGeograficaData(
       // 4. Curso
       if (filters.cursoId && item.idServicio !== filters.cursoId) continue;
 
-      // 5. Salón / Instalaciones SHA
-      if (filters.salon) {
-        if (filters.salon === "all_sha") {
-          if (!item.isShaVenue) continue;
-        } else if (filters.salon === "sin_salon") {
-          if (!item.isShaVenue || item.salon) continue;
-        } else {
-          if (item.salon !== filters.salon) continue;
-        }
+      // 5. Salón / Instalaciones SHA (using robust canonical matcher)
+      if (filters.salon && !matchSalonFilter(item.salon, filters.salon, item.isShaVenue)) {
+        continue;
       }
 
-      // 6. Date Range (using fechaFin or fechaInicio)
-      const osiDate = item.fechaFin || item.fechaInicio;
-      if (filters.dateFrom && (!osiDate || osiDate < filters.dateFrom)) continue;
-      if (filters.dateTo && (!osiDate || osiDate > filters.dateTo)) continue;
+      // 6. Date Range (using clean YYYY-MM-DD prefix)
+      const osiDate = (item.fechaFin || item.fechaInicio || "").slice(0, 10);
+      if (filters.dateFrom && (!osiDate || osiDate < filters.dateFrom.slice(0, 10))) continue;
+      if (filters.dateTo && (!osiDate || osiDate > filters.dateTo.slice(0, 10))) continue;
 
-      // 6. Search query
+      // 7. Search query (now includes salon name)
       if (filters.searchQuery) {
         const q = filters.searchQuery.toLowerCase().trim();
         const match =
@@ -427,7 +536,8 @@ export async function getCoberturaGeograficaData(
           (item.sede && item.sede.toLowerCase().includes(q)) ||
           (item.direccion && item.direccion.toLowerCase().includes(q)) ||
           item.estadoNombre.toLowerCase().includes(q) ||
-          (item.ciudadNombre && item.ciudadNombre.toLowerCase().includes(q));
+          (item.ciudadNombre && item.ciudadNombre.toLowerCase().includes(q)) ||
+          (item.salon && item.salon.toLowerCase().includes(q));
 
         if (!match) continue;
       }
@@ -449,7 +559,6 @@ export async function getCoberturaGeograficaData(
     }>();
 
     for (const osi of normalizedOsis) {
-      // Group key: by course ID if available, otherwise sanitized course name
       const key = osi.idServicio != null ? `id_${osi.idServicio}` : `name_${osi.servicio.toLowerCase().trim()}`;
 
       let cur = temasMap.get(key);
@@ -472,13 +581,11 @@ export async function getCoberturaGeograficaData(
       cur.osis.push(osi);
       cur.totalCerts += osi.certificadosEmitidos;
 
-      // Track last date
       const d = osi.fechaFin || osi.fechaInicio;
       if (d && (!cur.ultimaFecha || d > cur.ultimaFecha)) {
         cur.ultimaFecha = d;
       }
 
-      // Company agg
       if (osi.idEmpresa) {
         const comp = cur.empresasMap.get(osi.idEmpresa) || {
           id: osi.idEmpresa,
@@ -491,7 +598,6 @@ export async function getCoberturaGeograficaData(
         cur.empresasMap.set(osi.idEmpresa, comp);
       }
 
-      // State agg
       if (osi.idEstado) {
         const est = cur.estadosMap.get(osi.idEstado) || {
           id: osi.idEstado,
@@ -504,8 +610,9 @@ export async function getCoberturaGeograficaData(
         cur.estadosMap.set(osi.idEstado, est);
       }
 
-      // Venue / Sede agg
-      const venueLabel = osi.sede || osi.direccion || osi.ciudadNombre || "Sin sede especificada";
+      const venueLabel = osi.isShaVenue
+        ? (osi.salon ? `🏛️ SHA — ${osi.salon}` : "🏛️ SHA — Sede Principal")
+        : (osi.sede || osi.direccion || osi.ciudadNombre || "Sin sede especificada");
       cur.sedesMap.set(venueLabel, (cur.sedesMap.get(venueLabel) ?? 0) + 1);
     }
 
@@ -596,8 +703,11 @@ export async function getCoberturaGeograficaData(
     const sedesAgg = new Map<string, SedeAggItem>();
 
     for (const osi of normalizedOsis) {
-      const sName = osi.sede || osi.direccion || osi.ciudadNombre || "Sede No Especificada";
-      const key = `${osi.idEstado || 0}_${sName.toLowerCase().trim()}${osi.salon ? `_${osi.salon.toLowerCase().trim()}` : ""}`;
+      const sName = osi.isShaVenue
+        ? (osi.salon ? `Instalaciones SHA — ${osi.salon}` : "Instalaciones SHA — Sede Principal")
+        : (osi.sede || osi.direccion || osi.ciudadNombre || "Sede No Especificada");
+
+      const key = `${osi.idEstado || 0}_${sName.toLowerCase().trim()}`;
 
       let s = sedesAgg.get(key);
       if (!s) {
@@ -673,6 +783,162 @@ export async function getCoberturaGeograficaData(
         ? Math.round((totalCertificadosEmitidos / totalCursosRealizados) * 10) / 10
         : 0;
 
+    // ── Calculate SHA Classroom Usage Metrics (Aulas SHA) ────────────────────
+    const shaOsis = normalizedOsis.filter((o) => o.isShaVenue);
+    const totalCursosSha = shaOsis.length;
+    let totalCertificadosSha = 0;
+    let totalHorasAcademicasSha = 0;
+    const shaEmpresasSet = new Set<string>();
+
+    for (const o of shaOsis) {
+      totalCertificadosSha += o.certificadosEmitidos;
+      totalHorasAcademicasSha += o.horasAcademicas;
+      if (o.empresaNombre) {
+        shaEmpresasSet.add(o.empresaNombre.toLowerCase().trim());
+      }
+    }
+
+    // Classroom Buckets initialized
+    interface ClassroomBucket {
+      id: "salon-principal" | "salon-oriente" | "salon-elite" | "sin_asignar";
+      nombre: string;
+      shortNombre: string;
+      badgeColor: "sky" | "amber" | "purple" | "slate";
+      totalCursos: number;
+      totalCertificados: number;
+      totalHorasAcademicas: number;
+      empresasSet: Set<string>;
+      temasMap: Map<string, { nombre: string; cursos: number; certs: number }>;
+      empresasMap: Map<string, { nombre: string; cursos: number; certs: number }>;
+      ultimaFecha: string | null;
+    }
+
+    const classroomBuckets: Record<string, ClassroomBucket> = {
+      "salon-principal": {
+        id: "salon-principal",
+        nombre: "Salón 1 (Principal)",
+        shortNombre: "Salón 1",
+        badgeColor: "sky",
+        totalCursos: 0,
+        totalCertificados: 0,
+        totalHorasAcademicas: 0,
+        empresasSet: new Set(),
+        temasMap: new Map(),
+        empresasMap: new Map(),
+        ultimaFecha: null,
+      },
+      "salon-oriente": {
+        id: "salon-oriente",
+        nombre: "Salón Oriente",
+        shortNombre: "Salón Oriente",
+        badgeColor: "amber",
+        totalCursos: 0,
+        totalCertificados: 0,
+        totalHorasAcademicas: 0,
+        empresasSet: new Set(),
+        temasMap: new Map(),
+        empresasMap: new Map(),
+        ultimaFecha: null,
+      },
+      "salon-elite": {
+        id: "salon-elite",
+        nombre: "Salón Elite",
+        shortNombre: "Salón Elite",
+        badgeColor: "purple",
+        totalCursos: 0,
+        totalCertificados: 0,
+        totalHorasAcademicas: 0,
+        empresasSet: new Set(),
+        temasMap: new Map(),
+        empresasMap: new Map(),
+        ultimaFecha: null,
+      },
+      sin_asignar: {
+        id: "sin_asignar",
+        nombre: "Por confirmar / Sin asignar",
+        shortNombre: "Por confirmar",
+        badgeColor: "slate",
+        totalCursos: 0,
+        totalCertificados: 0,
+        totalHorasAcademicas: 0,
+        empresasSet: new Set(),
+        temasMap: new Map(),
+        empresasMap: new Map(),
+        ultimaFecha: null,
+      },
+    };
+
+    let cursosConSalonAsignado = 0;
+    let cursosSinSalonAsignado = 0;
+
+    for (const o of shaOsis) {
+      const canonId = o.salonCanonicalId;
+      const bucketKey = canonId && classroomBuckets[canonId] ? canonId : "sin_asignar";
+      const bucket = classroomBuckets[bucketKey];
+
+      if (bucketKey !== "sin_asignar") {
+        cursosConSalonAsignado++;
+      } else {
+        cursosSinSalonAsignado++;
+      }
+
+      bucket.totalCursos++;
+      bucket.totalCertificados += o.certificadosEmitidos;
+      bucket.totalHorasAcademicas += o.horasAcademicas;
+
+      const empName = o.empresaNombre.trim() || "Cliente no especificado";
+      bucket.empresasSet.add(empName);
+
+      const empStat = bucket.empresasMap.get(empName) ?? { nombre: empName, cursos: 0, certs: 0 };
+      empStat.cursos++;
+      empStat.certs += o.certificadosEmitidos;
+      bucket.empresasMap.set(empName, empStat);
+
+      const temaName = o.servicio.trim() || "Tema no especificado";
+      const temaStat = bucket.temasMap.get(temaName) ?? { nombre: temaName, cursos: 0, certs: 0 };
+      temaStat.cursos++;
+      temaStat.certs += o.certificadosEmitidos;
+      bucket.temasMap.set(temaName, temaStat);
+
+      const d = o.fechaFin || o.fechaInicio;
+      if (d && (!bucket.ultimaFecha || d > bucket.ultimaFecha)) {
+        bucket.ultimaFecha = d;
+      }
+    }
+
+    const salonesUsageList: CoberturaClassroomUsage[] = Object.values(classroomBuckets).map((b) => ({
+      id: b.id,
+      nombre: b.nombre,
+      shortNombre: b.shortNombre,
+      badgeColor: b.badgeColor,
+      totalCursos: b.totalCursos,
+      totalCertificados: b.totalCertificados,
+      totalHorasAcademicas: Math.round(b.totalHorasAcademicas),
+      totalEmpresas: b.empresasSet.size,
+      promedioCertsPorCurso: b.totalCursos > 0 ? Math.round((b.totalCertificados / b.totalCursos) * 10) / 10 : 0,
+      porcentajeUso: totalCursosSha > 0 ? Math.round((b.totalCursos / totalCursosSha) * 1000) / 10 : 0,
+      temasTop: Array.from(b.temasMap.values()).sort((x, y) => y.certs - x.certs || y.cursos - x.cursos).slice(0, 3),
+      empresasTop: Array.from(b.empresasMap.values()).sort((x, y) => y.certs - x.certs || y.cursos - x.cursos).slice(0, 3),
+      ultimaFecha: b.ultimaFecha,
+    }));
+
+    const porcentajeCursosEnSha =
+      totalCursosRealizados > 0 ? Math.round((totalCursosSha / totalCursosRealizados) * 1000) / 10 : 0;
+    const porcentajeCertsEnSha =
+      totalCertificadosEmitidos > 0 ? Math.round((totalCertificadosSha / totalCertificadosEmitidos) * 1000) / 10 : 0;
+
+    const aulasShaMetrics: CoberturaShaMetrics = {
+      totalCursosSha,
+      totalCertificadosSha,
+      totalHorasAcademicasSha: Math.round(totalHorasAcademicasSha),
+      totalEmpresasSha: shaEmpresasSet.size,
+      porcentajeCursosEnSha,
+      porcentajeCertsEnSha,
+      cursosConSalonAsignado,
+      cursosSinSalonAsignado,
+      salones: salonesUsageList,
+    };
+
     const tEnd = performance.now();
 
     return {
@@ -685,6 +951,7 @@ export async function getCoberturaGeograficaData(
           totalHorasAcademicas: Math.round(totalHorasAcademicas),
           promedioCertsPorCurso,
         },
+        aulasSha: aulasShaMetrics,
         temas: temasList,
         estadosResumen: estadosResumenList,
         sedesResumen: sedesResumenList,
@@ -694,6 +961,22 @@ export async function getCoberturaGeograficaData(
           empresas: empresasRows.map((e) => ({ id: e.id, razonSocial: e.razon_social })),
           cursos: serviciosRows.map((s) => ({ id: s.id, nombre: s.nombre })),
           salones: [...SALONES_SHA],
+          salonesDetalle: [
+            ...SALONES_SHA_CONFIG.map((s) => ({
+              id: s.nombre,
+              nombre: s.nombre,
+              shortNombre: s.shortNombre,
+              color: s.color,
+              totalCursos: classroomBuckets[s.id]?.totalCursos || 0,
+            })),
+            {
+              id: "sin_salon",
+              nombre: "Por confirmar / Sin asignar",
+              shortNombre: "Por confirmar",
+              color: "slate",
+              totalCursos: classroomBuckets["sin_asignar"]?.totalCursos || 0,
+            },
+          ],
         },
         timing: {
           fetchMs: Math.round(tFetch - t0),
