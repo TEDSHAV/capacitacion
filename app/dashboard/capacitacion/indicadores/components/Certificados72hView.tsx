@@ -1157,11 +1157,11 @@ export default function Certificados72hView({ aggregates, rows, mesLabel, onRefr
                               {r.atribucionDemora === "demora_facilitador" ? (
                                 <span
                                   className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/90"
-                                  title={r.atribucionDetalle || "Demora generada por entrega tardía o incompleta de soportes del facilitador"}
+                                  title={r.atribucionDetalle || "Demora generada por entrega tardía de soportes del facilitador"}
                                 >
                                   <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
                                   <span>
-                                    Demora facilitador {r.diasCargaFacilitador ? `(+${Math.max(0, r.diasCargaFacilitador - 3)}d)` : "· Soportes pendientes"}
+                                    Demora facilitador {r.diasCargaFacilitador ? `(+${Math.max(0, r.diasCargaFacilitador - 3)}d)` : ""}
                                   </span>
                                 </span>
                               ) : r.atribucionDemora === "en_gestion" ? (

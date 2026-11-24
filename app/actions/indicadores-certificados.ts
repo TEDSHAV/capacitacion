@@ -539,6 +539,47 @@ export async function getIndicadoresCertificados72h(
       }
     }
 
+    // 3e. Cross-pollinate uploads across candidate multi-OSI companions
+    // When multiple OSIs correspond to the same course execution (same date and normalized service topic),
+    // facilitators typically submit the signed attendance list, qualification sheet, and photos under one
+    // representative OSI. Sibling OSIs share these uploads so they are not falsely flagged with missing supports.
+    const consolidatedUploadsByOsi = new Map<number, UploadRecord[]>();
+    {
+      const osisByKey = new Map<string, number[]>();
+      for (const o of osis) {
+        const osiId = o.id_osi ?? 0;
+        const agg = sesionAggByOsi.get(osiId);
+        const aj = ajustesByOsi.get(osiId);
+        const d =
+          aj?.fecha_ejecucion ||
+          agg?.maxFechaEjecutada ||
+          agg?.maxFechaPlanificada ||
+          o.fecha_fin_real;
+        if (!d) continue;
+        const dateKey = d.slice(0, 10);
+        const svcKey = (o.servicio || "")
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]/g, "");
+        if (!svcKey) continue;
+        const key = `${dateKey}_${svcKey}`;
+        const list = osisByKey.get(key) || [];
+        list.push(osiId);
+        osisByKey.set(key, list);
+      }
+
+      for (const [, groupIds] of osisByKey.entries()) {
+        const allGroupUploads: UploadRecord[] = [];
+        for (const id of groupIds) {
+          const ups = uploadsByOsi.get(id) || [];
+          allGroupUploads.push(...ups);
+        }
+        for (const id of groupIds) {
+          consolidatedUploadsByOsi.set(id, allGroupUploads);
+        }
+      }
+    }
+
     // 4. Build per-OSI rows
     const facilitadorIdByOsi = new Map<number, number | null>();
     const nowDate = new Date();
@@ -694,7 +735,9 @@ export async function getIndicadoresCertificados72h(
       }
 
       // Facilitator uploads & bottleneck evaluation
-      const osiUploads = uploadsByOsi.get(osiId) || [];
+      // Checks uploads directly under this OSI or shared from multi-OSI companions
+      const osiUploads =
+        consolidatedUploadsByOsi.get(osiId) || uploadsByOsi.get(osiId) || [];
       const hasAsistencia = osiUploads.some((u) => u.category === "lista_asistencia");
       const hasCalificacion = osiUploads.some((u) => u.category === "hoja_calificacion");
       const hasFotos = osiUploads.some((u) => u.category === "material_fotografico");
@@ -724,20 +767,23 @@ export async function getIndicadoresCertificados72h(
         diasCargaFacilitador = businessDaysInclusive(execDate, uploadDate, holidays);
       }
 
-      // Determine subtle delay attribution
+      // Determine delay attribution
       let atribucionDemora: "demora_facilitador" | "en_gestion" | null = null;
       let atribucionDetalle: string | null = null;
 
       if (estado === "fuera") {
-        if (!soportesCompletos) {
-          atribucionDemora = "demora_facilitador";
-          atribucionDetalle = "Soportes requeridos pendientes o incompletos por parte del facilitador";
-        } else if (diasCargaFacilitador != null && diasCargaFacilitador > PLAZO_BUSINESS_DAYS) {
+        // Certificates HAVE ALREADY BEEN ISSUED.
+        // It is contradictory and inaccurate to state "soportes pendientes" once certificates exist.
+        // Delay is only attributed to the facilitator if there is evidence they submitted files late.
+        if (diasCargaFacilitador != null && diasCargaFacilitador > PLAZO_BUSINESS_DAYS) {
           atribucionDemora = "demora_facilitador";
           atribucionDetalle = `Facilitador remitió soportes con retraso (${diasCargaFacilitador} días hábiles tras ejecución; plazo: ${PLAZO_BUSINESS_DAYS}d)`;
         } else {
           atribucionDemora = "en_gestion";
-          atribucionDetalle = `Soportes recibidos en plazo (${diasCargaFacilitador ?? 0}d). En trámite interno de emisión`;
+          atribucionDetalle =
+            diasCargaFacilitador != null
+              ? `Soportes recibidos en plazo (${diasCargaFacilitador}d). En trámite interno de emisión`
+              : "Certificados emitidos. En trámite interno de emisión";
         }
       } else if (estado === "pendiente" && (brechaDias ?? 0) > 0) {
         if (!soportesCompletos) {
@@ -823,6 +869,53 @@ export async function getIndicadoresCertificados72h(
       rowById.set(r.osiId, r);
       if (r.nroOsi) {
         rowByNro.set(r.nroOsi.trim().toLowerCase(), r);
+      }
+    }
+
+    // Auto-link candidate Multi-OSI services (coinciding in execution date & course topic)
+    // that have not been explicitly separated or manually adjusted by the user.
+    // This ensures that multi-client / inter-empresa training sessions are evaluated as
+    // 1 unified service delivery in "Por Servicios" mode, and companion OSIs (e.g. 3667, 3764
+    // alongside 3658; 3726 alongside 3606) inherit the service certificates and documentation.
+    const candidateCourseMap = new Map<string, IndicadorOsiRow[]>();
+    for (const r of allRows) {
+      if (!r.fechaEjecucion) continue;
+      const dateKey = r.fechaEjecucion.slice(0, 10);
+      const svcKey = (r.servicio || "").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+      if (!svcKey) continue;
+      const key = `${dateKey}_${svcKey}`;
+      const list = candidateCourseMap.get(key) || [];
+      list.push(r);
+      candidateCourseMap.set(key, list);
+    }
+
+    for (const [, group] of candidateCourseMap.entries()) {
+      if (group.length <= 1) continue;
+      // Respect manual decisions: if any member already has an explicit reference, do not override
+      const alreadyLinked = group.some(
+        (m) => m.osiReferenciaId != null || m.nroOsiReferencia != null || m.isChildService
+      );
+      if (alreadyLinked) continue;
+
+      // Select representative parent OSI: prefer the one that already has certificates emitted,
+      // then the one with uploads, then lowest osiId
+      const sorted = [...group].sort((a, b) => {
+        const aCert = a.fechaEmision ? 1 : 0;
+        const bCert = b.fechaEmision ? 1 : 0;
+        if (aCert !== bCert) return bCert - aCert;
+        const aUp = a.soportesCompletos ? 1 : 0;
+        const bUp = b.soportesCompletos ? 1 : 0;
+        if (aUp !== bUp) return bUp - aUp;
+        return a.osiId - b.osiId;
+      });
+
+      const parent = sorted[0];
+      const children = sorted.slice(1);
+
+      for (const child of children) {
+        child.osiReferenciaId = parent.osiId;
+        child.nroOsiReferencia = parent.nroOsi;
+        child.emitidoEnOtraOsi = true;
       }
     }
 
@@ -989,15 +1082,15 @@ export async function getIndicadoresCertificados72h(
       }
 
       if (groupEstado === "fuera") {
-        if (!groupSoportesCompletos) {
-          groupAtribucionDemora = "demora_facilitador";
-          groupAtribucionDetalle = "Soportes requeridos pendientes o incompletos por parte del facilitador";
-        } else if (groupDiasCargaFacilitador != null && groupDiasCargaFacilitador > PLAZO_BUSINESS_DAYS) {
+        if (groupDiasCargaFacilitador != null && groupDiasCargaFacilitador > PLAZO_BUSINESS_DAYS) {
           groupAtribucionDemora = "demora_facilitador";
           groupAtribucionDetalle = `Facilitador remitió soportes con retraso (${groupDiasCargaFacilitador} días hábiles tras ejecución; plazo: ${PLAZO_BUSINESS_DAYS}d)`;
         } else {
           groupAtribucionDemora = "en_gestion";
-          groupAtribucionDetalle = `Soportes recibidos en plazo (${groupDiasCargaFacilitador ?? 0}d). En trámite interno de emisión`;
+          groupAtribucionDetalle =
+            groupDiasCargaFacilitador != null
+              ? `Soportes recibidos en plazo (${groupDiasCargaFacilitador}d). En trámite interno de emisión`
+              : "Certificados emitidos. En trámite interno de emisión";
         }
       } else if (groupEstado === "pendiente" && (groupBrechaDias ?? 0) > 0) {
         if (!groupSoportesCompletos) {
