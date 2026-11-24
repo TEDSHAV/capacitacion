@@ -71,6 +71,16 @@ export interface CoberturaFilters {
   searchQuery?: string | null;
 }
 
+export interface CoberturaOsiSesion {
+  nroSesion: number;
+  fecha: string;
+  horaInicio: string | null;
+  horaFin: string | null;
+  ejecutada: boolean;
+  salon: string | null;
+  salonCanonicalId: string | null;
+}
+
 export interface CoberturaOsiItem {
   idOsi: number;
   nroOsi: string;
@@ -92,6 +102,7 @@ export interface CoberturaOsiItem {
   horasAcademicas: number;
   certificadosEmitidos: number;
   participantesEstimados: number;
+  sesiones: CoberturaOsiSesion[];
 }
 
 export interface CoberturaTemaItem {
@@ -222,6 +233,7 @@ export async function getCoberturaGeograficaData(
       empresaSedesRows,
       evalsRows,
       notasRows,
+      sesionesRows,
     ] = await Promise.all([
       // 1. All capacitación OSIs with location, execution dates and hours
       fetchTableParallel<{
@@ -336,12 +348,13 @@ export async function getCoberturaGeograficaData(
       // 8. Execution steps metadata (authoritative Salón SHA tracking)
       fetchTableParallel<{
         osi_id: number;
+        nro_sesion: number | null;
         step_metadata: Record<string, unknown> | null;
       }>(() => {
         return supabase
           .from("capacitacion_proceso_steps")
-          .select("osi_id, step_metadata", { count: "exact" })
-          .not("step_metadata->salon", "is", null)
+          .select("osi_id, nro_sesion, step_metadata", { count: "exact" })
+          .or("step_metadata->>salon.not.is.null,step_metadata->>salon_id.not.is.null")
           .order("osi_id", { ascending: true });
       }, "capacitacion_proceso_steps_with_salon"),
 
@@ -378,6 +391,22 @@ export async function getCoberturaGeograficaData(
           .ilike("nota", "%Salón SHA%")
           .order("osi_id", { ascending: true });
       }, "capacitacion_osi_notas_salon"),
+
+      // 12. OSI sessions (dates, times, execution status for classroom calendar)
+      fetchTableParallel<{
+        id_osi: number | null;
+        nro_sesion: number | null;
+        fecha: string | null;
+        hora_inicio: string | null;
+        hora_fin: string | null;
+        fecha_ejecutada: string | null;
+      }>(() => {
+        return supabase
+          .from("osi_sesion")
+          .select("id_osi, nro_sesion, fecha, hora_inicio, hora_fin, fecha_ejecutada", { count: "exact" })
+          .order("id_osi", { ascending: true })
+          .order("nro_sesion", { ascending: true });
+      }, "osi_sesion"),
     ]);
 
     const tFetch = performance.now();
@@ -405,6 +434,7 @@ export async function getCoberturaGeograficaData(
 
     // Salon mapping: Proceso steps metadata + Course Evaluations + Audit notes
     const salonByOsiId = new Map<number, string>();
+    const salonByOsiSession = new Map<string, string>();
 
     // 1. Proceso steps (tracking or live confirmation)
     for (const step of stepsRows) {
@@ -414,6 +444,9 @@ export async function getCoberturaGeograficaData(
           const clean = val.trim();
           if (clean && clean !== "null" && clean !== "undefined") {
             salonByOsiId.set(step.osi_id, clean);
+            if (step.nro_sesion != null) {
+              salonByOsiSession.set(`${step.osi_id}_${step.nro_sesion}`, clean);
+            }
           }
         }
       }
@@ -439,10 +472,21 @@ export async function getCoberturaGeograficaData(
     // 3. Audit notes (historical confirmation logs: "Salón SHA: Salón 1", etc.)
     for (const n of notasRows) {
       if (n.osi_id && !salonByOsiId.has(n.osi_id) && n.nota) {
+        const lowerNota = n.nota.toLowerCase();
+        if (lowerNota.includes("removido") || lowerNota.includes("desasignado")) {
+          continue;
+        }
         const match = n.nota.match(/Salón SHA:?\s*([^.\n|]+)/i);
         if (match && match[1]) {
           const clean = match[1].trim();
-          if (clean && clean !== "null" && clean !== "undefined") {
+          const cleanLower = clean.toLowerCase();
+          if (
+            clean &&
+            clean !== "null" &&
+            clean !== "undefined" &&
+            !cleanLower.includes("sin asignar") &&
+            !cleanLower.includes("por confirmar")
+          ) {
             salonByOsiId.set(n.osi_id, clean);
           }
         }
@@ -489,8 +533,18 @@ export async function getCoberturaGeograficaData(
       }
     }
 
+    // Group sessions by id_osi
+    const sesionesByOsiId = new Map<number, typeof sesionesRows>();
+    for (const s of sesionesRows) {
+      if (!s.id_osi || !s.fecha) continue;
+      const list = sesionesByOsiId.get(s.id_osi);
+      if (list) list.push(s);
+      else sesionesByOsiId.set(s.id_osi, [s]);
+    }
+
     // ── Normalize and Filter OSIs ────────────────────────────────────────────
     const normalizedOsis: CoberturaOsiItem[] = [];
+    const shaOsisAllRooms: CoberturaOsiItem[] = [];
 
     for (const o of osisRows) {
       if (!o.id_osi) continue;
@@ -542,6 +596,33 @@ export async function getCoberturaGeograficaData(
         idEmpresa = empresaIdByName.get(o.nombre_empresa.toLowerCase().trim()) ?? null;
       }
 
+      const rawSesiones = sesionesByOsiId.get(o.id_osi) || [];
+      const sesiones: CoberturaOsiSesion[] = rawSesiones
+        .filter((s) => Boolean(s.fecha))
+        .map((s) => {
+          const nro = s.nro_sesion ?? 1;
+          const rawSesSalon = salonByOsiSession.get(`${o.id_osi}_${nro}`);
+          const sesSalon = rawSesSalon ? normalizeSalonName(rawSesSalon) : salon;
+          const sesCanon = sesSalon ? getSalonCanonicalId(sesSalon) : salonCanonicalId;
+          return {
+            nroSesion: nro,
+            fecha: (s.fecha || "").slice(0, 10),
+            horaInicio: s.hora_inicio || null,
+            horaFin: s.hora_fin || null,
+            ejecutada: Boolean(s.fecha_ejecutada),
+            salon: sesSalon,
+            salonCanonicalId: sesCanon,
+          };
+        });
+
+      const sesionDates = sesiones.map((s) => s.fecha).filter(Boolean).sort();
+      const effectiveStart = o.fecha_inicio_real || sesionDates[0] || null;
+      const effectiveEnd =
+        o.fecha_fin_real ??
+        (sesionDates.length > 0 ? sesionDates[sesionDates.length - 1] : null) ??
+        o.fecha_inicio_real ??
+        o.fecha_emision;
+
       const item: CoberturaOsiItem = {
         idOsi: o.id_osi,
         nroOsi: o.nro_osi || `OSI-${o.id_osi}`,
@@ -558,11 +639,12 @@ export async function getCoberturaGeograficaData(
         idEstado,
         ciudadNombre,
         idCiudad,
-        fechaInicio: o.fecha_inicio_real,
-        fechaFin: o.fecha_fin_real ?? o.fecha_inicio_real ?? o.fecha_emision,
+        fechaInicio: effectiveStart,
+        fechaFin: effectiveEnd,
         horasAcademicas: horas,
         certificadosEmitidos: certsCount,
         participantesEstimados: partEst,
+        sesiones,
       };
 
       // ── Apply Filters ───────────────────────────────────────────────────────
@@ -578,17 +660,24 @@ export async function getCoberturaGeograficaData(
       // 4. Curso
       if (filters.cursoId && item.idServicio !== filters.cursoId) continue;
 
-      // 5. Salón / Instalaciones SHA (using robust canonical matcher)
-      if (filters.salon && !matchSalonFilter(item.salon, filters.salon, item.isShaVenue)) {
-        continue;
+      // 5. Date Range (check session dates first if available, else OSI date)
+      if (filters.dateFrom || filters.dateTo) {
+        const fromStr = filters.dateFrom ? filters.dateFrom.slice(0, 10) : null;
+        const toStr = filters.dateTo ? filters.dateTo.slice(0, 10) : null;
+        const candidateDates =
+          sesionDates.length > 0
+            ? sesionDates
+            : [(item.fechaFin || item.fechaInicio || "").slice(0, 10)].filter(Boolean);
+
+        const matchesDate = candidateDates.some((d) => {
+          if (fromStr && d < fromStr) return false;
+          if (toStr && d > toStr) return false;
+          return true;
+        });
+        if (!matchesDate) continue;
       }
 
-      // 6. Date Range (using clean YYYY-MM-DD prefix)
-      const osiDate = (item.fechaFin || item.fechaInicio || "").slice(0, 10);
-      if (filters.dateFrom && (!osiDate || osiDate < filters.dateFrom.slice(0, 10))) continue;
-      if (filters.dateTo && (!osiDate || osiDate > filters.dateTo.slice(0, 10))) continue;
-
-      // 7. Search query (now includes salon name)
+      // 6. Search query (now includes salon name)
       if (filters.searchQuery) {
         const q = filters.searchQuery.toLowerCase().trim();
         const match =
@@ -602,6 +691,15 @@ export async function getCoberturaGeograficaData(
           (item.salon && item.salon.toLowerCase().includes(q));
 
         if (!match) continue;
+      }
+
+      if (item.isShaVenue) {
+        shaOsisAllRooms.push(item);
+      }
+
+      // 7. Salón / Instalaciones SHA (using robust canonical matcher)
+      if (filters.salon && !matchSalonFilter(item.salon, filters.salon, item.isShaVenue)) {
+        continue;
       }
 
       normalizedOsis.push(item);
@@ -846,7 +944,8 @@ export async function getCoberturaGeograficaData(
         : 0;
 
     // ── Calculate SHA Classroom Usage Metrics (Aulas SHA) ────────────────────
-    const shaOsis = normalizedOsis.filter((o) => o.isShaVenue);
+    // Computed over shaOsisAllRooms so pill counts remain accurate when filtering by a specific classroom
+    const shaOsis = shaOsisAllRooms;
     const totalCursosSha = shaOsis.length;
     let totalCertificadosSha = 0;
     let totalHorasAcademicasSha = 0;
@@ -878,8 +977,8 @@ export async function getCoberturaGeograficaData(
     const classroomBuckets: Record<string, ClassroomBucket> = {
       "salon-principal": {
         id: "salon-principal",
-        nombre: "Salón 1 (Principal)",
-        shortNombre: "Salón 1",
+        nombre: "Salón Principal",
+        shortNombre: "Salón Principal",
         badgeColor: "sky",
         totalCursos: 0,
         totalCertificados: 0,
@@ -979,8 +1078,8 @@ export async function getCoberturaGeograficaData(
       totalEmpresas: b.empresasSet.size,
       promedioCertsPorCurso: b.totalCursos > 0 ? Math.round((b.totalCertificados / b.totalCursos) * 10) / 10 : 0,
       porcentajeUso: totalCursosSha > 0 ? Math.round((b.totalCursos / totalCursosSha) * 1000) / 10 : 0,
-      temasTop: Array.from(b.temasMap.values()).sort((x, y) => y.certs - x.certs || y.cursos - x.cursos).slice(0, 3),
-      empresasTop: Array.from(b.empresasMap.values()).sort((x, y) => y.certs - x.certs || y.cursos - x.cursos).slice(0, 3),
+      temasTop: Array.from(b.temasMap.values()).sort((x, y) => y.cursos - x.cursos || y.certs - x.certs).slice(0, 4),
+      empresasTop: Array.from(b.empresasMap.values()).sort((x, y) => y.cursos - x.cursos || y.certs - x.certs).slice(0, 4),
       ultimaFecha: b.ultimaFecha,
     }));
 

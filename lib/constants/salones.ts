@@ -1,9 +1,9 @@
 /**
  * Salones disponibles en las instalaciones de SHA de Venezuela.
- * Opciones canónicas: Salón 1 (Principal), Salón Oriente, Salón Elite.
+ * Opciones canónicas: Salón Principal, Salón Oriente, Salón Elite.
  */
 export const SALONES_SHA = [
-  "Salón 1",
+  "Salón Principal",
   "Salón Oriente",
   "Salón Elite",
 ] as const;
@@ -21,12 +21,14 @@ export interface SalonShaDefinition {
 export const SALONES_SHA_CONFIG: SalonShaDefinition[] = [
   {
     id: "salon-principal",
-    nombre: "Salón 1 (Principal)",
-    shortNombre: "Salón 1",
+    nombre: "Salón Principal",
+    shortNombre: "Salón Principal",
     slugs: [
       "salon-principal",
       "salón principal",
       "salon principal",
+      "salón 1 (principal)",
+      "salon 1 (principal)",
       "principal",
       "salón 1",
       "salon 1",
@@ -96,7 +98,7 @@ export function normalizeSalonName(raw?: string | null): string | null {
     lower.includes("salón 1") ||
     lower.includes("salon 1")
   ) {
-    return "Salón 1 (Principal)";
+    return "Salón Principal";
   }
   if (lower.includes("salón oriente") || lower.includes("salon oriente")) {
     return "Salón Oriente";

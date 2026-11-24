@@ -11,12 +11,13 @@ import {
 
 describe("Cobertura Geográfica: SHA Classrooms & Filters Suite", () => {
   describe("1. Salon Normalization & Canonical Identifiers", () => {
-    it("should normalize Salón 1 variants to 'Salón 1 (Principal)'", () => {
+    it("should normalize Salón 1 / Principal variants to 'Salón Principal'", () => {
       const variants = [
         "Salón 1",
         "salon 1",
         "salón 1",
         "Salón Principal",
+        "Salón 1 (Principal)",
         "salon-principal",
         "principal",
         "1",
@@ -25,8 +26,8 @@ describe("Cobertura Geográfica: SHA Classrooms & Filters Suite", () => {
       for (const v of variants) {
         assert.equal(
           normalizeSalonName(v),
-          "Salón 1 (Principal)",
-          `Variant '${v}' failed to normalize to 'Salón 1 (Principal)'`,
+          "Salón Principal",
+          `Variant '${v}' failed to normalize to 'Salón Principal'`,
         );
         assert.equal(
           getSalonCanonicalId(v),

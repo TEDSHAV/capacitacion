@@ -4,9 +4,9 @@ import { getCoberturaGeograficaData } from "@/app/actions/cobertura-geografica";
 import CoberturaGeograficaClient from "./CoberturaGeograficaClient";
 
 export const metadata = {
-  title: "Cobertura Geográfica y Sedes | Capacitación PRISMA",
+  title: "Calendario y Aulas SHA | Capacitación PRISMA",
   description:
-    "Auditoría gerencial de cursos impartidos, temas capacitados y certificados emitidos por ubicación geográfica, estado y sede.",
+    "Control de ocupación, disponibilidad semanal y asignación de salones en instalaciones SHA.",
 };
 
 export default async function CoberturaGeograficaPage() {
@@ -20,8 +20,8 @@ export default async function CoberturaGeograficaPage() {
     redirect(`${process.env.NEXT_PUBLIC_SHELL_URL}/auth/login`);
   }
 
-  // Pre-fetch initial data (all historical or default year)
-  const { data: initialData } = await getCoberturaGeograficaData();
+  // Pre-fetch initial SHA classroom data
+  const { data: initialData } = await getCoberturaGeograficaData({ salon: "all_sha" });
 
   return (
     <CoberturaGeograficaClient
