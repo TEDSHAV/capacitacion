@@ -88,6 +88,7 @@ The navigation system provides:
 - Reportes
   - KPI
   - Indicadores
+  - Cobertura Geográfica
 - Certificados
   - Generación (online-only)
   - Gestión

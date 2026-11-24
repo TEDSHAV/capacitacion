@@ -26,6 +26,7 @@ import {
   ClipboardCheck,
   Mail,
   MailCheck,
+  MapPin,
 } from "lucide-react";
 
 type LucideIcon = typeof BookOpen;
@@ -156,6 +157,13 @@ export default function CapacitacionClient({
           description: "Gestión mensual de OSIs, 72 horas y contratación de facilitadores",
           icon: Gauge,
           href: "/dashboard/capacitacion/indicadores",
+        },
+        {
+          id: "cobertura-geografica",
+          title: "Cobertura Geográfica",
+          description: "Auditoría geográfica de cursos, sedes y uso de aulas SHA",
+          icon: MapPin,
+          href: "/dashboard/capacitacion/cobertura-geografica",
         },
       ],
     },
