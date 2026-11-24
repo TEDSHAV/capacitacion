@@ -15,7 +15,6 @@ export async function getSignatureDataServer(
       .from("firmas")
       .select("*")
       .eq("id", parseInt(signatureId))
-      .eq("is_active", true)
       .single();
 
     if (error) {

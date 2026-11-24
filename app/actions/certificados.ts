@@ -2012,15 +2012,48 @@ export async function updateCertificateAction(
   try {
     const supabase = await createClient();
 
-    // 1. Get existing certificate to keep control numbers
+    // 1. Get existing certificate to keep control numbers and fallback signature data
     const { data: existingCert, error: getError } = await supabase
       .from("certificados")
-      .select("nro_libro, nro_hoja, nro_linea, nro_control, id_participante")
+      .select("nro_libro, nro_hoja, nro_linea, nro_control, id_participante, snapshot_contenido")
       .eq("id", certificateId)
       .single();
 
     if (getError || !existingCert) {
       throw new Error("Certificate not found");
+    }
+
+    // Preserve or enrich sha_signature_data so editing never strips the SHA signature
+    let updatedCertificateData = certificateData;
+    if (certificateData.sha_signature_id && !(certificateData as any).sha_signature_data) {
+      let resolvedShaData: any = null;
+      if (existingCert.snapshot_contenido) {
+        try {
+          const prevSnap = JSON.parse(existingCert.snapshot_contenido);
+          if (
+            prevSnap?.firmas?.sha_signature_data &&
+            String(prevSnap.firmas.sha_signature_id) === String(certificateData.sha_signature_id)
+          ) {
+            resolvedShaData = prevSnap.firmas.sha_signature_data;
+          }
+        } catch {
+          // Ignore malformed previous snapshot
+        }
+      }
+
+      if (!resolvedShaData) {
+        const { getSignatureDataServer } = await import("./certificate-data");
+        resolvedShaData = await getSignatureDataServer(
+          certificateData.sha_signature_id.toString(),
+        );
+      }
+
+      if (resolvedShaData) {
+        updatedCertificateData = {
+          ...certificateData,
+          sha_signature_data: resolvedShaData,
+        } as CertificateGeneration;
+      }
     }
 
     // 2. Update participant details if they changed
@@ -2043,7 +2076,7 @@ export async function updateCertificateAction(
     // 3. Generate updated snapshot
     // We use the existing participant ID
     const updatedSnapshot = generateContentSnapshot(
-      certificateData,
+      updatedCertificateData,
       participant,
       existingCert.id_participante,
     );
